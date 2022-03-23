@@ -1,0 +1,26 @@
+{
+  "key_prefix": [
+    {
+      "carbonio-files/": {
+        "policy": "read"
+      }
+    }
+  ],
+  "node_prefix": [
+    {
+      "": {
+        "policy": "read"
+      }
+    }
+  ],
+  "service": [
+    {
+      "carbonio-files": {
+        "policy": "write"
+      },
+      "carbonio-files-sidecar-proxy": {
+        "policy": "write"
+      }
+    }
+  ]
+}

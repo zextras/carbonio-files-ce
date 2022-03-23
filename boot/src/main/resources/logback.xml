@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
+<configuration>
+
+  <appender class="ch.qos.logback.core.FileAppender" name="FILE">
+    <append>true</append>
+    <encoder>
+      <pattern>%-4relative [%thread] %-5level %logger{35} - %msg %n</pattern>
+    </encoder>
+    <file>/var/log/carbonio/files/carbonio-files.log</file>
+  </appender>
+
+  <!-- To log generated queries-->
+  <!-- <logger name="io.ebean.DDL" level="TRACE"/>-->
+  <!-- <logger name="io.ebean.SQL" level="TRACE"/>-->
+  <!-- <logger name="io.ebean.TXN" level="TRACE"/>-->
+  <!-- <logger name="io.ebean" level="TRACE"/> -->
+
+  <root level="INFO">
+    <appender-ref ref="FILE"/>
+  </root>
+
+</configuration>

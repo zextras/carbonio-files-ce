@@ -1,0 +1,106 @@
+targets=(
+  "ubuntu"
+  "centos"
+)
+pkgname="carbonio-files-ce"
+pkgver="0.2.0"
+pkgrel="1"
+pkgdesc="Carbonio Files"
+pkgdesclong=(
+  "Carbonio Files"
+)
+maintainer="Zextras <packages@zextras.com>"
+arch="amd64"
+license=("spdx:AGPL-3.0-only")
+section="admin"
+priority="optional"
+url="https://www.zextras.com/"
+depends=(
+  "service-discover"
+  "pending-setups"
+  "carbonio-openjdk"
+)
+sources=(
+  "carbonio-files"
+  "carbonio-files.hcl"
+  "carbonio-files.service"
+  "carbonio-files-sidecar.service"
+  "carbonio-files-setup.sh"
+  "carbonio-files.jar"
+  "config.properties"
+  "intentions.json"
+  "policies.json"
+  "service-protocol.json"
+
+)
+hashsums=(
+  "skip"
+  "skip"
+  "skip"
+  "skip"
+  "skip"
+  "skip"
+  "skip"
+  "skip"
+  "skip"
+  "skip"
+)
+backup=(
+    "/etc/zextras/service-discover/carbonio-files.hcl"
+    "/etc/carbonio/files/config.properties"
+)
+
+package() {
+  cd "${srcdir}"
+  install -Dm 755 carbonio-files "${pkgdir}/usr/bin/carbonio-files"
+  install -Dm 755 carbonio-files.jar "${pkgdir}/usr/bin/carbonio/files/carbonio-files.jar"
+  install -Dm 644 carbonio-files.service "${pkgdir}/lib/systemd/system/carbonio-files.service"
+  install -Dm 644 carbonio-files-sidecar.service "${pkgdir}/lib/systemd/system/carbonio-files-sidecar.service"
+  install -Dm 644 carbonio-files.hcl "${pkgdir}/etc/zextras/service-discover/carbonio-files.hcl"
+  install -Dm 644 carbonio-files-setup.sh "${pkgdir}/etc/zextras/pending-setups.d/carbonio-files.sh"
+  install -Dm 644 config.properties "${pkgdir}/etc/carbonio/files/config.properties"
+  install -Dm 644 intentions.json "${pkgdir}/etc/carbonio/files/service-discover/intentions.json"
+  install -Dm 644 policies.json "${pkgdir}/etc/carbonio/files/service-discover/policies.json"
+  install -Dm 644 service-protocol.json "${pkgdir}/etc/carbonio/files/service-discover/service-protocol.json"
+}
+
+postinst() {
+  getent group 'carbonio-files' >/dev/null ||
+    groupadd -r 'carbonio-files'
+  getent passwd 'carbonio-files' >/dev/null ||
+    useradd -r -M -g 'carbonio-files' -s /sbin/nologin 'carbonio-files'
+
+  if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload >/dev/null 2>&1 || :
+    systemctl enable carbonio-files.service >/dev/null 2>&1 || :
+    systemctl enable carbonio-files-sidecar.service >/dev/null 2>&1 || :
+  fi
+
+  echo "======================================================"
+  echo "Carbonio Files installed successfully!"
+  echo "You must run pending-setups to configure it correctly."
+  echo "======================================================"
+}
+
+prerm() {
+  if [ -d /run/systemd/system ]; then
+    systemctl --no-reload disable carbonio-files.service >/dev/null 2>&1 || :
+    systemctl --no-reload disable carbonio-files-sidecar.service >/dev/null 2>&1 || :
+    systemctl stop carbonio-files.service >/dev/null 2>&1 || :
+    systemctl stop carbonio-files-sidecar.service >/dev/null 2>&1 || :
+  fi
+}
+
+postrm() {
+  rm -Rf /usr/bin/carbonio-files
+  rm -Rf /usr/bin/carbonio/files/
+  rm -Rf /etc/carbonio/files/
+  rm -f /lib/systemd/system/carbonio-files.service
+  rm -f /lib/systemd/system/carbonio-files-sidecar.service
+  rm -f /etc/zextras/service-discover/carbonio-files.hcl
+  rm -f /etc/zextras/pending-setups.d/carbonio-files.sh
+  rm -f /etc/zextras/pending-setups.d/done/carbonio-files.sh
+  if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload >/dev/null 2>&1 || :
+  fi
+}

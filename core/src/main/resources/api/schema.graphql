@@ -1,0 +1,614 @@
+# SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Files API - GraphQL Schema v. 0.1.0
+
+# The Scalar type represents the date on the timestamp EPOCH format.
+scalar DateTime
+
+# Definition of the User type
+type User {
+    # Unique identifier of the folder
+    id: ID!
+
+    # Email of the user
+    email: String!
+
+    # Full name of the user
+    full_name: String!
+}
+
+type DistributionList {
+    id: ID!
+
+    name: String!
+
+    users(
+        # Limit: an integer of how many elements to fetch (mandatory)
+        limit: Int!,
+
+        # Cursor: a string of the last node id fetched in the previous page (optional)
+        cursor: String,
+    ): [User]!
+}
+
+union SharedTarget = User | DistributionList
+union Account = User | DistributionList
+
+# The SharePermissions enumerator represents the permissions of a node shared with a user
+enum SharePermission {
+    READ_ONLY
+    READ_AND_WRITE
+    READ_AND_SHARE
+    READ_WRITE_AND_SHARE
+}
+
+# Definition of the NodeSort enumerator. This is useful for sorting the result of a list of nodes.
+enum NodeSort {
+    LAST_EDITOR_ASC
+    LAST_EDITOR_DESC
+    NAME_ASC
+    NAME_DESC
+    OWNER_ASC
+    OWNER_DESC
+    TYPE_ASC
+    TYPE_DESC
+    UPDATED_AT_ASC
+    UPDATED_AT_DESC
+    SIZE_ASC
+    SIZE_DESC
+}
+
+# Definition of the ShareSort enumerator. This is useful for sorting the result of a list of shares.
+enum ShareSort {
+    CREATION_ASC
+    CREATION_DESC
+
+    # The order is based on the target user identifier and not on his email or display name.
+    TARGET_USER_ASC
+
+    # The order is based on the target user identifier and not on his email or display name.
+    TARGET_USER_DESC
+
+    # The order is ascending: this means that first are shown the shares with fewer permissions.
+    SHARE_PERMISSIONS_ASC
+
+    # The order is descending: this means that first are shown the shares with more permissions.
+    SHARE_PERMISSIONS_DESC
+    EXPIRATION_ASC
+    EXPIRATION_DESC
+}
+
+#Definition of NodeType enumerator. This is used for discriminating the specific type of a node
+enum NodeType {
+    IMAGE
+    VIDEO
+    AUDIO
+    TEXT
+    SPREADSHEET
+    PRESENTATION
+    FOLDER
+    APPLICATION
+    MESSAGE
+    ROOT
+    OTHER
+}
+# Definition of Permissions type. It represents all the permissions that the requester user has on a specific node.
+#
+#+---------------------------------+-------------------------------------------------------+
+#| Operation                       | Permission                                            |
+#+---------------------------------+-------------------------------------------------------+
+#| Create folder                   | Destination folder: Write and not trashed             |
+#+---------------------------------+-------------------------------------------------------+
+#| Upload node                     | Destination folder: Write and not trashed             |
+#+---------------------------------+-------------------------------------------------------+
+#| Copy node                       | Node to copy: Read                                    |
+#|                                 | Destination folder: Write and not trashed             |
+#+---------------------------------+-------------------------------------------------------+
+#| Move node                       | Node to move: Write                                   |
+#|                                 | Destination folder: Write and not trashed             |
+#+---------------------------------+-------------------------------------------------------+
+#| Download node                   | Read                                                  |
+#+---------------------------------+-------------------------------------------------------+
+#| Delete node                     | Only the owner can delete a node                      |
+#+---------------------------------+-------------------------------------------------------+
+#| List folder                     | Read Folder                                           |
+#+---------------------------------+-------------------------------------------------------+
+#| Get metadata                    | Read                                                  |
+#+---------------------------------+-------------------------------------------------------+
+#| Update metadata                 | Write                                                 |
+#+---------------------------------+-------------------------------------------------------+
+#| Trash/Untrash a node            | Write                                                 |
+#+---------------------------------+-------------------------------------------------------+
+#| Flag/Unflag a node              | Read                                                  |
+#+---------------------------------+-------------------------------------------------------+
+
+type Permissions {
+    can_read: Boolean!
+    can_write_file: Boolean!
+    can_write_folder: Boolean!
+    can_delete: Boolean!
+    can_add_version: Boolean!
+    can_read_link: Boolean!
+    can_change_link: Boolean!
+    can_share: Boolean!
+    can_read_share: Boolean!
+    can_change_share: Boolean!
+}
+
+# Definition of the Share type. It represents a share between a node and a user.
+type Share {
+    # Share creation timestamp
+    created_at: DateTime!
+
+    # Node shared
+    node: Node!
+
+    # User to whom a node has been shared
+    share_target: SharedTarget
+
+    # User permission for the node
+    permission: SharePermission!
+
+    # Share expiration timestamp
+    expires_at: DateTime
+}
+
+# Definition of the Link type. It represents a public link of a specific node.
+# Temporarily only a file can have a link
+type Link {
+    # Unique identifier of the link.
+    id: ID!
+
+    # Full URL to access the related node. It will be returned only if the requester has the
+    # <strong>can_share<strong> permission on the node. However anyone who has this link can
+    # download the node.
+    url: String
+
+    # Node related to this link.
+    node: Node!
+
+    # Link creation timestamp.
+    created_at: DateTime!
+
+    # Link expiration timestamp.
+    expires_at: DateTime
+
+    # Link description. It must be shorter than 300 characters.
+    description: String
+}
+
+# Definition of the Node interface
+interface Node {
+    # Unique identifier of the node
+    id: ID!
+
+    # Creator of the node (it will be a User type when it will be implemented)
+    creator: User!
+
+    # Owner of the node (it will be a User type when it will be implemented)
+    owner: User!
+
+    # Last user who has edited the node (it will be a User type when it will be implemented)
+    last_editor: User
+
+    # Node creation timestamp
+    created_at: DateTime!
+
+    # Node update timestamp
+    updated_at: DateTime!
+
+    # Node permissions of the user making the request
+    permissions: Permissions!
+
+    # Name of the file/folder
+    name: String!
+
+    # Description of the file/folder
+    description: String!
+
+    # Type of the node
+    type: NodeType!
+
+    # True if the owner has marked the node as favourite, false otherwise
+    flagged: Boolean!
+
+    # Parent folder containing the node. The parent can be null when the current node is the root folder
+    parent: Node
+
+    # The top level root where the node resides
+    rootId: ID
+
+    # Specific share of the current node with the target user (if exists)
+    share(share_target_id: ID!) : Share
+
+    # List of shares of the current node (if they exist)
+    shares(
+        # Limit: an integer of how many elements to fetch (mandatory)
+        limit: Int!,
+
+        # Cursor: a string of the last target user id fetched in the previous page (optional)
+        cursor: String,
+
+        # Sorts: a list of ShareSort containing all the sort order desired (optional).
+        # If it is not specified, a CREATION_ASC sort is applied by default.
+        sorts: [ShareSort!]
+    ): [Share]!
+
+    links: [Link]!
+}
+
+# Definition of the Folder type which implements the Node interface
+type Folder implements Node {
+    # Unique identifier of the folder
+    id: ID!
+
+    # Creator of the folder
+    creator: User!
+
+    # Owner of the folder
+    owner: User!
+
+    # Last user who has edited the folder
+    last_editor: User
+
+    # Folder creation timestamp
+    created_at: DateTime!
+
+    # Folder update timestamp
+    updated_at: DateTime!
+
+    # Folder permissions of the user making the request
+    permissions: Permissions!
+
+    # Name of the folder
+    name: String!
+
+    # Description of the folder
+    description: String!
+
+    # Type of the node
+    type: NodeType!
+
+    # Parent folder containing the folder. The parent can be null when the current folder is the root
+    parent: Node
+
+    # The top level root where the node resides
+    rootId: ID
+
+    # True if the owner has marked the folder as favourite, false otherwise
+    flagged: Boolean!
+
+    # List of all child nodes of a folder.
+    children(
+        # Limit: an integer of how many elements to fetch (mandatory)
+        limit: Int!,
+
+        # Cursor: a string of the last node id fetched in the previous page (optional)
+        cursor: String,
+
+        # Sort: a list of NodeSort containing all the sort order desired (optional).
+        # If it is not specified, a NAME_ASC sort is applied by default.
+        sort: NodeSort!
+    ): [Node]!
+
+    # Specific share of the current folder with the target user (if exists)
+    share(share_target_id: ID!) : Share
+
+    # List of shares of the current folder (if they exist)
+    shares(
+        # Limit: an integer of how many elements to fetch (mandatory)
+        limit: Int!,
+
+        # Cursor: a string of the last target user id fetched in the previous page (optional)
+        cursor: String,
+
+        # Sorts: a list of ShareSort containing all the sort order desired (optional).
+        # If it is not specified, a CREATION_ASC sort is applied by default.
+        sorts: [ShareSort!]
+    ): [Share]!
+
+    links: [Link]!
+}
+
+# Definition of the File type which implements the Node interface
+type File implements Node {
+    # Unique identifier of the file
+    id: ID!
+
+    # Creator of the file
+    creator: User!
+
+    # Owner of the file
+    owner: User!
+
+    # Last user who has edited the file
+    last_editor: User
+
+    # File creation timestamp
+    created_at: DateTime!
+
+    # File update timestamp
+    updated_at: DateTime!
+
+    # File permissions of the user making the request
+    permissions: Permissions!
+
+    # Name of the file
+    name: String!
+
+    # Extension of the file
+    extension: String
+
+    # Description of the file
+    description: String!
+
+    # Type of the node
+    type: NodeType!
+
+    # Mime type of the file
+    mime_type: String!
+
+    # Size of the file
+    size: Float!
+
+    # Version of the file
+    version: Int!
+
+    # Boolean representing if a version in kept forever or not
+    keep_forever: Boolean!
+
+    cloned_from_version: Int
+
+    # Parent folder containing the file
+    parent: Node
+
+    # The top level root where the node resides
+    rootId: ID
+
+    # True if the owner has marked the file as favourite, false otherwise
+    flagged: Boolean!
+
+    # Specific share of the current file with the target user (if exists)
+    share(share_target_id: ID!) : Share
+
+    # List of shares of the current file (if they exist)
+    shares(
+        # Limit: an integer of how many elements to fetch (mandatory)
+        limit: Int!,
+
+        # Cursor: a string of the last target user id fetched in the previous page (optional)
+        cursor: String,
+
+        # Sorts: a list of ShareSort containing all the sort order desired (optional).
+        # If it is not specified, a CREATION_ASC sort is applied by default.
+        sorts: [ShareSort!]
+    ): [Share]!
+
+    links: [Link]!
+}
+
+# Definition of the type Root. Represents a root folder
+type Root {
+    # Unique identifier of the root
+    id: ID!
+
+    # Name of the root
+    name: String!
+}
+
+type NodePage {
+
+    #The list of nodes of the requested page
+    nodes: [Node]!
+
+    # The token to use as a cursor for requesting the next page of nodes
+    page_token: String
+}
+
+type Query {
+    # <strong>Returns the attributes of the node specified by ID</strong>
+    getNode(
+        # The unique identifier of the node (required)
+        node_id: ID!
+
+        # The version of a file (if the id is related to a file)
+        version: Int
+    ) : Node
+
+    #<strong> Returns a NodePage based on the given criteria </strong>
+    findNodes(
+        keywords: [String!]
+        # If valued it returns only nodes with the specific flag attribute
+        flagged: Boolean
+        # If valued it returns only nodes shared by me
+        shared_by_me: Boolean
+        # If valued it returns only nodes shared with me
+        shared_with_me: Boolean
+        # If valued it returns only nodes shared directly.
+        # It should be used in conjunction with the shared_by_me or shared_with_mew attributes
+        direct_share: Boolean
+        # If valued it will search nodes starting from the given folder
+        folder_id: String
+        # This flag is only used in conjunction with the folderId field, if valued it will specify if i will search
+        # only on the given folder or also on all the subtree, if not valued by default it will search on the whole subtree
+        cascade: Boolean
+        # If valued it limits the number of nodes to return per page
+        limit: Int
+        # If valued it will return the next page of nodes based on the given page_token, if this param is passed
+        # ALL OTHER params will be ignored
+        page_token: String
+        # Specify the sort to use for the return of found nodes
+        sort: NodeSort
+    ) : NodePage
+
+    getVersions(
+        node_id: ID!
+        versions: [Int!]
+    ): [File]!
+
+    # <strong> Returns the list of nodes corresponding to the path of a node</strong>
+    # The path is ordered and returns from the highest visible one to the requested node.
+    getPath(
+        node_id: ID!
+    ): [Node]!
+
+    getUserById(
+        # The unique identifier of the user to retrieve (required)
+        user_id: ID!
+    ) : User
+
+    getAccountByEmail(
+        # The email of the user or distribution list to retrieve (required)
+        email: String!
+    ) : Account
+
+    # Returns the attributes of the specified share
+    getShare(
+        # The unique identifier of the shared node (mandatory)
+        node_id: ID!
+
+        # The unique identifier of the target user that the node is shared with (mandatory)
+        share_target_id: ID!
+    ): Share
+
+    # Returns all the links of the specified node.
+    # The response is not paginated because each node can have a maximum of 50 links.
+    getLinks(
+        node_id: ID!
+    ): [Link]!
+
+    # Returns the list of all root folders
+    getRootsList: [Root]!
+}
+
+type Mutation {
+    # <strong>Creates a new folder</strong>
+    createFolder(
+        destination_id: String!
+        name: String!
+    ) : Node!
+
+    # <strong>Update an existing node</strong>
+    updateNode(
+        node_id: String!
+        name: String
+        description: String
+        flagged: Boolean
+    ): Node!
+
+    # Allows to flag a list of nodes.
+    flagNodes(node_ids: [ID!], flag: Boolean!) : [ID!]
+
+    # Trashes a list of nodes.
+    trashNodes(node_ids: [ID!]) : [ID!]
+
+    # Restores a list of nodes.
+    restoreNodes(node_ids: [ID!]) : [Node]
+
+    # Allows to move a list of nodes into a folder destination. This operation requires write permissions on each file
+    # should be moved and write permission on the destination folder otherwise it fails.
+    moveNodes(node_ids: [ID!], destination_id: ID!) : [Node!]
+
+    # Allows to delete a list of nodes. If the node is a folder then this operation removes the node and all its children,
+    # if the node is a file then it removes all the related versions. This operation requires can_delete permission on
+    # every node that should be deleted and it cannot be reverted.
+    deleteNodes(node_ids: [ID!]): [ID!]
+
+    # Allows to copy a list of Nodes into a specified Folder.
+    copyNodes(node_ids: [ID!], destination_id: ID!): [Node!]
+
+    #TODO doc
+    deleteVersions(node_id: ID!, versions: [Int!]): [Int]!
+
+    keepVersions(node_id: ID!, versions: [Int!]!, keep_forever: Boolean!) : [Int]!
+
+    cloneVersion(node_id: ID!, version: Int!): File!
+
+    # Allows to share an existing node to a user specifying the user permissions on that node,
+    # and, optionally, an expiration timestamp.
+    createShare(
+        # The unique identifier of the node to share (mandatory)
+        node_id: ID!
+
+        # The unique identifier of the target user that the node is shared with (mandatory)
+        share_target_id: ID!
+
+        # The SharePermissions that the target user has on the node (mandatory)
+        permission: SharePermission!
+
+        # The expiration timestamp for this share (optional)
+        expires_at: DateTime
+
+        # Custom message to send when creating the share
+        custom_message: String
+    ) : Share!
+
+    # Allows to update the SharePermissions and the expiration timestamp of an existing share.
+    updateShare(
+        # The unique identifier of the shared node (mandatory)
+        node_id: ID!
+
+        # The unique identifier of the target user that the node is shared with (mandatory)
+        share_target_id: ID!
+
+        # The new SharePermissions that the target user has on the node (optional)
+        permission: SharePermission
+
+        # The expiration timestamp for this share (optional)
+        expires_at: DateTime
+    ) : Share
+
+    # Allows to delete the share of a node to a target user. It returns false if the share does not exist or the operation
+    # fails, otherwise it returns true.
+    #
+    deleteShare(
+        # The unique identifier of the shared node (mandatory)
+        node_id: ID!
+
+        # The unique identifier of the target user that the node is shared with (mandatory)
+        share_target_id: ID!
+    ) : Boolean!
+
+    # Allows to create a public link for an existing node. A link can be created only if the requester has the
+    # <strong>can_share<strong> permission on the specified node.
+    # Optionally, an expiration timestamp and/or a description can be set.
+    createLink(
+        # The unique identifier of the node to be linked (mandatory)
+        node_id: ID!
+
+        # The expiration timestamp for this link (optional). If it is not specified the link will not expire.
+        expires_at: DateTime
+
+        # The description of the link (optional). It must be shorter than 300 characters.
+        description: String
+    ): Link!
+
+    # Allows to update the expiration timestamp and/or the description of an existing link.
+    # An existing link can be updated only if the requester has the <strong>can_share<strong>
+    # permission on the specified node.
+    updateLink(
+        # The unique identifier of the link (mandatory)
+        link_id: ID!
+
+        # The expiration timestamp for this link (optional).
+        # Set 0 to disable the expiration timestamp if it was previously enabled.
+        expires_at: DateTime
+
+        # The description of the link (optional). It must be shorter than 300 characters.
+        description: String
+    ): Link
+
+    # Allows to delete a list of links in batch. It returns an array of IDs for each removed link and
+    # a list of errors for each link that could not be removed.
+    deleteLinks(
+        # An array of link unique identifiers (mandatory).
+        link_ids: [ID!]!
+    ): [ID]!
+}
+
+schema {
+    query: Query
+    mutation: Mutation
+}

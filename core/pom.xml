@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <artifactId>carbonio-files-ce-core</artifactId>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>tiles-maven-plugin</artifactId>
+        <configuration>
+          <tiles>
+            <tile>io.ebean.tile:enhancement:12.11.5</tile>
+          </tiles>
+        </configuration>
+        <extensions>true</extensions>
+        <groupId>io.repaint.maven</groupId>
+        <version>2.19</version>
+      </plugin>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <release>11</release>
+        </configuration>
+        <groupId>org.apache.maven.plugins</groupId>
+        <version>3.8.1</version>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+
+    <dependency>
+      <artifactId>netty-all</artifactId>
+      <groupId>io.netty</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>guice</artifactId>
+      <groupId>com.google.inject</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>guice-assistedinject</artifactId>
+      <groupId>com.google.inject.extensions</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>postgresql</artifactId>
+      <groupId>org.postgresql</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>ebean</artifactId>
+      <groupId>io.ebean</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>graphql-java</artifactId>
+      <groupId>com.graphql-java</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>caffeine</artifactId>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>filestore-sdk-common</artifactId>
+      <groupId>com.zextras</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>storages-ce-sdk</artifactId>
+      <groupId>com.zextras</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>carbonio-user-management-sdk</artifactId>
+      <groupId>com.zextras.carbonio.user-management</groupId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.zextras.carbonio.preview</groupId>
+      <artifactId>carbonio-preview-ce-sdk</artifactId>
+    </dependency>
+
+    <dependency>
+      <artifactId>slf4j-api</artifactId>
+      <groupId>org.slf4j</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>slf4j-simple</artifactId>
+      <groupId>org.slf4j</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>logback-classic</artifactId>
+      <groupId>ch.qos.logback</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>jackson-annotations</artifactId>
+      <groupId>com.fasterxml.jackson.core</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>jackson-databind</artifactId>
+      <groupId>com.fasterxml.jackson.core</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>commons-lang3</artifactId>
+      <groupId>org.apache.commons</groupId>
+    </dependency>
+
+    <dependency>
+      <artifactId>commons-validator</artifactId>
+      <groupId>commons-validator</groupId>
+    </dependency>
+
+  </dependencies>
+
+  <licenses>
+    <license>
+      <comments>Copyright (C) 2022 Zextras, https://www.zextras.com</comments>
+      <name>AGPL-3.0-only</name>
+    </license>
+  </licenses>
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <name>carbonio-files-ce-core</name>
+
+  <parent>
+    <artifactId>carbonio-files-ce</artifactId>
+    <groupId>com.zextras.carbonio.files</groupId>
+    <version>0.2.0</version>
+  </parent>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+</project>

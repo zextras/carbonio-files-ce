@@ -1,0 +1,473 @@
+# SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+openapi: 3.0.3
+info:
+  title: Files API
+  description: Files API to upload, download blobs and to retrieve a link of a specific node.
+  version: 0.3.0
+servers:
+  - url: 'https://example.com/services/files/'
+tags:
+  - name: Preview
+paths:
+  /health:
+    get:
+      description: Check the status of the service and its dependencies.
+      operationId: health
+      responses:
+        204:
+          description: The service is up & running
+        500:
+          description: The service is not available
+  /download/{nodeId}:
+    get:
+      description: Downloads the last version of a node
+      operationId: downloadNodeLastVersion
+      parameters:
+        - in: path
+          name: nodeId
+          description: The id of the node to download
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          $ref: '#/components/responses/200DownloadNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        403:
+          $ref: '#/components/responses/403Forbidden'
+        404:
+          $ref: '#/components/responses/404NotFound'
+  /download/{nodeId}/{version}:
+    get:
+      description: Downloads a specific version of a node
+      operationId: downloadNode
+      parameters:
+        - in: path
+          name: nodeId
+          description: The id of the node to download
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: version
+          description: The version of the node to download
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          $ref: '#/components/responses/200DownloadNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        403:
+          $ref: '#/components/responses/403Forbidden'
+        404:
+          $ref: '#/components/responses/404NotFound'
+  /link/{linkId}:
+    get:
+      description: Download the node associated to the specific link
+      operationId: linkDownload
+      parameters:
+        - in: path
+          name: linkId
+          description: The id of the existing link
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 8
+      responses:
+        200:
+          $ref: '#/components/responses/200DownloadNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        403:
+          $ref: '#/components/responses/403Forbidden'
+        404:
+          $ref: '#/components/responses/404NotFound'
+  /upload:
+    post:
+      description: Uploads a new node
+      operationId: uploadNode
+      parameters:
+        - in: header
+          name: Filename
+          description: The fullname of the file to upload encoded in Base64
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+        - in: header
+          name: Description
+          description: The description of the file to upload
+          required: false
+          allowEmptyValue: false
+          schema:
+            type: string
+            format: byte
+        - in: header
+          name: DestinationFolderId
+          description: The id of the folder where to upload the file, if omitted it will be uploaded on user Home
+          required: false
+          allowEmptyValue: false
+          schema:
+            type: string
+            format: UUID
+      requestBody:
+        $ref: '#/components/requestBodies/UploadNodeBody'
+      responses:
+        200:
+          $ref: '#/components/responses/200UploadNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        403:
+          $ref: '#/components/responses/403Forbidden'
+        404:
+          $ref: '#/components/responses/404NotFound'
+  /upload-version:
+    post:
+      description: Uploads a new version of an existing node
+      operationId: uploadNodeVersion
+      parameters:
+        - in: header
+          name: NodeId
+          description: The id of the existing node
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+            format: UUID
+        - in: header
+          name: Filename
+          description: The fullname of the node to upload encoded in Base64
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+            format: byte
+        - in: header
+          name: OverwriteVersion
+          description: If true the current version of the node is overwritten by the new one, otherwise a new version is created
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: boolean
+      requestBody:
+        $ref: '#/components/requestBodies/UploadNodeBody'
+      responses:
+        200:
+          $ref: '#/components/responses/200UploadNodeVersion'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        403:
+          $ref: '#/components/responses/403Forbidden'
+        404:
+          $ref: '#/components/responses/404NotFound'
+  /preview/image/{nodeId}/{version}/{area}/:
+    get:
+      tags:
+        - Preview
+      summary: Get image preview
+      description: |
+        Creates and returns a preview of the image fetched by id and version
+        with the given size, quality and format
+        - **nodeId**: UUID of the image
+        - **version**: version of the image
+        - **quality**: quality of the output image
+        (the higher you go the slower the process)
+        - **output_format**: format of the output image
+        - **area**: width of the output image (>=0) x
+        height of the output image (>=0), width x height => 100x200.
+        The first is width, the latter height, the order is important!
+        - **crop**: True will crop the picture starting from the borders.
+        This option will lose information, leaving it False will scale and
+        have borders to fill the requested size.
+      operationId: getImagePreview
+      parameters:
+        - $ref: '#/components/parameters/pathNodeId'
+        - $ref: '#/components/parameters/pathNodeVersion'
+        - $ref: '#/components/parameters/pathPreviewArea'
+        - $ref: '#/components/parameters/queryImageQuality'
+        - $ref: '#/components/parameters/queryImageType'
+        - $ref: '#/components/parameters/queryImageCrop'
+      responses:
+        200:
+          $ref: '#/components/responses/200PreviewNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        404:
+          $ref: '#/components/responses/404NotFound'
+        422:
+          $ref: '#/components/responses/422ValidationError'
+        502:
+          $ref: '#/components/responses/502BadGateway'
+
+  /preview/image/{nodeId}/{version}/{area}/thumbnail:
+    get:
+      tags:
+        - Preview
+      summary: Get image thumbnail
+      description: |
+        Creates and returns a preview of the image fetched by id and version
+        with the given size, quality and format
+        - **nodeId**: UUID of the image
+        - **version**: version of the image
+        - **quality**: quality of the output image
+        (the higher you go the slower the process)
+        - **output_format**: format of the output image
+        - **area**: width of the output image (>=0) x
+        height of the output image (>=0), width x height => 100x200.
+        The first is width, the latter height, the order is important!
+        - **shape**: Rounded and Rectangular are currently supported.
+      operationId: getImageThumbnail
+      parameters:
+        - $ref: '#/components/parameters/pathNodeId'
+        - $ref: '#/components/parameters/pathNodeVersion'
+        - $ref: '#/components/parameters/pathPreviewArea'
+        - $ref: '#/components/parameters/queryImageQuality'
+        - $ref: '#/components/parameters/queryImageType'
+        - $ref: '#/components/parameters/queryImageShape'
+      responses:
+        200:
+          $ref: '#/components/responses/200PreviewNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        404:
+          $ref: '#/components/responses/404NotFound'
+        422:
+          $ref: '#/components/responses/422ValidationError'
+        502:
+          $ref: '#/components/responses/502BadGateway'
+
+
+  /preview/pdf/{nodeId}/{version}/:
+    get:
+      tags:
+        - Preview
+      summary: Get pdf preview
+      description: |
+        Creates and returns a preview of the pdf fetched by id and version, 
+        the pdf file will contain the first and last page given. With default values
+        it will return a pdf with all the pages.
+        - **nodeId**: UUID of the pdf
+        - **version**: version of the pdf
+        - **first_page**: integer value of first page to preview (n>=1)
+        - **last_page**: integer value of last page to preview (0 = last of the original pdf)
+      operationId: getPdfPreview
+      parameters:
+        - $ref: '#/components/parameters/pathNodeId'
+        - $ref: '#/components/parameters/pathNodeVersion'
+        - $ref: '#/components/parameters/queryFirstPage'
+        - $ref: '#/components/parameters/queryLastPage'
+      responses:
+        200:
+          $ref: '#/components/responses/200PreviewNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        404:
+          $ref: '#/components/responses/404NotFound'
+        422:
+          $ref: '#/components/responses/422ValidationError'
+        502:
+          $ref: '#/components/responses/502BadGateway'
+
+  /preview/pdf/{nodeId}/{version}/{area}/thumbnail:
+    get:
+      tags:
+        - Preview
+      summary: Get image thumbnail
+      description: |
+        Creates and returns a preview of the image fetched by id and version
+        with the given size, quality and format
+        - **nodeId**: UUID of the pdf
+        - **version**: version of the pdf
+        - **quality**: quality of the output image
+        (the higher you go the slower the process)
+        - **output_format**: format of the output image
+        - **area**: width of the output image (>=0) x
+        height of the output image (>=0), width x height => 100x200.
+        The first is width, the latter height, the order is important!
+        - **shape**: Rounded and Rectangular are currently supported.
+      operationId: getPdfThumbnail
+      parameters:
+        - $ref: '#/components/parameters/pathNodeId'
+        - $ref: '#/components/parameters/pathNodeVersion'
+        - $ref: '#/components/parameters/pathPreviewArea'
+        - $ref: '#/components/parameters/queryImageQuality'
+        - $ref: '#/components/parameters/queryImageType'
+        - $ref: '#/components/parameters/queryImageShape'
+      responses:
+        200:
+          $ref: '#/components/responses/200PreviewNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        404:
+          $ref: '#/components/responses/404NotFound'
+        422:
+          $ref: '#/components/responses/422ValidationError'
+        502:
+          $ref: '#/components/responses/502BadGateway'
+components:
+  parameters:
+    pathNodeId:
+      in: path
+      name: nodeId
+      schema:
+        title: Id
+        type: string
+      required: true
+    pathNodeVersion:
+      in: path
+      name: version
+      schema:
+        title: Version
+        type: integer
+      required: true
+    pathPreviewArea:
+      in: path
+      name: area
+      schema:
+        title: Area
+        type: string
+      required: true
+    queryImageQuality:
+      in: query
+      name: quality
+      schema:
+        allOf:
+          - $ref: '#/components/schemas/ImageQualityEnum'
+        default: medium
+      required: false
+    queryImageType:
+      in: query
+      name: output_format
+      schema:
+        allOf:
+          - $ref: '#/components/schemas/ImageTypeEnum'
+        default: medium
+      required: false
+    queryImageCrop:
+      in: query
+      name: crop
+      schema:
+        title: Crop
+        type: boolean
+        default: false
+      required: false
+    queryImageShape:
+      in: query
+      name: shape
+      schema:
+        allOf:
+          - $ref: '#/components/schemas/ImageShapeEnum'
+        default: Rectangular
+      required: false
+    queryFirstPage:
+      in: query
+      name: first_page
+      schema:
+        title: FirstPage
+        type: integer
+      required: false
+    queryLastPage:
+      in: query
+      name: last_page
+      schema:
+        title: LastPage
+        type: integer
+      required: false
+  requestBodies:
+    UploadNodeBody:
+      description: New node data, content type header must be specified based on the file to upload
+      content:
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
+  responses:
+    200DownloadNode:
+      description: The node to download
+      content:
+        application/octet-stream:
+          schema:
+            $ref: '#/components/schemas/NodeBinary'
+    200UploadNode:
+      description: The data of the new created node
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CreatedNode'
+    200UploadNodeVersion:
+      description: The data of the new node version
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CreatedNodeVersion'
+    200PreviewNode:
+      description: The preview of the requested node
+      content:
+        application/octet-stream:
+          schema:
+            $ref: '#/components/schemas/NodeBinary'
+    400BadRequest:
+      description: The request was malformed
+    403Forbidden:
+      description: The access to the resource is denied
+    404NotFound:
+      description: The resource was not found
+    422ValidationError:
+      description: One or more values are incorrect
+    502BadGateway:
+      description: The service was unavailable
+  schemas:
+    NodeBinary:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+    CreatedNode:
+      type: object
+      properties:
+        nodeId:
+          type: string
+          format: UUID
+    CreatedNodeVersion:
+      type: object
+      properties:
+        nodeId:
+          type: string
+          format: UUID
+        version:
+          type: integer
+    ImageQualityEnum:
+      title: ImageQualityEnum
+      enum:
+        - lowest
+        - low
+        - medium
+        - high
+        - highest
+      type: string
+      description: Class representing all the image quality accepted values
+    ImageTypeEnum:
+      title: ImageTypeEnum
+      enum:
+        - jpeg
+        - png
+      type: string
+      description: Class representing all the image type accepted values
+    ImageShapeEnum:
+      title: ImageShapeEnum
+      enum:
+        - Rounded
+        - Rectangular
+      type: string
+      description: Class representing all the image shape accepted values

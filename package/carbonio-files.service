@@ -1,0 +1,19 @@
+[Unit]
+Description=Carbonio Files daemon
+Wants=network.target
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/zextras/common/bin/java -Djava.net.preferIPv4Stack=true -jar /usr/bin/carbonio/files/carbonio-files.jar
+User=carbonio-files
+Group=carbonio-files
+Restart=on-failure
+RestartSec=15
+TimeoutSec=60
+TimeoutStopSec=120
+
+
+[Install]
+WantedBy=multi-user.target

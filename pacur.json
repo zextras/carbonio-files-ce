@@ -1,0 +1,11 @@
+{
+  "name": "carbonio-files-ce",
+  "description": "Zextras Carbonio Files",
+  "build_dir": "/tmp/",
+  "output": "artifacts",
+  "projects": [
+    {
+      "name": "package"
+    }
+  ]
+}
