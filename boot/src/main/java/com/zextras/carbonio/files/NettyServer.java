@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.netty.HttpRoutingHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -61,13 +62,11 @@ public class NettyServer {
         .option(ChannelOption.SO_BACKLOG, 128)
         .childOption(ChannelOption.SO_KEEPALIVE, true);
 
-      InetSocketAddress address = InetSocketAddress.createUnresolved(
-        config.getProperty(Files.Config.Service.URL, "127.78.0.2"),
-        Integer.parseInt(config.getProperty(Files.Config.Service.PORT, "10000"))
-      );
-
       bootstrap
-        .localAddress(address)
+        .localAddress(
+          config.getProperty(Files.Config.Service.URL, "127.78.0.2"),
+          Integer.parseInt(config.getProperty(Files.Config.Service.PORT, "10000"))
+        )
         .bind()
         .sync()
         .channel()

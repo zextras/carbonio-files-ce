@@ -6,7 +6,7 @@ package com.zextras.carbonio.files.clients;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.usermanagement.exceptions.InternalServerError;
-import com.zextras.carbonio.usermanagement.exceptions.UnAuthorized;
+import com.zextras.carbonio.usermanagement.exceptions.Unauthorized;
 import io.vavr.control.Try;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -54,7 +54,7 @@ public class ServiceDiscoverHttpClient {
 
         return Try.success(valueDecoded);
       }
-      return Try.failure(new UnAuthorized());
+      return Try.failure(new Unauthorized());
     } catch (IOException exception) {
       return Try.failure(new InternalServerError(exception));
     }
