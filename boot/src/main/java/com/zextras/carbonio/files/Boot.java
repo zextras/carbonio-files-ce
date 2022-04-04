@@ -24,18 +24,19 @@ public class Boot {
 
   public void boot() {
     Injector injector = Guice.createInjector(new FilesModule());
+
     FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
+    filesConfig.loadConfig();
+
     EbeanDatabaseManager ebeanDatabaseManager = injector.getInstance(EbeanDatabaseManager.class);
+    ebeanDatabaseManager.start();
+
     PurgeService purgeService = injector.getInstance(PurgeService.class);
     NettyServer nettyServer = injector.getInstance(NettyServer.class);
 
     try {
-      filesConfig.loadConfig();
-      ebeanDatabaseManager.start();
       purgeService.start();
       nettyServer.start();
-    } catch (IOException exception) {
-      logger.error("Fail to load the configuration");
     } catch (RuntimeException exception) {
       logger.error("Service stopped unexpectedly: " + exception.getMessage());
     } finally {
