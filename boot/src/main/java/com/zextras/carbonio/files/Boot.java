@@ -11,24 +11,36 @@ import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.tasks.PurgeService;
 import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Boot {
 
-  private Injector injector;
+  private static final Logger logger = LoggerFactory.getLogger(Boot.class);
 
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) {
     new Boot().boot();
   }
 
-  public void boot() throws InterruptedException, IOException {
-    injector = Guice.createInjector(new FilesModule());
-    injector.getInstance(FilesConfig.class)
-      .loadConfig();
-    injector.getInstance(EbeanDatabaseManager.class)
-      .start();
-    injector.getInstance(PurgeService.class)
-      .start();
-    injector.getInstance(NettyServer.class)
-      .start();
+  public void boot() {
+    Injector injector = Guice.createInjector(new FilesModule());
+    FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
+    EbeanDatabaseManager ebeanDatabaseManager = injector.getInstance(EbeanDatabaseManager.class);
+    PurgeService purgeService = injector.getInstance(PurgeService.class);
+    NettyServer nettyServer = injector.getInstance(NettyServer.class);
+
+    try {
+      filesConfig.loadConfig();
+      ebeanDatabaseManager.start();
+      purgeService.start();
+      nettyServer.start();
+    } catch (IOException exception) {
+      logger.error("Fail to load the configuration");
+    } catch (RuntimeException exception) {
+      logger.error("Service stopped unexpectedly: " + exception.getMessage());
+    } finally {
+      ebeanDatabaseManager.stop();
+      purgeService.stop();
+    }
   }
 }

@@ -4,7 +4,7 @@ targets=(
 )
 pkgname="carbonio-files-ce"
 pkgver="0.2.0"
-pkgrel="1"
+pkgrel="2"
 pkgdesc="Carbonio Files"
 pkgdesclong=(
   "Carbonio Files"
@@ -31,7 +31,6 @@ sources=(
   "intentions.json"
   "policies.json"
   "service-protocol.json"
-
 )
 hashsums=(
   "skip"
@@ -92,14 +91,6 @@ prerm() {
 }
 
 postrm() {
-  rm -Rf /usr/bin/carbonio-files
-  rm -Rf /usr/bin/carbonio/files/
-  rm -Rf /etc/carbonio/files/
-  rm -f /lib/systemd/system/carbonio-files.service
-  rm -f /lib/systemd/system/carbonio-files-sidecar.service
-  rm -f /etc/zextras/service-discover/carbonio-files.hcl
-  rm -f /etc/zextras/pending-setups.d/carbonio-files.sh
-  rm -f /etc/zextras/pending-setups.d/done/carbonio-files.sh
   if [ -d /run/systemd/system ]; then
     systemctl daemon-reload >/dev/null 2>&1 || :
   fi

@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.dal;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
@@ -65,22 +66,22 @@ public class EbeanDatabaseManager {
     postgresDatabase = ServiceDiscoverHttpClient
       .defaultURL("carbonio-files")
       .getConfig("db-name")
-      .getOrElse(config.getProperty("db.postgresql.database", "carbonio-files-db"));
+      .getOrElse("carbonio-files-db");
 
     postgresUser = ServiceDiscoverHttpClient
       .defaultURL("carbonio-files")
       .getConfig("db-username")
-      .getOrElse(config.getProperty("db.postgresql.user", "postgres"));
+      .getOrElse("carbonio-files-db");
 
     postgresPassword = ServiceDiscoverHttpClient
       .defaultURL("carbonio-files")
       .getConfig("db-password")
-      .getOrElse(config.getProperty("db.postgresql.password", ""));
+      .getOrElse("");
 
     jdbcPostgresUrl = "jdbc:postgresql://"
-      + config.getProperty("db.postgresql.url", "127.78.0.2")
+      + config.getProperty(Files.Config.Database.URL, "127.78.0.2")
       + ":"
-      + config.getProperty("db.postgresql.port", "20002")
+      + config.getProperty(Files.Config.Database.PORT, "20000")
       + "/"
       + postgresDatabase;
 

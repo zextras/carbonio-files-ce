@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
+import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
@@ -26,8 +27,8 @@ public class UserRepositoryRest implements UserRepository {
   public UserRepositoryRest(FilesConfig filesConfig) {
     Properties p = filesConfig.getProperties();
     usermanagementUrl = "http://"
-      + p.getProperty("carbonio.usermanagement.url")
-      + ":" + p.getProperty("carbonio.usermanagement.port");
+      + p.getProperty(Files.Config.UserManagement.URL, "127.78.0.2")
+      + ":" + p.getProperty(Files.Config.UserManagement.PORT, "20001");
   }
 
   @Override
