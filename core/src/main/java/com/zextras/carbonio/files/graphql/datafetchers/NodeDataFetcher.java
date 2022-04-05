@@ -1395,8 +1395,8 @@ public class NodeDataFetcher {
             copiedBlobResponse = StoragesClient.atUrl("http://127.78.0.2:20002/")
               .uploadPost(
                 FilesIdentifier.of(createdNode.getId(), 1, requesterId),
-                blobResponses.get()
-                  .getBlobStream()
+                blobResponses.get().getBlobStream(),
+                blobResponses.get().getSize()
               );
 
           } else {
@@ -1856,8 +1856,8 @@ public class NodeDataFetcher {
                 copiedBlobResponse = StoragesClient.atUrl("http://127.78.0.2:20002/")
                   .uploadPost(
                     FilesIdentifier.of(node.getId(), newVersion, requesterId),
-                    blobResponses.get()
-                      .getBlobStream()
+                    blobResponses.get().getBlobStream(),
+                    blobResponses.get().getSize()
                   );
 
               } else {
