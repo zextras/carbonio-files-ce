@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.rest.services;
 
 import com.google.common.net.MediaType;
 import com.google.inject.Inject;
+import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
@@ -61,8 +62,8 @@ public class BlobService {
     this.mimeTypeUtils = mimeTypeUtils;
     Properties p = filesConfig.getProperties();
     storageUrl = "http://"
-      + p.getProperty("carbonio.storage.url")
-      + ":" + p.getProperty("carbonio.storage.port")
+      + p.getProperty(Files.Config.Storages.URL, "127.78.0.2")
+      + ":" + p.getProperty(Files.Config.Storages.PORT, "20002")
       + "/";
   }
 

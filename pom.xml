@@ -144,8 +144,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <properties>
     <caffeine.version>3.0.4</caffeine.version>
-    <carbonio-storages-ce.version>0.0.6-SNAPSHOT</carbonio-storages-ce.version>
-
+    <carbonio-storages-ce.version>0.0.10-SNAPSHOT</carbonio-storages-ce.version>
     <carbonio-user-management-sdk.version>0.1.0</carbonio-user-management-sdk.version>
     <carbonio-preview-ce-sdk.version>0.2.0</carbonio-preview-ce-sdk.version>
     <commons-lang3.version>3.12.0</commons-lang3.version>

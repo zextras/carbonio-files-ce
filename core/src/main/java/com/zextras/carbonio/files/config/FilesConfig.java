@@ -7,12 +7,15 @@ package com.zextras.carbonio.files.config;
 import com.google.inject.Singleton;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
 public class FilesConfig {
+
+  private static Logger logger = LoggerFactory.getLogger(FilesConfig.class);
 
   private final Properties properties;
 
@@ -20,12 +23,18 @@ public class FilesConfig {
     properties = new Properties();
   }
 
-  public void loadConfig() throws IOException {
+  public void loadConfig() {
     try {
-      FileInputStream file = new FileInputStream(new File("/etc/carbonio/files/config.properties"));
-      properties.load(file);
-    } catch (FileNotFoundException e) {
-      properties.load(getClass().getClassLoader().getResourceAsStream("carbonio-files.properties"));
+
+      File configFile = new File("/etc/carbonio/files/config.properties");
+      properties.load(
+        configFile.exists()
+          ? new FileInputStream(configFile)
+          : getClass().getClassLoader().getResourceAsStream("carbonio-files.properties")
+      );
+
+    } catch (IOException exception) {
+      logger.error("Fail to load the configuration file");
     }
   }
 

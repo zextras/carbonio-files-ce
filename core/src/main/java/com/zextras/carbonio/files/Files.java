@@ -16,9 +16,32 @@ public interface Files {
 
   interface Config {
 
+    interface Service {
+
+      String URL      = "service.url";
+      String PORT     = "service.port";
+    }
+
+    interface Database {
+
+      String URL      = "db.postgresql.url";
+      String PORT     = "db.postgresql.port";
+    }
+
+    interface UserManagement {
+
+      String URL      = "carbonio.user-management.url";
+      String PORT     = "carbonio.user-management.port";
+    }
+
+    interface Storages {
+
+      String URL      = "carbonio.storages.url";
+      String PORT     = "carbonio.storages.port";
+    }
+
     interface Preview {
 
-      String PROTOCOL = "carbonio.preview.protocol";
       String URL      = "carbonio.preview.url";
       String PORT     = "carbonio.preview.port";
     }

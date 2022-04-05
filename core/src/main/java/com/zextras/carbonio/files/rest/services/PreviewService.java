@@ -47,8 +47,7 @@ public class PreviewService {
     this.mimeTypeUtils = mimeTypeUtils;
 
     Properties properties = filesConfig.getProperties();
-    previewURL = properties.getProperty(Preview.PROTOCOL, "http")
-      + "://"
+    previewURL = "http://"
       + properties.getProperty(Preview.URL, "127.78.0.2")
       + ":"
       + properties.getProperty(Preview.PORT, "20003");
