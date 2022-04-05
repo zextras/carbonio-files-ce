@@ -9,6 +9,7 @@ import com.zextras.carbonio.files.Files.Config.Preview;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
+import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
@@ -72,10 +73,21 @@ public class PreviewService {
     String area,
     PreviewQueryParameters queryParameters
   ) {
-    Try<Boolean> tryCheck = checkNodePermissionAndExistence(requesterId, nodeId, version, "image/");
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
+      requesterId,
+      nodeId,
+      version,
+      "image/"
+    );
 
-    if (tryCheck.isSuccess()) {
-      Query query = generateQuery(nodeId, version, Optional.of(area), queryParameters);
+    if (tryCheckNode.isSuccess()) {
+      Query query = generateQuery(
+        nodeId,
+        version,
+        tryCheckNode.get().getOwnerId(),
+        Optional.of(area),
+        queryParameters
+      );
 
       Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
         .atURL(previewURL)
@@ -83,7 +95,7 @@ public class PreviewService {
 
       return mapResponseToBlobResponse(response, nodeId);
     }
-    return Try.failure(tryCheck.failed().get());
+    return Try.failure(tryCheckNode.failed().get());
   }
 
   /**
@@ -105,10 +117,21 @@ public class PreviewService {
     String area,
     PreviewQueryParameters queryParameters
   ) {
-    Try<Boolean> check = checkNodePermissionAndExistence(requesterId, nodeId, version, "image/");
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
+      requesterId,
+      nodeId,
+      version,
+      "image/"
+    );
 
-    if (check.isSuccess()) {
-      Query query = generateQuery(nodeId, version, Optional.of(area), queryParameters);
+    if (tryCheckNode.isSuccess()) {
+      Query query = generateQuery(
+        nodeId,
+        version,
+        tryCheckNode.get().getOwnerId(),
+        Optional.of(area),
+        queryParameters
+      );
 
       Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
         .atURL(previewURL)
@@ -116,7 +139,7 @@ public class PreviewService {
 
       return mapResponseToBlobResponse(response, nodeId);
     }
-    return Try.failure(check.failed().get());
+    return Try.failure(tryCheckNode.failed().get());
   }
 
   /**
@@ -136,11 +159,21 @@ public class PreviewService {
     int version,
     PreviewQueryParameters queryParameters
   ) {
-    Try<Boolean> tryCheck = checkNodePermissionAndExistence(requesterId, nodeId, version,
-      "application/pdf");
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
+      requesterId,
+      nodeId,
+      version,
+      "application/pdf"
+    );
 
-    if (tryCheck.isSuccess()) {
-      Query query = generateQuery(nodeId, version, Optional.empty(), queryParameters);
+    if (tryCheckNode.isSuccess()) {
+      Query query = generateQuery(
+        nodeId,
+        version,
+        tryCheckNode.get().getOwnerId(),
+        Optional.empty(),
+        queryParameters
+      );
 
       Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
         .atURL(previewURL)
@@ -148,7 +181,7 @@ public class PreviewService {
 
       return mapResponseToBlobResponse(response, nodeId);
     }
-    return Try.failure(tryCheck.failed().get());
+    return Try.failure(tryCheckNode.failed().get());
   }
 
   /**
@@ -170,15 +203,21 @@ public class PreviewService {
     String area,
     PreviewQueryParameters queryParameters
   ) {
-    Try<Boolean> tryCheck = checkNodePermissionAndExistence(
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
       requesterId,
       nodeId,
       version,
       "application/pdf"
     );
 
-    if (tryCheck.isSuccess()) {
-      Query query = generateQuery(nodeId, version, Optional.of(area), queryParameters);
+    if (tryCheckNode.isSuccess()) {
+      Query query = generateQuery(
+        nodeId,
+        version,
+        tryCheckNode.get().getOwnerId(),
+        Optional.of(area),
+        queryParameters
+      );
 
       Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
         .atURL(previewURL)
@@ -186,7 +225,7 @@ public class PreviewService {
 
       return mapResponseToBlobResponse(response, nodeId);
     }
-    return Try.failure(tryCheck.failed().get());
+    return Try.failure(tryCheckNode.failed().get());
   }
 
   /**
@@ -200,9 +239,9 @@ public class PreviewService {
    * mimetype that the calling methods allow (for instance a method may want only mimetype that are
    * of "image" so "image/something" while another method "application" so "application/something"
    *
-   * @return a {@link Try} with on success True or on failure the specific error
+   * @return a {@link Try} containing the checked @{link Node} or, on failure, the specific error
    */
-  private Try<Boolean> checkNodePermissionAndExistence(
+  private Try<Node> checkNodePermissionAndExistence(
     String requesterId,
     String nodeId,
     int version,
@@ -213,7 +252,7 @@ public class PreviewService {
       && optFileVersion.isPresent()
     ) {
       return (mimeTypeUtils.isMimeTypeAllowed(optFileVersion.get().getMimeType(), allowedMimeType))
-        ? Try.success(true)
+        ? Try.success(nodeRepository.getNode(nodeId).get())
         : Try.failure(new BadRequest());
     }
     return Try.failure(new NodeNotFoundException());
@@ -234,13 +273,15 @@ public class PreviewService {
   private Query generateQuery(
     String nodeId,
     int version,
+    String ownerId,
     Optional<String> optArea,
     PreviewQueryParameters queryParameters
   ) {
     QueryBuilder parameterBuilder = new QueryBuilder()
       .setServiceType(ServiceType.FILES)
       .setNodeId(nodeId)
-      .setVersion(version);
+      .setVersion(version)
+      .setFileOwnerId(ownerId);
 
     optArea.ifPresent(parameterBuilder::setPreviewArea);
     queryParameters.getQuality().ifPresent(parameterBuilder::setQuality);
