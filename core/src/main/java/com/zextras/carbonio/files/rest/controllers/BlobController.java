@@ -313,6 +313,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     String description = Optional
       .ofNullable(httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_DESCRIPTION))
       .orElse("");
+    long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
     String encodedFilename = httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_FILENAME);
     String decodedFilename =
       encodedFilename == null || !Base64.isBase64(encodedFilename)
@@ -340,6 +341,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
           blobService.uploadFile(
             requester,
             context.channel().attr(fileStreamReader).get(),
+            blobLength,
             parentId,
             decodedFilename,
             description
@@ -385,6 +387,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     boolean overwrite = Boolean.parseBoolean(
       httpRequest.headers().getAsString(Headers.UPLOAD_OVERWRITE_VERSION)
     );
+    long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
 
     String decodedFilename =
       encodedFilename == null || !Base64.isBase64(encodedFilename)
@@ -413,6 +416,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
           blobService.uploadFileVersion(
             requester,
             context.channel().attr(fileStreamReader).get(),
+            blobLength,
             nodeId,
             decodedFilename,
             overwrite

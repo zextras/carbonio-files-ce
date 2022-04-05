@@ -123,6 +123,7 @@ public class BlobService {
   public Try<String> uploadFile(
     User requester,
     BufferInputStream bufferInputStream,
+    long blobLength,
     String folderId,
     String filename,
     String description
@@ -152,7 +153,11 @@ public class BlobService {
       try {
         uploadResponse = StoragesClient
           .atUrl(storageUrl)
-          .uploadPost(FilesIdentifier.of(nodeId, 1, requester.getUuid()), bufferInputStream);
+          .uploadPost(
+            FilesIdentifier.of(nodeId, 1, requester.getUuid()),
+            bufferInputStream,
+            blobLength
+          );
 
         System.out.println(uploadResponse.getDigest());
         System.out.println(uploadResponse.getSize());
@@ -208,6 +213,7 @@ public class BlobService {
   public Try<Integer> uploadFileVersion(
     User requester,
     BufferInputStream bufferInputStream,
+    long blobLength,
     String nodeId,
     String filename,
     boolean overwrite
@@ -234,7 +240,8 @@ public class BlobService {
             .atUrl(storageUrl)
             .uploadPut(
               FilesIdentifier.of(nodeId, newVersion, requester.getUuid()),
-              bufferInputStream
+              bufferInputStream,
+              blobLength
             );
 
         } else {
@@ -242,7 +249,8 @@ public class BlobService {
             .atUrl(storageUrl)
             .uploadPost(
               FilesIdentifier.of(nodeId, newVersion, requester.getUuid()),
-              bufferInputStream
+              bufferInputStream,
+              blobLength
             );
         }
 
