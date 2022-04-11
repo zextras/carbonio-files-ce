@@ -21,7 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <encoder>
       <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
     </encoder>
-    <file>/var/log/carbonio/files/carbonio-files.log</file>
+    <file>/var/log/carbonio/files/files.log</file>
   </appender>
 
   <!-- To log generated queries-->
