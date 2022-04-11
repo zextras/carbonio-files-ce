@@ -8,10 +8,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <configuration>
 
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <!-- encoders are assigned the type
+         ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
   <appender class="ch.qos.logback.core.FileAppender" name="FILE">
     <append>true</append>
     <encoder>
-      <pattern>%-4relative [%thread] %-5level %logger{35} - %msg %n</pattern>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
     </encoder>
     <file>/var/log/carbonio/files/carbonio-files.log</file>
   </appender>
@@ -23,7 +31,8 @@ SPDX-License-Identifier: AGPL-3.0-only
   <!-- <logger name="io.ebean" level="TRACE"/> -->
 
   <root level="INFO">
-    <appender-ref ref="FILE"/>
+    <appender-ref ref="FILE" />
+    <appender-ref ref="STDOUT" />
   </root>
 
 </configuration>
