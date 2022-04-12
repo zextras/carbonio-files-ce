@@ -29,6 +29,11 @@ services {
             destination_name = "carbonio-preview"
             local_bind_address = "127.78.0.2"
             local_bind_port = 20003
+          },
+          {
+            destination_name = "carbonio-mailbox"
+            local_bind_address = "127.78.0.2"
+            local_bind_port = 20004
           }
         ]
       }

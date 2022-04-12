@@ -45,6 +45,12 @@ public interface Files {
       String URL      = "carbonio.preview.url";
       String PORT     = "carbonio.preview.port";
     }
+
+    interface Mailbox {
+
+      String URL      = "carbonio.mailbox.url";
+      String PORT     = "carbonio.mailbox.port";
+    }
   }
 
   interface Db {
@@ -503,6 +509,7 @@ public interface Files {
       Pattern GRAPHQL             = Pattern.compile(SERVICE + "graphql/?$");
       Pattern UPLOAD_FILE         = Pattern.compile(SERVICE + "upload/?$");
       Pattern UPLOAD_FILE_VERSION = Pattern.compile(SERVICE + "upload-version/?$");
+      Pattern UPLOAD_FILE_TO      = Pattern.compile(SERVICE + "upload-to/?$");
       Pattern DOWNLOAD_FILE       = Pattern.compile(
         SERVICE + "download/([a-f0-9\\\\-]*)/?([0-9]+)?/?$");
       Pattern PUBLIC_LINK         = Pattern.compile(SERVICE + "link/([a-zA-Z0-9]{8})/?$");
