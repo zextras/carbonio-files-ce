@@ -48,11 +48,13 @@ public class ProcedureService {
     this.fileVersionRepository = fileVersionRepository;
 
     Properties properties = filesConfig.getProperties();
-    mailboxUrl = "http"
+    mailboxUrl = "http://"
       + properties.getProperty(Mailbox.URL, "127.78.0.2")
+      + ":"
       + properties.getProperty(Mailbox.PORT, "20004");
-    storagesUrl = "http"
+    storagesUrl = "http://"
       + properties.getProperty(Storages.URL, "127.78.0.2")
+      + ":"
       + properties.getProperty(Storages.PORT, "20002")
       + "/";
   }

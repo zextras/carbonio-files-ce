@@ -85,9 +85,11 @@ public class MailboxHttpClient {
           - Remove the first two elements('200', 'null')
           - Remove the ' and the \n characters
          */
-        return Arrays.stream(IOUtils
+        return Arrays
+          .stream(IOUtils
             .toString(mailboxResponse.getEntity().getContent(), StandardCharsets.UTF_8)
-            .split(","))
+            .split(",")
+          )
           .reduce((first, last) -> last)
           .map(aid -> aid.replaceAll("'", "").replaceAll("\n", ""))
           .map(Try::success)

@@ -80,7 +80,6 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   private Matcher downloadMatcher;
   private Matcher uploadMatcher;
   private Matcher uploadVersionMatcher;
-  private Matcher uploadToMatcher;
   private Matcher publicLinkMatcher;
   private Matcher healthMatcher;
 
@@ -129,7 +128,6 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         downloadMatcher = Endpoints.DOWNLOAD_FILE.matcher(uriRequest);
         uploadMatcher = Endpoints.UPLOAD_FILE.matcher(uriRequest);
         uploadVersionMatcher = Endpoints.UPLOAD_FILE_VERSION.matcher(uriRequest);
-        uploadToMatcher = Endpoints.UPLOAD_FILE_TO.matcher(uriRequest);
         publicLinkMatcher = Endpoints.PUBLIC_LINK.matcher(uriRequest);
         healthMatcher = Endpoints.HEALTH.matcher(uriRequest);
 
@@ -149,10 +147,6 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
         if (uploadVersionMatcher.find()) {
           uploadFileVersion(context, httpRequest);
-        }
-
-        if (uploadToMatcher.find()) {
-          uploadFileTo(context, httpRequest);
         }
 
         if (healthMatcher.find()) {
@@ -456,19 +450,6 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         context.flush().close();
         return null;
       });
-  }
-
-  public void uploadFileTo(
-    ChannelHandlerContext context,
-    HttpRequest request
-  ) {
-
-    DefaultFullHttpResponse httpResponse = new DefaultFullHttpResponse(
-      HttpVersion.HTTP_1_0,
-      HttpResponseStatus.OK
-    );
-    context.write(httpResponse);
-    context.flush().close();
   }
 
   ChannelPromise writeStream(
