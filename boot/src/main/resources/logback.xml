@@ -16,12 +16,22 @@ SPDX-License-Identifier: AGPL-3.0-only
     </encoder>
   </appender>
 
-  <appender class="ch.qos.logback.core.FileAppender" name="FILE">
-    <append>true</append>
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>/var/log/carbonio/files/files.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <!-- daily rollover -->
+      <fileNamePattern>/var/log/carbonio/files/files.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+      <timeBasedFileNamingAndTriggeringPolicy
+        class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+        <!-- or whenever the file size reaches 50MB -->
+        <maxFileSize>50MB</maxFileSize>
+      </timeBasedFileNamingAndTriggeringPolicy>
+      <!-- keep 30 days' worth of history -->
+      <maxHistory>30</maxHistory>
+    </rollingPolicy>
     <encoder>
       <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
     </encoder>
-    <file>/var/log/carbonio/files/files.log</file>
   </appender>
 
   <!-- To log generated queries-->
