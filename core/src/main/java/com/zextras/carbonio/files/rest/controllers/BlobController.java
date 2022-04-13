@@ -14,11 +14,13 @@ import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.Files.API.Headers;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.User;
+import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
 import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.UploadNodeResponse;
 import com.zextras.carbonio.files.rest.types.UploadVersionResponse;
+import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -46,6 +48,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -74,7 +77,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       promise.channel().close();
     };
 
-  private final BlobService blobService;
+  private final BlobService          blobService;
+  private final PermissionsChecker   permissionsChecker;
   private final EbeanDatabaseManager ebeanDatabaseManager;
 
   private Matcher downloadMatcher;
@@ -86,10 +90,12 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   @Inject
   public BlobController(
     BlobService blobService,
+    PermissionsChecker permissionsChecker,
     EbeanDatabaseManager ebeanDatabaseManager
   ) {
     super(true);
     this.blobService = blobService;
+    this.permissionsChecker = permissionsChecker;
     this.ebeanDatabaseManager = ebeanDatabaseManager;
   }
 
@@ -256,39 +262,60 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       .ofNullable(downloadMatcher.group(2))
       .map(Integer::parseInt);
 
-    blobService
-      .downloadFile(nodeId, optVersion, requester)
-      .onSuccess(blobResponse -> {
-        DefaultHttpHeaders headers = new DefaultHttpHeaders(true);
-        headers.add(HttpHeaderNames.CONNECTION, HttpHeaders.Values.CLOSE);
-        headers.add(HttpHeaderNames.CONTENT_LENGTH, blobResponse.getSize());
-        headers.add(HttpHeaderNames.CONTENT_TYPE, blobResponse.getMimeType());
+    if (permissionsChecker
+      .getPermissions(nodeId, requester.getUuid())
+      .has(SharePermission.READ_ONLY)
+    ) {
+      blobService
+        .downloadFile(nodeId, optVersion, requester)
+        .onSuccess(blobResponse -> {
+          DefaultHttpHeaders headers = new DefaultHttpHeaders(true);
+          headers.add(HttpHeaderNames.CONNECTION, HttpHeaders.Values.CLOSE);
+          headers.add(HttpHeaderNames.CONTENT_LENGTH, blobResponse.getSize());
+          headers.add(HttpHeaderNames.CONTENT_TYPE, blobResponse.getMimeType());
 
-        try {
-          headers.add(
-            HttpHeaderNames.CONTENT_DISPOSITION,
-            "attachment; filename*=UTF-8''" + URLEncoder.encode(blobResponse.getFilename(), "UTF-8")
+          try {
+            headers.add(
+              HttpHeaderNames.CONTENT_DISPOSITION,
+              "attachment; filename*=UTF-8''" + URLEncoder.encode(blobResponse.getFilename(),
+                "UTF-8")
+            );
+          } catch (Exception ignore) {
+          }
+
+          context.write(new DefaultHttpResponse(
+              protocolVersionRequest,
+              HttpResponseStatus.OK,
+              headers
+            )
           );
-        } catch (Exception ignore) {
-        }
+          writeStream(context, blobResponse.getBlobStream());
+        })
+        .onFailure(failure -> {
+          logger.error(failure.getMessage());
+          context
+            .writeAndFlush(new DefaultFullHttpResponse(
+              protocolVersionRequest,
+              HttpResponseStatus.BAD_REQUEST)
+            )
+            .addListener(nettyChannelFutureClose);
+        });
 
-        context.write(new DefaultHttpResponse(
-            protocolVersionRequest,
-            HttpResponseStatus.OK,
-            headers
-          )
-        );
-        writeStream(context, blobResponse.getBlobStream());
-      })
-      .onFailure(failure -> {
-        logger.error(failure.getMessage());
-        context
-          .writeAndFlush(new DefaultFullHttpResponse(
-            protocolVersionRequest,
-            HttpResponseStatus.BAD_REQUEST)
-          )
-          .addListener(nettyChannelFutureClose);
-      });
+    } else {
+      logger.error(MessageFormat.format(
+        "Request {0}: The user {1} does not have the READ permission to download the node {2}",
+        request.uri(),
+        requester.getUuid(),
+        nodeId
+      ));
+
+      context
+        .writeAndFlush(new DefaultFullHttpResponse(
+          protocolVersionRequest,
+          HttpResponseStatus.NOT_FOUND)
+        )
+        .addListener(nettyChannelFutureClose);
+    }
   }
 
   private void initializeFileStream(
