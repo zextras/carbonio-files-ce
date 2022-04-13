@@ -10,19 +10,28 @@ import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.tasks.PurgeService;
-import java.io.IOException;
-import org.slf4j.Logger;
+import ch.qos.logback.classic.Logger;
 import org.slf4j.LoggerFactory;
+import ch.qos.logback.classic.Level;
 
 public class Boot {
 
-  private static final Logger logger = LoggerFactory.getLogger(Boot.class);
+  private static final Logger logger = (Logger) LoggerFactory.getLogger(Boot.class);
 
   public static void main(String[] args) {
     new Boot().boot();
   }
 
   public void boot() {
+    // Set configuration level
+    String logLevel = System.getenv("FILES_LOG_LEVEL");
+    logger.setLevel(
+      Level.toLevel(
+        logLevel == null
+          ? "warn"
+          : logLevel
+      )
+    );
     Injector injector = Guice.createInjector(new FilesModule());
 
     FilesConfig filesConfig = injector.getInstance(FilesConfig.class);

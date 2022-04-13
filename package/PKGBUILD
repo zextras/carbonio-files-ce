@@ -3,7 +3,7 @@ targets=(
   "centos"
 )
 pkgname="carbonio-files-ce"
-pkgver="0.3.0"
+pkgver="0.3.1"
 pkgrel="1"
 pkgdesc="Carbonio Files"
 pkgdesclong=(
@@ -68,6 +68,9 @@ postinst() {
     groupadd -r 'carbonio-files'
   getent passwd 'carbonio-files' >/dev/null ||
     useradd -r -M -g 'carbonio-files' -s /sbin/nologin 'carbonio-files'
+
+  mkdir -p "/var/log/carbonio/files/"
+  chown carbonio-files:carbonio-files "/var/log/carbonio/files"
 
   if [ -d /run/systemd/system ]; then
     systemctl daemon-reload >/dev/null 2>&1 || :

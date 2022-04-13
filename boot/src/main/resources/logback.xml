@@ -8,12 +8,29 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <configuration>
 
-  <appender class="ch.qos.logback.core.FileAppender" name="FILE">
-    <append>true</append>
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <!-- encoders are assigned the type
+         ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
     <encoder>
-      <pattern>%-4relative [%thread] %-5level %logger{35} - %msg %n</pattern>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
     </encoder>
-    <file>/var/log/carbonio/files/carbonio-files.log</file>
+  </appender>
+
+  <appender name="ROLLING" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>/var/log/carbonio/files/files.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <!-- daily rollover -->
+      <fileNamePattern>/var/log/carbonio/files/files.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+      <!-- each file should be at most 10MB-->
+      <maxFileSize>10MB</maxFileSize>
+      <!-- keep 50 days' worth of history -->
+      <maxHistory>50</maxHistory>
+      <!-- Keep at maximum 500MB of logs -->
+      <totalSizeCap>500MB</totalSizeCap>
+    </rollingPolicy>
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
   </appender>
 
   <!-- To log generated queries-->
@@ -23,7 +40,8 @@ SPDX-License-Identifier: AGPL-3.0-only
   <!-- <logger name="io.ebean" level="TRACE"/> -->
 
   <root level="INFO">
-    <appender-ref ref="FILE"/>
+    <appender-ref ref="ROLLING" />
+    <appender-ref ref="STDOUT" />
   </root>
 
 </configuration>

@@ -81,18 +81,6 @@ SPDX-License-Identifier: AGPL-3.0-only
       </dependency>
 
       <dependency>
-        <artifactId>slf4j-api</artifactId>
-        <groupId>org.slf4j</groupId>
-        <version>${slf4j-api.version}</version>
-      </dependency>
-
-      <dependency>
-        <artifactId>slf4j-simple</artifactId>
-        <groupId>org.slf4j</groupId>
-        <version>${slf4j-api.version}</version>
-      </dependency>
-
-      <dependency>
         <artifactId>logback-classic</artifactId>
         <groupId>ch.qos.logback</groupId>
         <version>${logback-classic.version}</version>
@@ -158,7 +146,6 @@ SPDX-License-Identifier: AGPL-3.0-only
     <maven.compiler.target>11</maven.compiler.target>
     <netty.version>4.1.68.Final</netty.version>
     <postgresql.version>42.3.0</postgresql.version>
-    <slf4j-api.version>1.7.32</slf4j-api.version>
   </properties>
 
   <repositories>
