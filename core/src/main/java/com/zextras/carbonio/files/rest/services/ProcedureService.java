@@ -16,11 +16,13 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
+import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.rest.types.UploadToRequest.TargetModule;
 import com.zextras.filestore.model.FilesIdentifier;
 import com.zextras.storages.api.StoragesClient;
 import io.vavr.control.Try;
 import java.io.InputStream;
+import java.text.MessageFormat;
 import java.util.Properties;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -35,8 +37,8 @@ public class ProcedureService {
 
   private final NodeRepository        nodeRepository;
   private final FileVersionRepository fileVersionRepository;
-  private final String mailboxUrl;
-  private final String storagesUrl;
+  private final String                mailboxUrl;
+  private final String                storagesUrl;
 
   @Inject
   public ProcedureService(
@@ -105,8 +107,8 @@ public class ProcedureService {
               requester.getUuid())
             );
         } catch (Exception exception) {
-          logger.error("Failed to download the node: " + nodeId);
-          return Try.failure(exception);
+          logger.error(MessageFormat.format("Failed to download the node: {0}", nodeId));
+          return Try.failure(new InternalServerErrorException(exception));
         }
 
         return MailboxHttpClient
@@ -118,9 +120,12 @@ public class ProcedureService {
             blob
           );
       }
-      logger.error("Folder cannot be uploaded to: " + targetModule + " store");
+      logger.error(MessageFormat.format("Folder cannot be uploaded to {0} store", targetModule));
       return Try.failure(new BadRequestException());
     }
-    return Try.failure(new Exception(TargetModule.CHATS + " not supported"));
+
+    return Try.failure(
+      new InternalServerErrorException(MessageFormat.format("{0} not supported", TargetModule.CHATS))
+    );
   }
 }

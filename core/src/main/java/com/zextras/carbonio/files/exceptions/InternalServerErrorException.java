@@ -6,6 +6,10 @@ package com.zextras.carbonio.files.exceptions;
 
 public class InternalServerErrorException extends Exception {
 
+  public InternalServerErrorException(String message) {
+    super(message);
+  }
+
   public InternalServerErrorException(Throwable cause) {
     super(cause);
   }

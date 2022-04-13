@@ -8,11 +8,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.ContextAttribute;
-import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
+import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
+import com.zextras.carbonio.files.exceptions.RequestEntityTooLargeException;
 import com.zextras.carbonio.files.netty.ExceptionsHandler;
 import com.zextras.carbonio.files.rest.services.ProcedureService;
 import com.zextras.carbonio.files.rest.types.UploadAttachmentResponse;
@@ -36,13 +37,14 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.AttributeKey;
 import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Sharable
 public class ProcedureController extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-  private static Logger logger = LoggerFactory.getLogger(ProcedureController.class);
+  private final static Logger logger = LoggerFactory.getLogger(ProcedureController.class);
 
   private final ProcedureService   procedureService;
   private final PermissionsChecker permissionsChecker;
@@ -61,13 +63,17 @@ public class ProcedureController extends SimpleChannelInboundHandler<FullHttpReq
     ChannelHandlerContext context,
     FullHttpRequest httpRequest
   ) {
-    if (Endpoints.UPLOAD_FILE_TO.matcher(httpRequest.uri()).find()
-      && HttpMethod.POST.equals(httpRequest.method())
-    ) {
+    if (HttpMethod.POST.equals(httpRequest.method())) {
       uploadToModule(context, httpRequest);
       return;
     }
-    logger.error(httpRequest.method() + " " + httpRequest.uri() + ": bad request");
+
+    logger.error(MessageFormat.format(
+      "Request {0} {1}: bad request",
+      httpRequest.method(),
+      httpRequest.uri()
+    ));
+
     context.fireExceptionCaught(new BadRequest());
   }
 
@@ -100,8 +106,12 @@ public class ProcedureController extends SimpleChannelInboundHandler<FullHttpReq
         UploadToRequest.class
       );
     } catch (JsonProcessingException exception) {
-      logger.error(httpRequest.uri() + " Unable to deserialize upload-to body request");
-      logger.error(exception.getMessage());
+      logger.error(MessageFormat.format(
+        "Request {0}: Unable to deserialize the body request\n{1}",
+        httpRequest.uri(),
+        exception.getMessage()
+      ));
+
       context.fireExceptionCaught(exception);
       return;
     }
@@ -116,52 +126,57 @@ public class ProcedureController extends SimpleChannelInboundHandler<FullHttpReq
           bodyRequest.getTargetModule(),
           requester,
           requesterCookies
-        ).onSuccess(attachmentId -> {
-            try {
-              UploadAttachmentResponse bodyResponse = new UploadAttachmentResponse(attachmentId);
+        )
+        .onSuccess(attachmentId -> {
+          try {
+            UploadAttachmentResponse bodyResponse = new UploadAttachmentResponse(attachmentId);
 
-              HttpHeaders headers = new DefaultHttpHeaders(true);
-              headers.add(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
-              headers.add(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
+            HttpHeaders headers = new DefaultHttpHeaders(true);
+            headers.add(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
+            headers.add(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
 
-              HttpResponse httpResponse = new DefaultFullHttpResponse(
-                httpRequest.protocolVersion(),
-                HttpResponseStatus.OK,
-                Unpooled.wrappedBuffer(new ObjectMapper().writeValueAsBytes(bodyResponse)),
-                headers,
-                new DefaultHttpHeaders()
-              );
-
-              logger.info(httpRequest.uri()
-                + ": Uploaded node "
-                + bodyRequest.getNodeId()
-                + " to "
-                + bodyRequest.getTargetModule()
-                + ". The attachment id is: "
-                + attachmentId
-              );
-
-              context
-                .writeAndFlush(httpResponse)
-                .addListener(ChannelFutureListener.CLOSE);
-
-            } catch (JsonProcessingException exception) {
-              logger.error("Unable to serialize upload-to response: " + exception);
-              context.fireExceptionCaught(new InternalServerErrorException(exception));
-            }
-          }
-        ).onFailure(failure -> {
-            logger.error("Unable to upload the blob "
-              + bodyRequest.getNodeId()
-              + " to "
-              + bodyRequest.getTargetModule()
+            HttpResponse httpResponse = new DefaultFullHttpResponse(
+              httpRequest.protocolVersion(),
+              HttpResponseStatus.OK,
+              Unpooled.wrappedBuffer(new ObjectMapper().writeValueAsBytes(bodyResponse)),
+              headers,
+              new DefaultHttpHeaders()
             );
-            logger.error(failure.getMessage());
-            context.fireExceptionCaught(new InternalServerErrorException(failure));
+
+            logger.info(MessageFormat.format(
+              "Request {0}: Uploaded node {1} to {2}. The attachment id is: {3}",
+              httpRequest.uri(),
+              bodyRequest.getNodeId(),
+              bodyRequest.getTargetModule(),
+              attachmentId
+            ));
+
+            context
+              .writeAndFlush(httpResponse)
+              .addListener(ChannelFutureListener.CLOSE);
+
+          } catch (JsonProcessingException exception) {
+            logger.error("Unable to serialize upload-to response: " + exception);
+            context.fireExceptionCaught(new InternalServerErrorException(exception));
+          }
+        })
+        .onFailure(failure -> {
+            logger.error(MessageFormat.format(
+              "Unable to upload the blob {0} to {1} \n {2}",
+              bodyRequest.getNodeId(),
+              bodyRequest.getTargetModule(),
+              failure.getMessage()
+            ));
+
+            context.fireExceptionCaught(failure);
           }
         );
     } else {
-      logger.error(httpRequest.uri() + " Node " + bodyRequest.getNodeId() + " to upload not found");
+      logger.error(MessageFormat.format(
+        "Request {0} node {1} to upload not found",
+        httpRequest.uri(),
+        bodyRequest.getNodeId()
+      ));
       context.fireExceptionCaught(new NodeNotFoundException());
     }
   }

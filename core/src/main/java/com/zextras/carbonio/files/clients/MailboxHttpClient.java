@@ -4,10 +4,13 @@
 
 package com.zextras.carbonio.files.clients;
 
+import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
+import com.zextras.carbonio.files.exceptions.RequestEntityTooLargeException;
 import com.zextras.carbonio.files.rest.types.UploadToRequest.TargetModule;
 import io.vavr.control.Try;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
 import java.util.Arrays;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.ProtocolVersion;
@@ -82,29 +85,39 @@ public class MailboxHttpClient {
 
         To extrapolate the attachment id from it, we need to:
           - Split the response by comma to get a String[] containing three elements
+          - Verify the status code inside the response: it must be 200, otherwise it returns a failure
           - Remove the first two elements('200', 'null')
           - Remove the ' and the \n characters
          */
-        return Arrays
-          .stream(IOUtils
-            .toString(mailboxResponse.getEntity().getContent(), StandardCharsets.UTF_8)
-            .split(",")
-          )
-          .reduce((first, last) -> last)
-          .map(aid -> aid.replaceAll("'", "").replaceAll("\n", ""))
-          .map(Try::success)
-          .orElseGet(() ->
-            Try.failure(new Exception("Unable to deserialize the mailbox upload response"))
-          );
+        String[] responseBody = IOUtils
+          .toString(mailboxResponse.getEntity().getContent(), StandardCharsets.UTF_8)
+          .split(",");
+
+        if ("200".equals(responseBody[0])) {
+          return Arrays
+            .stream(responseBody)
+            .reduce((first, last) -> last)
+            .map(aid -> aid.replaceAll("'", "").replaceAll("\n", ""))
+            .map(Try::success)
+            .orElseGet(() -> Try.failure(
+                new InternalServerErrorException("Unable to deserialize mailbox upload response")
+              )
+            );
+        }
+
+        return Try.failure(new RequestEntityTooLargeException("Upload to mailbox failed"));
       }
-      return Try.failure(new Exception("Upload to mailbox failed: "
-        + mailboxResponse.getStatusLine().getStatusCode()
-        + " "
-        + mailboxResponse.getStatusLine().getReasonPhrase())
+
+      String errorMessage = MessageFormat.format(
+        "Upload to mailbox failed: {0} {1}",
+        mailboxResponse.getStatusLine().getStatusCode(),
+        mailboxResponse.getStatusLine().getReasonPhrase()
       );
+      return Try.failure(new InternalServerErrorException(errorMessage));
 
     } catch (Exception exception) {
-      return Try.failure(exception);
+      return Try.failure(new InternalServerErrorException(exception));
     }
+
   }
 }

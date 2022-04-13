@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
+import com.zextras.carbonio.files.exceptions.RequestEntityTooLargeException;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
@@ -26,7 +27,10 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
   ) {
     HttpResponseStatus responseStatus;
 
-    if (cause instanceof JsonProcessingException
+    if ( cause instanceof RequestEntityTooLargeException) {
+      responseStatus = HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE;
+    }
+    else if (cause instanceof JsonProcessingException
       || cause instanceof InternalServerErrorException
     ) {
       responseStatus = HttpResponseStatus.INTERNAL_SERVER_ERROR;
