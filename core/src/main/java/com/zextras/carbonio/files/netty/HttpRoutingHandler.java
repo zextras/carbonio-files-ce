@@ -76,10 +76,16 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
 
     if (Endpoints.DOWNLOAD_FILE.matcher(request.uri()).matches()
       || Endpoints.UPLOAD_FILE.matcher(request.uri()).matches()
-      || Endpoints.UPLOAD_FILE_VERSION.matcher(request.uri()).matches()
-      || Endpoints.PUBLIC_LINK.matcher(request.uri()).matches()) {
+      || Endpoints.UPLOAD_FILE_VERSION.matcher(request.uri()).matches()) {
       context.pipeline()
         .addLast("auth-handler", authenticationHandler)
+        .addLast("rest-handler", blobController);
+      context.fireChannelRead(request);
+      return;
+    }
+
+    if (Endpoints.PUBLIC_LINK.matcher(request.uri()).matches()) {
+      context.pipeline()
         .addLast("rest-handler", blobController);
       context.fireChannelRead(request);
       return;
