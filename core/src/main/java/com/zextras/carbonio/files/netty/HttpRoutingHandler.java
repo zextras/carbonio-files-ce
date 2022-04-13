@@ -9,6 +9,7 @@ import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.graphql.controllers.GraphQLController;
 import com.zextras.carbonio.files.rest.controllers.BlobController;
 import com.zextras.carbonio.files.rest.controllers.PreviewController;
+import com.zextras.carbonio.files.rest.controllers.ProcedureController;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -29,20 +30,26 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
   private final GraphQLController     graphQLController;
   private final BlobController        blobController;
   private final AuthenticationHandler authenticationHandler;
+  private final ExceptionsHandler exceptionsHandler;
   private final PreviewController     previewController;
+  private final ProcedureController   procedureController;
 
   @Inject
   public HttpRoutingHandler(
     GraphQLController graphQLController,
     BlobController blobController,
     AuthenticationHandler authenticationHandler,
-    PreviewController previewController
+    ExceptionsHandler exceptionsHandler,
+    PreviewController previewController,
+    ProcedureController procedureController
   ) {
     System.out.println("constructor-router");
     this.authenticationHandler = authenticationHandler;
+    this.exceptionsHandler = exceptionsHandler;
     this.graphQLController = graphQLController;
     this.blobController = blobController;
     this.previewController = previewController;
+    this.procedureController = procedureController;
   }
 
   @Override
@@ -82,6 +89,17 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
       context.pipeline()
         .addLast("auth-handler", authenticationHandler)
         .addLast("preview-handler", previewController);
+      context.fireChannelRead(request);
+      return;
+    }
+
+    if (Endpoints.UPLOAD_FILE_TO.matcher(request.uri()).matches()) {
+      context.pipeline()
+        .addLast(new HttpObjectAggregator(256 * 1024))
+        .addLast(new ChunkedWriteHandler())
+        .addLast("auth-handler", authenticationHandler)
+        .addLast("procedure-handler", procedureController)
+        .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }

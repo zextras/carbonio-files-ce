@@ -74,7 +74,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       promise.channel().close();
     };
 
-  private final BlobService          blobService;
+  private final BlobService blobService;
   private final EbeanDatabaseManager ebeanDatabaseManager;
 
   private Matcher downloadMatcher;
@@ -142,7 +142,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         }
 
         if (uploadMatcher.find()) {
-          uploadFile(httpRequest, context);
+          uploadFile(context, httpRequest);
         }
 
         if (uploadVersionMatcher.find()) {
@@ -302,8 +302,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   }
 
   private void uploadFile(
-    HttpRequest httpRequest,
-    ChannelHandlerContext context
+    ChannelHandlerContext context,
+    HttpRequest httpRequest
   ) {
     User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
