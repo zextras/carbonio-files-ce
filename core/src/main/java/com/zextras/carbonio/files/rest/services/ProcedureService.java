@@ -124,8 +124,9 @@ public class ProcedureService {
       return Try.failure(new BadRequestException());
     }
 
-    return Try.failure(
-      new InternalServerErrorException(MessageFormat.format("{0} not supported", TargetModule.CHATS))
+    return Try.failure(new InternalServerErrorException(
+        MessageFormat.format("{0} not supported", TargetModule.CHATS)
+      )
     );
   }
 }
