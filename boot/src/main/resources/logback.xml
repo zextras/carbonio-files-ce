@@ -23,10 +23,10 @@ SPDX-License-Identifier: AGPL-3.0-only
       <fileNamePattern>/var/log/carbonio/files/files.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
       <!-- each file should be at most 10MB-->
       <maxFileSize>10MB</maxFileSize>
-      <!-- keep 30 days' worth of history -->
-      <maxHistory>30</maxHistory>
-      <!-- Keep at maximum 1GB of logs -->
-      <totalSizeCap>1GB</totalSizeCap>
+      <!-- keep 50 days' worth of history -->
+      <maxHistory>50</maxHistory>
+      <!-- Keep at maximum 500MB of logs -->
+      <totalSizeCap>500MB</totalSizeCap>
     </rollingPolicy>
     <encoder>
       <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
