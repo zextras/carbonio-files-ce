@@ -87,6 +87,11 @@ public class PreviewService {
       queryParameters
     );
 
+    logger.debug(MessageFormat.format(
+      "Image preview query built: {0}",
+      query.toString()
+    ));
+
     Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
       .atURL(previewURL)
       .getPreviewOfImage(query);
@@ -122,6 +127,11 @@ public class PreviewService {
       queryParameters
     );
 
+    logger.debug(MessageFormat.format(
+      "Image thumbnail query built: {0}",
+      query.toString()
+    ));
+
     Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
       .atURL(previewURL)
       .getThumbnailOfImage(query);
@@ -154,7 +164,7 @@ public class PreviewService {
       queryParameters
     );
     logger.debug(MessageFormat.format(
-      "Preview query built: {0}",
+      "Pdf preview query built: {0}",
       query.toString()
     ));
 
@@ -193,7 +203,7 @@ public class PreviewService {
     );
 
     logger.debug(MessageFormat.format(
-      "Preview query built: {0}",
+      "Pdf thumbnail query built: {0}",
       query.toString()
     ));
 
@@ -230,7 +240,7 @@ public class PreviewService {
     );
 
     logger.debug(MessageFormat.format(
-      "Preview query built: {0}",
+      "Document preview query built: {0}",
       query.toString()
     ));
 
@@ -269,7 +279,7 @@ public class PreviewService {
     );
 
     logger.debug(MessageFormat.format(
-      "Preview query built: {0}",
+      "Document thumbnail query built: {0}",
       query.toString()
     ));
 

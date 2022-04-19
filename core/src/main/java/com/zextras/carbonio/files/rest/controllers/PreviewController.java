@@ -14,6 +14,7 @@ import com.zextras.carbonio.files.netty.utilities.NettyBufferWriter;
 import com.zextras.carbonio.files.rest.services.PreviewService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
+import com.zextras.carbonio.usermanagement.exceptions.BadRequest;
 import com.zextras.carbonio.usermanagement.exceptions.InternalServerError;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
@@ -27,7 +28,6 @@ import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.AttributeKey;
 import io.vavr.control.Try;
 import java.net.URLEncoder;
@@ -76,31 +76,6 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     this.previewService = previewService;
   }
 
-  /**
-   * {@inheritDoc}
-   *
-   * <p>This method handles the exception thrown If something goes wrong during the execution of
-   * the request. It returns a response containing an INTERNAL_SERVER_ERROR to the client instead of
-   * forwarding the exception to the next ChannelHandler in the ChannelPipeline.
-   *
-   * @param ctx
-   * @param cause
-   *
-   * @throws Exception
-   */
-  @Override
-  public void exceptionCaught(
-    ChannelHandlerContext ctx,
-    Throwable cause
-  ) {
-    logger.warn("PreviewController exception:\n" + cause.toString());
-    cause.printStackTrace();
-    ctx.writeAndFlush(new DefaultFullHttpResponse(
-        HttpVersion.HTTP_1_0,
-        HttpResponseStatus.INTERNAL_SERVER_ERROR)
-      )
-      .addListener(ChannelFutureListener.CLOSE);
-  }
 
   @Override
   protected void channelRead0(
@@ -151,32 +126,30 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         return;
       }
 
-      logger.error(MessageFormat.format(
+      logger.warn(MessageFormat.format(
         "Request {0} {1}: bad request",
         httpRequest.method(),
         httpRequest.uri()
       ));
 
-      context.writeAndFlush(new DefaultFullHttpResponse(
-          httpRequest.protocolVersion(),
-          HttpResponseStatus.BAD_REQUEST)
-        )
-        .addListener(ChannelFutureListener.CLOSE);
+      context.fireExceptionCaught(new BadRequest());
 
     } catch (IllegalArgumentException exception) {
-      logger.error(MessageFormat.format(
+      logger.warn(MessageFormat.format(
         "Request {0}: Illegal arguments in the request:\n{1}",
         httpRequest.uri(),
         exception.getMessage()
       ));
-      context.writeAndFlush(new DefaultFullHttpResponse(
-          httpRequest.protocolVersion(),
-          HttpResponseStatus.BAD_REQUEST)
-        )
-        .addListener(ChannelFutureListener.CLOSE);
+      context.fireExceptionCaught(new BadRequest());
 
     } catch (Exception exception) {
-      exceptionCaught(context, exception.getCause());
+      logger.error(MessageFormat.format(
+        "Unexpected exception of type: {0} with message: {1}",
+        exception.getClass(),
+        exception.getMessage()
+      ));
+      context.fireExceptionCaught(
+        new com.zextras.carbonio.preview.exceptions.InternalServerError());
     }
   }
 
@@ -429,8 +402,8 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
         .onFailure(failure -> failureResponse(context, httpRequest, failure));
     } else {
-      logger.info(MessageFormat.format(
-        "Check node operation failed, {0}",
+      logger.warn(MessageFormat.format(
+        "Check node permission and existence operation failed, {0}",
         tryCheckNode.failed().get()
       ));
       failureResponse(context, httpRequest, tryCheckNode.failed().get());
