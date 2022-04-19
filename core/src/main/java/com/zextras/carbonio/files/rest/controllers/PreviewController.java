@@ -9,6 +9,7 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.ContextAttribute;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.User;
+import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.netty.utilities.NettyBufferWriter;
 import com.zextras.carbonio.files.rest.services.PreviewService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
@@ -28,12 +29,16 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.AttributeKey;
+import io.vavr.control.Try;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +52,22 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
   private       Matcher        thumbnailImage;
   private       Matcher        previewPdf;
   private       Matcher        thumbnailPdf;
+  private       Matcher        previewDocument;
+  private       Matcher        thumbnailDocument;
+
+  private final Set<String> documentAllowedTypes = Stream.of(
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.oasis.opendocument.spreadsheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.oasis.opendocument.presentation",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.oasis.opendocument.text"
+
+  ).collect(Collectors.toUnmodifiableSet());
+
 
   @Inject
   public PreviewController(PreviewService previewService) {
@@ -91,6 +112,8 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       thumbnailImage = Endpoints.THUMBNAIL_IMAGE.matcher((uriRequest));
       previewPdf = Endpoints.PREVIEW_PDF.matcher((uriRequest));
       thumbnailPdf = Endpoints.THUMBNAIL_PDF.matcher((uriRequest));
+      previewDocument = Endpoints.PREVIEW_DOCUMENT.matcher((uriRequest));
+      thumbnailDocument = Endpoints.THUMBNAIL_DOCUMENT.matcher((uriRequest));
 
       User requester = (User) context
         .channel()
@@ -156,16 +179,28 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(previewImage.group(5));
 
-    previewService
-      .getPreviewOfImage(
-        requester.getUuid(),
-        nodeId,
-        Integer.parseInt(nodeVersion),
-        previewArea,
-        queryParameters
-      )
-      .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
-      .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    Try<Node> tryCheckNode = previewService.checkNodePermissionAndExistence(
+      requester.getUuid(),
+      nodeId,
+      Integer.parseInt(nodeVersion),
+      Collections.singleton("image/")
+    );
+
+    if (tryCheckNode.isSuccess()) {
+      previewService
+        .getPreviewOfImage(
+          tryCheckNode.get().getId(),
+          nodeId,
+          Integer.parseInt(nodeVersion),
+          previewArea,
+          queryParameters
+        )
+        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
+        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    }
+    else {
+      failureResponse(context, httpRequest, tryCheckNode.failed().get());
+    }
   }
 
   /**
@@ -188,16 +223,29 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(thumbnailImage.group(4));
 
-    previewService
-      .getThumbnailOfImage(
-        requester.getUuid(),
-        nodeId,
-        Integer.parseInt(nodeVersion),
-        previewArea,
-        queryParameters
-      )
-      .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
-      .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    Try<Node> tryCheckNode = previewService.checkNodePermissionAndExistence(
+      requester.getUuid(),
+      nodeId,
+      Integer.parseInt(nodeVersion),
+      Collections.singleton("image/")
+    );
+
+    if (tryCheckNode.isSuccess()) {
+
+      previewService
+        .getThumbnailOfImage(
+          tryCheckNode.get().getId(),
+          nodeId,
+          Integer.parseInt(nodeVersion),
+          previewArea,
+          queryParameters
+        )
+        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
+        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    }
+    else {
+      failureResponse(context, httpRequest, tryCheckNode.failed().get());
+    }
   }
 
   /**
@@ -219,12 +267,25 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(previewPdf.group(4));
 
-    previewService
-      .getPreviewOfPdf(requester.getUuid(), nodeId, Integer.parseInt(nodeVersion), queryParameters)
-      .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
-      .onFailure(failure -> failureResponse(context, httpRequest, failure));
-  }
+    Try<Node> tryCheckNode = previewService.checkNodePermissionAndExistence(
+      requester.getUuid(),
+      nodeId,
+      Integer.parseInt(nodeVersion),
+      Collections.singleton("application/pdf")
+    );
 
+    if (tryCheckNode.isSuccess()) {
+
+      previewService
+        .getPreviewOfPdf(tryCheckNode.get().getId(), nodeId, Integer.parseInt(nodeVersion),
+          queryParameters)
+        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
+        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    }
+    else {
+      failureResponse(context, httpRequest, tryCheckNode.failed().get());
+    }
+  }
 
   /**
    * <p>This method handles extraction of metadata from uri and fetching of pdf's thumbnail.
@@ -246,18 +307,116 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(thumbnailPdf.group(4));
 
-    previewService
-      .getThumbnailOfPdf(
-        requester.getUuid(),
-        nodeId,
-        Integer.parseInt(nodeVersion),
-        area,
-        queryParameters
-      )
-      .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
-      .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    Try<Node> tryCheckNode = previewService.checkNodePermissionAndExistence(
+      requester.getUuid(),
+      nodeId,
+      Integer.parseInt(nodeVersion),
+      Collections.singleton("application/pdf")
+    );
+
+    if (tryCheckNode.isSuccess()) {
+
+      previewService
+        .getThumbnailOfPdf(
+          tryCheckNode.get().getId(),
+          nodeId,
+          Integer.parseInt(nodeVersion),
+          area,
+          queryParameters
+        )
+        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
+        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    }
+    else {
+      failureResponse(context, httpRequest, tryCheckNode.failed().get());
+    }
   }
 
+
+  /**
+   * <p>This method handles extraction of metadata from uri and fetching of document's preview.
+   * The result is sent through the netty channel
+   *
+   * @param context is a {@link ChannelHandlerContext} object in which to write the results.
+   * @param httpRequest is a {@link HttpRequest}.
+   * @param requester is a {@link User}, to check if the requester has the permission to view file.
+   */
+  private void previewDocument(
+    ChannelHandlerContext context,
+    HttpRequest httpRequest,
+    User requester
+  ) {
+
+    String nodeId = previewDocument.group(1);
+    String nodeVersion = previewDocument.group(2);
+
+    PreviewQueryParameters queryParameters = parseQueryParameters(previewDocument.group(4));
+
+
+    Try<Node> tryCheckNode = previewService.checkNodePermissionAndExistence(
+      requester.getUuid(),
+      nodeId,
+      Integer.parseInt(nodeVersion),
+      documentAllowedTypes
+    );
+
+    if (tryCheckNode.isSuccess()) {
+
+      previewService
+        .getPreviewOfDocument(tryCheckNode.get().getId(), nodeId, Integer.parseInt(nodeVersion), queryParameters)
+        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
+        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    }
+    else {
+      failureResponse(context, httpRequest, tryCheckNode.failed().get());
+    }
+  }
+
+
+  /**
+   * <p>This method handles extraction of metadata from uri and fetching of document's thumbnail.
+   * The result is sent through the netty channel
+   *
+   * @param context is a {@link ChannelHandlerContext} object in which to write the results.
+   * @param httpRequest is a {@link HttpRequest}.
+   * @param requester is a {@link User}, to check if the requester has the permission to view file.
+   */
+  private void thumbnailDocument(
+    ChannelHandlerContext context,
+    HttpRequest httpRequest,
+    User requester
+  ) {
+
+    String nodeId = thumbnailDocument.group(1);
+    String nodeVersion = thumbnailDocument.group(2);
+    String area = thumbnailDocument.group(3);
+
+    PreviewQueryParameters queryParameters = parseQueryParameters(thumbnailDocument.group(4));
+
+    Try<Node> tryCheckNode = previewService.checkNodePermissionAndExistence(
+      requester.getUuid(),
+      nodeId,
+      Integer.parseInt(nodeVersion),
+      documentAllowedTypes
+    );
+
+    if (tryCheckNode.isSuccess()) {
+
+      previewService
+        .getThumbnailOfDocument(
+          tryCheckNode.get().getId(),
+          nodeId,
+          Integer.parseInt(nodeVersion),
+          area,
+          queryParameters
+        )
+        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
+        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    }
+    else {
+      failureResponse(context, httpRequest, tryCheckNode.failed().get());
+    }
+  }
 
   /**
    * <p>This method parses the given string and maps the extracted values
@@ -342,4 +501,5 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       .writeAndFlush(new DefaultFullHttpResponse(httpRequest.protocolVersion(), statusCode))
       .addListener(ChannelFutureListener.CLOSE);
   }
+
 }
