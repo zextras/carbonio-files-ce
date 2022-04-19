@@ -23,11 +23,16 @@ import com.zextras.carbonio.preview.queries.Query.QueryBuilder;
 import com.zextras.carbonio.preview.queries.enums.ServiceType;
 import com.zextras.carbonio.usermanagement.exceptions.BadRequest;
 import io.vavr.control.Try;
+import java.text.MessageFormat;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PreviewService {
+
+  private final static Logger logger = LoggerFactory.getLogger(PreviewService.class);
 
   private final PermissionsChecker    permissionsChecker;
   private final NodeRepository        nodeRepository;
@@ -148,6 +153,10 @@ public class PreviewService {
       Optional.empty(),
       queryParameters
     );
+    logger.debug(MessageFormat.format(
+      "Preview query built: {0}",
+      query.toString()
+    ));
 
     Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
       .atURL(previewURL)
@@ -183,6 +192,11 @@ public class PreviewService {
       queryParameters
     );
 
+    logger.debug(MessageFormat.format(
+      "Preview query built: {0}",
+      query.toString()
+    ));
+
     Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
       .atURL(previewURL)
       .getThumbnailOfPdf(query);
@@ -214,6 +228,11 @@ public class PreviewService {
       Optional.empty(),
       queryParameters
     );
+
+    logger.debug(MessageFormat.format(
+      "Preview query built: {0}",
+      query.toString()
+    ));
 
     Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
       .atURL(previewURL)
@@ -248,6 +267,11 @@ public class PreviewService {
       Optional.of(area),
       queryParameters
     );
+
+    logger.debug(MessageFormat.format(
+      "Preview query built: {0}",
+      query.toString()
+    ));
 
     Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
       .atURL(previewURL)

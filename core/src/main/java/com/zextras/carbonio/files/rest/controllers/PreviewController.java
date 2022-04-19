@@ -32,6 +32,7 @@ import io.netty.util.AttributeKey;
 import io.vavr.control.Try;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -130,6 +131,11 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         return;
       }
 
+      if (thumbnailDocument.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        thumbnailDocument(context, httpRequest, requester);
+        return;
+      }
+
       if (previewImage.find() && httpRequest.method().equals(HttpMethod.GET)) {
         previewImage(context, httpRequest, requester);
         return;
@@ -140,6 +146,17 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         return;
       }
 
+      if (previewDocument.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        previewDocument(context, httpRequest, requester);
+        return;
+      }
+
+      logger.error(MessageFormat.format(
+        "Request {0} {1}: bad request",
+        httpRequest.method(),
+        httpRequest.uri()
+      ));
+
       context.writeAndFlush(new DefaultFullHttpResponse(
           httpRequest.protocolVersion(),
           HttpResponseStatus.BAD_REQUEST)
@@ -147,7 +164,11 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         .addListener(ChannelFutureListener.CLOSE);
 
     } catch (IllegalArgumentException exception) {
-      logger.error(exception.getMessage());
+      logger.error(MessageFormat.format(
+        "Request {0}: Illegal arguments in the request:\n{1}",
+        httpRequest.uri(),
+        exception.getMessage()
+      ));
       context.writeAndFlush(new DefaultFullHttpResponse(
           httpRequest.protocolVersion(),
           HttpResponseStatus.BAD_REQUEST)
@@ -197,8 +218,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         )
         .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
         .onFailure(failure -> failureResponse(context, httpRequest, failure));
-    }
-    else {
+    } else {
       failureResponse(context, httpRequest, tryCheckNode.failed().get());
     }
   }
@@ -242,8 +262,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         )
         .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
         .onFailure(failure -> failureResponse(context, httpRequest, failure));
-    }
-    else {
+    } else {
       failureResponse(context, httpRequest, tryCheckNode.failed().get());
     }
   }
@@ -281,8 +300,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
           queryParameters)
         .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
         .onFailure(failure -> failureResponse(context, httpRequest, failure));
-    }
-    else {
+    } else {
       failureResponse(context, httpRequest, tryCheckNode.failed().get());
     }
   }
@@ -326,8 +344,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         )
         .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
         .onFailure(failure -> failureResponse(context, httpRequest, failure));
-    }
-    else {
+    } else {
       failureResponse(context, httpRequest, tryCheckNode.failed().get());
     }
   }
@@ -352,7 +369,6 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(previewDocument.group(4));
 
-
     Try<Node> tryCheckNode = previewService.checkNodePermissionAndExistence(
       requester.getUuid(),
       nodeId,
@@ -363,11 +379,11 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     if (tryCheckNode.isSuccess()) {
 
       previewService
-        .getPreviewOfDocument(tryCheckNode.get().getId(), nodeId, Integer.parseInt(nodeVersion), queryParameters)
+        .getPreviewOfDocument(tryCheckNode.get().getId(), nodeId, Integer.parseInt(nodeVersion),
+          queryParameters)
         .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
         .onFailure(failure -> failureResponse(context, httpRequest, failure));
-    }
-    else {
+    } else {
       failureResponse(context, httpRequest, tryCheckNode.failed().get());
     }
   }
@@ -412,8 +428,11 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         )
         .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
         .onFailure(failure -> failureResponse(context, httpRequest, failure));
-    }
-    else {
+    } else {
+      logger.info(MessageFormat.format(
+        "Check node operation failed, {0}",
+        tryCheckNode.failed().get()
+      ));
       failureResponse(context, httpRequest, tryCheckNode.failed().get());
     }
   }
@@ -465,6 +484,11 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
           StandardCharsets.UTF_8)
       );
     } catch (Exception e) {
+      logger.error(MessageFormat.format(
+        "Exception {0} encountered while sending success response: {1}",
+        e.getClass(),
+        e.getMessage()
+      ));
       e.printStackTrace();
     }
 
