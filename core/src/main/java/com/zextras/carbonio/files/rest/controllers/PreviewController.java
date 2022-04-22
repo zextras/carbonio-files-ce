@@ -9,11 +9,19 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.ContextAttribute;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.User;
+import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
+import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
+import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
 import com.zextras.carbonio.files.netty.utilities.NettyBufferWriter;
 import com.zextras.carbonio.files.rest.services.PreviewService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
+import com.zextras.carbonio.files.utilities.MimeTypeUtils;
+import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.carbonio.usermanagement.exceptions.BadRequest;
 import com.zextras.carbonio.usermanagement.exceptions.InternalServerError;
 import io.netty.channel.ChannelFutureListener;
@@ -36,6 +44,7 @@ import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
@@ -48,13 +57,18 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
   private static final Logger logger = LoggerFactory.getLogger(PreviewController.class);
 
-  private final PreviewService previewService;
-  private       Matcher        previewImage;
-  private       Matcher        thumbnailImage;
-  private       Matcher        previewPdf;
-  private       Matcher        thumbnailPdf;
-  private       Matcher        previewDocument;
-  private       Matcher        thumbnailDocument;
+  private final PreviewService        previewService;
+  private final PermissionsChecker    permissionsChecker;
+  private final FileVersionRepository fileVersionRepository;
+  private final MimeTypeUtils         mimeTypeUtils;
+  private final NodeRepository        nodeRepository;
+
+  private Matcher previewImage;
+  private Matcher thumbnailImage;
+  private Matcher previewPdf;
+  private Matcher thumbnailPdf;
+  private Matcher previewDocument;
+  private Matcher thumbnailDocument;
 
   private final Set<String> documentAllowedTypes = Stream.of(
     "application/vnd.ms-excel",
@@ -71,9 +85,19 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
 
   @Inject
-  public PreviewController(PreviewService previewService) {
+  public PreviewController(
+    PreviewService previewService,
+    PermissionsChecker permissionsChecker,
+    NodeRepository nodeRepository,
+    FileVersionRepository fileVersionRepository,
+    MimeTypeUtils mimeTypeUtils
+  ) {
     super(true);
     this.previewService = previewService;
+    this.permissionsChecker = permissionsChecker;
+    this.nodeRepository = nodeRepository;
+    this.fileVersionRepository = fileVersionRepository;
+    this.mimeTypeUtils = mimeTypeUtils;
   }
 
 
@@ -144,12 +168,14 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     } catch (Exception exception) {
       logger.error(MessageFormat.format(
-        "Unexpected exception of type: {0} with message: {1}",
+        "Request {0}: Unexpected exception of type: {1} with message: {2}",
+        httpRequest.uri(),
         exception.getClass(),
         exception.getMessage()
       ));
       context.fireExceptionCaught(
-        new com.zextras.carbonio.preview.exceptions.InternalServerError());
+        new InternalServerErrorException(exception.getMessage())
+      );
     }
   }
 
@@ -173,7 +199,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(previewImage.group(5));
 
-    Try<Node> tryCheckNode = previewService.checkNodePermissionAndExistence(
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
       nodeId,
       Integer.parseInt(nodeVersion),
@@ -181,6 +207,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     );
 
     if (tryCheckNode.isSuccess()) {
+
       previewService
         .getPreviewOfImage(
           tryCheckNode.get().getId(),
@@ -216,7 +243,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(thumbnailImage.group(4));
 
-    Try<Node> tryCheckNode = previewService.checkNodePermissionAndExistence(
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
       nodeId,
       Integer.parseInt(nodeVersion),
@@ -259,7 +286,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(previewPdf.group(4));
 
-    Try<Node> tryCheckNode = previewService.checkNodePermissionAndExistence(
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
       nodeId,
       Integer.parseInt(nodeVersion),
@@ -269,8 +296,12 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     if (tryCheckNode.isSuccess()) {
 
       previewService
-        .getPreviewOfPdf(tryCheckNode.get().getId(), nodeId, Integer.parseInt(nodeVersion),
-          queryParameters)
+        .getPreviewOfPdf(
+          tryCheckNode.get().getId(),
+          nodeId,
+          Integer.parseInt(nodeVersion),
+          queryParameters
+        )
         .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
         .onFailure(failure -> failureResponse(context, httpRequest, failure));
     } else {
@@ -298,7 +329,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(thumbnailPdf.group(4));
 
-    Try<Node> tryCheckNode = previewService.checkNodePermissionAndExistence(
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
       nodeId,
       Integer.parseInt(nodeVersion),
@@ -342,7 +373,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(previewDocument.group(4));
 
-    Try<Node> tryCheckNode = previewService.checkNodePermissionAndExistence(
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
       nodeId,
       Integer.parseInt(nodeVersion),
@@ -352,8 +383,12 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     if (tryCheckNode.isSuccess()) {
 
       previewService
-        .getPreviewOfDocument(tryCheckNode.get().getId(), nodeId, Integer.parseInt(nodeVersion),
-          queryParameters)
+        .getPreviewOfDocument(
+          tryCheckNode.get().getId(),
+          nodeId,
+          Integer.parseInt(nodeVersion),
+          queryParameters
+        )
         .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
         .onFailure(failure -> failureResponse(context, httpRequest, failure));
     } else {
@@ -382,7 +417,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(thumbnailDocument.group(4));
 
-    Try<Node> tryCheckNode = previewService.checkNodePermissionAndExistence(
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
       nodeId,
       Integer.parseInt(nodeVersion),
@@ -402,10 +437,6 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
         .onFailure(failure -> failureResponse(context, httpRequest, failure));
     } else {
-      logger.warn(MessageFormat.format(
-        "Check node permission and existence operation failed, {0}",
-        tryCheckNode.failed().get()
-      ));
       failureResponse(context, httpRequest, tryCheckNode.failed().get());
     }
   }
@@ -458,7 +489,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       );
     } catch (Exception e) {
       logger.error(MessageFormat.format(
-        "Exception {0} encountered while sending success response: {1}",
+        "Request {0}: Exception of type: {0} encountered while sending success response: {1}",
         e.getClass(),
         e.getMessage()
       ));
@@ -488,7 +519,11 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     HttpRequest httpRequest,
     Throwable failure
   ) {
-    logger.error(failure.getMessage());
+    logger.error(MessageFormat.format(
+      "Request {0}: Failed with message {1}",
+      httpRequest.uri(),
+      failure.getMessage()
+    ));
 
     HttpResponseStatus statusCode = (failure instanceof InternalServerError)
       ? HttpResponseStatus.INTERNAL_SERVER_ERROR
@@ -498,5 +533,38 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       .writeAndFlush(new DefaultFullHttpResponse(httpRequest.protocolVersion(), statusCode))
       .addListener(ChannelFutureListener.CLOSE);
   }
+
+
+  /**
+   * <p>This checks if the requested node can be accessed by the requester
+   * and if the node mimetype is supported by the system.
+   *
+   * @param requesterId is a {@link String} representing the id of the requester.
+   * @param nodeId is a {@link String } representing the nodeId of the node.
+   * @param version is a <code> integer </code> representing the version of the node.
+   * @param supportedMimeTypeList is a {@link Set} representing the allowed list or instance of
+   * mimetype that the calling methods allow (for instance a method may want only mimetype that are
+   * of "image" so "image/something" while another method "application" so "application/something"
+   *
+   * @return a {@link Try} containing the checked @{link Node} or, on failure, the specific error
+   */
+  private Try<Node> checkNodePermissionAndExistence(
+    String requesterId,
+    String nodeId,
+    int version,
+    Set<String> supportedMimeTypeList
+  ) {
+    Optional<FileVersion> optFileVersion = fileVersionRepository.getFileVersion(nodeId, version);
+    if (permissionsChecker.getPermissions(nodeId, requesterId).has(SharePermission.READ_ONLY)
+      && optFileVersion.isPresent()
+    ) {
+      return (mimeTypeUtils.isMimeTypeAllowed(optFileVersion.get().getMimeType(),
+        supportedMimeTypeList))
+        ? Try.success(nodeRepository.getNode(nodeId).get())
+        : Try.failure(new BadRequest());
+    }
+    return Try.failure(new NodeNotFoundException(requesterId, nodeId));
+  }
+
 
 }

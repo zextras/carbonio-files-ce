@@ -34,24 +34,15 @@ public class PreviewService {
 
   private final static Logger logger = LoggerFactory.getLogger(PreviewService.class);
 
-  private final PermissionsChecker    permissionsChecker;
-  private final NodeRepository        nodeRepository;
-  private final FileVersionRepository fileVersionRepository;
-  private final MimeTypeUtils         mimeTypeUtils;
-  private final String                previewURL;
+  private final NodeRepository nodeRepository;
+  private final String         previewURL;
 
   @Inject
   public PreviewService(
     FilesConfig filesConfig,
-    PermissionsChecker permissionsChecker,
-    NodeRepository nodeRepository,
-    FileVersionRepository fileVersionRepository,
-    MimeTypeUtils mimeTypeUtils
+    NodeRepository nodeRepository
   ) {
-    this.permissionsChecker = permissionsChecker;
     this.nodeRepository = nodeRepository;
-    this.fileVersionRepository = fileVersionRepository;
-    this.mimeTypeUtils = mimeTypeUtils;
 
     Properties properties = filesConfig.getProperties();
     previewURL = "http://"
@@ -215,7 +206,7 @@ public class PreviewService {
   }
 
   /**
-   * <p>This method fetch the preview of a pdf if the requester has read rights.
+   * <p>This method fetch the preview of a document if the requester has read rights.
    *
    * @param ownerId is a {@link String} representing the id of the file owner.
    * @param nodeId is a {@link String} representing the id of the file to fetch.
@@ -252,7 +243,7 @@ public class PreviewService {
   }
 
   /**
-   * <p>This method fetch the thumbnail of a pdf if the requester has read rights.
+   * <p>This method fetch the thumbnail of a document if the requester has read rights.
    *
    * @param ownerId is a {@link String} representing the id of the requester.
    * @param nodeId is a {@link String} representing the id of the file to fetch.
@@ -288,36 +279,6 @@ public class PreviewService {
       .getThumbnailOfDocument(query);
 
     return mapResponseToBlobResponse(response, nodeId);
-  }
-
-  /**
-   * <p>This checks if the requested node can be accessed by the requester
-   * and if the node mimetype is supported by the system.
-   *
-   * @param requesterId is a {@link String} representing the id of the requester.
-   * @param nodeId is a {@link String } representing the nodeId of the node.
-   * @param version is a <code> integer </code> representing the version of the node.
-   * @param supportedMimeTypeList is a {@link Set} representing the allowed list or instance of
-   * mimetype that the calling methods allow (for instance a method may want only mimetype that are
-   * of "image" so "image/something" while another method "application" so "application/something"
-   *
-   * @return a {@link Try} containing the checked @{link Node} or, on failure, the specific error
-   */
-  public Try<Node> checkNodePermissionAndExistence(
-    String requesterId,
-    String nodeId,
-    int version,
-    Set<String> supportedMimeTypeList
-  ) {
-    Optional<FileVersion> optFileVersion = fileVersionRepository.getFileVersion(nodeId, version);
-    if (permissionsChecker.getPermissions(nodeId, requesterId).has(SharePermission.READ_ONLY)
-      && optFileVersion.isPresent()
-    ) {
-      return (mimeTypeUtils.isMimeTypeAllowed(optFileVersion.get().getMimeType(), supportedMimeTypeList))
-        ? Try.success(nodeRepository.getNode(nodeId).get())
-        : Try.failure(new BadRequest());
-    }
-    return Try.failure(new NodeNotFoundException());
   }
 
   /**
