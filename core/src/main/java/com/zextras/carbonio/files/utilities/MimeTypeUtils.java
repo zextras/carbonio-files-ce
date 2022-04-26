@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.utilities;
 
 import com.google.common.net.MediaType;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
@@ -1231,19 +1232,19 @@ public class MimeTypeUtils {
    * then checks if the given mimeType is in the final list.
    *
    * @param mimeType is a {@link String} representing the mimetype to check.
-   * @param allowedMimeType is a {@link String} used to filter the mimetype list that will be
+   * @param allowedMimeType is a {@link Collection} used to filter the mimetype list that will be
    * compared with the given mimetype.
    *
    * @return True if the check was successful, otherwise False
    */
   public boolean isMimeTypeAllowed(
     String mimeType,
-    String allowedMimeType
+    Collection<String> allowedMimeType
   ) {
     return mimeTypes
       .values()
       .stream()
-      .filter(value -> value.contains(allowedMimeType))
-      .anyMatch(value -> value.equals(mimeType));
+      .filter(value -> allowedMimeType.stream().anyMatch(value::contains))
+      .anyMatch(value -> value.contains(mimeType));
   }
 }

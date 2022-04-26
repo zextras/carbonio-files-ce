@@ -9,10 +9,20 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.ContextAttribute;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.User;
+import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
+import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
+import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
+import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
 import com.zextras.carbonio.files.netty.utilities.NettyBufferWriter;
 import com.zextras.carbonio.files.rest.services.PreviewService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
+import com.zextras.carbonio.files.utilities.MimeTypeUtils;
+import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.usermanagement.exceptions.BadRequest;
 import com.zextras.carbonio.usermanagement.exceptions.InternalServerError;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
@@ -26,14 +36,19 @@ import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.AttributeKey;
+import io.vavr.control.Try;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,43 +57,49 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
   private static final Logger logger = LoggerFactory.getLogger(PreviewController.class);
 
-  private final PreviewService previewService;
-  private       Matcher        previewImage;
-  private       Matcher        thumbnailImage;
-  private       Matcher        previewPdf;
-  private       Matcher        thumbnailPdf;
+  private final PreviewService        previewService;
+  private final PermissionsChecker    permissionsChecker;
+  private final FileVersionRepository fileVersionRepository;
+  private final MimeTypeUtils         mimeTypeUtils;
+  private final NodeRepository        nodeRepository;
+
+  private Matcher previewImage;
+  private Matcher thumbnailImage;
+  private Matcher previewPdf;
+  private Matcher thumbnailPdf;
+  private Matcher previewDocument;
+  private Matcher thumbnailDocument;
+
+  private final Set<String> documentAllowedTypes = Stream.of(
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.oasis.opendocument.spreadsheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.oasis.opendocument.presentation",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.oasis.opendocument.text"
+
+  ).collect(Collectors.toUnmodifiableSet());
+
 
   @Inject
-  public PreviewController(PreviewService previewService) {
+  public PreviewController(
+    PreviewService previewService,
+    PermissionsChecker permissionsChecker,
+    NodeRepository nodeRepository,
+    FileVersionRepository fileVersionRepository,
+    MimeTypeUtils mimeTypeUtils
+  ) {
     super(true);
     this.previewService = previewService;
+    this.permissionsChecker = permissionsChecker;
+    this.nodeRepository = nodeRepository;
+    this.fileVersionRepository = fileVersionRepository;
+    this.mimeTypeUtils = mimeTypeUtils;
   }
 
-  /**
-   * {@inheritDoc}
-   *
-   * <p>This method handles the exception thrown If something goes wrong during the execution of
-   * the request. It returns a response containing an INTERNAL_SERVER_ERROR to the client instead of
-   * forwarding the exception to the next ChannelHandler in the ChannelPipeline.
-   *
-   * @param ctx
-   * @param cause
-   *
-   * @throws Exception
-   */
-  @Override
-  public void exceptionCaught(
-    ChannelHandlerContext ctx,
-    Throwable cause
-  ) {
-    logger.warn("PreviewController exception:\n" + cause.toString());
-    cause.printStackTrace();
-    ctx.writeAndFlush(new DefaultFullHttpResponse(
-        HttpVersion.HTTP_1_0,
-        HttpResponseStatus.INTERNAL_SERVER_ERROR)
-      )
-      .addListener(ChannelFutureListener.CLOSE);
-  }
 
   @Override
   protected void channelRead0(
@@ -91,6 +112,8 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       thumbnailImage = Endpoints.THUMBNAIL_IMAGE.matcher((uriRequest));
       previewPdf = Endpoints.PREVIEW_PDF.matcher((uriRequest));
       thumbnailPdf = Endpoints.THUMBNAIL_PDF.matcher((uriRequest));
+      previewDocument = Endpoints.PREVIEW_DOCUMENT.matcher((uriRequest));
+      thumbnailDocument = Endpoints.THUMBNAIL_DOCUMENT.matcher((uriRequest));
 
       User requester = (User) context
         .channel()
@@ -107,6 +130,11 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         return;
       }
 
+      if (thumbnailDocument.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        thumbnailDocument(context, httpRequest, requester);
+        return;
+      }
+
       if (previewImage.find() && httpRequest.method().equals(HttpMethod.GET)) {
         previewImage(context, httpRequest, requester);
         return;
@@ -117,22 +145,37 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         return;
       }
 
-      context.writeAndFlush(new DefaultFullHttpResponse(
-          httpRequest.protocolVersion(),
-          HttpResponseStatus.BAD_REQUEST)
-        )
-        .addListener(ChannelFutureListener.CLOSE);
+      if (previewDocument.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        previewDocument(context, httpRequest, requester);
+        return;
+      }
+
+      logger.warn(MessageFormat.format(
+        "Request {0} {1}: bad request",
+        httpRequest.method(),
+        httpRequest.uri()
+      ));
+
+      context.fireExceptionCaught(new BadRequest());
 
     } catch (IllegalArgumentException exception) {
-      logger.error(exception.getMessage());
-      context.writeAndFlush(new DefaultFullHttpResponse(
-          httpRequest.protocolVersion(),
-          HttpResponseStatus.BAD_REQUEST)
-        )
-        .addListener(ChannelFutureListener.CLOSE);
+      logger.warn(MessageFormat.format(
+        "Request {0}: Illegal arguments in the request:\n{1}",
+        httpRequest.uri(),
+        exception.getMessage()
+      ));
+      context.fireExceptionCaught(new BadRequest());
 
     } catch (Exception exception) {
-      exceptionCaught(context, exception.getCause());
+      logger.error(MessageFormat.format(
+        "Request {0}: Unexpected exception of type: {1} with message: {2}",
+        httpRequest.uri(),
+        exception.getClass(),
+        exception.getMessage()
+      ));
+      context.fireExceptionCaught(
+        new InternalServerErrorException(exception.getMessage())
+      );
     }
   }
 
@@ -156,16 +199,28 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(previewImage.group(5));
 
-    previewService
-      .getPreviewOfImage(
-        requester.getUuid(),
-        nodeId,
-        Integer.parseInt(nodeVersion),
-        previewArea,
-        queryParameters
-      )
-      .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
-      .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
+      requester.getUuid(),
+      nodeId,
+      Integer.parseInt(nodeVersion),
+      Collections.singleton("image/")
+    );
+
+    if (tryCheckNode.isSuccess()) {
+
+      previewService
+        .getPreviewOfImage(
+          tryCheckNode.get().getId(),
+          nodeId,
+          Integer.parseInt(nodeVersion),
+          previewArea,
+          queryParameters
+        )
+        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
+        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    } else {
+      failureResponse(context, httpRequest, tryCheckNode.failed().get());
+    }
   }
 
   /**
@@ -188,16 +243,28 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(thumbnailImage.group(4));
 
-    previewService
-      .getThumbnailOfImage(
-        requester.getUuid(),
-        nodeId,
-        Integer.parseInt(nodeVersion),
-        previewArea,
-        queryParameters
-      )
-      .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
-      .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
+      requester.getUuid(),
+      nodeId,
+      Integer.parseInt(nodeVersion),
+      Collections.singleton("image/")
+    );
+
+    if (tryCheckNode.isSuccess()) {
+
+      previewService
+        .getThumbnailOfImage(
+          tryCheckNode.get().getId(),
+          nodeId,
+          Integer.parseInt(nodeVersion),
+          previewArea,
+          queryParameters
+        )
+        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
+        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    } else {
+      failureResponse(context, httpRequest, tryCheckNode.failed().get());
+    }
   }
 
   /**
@@ -219,12 +286,28 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(previewPdf.group(4));
 
-    previewService
-      .getPreviewOfPdf(requester.getUuid(), nodeId, Integer.parseInt(nodeVersion), queryParameters)
-      .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
-      .onFailure(failure -> failureResponse(context, httpRequest, failure));
-  }
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
+      requester.getUuid(),
+      nodeId,
+      Integer.parseInt(nodeVersion),
+      Collections.singleton("application/pdf")
+    );
 
+    if (tryCheckNode.isSuccess()) {
+
+      previewService
+        .getPreviewOfPdf(
+          tryCheckNode.get().getId(),
+          nodeId,
+          Integer.parseInt(nodeVersion),
+          queryParameters
+        )
+        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
+        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    } else {
+      failureResponse(context, httpRequest, tryCheckNode.failed().get());
+    }
+  }
 
   /**
    * <p>This method handles extraction of metadata from uri and fetching of pdf's thumbnail.
@@ -246,18 +329,117 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(thumbnailPdf.group(4));
 
-    previewService
-      .getThumbnailOfPdf(
-        requester.getUuid(),
-        nodeId,
-        Integer.parseInt(nodeVersion),
-        area,
-        queryParameters
-      )
-      .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
-      .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
+      requester.getUuid(),
+      nodeId,
+      Integer.parseInt(nodeVersion),
+      Collections.singleton("application/pdf")
+    );
+
+    if (tryCheckNode.isSuccess()) {
+
+      previewService
+        .getThumbnailOfPdf(
+          tryCheckNode.get().getId(),
+          nodeId,
+          Integer.parseInt(nodeVersion),
+          area,
+          queryParameters
+        )
+        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
+        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    } else {
+      failureResponse(context, httpRequest, tryCheckNode.failed().get());
+    }
   }
 
+
+  /**
+   * <p>This method handles extraction of metadata from uri and fetching of document's preview.
+   * The result is sent through the netty channel
+   *
+   * @param context is a {@link ChannelHandlerContext} object in which to write the results.
+   * @param httpRequest is a {@link HttpRequest}.
+   * @param requester is a {@link User}, to check if the requester has the permission to view file.
+   */
+  private void previewDocument(
+    ChannelHandlerContext context,
+    HttpRequest httpRequest,
+    User requester
+  ) {
+
+    String nodeId = previewDocument.group(1);
+    String nodeVersion = previewDocument.group(2);
+
+    PreviewQueryParameters queryParameters = parseQueryParameters(previewDocument.group(4));
+
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
+      requester.getUuid(),
+      nodeId,
+      Integer.parseInt(nodeVersion),
+      documentAllowedTypes
+    );
+
+    if (tryCheckNode.isSuccess()) {
+
+      previewService
+        .getPreviewOfDocument(
+          tryCheckNode.get().getId(),
+          nodeId,
+          Integer.parseInt(nodeVersion),
+          queryParameters
+        )
+        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
+        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    } else {
+      failureResponse(context, httpRequest, tryCheckNode.failed().get());
+    }
+  }
+
+
+  /**
+   * <p>This method handles extraction of metadata from uri and fetching of document's thumbnail.
+   * The result is sent through the netty channel
+   *
+   * @param context is a {@link ChannelHandlerContext} object in which to write the results.
+   * @param httpRequest is a {@link HttpRequest}.
+   * @param requester is a {@link User}, to check if the requester has the permission to view file.
+   */
+  private void thumbnailDocument(
+    ChannelHandlerContext context,
+    HttpRequest httpRequest,
+    User requester
+  ) {
+
+    String nodeId = thumbnailDocument.group(1);
+    String nodeVersion = thumbnailDocument.group(2);
+    String area = thumbnailDocument.group(3);
+
+    PreviewQueryParameters queryParameters = parseQueryParameters(thumbnailDocument.group(4));
+
+    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
+      requester.getUuid(),
+      nodeId,
+      Integer.parseInt(nodeVersion),
+      documentAllowedTypes
+    );
+
+    if (tryCheckNode.isSuccess()) {
+
+      previewService
+        .getThumbnailOfDocument(
+          tryCheckNode.get().getId(),
+          nodeId,
+          Integer.parseInt(nodeVersion),
+          area,
+          queryParameters
+        )
+        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
+        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+    } else {
+      failureResponse(context, httpRequest, tryCheckNode.failed().get());
+    }
+  }
 
   /**
    * <p>This method parses the given string and maps the extracted values
@@ -306,6 +488,11 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
           StandardCharsets.UTF_8)
       );
     } catch (Exception e) {
+      logger.error(MessageFormat.format(
+        "Request {0}: Exception of type: {0} encountered while sending success response: {1}",
+        e.getClass(),
+        e.getMessage()
+      ));
       e.printStackTrace();
     }
 
@@ -332,7 +519,11 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     HttpRequest httpRequest,
     Throwable failure
   ) {
-    logger.error(failure.getMessage());
+    logger.error(MessageFormat.format(
+      "Request {0}: Failed with message {1}",
+      httpRequest.uri(),
+      failure.getMessage()
+    ));
 
     HttpResponseStatus statusCode = (failure instanceof InternalServerError)
       ? HttpResponseStatus.INTERNAL_SERVER_ERROR
@@ -342,4 +533,38 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       .writeAndFlush(new DefaultFullHttpResponse(httpRequest.protocolVersion(), statusCode))
       .addListener(ChannelFutureListener.CLOSE);
   }
+
+
+  /**
+   * <p>This checks if the requested node can be accessed by the requester
+   * and if the node mimetype is supported by the system.
+   *
+   * @param requesterId is a {@link String} representing the id of the requester.
+   * @param nodeId is a {@link String } representing the nodeId of the node.
+   * @param version is a <code> integer </code> representing the version of the node.
+   * @param supportedMimeTypeList is a {@link Set} representing the allowed list or instance of
+   * mimetype that the calling methods allow (for instance a method may want only mimetype that are
+   * of "image" so "image/something" while another method "application" so "application/something"
+   *
+   * @return a {@link Try} containing the checked @{link Node} or, on failure, the specific error
+   */
+  private Try<Node> checkNodePermissionAndExistence(
+    String requesterId,
+    String nodeId,
+    int version,
+    Set<String> supportedMimeTypeList
+  ) {
+    Optional<FileVersion> optFileVersion = fileVersionRepository.getFileVersion(nodeId, version);
+    if (permissionsChecker.getPermissions(nodeId, requesterId).has(SharePermission.READ_ONLY)
+      && optFileVersion.isPresent()
+    ) {
+      return (mimeTypeUtils.isMimeTypeAllowed(optFileVersion.get().getMimeType(),
+        supportedMimeTypeList))
+        ? Try.success(nodeRepository.getNode(nodeId).get())
+        : Try.failure(new BadRequest());
+    }
+    return Try.failure(new NodeNotFoundException(requesterId, nodeId));
+  }
+
+
 }

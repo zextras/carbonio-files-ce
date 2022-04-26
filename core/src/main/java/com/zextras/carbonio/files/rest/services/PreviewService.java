@@ -23,29 +23,26 @@ import com.zextras.carbonio.preview.queries.Query.QueryBuilder;
 import com.zextras.carbonio.preview.queries.enums.ServiceType;
 import com.zextras.carbonio.usermanagement.exceptions.BadRequest;
 import io.vavr.control.Try;
+import java.text.MessageFormat;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PreviewService {
 
-  private final PermissionsChecker    permissionsChecker;
-  private final NodeRepository        nodeRepository;
-  private final FileVersionRepository fileVersionRepository;
-  private final MimeTypeUtils         mimeTypeUtils;
-  private final String                previewURL;
+  private final static Logger logger = LoggerFactory.getLogger(PreviewService.class);
+
+  private final NodeRepository nodeRepository;
+  private final String         previewURL;
 
   @Inject
   public PreviewService(
     FilesConfig filesConfig,
-    PermissionsChecker permissionsChecker,
-    NodeRepository nodeRepository,
-    FileVersionRepository fileVersionRepository,
-    MimeTypeUtils mimeTypeUtils
+    NodeRepository nodeRepository
   ) {
-    this.permissionsChecker = permissionsChecker;
     this.nodeRepository = nodeRepository;
-    this.fileVersionRepository = fileVersionRepository;
-    this.mimeTypeUtils = mimeTypeUtils;
 
     Properties properties = filesConfig.getProperties();
     previewURL = "http://"
@@ -57,7 +54,7 @@ public class PreviewService {
   /**
    * <p>This method fetch the preview of an image if the requester has read rights.
    *
-   * @param requesterId is a {@link String} representing the id of the requester.
+   * @param ownerId is a {@link String} representing the id of the file owner.
    * @param nodeId is a {@link String} representing the id of the file to fetch.
    * @param version is a <code> integer </code> representing the version of the file to fetch.
    * @param area is a {@link String} containing the area (widthxheight) of the preview.
@@ -67,41 +64,36 @@ public class PreviewService {
    * @return fetched {@link BlobResponse} wrapped in a {@link Try} that can be successful or failed
    */
   public Try<BlobResponse> getPreviewOfImage(
-    String requesterId,
+    String ownerId,
     String nodeId,
     int version,
     String area,
     PreviewQueryParameters queryParameters
   ) {
-    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
-      requesterId,
+    Query query = generateQuery(
       nodeId,
       version,
-      "image/"
+      ownerId,
+      Optional.of(area),
+      queryParameters
     );
 
-    if (tryCheckNode.isSuccess()) {
-      Query query = generateQuery(
-        nodeId,
-        version,
-        tryCheckNode.get().getOwnerId(),
-        Optional.of(area),
-        queryParameters
-      );
+    logger.debug(MessageFormat.format(
+      "Image preview query built: {0}",
+      query.toString()
+    ));
 
-      Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
-        .atURL(previewURL)
-        .getPreviewOfImage(query);
+    Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
+      .atURL(previewURL)
+      .getPreviewOfImage(query);
 
-      return mapResponseToBlobResponse(response, nodeId);
-    }
-    return Try.failure(tryCheckNode.failed().get());
+    return mapResponseToBlobResponse(response, nodeId);
   }
 
   /**
    * <p>This method fetch the thumbnail of an image if the requester has read rights.
    *
-   * @param requesterId is a {@link String} representing the id of the requester.
+   * @param ownerId is a {@link String} representing the id of the file owner.
    * @param nodeId is a {@link String} representing the id of the file to fetch.
    * @param version is a <code> integer </code> representing the version of the file to fetch.
    * @param area is a {@link String} containing the area (widthxheight) of the preview.
@@ -111,41 +103,37 @@ public class PreviewService {
    * @return fetched {@link BlobResponse} wrapped in a {@link Try} that can be successful or failed
    */
   public Try<BlobResponse> getThumbnailOfImage(
-    String requesterId,
+    String ownerId,
     String nodeId,
     int version,
     String area,
     PreviewQueryParameters queryParameters
   ) {
-    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
-      requesterId,
+
+    Query query = generateQuery(
       nodeId,
       version,
-      "image/"
+      ownerId,
+      Optional.of(area),
+      queryParameters
     );
 
-    if (tryCheckNode.isSuccess()) {
-      Query query = generateQuery(
-        nodeId,
-        version,
-        tryCheckNode.get().getOwnerId(),
-        Optional.of(area),
-        queryParameters
-      );
+    logger.debug(MessageFormat.format(
+      "Image thumbnail query built: {0}",
+      query.toString()
+    ));
 
-      Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
-        .atURL(previewURL)
-        .getThumbnailOfImage(query);
+    Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
+      .atURL(previewURL)
+      .getThumbnailOfImage(query);
 
-      return mapResponseToBlobResponse(response, nodeId);
-    }
-    return Try.failure(tryCheckNode.failed().get());
+    return mapResponseToBlobResponse(response, nodeId);
   }
 
   /**
    * <p>This method fetch the preview of a pdf if the requester has read rights.
    *
-   * @param requesterId is a {@link String} representing the id of the requester.
+   * @param ownerId is a {@link String} representing the id of the file owner.
    * @param nodeId is a {@link String} representing the id of the file to fetch.
    * @param version is a <code> integer </code> representing the version of the file to fetch.
    * @param queryParameters is a {@link PreviewQueryParameters} containing all the query
@@ -154,40 +142,34 @@ public class PreviewService {
    * @return fetched {@link BlobResponse} wrapped in a {@link Try} that can be successful or failed
    */
   public Try<BlobResponse> getPreviewOfPdf(
-    String requesterId,
+    String ownerId,
     String nodeId,
     int version,
     PreviewQueryParameters queryParameters
   ) {
-    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
-      requesterId,
+    Query query = generateQuery(
       nodeId,
       version,
-      "application/pdf"
+      ownerId,
+      Optional.empty(),
+      queryParameters
     );
+    logger.debug(MessageFormat.format(
+      "Pdf preview query built: {0}",
+      query.toString()
+    ));
 
-    if (tryCheckNode.isSuccess()) {
-      Query query = generateQuery(
-        nodeId,
-        version,
-        tryCheckNode.get().getOwnerId(),
-        Optional.empty(),
-        queryParameters
-      );
+    Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
+      .atURL(previewURL)
+      .getPreviewOfPdf(query);
 
-      Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
-        .atURL(previewURL)
-        .getPreviewOfPdf(query);
-
-      return mapResponseToBlobResponse(response, nodeId);
-    }
-    return Try.failure(tryCheckNode.failed().get());
+    return mapResponseToBlobResponse(response, nodeId);
   }
 
   /**
    * <p>This method fetch the thumbnail of a pdf if the requester has read rights.
    *
-   * @param requesterId is a {@link String} representing the id of the requester.
+   * @param ownerId is a {@link String} representing the id of the file owner.
    * @param nodeId is a {@link String} representing the id of the file to fetch.
    * @param version is a <code> integer </code> representing the version of the file to fetch.
    * @param area is a {@link String} containing the area (widthxheight) of the preview.
@@ -197,65 +179,106 @@ public class PreviewService {
    * @return fetched {@link BlobResponse} wrapped in a {@link Try} that can be successful or failed
    */
   public Try<BlobResponse> getThumbnailOfPdf(
-    String requesterId,
+    String ownerId,
     String nodeId,
     int version,
     String area,
     PreviewQueryParameters queryParameters
   ) {
-    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
-      requesterId,
+    Query query = generateQuery(
       nodeId,
       version,
-      "application/pdf"
+      ownerId,
+      Optional.of(area),
+      queryParameters
     );
 
-    if (tryCheckNode.isSuccess()) {
-      Query query = generateQuery(
-        nodeId,
-        version,
-        tryCheckNode.get().getOwnerId(),
-        Optional.of(area),
-        queryParameters
-      );
+    logger.debug(MessageFormat.format(
+      "Pdf thumbnail query built: {0}",
+      query.toString()
+    ));
 
-      Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
-        .atURL(previewURL)
-        .getThumbnailOfPdf(query);
+    Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
+      .atURL(previewURL)
+      .getThumbnailOfPdf(query);
 
-      return mapResponseToBlobResponse(response, nodeId);
-    }
-    return Try.failure(tryCheckNode.failed().get());
+    return mapResponseToBlobResponse(response, nodeId);
   }
 
   /**
-   * <p>This checks if the requested node can be accessed by the requester
-   * and if the node mimetype is supported by the system.
+   * <p>This method fetch the preview of a document if the requester has read rights.
    *
-   * @param requesterId is a {@link String} representing the id of the requester.
-   * @param nodeId is a {@link String } representing the nodeId of the node.
-   * @param version is a <code> integer </code> representing the version of the node.
-   * @param allowedMimeType is a {@link String} representing the allowed list or instance of
-   * mimetype that the calling methods allow (for instance a method may want only mimetype that are
-   * of "image" so "image/something" while another method "application" so "application/something"
+   * @param ownerId is a {@link String} representing the id of the file owner.
+   * @param nodeId is a {@link String} representing the id of the file to fetch.
+   * @param version is a <code> integer </code> representing the version of the file to fetch.
+   * @param queryParameters is a {@link PreviewQueryParameters} containing all the query
+   * parameters.
    *
-   * @return a {@link Try} containing the checked @{link Node} or, on failure, the specific error
+   * @return fetched {@link BlobResponse} wrapped in a {@link Try} that can be successful or failed
    */
-  private Try<Node> checkNodePermissionAndExistence(
-    String requesterId,
+  public Try<BlobResponse> getPreviewOfDocument(
+    String ownerId,
     String nodeId,
     int version,
-    String allowedMimeType
+    PreviewQueryParameters queryParameters
   ) {
-    Optional<FileVersion> optFileVersion = fileVersionRepository.getFileVersion(nodeId, version);
-    if (permissionsChecker.getPermissions(nodeId, requesterId).has(SharePermission.READ_ONLY)
-      && optFileVersion.isPresent()
-    ) {
-      return (mimeTypeUtils.isMimeTypeAllowed(optFileVersion.get().getMimeType(), allowedMimeType))
-        ? Try.success(nodeRepository.getNode(nodeId).get())
-        : Try.failure(new BadRequest());
-    }
-    return Try.failure(new NodeNotFoundException());
+    Query query = generateQuery(
+      nodeId,
+      version,
+      ownerId,
+      Optional.empty(),
+      queryParameters
+    );
+
+    logger.debug(MessageFormat.format(
+      "Document preview query built: {0}",
+      query.toString()
+    ));
+
+    Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
+      .atURL(previewURL)
+      .getPreviewOfDocument(query);
+
+    return mapResponseToBlobResponse(response, nodeId);
+  }
+
+  /**
+   * <p>This method fetch the thumbnail of a document if the requester has read rights.
+   *
+   * @param ownerId is a {@link String} representing the id of the requester.
+   * @param nodeId is a {@link String} representing the id of the file to fetch.
+   * @param version is a <code> integer </code> representing the version of the file to fetch.
+   * @param area is a {@link String} containing the area (widthxheight) of the preview.
+   * @param queryParameters is a {@link PreviewQueryParameters} containing all the query
+   * parameters.
+   *
+   * @return fetched {@link BlobResponse} wrapped in a {@link Try} that can be successful or failed
+   */
+  public Try<BlobResponse> getThumbnailOfDocument(
+    String ownerId,
+    String nodeId,
+    int version,
+    String area,
+    PreviewQueryParameters queryParameters
+  ) {
+    Query query = generateQuery(
+      nodeId,
+      version,
+      ownerId,
+      Optional.of(area),
+      queryParameters
+    );
+
+    logger.debug(MessageFormat.format(
+      "Document thumbnail query built: {0}",
+      query.toString()
+    ));
+
+    Try<com.zextras.carbonio.preview.queries.BlobResponse> response = PreviewClient
+      .atURL(previewURL)
+      .getThumbnailOfDocument(query);
+
+    return mapResponseToBlobResponse(response, nodeId);
   }
 
   /**

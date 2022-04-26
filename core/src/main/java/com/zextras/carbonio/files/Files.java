@@ -530,6 +530,12 @@ public interface Files {
       Pattern THUMBNAIL_PDF   = Pattern.compile(
         SERVICE + "preview/pdf/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/thumbnail/?\\??(.*)"
       );
+      Pattern PREVIEW_DOCUMENT     = Pattern.compile(
+        SERVICE + "preview/document/([a-f0-9\\-]*)/([0-9]+)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
+      );
+      Pattern THUMBNAIL_DOCUMENT   = Pattern.compile(
+        SERVICE + "preview/document/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/thumbnail/?\\??(.*)"
+      );
     }
 
     interface Headers {
