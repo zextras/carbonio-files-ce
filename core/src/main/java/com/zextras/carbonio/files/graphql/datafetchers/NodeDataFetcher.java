@@ -13,6 +13,7 @@ import com.zextras.carbonio.files.Files.GraphQL.InputParameters.FlagNodes;
 import com.zextras.carbonio.files.Files.GraphQL.InputParameters.GetVersions;
 import com.zextras.carbonio.files.Files.GraphQL.InputParameters.KeepVersions;
 import com.zextras.carbonio.files.Files.GraphQL.InputParameters.RestoreNodes;
+import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
@@ -46,6 +47,7 @@ import graphql.schema.TypeResolver;
 import graphql.schema.idl.EnumValuesProvider;
 import io.ebean.annotation.Transactional;
 import io.vavr.control.Try;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -54,6 +56,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Vector;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -97,6 +100,7 @@ public class NodeDataFetcher {
   private final TombstoneRepository   tombstoneRepository;
   private final ShareDataFetcher      shareDataFetcher;
   private final BlobService           blobService;
+  private final int                   maxNumberOfVersions;
 
   @Inject
   NodeDataFetcher(
@@ -115,6 +119,11 @@ public class NodeDataFetcher {
     this.tombstoneRepository = tombstoneRepository;
     this.shareDataFetcher = shareDataFetcher;
     this.blobService = blobService;
+
+    this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
+      .defaultURL("carbonio-files")
+      .getConfig("max-number-of-versions")
+      .getOrElse("50"));
   }
 
   private DataFetcherResult<Map<String, Object>> fetchNodeAndConvertToDataFetcherResult(
@@ -500,9 +509,9 @@ public class NodeDataFetcher {
 
   /**
    * <p>This {@link DataFetcher} must be used to fetch the permissions of the requester {@link } on
-   * the specified node. It works only if the previous data fetcher creates a {@link
-   * Files.GraphQL.Types#NODE_INTERFACE} and if it is bound to resolve attributes that have type
-   * {@link Files.GraphQL.Types#PERMISSIONS}.</p>
+   * the specified node. It works only if the previous data fetcher creates a
+   * {@link Files.GraphQL.Types#NODE_INTERFACE} and if it is bound to resolve attributes that have
+   * type {@link Files.GraphQL.Types#PERMISSIONS}.</p>
    * <p>In particular:
    * <ul>
    *  <li>
@@ -850,9 +859,10 @@ public class NodeDataFetcher {
    * Map}.</p>
    * <p>It <strong>must</strong> be bound to a Share query and used only to retrieve a node that
    * represents the attribute {@link Files.GraphQL.Share#NODE} in a GraphQL Share object. It works
-   * only if the localContext exists and if the previous data fetcher saves the {@link
-   * Files.GraphQL.InputParameters#NODE_ID} in the context: if one of these pre-conditions are not
-   * satisfied then the execution will be aborted with an {@link AbortExecutionException}. </p>
+   * only if the localContext exists and if the previous data fetcher saves the
+   * {@link Files.GraphQL.InputParameters#NODE_ID} in the context: if one of these pre-conditions
+   * are not satisfied then the execution will be aborted with an {@link AbortExecutionException}.
+   * </p>
    *
    * @return an asynchronous {@link DataFetcher} containing a {@link Map} of all the attributes
    * values of a shared node.
@@ -1795,23 +1805,57 @@ public class NodeDataFetcher {
 
       if (permissionsChecker.getPermissions(nodeId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {
+
+        List<FileVersion> allVersion = fileVersionRepository.getFileVersions(nodeId);
+        int keepForeverCounter = 0;
+        for (FileVersion version : allVersion) {
+          keepForeverCounter = version.isKeptForever()
+            ? keepForeverCounter + 1
+            : keepForeverCounter;
+        }
+
         List<FileVersion> fileVersions = fileVersionRepository.getFileVersions(nodeId,
           versionsToKeepForever);
         // Make update in batch
-        fileVersions.forEach(version -> {
-          version.keepForever(keepForever);
-          fileVersionRepository.updateFileVersion(version);
-        });
+        List<FileVersion> fileVersionsNotUpdated = new Vector<>();
+        for (FileVersion version : fileVersions) {
+          if (!keepForever || keepForeverCounter < maxNumberOfVersions - 1) {
+            version.keepForever(keepForever);
+            fileVersionRepository.updateFileVersion(version);
+            keepForeverCounter = keepForever
+              ? keepForeverCounter + 1
+              : keepForeverCounter - 1;
+          } else {
+            fileVersionsNotUpdated.add(version);
+          }
+        }
 
-        List<Integer> versionsUpdated = fileVersions.stream()
+        List<Integer> versionsUpdated = fileVersions
+          .stream()
+          .filter(version -> version.isKeptForever() == keepForever)
           .map(FileVersion::getVersion)
           .collect(Collectors.toList());
 
-        List<GraphQLError> versionsNotUpdated = versionsToKeepForever
+        List<GraphQLError> versionsNotUpdated = fileVersionsNotUpdated
           .stream()
-          .filter(version -> !versionsUpdated.contains(version))
-          .map(version -> GraphQLResultErrors.fileVersionNotFound(nodeId, version, path))
+          .map(version -> GraphQLResultErrors.tooManyVersionsError(nodeId, path))
           .collect(Collectors.toList());
+
+        versionsNotUpdated.addAll(
+          fileVersions
+            .stream()
+            .filter(versionsNotUpdated::contains)
+            .filter(versionsUpdated::contains)
+            .map(version -> GraphQLResultErrors.fileVersionNotFound(nodeId, version.getVersion(),
+              path))
+            .collect(Collectors.toList())
+        );
+
+        logger.debug(MessageFormat.format(
+          "Keep version operation completed with success on: {0} and failure on {1}",
+          versionsUpdated,
+          versionsNotUpdated
+        ));
 
         return new Builder<List<Integer>>()
           .data(versionsUpdated)
@@ -1827,8 +1871,7 @@ public class NodeDataFetcher {
 
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> cloneVersionFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
-      ResultPath path = environment.getExecutionStepInfo()
-        .getPath();
+      ResultPath path = environment.getExecutionStepInfo().getPath();
       String requesterId = ((User) environment.getGraphQlContext()
         .get(Files.GraphQL.Context.REQUESTER)).getUuid();
       String nodeId = environment.getArgument(Files.GraphQL.InputParameters.CloneVersion.NODE_ID);
@@ -1837,8 +1880,17 @@ public class NodeDataFetcher {
 
       if (permissionsChecker.getPermissions(nodeId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {
-        Node node = nodeRepository.getNode(nodeId)
-          .get();
+        Node node = nodeRepository.getNode(nodeId).get();
+        if (fileVersionRepository.getFileVersions(nodeId).size() >= maxNumberOfVersions) {
+          logger.debug(MessageFormat.format(
+            "Node: {0} has reached max number of versions ({1}), cannot add more versions",
+            nodeId,
+            maxNumberOfVersions
+          ));
+          return new Builder<Map<String, Object>>()
+            .error(GraphQLResultErrors.tooManyVersionsError(nodeId, path))
+            .build();
+        }
         return fileVersionRepository
           .getFileVersion(nodeId, versionToClone)
           .map(fileVersion -> {
@@ -1861,8 +1913,11 @@ public class NodeDataFetcher {
                   );
 
               } else {
-                System.out.println("Copy error" + nodeId + " " + versionToClone);
-
+                logger.error(MessageFormat.format(
+                  "Copy error with nodeId: {0} and version {1}",
+                  nodeId,
+                  versionToClone
+                ));
                 throw new AbortExecutionException("Copy error" + nodeId + " " + versionToClone);
               }
 

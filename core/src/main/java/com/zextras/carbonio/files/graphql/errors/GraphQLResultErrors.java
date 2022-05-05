@@ -259,4 +259,33 @@ public class GraphQLResultErrors {
       .build();
   }
 
+  /**
+   * This method generates an error when a requested node has reached the maximum number of
+   * versions. Besides from standard data, it adds the following custom fields in the extensions
+   * attribute:
+   * * <ul>
+   * *   <li>the errorCode for easily discriminating</li>
+   * *   <li>the id of the link not found</li>
+   * * </ul>
+   *
+   * @param nodeId the nodeId of the requested node
+   * @param path the graphQl resultPath extrapolated from the environment to insert into the error
+   * to know in which part of the tree the error happened
+   *
+   * @return
+   */
+  public static GraphQLError tooManyVersionsError(
+    String nodeId,
+    ResultPath path
+  ) {
+    Map<String, Object> errorData = new HashMap<>();
+    errorData.put("errorCode", ErrorCodes.VERSIONS_LIMIT_REACHED);
+    errorData.put("nodeId", nodeId);
+    return GraphqlErrorException.newErrorException()
+      .message("There was a problem while executing requested operation on node: " + nodeId)
+      .extensions(errorData)
+      .path(path.toList())
+      .build();
+  }
+
 }

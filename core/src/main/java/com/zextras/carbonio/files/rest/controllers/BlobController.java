@@ -12,10 +12,12 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.Files.API.Headers;
+import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
+import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
 import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.UploadNodeResponse;
@@ -81,22 +83,32 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   private final PermissionsChecker   permissionsChecker;
   private final EbeanDatabaseManager ebeanDatabaseManager;
 
-  private Matcher downloadMatcher;
-  private Matcher uploadMatcher;
-  private Matcher uploadVersionMatcher;
-  private Matcher publicLinkMatcher;
-  private Matcher healthMatcher;
+  private final FileVersionRepository fileVersionRepository;
+
+  private final int     maxNumberOfVersions;
+  private       Matcher downloadMatcher;
+  private       Matcher uploadMatcher;
+  private       Matcher uploadVersionMatcher;
+  private       Matcher publicLinkMatcher;
+  private       Matcher healthMatcher;
 
   @Inject
   public BlobController(
     BlobService blobService,
     PermissionsChecker permissionsChecker,
-    EbeanDatabaseManager ebeanDatabaseManager
+    EbeanDatabaseManager ebeanDatabaseManager,
+    FileVersionRepository fileVersionRepository
   ) {
     super(true);
     this.blobService = blobService;
     this.permissionsChecker = permissionsChecker;
     this.ebeanDatabaseManager = ebeanDatabaseManager;
+    this.fileVersionRepository = fileVersionRepository;
+    this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
+      .defaultURL("carbonio-files")
+      .getConfig("max-number-of-versions")
+      .getOrElse("50"));
+    System.out.println(this.maxNumberOfVersions);
   }
 
   /**
@@ -431,6 +443,21 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         HttpResponseStatus.BAD_REQUEST,
         EMPTY_BUFFER
       ));
+      context.close();
+      return;
+    }
+
+    if (fileVersionRepository.getFileVersions(nodeId).size() >= maxNumberOfVersions) {
+      logger.debug(MessageFormat.format(
+        "Node: {0} has reached max number of versions ({1}), cannot add more versions",
+        nodeId,
+        maxNumberOfVersions
+      ));
+      context.writeAndFlush(new DefaultFullHttpResponse(
+        httpRequest.protocolVersion(),
+        HttpResponseStatus.METHOD_NOT_ALLOWED,
+        Unpooled.EMPTY_BUFFER)
+      );
       context.close();
       return;
     }
