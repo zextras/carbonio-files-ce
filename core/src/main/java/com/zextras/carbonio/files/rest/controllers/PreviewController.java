@@ -210,7 +210,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
       previewService
         .getPreviewOfImage(
-          tryCheckNode.get().getId(),
+          tryCheckNode.get().getOwnerId(),
           nodeId,
           Integer.parseInt(nodeVersion),
           previewArea,
@@ -254,7 +254,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
       previewService
         .getThumbnailOfImage(
-          tryCheckNode.get().getId(),
+          tryCheckNode.get().getOwnerId(),
           nodeId,
           Integer.parseInt(nodeVersion),
           previewArea,
@@ -297,7 +297,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
       previewService
         .getPreviewOfPdf(
-          tryCheckNode.get().getId(),
+          tryCheckNode.get().getOwnerId(),
           nodeId,
           Integer.parseInt(nodeVersion),
           queryParameters
@@ -340,7 +340,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
       previewService
         .getThumbnailOfPdf(
-          tryCheckNode.get().getId(),
+          tryCheckNode.get().getOwnerId(),
           nodeId,
           Integer.parseInt(nodeVersion),
           area,
@@ -384,7 +384,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
       previewService
         .getPreviewOfDocument(
-          tryCheckNode.get().getId(),
+          tryCheckNode.get().getOwnerId(),
           nodeId,
           Integer.parseInt(nodeVersion),
           queryParameters
@@ -428,7 +428,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
       previewService
         .getThumbnailOfDocument(
-          tryCheckNode.get().getId(),
+          tryCheckNode.get().getOwnerId(),
           nodeId,
           Integer.parseInt(nodeVersion),
           area,
