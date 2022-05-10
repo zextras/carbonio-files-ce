@@ -24,7 +24,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 
 /**
- * Http client to make http requests to the mailbox. The mailbox is reached via consul.
+ * Http client to make http requests to the mailbox. The mailbox is reached via service discover.
  */
 public class MailboxHttpClient {
 
