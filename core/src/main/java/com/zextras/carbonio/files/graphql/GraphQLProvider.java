@@ -8,6 +8,7 @@ import static graphql.schema.idl.TypeRuntimeWiring.newTypeWiring;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.graphql.datafetchers.ConfigDataFetcher;
 import com.zextras.carbonio.files.graphql.datafetchers.DateTimeScalar;
 import com.zextras.carbonio.files.graphql.datafetchers.LinkDataFetcher;
 import com.zextras.carbonio.files.graphql.datafetchers.NodeDataFetcher;
@@ -49,6 +50,7 @@ public class GraphQLProvider {
   private final UserDataFetcher       userDataFetcher;
   private final ShareDataFetcher      shareDataFetcher;
   private final LinkDataFetcher       linkDataFetcher;
+  private final ConfigDataFetcher     configDataFetcher;
 
   @Inject
   public GraphQLProvider(
@@ -56,13 +58,15 @@ public class GraphQLProvider {
     NodeDataFetcher nodeDataFetcher,
     UserDataFetcher userDataFetcher,
     ShareDataFetcher shareDataFetcher,
-    LinkDataFetcher linkDataFetcher
+    LinkDataFetcher linkDataFetcher,
+    ConfigDataFetcher configDataFetcher
   ) {
     this.inputFieldsController = inputFieldsController;
     this.nodeDataFetcher = nodeDataFetcher;
     this.userDataFetcher = userDataFetcher;
     this.shareDataFetcher = shareDataFetcher;
     this.linkDataFetcher = linkDataFetcher;
+    this.configDataFetcher = configDataFetcher;
     graphQL = this.setup();
   }
 
@@ -203,6 +207,7 @@ public class GraphQLProvider {
           userDataFetcher.getAccountByEmailFetcher()
         )
         .dataFetcher(Files.GraphQL.Queries.GET_LINKS, linkDataFetcher.getLinks())
+        .dataFetcher(Files.GraphQL.Queries.GET_CONFIGS, configDataFetcher.getConfigs())
       )
       .type(newTypeWiring("Mutation")
         .dataFetcher(Files.GraphQL.Mutations.CREATE_FOLDER, nodeDataFetcher.createFolderFetcher())
