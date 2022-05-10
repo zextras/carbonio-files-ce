@@ -9,6 +9,14 @@
     {
       "Name": "carbonio-docs-connector",
       "Action": "allow"
+    },
+    {
+      "Name": "carbonio-mailbox",
+      "Action": "allow"
+    },
+    {
+      "Name": "carbonio-videoserver-recorder",
+      "Action": "allow"
     }
   ]
 }
