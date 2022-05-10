@@ -18,38 +18,38 @@ public interface Files {
 
     interface Service {
 
-      String URL      = "service.url";
-      String PORT     = "service.port";
+      String URL  = "service.url";
+      String PORT = "service.port";
     }
 
     interface Database {
 
-      String URL      = "db.postgresql.url";
-      String PORT     = "db.postgresql.port";
+      String URL  = "db.postgresql.url";
+      String PORT = "db.postgresql.port";
     }
 
     interface UserManagement {
 
-      String URL      = "carbonio.user-management.url";
-      String PORT     = "carbonio.user-management.port";
+      String URL  = "carbonio.user-management.url";
+      String PORT = "carbonio.user-management.port";
     }
 
     interface Storages {
 
-      String URL      = "carbonio.storages.url";
-      String PORT     = "carbonio.storages.port";
+      String URL  = "carbonio.storages.url";
+      String PORT = "carbonio.storages.port";
     }
 
     interface Preview {
 
-      String URL      = "carbonio.preview.url";
-      String PORT     = "carbonio.preview.port";
+      String URL  = "carbonio.preview.url";
+      String PORT = "carbonio.preview.port";
     }
 
     interface Mailbox {
 
-      String URL      = "carbonio.mailbox.url";
-      String PORT     = "carbonio.mailbox.port";
+      String URL  = "carbonio.mailbox.url";
+      String PORT = "carbonio.mailbox.port";
     }
   }
 
@@ -239,6 +239,7 @@ public interface Files {
       String GET_VERSIONS         = "getVersions";
       String GET_LINKS            = "getLinks";
       String GET_ACCOUNT_BY_EMAIL = "getAccountByEmail";
+      String GET_CONFIGS          = "getConfigs";
     }
 
     /**
@@ -498,6 +499,12 @@ public interface Files {
       String EXPIRES_AT  = "expires_at";
       String DESCRIPTION = "description";
     }
+
+    interface Config {
+
+      String NAME  = "name";
+      String VALUE = "value";
+    }
   }
 
   interface API {
@@ -516,24 +523,24 @@ public interface Files {
 
       String PUBLIC_LINK_URL = "/services/files/link/";
 
-      Pattern PREVIEW         = Pattern.compile(SERVICE + "preview/(.*)");
-      Pattern PREVIEW_IMAGE   = Pattern.compile(
+      Pattern PREVIEW            = Pattern.compile(SERVICE + "preview/(.*)");
+      Pattern PREVIEW_IMAGE      = Pattern.compile(
         SERVICE
           + "preview/image/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
-      Pattern THUMBNAIL_IMAGE = Pattern.compile(
+      Pattern THUMBNAIL_IMAGE    = Pattern.compile(
         SERVICE + "preview/image/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/thumbnail/?\\??(.*)"
       );
-      Pattern PREVIEW_PDF     = Pattern.compile(
+      Pattern PREVIEW_PDF        = Pattern.compile(
         SERVICE + "preview/pdf/([a-f0-9\\-]*)/([0-9]+)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
-      Pattern THUMBNAIL_PDF   = Pattern.compile(
+      Pattern THUMBNAIL_PDF      = Pattern.compile(
         SERVICE + "preview/pdf/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/thumbnail/?\\??(.*)"
       );
-      Pattern PREVIEW_DOCUMENT     = Pattern.compile(
+      Pattern PREVIEW_DOCUMENT   = Pattern.compile(
         SERVICE + "preview/document/([a-f0-9\\-]*)/([0-9]+)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
-      Pattern THUMBNAIL_DOCUMENT   = Pattern.compile(
+      Pattern THUMBNAIL_DOCUMENT = Pattern.compile(
         SERVICE + "preview/document/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/thumbnail/?\\??(.*)"
       );
     }
@@ -553,4 +560,21 @@ public interface Files {
       String COOKIES   = "cookies";
     }
   }
+
+  interface ServiceDiscover {
+
+    String SERVICE_NAME = "carbonio-files";
+
+    interface Config {
+
+      String MAX_VERSIONS                          = "max-number-of-versions";
+      int    DEFAULT_MAX_VERSIONS                  = 30;
+      String MAX_KEEP_VERSIONS                     = "max-number-of-keep-versions";
+      int    DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION = 2;
+      int    DEFAULT_MAX_KEEP_VERSIONS             =
+        DEFAULT_MAX_VERSIONS - DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
+    }
+
+  }
+
 }
