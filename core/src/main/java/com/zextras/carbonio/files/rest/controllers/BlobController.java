@@ -12,11 +12,14 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.Files.API.Headers;
+import com.zextras.carbonio.files.Files.ServiceDiscover;
+import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
+import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
 import com.zextras.carbonio.files.rest.services.BlobService;
@@ -51,10 +54,12 @@ import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
+import java.util.stream.Collectors;
 import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,6 +91,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   private final FileVersionRepository fileVersionRepository;
 
   private final int     maxNumberOfVersions;
+  private final int     maxNumberOfKeepVersions;
   private       Matcher downloadMatcher;
   private       Matcher uploadMatcher;
   private       Matcher uploadVersionMatcher;
@@ -105,10 +111,13 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     this.ebeanDatabaseManager = ebeanDatabaseManager;
     this.fileVersionRepository = fileVersionRepository;
     this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
-      .defaultURL("carbonio-files")
-      .getConfig("max-number-of-versions")
-      .getOrElse("50"));
-    System.out.println(this.maxNumberOfVersions);
+      .defaultURL(ServiceDiscover.SERVICE_NAME)
+      .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
+      .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
+    this.maxNumberOfKeepVersions =
+      this.maxNumberOfVersions <= Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION
+        ? 0
+        : this.maxNumberOfVersions - Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
   }
 
   /**
@@ -419,15 +428,9 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     ChannelHandlerContext context,
     HttpRequest httpRequest
   ) {
-    User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
     String nodeId = httpRequest.headers().getAsString(Headers.UPLOAD_NODE_ID);
     String encodedFilename = httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_FILENAME);
-    boolean overwrite = Boolean.parseBoolean(
-      httpRequest.headers().getAsString(Headers.UPLOAD_OVERWRITE_VERSION)
-    );
-    long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
-
     String decodedFilename =
       encodedFilename == null || !Base64.isBase64(encodedFilename)
         ? null
@@ -447,7 +450,14 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       return;
     }
 
-    if (fileVersionRepository.getFileVersions(nodeId).size() >= maxNumberOfVersions) {
+    User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
+    boolean overwrite = Boolean.parseBoolean(
+      httpRequest.headers().getAsString(Headers.UPLOAD_OVERWRITE_VERSION)
+    );
+    long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
+
+    int numberOfVersions = fileVersionRepository.getFileVersions(nodeId).size();
+    if (numberOfVersions > maxNumberOfVersions) {
       logger.debug(MessageFormat.format(
         "Node: {0} has reached max number of versions ({1}), cannot add more versions",
         nodeId,
@@ -459,8 +469,77 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         Unpooled.EMPTY_BUFFER)
       );
       context.close();
-      return;
+    } else if (numberOfVersions < maxNumberOfVersions || overwrite) {
+      // There is still space for new versions
+      uploadNewFileVersionWithoutDelete(
+        context, requester, overwrite, blobLength, nodeId, decodedFilename, httpRequest
+      );
+    } else {
+      uploadNewFileVersionAndDeleteOldest(
+        context, requester, overwrite, blobLength, nodeId, decodedFilename, httpRequest
+      );
     }
+
+  }
+
+  private void uploadNewFileVersionAndDeleteOldest(
+    ChannelHandlerContext context,
+    User requester,
+    boolean overwrite,
+    long blobLength,
+    String nodeId,
+    String decodedFilename,
+    HttpRequest httpRequest
+  ) {
+
+    List<FileVersion> allVersion = fileVersionRepository.getFileVersions(nodeId);
+    int keepForeverCounter = 0;
+    for (FileVersion version : allVersion) {
+      keepForeverCounter = version.isKeptForever()
+        ? keepForeverCounter + 1
+        : keepForeverCounter;
+    }
+
+    if (keepForeverCounter > maxNumberOfKeepVersions) {
+      logger.debug(MessageFormat.format(
+        "Node: {0} has reached max number of keep versions ({1}), cannot add or replace versions",
+        nodeId,
+        maxNumberOfVersions
+      ));
+      context.writeAndFlush(new DefaultFullHttpResponse(
+        httpRequest.protocolVersion(),
+        HttpResponseStatus.METHOD_NOT_ALLOWED,
+        Unpooled.EMPTY_BUFFER)
+      );
+      context.close();
+    } else {
+      List<FileVersion> allVersionsNotKeptForever = allVersion.stream()
+        .filter(version -> !version.isKeptForever())
+        .collect(Collectors.toList());
+      FileVersion secondLastVersion = allVersionsNotKeptForever.get(
+        allVersionsNotKeptForever.size() - 1);
+      /*
+      The List of not keep forever element is never <1, at this point the element that are
+      kept forever are always less than allowed because
+      the check is done before (at keepForeverCounter > maxNumberOfKeepVersion).
+       */
+      fileVersionRepository.deleteFileVersion(secondLastVersion);
+      uploadNewFileVersionWithoutDelete(
+        context, requester, overwrite, blobLength, nodeId, decodedFilename, httpRequest
+      );
+    }
+
+  }
+
+  private void uploadNewFileVersionWithoutDelete(
+    ChannelHandlerContext context,
+    User requester,
+    boolean overwrite,
+    long blobLength,
+    String nodeId,
+    String decodedFilename,
+    HttpRequest httpRequest
+  ) {
 
     initializeFileStream(context, httpRequest);
 

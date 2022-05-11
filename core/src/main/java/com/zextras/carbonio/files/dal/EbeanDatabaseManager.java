@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.dal;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.ServiceDiscover;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
@@ -64,18 +65,18 @@ public class EbeanDatabaseManager {
     Properties config = filesConfig.getProperties();
 
     postgresDatabase = ServiceDiscoverHttpClient
-      .defaultURL("carbonio-files")
-      .getConfig("db-name")
-      .getOrElse("carbonio-files-db");
+      .defaultURL(ServiceDiscover.SERVICE_NAME)
+      .getConfig(ServiceDiscover.Config.Db.NAME)
+      .getOrElse(ServiceDiscover.Config.Db.DEFAULT_NAME);
 
     postgresUser = ServiceDiscoverHttpClient
-      .defaultURL("carbonio-files")
-      .getConfig("db-username")
-      .getOrElse("carbonio-files-db");
+      .defaultURL(ServiceDiscover.SERVICE_NAME)
+      .getConfig(ServiceDiscover.Config.Db.USERNAME)
+      .getOrElse(ServiceDiscover.Config.Db.DEFAULT_USERNAME);
 
     postgresPassword = ServiceDiscoverHttpClient
-      .defaultURL("carbonio-files")
-      .getConfig("db-password")
+      .defaultURL(ServiceDiscover.SERVICE_NAME)
+      .getConfig(ServiceDiscover.Config.Db.PASSWORD)
       .getOrElse("");
 
     jdbcPostgresUrl = "jdbc:postgresql://"

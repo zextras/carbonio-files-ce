@@ -13,6 +13,8 @@ import com.zextras.carbonio.files.Files.GraphQL.InputParameters.FlagNodes;
 import com.zextras.carbonio.files.Files.GraphQL.InputParameters.GetVersions;
 import com.zextras.carbonio.files.Files.GraphQL.InputParameters.KeepVersions;
 import com.zextras.carbonio.files.Files.GraphQL.InputParameters.RestoreNodes;
+import com.zextras.carbonio.files.Files.ServiceDiscover;
+import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
@@ -101,6 +103,7 @@ public class NodeDataFetcher {
   private final ShareDataFetcher      shareDataFetcher;
   private final BlobService           blobService;
   private final int                   maxNumberOfVersions;
+  private final int                   maxNumberOfKeepVersions;
 
   @Inject
   NodeDataFetcher(
@@ -121,9 +124,14 @@ public class NodeDataFetcher {
     this.blobService = blobService;
 
     this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
-      .defaultURL("carbonio-files")
-      .getConfig("max-number-of-versions")
-      .getOrElse("50"));
+      .defaultURL(ServiceDiscover.SERVICE_NAME)
+      .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
+      .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
+
+    this.maxNumberOfKeepVersions =
+      this.maxNumberOfVersions <= Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION
+        ? 0
+        : this.maxNumberOfVersions - Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
   }
 
   private DataFetcherResult<Map<String, Object>> fetchNodeAndConvertToDataFetcherResult(
@@ -1819,7 +1827,7 @@ public class NodeDataFetcher {
         // Make update in batch
         List<FileVersion> fileVersionsNotUpdated = new Vector<>();
         for (FileVersion version : fileVersions) {
-          if (!keepForever || keepForeverCounter < maxNumberOfVersions - 1) {
+          if (!keepForever || keepForeverCounter < maxNumberOfKeepVersions) {
             version.keepForever(keepForever);
             fileVersionRepository.updateFileVersion(version);
             keepForeverCounter = keepForever
