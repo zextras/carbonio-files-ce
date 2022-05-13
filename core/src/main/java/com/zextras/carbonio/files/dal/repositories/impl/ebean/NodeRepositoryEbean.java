@@ -743,6 +743,12 @@ public class NodeRepositoryEbean implements NodeRepository {
       .eq(Db.Node.OWNER_ID, nodeOwner)
       .query();
 
-    return query.findOneOrEmpty();
+    // We could use query.findOneOrEmpty() but if, for some reason, there are multiple nodes
+    // with the same name the query would explode. So to be extra conservative we fetch all the
+    // resulting node and then we return the first one
+    return query
+      .findList()
+      .stream()
+      .findFirst();
   }
 }
