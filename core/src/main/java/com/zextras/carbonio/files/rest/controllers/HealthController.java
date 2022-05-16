@@ -129,7 +129,7 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
       ? HttpResponseStatus.OK
       : HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
-    logger.debug(MessageFormat.format("carbonio files status: {0}", responseStatus));
+    logger.info(MessageFormat.format("carbonio files status: {0}", responseStatus));
 
     context
       .writeAndFlush(new DefaultFullHttpResponse(httpRequest.protocolVersion(), responseStatus))
