@@ -48,9 +48,6 @@ public class BufferInputStream extends InputStream {
   public void addContent(ByteBuf byteBuf) {
     lock.lock();
     try {
-
-      System.out.println(nettyChannelConfig.isAutoRead());
-
       int r = byteBuf.readableBytes();
       buffer.writeBytes(byteBuf, byteBuf.readableBytes());
       sum += r;

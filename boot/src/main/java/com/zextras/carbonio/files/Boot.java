@@ -34,8 +34,7 @@ public class Boot {
     );
     Injector injector = Guice.createInjector(new FilesModule());
 
-    FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
-    filesConfig.loadConfig();
+    injector.getInstance(FilesConfig.class);
 
     EbeanDatabaseManager ebeanDatabaseManager = injector.getInstance(EbeanDatabaseManager.class);
     ebeanDatabaseManager.start();

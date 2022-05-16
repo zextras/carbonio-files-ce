@@ -12,10 +12,8 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.Files.API.Headers;
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
-import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
 import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.UploadNodeResponse;
@@ -31,7 +29,6 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
@@ -47,7 +44,6 @@ import io.vavr.control.Try;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
 import java.util.Optional;
 import java.util.UUID;
@@ -79,24 +75,15 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
   private final BlobService          blobService;
   private final PermissionsChecker   permissionsChecker;
-  private final EbeanDatabaseManager ebeanDatabaseManager;
-
-  private Matcher downloadMatcher;
-  private Matcher uploadMatcher;
-  private Matcher uploadVersionMatcher;
-  private Matcher publicLinkMatcher;
-  private Matcher healthMatcher;
 
   @Inject
   public BlobController(
     BlobService blobService,
-    PermissionsChecker permissionsChecker,
-    EbeanDatabaseManager ebeanDatabaseManager
+    PermissionsChecker permissionsChecker
   ) {
     super(true);
     this.blobService = blobService;
     this.permissionsChecker = permissionsChecker;
-    this.ebeanDatabaseManager = ebeanDatabaseManager;
   }
 
   /**
@@ -131,20 +118,20 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       if (httpObject instanceof HttpRequest) {
         HttpRequest httpRequest = (HttpRequest) httpObject;
         String uriRequest = httpRequest.uri();
-        downloadMatcher = Endpoints.DOWNLOAD_FILE.matcher(uriRequest);
-        uploadMatcher = Endpoints.UPLOAD_FILE.matcher(uriRequest);
-        uploadVersionMatcher = Endpoints.UPLOAD_FILE_VERSION.matcher(uriRequest);
-        publicLinkMatcher = Endpoints.PUBLIC_LINK.matcher(uriRequest);
-        healthMatcher = Endpoints.HEALTH.matcher(uriRequest);
+
+        Matcher downloadMatcher = Endpoints.DOWNLOAD_FILE.matcher(uriRequest);
+        Matcher uploadMatcher = Endpoints.UPLOAD_FILE.matcher(uriRequest);
+        Matcher uploadVersionMatcher = Endpoints.UPLOAD_FILE_VERSION.matcher(uriRequest);
+        Matcher publicLinkMatcher = Endpoints.PUBLIC_LINK.matcher(uriRequest);
 
         HttpVersion protocolVersionRequest = httpRequest.protocolVersion();
 
         if (downloadMatcher.find()) {
-          download(context, httpRequest, protocolVersionRequest);
+          download(context, httpRequest, protocolVersionRequest, downloadMatcher);
         }
 
         if (publicLinkMatcher.find()) {
-          downloadByLink(context, httpRequest);
+          downloadByLink(context, httpRequest, publicLinkMatcher);
         }
 
         if (uploadMatcher.find()) {
@@ -153,10 +140,6 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
         if (uploadVersionMatcher.find()) {
           uploadFileVersion(context, httpRequest);
-        }
-
-        if (healthMatcher.find()) {
-          health(context, httpRequest);
         }
 
       } else if (httpObject instanceof HttpContent) {
@@ -186,37 +169,12 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     }
   }
 
-  private void health(
-    ChannelHandlerContext context,
-    HttpRequest request
-  ) {
-
-    DbInfo info = ebeanDatabaseManager
-      .getEbeanDatabase()
-      .find(DbInfo.class)
-      .findOne();
-
-    String res = new ObjectMapper()
-      .createObjectNode()
-      .put("dbVersion", info.getVersion())
-      .toPrettyString();
-
-    FullHttpResponse response = new DefaultFullHttpResponse(
-      request.protocolVersion(),
-      HttpResponseStatus.OK,
-      Unpooled.wrappedBuffer(res.getBytes(StandardCharsets.UTF_8))
-    );
-    response.headers().add(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
-    response.headers().add(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
-
-    context.writeAndFlush(response).addListener(nettyChannelFutureClose);
-  }
-
   private void downloadByLink(
     ChannelHandlerContext context,
-    HttpRequest httpRequest
+    HttpRequest httpRequest,
+    Matcher uriMatched
   ) {
-    String publicLinkId = publicLinkMatcher.group(1);
+    String publicLinkId = uriMatched.group(1);
     blobService
       .downloadFileByLink(publicLinkId)
       .onSuccess(blobResponse -> {
@@ -253,13 +211,14 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   private void download(
     ChannelHandlerContext context,
     HttpRequest request,
-    HttpVersion protocolVersionRequest
+    HttpVersion protocolVersionRequest,
+    Matcher uriMatched
   ) {
     User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
-    String nodeId = downloadMatcher.group(1);
+    String nodeId = uriMatched.group(1);
     Optional<Integer> optVersion = Optional
-      .ofNullable(downloadMatcher.group(2))
+      .ofNullable(uriMatched.group(2))
       .map(Integer::parseInt);
 
     if (permissionsChecker
@@ -318,10 +277,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     }
   }
 
-  private void initializeFileStream(
-    ChannelHandlerContext context,
-    HttpRequest httpObject
-  ) {
+  private void initializeFileStream(ChannelHandlerContext context) {
     context
       .channel()
       .attr(fileStreamReader)
@@ -360,7 +316,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       return;
     }
 
-    initializeFileStream(context, httpRequest);
+    initializeFileStream(context);
 
     CompletableFuture.supplyAsync(
       () -> {
@@ -435,7 +391,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       return;
     }
 
-    initializeFileStream(context, httpRequest);
+    initializeFileStream(context);
 
     CompletableFuture.supplyAsync(
       () -> {

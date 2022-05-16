@@ -1,6 +1,6 @@
 services {
   check {
-    http = "http://127.78.0.2:10000/health/",
+    http = "http://127.78.0.2:10000/health/ready/",
     method = "GET",
     timeout = "1s"
     interval = "5s"

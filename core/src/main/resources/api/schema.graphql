@@ -19,6 +19,11 @@ type User {
     full_name: String!
 }
 
+type Config {
+    name: String!
+    value: String!
+}
+
 type DistributionList {
     id: ID!
 
@@ -481,6 +486,8 @@ type Query {
 
     # Returns the list of all root folders
     getRootsList: [Root]!
+
+    getConfigs: [Config]!
 }
 
 type Mutation {
