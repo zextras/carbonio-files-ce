@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Db;
@@ -81,7 +82,7 @@ public class NodeRepositoryEbean implements NodeRepository {
           .replace("'", "''") + "'" + ") " +
           "OR (" + sField.getLeft() + " = " +
           "'" + sField.getRight()
-          .replace("'", "''") + "' AND node_id > '" + nodeId + "')"
+          .replace("'", "''") + "' AND t0.node_id > '" + nodeId + "')"
           : "(node_category > " + nodeCategory + ") " +
             "OR (node_category = " + nodeCategory + " AND " + sField.getLeft() +
             sField.getMiddle() +
@@ -89,10 +90,10 @@ public class NodeRepositoryEbean implements NodeRepository {
             .replace("'", "''") + "'" + ") " +
             "OR (node_category = " + nodeCategory + " AND " + sField.getLeft() + " = " +
             "'" + sField.getRight()
-            .replace("'", "''") + "' AND node_id > '" + nodeId + "')";
+            .replace("'", "''") + "' AND t0.node_id > '" + nodeId + "')";
       })
       .orElse("(node_category > " + nodeCategory + ") OR " +
-        "(node_category = " + nodeCategory + " AND node_id > '" + nodeId + "')");
+        "(node_category = " + nodeCategory + " AND t0.node_id > '" + nodeId + "')");
 
   }
 
@@ -133,7 +134,7 @@ public class NodeRepositoryEbean implements NodeRepository {
     sort.ifPresent(s -> {
       switch (s) {
         case NAME_ASC:
-          nextPage.setKeyset(
+          nextPage.setKeySet(
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
@@ -142,7 +143,7 @@ public class NodeRepositoryEbean implements NodeRepository {
           );
           break;
         case NAME_DESC:
-          nextPage.setKeyset(
+          nextPage.setKeySet(
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
@@ -151,7 +152,7 @@ public class NodeRepositoryEbean implements NodeRepository {
           );
           break;
         case UPDATED_AT_ASC:
-          nextPage.setKeyset(
+          nextPage.setKeySet(
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
@@ -160,7 +161,7 @@ public class NodeRepositoryEbean implements NodeRepository {
           );
           break;
         case UPDATED_AT_DESC:
-          nextPage.setKeyset(
+          nextPage.setKeySet(
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
@@ -169,7 +170,7 @@ public class NodeRepositoryEbean implements NodeRepository {
           );
           break;
         case CREATED_AT_ASC:
-          nextPage.setKeyset(
+          nextPage.setKeySet(
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
@@ -178,7 +179,7 @@ public class NodeRepositoryEbean implements NodeRepository {
           );
           break;
         case CREATED_AT_DESC:
-          nextPage.setKeyset(
+          nextPage.setKeySet(
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
@@ -187,7 +188,7 @@ public class NodeRepositoryEbean implements NodeRepository {
           );
           break;
         case SIZE_ASC:
-          nextPage.setKeyset(
+          nextPage.setKeySet(
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
@@ -196,7 +197,7 @@ public class NodeRepositoryEbean implements NodeRepository {
           );
           break;
         case SIZE_DESC:
-          nextPage.setKeyset(
+          nextPage.setKeySet(
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
@@ -207,7 +208,7 @@ public class NodeRepositoryEbean implements NodeRepository {
       }
     });
     if (!sort.isPresent()) {
-      nextPage.setKeyset(
+      nextPage.setKeySet(
         buildKeyset(
           node.getNodeCategory(),
           node.getId(),
@@ -217,6 +218,7 @@ public class NodeRepositoryEbean implements NodeRepository {
     }
     ObjectMapper mapper = new ObjectMapper();
     mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+    mapper.registerModule(new Jdk8Module());
     try {
       return Base64.getEncoder().encodeToString(mapper.writeValueAsString(nextPage).getBytes());
     } catch (JsonProcessingException e) {
@@ -349,28 +351,28 @@ public class NodeRepositoryEbean implements NodeRepository {
         PageQuery params = decodePageToken(token);
         List<Node> nodes = doFind(userId,
           params.getLimit(),
-          Optional.of(NodeSort.valueOf(params.getSort())),
-          Optional.of(params.getFlagged()),
-          Optional.of(params.getFolderId()),
-          Optional.of(params.getCascade()),
-          Optional.of(params.getSharedWithMe()),
-          Optional.of(params.getSharedByMe()),
-          Optional.of(params.getDirectShare()),
+          params.getSort().map(NodeSort::valueOf),
+          params.getFlagged(),
+          params.getFolderId(),
+          params.getCascade(),
+          params.getSharedWithMe(),
+          params.getSharedByMe(),
+          params.getDirectShare(),
           params.getKeywords(),
-          Optional.of(params.getKeyset())
+          params.getKeySet()
         );
 
         if (nodes.size() == params.getLimit()) {
           return new ImmutablePair<List<Node>, String>(nodes,
             createPageToken(nodes.get(nodes.size() - 1),
               params.getLimit(),
-              Optional.of(NodeSort.valueOf(params.getSort())),
-              Optional.of(params.getFlagged()),
-              Optional.of(params.getFolderId()),
-              Optional.of(params.getCascade()),
-              Optional.of(params.getSharedWithMe()),
-              Optional.of(params.getSharedByMe()),
-              Optional.of(params.getDirectShare()),
+              params.getSort().map(NodeSort::valueOf),
+              params.getFlagged(),
+              params.getFolderId(),
+              params.getCascade(),
+              params.getSharedWithMe(),
+              params.getSharedByMe(),
+              params.getDirectShare(),
               params.getKeywords()
             )
           );
@@ -380,10 +382,10 @@ public class NodeRepositoryEbean implements NodeRepository {
       })
       .orElseGet(() -> {
         Integer realLimit = limit
-          .map(l -> (l > 49)
-            ? 50
+          .map(l -> (l >= Files.Config.Pagination.LIMIT)
+            ? Files.Config.Pagination.LIMIT
             : l)
-          .orElse(50);
+          .orElse(Files.Config.Pagination.LIMIT);
 
         List<Node> nodes = doFind(userId,
           realLimit,

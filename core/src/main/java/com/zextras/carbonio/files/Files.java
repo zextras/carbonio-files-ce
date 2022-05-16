@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files;
 
 
+import com.zextras.carbonio.files.Files.Config.Pagination;
 import java.util.regex.Pattern;
 
 /**
@@ -18,38 +19,42 @@ public interface Files {
 
     interface Service {
 
-      String URL      = "service.url";
-      String PORT     = "service.port";
+      String URL  = "service.url";
+      String PORT = "service.port";
     }
 
     interface Database {
 
-      String URL      = "db.postgresql.url";
-      String PORT     = "db.postgresql.port";
+      String URL  = "db.postgresql.url";
+      String PORT = "db.postgresql.port";
     }
 
     interface UserManagement {
 
-      String URL      = "carbonio.user-management.url";
-      String PORT     = "carbonio.user-management.port";
+      String URL  = "carbonio.user-management.url";
+      String PORT = "carbonio.user-management.port";
     }
 
     interface Storages {
 
-      String URL      = "carbonio.storages.url";
-      String PORT     = "carbonio.storages.port";
+      String URL  = "carbonio.storages.url";
+      String PORT = "carbonio.storages.port";
     }
 
     interface Preview {
 
-      String URL      = "carbonio.preview.url";
-      String PORT     = "carbonio.preview.port";
+      String URL  = "carbonio.preview.url";
+      String PORT = "carbonio.preview.port";
     }
 
     interface Mailbox {
 
-      String URL      = "carbonio.mailbox.url";
-      String PORT     = "carbonio.mailbox.port";
+      String URL  = "carbonio.mailbox.url";
+      String PORT = "carbonio.mailbox.port";
+    }
+
+    interface Pagination {
+      int LIMIT = 50;
     }
   }
 
@@ -195,7 +200,7 @@ public interface Files {
 
   interface GraphQL {
 
-    int    LIMIT_ELEMENTS_FOR_PAGE = 50;
+    int    LIMIT_ELEMENTS_FOR_PAGE = Pagination.LIMIT;
     String ENTITY_TYPE             = "type";
 
     interface Context {
@@ -516,24 +521,24 @@ public interface Files {
 
       String PUBLIC_LINK_URL = "/services/files/link/";
 
-      Pattern PREVIEW         = Pattern.compile(SERVICE + "preview/(.*)");
-      Pattern PREVIEW_IMAGE   = Pattern.compile(
+      Pattern PREVIEW            = Pattern.compile(SERVICE + "preview/(.*)");
+      Pattern PREVIEW_IMAGE      = Pattern.compile(
         SERVICE
           + "preview/image/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
-      Pattern THUMBNAIL_IMAGE = Pattern.compile(
+      Pattern THUMBNAIL_IMAGE    = Pattern.compile(
         SERVICE + "preview/image/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/thumbnail/?\\??(.*)"
       );
-      Pattern PREVIEW_PDF     = Pattern.compile(
+      Pattern PREVIEW_PDF        = Pattern.compile(
         SERVICE + "preview/pdf/([a-f0-9\\-]*)/([0-9]+)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
-      Pattern THUMBNAIL_PDF   = Pattern.compile(
+      Pattern THUMBNAIL_PDF      = Pattern.compile(
         SERVICE + "preview/pdf/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/thumbnail/?\\??(.*)"
       );
-      Pattern PREVIEW_DOCUMENT     = Pattern.compile(
+      Pattern PREVIEW_DOCUMENT   = Pattern.compile(
         SERVICE + "preview/document/([a-f0-9\\-]*)/([0-9]+)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
-      Pattern THUMBNAIL_DOCUMENT   = Pattern.compile(
+      Pattern THUMBNAIL_DOCUMENT = Pattern.compile(
         SERVICE + "preview/document/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/thumbnail/?\\??(.*)"
       );
     }

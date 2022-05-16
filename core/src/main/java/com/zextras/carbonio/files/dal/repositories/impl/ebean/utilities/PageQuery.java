@@ -4,6 +4,8 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
+import com.zextras.carbonio.files.Files;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,8 +15,9 @@ import java.util.Optional;
  */
 public class PageQuery {
 
-  String             keySet;
   Integer            limit;
+  List<String>       keywords;
+  Optional<String>   keySet;
   Optional<NodeSort> sort;
   Optional<Boolean>  flagged;
   Optional<String>   folderId;
@@ -22,12 +25,14 @@ public class PageQuery {
   Optional<Boolean>  sharedWithMe;
   Optional<Boolean>  sharedByMe;
   Optional<Boolean>  directShare;
-  List<String>       keywords;
 
-  public PageQuery() {}
+  public PageQuery() {
+    limit = Files.Config.Pagination.LIMIT;
+    keywords = Collections.emptyList();
+  }
 
   public PageQuery(
-    String keyset,
+    String keySet,
     Integer limit,
     String sort,
     Boolean flagged,
@@ -38,7 +43,7 @@ public class PageQuery {
     Boolean directShare,
     List<String> keywords
   ) {
-    setKeyset(keyset);
+    setKeySet(keySet);
     setLimit(limit);
     setSort(sort);
     setFlagged(flagged);
@@ -50,70 +55,86 @@ public class PageQuery {
     setKeywords(keywords);
   }
 
-  public String getKeyset() {
+  public Optional<String> getKeySet() {
     return keySet;
   }
 
-  public void setKeyset(String keyset) {
-    this.keySet = keyset;
+  public PageQuery setKeySet(String keySet) {
+    this.keySet = Optional.of(keySet);
+    return this;
   }
 
   public Integer getLimit() {
     return limit;
   }
 
-  public void setLimit(Integer limit) {
+  public PageQuery setLimit(Integer limit) {
     this.limit = limit;
+    return this;
   }
 
-  public String getSort() {
-    return sort.map(sort -> sort.toString()).orElse(null);
+  public Optional<String> getSort() {
+    return sort.map(Enum::toString);
   }
 
   public void setSort(String sort) {
     this.sort = Optional.ofNullable(sort).map(NodeSort::valueOf);
   }
 
-  public Boolean getFlagged() {
-    return flagged.orElse(null);
+  public Optional<Boolean> getFlagged() {
+    return flagged;
   }
 
   public void setFlagged(Boolean flagged) {
     this.flagged = Optional.ofNullable(flagged);
   }
 
-  public String getFolderId() {
-    return folderId.orElse(null);
+  public Optional<String> getFolderId() {
+    return folderId;
   }
 
   public void setFolderId(String folderId) {
     this.folderId = Optional.ofNullable(folderId);
   }
 
-  public Boolean getCascade() {return cascade.orElse(null);}
+  public Optional<Boolean> getCascade() {
+    return cascade;
+  }
 
   public void setCascade(Boolean cascade) {
     this.cascade = Optional.ofNullable(cascade);
   }
 
-  public Boolean getSharedWithMe() {return sharedWithMe.orElse(null);}
+  public Optional<Boolean> getSharedWithMe() {
+    return sharedWithMe;
+  }
 
   public void setSharedWithMe(Boolean sharedWithMe) {
     this.sharedWithMe = Optional.ofNullable(sharedWithMe);
   }
 
-  public Boolean getSharedByMe() {return sharedByMe.orElse(null);}
+  public Optional<Boolean> getSharedByMe() {
+    return sharedByMe;
+  }
 
-  public void setSharedByMe(Boolean sharedByMe) {this.sharedByMe = Optional.ofNullable(sharedByMe);}
+  public void setSharedByMe(Boolean sharedByMe) {
+    this.sharedByMe = Optional.ofNullable(sharedByMe);
+  }
 
-  public Boolean getDirectShare() {return directShare.orElse(null);}
+  public Optional<Boolean> getDirectShare() {
+    return directShare;
+  }
 
   public void setDirectShare(Boolean directShare) {
     this.directShare = Optional.ofNullable(directShare);
   }
 
-  public List<String> getKeywords() {return keywords;}
+  public List<String> getKeywords() {
+    return keywords;
+  }
 
-  public void setKeywords(List<String> keywords) {this.keywords = keywords;}
+  public void setKeywords(List<String> keywords) {
+    this.keywords = keywords;
+  }
 
 }
