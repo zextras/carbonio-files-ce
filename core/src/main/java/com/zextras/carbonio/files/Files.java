@@ -244,6 +244,7 @@ public interface Files {
       String GET_VERSIONS         = "getVersions";
       String GET_LINKS            = "getLinks";
       String GET_ACCOUNT_BY_EMAIL = "getAccountByEmail";
+      String GET_CONFIGS          = "getConfigs";
     }
 
     /**
@@ -503,6 +504,12 @@ public interface Files {
       String EXPIRES_AT  = "expires_at";
       String DESCRIPTION = "description";
     }
+
+    interface Config {
+
+      String NAME  = "name";
+      String VALUE = "value";
+    }
   }
 
   interface API {
@@ -558,4 +565,21 @@ public interface Files {
       String COOKIES   = "cookies";
     }
   }
+
+  interface ServiceDiscover {
+
+    String SERVICE_NAME = "carbonio-files";
+
+    interface Config {
+
+      String MAX_VERSIONS                          = "max-number-of-versions";
+      int    DEFAULT_MAX_VERSIONS                  = 30;
+      String MAX_KEEP_VERSIONS                     = "max-number-of-keep-versions";
+      int    DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION = 2;
+      int    DEFAULT_MAX_KEEP_VERSIONS             =
+        DEFAULT_MAX_VERSIONS - DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
+    }
+
+  }
+
 }

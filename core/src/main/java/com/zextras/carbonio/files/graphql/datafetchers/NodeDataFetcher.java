@@ -445,55 +445,70 @@ public class NodeDataFetcher {
    */
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> createFolderFetcher() {
     return (environment) -> CompletableFuture.supplyAsync(() -> {
-        String parentId = environment.getArgument(
-          Files.GraphQL.InputParameters.CreateFolder.PARENT_ID);
-        return nodeRepository.getNode(parentId)
-          .filter(parentNode -> parentNode.getNodeType()
-            .equals(NodeType.FOLDER)
-            || parentNode.getNodeType()
-            .equals(NodeType.ROOT))
-          .map(parentNode -> {
-            String requesterId = ((User) environment.getGraphQlContext()
-              .get(Files.GraphQL.Context.REQUESTER)).getUuid();
+        ResultPath resultPath = environment.getExecutionStepInfo().getPath();
+        String parentId = environment.getArgument(InputParameters.CreateFolder.PARENT_ID);
+        String requesterId = ((User) environment
+          .getGraphQlContext()
+          .get(Files.GraphQL.Context.REQUESTER)
+        ).getUuid();
 
-            String ownerId = (parentNode.getNodeType()
-              .equals(NodeType.ROOT) || requesterId.equals(parentNode.getOwnerId()))
-              ? requesterId
-              : parentNode.getOwnerId();
+        if (permissionsChecker
+          .getPermissions(parentId, requesterId)
+          .has(SharePermission.READ_AND_WRITE)
+        ) {
+          return nodeRepository
+            .getNode(parentId)
+            .filter(parent -> NodeType.FOLDER.equals(parent.getNodeType())
+              || NodeType.ROOT.equals(parent.getNodeType())
+            )
+            .map(parent -> {
+              String ownerId = (
+                NodeType.ROOT.equals(parent.getNodeType())
+                  || requesterId.equals(parent.getOwnerId())
+              )
+                ? requesterId
+                : parent.getOwnerId();
 
-            final Node folder = nodeRepository.createNewNode(
-              UUID.randomUUID()
-                .toString(),
-              requesterId,
-              ownerId,
-              parentNode.getId(),
-              ((String) environment.getArgument(
-                Files.GraphQL.InputParameters.CreateFolder.NAME)).trim(),
-              "",
-              NodeType.FOLDER,
-              parentNode.getNodeType() == NodeType.ROOT
-                ? parentId
-                : parentNode.getAncestorIds() + "," + parentId,
-              0L
+              String folderName = searchAlternativeName(
+                ((String) environment.getArgument(InputParameters.CreateFolder.NAME)).trim(),
+                parent.getId(),
+                ownerId
+              );
+
+              final Node createdFolder = nodeRepository.createNewNode(
+                UUID.randomUUID().toString(),
+                requesterId,
+                ownerId,
+                parent.getId(),
+                folderName,
+                "",
+                NodeType.FOLDER,
+                NodeType.ROOT.equals(parent.getNodeType())
+                  ? parentId
+                  : parent.getAncestorIds() + "," + parentId,
+                0L
+              );
+
+              // Add new inherited shares for the new folder.
+              // Create share also for the requester if it is not the owner of the parent folder
+              createIndirectShare(parentId, createdFolder);
+
+              return fetchNodeAndConvertToDataFetcherResult(
+                createdFolder.getId(),
+                Optional.empty(),
+                resultPath
+              );
+            })
+            .orElse(new DataFetcherResult
+              .Builder<Map<String, Object>>()
+              .error(GraphQLResultErrors.nodeNotFound(parentId.trim(), resultPath))
+              .build()
             );
-
-            // Add new inherited shares for the new folder.
-            // Create share also for the requester if it is not the owner of the parent folder
-            createIndirectShare(parentId, folder);
-
-            return fetchNodeAndConvertToDataFetcherResult(
-              folder.getId(),
-              Optional.empty(),
-              environment.getExecutionStepInfo()
-                .getPath()
-            );
-          })
-          .orElse(new DataFetcherResult.Builder<Map<String, Object>>()
-            .error(GraphQLResultErrors.nodeNotFound(parentId.trim(),
-              environment.getExecutionStepInfo()
-                .getPath()))
-            .build()
-          );
+        }
+        return new DataFetcherResult
+          .Builder<Map<String, Object>>()
+          .error(GraphQLResultErrors.nodeWriteError(parentId.trim(), resultPath))
+          .build();
       }
     );
   }
@@ -1544,8 +1559,10 @@ public class NodeDataFetcher {
     int level = 1;
     String finalFilename = filename;
 
-    while (nodeRepository.getNodeByName(finalFilename, destinationFolderId, nodeOwner)
-      .isPresent()) {
+    while (nodeRepository
+      .getNodeByName(finalFilename, destinationFolderId, nodeOwner)
+      .isPresent()
+    ) {
       int dotPosition = filename.lastIndexOf('.');
 
       finalFilename = (dotPosition != -1)
