@@ -12,7 +12,6 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.Files.API.Headers;
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
@@ -77,11 +76,6 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   private final BlobService          blobService;
   private final PermissionsChecker   permissionsChecker;
 
-  private Matcher downloadMatcher;
-  private Matcher uploadMatcher;
-  private Matcher uploadVersionMatcher;
-  private Matcher publicLinkMatcher;
-
   @Inject
   public BlobController(
     BlobService blobService,
@@ -124,19 +118,20 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       if (httpObject instanceof HttpRequest) {
         HttpRequest httpRequest = (HttpRequest) httpObject;
         String uriRequest = httpRequest.uri();
-        downloadMatcher = Endpoints.DOWNLOAD_FILE.matcher(uriRequest);
-        uploadMatcher = Endpoints.UPLOAD_FILE.matcher(uriRequest);
-        uploadVersionMatcher = Endpoints.UPLOAD_FILE_VERSION.matcher(uriRequest);
-        publicLinkMatcher = Endpoints.PUBLIC_LINK.matcher(uriRequest);
+
+        Matcher downloadMatcher = Endpoints.DOWNLOAD_FILE.matcher(uriRequest);
+        Matcher uploadMatcher = Endpoints.UPLOAD_FILE.matcher(uriRequest);
+        Matcher uploadVersionMatcher = Endpoints.UPLOAD_FILE_VERSION.matcher(uriRequest);
+        Matcher publicLinkMatcher = Endpoints.PUBLIC_LINK.matcher(uriRequest);
 
         HttpVersion protocolVersionRequest = httpRequest.protocolVersion();
 
         if (downloadMatcher.find()) {
-          download(context, httpRequest, protocolVersionRequest);
+          download(context, httpRequest, protocolVersionRequest, downloadMatcher);
         }
 
         if (publicLinkMatcher.find()) {
-          downloadByLink(context, httpRequest);
+          downloadByLink(context, httpRequest, publicLinkMatcher);
         }
 
         if (uploadMatcher.find()) {
@@ -176,9 +171,10 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
   private void downloadByLink(
     ChannelHandlerContext context,
-    HttpRequest httpRequest
+    HttpRequest httpRequest,
+    Matcher uriMatched
   ) {
-    String publicLinkId = publicLinkMatcher.group(1);
+    String publicLinkId = uriMatched.group(1);
     blobService
       .downloadFileByLink(publicLinkId)
       .onSuccess(blobResponse -> {
@@ -215,13 +211,14 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   private void download(
     ChannelHandlerContext context,
     HttpRequest request,
-    HttpVersion protocolVersionRequest
+    HttpVersion protocolVersionRequest,
+    Matcher uriMatched
   ) {
     User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
-    String nodeId = downloadMatcher.group(1);
+    String nodeId = uriMatched.group(1);
     Optional<Integer> optVersion = Optional
-      .ofNullable(downloadMatcher.group(2))
+      .ofNullable(uriMatched.group(2))
       .map(Integer::parseInt);
 
     if (permissionsChecker
@@ -280,10 +277,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     }
   }
 
-  private void initializeFileStream(
-    ChannelHandlerContext context,
-    HttpRequest httpObject
-  ) {
+  private void initializeFileStream(ChannelHandlerContext context) {
     context
       .channel()
       .attr(fileStreamReader)
@@ -322,7 +316,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       return;
     }
 
-    initializeFileStream(context, httpRequest);
+    initializeFileStream(context);
 
     CompletableFuture.supplyAsync(
       () -> {
@@ -397,7 +391,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       return;
     }
 
-    initializeFileStream(context, httpRequest);
+    initializeFileStream(context);
 
     CompletableFuture.supplyAsync(
       () -> {
