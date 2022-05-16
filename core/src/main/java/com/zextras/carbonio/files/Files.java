@@ -517,7 +517,9 @@ public interface Files {
     interface Endpoints {
 
       String  SERVICE             = "/";
-      Pattern HEALTH              = Pattern.compile(SERVICE + "health/?$");
+      Pattern HEALTH              = Pattern.compile(SERVICE + "health/?(live|ready)?/?$");
+      Pattern HEALTH_LIVE         = Pattern.compile(SERVICE + "health/live/?$");
+      Pattern HEALTH_READY        = Pattern.compile(SERVICE + "health/ready/?$");
       Pattern GRAPHQL             = Pattern.compile(SERVICE + "graphql/?$");
       Pattern UPLOAD_FILE         = Pattern.compile(SERVICE + "upload/?$");
       Pattern UPLOAD_FILE_VERSION = Pattern.compile(SERVICE + "upload-version/?$");
