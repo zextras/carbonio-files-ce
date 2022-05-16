@@ -8,6 +8,7 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.graphql.controllers.GraphQLController;
 import com.zextras.carbonio.files.rest.controllers.BlobController;
+import com.zextras.carbonio.files.rest.controllers.HealthController;
 import com.zextras.carbonio.files.rest.controllers.PreviewController;
 import com.zextras.carbonio.files.rest.controllers.ProcedureController;
 import io.netty.channel.ChannelHandler.Sharable;
@@ -27,15 +28,17 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
 
   private static final Logger logger = LoggerFactory.getLogger(HttpRoutingHandler.class);
 
+  private final HealthController      healthController;
   private final GraphQLController     graphQLController;
   private final BlobController        blobController;
   private final AuthenticationHandler authenticationHandler;
-  private final ExceptionsHandler exceptionsHandler;
+  private final ExceptionsHandler     exceptionsHandler;
   private final PreviewController     previewController;
   private final ProcedureController   procedureController;
 
   @Inject
   public HttpRoutingHandler(
+    HealthController healthController,
     GraphQLController graphQLController,
     BlobController blobController,
     AuthenticationHandler authenticationHandler,
@@ -43,7 +46,8 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     PreviewController previewController,
     ProcedureController procedureController
   ) {
-    System.out.println("constructor-router");
+    logger.info("Service ready to receive http requests!");
+    this.healthController = healthController;
     this.authenticationHandler = authenticationHandler;
     this.exceptionsHandler = exceptionsHandler;
     this.graphQLController = graphQLController;
@@ -57,13 +61,14 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     ChannelHandlerContext context,
     HttpRequest request
   ) {
-    logger.info(request.uri());
 
     if (Endpoints.HEALTH.matcher(request.uri()).matches()) {
-      context.pipeline().addLast("health-handler", blobController);
+      context.pipeline().addLast("health-handler", healthController);
       context.fireChannelRead(request);
       return;
     }
+
+    logger.info(request.uri());
 
     if (Endpoints.GRAPHQL.matcher(request.uri()).matches()) {
       context.pipeline().addLast(new HttpObjectAggregator(256 * 1024));
