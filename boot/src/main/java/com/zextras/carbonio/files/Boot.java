@@ -11,12 +11,13 @@ import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.tasks.PurgeService;
 import ch.qos.logback.classic.Logger;
+import org.apache.commons.logging.Log;
 import org.slf4j.LoggerFactory;
 import ch.qos.logback.classic.Level;
 
 public class Boot {
 
-  private static final Logger logger = (Logger) LoggerFactory.getLogger(Boot.class);
+  private static final Logger logger = (Logger) LoggerFactory.getLogger("Files");
 
   public static void main(String[] args) {
     new Boot().boot();
@@ -25,6 +26,7 @@ public class Boot {
   public void boot() {
     // Set configuration level
     String logLevel = System.getenv("FILES_LOG_LEVEL");
+    /*
     logger.setLevel(
       Level.toLevel(
         logLevel == null
@@ -32,10 +34,19 @@ public class Boot {
           : logLevel
       )
     );
+     */
+
+    logger.setLevel(Level.ERROR);
+    logger.error("=====================START BOOT=====================");
+    logger.debug("DEBUG");
+    logger.info("INFO");
+    logger.warn("WARN");
+    logger.error("ERROR");
+    logger.error("=====================END BOOT=====================");
+
     Injector injector = Guice.createInjector(new FilesModule());
 
-    FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
-    filesConfig.loadConfig();
+    injector.getInstance(FilesConfig.class);
 
     EbeanDatabaseManager ebeanDatabaseManager = injector.getInstance(EbeanDatabaseManager.class);
     ebeanDatabaseManager.start();

@@ -99,6 +99,12 @@ SPDX-License-Identifier: AGPL-3.0-only
       </dependency>
 
       <dependency>
+        <artifactId>jackson-datatype-jdk8</artifactId>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <version>${jackson.version}</version>
+      </dependency>
+
+      <dependency>
         <artifactId>commons-lang3</artifactId>
         <groupId>org.apache.commons</groupId>
         <version>${commons-lang3.version}</version>

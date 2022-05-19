@@ -28,11 +28,19 @@ import com.zextras.carbonio.usermanagement.exceptions.BadRequest;
 import com.zextras.filestore.api.UploadResponse;
 import com.zextras.filestore.model.FilesIdentifier;
 import com.zextras.storages.api.StoragesClient;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vavr.control.Try;
+import java.text.MessageFormat;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class BlobService {
 
@@ -210,7 +218,7 @@ public class BlobService {
     return Try.failure(new NodePermissionException());
   }
 
-  public Try<Integer> uploadFileVersion(
+  private Try<Integer> uploadFileVersionHandler(
     User requester,
     BufferInputStream bufferInputStream,
     long blobLength,
@@ -298,6 +306,49 @@ public class BlobService {
 
     return Try.failure(new NodePermissionException());
   }
+
+  public Try<Integer> uploadFileVersion(
+    User requester,
+    BufferInputStream bufferInputStream,
+    long blobLength,
+    String nodeId,
+    String filename,
+    boolean overwrite,
+    int numberOfVersions,
+    int maxNumberOfVersions
+  ) {
+
+    if (!overwrite && numberOfVersions >= maxNumberOfVersions) {
+      List<FileVersion> allVersion = fileVersionRepository.getFileVersions(nodeId);
+      int keepForeverCounter = 0;
+      for (FileVersion version : allVersion) {
+        keepForeverCounter = version.isKeptForever()
+          ? keepForeverCounter + 1
+          : keepForeverCounter;
+      }
+      List<FileVersion> allVersionsNotKeptForever = allVersion.stream()
+        .filter(version -> !version.isKeptForever())
+        .collect(Collectors.toList());
+      FileVersion lastVersion = allVersionsNotKeptForever.get(
+        allVersionsNotKeptForever.size() - 1);
+      /*
+      The List of not keep forever element is never <1, at this point the element that are
+      kept forever are always less than allowed because
+      the check is done before (at keepForeverCounter > maxNumberOfKeepVersion).
+      */
+      fileVersionRepository.deleteFileVersion(lastVersion);
+    }
+
+    return uploadFileVersionHandler(
+      requester,
+      bufferInputStream,
+      blobLength,
+      nodeId,
+      filename,
+      overwrite
+    );
+  }
+
 
   /**
    * This method is used to search an alternative name if the filename is already present in the

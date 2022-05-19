@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files;
 
 
+import com.zextras.carbonio.files.Files.Config.Pagination;
 import java.util.regex.Pattern;
 
 /**
@@ -50,6 +51,10 @@ public interface Files {
 
       String URL  = "carbonio.mailbox.url";
       String PORT = "carbonio.mailbox.port";
+    }
+
+    interface Pagination {
+      int LIMIT = 50;
     }
   }
 
@@ -195,7 +200,7 @@ public interface Files {
 
   interface GraphQL {
 
-    int    LIMIT_ELEMENTS_FOR_PAGE = 50;
+    int    LIMIT_ELEMENTS_FOR_PAGE = Pagination.LIMIT;
     String ENTITY_TYPE             = "type";
 
     interface Context {
@@ -512,7 +517,9 @@ public interface Files {
     interface Endpoints {
 
       String  SERVICE             = "/";
-      Pattern HEALTH              = Pattern.compile(SERVICE + "health/?$");
+      Pattern HEALTH              = Pattern.compile(SERVICE + "health/?(live|ready)?/?$");
+      Pattern HEALTH_LIVE         = Pattern.compile(SERVICE + "health/live/?$");
+      Pattern HEALTH_READY        = Pattern.compile(SERVICE + "health/ready/?$");
       Pattern GRAPHQL             = Pattern.compile(SERVICE + "graphql/?$");
       Pattern UPLOAD_FILE         = Pattern.compile(SERVICE + "upload/?$");
       Pattern UPLOAD_FILE_VERSION = Pattern.compile(SERVICE + "upload-version/?$");

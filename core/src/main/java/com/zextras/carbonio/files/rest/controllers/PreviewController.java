@@ -14,6 +14,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
 import com.zextras.carbonio.files.netty.utilities.NettyBufferWriter;
@@ -22,8 +23,6 @@ import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
 import com.zextras.carbonio.files.utilities.MimeTypeUtils;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
-import com.zextras.carbonio.usermanagement.exceptions.BadRequest;
-import com.zextras.carbonio.usermanagement.exceptions.InternalServerError;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -63,13 +62,6 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
   private final MimeTypeUtils         mimeTypeUtils;
   private final NodeRepository        nodeRepository;
 
-  private Matcher previewImage;
-  private Matcher thumbnailImage;
-  private Matcher previewPdf;
-  private Matcher thumbnailPdf;
-  private Matcher previewDocument;
-  private Matcher thumbnailDocument;
-
   private final Set<String> documentAllowedTypes = Stream.of(
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -80,9 +72,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.oasis.opendocument.text"
-
   ).collect(Collectors.toUnmodifiableSet());
-
 
   @Inject
   public PreviewController(
@@ -100,7 +90,6 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     this.mimeTypeUtils = mimeTypeUtils;
   }
 
-
   @Override
   protected void channelRead0(
     ChannelHandlerContext context,
@@ -108,45 +97,45 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
   ) {
     try {
       String uriRequest = httpRequest.uri();
-      previewImage = Endpoints.PREVIEW_IMAGE.matcher(uriRequest);
-      thumbnailImage = Endpoints.THUMBNAIL_IMAGE.matcher((uriRequest));
-      previewPdf = Endpoints.PREVIEW_PDF.matcher((uriRequest));
-      thumbnailPdf = Endpoints.THUMBNAIL_PDF.matcher((uriRequest));
-      previewDocument = Endpoints.PREVIEW_DOCUMENT.matcher((uriRequest));
-      thumbnailDocument = Endpoints.THUMBNAIL_DOCUMENT.matcher((uriRequest));
+      Matcher previewImageMatcher = Endpoints.PREVIEW_IMAGE.matcher(uriRequest);
+      Matcher thumbnailImageMatcher = Endpoints.THUMBNAIL_IMAGE.matcher((uriRequest));
+      Matcher previewPdfMatcher = Endpoints.PREVIEW_PDF.matcher((uriRequest));
+      Matcher thumbnailPdfMatcher = Endpoints.THUMBNAIL_PDF.matcher((uriRequest));
+      Matcher previewDocumentMatcher = Endpoints.PREVIEW_DOCUMENT.matcher((uriRequest));
+      Matcher thumbnailDocumentMatcher = Endpoints.THUMBNAIL_DOCUMENT.matcher((uriRequest));
 
       User requester = (User) context
         .channel()
         .attr(AttributeKey.valueOf(ContextAttribute.REQUESTER))
         .get();
 
-      if (thumbnailImage.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        thumbnailImage(context, httpRequest, requester);
+      if (thumbnailImageMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        thumbnailImage(context, httpRequest, thumbnailImageMatcher, requester);
         return;
       }
 
-      if (thumbnailPdf.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        thumbnailPdf(context, httpRequest, requester);
+      if (thumbnailPdfMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        thumbnailPdf(context, httpRequest, thumbnailPdfMatcher, requester);
         return;
       }
 
-      if (thumbnailDocument.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        thumbnailDocument(context, httpRequest, requester);
+      if (thumbnailDocumentMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        thumbnailDocument(context, httpRequest, thumbnailDocumentMatcher, requester);
         return;
       }
 
-      if (previewImage.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        previewImage(context, httpRequest, requester);
+      if (previewImageMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        previewImage(context, httpRequest, previewImageMatcher, requester);
         return;
       }
 
-      if (previewPdf.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        previewPdf(context, httpRequest, requester);
+      if (previewPdfMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        previewPdf(context, httpRequest, previewPdfMatcher, requester);
         return;
       }
 
-      if (previewDocument.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        previewDocument(context, httpRequest, requester);
+      if (previewDocumentMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        previewDocument(context, httpRequest, previewDocumentMatcher, requester);
         return;
       }
 
@@ -156,7 +145,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         httpRequest.uri()
       ));
 
-      context.fireExceptionCaught(new BadRequest());
+      context.fireExceptionCaught(new BadRequestException());
 
     } catch (IllegalArgumentException exception) {
       logger.warn(MessageFormat.format(
@@ -164,7 +153,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         httpRequest.uri(),
         exception.getMessage()
       ));
-      context.fireExceptionCaught(new BadRequest());
+      context.fireExceptionCaught(new BadRequestException());
 
     } catch (Exception exception) {
       logger.error(MessageFormat.format(
@@ -190,14 +179,15 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
   private void previewImage(
     ChannelHandlerContext context,
     HttpRequest httpRequest,
+    Matcher uriMatched,
     User requester
   ) {
 
-    String nodeId = previewImage.group(1);
-    String nodeVersion = previewImage.group(2);
-    String previewArea = previewImage.group(3);
+    String nodeId = uriMatched.group(1);
+    String nodeVersion = uriMatched.group(2);
+    String previewArea = uriMatched.group(3);
 
-    PreviewQueryParameters queryParameters = parseQueryParameters(previewImage.group(5));
+    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(5));
 
     Try<Node> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
@@ -234,14 +224,14 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
   private void thumbnailImage(
     ChannelHandlerContext context,
     HttpRequest httpRequest,
+    Matcher uriMatched,
     User requester
   ) {
+    String nodeId = uriMatched.group(1);
+    String nodeVersion = uriMatched.group(2);
+    String previewArea = uriMatched.group(3);
 
-    String nodeId = thumbnailImage.group(1);
-    String nodeVersion = thumbnailImage.group(2);
-    String previewArea = thumbnailImage.group(3);
-
-    PreviewQueryParameters queryParameters = parseQueryParameters(thumbnailImage.group(4));
+    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
     Try<Node> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
@@ -278,13 +268,14 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
   private void previewPdf(
     ChannelHandlerContext context,
     HttpRequest httpRequest,
+    Matcher uriMatched,
     User requester
   ) {
 
-    String nodeId = previewPdf.group(1);
-    String nodeVersion = previewPdf.group(2);
+    String nodeId = uriMatched.group(1);
+    String nodeVersion = uriMatched.group(2);
 
-    PreviewQueryParameters queryParameters = parseQueryParameters(previewPdf.group(4));
+    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
     Try<Node> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
@@ -320,14 +311,15 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
   private void thumbnailPdf(
     ChannelHandlerContext context,
     HttpRequest httpRequest,
+    Matcher uriMatched,
     User requester
   ) {
 
-    String nodeId = thumbnailPdf.group(1);
-    String nodeVersion = thumbnailPdf.group(2);
-    String area = thumbnailPdf.group(3);
+    String nodeId = uriMatched.group(1);
+    String nodeVersion = uriMatched.group(2);
+    String area = uriMatched.group(3);
 
-    PreviewQueryParameters queryParameters = parseQueryParameters(thumbnailPdf.group(4));
+    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
     Try<Node> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
@@ -365,13 +357,14 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
   private void previewDocument(
     ChannelHandlerContext context,
     HttpRequest httpRequest,
+    Matcher uriMatched,
     User requester
   ) {
 
-    String nodeId = previewDocument.group(1);
-    String nodeVersion = previewDocument.group(2);
+    String nodeId = uriMatched.group(1);
+    String nodeVersion = uriMatched.group(2);
 
-    PreviewQueryParameters queryParameters = parseQueryParameters(previewDocument.group(4));
+    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
     Try<Node> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
@@ -408,14 +401,15 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
   private void thumbnailDocument(
     ChannelHandlerContext context,
     HttpRequest httpRequest,
+    Matcher uriMatched,
     User requester
   ) {
 
-    String nodeId = thumbnailDocument.group(1);
-    String nodeVersion = thumbnailDocument.group(2);
-    String area = thumbnailDocument.group(3);
+    String nodeId = uriMatched.group(1);
+    String nodeVersion = uriMatched.group(2);
+    String area = uriMatched.group(3);
 
-    PreviewQueryParameters queryParameters = parseQueryParameters(thumbnailDocument.group(4));
+    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
     Try<Node> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
@@ -525,9 +519,11 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       failure.getMessage()
     ));
 
-    HttpResponseStatus statusCode = (failure instanceof InternalServerError)
-      ? HttpResponseStatus.INTERNAL_SERVER_ERROR
-      : HttpResponseStatus.BAD_REQUEST;
+    HttpResponseStatus statusCode = (failure instanceof BadRequestException)
+      ? HttpResponseStatus.BAD_REQUEST
+      : (failure instanceof NodeNotFoundException)
+        ? HttpResponseStatus.NOT_FOUND
+        : HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
     context
       .writeAndFlush(new DefaultFullHttpResponse(httpRequest.protocolVersion(), statusCode))
@@ -558,13 +554,13 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     if (permissionsChecker.getPermissions(nodeId, requesterId).has(SharePermission.READ_ONLY)
       && optFileVersion.isPresent()
     ) {
-      return (mimeTypeUtils.isMimeTypeAllowed(optFileVersion.get().getMimeType(),
-        supportedMimeTypeList))
+      return (mimeTypeUtils.isMimeTypeAllowed(
+        optFileVersion.get().getMimeType(),
+        supportedMimeTypeList)
+      )
         ? Try.success(nodeRepository.getNode(nodeId).get())
-        : Try.failure(new BadRequest());
+        : Try.failure(new BadRequestException());
     }
     return Try.failure(new NodeNotFoundException(requesterId, nodeId));
   }
-
-
 }
