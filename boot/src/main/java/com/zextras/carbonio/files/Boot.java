@@ -17,7 +17,7 @@ import ch.qos.logback.classic.Level;
 
 public class Boot {
 
-  private static final Logger logger = (Logger) LoggerFactory.getLogger("Files");
+  private static final Logger logger = (Logger) LoggerFactory.getLogger(Log.LOGGER_NAME);
 
   public static void main(String[] args) {
     new Boot().boot();
@@ -25,7 +25,7 @@ public class Boot {
 
   public void boot() {
     // Set configuration level
-    String logLevel = System.getenv(Log.LOGGER_NAME);
+    String logLevel = System.getenv("FILES_LOG_LEVEL");
     logger.setLevel(
       Level.toLevel(
         logLevel == null
