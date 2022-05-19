@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.rest.services;
 import com.google.common.net.MediaType;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.Files.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
@@ -28,11 +29,6 @@ import com.zextras.carbonio.usermanagement.exceptions.BadRequest;
 import com.zextras.filestore.api.UploadResponse;
 import com.zextras.filestore.model.FilesIdentifier;
 import com.zextras.storages.api.StoragesClient;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vavr.control.Try;
 import java.text.MessageFormat;
 import java.util.Collections;
@@ -41,16 +37,19 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BlobService {
 
-  private final NodeRepository        nodeRepository;
-  private final FileVersionRepository fileVersionRepository;
-  private final ShareRepository       shareRepository;
-  private final LinkRepository        linkRepository;
-  private final PermissionsChecker    permissionsChecker;
-  private final MimeTypeUtils         mimeTypeUtils;
-  private final String                storageUrl;
+  private final        NodeRepository        nodeRepository;
+  private final        FileVersionRepository fileVersionRepository;
+  private final        ShareRepository       shareRepository;
+  private final        LinkRepository        linkRepository;
+  private final        PermissionsChecker    permissionsChecker;
+  private final        MimeTypeUtils         mimeTypeUtils;
+  private final        String                storageUrl;
+  private static final Logger                logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
 
   @Inject
   public BlobService(
@@ -156,7 +155,7 @@ public class BlobService {
 
       NodeType nodeType = NodeType.getNodeType(mediaType);
 
-      System.out.println("attributes read: " + filename);
+      logger.debug("attributes read: " + filename);
       UploadResponse uploadResponse = null;
       try {
         uploadResponse = StoragesClient
@@ -166,10 +165,12 @@ public class BlobService {
             bufferInputStream,
             blobLength
           );
-
-        System.out.println(uploadResponse.getDigest());
-        System.out.println(uploadResponse.getSize());
-        System.out.println(nodeId);
+        logger.debug(MessageFormat.format(
+          "Uploaded file to storage with nodeId {0}, size: {1}, digest: {2}",
+          nodeId,
+          uploadResponse.getDigest(),
+          uploadResponse.getSize()
+        ));
       } catch (Exception e) {
         e.printStackTrace();
       }
@@ -218,7 +219,7 @@ public class BlobService {
     return Try.failure(new NodePermissionException());
   }
 
-  private Try<Integer> uploadFileVersionHandler(
+  private Try<Integer> uploadFileVersionOperation(
     User requester,
     BufferInputStream bufferInputStream,
     long blobLength,
@@ -262,9 +263,12 @@ public class BlobService {
             );
         }
 
-        System.out.println(uploadResponse.getDigest());
-        System.out.println(uploadResponse.getSize());
-        System.out.println(nodeId);
+        logger.debug(MessageFormat.format(
+          "Uploaded file version to storages with nodeId {0}, size: {1}, digest: {2}",
+          nodeId,
+          uploadResponse.getDigest(),
+          uploadResponse.getSize()
+        ));
       } catch (Exception e) {
         e.printStackTrace();
       }
@@ -314,11 +318,10 @@ public class BlobService {
     String nodeId,
     String filename,
     boolean overwrite,
-    int numberOfVersions,
     int maxNumberOfVersions
   ) {
 
-    if (!overwrite && numberOfVersions >= maxNumberOfVersions) {
+    if (!overwrite && getNumberOfVersionOfFile(nodeId) >= maxNumberOfVersions) {
       List<FileVersion> allVersion = fileVersionRepository.getFileVersions(nodeId);
       int keepForeverCounter = 0;
       for (FileVersion version : allVersion) {
@@ -336,10 +339,15 @@ public class BlobService {
       kept forever are always less than allowed because
       the check is done before (at keepForeverCounter > maxNumberOfKeepVersion).
       */
+      logger.debug(MessageFormat.format(
+        "File version limit reached, deleting version {0} of {1} to make space for a new version",
+        lastVersion.getVersion(),
+        lastVersion.getNodeId()
+      ));
       fileVersionRepository.deleteFileVersion(lastVersion);
     }
 
-    return uploadFileVersionHandler(
+    return uploadFileVersionOperation(
       requester,
       bufferInputStream,
       blobLength,
@@ -378,5 +386,9 @@ public class BlobService {
       ++level;
     }
     return finalFilename;
+  }
+
+  public int getNumberOfVersionOfFile(String nodeId) {
+    return fileVersionRepository.getFileVersions(nodeId).size();
   }
 }

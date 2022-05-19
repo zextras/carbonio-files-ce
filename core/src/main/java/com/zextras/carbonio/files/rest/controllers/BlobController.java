@@ -5,7 +5,6 @@
 package com.zextras.carbonio.files.rest.controllers;
 
 import static io.netty.buffer.Unpooled.EMPTY_BUFFER;
-import ch.qos.logback.classic.Level;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -13,6 +12,7 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.Files.API.Headers;
+import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
 import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
@@ -56,13 +56,13 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import org.apache.commons.codec.binary.Base64;
-import ch.qos.logback.classic.Logger;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ChannelHandler.Sharable
 public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
-  private static final Logger logger = (Logger) LoggerFactory.getLogger("Files");
+  private static final Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
 
   private static final AttributeKey<BufferInputStream> fileStreamReader =
     AttributeKey.valueOf("FileStreamReader");
@@ -82,32 +82,27 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   private final BlobService          blobService;
   private final PermissionsChecker   permissionsChecker;
   private final EbeanDatabaseManager ebeanDatabaseManager;
-
-  private final FileVersionRepository fileVersionRepository;
-
-  private int maxNumberOfVersions;
-  private int maxNumberOfKeepVersions;
+  private final int                  maxNumberOfVersions;
+  private final int                  maxNumberOfKeepVersions;
 
   @Inject
   public BlobController(
     BlobService blobService,
     PermissionsChecker permissionsChecker,
-    EbeanDatabaseManager ebeanDatabaseManager,
-    FileVersionRepository fileVersionRepository
+    EbeanDatabaseManager ebeanDatabaseManager
   ) {
     super(true);
     this.blobService = blobService;
     this.permissionsChecker = permissionsChecker;
     this.ebeanDatabaseManager = ebeanDatabaseManager;
-    this.fileVersionRepository = fileVersionRepository;
-    this.fetchAndUpdateMaxNumberOfVersions();
-    //logger.setLevel(Level.WARN);
-    logger.error("=====================START BLOB=====================");
-    logger.debug("DEBUG");
-    logger.info("INFO");
-    logger.warn("WARN");
-    logger.error("ERROR");
-    logger.error("=====================END BLOB=====================");
+    this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
+      .defaultURL(ServiceDiscover.SERVICE_NAME)
+      .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
+      .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
+    this.maxNumberOfKeepVersions =
+      this.maxNumberOfVersions <= Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION
+        ? 0
+        : this.maxNumberOfVersions - Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
   }
 
   /**
@@ -408,10 +403,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       context.close();
       return;
     }
-    this.fetchAndUpdateMaxNumberOfVersions();
 
-    int numberOfVersions = fileVersionRepository.getFileVersions(nodeId).size();
-    if (numberOfVersions > maxNumberOfVersions) {
+    if (blobService.getNumberOfVersionOfFile(nodeId) > maxNumberOfVersions) {
       logger.info(MessageFormat.format(
         "Node: {0} has reached max number of versions ({1}), cannot add more versions",
         nodeId,
@@ -419,14 +412,12 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       ));
       context.writeAndFlush(new DefaultFullHttpResponse(
         httpRequest.protocolVersion(),
-        HttpResponseStatus.BAD_REQUEST
+        HttpResponseStatus.METHOD_NOT_ALLOWED
       ));
 
       context.close();
       return;
     }
-
-    logger.info("Uploading new version...");
 
     User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
     boolean overwrite = Boolean.parseBoolean(
@@ -434,8 +425,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     );
     long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
 
-    logger.info(MessageFormat.format(
-      "Node id: {0}, overwrite: {1}", nodeId, overwrite
+    logger.debug(MessageFormat.format(
+      "Uploading new version of node with id: {0}, overwrite: {1}", nodeId, overwrite
     ));
     initializeFileStream(context);
 
@@ -449,7 +440,6 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
             nodeId,
             decodedFilename,
             overwrite,
-            numberOfVersions,
             maxNumberOfVersions
           );
 
@@ -538,21 +528,5 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         }
       }
     );
-  }
-
-  private void fetchAndUpdateMaxNumberOfVersions() {
-    this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
-      .defaultURL(ServiceDiscover.SERVICE_NAME)
-      .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
-      .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
-    this.maxNumberOfKeepVersions =
-      this.maxNumberOfVersions <= Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION
-        ? 0
-        : this.maxNumberOfVersions - Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
-
-    logger.info(MessageFormat.format(
-      "MaxNumberOfVersions: {0}, maxNumberOfKeepVersions {1}", maxNumberOfVersions,
-      maxNumberOfKeepVersions
-    ));
   }
 }

@@ -6,12 +6,12 @@ package com.zextras.carbonio.files;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.tasks.PurgeService;
 import ch.qos.logback.classic.Logger;
-import org.apache.commons.logging.Log;
 import org.slf4j.LoggerFactory;
 import ch.qos.logback.classic.Level;
 
@@ -25,8 +25,7 @@ public class Boot {
 
   public void boot() {
     // Set configuration level
-    String logLevel = System.getenv("FILES_LOG_LEVEL");
-    /*
+    String logLevel = System.getenv(Log.LOGGER_NAME);
     logger.setLevel(
       Level.toLevel(
         logLevel == null
@@ -34,15 +33,6 @@ public class Boot {
           : logLevel
       )
     );
-     */
-
-    logger.setLevel(Level.ERROR);
-    logger.error("=====================START BOOT=====================");
-    logger.debug("DEBUG");
-    logger.info("INFO");
-    logger.warn("WARN");
-    logger.error("ERROR");
-    logger.error("=====================END BOOT=====================");
 
     Injector injector = Guice.createInjector(new FilesModule());
 
