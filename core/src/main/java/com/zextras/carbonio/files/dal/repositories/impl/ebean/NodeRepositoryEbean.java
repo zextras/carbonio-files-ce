@@ -156,7 +156,9 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("updated_timestamp", ">", node.getUpdatedAt()))
+              Optional.of(
+                new ImmutableTriple("updated_timestamp", ">", String.valueOf(node.getUpdatedAt()))
+              )
             )
           );
           break;
@@ -165,7 +167,9 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("updated_timestamp", "<", node.getUpdatedAt()))
+              Optional.of(
+                new ImmutableTriple("updated_timestamp", "<", String.valueOf(node.getUpdatedAt()))
+              )
             )
           );
           break;
@@ -174,7 +178,9 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("creation_timestamp", ">", node.getCreatedAt()))
+              Optional.of(
+                new ImmutableTriple("creation_timestamp", ">", String.valueOf(node.getCreatedAt()))
+              )
             )
           );
           break;
@@ -183,7 +189,9 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("creation_timestamp", "<", node.getCreatedAt()))
+              Optional.of(
+                new ImmutableTriple("creation_timestamp", "<", String.valueOf(node.getCreatedAt()))
+              )
             )
           );
           break;
@@ -192,7 +200,7 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("size", "<", node.getSize()))
+              Optional.of(new ImmutableTriple("size", "<", String.valueOf(node.getSize())))
             )
           );
           break;
@@ -201,7 +209,7 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("size", ">", node.getSize()))
+              Optional.of(new ImmutableTriple("size", ">", String.valueOf(node.getSize())))
             )
           );
           break;
@@ -511,7 +519,8 @@ public class NodeRepositoryEbean implements NodeRepository {
         .eq(Db.Node.OWNER_ID, userId.get());
     }
 
-    sort.map(s -> {
+    sort
+      .map(s -> {
         if (s.equals(NodeSort.SIZE_ASC) || s.equals(NodeSort.SIZE_DESC)) {
           s.getOrderEbeanQuery(query);
           NodeSort.NAME_ASC.getOrderEbeanQuery(query);
@@ -519,7 +528,7 @@ public class NodeRepositoryEbean implements NodeRepository {
           NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
           s.getOrderEbeanQuery(query);
         }
-        return null;
+        return s;
       })
       .orElseGet(() -> {
         NodeSort.TYPE_ASC.getOrderEbeanQuery(query);

@@ -15,20 +15,28 @@ import java.util.Optional;
  */
 public class PageQuery {
 
-  Integer            limit;
-  List<String>       keywords;
-  Optional<String>   keySet;
-  Optional<NodeSort> sort;
-  Optional<Boolean>  flagged;
-  Optional<String>   folderId;
-  Optional<Boolean>  cascade;
-  Optional<Boolean>  sharedWithMe;
-  Optional<Boolean>  sharedByMe;
-  Optional<Boolean>  directShare;
+  private Integer            limit;
+  private List<String>       keywords;
+  private Optional<String>   keySet;
+  private Optional<NodeSort> sort;
+  private Optional<Boolean>  flagged;
+  private Optional<String>   folderId;
+  private Optional<Boolean>  cascade;
+  private Optional<Boolean>  sharedWithMe;
+  private Optional<Boolean>  sharedByMe;
+  private Optional<Boolean>  directShare;
 
   public PageQuery() {
     limit = Files.Config.Pagination.LIMIT;
     keywords = Collections.emptyList();
+    keySet = Optional.empty();
+    sort = Optional.empty();
+    flagged = Optional.empty();
+    folderId = Optional.empty();
+    cascade = Optional.empty();
+    sharedWithMe = Optional.empty();
+    sharedByMe = Optional.empty();
+    directShare = Optional.empty();
   }
 
   public PageQuery(
