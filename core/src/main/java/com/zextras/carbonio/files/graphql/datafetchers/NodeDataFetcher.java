@@ -1831,9 +1831,9 @@ public class NodeDataFetcher {
       if (permissionsChecker.getPermissions(nodeId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {
 
-        List<FileVersion> allVersion = fileVersionRepository.getFileVersions(nodeId);
+        List<FileVersion> listOfFileVersions = fileVersionRepository.getFileVersions(nodeId);
         int keepForeverCounter = 0;
-        for (FileVersion version : allVersion) {
+        for (FileVersion version : listOfFileVersions) {
           keepForeverCounter = version.isKeptForever()
             ? keepForeverCounter + 1
             : keepForeverCounter;

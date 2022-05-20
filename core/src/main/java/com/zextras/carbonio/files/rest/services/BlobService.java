@@ -336,8 +336,7 @@ public class BlobService {
         allVersionsNotKeptForever.size() - 1);
       /*
       The List of not keep forever element is never <1, at this point the element that are
-      kept forever are always less than allowed because
-      the check is done before (at keepForeverCounter > maxNumberOfKeepVersion).
+      kept forever are always less than max allowed.
       */
       logger.debug(MessageFormat.format(
         "File version limit reached, deleting version {0} of {1} to make space for a new version",

@@ -81,20 +81,17 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
   private final BlobService          blobService;
   private final PermissionsChecker   permissionsChecker;
-  private final EbeanDatabaseManager ebeanDatabaseManager;
   private final int                  maxNumberOfVersions;
   private final int                  maxNumberOfKeepVersions;
 
   @Inject
   public BlobController(
     BlobService blobService,
-    PermissionsChecker permissionsChecker,
-    EbeanDatabaseManager ebeanDatabaseManager
+    PermissionsChecker permissionsChecker
   ) {
     super(true);
     this.blobService = blobService;
     this.permissionsChecker = permissionsChecker;
-    this.ebeanDatabaseManager = ebeanDatabaseManager;
     this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
       .defaultURL(ServiceDiscover.SERVICE_NAME)
       .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
