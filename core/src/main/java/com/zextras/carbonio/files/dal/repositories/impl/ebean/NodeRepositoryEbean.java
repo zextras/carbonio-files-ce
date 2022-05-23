@@ -25,6 +25,7 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SearchBu
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import io.ebean.Query;
 import io.ebean.annotation.Transactional;
+import java.text.MessageFormat;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -138,7 +139,11 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("LOWER(name)", ">", node.getFullName().toLowerCase()))
+              Optional.of(new ImmutableTriple(
+                MessageFormat.format("LOWER({0})", Db.Node.NAME),
+                ">",
+                node.getFullName().toLowerCase())
+              )
             )
           );
           break;
@@ -147,7 +152,11 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("LOWER(name)", "<", node.getFullName().toLowerCase()))
+              Optional.of(new ImmutableTriple(
+                MessageFormat.format("LOWER({0})", Db.Node.NAME),
+                "<",
+                node.getFullName().toLowerCase())
+              )
             )
           );
           break;
@@ -157,7 +166,7 @@ public class NodeRepositoryEbean implements NodeRepository {
               node.getNodeCategory(),
               node.getId(),
               Optional.of(
-                new ImmutableTriple("updated_timestamp", ">", String.valueOf(node.getUpdatedAt()))
+                new ImmutableTriple(Db.Node.UPDATED_AT, ">", String.valueOf(node.getUpdatedAt()))
               )
             )
           );
@@ -168,7 +177,7 @@ public class NodeRepositoryEbean implements NodeRepository {
               node.getNodeCategory(),
               node.getId(),
               Optional.of(
-                new ImmutableTriple("updated_timestamp", "<", String.valueOf(node.getUpdatedAt()))
+                new ImmutableTriple(Db.Node.UPDATED_AT, "<", String.valueOf(node.getUpdatedAt()))
               )
             )
           );
@@ -179,7 +188,7 @@ public class NodeRepositoryEbean implements NodeRepository {
               node.getNodeCategory(),
               node.getId(),
               Optional.of(
-                new ImmutableTriple("creation_timestamp", ">", String.valueOf(node.getCreatedAt()))
+                new ImmutableTriple(Db.Node.CREATED_AT, ">", String.valueOf(node.getCreatedAt()))
               )
             )
           );
@@ -190,7 +199,7 @@ public class NodeRepositoryEbean implements NodeRepository {
               node.getNodeCategory(),
               node.getId(),
               Optional.of(
-                new ImmutableTriple("creation_timestamp", "<", String.valueOf(node.getCreatedAt()))
+                new ImmutableTriple(Db.Node.CREATED_AT, "<", String.valueOf(node.getCreatedAt()))
               )
             )
           );
@@ -200,7 +209,7 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("size", "<", String.valueOf(node.getSize())))
+              Optional.of(new ImmutableTriple(Db.Node.SIZE, "<", String.valueOf(node.getSize())))
             )
           );
           break;
@@ -209,7 +218,7 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("size", ">", String.valueOf(node.getSize())))
+              Optional.of(new ImmutableTriple(Db.Node.SIZE, ">", String.valueOf(node.getSize())))
             )
           );
           break;
