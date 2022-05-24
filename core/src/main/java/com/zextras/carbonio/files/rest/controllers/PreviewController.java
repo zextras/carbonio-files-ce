@@ -521,9 +521,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     HttpResponseStatus statusCode = (failure instanceof BadRequestException)
       ? HttpResponseStatus.BAD_REQUEST
-      : (failure instanceof NodeNotFoundException)
-        ? HttpResponseStatus.NOT_FOUND
-        : HttpResponseStatus.INTERNAL_SERVER_ERROR;
+      : HttpResponseStatus.NOT_FOUND;
 
     context
       .writeAndFlush(new DefaultFullHttpResponse(httpRequest.protocolVersion(), statusCode))
