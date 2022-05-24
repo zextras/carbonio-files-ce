@@ -1916,20 +1916,34 @@ public class NodeDataFetcher {
             .error(GraphQLResultErrors.tooManyVersionsError(nodeId, path))
             .build();
         }
+        logger.debug(MessageFormat.format(
+          "Version to clone {0}, id fetched to clone {1}, node current version {2}",
+          versionToClone,
+          fileVersionRepository.getFileVersion(nodeId, versionToClone).get().getNodeId(),
+          node.getCurrentVersion()
+        ));
         return fileVersionRepository
           .getFileVersion(nodeId, versionToClone)
           .map(fileVersion -> {
             Integer newVersion = node.getCurrentVersion() + 1;
+            int currVer = fileVersion.getVersion();
+            Try<BlobResponse> blobResponses = blobService.downloadFile(
+              nodeId,
+              Optional.of(fileVersion.getVersion()),
+              new User(node.getOwnerId(), "", "", "")
+            );
 
-            try {
-              Try<BlobResponse> blobResponses = blobService.downloadFile(
-                nodeId,
-                Optional.of(fileVersion.getVersion()),
-                new User(node.getOwnerId(), "", "", "")
-              );
+            logger.debug(MessageFormat.format(
+              "Download operation concluded with result {0} with file {1} and version {2}",
+              blobResponses.isSuccess()? "success" : "failure",
+              nodeId,
+              currVer
+            ));
+            System.out.flush();
 
-              UploadResponse copiedBlobResponse = null;
-              if (blobResponses.isSuccess()) {
+            UploadResponse copiedBlobResponse = null;
+            if (blobResponses.isSuccess()) {
+              try {
                 copiedBlobResponse = StoragesClient.atUrl("http://127.78.0.2:20002/")
                   .uploadPost(
                     FilesIdentifier.of(node.getId(), newVersion, requesterId),
@@ -1937,39 +1951,41 @@ public class NodeDataFetcher {
                     blobResponses.get().getSize()
                   );
 
-              } else {
-                logger.error(MessageFormat.format(
-                  "Copy error with nodeId: {0} and version {1}",
-                  nodeId,
-                  versionToClone
-                ));
-                throw new AbortExecutionException("Copy error" + nodeId + " " + versionToClone);
+              } catch (Exception e) {
+                e.printStackTrace();
+                return new Builder<Map<String, Object>>()
+                  .error(GraphQLResultErrors.fileVersionNotFound(nodeId, versionToClone, path))
+                  .build();
               }
 
-              Optional<FileVersion> newFileVersion = fileVersionRepository.createNewFileVersion(
-                node.getId(),
-                requesterId,
-                newVersion,
-                fileVersion.getMimeType(),
-                copiedBlobResponse.getSize(),
-                copiedBlobResponse.getDigest(),
-                false
+            } else {
+              String error = MessageFormat.format(
+                "Copy error with nodeId: {0} and version {1}",
+                nodeId,
+                versionToClone
               );
-
-              node.setCurrentVersion(newVersion);
-              nodeRepository.updateNode(node);
-
-              newFileVersion.get()
-                .setClonedFromVersion(versionToClone);
-              fileVersionRepository.updateFileVersion(newFileVersion.get());
-
-              return fetchNodeAndConvertToDataFetcherResult(nodeId, Optional.of(newVersion), path);
-            } catch (Exception e) {
-              e.printStackTrace();
-              return new Builder<Map<String, Object>>()
-                .error(GraphQLResultErrors.fileVersionNotFound(nodeId, versionToClone, path))
-                .build();
+              logger.error(error);
+              throw new AbortExecutionException(error);
             }
+
+            Optional<FileVersion> newFileVersion = fileVersionRepository.createNewFileVersion(
+              node.getId(),
+              requesterId,
+              newVersion,
+              fileVersion.getMimeType(),
+              copiedBlobResponse.getSize(),
+              copiedBlobResponse.getDigest(),
+              false
+            );
+
+            node.setCurrentVersion(newVersion);
+            nodeRepository.updateNode(node);
+
+            newFileVersion.get()
+              .setClonedFromVersion(versionToClone);
+            fileVersionRepository.updateFileVersion(newFileVersion.get());
+
+            return fetchNodeAndConvertToDataFetcherResult(nodeId, Optional.of(newVersion), path);
           })
           .orElse(
             new Builder<Map<String, Object>>()

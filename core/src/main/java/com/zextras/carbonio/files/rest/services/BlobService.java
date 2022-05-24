@@ -19,6 +19,8 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionReposit
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
 import com.zextras.carbonio.files.exceptions.NodePermissionException;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
@@ -49,6 +51,7 @@ public class BlobService {
   private final        PermissionsChecker    permissionsChecker;
   private final        MimeTypeUtils         mimeTypeUtils;
   private final        String                storageUrl;
+  private final        TombstoneRepository   tombstoneRepository;
   private static final Logger                logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
 
   @Inject
@@ -59,6 +62,7 @@ public class BlobService {
     LinkRepository linkRepository,
     PermissionsChecker permissionsChecker,
     FilesConfig filesConfig,
+    TombstoneRepository tombstoneRepository,
     MimeTypeUtils mimeTypeUtils
   ) {
     this.nodeRepository = nodeRepository;
@@ -67,6 +71,7 @@ public class BlobService {
     this.linkRepository = linkRepository;
     this.permissionsChecker = permissionsChecker;
     this.mimeTypeUtils = mimeTypeUtils;
+    this.tombstoneRepository = tombstoneRepository;
     Properties p = filesConfig.getProperties();
     storageUrl = "http://"
       + p.getProperty(Files.Config.Storages.URL, "127.78.0.2")
@@ -219,98 +224,6 @@ public class BlobService {
     return Try.failure(new NodePermissionException());
   }
 
-  private Try<Integer> uploadFileVersionOperation(
-    User requester,
-    BufferInputStream bufferInputStream,
-    long blobLength,
-    String nodeId,
-    String filename,
-    boolean overwrite
-  ) {
-
-    if (permissionsChecker
-      .getPermissions(nodeId, requester.getUuid())
-      .has(SharePermission.READ_AND_WRITE)
-    ) {
-
-      Optional<Node> node = nodeRepository.getNode(nodeId);
-      if (!node.isPresent()) {
-        return Try.failure(new NodeNotFoundException());
-      }
-
-      int newVersion = overwrite
-        ? node.get().getCurrentVersion()
-        : node.get().getCurrentVersion() + 1;
-
-      UploadResponse uploadResponse = null;
-      try {
-        if (overwrite) {
-          uploadResponse = StoragesClient
-            .atUrl(storageUrl)
-            .uploadPut(
-              FilesIdentifier.of(nodeId, newVersion, requester.getUuid()),
-              bufferInputStream,
-              blobLength
-            );
-
-        } else {
-          uploadResponse = StoragesClient
-            .atUrl(storageUrl)
-            .uploadPost(
-              FilesIdentifier.of(nodeId, newVersion, requester.getUuid()),
-              bufferInputStream,
-              blobLength
-            );
-        }
-
-        logger.debug(MessageFormat.format(
-          "Uploaded file version to storages with nodeId {0}, size: {1}, digest: {2}",
-          nodeId,
-          uploadResponse.getDigest(),
-          uploadResponse.getSize()
-        ));
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-
-      MediaType mediaType = mimeTypeUtils.detectMimeTypeFromFilename(
-        filename,
-        MediaType.OCTET_STREAM.toString()
-      );
-
-      NodeType nodeType = NodeType.getNodeType(mediaType);
-
-      if (nodeType != node.get().getNodeType()) {
-        return Try.failure(new BadRequest());
-      }
-
-      Node updatedNode = node.get();
-      if (overwrite) {
-        FileVersion fileVersionOld = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
-        fileVersionRepository.deleteFileVersion(fileVersionOld);
-      } else {
-        updatedNode.setCurrentVersion(newVersion);
-      }
-
-      fileVersionRepository.createNewFileVersion(
-        nodeId,
-        requester.getUuid(),
-        newVersion,
-        mediaType.toString(),
-        uploadResponse.getSize(),
-        uploadResponse.getDigest(),
-        false
-      );
-      updatedNode.setSize(uploadResponse.getSize());
-      updatedNode.setLastEditorId(requester.getUuid());
-      nodeRepository.updateNode(updatedNode);
-
-      return Try.success(newVersion);
-    }
-
-    return Try.failure(new NodePermissionException());
-  }
-
   public Try<Integer> uploadFileVersion(
     User requester,
     BufferInputStream bufferInputStream,
@@ -321,41 +234,158 @@ public class BlobService {
     int maxNumberOfVersions
   ) {
 
-    if (!overwrite && getNumberOfVersionOfFile(nodeId) >= maxNumberOfVersions) {
-      List<FileVersion> allVersion = fileVersionRepository.getFileVersions(nodeId);
-      int keepForeverCounter = 0;
-      for (FileVersion version : allVersion) {
-        keepForeverCounter = version.isKeptForever()
-          ? keepForeverCounter + 1
-          : keepForeverCounter;
-      }
-      List<FileVersion> allVersionsNotKeptForever = allVersion.stream()
-        .filter(version -> !version.isKeptForever())
-        .collect(Collectors.toList());
-      FileVersion lastVersion = allVersionsNotKeptForever.get(
-        allVersionsNotKeptForever.size() - 1);
-      /*
-      The List of not keep forever element is never <1, at this point the element that are
-      kept forever are always less than max allowed.
-      */
-      logger.debug(MessageFormat.format(
-        "File version limit reached, deleting version {0} of {1} to make space for a new version",
-        lastVersion.getVersion(),
-        lastVersion.getNodeId()
-      ));
-      fileVersionRepository.deleteFileVersion(lastVersion);
-    }
+    if (permissionsChecker
+      .getPermissions(nodeId, requester.getUuid())
+      .has(SharePermission.READ_AND_WRITE)
+    ) {
 
-    return uploadFileVersionOperation(
-      requester,
-      bufferInputStream,
-      blobLength,
-      nodeId,
-      filename,
-      overwrite
-    );
+
+      MediaType mediaType = mimeTypeUtils.detectMimeTypeFromFilename(
+        filename,
+        MediaType.OCTET_STREAM.toString()
+      );
+
+      NodeType nodeType = NodeType.getNodeType(mediaType);
+
+      Optional<Node> node = nodeRepository.getNode(nodeId);
+      if (node.isEmpty()) {
+        logger.debug(MessageFormat.format(
+          "Node {0} not found",
+          nodeId
+        ));
+        return Try.failure(new NodeNotFoundException());
+      }
+      Node currNode = node.get();
+
+      if (nodeType != node.get().getNodeType()) {
+        logger.debug(MessageFormat.format(
+          "Node {0} with wrong type {1}, should be the same as old versions: {2}",
+          nodeId,
+          node.get().getNodeType(),
+          nodeType
+        ));
+        return Try.failure(new BadRequest());
+      }
+      FileVersion lastVersion = null;
+      if (!overwrite && getNumberOfVersionOfFile(nodeId) >= maxNumberOfVersions) {
+        List<FileVersion> allVersion = fileVersionRepository.getFileVersions(nodeId);
+        int keepForeverCounter = 0;
+        for (FileVersion version : allVersion) {
+          keepForeverCounter = version.isKeptForever()
+            ? keepForeverCounter + 1
+            : keepForeverCounter;
+        }
+        List<FileVersion> allVersionsNotKeptForever = allVersion.stream()
+          .filter(version -> !version.isKeptForever())
+          .collect(Collectors.toList());
+        lastVersion = allVersionsNotKeptForever.get(
+          allVersionsNotKeptForever.size() - 1);
+        /*
+        The List of not keep forever element is never <1, at this point the element that are
+        kept forever are always less than max allowed.
+        */
+      }
+
+      Try<Integer> uploadResult = uploadFileVersionOperation(
+        requester,
+        bufferInputStream,
+        blobLength,
+        nodeId,
+        currNode,
+        mediaType,
+        overwrite
+      );
+      logger.debug(MessageFormat.format(
+        "File version upload result: {0} with node: {1}",
+        uploadResult.isSuccess()
+          ? "success"
+          : "failure",
+        nodeId
+      ));
+
+      if (uploadResult.isSuccess() && lastVersion != null) {
+        fileVersionRepository.deleteFileVersion(lastVersion);
+        tombstoneRepository.createTombstonesBulk(List.of(lastVersion), currNode.getOwnerId());
+        logger.debug(MessageFormat.format(
+          "After successful upload file version limit has been reached, deleting version {0} of {1} to make space for a new version",
+          lastVersion.getVersion(),
+          lastVersion.getNodeId()
+        ));
+      }
+      return uploadResult;
+    } else {
+      logger.debug(MessageFormat.format(
+        "User {0} does not have the necessary permission for node {1}",
+        requester.getUuid(),
+        nodeId
+      ));
+      return Try.failure(new NodePermissionException());
+    }
   }
 
+
+  private Try<Integer> uploadFileVersionOperation(
+    User requester,
+    BufferInputStream bufferInputStream,
+    long blobLength,
+    String nodeId,
+    Node node,
+    MediaType mediaType,
+    boolean overwrite
+  ) {
+
+    int newVersion = overwrite
+      ? node.getCurrentVersion()
+      : node.getCurrentVersion() + 1;
+
+    UploadResponse uploadResponse = null;
+    try {
+      if (overwrite) {
+        uploadResponse = StoragesClient
+          .atUrl(storageUrl)
+          .uploadPut(
+            FilesIdentifier.of(nodeId, newVersion, requester.getUuid()),
+            bufferInputStream,
+            blobLength
+          );
+
+      } else {
+        uploadResponse = StoragesClient
+          .atUrl(storageUrl)
+          .uploadPost(
+            FilesIdentifier.of(nodeId, newVersion, requester.getUuid()),
+            bufferInputStream,
+            blobLength
+          );
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    if (overwrite) {
+      FileVersion fileVersionOld = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
+      fileVersionRepository.deleteFileVersion(fileVersionOld);
+    } else {
+      node.setCurrentVersion(newVersion);
+    }
+
+    Optional<FileVersion> result = fileVersionRepository.createNewFileVersion(
+      nodeId,
+      requester.getUuid(),
+      newVersion,
+      mediaType.toString(),
+      uploadResponse.getSize(),
+      uploadResponse.getDigest(),
+      false
+    );
+    node.setSize(uploadResponse.getSize());
+    node.setLastEditorId(requester.getUuid());
+    nodeRepository.updateNode(node);
+
+    return result.map(fileVersion -> Try.success(fileVersion.getVersion()))
+      .orElseGet(() -> Try.failure(new InternalServerErrorException("Upload failed")));
+
+  }
 
   /**
    * This method is used to search an alternative name if the filename is already present in the
