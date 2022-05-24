@@ -801,15 +801,13 @@ public class NodeDataFetcher {
                 });
 
             } else {
-              String parentId = parentNode.get()
-                .getId();
+              String parentId = parentNode.get().getId();
               node.setParentId(parentId);
-              String newAncestors = (parentNode.get()
-                .getAncestorIds()
-                .isEmpty())
+
+              String newAncestors = NodeType.ROOT.equals(parentNode.get().getNodeType())
                 ? parentId
-                : parentNode.get()
-                  .getAncestorIds() + "," + parentId;
+                : parentNode.get().getAncestorIds() + "," + parentId;
+
               node.setAncestorIds(newAncestors);
 
               shareRepository
@@ -1388,7 +1386,7 @@ public class NodeDataFetcher {
       sourceNode.getDescription()
         .orElse(""),
       sourceNode.getNodeType(),
-      destinationFolder.getNodeType() == NodeType.ROOT
+      NodeType.ROOT.equals(destinationFolder.getNodeType())
         ? destinationFolder.getId()
         : destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
       sourceNode.getSize()
@@ -1497,11 +1495,12 @@ public class NodeDataFetcher {
   ) {
     String effectiveName = newName.orElse(sourceFolder.getName());
 
-    String ownerId =
-      (destinationFolder.getNodeType()
-        .equals(NodeType.ROOT) || requesterId.equals(destinationFolder.getOwnerId()))
-        ? requesterId
-        : destinationFolder.getOwnerId();
+    String ownerId = (
+      destinationFolder.getNodeType().equals(NodeType.ROOT)
+        || requesterId.equals(destinationFolder.getOwnerId())
+    )
+      ? requesterId
+      : destinationFolder.getOwnerId();
 
     // Create the new folder
     return nodeRepository.createNewNode(
@@ -1514,7 +1513,9 @@ public class NodeDataFetcher {
       sourceFolder.getDescription()
         .orElse(""),
       NodeType.FOLDER,
-      destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
+      NodeType.ROOT.equals(destinationFolder.getNodeType())
+        ? destinationFolder.getId()
+        : destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
       0L
     );
   }

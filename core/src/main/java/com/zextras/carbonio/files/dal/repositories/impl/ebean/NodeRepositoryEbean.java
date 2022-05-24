@@ -722,10 +722,9 @@ public class NodeRepositoryEbean implements NodeRepository {
     List<String> nodesIds,
     Node destinationFolder
   ) {
-    String ancestorIds = destinationFolder
-      .getParentId()
-      .map(parentId -> destinationFolder.getAncestorIds() + "," + destinationFolder.getId())
-      .orElse(destinationFolder.getId());
+    String ancestorIds = NodeType.ROOT.equals(destinationFolder.getNodeType())
+      ? destinationFolder.getId()
+      : destinationFolder.getAncestorIds() + "," + destinationFolder.getId();
 
     int numberMovedNodes = mDB.getEbeanDatabase()
       .update(Node.class)
