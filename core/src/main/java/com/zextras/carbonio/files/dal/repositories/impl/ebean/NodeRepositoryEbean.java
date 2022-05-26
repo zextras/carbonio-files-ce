@@ -25,6 +25,7 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SearchBu
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import io.ebean.Query;
 import io.ebean.annotation.Transactional;
+import java.text.MessageFormat;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -138,7 +139,11 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("LOWER(name)", ">", node.getFullName().toLowerCase()))
+              Optional.of(new ImmutableTriple(
+                MessageFormat.format("LOWER({0})", Db.Node.NAME),
+                ">",
+                node.getFullName().toLowerCase())
+              )
             )
           );
           break;
@@ -147,7 +152,11 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("LOWER(name)", "<", node.getFullName().toLowerCase()))
+              Optional.of(new ImmutableTriple(
+                MessageFormat.format("LOWER({0})", Db.Node.NAME),
+                "<",
+                node.getFullName().toLowerCase())
+              )
             )
           );
           break;
@@ -156,7 +165,9 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("updated_timestamp", ">", node.getUpdatedAt()))
+              Optional.of(
+                new ImmutableTriple(Db.Node.UPDATED_AT, ">", String.valueOf(node.getUpdatedAt()))
+              )
             )
           );
           break;
@@ -165,7 +176,9 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("updated_timestamp", "<", node.getUpdatedAt()))
+              Optional.of(
+                new ImmutableTriple(Db.Node.UPDATED_AT, "<", String.valueOf(node.getUpdatedAt()))
+              )
             )
           );
           break;
@@ -174,7 +187,9 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("creation_timestamp", ">", node.getCreatedAt()))
+              Optional.of(
+                new ImmutableTriple(Db.Node.CREATED_AT, ">", String.valueOf(node.getCreatedAt()))
+              )
             )
           );
           break;
@@ -183,7 +198,9 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("creation_timestamp", "<", node.getCreatedAt()))
+              Optional.of(
+                new ImmutableTriple(Db.Node.CREATED_AT, "<", String.valueOf(node.getCreatedAt()))
+              )
             )
           );
           break;
@@ -192,7 +209,7 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("size", "<", node.getSize()))
+              Optional.of(new ImmutableTriple(Db.Node.SIZE, "<", String.valueOf(node.getSize())))
             )
           );
           break;
@@ -201,7 +218,7 @@ public class NodeRepositoryEbean implements NodeRepository {
             buildKeyset(
               node.getNodeCategory(),
               node.getId(),
-              Optional.of(new ImmutableTriple("size", ">", node.getSize()))
+              Optional.of(new ImmutableTriple(Db.Node.SIZE, ">", String.valueOf(node.getSize())))
             )
           );
           break;
@@ -511,7 +528,8 @@ public class NodeRepositoryEbean implements NodeRepository {
         .eq(Db.Node.OWNER_ID, userId.get());
     }
 
-    sort.map(s -> {
+    sort
+      .map(s -> {
         if (s.equals(NodeSort.SIZE_ASC) || s.equals(NodeSort.SIZE_DESC)) {
           s.getOrderEbeanQuery(query);
           NodeSort.NAME_ASC.getOrderEbeanQuery(query);
@@ -519,7 +537,7 @@ public class NodeRepositoryEbean implements NodeRepository {
           NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
           s.getOrderEbeanQuery(query);
         }
-        return null;
+        return s;
       })
       .orElseGet(() -> {
         NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
@@ -704,10 +722,9 @@ public class NodeRepositoryEbean implements NodeRepository {
     List<String> nodesIds,
     Node destinationFolder
   ) {
-    String ancestorIds = destinationFolder
-      .getParentId()
-      .map(parentId -> destinationFolder.getAncestorIds() + "," + destinationFolder.getId())
-      .orElse(destinationFolder.getId());
+    String ancestorIds = NodeType.ROOT.equals(destinationFolder.getNodeType())
+      ? destinationFolder.getId()
+      : destinationFolder.getAncestorIds() + "," + destinationFolder.getId();
 
     int numberMovedNodes = mDB.getEbeanDatabase()
       .update(Node.class)

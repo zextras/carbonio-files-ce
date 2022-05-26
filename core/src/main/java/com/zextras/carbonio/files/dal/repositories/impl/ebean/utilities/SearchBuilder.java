@@ -57,8 +57,8 @@ public class SearchBuilder {
         this.query
           .where()
           .or()
-          .contains("mName", keyword)
-          .contains("mDescription", keyword)
+          .contains("LOWER(mName)", keyword.toLowerCase())
+          .contains("LOWER(mDescription)", keyword.toLowerCase())
           .endOr();
       });
     }

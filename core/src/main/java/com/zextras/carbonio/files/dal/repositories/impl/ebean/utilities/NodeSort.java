@@ -17,38 +17,38 @@ import io.ebean.Query;
 public enum NodeSort implements SortingEntityEbean<Node> {
   LAST_EDITOR_ASC {
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().asc(Files.Db.Node.EDITOR_ID);
+      return query.order().asc("t0." + Files.Db.Node.EDITOR_ID);
     }
   },
 
   LAST_EDITOR_DESC {
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().desc(Files.Db.Node.EDITOR_ID);
+      return query.order().desc("t0." + Files.Db.Node.EDITOR_ID);
     }
   },
 
   NAME_ASC {
     @Override
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.orderBy("LOWER(" + Files.Db.Node.NAME + ") ASC");
+      return query.order().asc("t0." + Files.Db.Node.NAME);
     }
   },
 
   NAME_DESC {
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.orderBy("LOWER(" + Files.Db.Node.NAME + ") DESC");
+      return query.order().desc("t0." + Files.Db.Node.NAME);
     }
   },
 
   OWNER_ASC {
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().asc(Files.Db.Node.OWNER_ID);
+      return query.order().asc("t0." + Files.Db.Node.OWNER_ID);
     }
   },
 
   OWNER_DESC {
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().desc(Files.Db.Node.OWNER_ID);
+      return query.order().desc("t0." + Files.Db.Node.OWNER_ID);
     }
   },
 
@@ -57,7 +57,7 @@ public enum NodeSort implements SortingEntityEbean<Node> {
    */
   TYPE_ASC {
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().asc(Files.Db.Node.CATEGORY);
+      return query.order().asc("t0." + Files.Db.Node.CATEGORY);
     }
   },
 
@@ -66,43 +66,43 @@ public enum NodeSort implements SortingEntityEbean<Node> {
    */
   TYPE_DESC {
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().desc(Files.Db.Node.CATEGORY);
+      return query.order().desc("t0." + Files.Db.Node.CATEGORY);
     }
   },
 
   UPDATED_AT_ASC {
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().asc(Files.Db.Node.UPDATED_AT);
+      return query.order().asc("t0." + Files.Db.Node.UPDATED_AT);
     }
   },
 
   UPDATED_AT_DESC {
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().desc(Files.Db.Node.UPDATED_AT);
+      return query.order().desc("t0." + Files.Db.Node.UPDATED_AT);
     }
   },
 
   CREATED_AT_ASC {
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().asc(Files.Db.Node.CREATED_AT);
+      return query.order().asc("t0." + Files.Db.Node.CREATED_AT);
     }
   },
 
   CREATED_AT_DESC {
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().desc(Files.Db.Node.CREATED_AT);
+      return query.order().desc("t0." + Files.Db.Node.CREATED_AT);
     }
   },
 
   SIZE_ASC {
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().asc(Files.Db.Node.SIZE);
+      return query.order().asc("t0." + Files.Db.Node.SIZE);
     }
   },
 
   SIZE_DESC {
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().desc(Files.Db.Node.SIZE);
+      return query.order().desc("t0." + Files.Db.Node.SIZE);
     }
   }
 }

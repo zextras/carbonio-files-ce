@@ -188,7 +188,7 @@ public class BlobService {
         searchAlternativeName(filename.trim(), folderId, nodeOwner),
         description,
         nodeType,
-        folder.getNodeType().equals(NodeType.ROOT)
+        NodeType.ROOT.equals(folder.getNodeType())
           ? folderId
           : folder.getAncestorIds() + "," + folderId,
         uploadResponse.getSize()
