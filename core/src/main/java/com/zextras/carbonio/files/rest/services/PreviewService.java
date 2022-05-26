@@ -5,34 +5,26 @@
 package com.zextras.carbonio.files.rest.services;
 
 import com.google.inject.Inject;
+import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.Files.Config.Preview;
 import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
-import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
-import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
-import com.zextras.carbonio.files.utilities.MimeTypeUtils;
-import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.carbonio.preview.PreviewClient;
 import com.zextras.carbonio.preview.queries.Query;
 import com.zextras.carbonio.preview.queries.Query.QueryBuilder;
 import com.zextras.carbonio.preview.queries.enums.ServiceType;
-import com.zextras.carbonio.usermanagement.exceptions.BadRequest;
 import io.vavr.control.Try;
 import java.text.MessageFormat;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PreviewService {
 
-  private final static Logger logger = LoggerFactory.getLogger(PreviewService.class);
+  private final static Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
 
   private final NodeRepository nodeRepository;
   private final String         previewURL;

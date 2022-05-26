@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
@@ -20,7 +21,7 @@ import org.slf4j.LoggerFactory;
 
 public class UserRepositoryRest implements UserRepository {
 
-  private static final Logger logger = LoggerFactory.getLogger(UserRepositoryRest.class);
+  private static final Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
   private final        String usermanagementUrl;
 
   @Inject

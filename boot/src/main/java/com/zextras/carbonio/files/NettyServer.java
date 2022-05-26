@@ -6,11 +6,11 @@ package com.zextras.carbonio.files;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.netty.HttpRoutingHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -18,7 +18,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpServerCodec;
-import java.net.InetSocketAddress;
 import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +25,7 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class NettyServer {
 
-  private static Logger logger = LoggerFactory.getLogger(NettyServer.class);
+  private static Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
 
   private final FilesConfig        filesConfig;
   private final HttpRoutingHandler httpRoutingHandler;

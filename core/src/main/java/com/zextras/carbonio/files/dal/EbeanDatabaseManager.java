@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.dal;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
@@ -51,7 +52,7 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class EbeanDatabaseManager {
 
-  private static final Logger         logger = LoggerFactory.getLogger(EbeanDatabaseManager.class);
+  private static final Logger         logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
   private final        List<Class<?>> entityList;
   private final        String         jdbcPostgresUrl;
   private final        String         postgresDatabase;

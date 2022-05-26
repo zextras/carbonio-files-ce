@@ -4,11 +4,13 @@
 
 package com.zextras.carbonio.files.netty.utilities;
 
+import com.zextras.carbonio.files.Files.Config.Log;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelConfig;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.MessageFormat;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -18,7 +20,7 @@ import org.slf4j.LoggerFactory;
 
 public class BufferInputStream extends InputStream {
 
-  private static final Logger logger = LoggerFactory.getLogger(BufferInputStream.class);
+  private static final Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
 
   private static int           maxCapacity = 500 * 1024 * 1024;
   private static int           capacity    = 100 * 1024 * 1024;
@@ -58,7 +60,10 @@ public class BufferInputStream extends InputStream {
 
       condition.signalAll();
     } catch (Exception e) {
-      System.out.println(e.getMessage());
+      logger.warn(MessageFormat.format(
+        "Unexpected error encountered: {0}",
+        e.getMessage()
+      ));
     } finally {
       lock.unlock();
     }
@@ -89,7 +94,7 @@ public class BufferInputStream extends InputStream {
 
           boolean signaled = condition.await(10 * 1024, TimeUnit.MILLISECONDS);
           if (!signaled) {
-            System.out.println("signaled: " + buffer.readableBytes());
+            logger.warn("While reading from input buffer, an interrupt signal was received");
             throw new IOException("time");
           }
         }
@@ -123,8 +128,11 @@ public class BufferInputStream extends InputStream {
     try {
       isDone = true;
       condition.signalAll();
-      System.out.println(buffer.capacity());
-      logger.info("done: " + sum + " bytes written");
+      logger.debug(MessageFormat.format(
+        "Read done, {0} bytes written with a buffer capacity of {1}",
+        sum,
+        buffer.capacity()
+      ));
     } finally {
       lock.unlock();
     }

@@ -56,6 +56,11 @@ public interface Files {
     interface Pagination {
       int LIMIT = 50;
     }
+
+    interface Log {
+
+      String LOGGER_NAME = "FILES";
+    }
   }
 
   interface Db {

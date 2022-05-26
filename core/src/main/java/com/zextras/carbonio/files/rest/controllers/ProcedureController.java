@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.ContextAttribute;
+import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
@@ -44,7 +45,7 @@ import org.slf4j.LoggerFactory;
 @Sharable
 public class ProcedureController extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-  private final static Logger logger = LoggerFactory.getLogger(ProcedureController.class);
+  private final static Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
 
   private final ProcedureService   procedureService;
   private final PermissionsChecker permissionsChecker;

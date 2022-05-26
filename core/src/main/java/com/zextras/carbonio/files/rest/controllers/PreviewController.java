@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.ContextAttribute;
 import com.zextras.carbonio.files.Files.API.Endpoints;
+import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
@@ -54,7 +55,7 @@ import org.slf4j.LoggerFactory;
 @ChannelHandler.Sharable
 public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> {
 
-  private static final Logger logger = LoggerFactory.getLogger(PreviewController.class);
+  private static final Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
 
   private final PreviewService        previewService;
   private final PermissionsChecker    permissionsChecker;
@@ -513,7 +514,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     HttpRequest httpRequest,
     Throwable failure
   ) {
-    logger.error(MessageFormat.format(
+    logger.warn(MessageFormat.format(
       "Request {0}: Failed with message {1}",
       httpRequest.uri(),
       failure.getMessage()
