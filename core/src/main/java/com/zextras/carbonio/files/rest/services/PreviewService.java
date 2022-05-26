@@ -5,7 +5,6 @@
 package com.zextras.carbonio.files.rest.services;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.Files.Config.Preview;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -24,7 +23,7 @@ import org.slf4j.LoggerFactory;
 
 public class PreviewService {
 
-  private final static Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
+  private final static Logger logger = LoggerFactory.getLogger(PreviewService.class);
 
   private final NodeRepository nodeRepository;
   private final String         previewURL;

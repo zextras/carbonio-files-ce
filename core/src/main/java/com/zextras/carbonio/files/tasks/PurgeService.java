@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.tasks;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -23,7 +22,7 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class PurgeService implements Runnable {
 
-  private static final Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
+  private static final Logger logger = LoggerFactory.getLogger(PurgeService.class);
 
   private final TombstoneRepository      tombstoneRepository;
   private final NodeRepository           nodeRepository;

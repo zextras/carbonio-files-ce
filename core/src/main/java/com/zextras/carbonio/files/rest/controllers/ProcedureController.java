@@ -8,13 +8,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.ContextAttribute;
-import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
-import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
-import com.zextras.carbonio.files.exceptions.RequestEntityTooLargeException;
 import com.zextras.carbonio.files.netty.ExceptionsHandler;
 import com.zextras.carbonio.files.rest.services.ProcedureService;
 import com.zextras.carbonio.files.rest.types.UploadAttachmentResponse;
@@ -45,7 +42,7 @@ import org.slf4j.LoggerFactory;
 @Sharable
 public class ProcedureController extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-  private final static Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
+  private final static Logger logger = LoggerFactory.getLogger(ProcedureController.class);
 
   private final ProcedureService   procedureService;
   private final PermissionsChecker permissionsChecker;

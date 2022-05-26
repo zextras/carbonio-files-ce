@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.netty;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.Endpoints;
-import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.graphql.controllers.GraphQLController;
 import com.zextras.carbonio.files.rest.controllers.BlobController;
 import com.zextras.carbonio.files.rest.controllers.HealthController;
@@ -27,7 +26,7 @@ import org.slf4j.LoggerFactory;
 @Sharable
 public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest> {
 
-  private static final Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
+  private static final Logger logger = LoggerFactory.getLogger(HttpRoutingHandler.class);
 
   private final HealthController      healthController;
   private final GraphQLController     graphQLController;

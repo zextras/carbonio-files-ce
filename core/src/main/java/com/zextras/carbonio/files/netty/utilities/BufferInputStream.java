@@ -4,7 +4,6 @@
 
 package com.zextras.carbonio.files.netty.utilities;
 
-import com.zextras.carbonio.files.Files.Config.Log;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelConfig;
@@ -20,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 public class BufferInputStream extends InputStream {
 
-  private static final Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
+  private static final Logger logger = LoggerFactory.getLogger(BufferInputStream.class);
 
   private static int           maxCapacity = 500 * 1024 * 1024;
   private static int           capacity    = 100 * 1024 * 1024;

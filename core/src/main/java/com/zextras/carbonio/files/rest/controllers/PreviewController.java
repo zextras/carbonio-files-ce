@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.ContextAttribute;
 import com.zextras.carbonio.files.Files.API.Endpoints;
-import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
@@ -55,7 +54,7 @@ import org.slf4j.LoggerFactory;
 @ChannelHandler.Sharable
 public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> {
 
-  private static final Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
+  private static final Logger logger = LoggerFactory.getLogger(PreviewController.class);
 
   private final PreviewService        previewService;
   private final PermissionsChecker    permissionsChecker;

@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.GraphQLRequest;
@@ -51,7 +50,7 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class GraphQLController extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-  private static final Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
+  private static final Logger logger = LoggerFactory.getLogger(GraphQLController.class);
 
   /**
    * This ChannelFutureListener aims to close correctly the channel only after the promise has

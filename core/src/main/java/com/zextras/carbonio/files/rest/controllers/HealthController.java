@@ -8,7 +8,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.Endpoints;
-import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.rest.services.HealthService;
 import com.zextras.carbonio.files.rest.types.health.DependencyType;
@@ -36,7 +35,7 @@ import org.slf4j.LoggerFactory;
 @ChannelHandler.Sharable
 public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
 
-  private final static Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
+  private final static Logger logger = LoggerFactory.getLogger(HealthController.class);
 
   private final HealthService healthService;
 

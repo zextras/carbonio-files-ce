@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.config;
 
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.preview.PreviewClient;
 import com.zextras.carbonio.usermanagement.UserManagementClient;
 import com.zextras.filestore.api.Filestore;
@@ -22,13 +21,11 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class FilesConfig {
 
-  private static Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
-
-  private final Properties properties;
-
-  private String userManagementURL;
-  private String fileStoreURL;
-  private String previewURL;
+  private final static Logger     logger = LoggerFactory.getLogger(FilesConfig.class);
+  private final        Properties properties;
+  private              String     userManagementURL;
+  private              String     fileStoreURL;
+  private              String     previewURL;
 
   public FilesConfig() {
     properties = new Properties();

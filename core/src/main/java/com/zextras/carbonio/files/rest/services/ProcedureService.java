@@ -5,7 +5,6 @@
 package com.zextras.carbonio.files.rest.services;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.Files.Config.Mailbox;
 import com.zextras.carbonio.files.Files.Config.Storages;
 import com.zextras.carbonio.files.clients.MailboxHttpClient;
@@ -34,7 +33,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ProcedureService {
 
-  private final static Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
+  private final static Logger logger = LoggerFactory.getLogger(ProcedureService.class);
 
   private final NodeRepository        nodeRepository;
   private final FileVersionRepository fileVersionRepository;
