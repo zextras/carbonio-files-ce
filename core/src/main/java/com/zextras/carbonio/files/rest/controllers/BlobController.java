@@ -12,7 +12,6 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.Files.API.Headers;
-import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
 import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
@@ -62,7 +61,7 @@ import org.slf4j.LoggerFactory;
 @ChannelHandler.Sharable
 public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
-  private static final Logger logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
+  private static final Logger logger = LoggerFactory.getLogger(BlobController.class);
 
   private static final AttributeKey<BufferInputStream> fileStreamReader =
     AttributeKey.valueOf("FileStreamReader");

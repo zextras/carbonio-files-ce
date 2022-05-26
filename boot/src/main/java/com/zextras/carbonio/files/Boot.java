@@ -6,7 +6,6 @@ package com.zextras.carbonio.files;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
@@ -17,7 +16,7 @@ import ch.qos.logback.classic.Level;
 
 public class Boot {
 
-  private static final Logger logger = (Logger) LoggerFactory.getLogger(Log.LOGGER_NAME);
+  private static final Logger logger = (Logger) LoggerFactory.getLogger(Boot.class);
 
   public static void main(String[] args) {
     new Boot().boot();

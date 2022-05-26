@@ -7,7 +7,6 @@ package com.zextras.carbonio.files.rest.services;
 import com.google.common.net.MediaType;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Config.Log;
 import com.zextras.carbonio.files.Files.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
@@ -52,7 +51,7 @@ public class BlobService {
   private final        MimeTypeUtils         mimeTypeUtils;
   private final        String                storageUrl;
   private final        TombstoneRepository   tombstoneRepository;
-  private static final Logger                logger = LoggerFactory.getLogger(Log.LOGGER_NAME);
+  private static final Logger                logger = LoggerFactory.getLogger(BlobService.class);
 
   @Inject
   public BlobService(
