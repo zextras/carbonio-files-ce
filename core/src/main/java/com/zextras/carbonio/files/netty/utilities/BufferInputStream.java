@@ -93,7 +93,7 @@ public class BufferInputStream extends InputStream {
 
           boolean signaled = condition.await(10 * 1024, TimeUnit.MILLISECONDS);
           if (!signaled) {
-            logger.warn("While reading from input buffer, an interrupt signal was received");
+            logger.warn("An interrupt signal has been received while reading from input buffer");
             throw new IOException("time");
           }
         }

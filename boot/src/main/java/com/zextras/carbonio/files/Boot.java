@@ -33,10 +33,6 @@ public class Boot {
           : logLevel
       )
     );
-    System.out.println("Env Log level " + logLevel);
-    logger.debug("DEBUG ACTIVE");
-    logger.info("INFO ACTIVE");
-    logger.info("WARN ACTIVE");
     Injector injector = Guice.createInjector(new FilesModule());
 
     injector.getInstance(FilesConfig.class);
