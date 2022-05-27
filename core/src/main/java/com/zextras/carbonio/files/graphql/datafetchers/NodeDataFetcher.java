@@ -515,9 +515,9 @@ public class NodeDataFetcher {
 
   /**
    * <p>This {@link DataFetcher} must be used to fetch the permissions of the requester {@link } on
-   * the specified node. It works only if the previous data fetcher creates a {@link
-   * Files.GraphQL.Types#NODE_INTERFACE} and if it is bound to resolve attributes that have type
-   * {@link Files.GraphQL.Types#PERMISSIONS}.</p>
+   * the specified node. It works only if the previous data fetcher creates a
+   * {@link Files.GraphQL.Types#NODE_INTERFACE} and if it is bound to resolve attributes that have
+   * type {@link Files.GraphQL.Types#PERMISSIONS}.</p>
    * <p>In particular:
    * <ul>
    *  <li>
@@ -863,9 +863,10 @@ public class NodeDataFetcher {
    * Map}.</p>
    * <p>It <strong>must</strong> be bound to a Share query and used only to retrieve a node that
    * represents the attribute {@link Files.GraphQL.Share#NODE} in a GraphQL Share object. It works
-   * only if the localContext exists and if the previous data fetcher saves the {@link
-   * Files.GraphQL.InputParameters#NODE_ID} in the context: if one of these pre-conditions are not
-   * satisfied then the execution will be aborted with an {@link AbortExecutionException}. </p>
+   * only if the localContext exists and if the previous data fetcher saves the
+   * {@link Files.GraphQL.InputParameters#NODE_ID} in the context: if one of these pre-conditions
+   * are not satisfied then the execution will be aborted with an {@link AbortExecutionException}.
+   * </p>
    *
    * @return an asynchronous {@link DataFetcher} containing a {@link Map} of all the attributes
    * values of a shared node.
@@ -1284,8 +1285,10 @@ public class NodeDataFetcher {
         .filter(Objects::nonNull)
         .filter(node -> !node.getNodeType()
           .equals(NodeType.ROOT))
-        .filter(node -> node.getOwnerId()
-          .equals(requesterId))
+        .filter(node -> permissionsChecker
+          .getPermissions(node.getId(), requesterId)
+          .has(SharePermission.READ_AND_WRITE)
+        )
         .collect(Collectors.toList());
 
       deleteNodes(nodesToDelete);
@@ -1393,7 +1396,8 @@ public class NodeDataFetcher {
     );
 
     // Copy the binary asynchronously //TODO
-    return fileVersionRepository.getFileVersion(sourceNode.getId(), sourceNode.getCurrentVersion())
+    return fileVersionRepository
+      .getFileVersion(sourceNode.getId(), sourceNode.getCurrentVersion())
       .map(fileVersion -> {
 
         try {
@@ -1901,7 +1905,8 @@ public class NodeDataFetcher {
                 .setClonedFromVersion(versionToClone);
               fileVersionRepository.updateFileVersion(newFileVersion.get());
 
-              return fetchNodeAndConvertToDataFetcherResult(nodeId, Optional.of(newVersion), path);
+              return
+                fetchNodeAndConvertToDataFetcherResult(nodeId, Optional.of(newVersion), path);
             } catch (Exception e) {
               e.printStackTrace();
               return new Builder<Map<String, Object>>()
