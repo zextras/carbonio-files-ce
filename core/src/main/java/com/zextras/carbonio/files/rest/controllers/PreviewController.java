@@ -513,7 +513,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     HttpRequest httpRequest,
     Throwable failure
   ) {
-    logger.error(MessageFormat.format(
+    logger.warn(MessageFormat.format(
       "Request {0}: Failed with message {1}",
       httpRequest.uri(),
       failure.getMessage()

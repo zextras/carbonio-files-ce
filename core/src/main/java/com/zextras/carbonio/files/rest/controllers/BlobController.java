@@ -73,8 +73,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       promise.channel().close();
     };
 
-  private final BlobService          blobService;
-  private final PermissionsChecker   permissionsChecker;
+  private final BlobService        blobService;
+  private final PermissionsChecker permissionsChecker;
 
   @Inject
   public BlobController(
@@ -225,6 +225,16 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       .getPermissions(nodeId, requester.getUuid())
       .has(SharePermission.READ_ONLY)
     ) {
+
+      logger.info(MessageFormat.format(
+        "Download of file with nodeId {0} with {1}, from user with mail {2} and uuid {3}",
+        nodeId,
+        optVersion.map(integer -> MessageFormat.format("optional version: {0}", integer))
+          .orElse("no optional version"),
+        requester.getDomain(),
+        requester.getUuid()
+      ));
+
       blobService
         .downloadFile(nodeId, optVersion, requester)
         .onSuccess(blobResponse -> {
@@ -251,7 +261,10 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
           writeStream(context, blobResponse.getBlobStream());
         })
         .onFailure(failure -> {
-          logger.error(failure.getMessage());
+          logger.error(MessageFormat.format(
+            "Download operation failed with error: {0}",
+            failure.getMessage()
+          ));
           context
             .writeAndFlush(new DefaultFullHttpResponse(
               protocolVersionRequest,
