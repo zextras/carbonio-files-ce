@@ -1285,8 +1285,10 @@ public class NodeDataFetcher {
         .filter(Objects::nonNull)
         .filter(node -> !node.getNodeType()
           .equals(NodeType.ROOT))
-        .filter(node -> node.getOwnerId()
-          .equals(requesterId))
+        .filter(node -> permissionsChecker
+          .getPermissions(node.getId(), requesterId)
+          .has(SharePermission.READ_AND_WRITE)
+        )
         .collect(Collectors.toList());
 
       deleteNodes(nodesToDelete);
@@ -1392,7 +1394,8 @@ public class NodeDataFetcher {
     );
 
     // Copy the binary asynchronously //TODO
-    return fileVersionRepository.getFileVersion(sourceNode.getId(), sourceNode.getCurrentVersion())
+    return fileVersionRepository
+      .getFileVersion(sourceNode.getId(), sourceNode.getCurrentVersion())
       .map(fileVersion -> {
 
         try {
@@ -1905,7 +1908,8 @@ public class NodeDataFetcher {
                 .setClonedFromVersion(versionToClone);
               fileVersionRepository.updateFileVersion(newFileVersion.get());
 
-              return fetchNodeAndConvertToDataFetcherResult(nodeId, Optional.of(newVersion), path);
+              return
+                fetchNodeAndConvertToDataFetcherResult(nodeId, Optional.of(newVersion), path);
             } catch (Exception e) {
               e.printStackTrace();
               return new Builder<Map<String, Object>>()
