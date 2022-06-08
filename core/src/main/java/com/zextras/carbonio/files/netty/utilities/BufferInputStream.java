@@ -9,6 +9,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelConfig;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.MessageFormat;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -58,7 +59,10 @@ public class BufferInputStream extends InputStream {
 
       condition.signalAll();
     } catch (Exception e) {
-      System.out.println(e.getMessage());
+      logger.warn(MessageFormat.format(
+        "Unexpected error encountered: {0}",
+        e.getMessage()
+      ));
     } finally {
       lock.unlock();
     }
@@ -89,7 +93,7 @@ public class BufferInputStream extends InputStream {
 
           boolean signaled = condition.await(10 * 1024, TimeUnit.MILLISECONDS);
           if (!signaled) {
-            System.out.println("signaled: " + buffer.readableBytes());
+            logger.warn("An interrupt signal has been received while reading from input buffer");
             throw new IOException("time");
           }
         }
@@ -123,8 +127,11 @@ public class BufferInputStream extends InputStream {
     try {
       isDone = true;
       condition.signalAll();
-      System.out.println(buffer.capacity());
-      logger.info("done: " + sum + " bytes written");
+      logger.debug(MessageFormat.format(
+        "Read done, {0} bytes written with a buffer capacity of {1}",
+        sum,
+        buffer.capacity()
+      ));
     } finally {
       lock.unlock();
     }

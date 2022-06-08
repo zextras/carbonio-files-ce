@@ -16,7 +16,14 @@ import ch.qos.logback.classic.Level;
 
 public class Boot {
 
-  private static final Logger logger = (Logger) LoggerFactory.getLogger(Boot.class);
+  private static final Logger rootLogger = (Logger) LoggerFactory.getLogger("ROOT");
+  /*
+  The <root> element configures the root logger.
+   It supports a single attribute, namely the level attribute.
+    It does not allow any other attributes because
+     the additivity flag does not apply to the root logger.
+   */
+  private static final Logger logger     = (Logger) LoggerFactory.getLogger(Boot.class);
 
   public static void main(String[] args) {
     new Boot().boot();
@@ -24,8 +31,8 @@ public class Boot {
 
   public void boot() {
     // Set configuration level
-    String logLevel = System.getenv("FILES_LOG_LEVEL");
-    logger.setLevel(
+    String logLevel = System.getProperty("FILES_LOG_LEVEL");
+    rootLogger.setLevel(
       Level.toLevel(
         logLevel == null
           ? "warn"
