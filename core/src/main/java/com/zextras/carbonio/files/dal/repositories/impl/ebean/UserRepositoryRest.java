@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
 
 public class UserRepositoryRest implements UserRepository {
 
-  private static final Logger logger = LoggerFactory.getLogger(UserRepositoryRest.class);
+  private final static Logger logger = LoggerFactory.getLogger(UserRepositoryRest.class);
   private final        String usermanagementUrl;
 
   @Inject

@@ -39,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
   <!-- <logger name="io.ebean.TXN" level="TRACE"/>-->
   <!-- <logger name="io.ebean" level="TRACE"/> -->
 
-  <root level="INFO">
+  <root level="WARN">
     <appender-ref ref="ROLLING" />
     <appender-ref ref="STDOUT" />
   </root>
