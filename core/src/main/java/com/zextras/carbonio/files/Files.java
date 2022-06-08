@@ -54,8 +54,10 @@ public interface Files {
     }
 
     interface Pagination {
+
       int LIMIT = 50;
     }
+
   }
 
   interface Db {
@@ -580,6 +582,15 @@ public interface Files {
       int    DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION = 2;
       int    DEFAULT_MAX_KEEP_VERSIONS             =
         DEFAULT_MAX_VERSIONS - DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
+
+      interface Db {
+
+        String NAME             = "db-name";
+        String DEFAULT_NAME     = "carbonio-files-db";
+        String USERNAME         = "db-username";
+        String DEFAULT_USERNAME = "carbonio-files-db";
+        String PASSWORD         = "db-password";
+      }
     }
 
   }

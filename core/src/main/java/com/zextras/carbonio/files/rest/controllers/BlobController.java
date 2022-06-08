@@ -12,8 +12,13 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.Files.API.Headers;
+import com.zextras.carbonio.files.Files.ServiceDiscover;
+import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
+import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
+import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
+import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
 import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.UploadNodeResponse;
@@ -73,8 +78,10 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       promise.channel().close();
     };
 
-  private final BlobService        blobService;
-  private final PermissionsChecker permissionsChecker;
+  private final BlobService          blobService;
+  private final PermissionsChecker   permissionsChecker;
+  private final int                  maxNumberOfVersions;
+  private final int                  maxNumberOfKeepVersions;
 
   @Inject
   public BlobController(
@@ -84,6 +91,14 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     super(true);
     this.blobService = blobService;
     this.permissionsChecker = permissionsChecker;
+    this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
+      .defaultURL(ServiceDiscover.SERVICE_NAME)
+      .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
+      .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
+    this.maxNumberOfKeepVersions =
+      this.maxNumberOfVersions <= Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION
+        ? 0
+        : this.maxNumberOfVersions - Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
   }
 
   /**
@@ -376,15 +391,9 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     ChannelHandlerContext context,
     HttpRequest httpRequest
   ) {
-    User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
     String nodeId = httpRequest.headers().getAsString(Headers.UPLOAD_NODE_ID);
     String encodedFilename = httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_FILENAME);
-    boolean overwrite = Boolean.parseBoolean(
-      httpRequest.headers().getAsString(Headers.UPLOAD_OVERWRITE_VERSION)
-    );
-    long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
-
     String decodedFilename =
       encodedFilename == null || !Base64.isBase64(encodedFilename)
         ? null
@@ -404,6 +413,30 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       return;
     }
 
+    if (blobService.getNumberOfVersionOfFile(nodeId) > maxNumberOfVersions) {
+      logger.info(MessageFormat.format(
+        "Node: {0} has reached max number of versions ({1}), cannot add more versions",
+        nodeId,
+        maxNumberOfVersions
+      ));
+      context.writeAndFlush(new DefaultFullHttpResponse(
+        httpRequest.protocolVersion(),
+        HttpResponseStatus.METHOD_NOT_ALLOWED
+      ));
+
+      context.close();
+      return;
+    }
+
+    User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
+    boolean overwrite = Boolean.parseBoolean(
+      httpRequest.headers().getAsString(Headers.UPLOAD_OVERWRITE_VERSION)
+    );
+    long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
+
+    logger.debug(MessageFormat.format(
+      "Uploading new version of node with id: {0}, overwrite: {1}", nodeId, overwrite
+    ));
     initializeFileStream(context);
 
     CompletableFuture.supplyAsync(
@@ -415,7 +448,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
             blobLength,
             nodeId,
             decodedFilename,
-            overwrite
+            overwrite,
+            maxNumberOfVersions
           );
 
         UploadVersionResponse response = new UploadVersionResponse();

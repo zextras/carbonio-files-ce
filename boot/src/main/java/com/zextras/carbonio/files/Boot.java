@@ -39,6 +39,7 @@ public class Boot {
           : logLevel
       )
     );
+
     Injector injector = Guice.createInjector(new FilesModule());
 
     injector.getInstance(FilesConfig.class);
