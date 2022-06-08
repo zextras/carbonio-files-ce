@@ -1359,7 +1359,7 @@ public class NodeDataFetcher {
    * @param sourceNode the file that must be copied.
    * @param destinationFolder the {@link Node} representing the destination folder.
    * @param requesterId requester identifier.
-   * @param newName is an {@link Optional<String>} if we want to give a new name to the copied file,
+   * @param newFileName is an {@link Optional<String>} if we want to give a new name to the copied file,
    * used for name clashes
    *
    * @return the number of copied nodes.
@@ -1368,9 +1368,9 @@ public class NodeDataFetcher {
     Node sourceNode,
     Node destinationFolder,
     String requesterId,
-    Optional<String> newName
+    Optional<String> newFileName
   ) {
-    String effectiveName = newName.orElse(sourceNode.getName());
+    String effectiveName = newFileName.orElse(sourceNode.getFullName());
     String ownerId =
       (destinationFolder.getNodeType()
         .equals(NodeType.ROOT) || requesterId.equals(destinationFolder.getOwnerId()))
@@ -1383,9 +1383,7 @@ public class NodeDataFetcher {
       requesterId,
       ownerId,
       destinationFolder.getId(),
-      sourceNode.getExtension()
-        .map(ext -> effectiveName + "." + ext)
-        .orElse(effectiveName),
+      effectiveName,
       sourceNode.getDescription()
         .orElse(""),
       sourceNode.getNodeType(),
@@ -1623,15 +1621,15 @@ public class NodeDataFetcher {
 
           List<Node> nodes = nodeRepository.getNodes(nodeIds, Optional.empty())
             .collect(Collectors.toList());
-          List<String> targetFolderChildrenNames = nodeRepository.getNodes(
-              nodeRepository.getChildrenIds(
-                destinationFolderId,
-                Optional.empty(),
-                Optional.empty(),
-                false),
-              Optional.empty()
-            )
-            .map(Node::getName)
+          List<String> targetFolderChildrenFilesName = nodeRepository.getNodes(
+            nodeRepository.getChildrenIds(
+              destinationFolderId,
+              Optional.empty(),
+              Optional.empty(),
+              false),
+            Optional.empty()
+          )
+            .map(Node::getFullName)
             .collect(Collectors.toList());
 
           // Handle permissions
@@ -1666,30 +1664,35 @@ public class NodeDataFetcher {
           if (!nodesToCopy.isEmpty()) {
             nodesToCopy
               .stream()
-              .filter(node -> targetFolderChildrenNames.contains(node.getName()))
+              .filter(node -> targetFolderChildrenFilesName.contains(node.getFullName()))
               .forEach(nodeDup -> {
-                String newName = searchAlternativeName(nodeDup.getFullName(), destinationFolderId,
-                  nodeDup.getOwnerId());
+                String newName = searchAlternativeName(
+                  nodeDup.getFullName(), destinationFolderId, nodeDup.getOwnerId()
+                );
                 if (nodeDup.getNodeType() == NodeType.FOLDER) {
-                  Node copiedFolder = copyFolder(nodeDup, optDestinationFolder.get(), requesterId,
-                    Optional.of(newName));
+                  Node copiedFolder = copyFolder(
+                    nodeDup, optDestinationFolder.get(), requesterId, Optional.of(newName)
+                  );
                   copiedNodesResult.add(
-                    convertNodeToDataFetcherResult(copiedFolder, Optional.empty(), resultPath));
+                    convertNodeToDataFetcherResult(copiedFolder, Optional.empty(), resultPath)
+                  );
                   copyFolderCascade(nodeDup.getId(), copiedFolder, requesterId,
                     Optional.of(newName));
                   createIndirectShare(destinationFolderId, copiedFolder);
                 } else {
-                  Node copiedFile = copyFile(nodeDup, optDestinationFolder.get(), requesterId,
-                    Optional.of(newName));
+                  Node copiedFile = copyFile(
+                    nodeDup, optDestinationFolder.get(), requesterId, Optional.of(newName)
+                  );
                   copiedNodesResult.add(
-                    convertNodeToDataFetcherResult(copiedFile, Optional.empty(), resultPath));
+                    convertNodeToDataFetcherResult(copiedFile, Optional.empty(), resultPath)
+                  );
                   createIndirectShare(destinationFolderId, copiedFile);
                 }
               });
 
             nodesToCopy
               .stream()
-              .filter(node -> !targetFolderChildrenNames.contains(node.getName()))
+              .filter(node -> !targetFolderChildrenFilesName.contains(node.getFullName()))
               .forEach(node -> {
                 if (node.getNodeType() == NodeType.FOLDER) {
                   Node copiedFolder = copyFolder(node, optDestinationFolder.get(), requesterId,
