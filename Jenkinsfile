@@ -69,17 +69,17 @@ pipeline {
                                 }
                             }
                         }
-                        stage('RHEL 8') {
+                        stage('Rocky 8') {
                             agent {
                                 node {
-                                    label 'pacur-agent-centos-8-v1'
+                                    label 'pacur-agent-rocky-8-v1'
                                 }
                             }
                             steps {
                                 dir('/tmp/staging'){
                                     unstash 'binaries'
                                 }
-                                sh 'sudo pacur build centos /tmp/staging/'
+                                sh 'sudo pacur build rocky-8 /tmp/staging/'
                                 dir('artifacts/') {
                                     sh 'echo carbonio-files* | sed -E "s#(carbonio-files-ce-[0-9.]*).*#\\0 \\1.x86_64.rpm#" | xargs sudo mv'
                                 }
@@ -191,13 +191,13 @@ pipeline {
                     Artifactory.addInteractivePromotion server: server, promotionConfig: config, displayName: 'Ubuntu Promotion to Release'
                     server.publishBuildInfo buildInfo
 
-                    //centos8
+                    //rocky 8
                     buildInfo = Artifactory.newBuildInfo()
                     buildInfo.name += '-centos8'
                     uploadSpec= '''{
                         "files": [
                             {
-                                "pattern": "artifacts/(carbonio-files)-(*).rpm",
+                                "pattern": "artifacts/(carbonio-files-ce)-(*).rpm",
                                 "target": "centos8-rc/zextras/{1}/{1}-{2}.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras"
                             }
