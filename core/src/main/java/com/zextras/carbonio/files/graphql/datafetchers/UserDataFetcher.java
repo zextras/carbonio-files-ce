@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.graphql.datafetchers;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.GraphQL.InputParameters.GetAccountsByEmail;
 import com.zextras.carbonio.files.Files.GraphQL.InputParameters.GetUser;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
@@ -24,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * Contains all the implementations of the {@link DataFetcher} for all the queries and mutations
@@ -223,9 +225,9 @@ public class UserDataFetcher {
    * related {@link Map}.</p>
    * <p>It <strong>must</strong> be bound to a Share query and used only to retrieve a target user
    * that represents the attribute {@link Files.GraphQL.Share#SHARE_TARGET} in a GraphQL Share
-   * object. It works only if the previous data fetcher saves the {@link
-   * Files.GraphQL.Share#SHARE_TARGET} in the context, otherwise the execution will be aborted with
-   * an {@link AbortExecutionException}.</p>
+   * object. It works only if the previous data fetcher saves the
+   * {@link Files.GraphQL.Share#SHARE_TARGET} in the context, otherwise the execution will be
+   * aborted with an {@link AbortExecutionException}.</p>
    *
    * @return an asynchronous {@link DataFetcher} containing a {@link Map} of all the attributes
    * values of a target user.
@@ -272,6 +274,28 @@ public class UserDataFetcher {
         email,
         environment.getExecutionStepInfo().getPath()
       );
+    });
+  }
+
+  /**
+   * This {@link DataFetcher} fetches {@link User} accounts given their email and it converts each
+   * {@link User} to a {@link HashMap} containing all the GraphQL attributes of the acccount defined
+   * in the schema. If the account does not exist the {@link HashMap} reference will be
+   * <code>null</code>
+   *
+   * @return an asynchronous {@link DataFetcher} containing a {@link List} of {@link Map}. Each
+   * {@link Map} contains  all the attributes values of the requested account.
+   */
+  public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> getAccountsByEmailFetcher() {
+    return environment -> CompletableFuture.supplyAsync(() -> {
+      ResultPath path = environment.getExecutionStepInfo().getPath();
+      List<String> accountEmails = environment.getArgument(GetAccountsByEmail.EMAILS);
+      String requesterCookie = environment.getGraphQlContext().get(Files.GraphQL.Context.COOKIES);
+
+      return accountEmails
+        .stream()
+        .map(email -> fetchUserByEmailAndConvertToDataFetcherResult(requesterCookie, email, path))
+        .collect(Collectors.toList());
     });
   }
 }

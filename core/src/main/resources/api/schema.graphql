@@ -469,6 +469,11 @@ type Query {
         email: String!
     ) : Account
 
+    getAccountsByEmail(
+        # The list of emails of the user or distribution list to retrieve (required)
+        emails: [String!]!
+    ) : [Account]!
+
     # Returns the attributes of the specified share
     getShare(
         # The unique identifier of the shared node (mandatory)
