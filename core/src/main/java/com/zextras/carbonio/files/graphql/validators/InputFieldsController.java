@@ -12,17 +12,18 @@ import graphql.GraphQL;
 import graphql.GraphQLError;
 import graphql.execution.instrumentation.fieldvalidation.FieldAndArguments;
 import graphql.execution.instrumentation.fieldvalidation.FieldValidationEnvironment;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
 
 /**
  * <p>This class contains the implementations of all input validation rules necessary to check if
- * specific inputs values of a GraphQL request are correct. Each method builds a {@link
- * GenericControllerEvaluator} specific for the related inputs to check and returns an
+ * specific inputs values of a GraphQL request are correct. Each method builds a
+ * {@link GenericControllerEvaluator} specific for the related inputs to check and returns an
  * implementation of a {@link BiFunction} having the {@link FieldValidationEnvironment} and the
  * {@link FieldAndArguments} objects as input and an {@link Optional} of {@link GraphQLError} as
- * output. These methods are used during the creation of the {@link GraphQL} instance (see {@link
- * GraphQLProvider}
+ * output. These methods are used during the creation of the {@link GraphQL} instance (see
+ * {@link GraphQLProvider}
  * <code>buildValidationInstrumentation()</code> method).</p>
  */
 public class InputFieldsController {
@@ -168,8 +169,8 @@ public class InputFieldsController {
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the queries and mutations related to the {@link
-   * Files.GraphQL.Types#SHARE} type check if the node id and the target user id in input are
+   * @return a {@link BiFunction} rule bound with the queries and mutations related to the
+   * {@link Files.GraphQL.Types#SHARE} type check if the node id and the target user id in input are
    * valid.
    * @see GenericControllerEvaluator#checkNodeId(String)
    * @see GenericControllerEvaluator#checkUserId(String)
@@ -261,8 +262,8 @@ public class InputFieldsController {
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Queries#GET_ACCOUNT_BY_EMAIL}
-   * to check if the email in input is valid.
+   * @return a {@link BiFunction} rule bound with the
+   * {@link Files.GraphQL.Queries#GET_ACCOUNT_BY_EMAIL} to check if the email in input is valid.
    * @see GenericControllerEvaluator#checkEmail(String)
    */
   public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> getAccountByEmailValidation() {
@@ -272,5 +273,18 @@ public class InputFieldsController {
         .checkEmail(Files.GraphQL.InputParameters.EMAIL)
         .evaluate();
     };
+  }
+
+  /**
+   * @return a {@link BiFunction} rule bound with the
+   * {@link Files.GraphQL.Queries#GET_ACCOUNTS_BY_EMAIL} to check if the list of emails in input are
+   * valid.
+   * @see GenericControllerEvaluator#checkEmails(String)
+   */
+  public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> getAccountsByEmailValidation() {
+    return (fieldAndArguments, environment) ->
+      mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
+        .checkEmails(Files.GraphQL.InputParameters.GetAccountsByEmail.EMAILS)
+        .evaluate();
   }
 }

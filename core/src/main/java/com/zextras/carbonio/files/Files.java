@@ -246,6 +246,7 @@ public interface Files {
       String GET_VERSIONS         = "getVersions";
       String GET_LINKS            = "getLinks";
       String GET_ACCOUNT_BY_EMAIL = "getAccountByEmail";
+      String GET_ACCOUNTS_BY_EMAIL = "getAccountsByEmail";
       String GET_CONFIGS          = "getConfigs";
     }
 
@@ -387,6 +388,11 @@ public interface Files {
 
         String USER_ID = "user_id";
         String EMAIL   = "email";
+      }
+
+      interface GetAccountsByEmail {
+
+        String EMAILS = "emails";
       }
     }
 
