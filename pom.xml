@@ -57,12 +57,6 @@ SPDX-License-Identifier: AGPL-3.0-only
       </dependency>
 
       <dependency>
-        <artifactId>filestore-sdk-common</artifactId>
-        <groupId>com.zextras</groupId>
-        <version>${carbonio-storages-ce.version}</version>
-      </dependency>
-
-      <dependency>
         <artifactId>storages-ce-sdk</artifactId>
         <groupId>com.zextras</groupId>
         <version>${carbonio-storages-ce.version}</version>
@@ -171,5 +165,5 @@ SPDX-License-Identifier: AGPL-3.0-only
     </repository>
   </repositories>
 
-  <version>0.2.0</version>
+  <version>0.3.7-3</version>
 </project>

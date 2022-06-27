@@ -14,3 +14,15 @@ repos:
     rev: v0.14.0
     hooks:
       - id: reuse
+
+  - repo: local
+    hooks:
+      - id: check-if-version-is-bumped
+        name: check-if-version-is-bumped
+        entry: bash -c '
+          if [[ -z $(git diff develop --staged -G"pkgver|pkgrel" package/PKGBUILD) ]] &&
+             [[ -z $(git diff develop..HEAD -G"pkgver|pkgrel" package/PKGBUILD) ]];
+          then
+            exit 1;
+          fi'
+        language: system
