@@ -165,6 +165,10 @@ public class GraphQLProvider {
       .addRule(
         ResultPath.parse("/" + Files.GraphQL.Queries.GET_ACCOUNT_BY_EMAIL),
         inputFieldsController.getAccountByEmailValidation()
+      )
+      .addRule(
+        ResultPath.parse("/" + Files.GraphQL.Queries.GET_ACCOUNTS_BY_EMAIL),
+        inputFieldsController.getAccountsByEmailValidation()
       );
 
     return new FieldValidationInstrumentation(fieldValidation);
@@ -205,6 +209,10 @@ public class GraphQLProvider {
         .dataFetcher(
           Files.GraphQL.Queries.GET_ACCOUNT_BY_EMAIL,
           userDataFetcher.getAccountByEmailFetcher()
+        )
+        .dataFetcher(
+          Files.GraphQL.Queries.GET_ACCOUNTS_BY_EMAIL,
+          userDataFetcher.getAccountsByEmailFetcher()
         )
         .dataFetcher(Files.GraphQL.Queries.GET_LINKS, linkDataFetcher.getLinks())
         .dataFetcher(Files.GraphQL.Queries.GET_CONFIGS, configDataFetcher.getConfigs())

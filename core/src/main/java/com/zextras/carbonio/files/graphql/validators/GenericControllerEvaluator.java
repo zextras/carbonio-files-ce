@@ -64,6 +64,33 @@ public class GenericControllerEvaluator {
   }
 
   /**
+   * Checks if the list of given emails are valid. It builds a {@link Parameter} containing the
+   * implementation of the related {@link Function} necessary to check the value.
+   *
+   * @param emailsKey is a {@link String} representing the input key mapping the value of the email
+   * list
+   *
+   * @return the {@link GenericControllerEvaluator} to allow the possibility to chain multiple
+   * checks to select.
+   */
+  public GenericControllerEvaluator checkEmails(String emailsKey) {
+    inputsToCheckWithRelativeFunctions.add(Parameter.build(
+      emailsKey,
+      (key) -> {
+        List<String> emails = fieldAndArguments.getArgumentValue(key);
+        return Optional.of(emails
+          .stream()
+          .map(this::validateEmail)
+          .filter(Optional::isPresent)
+          .map(Optional::get)
+          .collect(Collectors.joining("\n"))
+        );
+      }
+    ));
+    return this;
+  }
+
+  /**
    * Checks if the node id is valid and creates the related error message if it is invalid. It
    * builds a {@link Parameter} containing the implementation of the related {@link Function}
    * necessary to check the value.
