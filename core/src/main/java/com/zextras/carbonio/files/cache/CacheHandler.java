@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.cache;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.dal.dao.User;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -59,11 +60,25 @@ public class CacheHandler {
         Files.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLISEC
       )
     );
+
+    /* Creation of the cache that will contain user elements */
+    caches.put(
+      Files.Cache.USER,
+      this.cacheHandlerFactory.createUserCache(
+        Files.Cache.USER,
+        Files.Cache.DEFAULT_SIZE,
+        Files.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLISEC
+      )
+    );
   }
 
   public Optional<Cache> getCache(String name) {
     return (caches.containsKey(name))
       ? Optional.of(caches.get(name))
       : Optional.empty();
+  }
+
+  public Cache<User> getUserCache() {
+    return caches.get(Files.Cache.USER);
   }
 }

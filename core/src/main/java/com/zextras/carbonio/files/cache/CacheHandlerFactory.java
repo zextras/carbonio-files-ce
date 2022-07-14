@@ -28,4 +28,10 @@ public interface CacheHandlerFactory {
     @Assisted("defaultCacheSize") long defaultCacheSize,
     @Assisted("defaultItemLifetimeInMillis") long defaultItemLifetimeInMillis
   );
+
+  LocalCacheAdapter<Share> createUserCache(
+    String cacheName,
+    @Assisted("defaultCacheSize") long defaultCacheSize,
+    @Assisted("defaultItemLifetimeInMillis") long defaultItemLifetimeInMillis
+  );
 }

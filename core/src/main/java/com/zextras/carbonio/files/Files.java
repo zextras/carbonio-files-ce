@@ -188,7 +188,7 @@ public interface Files {
 
   interface Cache {
 
-    long DEFAULT_ITEM_LIFETIME_IN_MILLISEC = 10_000;
+    long DEFAULT_ITEM_LIFETIME_IN_MILLISEC = 60_000;
     long DEFAULT_SIZE                      = 1000;
 
     /**
@@ -198,6 +198,7 @@ public interface Files {
     String FILE_VERSION = "FileVersion";
     String SHARE        = "Share";
     String LINK         = "Link";
+    String USER         = "User";
   }
 
   interface GraphQL {

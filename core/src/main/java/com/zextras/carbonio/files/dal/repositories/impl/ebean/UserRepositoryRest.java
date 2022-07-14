@@ -6,6 +6,8 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.cache.Cache;
+import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
@@ -21,14 +23,21 @@ import org.slf4j.LoggerFactory;
 public class UserRepositoryRest implements UserRepository {
 
   private final static Logger logger = LoggerFactory.getLogger(UserRepositoryRest.class);
-  private final        String usermanagementUrl;
+
+  private final String      usermanagementUrl;
+  private final Cache<User> userCache;
 
   @Inject
-  public UserRepositoryRest(FilesConfig filesConfig) {
+  public UserRepositoryRest(
+    FilesConfig filesConfig,
+    CacheHandler cacheHandler
+  ) {
     Properties p = filesConfig.getProperties();
     usermanagementUrl = "http://"
       + p.getProperty(Files.Config.UserManagement.URL, "127.78.0.2")
       + ":" + p.getProperty(Files.Config.UserManagement.PORT, "20001");
+
+    userCache = cacheHandler.getUserCache();
   }
 
   @Override
@@ -36,19 +45,28 @@ public class UserRepositoryRest implements UserRepository {
     String cookies,
     UUID userUUID
   ) {
+    return userCache
+      .get(userUUID.toString())
+      .or(() ->
+        UserManagementClient
+          .atURL(usermanagementUrl)
+          .getUserByUUID(cookies, userUUID)
+          .onFailure(failure -> logger.error(failure.getMessage()))
+          .map(userInfo -> {
+              User user = new User(
+                userInfo.getId(),
+                userInfo.getFullName(),
+                userInfo.getEmail(),
+                userInfo.getDomain()
+              );
+              userCache.add(user.getUuid(), user);
+              userCache.add(user.getEmail(), user);
 
-    return Optional.ofNullable(
-      UserManagementClient
-        .atURL(usermanagementUrl)
-        .getUserByUUID(cookies, userUUID)
-        .map(userInfo -> new User(
-          userInfo.getId(),
-          userInfo.getFullName(),
-          userInfo.getEmail(),
-          userInfo.getDomain())
-        )
-        .getOrNull()
-    );
+              return user;
+            }
+          )
+          .toJavaOptional()
+      );
   }
 
   @Override
@@ -57,19 +75,28 @@ public class UserRepositoryRest implements UserRepository {
     String userEmail
   ) {
 
-    return Optional.ofNullable(
-      UserManagementClient
-        .atURL(usermanagementUrl)
-        .getUserByEmail(cookies, userEmail)
-        .map(userInfo -> new User(
-          userInfo.getId(),
-          userInfo.getFullName(),
-          userInfo.getEmail(),
-          userInfo.getDomain())
-        )
-        .getOrNull()
-    );
+    return userCache
+      .get(userEmail)
+      .or(() ->
+        UserManagementClient
+          .atURL(usermanagementUrl)
+          .getUserByEmail(cookies, userEmail)
+          .onFailure(failure -> logger.error(failure.getMessage()))
+          .map(userInfo -> {
+              User user = new User(
+                userInfo.getId(),
+                userInfo.getFullName(),
+                userInfo.getEmail(),
+                userInfo.getDomain()
+              );
+              userCache.add(user.getUuid(), user);
+              userCache.add(user.getEmail(), user);
 
+              return user;
+            }
+          )
+          .toJavaOptional()
+      );
   }
 
   @Override
