@@ -151,6 +151,14 @@ public interface ShareRepository {
   );
 
   /**
+   * @param nodeIds is a {@link List<String>} of the node ids. For each one of them the query
+   * retrieves all the related shares.
+   *
+   * @return a {@link List} of found {@link Share}s for the specific node ids in input.
+   */
+  List<Share> getShares(List<String> nodeIds);
+
+  /**
    * Returns the list of userId for which the given node is shared.
    *
    * @param nodeId is a {@link String} of the id of the node for which retrieve the shares.

@@ -239,6 +239,7 @@ public interface Files {
     interface DataLoaders {
 
       String NODE_BATCH_LOADER = "NodeBatchLoader";
+      String SHARE_BATCH_LOADER = "ShareBatchLoader";
     }
 
     /**

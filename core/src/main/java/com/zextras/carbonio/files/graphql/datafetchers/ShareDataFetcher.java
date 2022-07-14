@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.graphql.datafetchers;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.GraphQL.DataLoaders;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -19,8 +20,10 @@ import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import graphql.execution.AbortExecutionException;
 import graphql.execution.DataFetcherResult;
+import graphql.execution.DataFetcherResult.Builder;
 import graphql.schema.DataFetcher;
 import graphql.schema.idl.EnumValuesProvider;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -245,35 +248,47 @@ public class ShareDataFetcher {
   }
 
   public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> getSharesFetcher() {
-    return environment -> CompletableFuture.supplyAsync(() ->
-    {
-      String sharedNodeId = ((Map<String, String>) environment.getLocalContext()).get(
-        Files.GraphQL.Node.ID);
+    return environment -> {
+
+      String sharedNodeId =
+        ((Map<String, String>) environment.getLocalContext()).get(Files.GraphQL.Node.ID);
+
       int limit = environment.getArgument(Files.GraphQL.InputParameters.LIMIT);
-      Optional<String> optcursor = Optional.ofNullable(
+
+      Optional<String> optCursor = Optional.ofNullable(
         environment.getArgument(Files.GraphQL.InputParameters.CURSOR)
       );
+
+      // At the moment the sorting is not supported
       Optional<List<ShareSort>> optSort = Optional.ofNullable(
         environment.getArgument(Files.GraphQL.InputParameters.SORT)
       );
 
-      List<String> shareTargetIds = shareRepository.getSharesUsersIds(
-        sharedNodeId,
-        optSort.orElseGet(Collections::emptyList)
-      );
-      int numberNodesToSkip = optcursor.map(cursor -> shareTargetIds.indexOf(cursor) + 1)
-        .orElse(0);
-      return shareRepository.getShares(
-          sharedNodeId,
-          shareTargetIds.stream()
+      return environment
+        .getDataLoader(DataLoaders.SHARE_BATCH_LOADER)
+        .load(sharedNodeId)
+        .thenApply(shares -> {
+          int numberNodesToSkip = optCursor
+            .map(cursor ->
+              ((List<Share>) shares)
+                .stream()
+                .map(Share::getTargetUserId)
+                .collect(Collectors.toList())
+                .indexOf(cursor) + 1
+            )
+            .orElse(0);
+
+          return ((List<Share>) shares)
+            .stream()
             .skip(numberNodesToSkip)
             .limit(limit)
-            .collect(Collectors.toList())
-        )
-        .stream()
-        .map(this::convertShareToDataFetcherResult)
-        .collect(Collectors.toList());
-    });
+            .map(this::convertShareToDataFetcherResult)
+            .collect(Collectors.toList());
+        })
+        .exceptionally(failure ->
+          Collections.singletonList(new Builder<Map<String, Object>>().build())
+        );
+    };
   }
 
   /**

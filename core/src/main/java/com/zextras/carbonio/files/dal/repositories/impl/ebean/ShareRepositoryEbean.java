@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.cache.Cache;
 import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
@@ -244,6 +245,14 @@ public class ShareRepositoryEbean implements ShareRepository {
         share -> cache.add(getShareId(share.getNodeId(), share.getTargetUserId()), share));
     });
     return shares;
+  }
+
+  public List<Share> getShares(List<String> nodeIds) {
+    return mDB.getEbeanDatabase()
+      .find(Share.class)
+      .where()
+      .in(Db.Share.NODE_ID, nodeIds)
+      .findList();
   }
 
   public List<String> getSharesUsersIds(

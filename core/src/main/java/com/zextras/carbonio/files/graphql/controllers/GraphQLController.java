@@ -14,6 +14,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.GraphQLRequest;
 import com.zextras.carbonio.files.graphql.dataloaders.NodeBatchLoader;
+import com.zextras.carbonio.files.graphql.dataloaders.ShareBatchLoader;
 import graphql.ExecutionInput;
 import graphql.ExecutionResult;
 import graphql.GraphQL;
@@ -69,16 +70,19 @@ public class GraphQLController extends SimpleChannelInboundHandler<FullHttpReque
   };
 
   private final GraphQL         graphQL;
-  private final NodeBatchLoader nodeBatchLoader;
+  private final NodeBatchLoader  nodeBatchLoader;
+  private final ShareBatchLoader shareBatchLoader;
 
   @Inject
   public GraphQLController(
     GraphQLProvider graphQLProvider,
-    NodeBatchLoader nodeBatchLoader
+    NodeBatchLoader nodeBatchLoader,
+    ShareBatchLoader shareBatchLoader
   ) {
     super(true);
     this.graphQL = graphQLProvider.getGraphQL();
     this.nodeBatchLoader = nodeBatchLoader;
+    this.shareBatchLoader = shareBatchLoader;
   }
 
   /**
@@ -160,6 +164,7 @@ public class GraphQLController extends SimpleChannelInboundHandler<FullHttpReque
        *   - Variables: the input values of the request (optional)
        *   - OperationName: the name of the request to execute (optional)
        *   - GraphQLContext: containing all the useful information to permit the fetching of the data
+       *   - DataLoaderRegistry: a place to register all data loaders in
        */
       ExecutionInput input = ExecutionInput.newExecutionInput()
         .query(request.getRequest())
@@ -236,8 +241,12 @@ public class GraphQLController extends SimpleChannelInboundHandler<FullHttpReque
     // DataLoaderRegistry is a place to register all data loaders in that needs to be dispatched together
     DataLoaderRegistry registry = new DataLoaderRegistry();
     registry.register(
-      DataLoaders.NODE_BATCH_LOADER,
-      DataLoaderFactory.newDataLoaderWithTry(nodeBatchLoader)
+        DataLoaders.NODE_BATCH_LOADER,
+        DataLoaderFactory.newDataLoaderWithTry(nodeBatchLoader)
+      );
+    registry.register(
+      DataLoaders.SHARE_BATCH_LOADER,
+      DataLoaderFactory.newDataLoader(shareBatchLoader)
     );
 
     return registry;
