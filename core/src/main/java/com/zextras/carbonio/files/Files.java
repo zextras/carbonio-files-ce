@@ -234,6 +234,14 @@ public interface Files {
     }
 
     /**
+     * Names of GraphQL data laoders
+     */
+    interface DataLoaders {
+
+      String NODE_BATCH_LOADER = "NodeBatchLoader";
+    }
+
+    /**
      * Names of queries
      */
     interface Queries {

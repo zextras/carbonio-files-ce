@@ -9,9 +9,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
+import com.zextras.carbonio.files.Files.GraphQL.DataLoaders;
+import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.GraphQLRequest;
+import com.zextras.carbonio.files.graphql.dataloaders.NodeBatchLoader;
 import graphql.ExecutionInput;
 import graphql.ExecutionResult;
 import graphql.GraphQL;
@@ -33,6 +35,9 @@ import io.netty.util.AttributeKey;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import org.dataloader.DataLoader;
+import org.dataloader.DataLoaderFactory;
+import org.dataloader.DataLoaderRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,17 +68,17 @@ public class GraphQLController extends SimpleChannelInboundHandler<FullHttpReque
     promise.channel().close();
   };
 
-  private final UserRepository userRepository;
-  private final GraphQL        graphQL;
+  private final GraphQL         graphQL;
+  private final NodeBatchLoader nodeBatchLoader;
 
   @Inject
   public GraphQLController(
-    UserRepository userRepository,
-    GraphQLProvider graphQLProvider
+    GraphQLProvider graphQLProvider,
+    NodeBatchLoader nodeBatchLoader
   ) {
     super(true);
-    this.userRepository = userRepository;
     this.graphQL = graphQLProvider.getGraphQL();
+    this.nodeBatchLoader = nodeBatchLoader;
   }
 
   /**
@@ -125,7 +130,7 @@ public class GraphQLController extends SimpleChannelInboundHandler<FullHttpReque
     try {
       channelRead_async(context, httpRequest);
     } catch (Exception e) {
-      e.printStackTrace();
+      logger.error(e.getLocalizedMessage());
       context.pipeline().fireExceptionCaught(e);
     }
   }
@@ -161,6 +166,7 @@ public class GraphQLController extends SimpleChannelInboundHandler<FullHttpReque
         .variables(request.getVariables())
         .operationName(request.getOperationName().orElse(""))
         .graphQLContext(graphQLContext)
+        .dataLoaderRegistry(buildDataLoaderRegistry())
         .build();
 
       ExecutionResult executionResult = graphQL.executeAsync(input).join();
@@ -215,5 +221,25 @@ public class GraphQLController extends SimpleChannelInboundHandler<FullHttpReque
         "The payload of a GraphQL request cannot be parsed"
       );
     }
+  }
+
+  /**
+   * Creates a {@link DataLoaderRegistry} and registers every {@link DataLoader} used to load
+   * multiple elements in batch.
+   * </p>
+   * <strong>Note that the data loaders must be created per execution request.</strong>
+   *
+   * @return a {@link DataLoaderRegistry} containing all the registered {@link DataLoader}s.
+   */
+  private DataLoaderRegistry buildDataLoaderRegistry() {
+
+    // DataLoaderRegistry is a place to register all data loaders in that needs to be dispatched together
+    DataLoaderRegistry registry = new DataLoaderRegistry();
+    registry.register(
+      DataLoaders.NODE_BATCH_LOADER,
+      DataLoaderFactory.newDataLoaderWithTry(nodeBatchLoader)
+    );
+
+    return registry;
   }
 }

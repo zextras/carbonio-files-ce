@@ -28,8 +28,8 @@ public class SearchBuilder {
     this.userId = userId;
     this.query = this.db
       .find(Node.class)
-      .fetch("mShares")
-      .fetch("mCustomAttributes")
+      .fetchLazy("mShares")
+      .fetchLazy("mCustomAttributes")
       .where()
       .or()
       .eq("mShares.mComposedPrimaryKey.mTargetUserId", userId)

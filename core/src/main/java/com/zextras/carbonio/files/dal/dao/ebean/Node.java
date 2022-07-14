@@ -81,13 +81,17 @@ class Node {
   @Column(name = Files.Db.Node.SIZE, nullable = false)
   private Long mSize;
 
-  @OneToMany(fetch = FetchType.LAZY)
+  @OneToMany(fetch = FetchType.EAGER)
   @JoinColumn(name = Files.Db.Node.ID, referencedColumnName = Files.Db.NodeCustomAttributes.NODE_ID, insertable = false, updatable = false)
   private List<NodeCustomAttributes> mCustomAttributes;
 
   @OneToMany(fetch = FetchType.LAZY)
   @JoinColumn(name = Files.Db.Node.ID, referencedColumnName = Files.Db.Share.NODE_ID, insertable = false, updatable = false)
   private List<Share> mShares;
+
+  @OneToMany(fetch = FetchType.LAZY)
+  @JoinColumn(name = Files.Db.Node.ID, referencedColumnName = Files.Db.FileVersion.NODE_ID, insertable = false, updatable = false)
+  private List<FileVersion> fileVersions;
 
   public Node(
     String nodeId,
@@ -265,4 +269,11 @@ class Node {
     return this;
   }
 
+  public List<NodeCustomAttributes> getCustomAttributes() {
+    return mCustomAttributes;
+  }
+
+  public List<FileVersion> getFileVersions() {
+    return fileVersions;
+  }
 }
