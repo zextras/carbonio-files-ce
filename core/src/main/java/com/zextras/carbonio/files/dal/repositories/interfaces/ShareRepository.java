@@ -7,7 +7,6 @@ package com.zextras.carbonio.files.dal.repositories.interfaces;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.ShareSort;
-import io.ebean.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,7 +24,6 @@ public interface ShareRepository {
    *
    * @return an {@link Optional) containing the {@link Share} requested if exists.
    */
-  @Transactional
   Optional<Share> getShare(
     String nodeId,
     String userId

@@ -49,7 +49,6 @@ import graphql.schema.DataFetcher;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.TypeResolver;
 import graphql.schema.idl.EnumValuesProvider;
-import io.ebean.annotation.Transactional;
 import io.vavr.control.Try;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -376,7 +375,6 @@ public class NodeDataFetcher {
    * @return an asynchronous {@link DataFetcher} containing a {@link List} of all child nodes of the
    * folder.
    */
-  @Transactional
   public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> getChildNodesFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
         Map<String, Object> partialResult = environment.getSource();

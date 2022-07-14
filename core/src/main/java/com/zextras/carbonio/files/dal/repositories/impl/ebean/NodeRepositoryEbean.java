@@ -12,8 +12,6 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.Files.Db.RootId;
-import com.zextras.carbonio.files.cache.Cache;
-import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
@@ -39,24 +37,15 @@ import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Transactional
 public class NodeRepositoryEbean implements NodeRepository {
 
-  private static final Logger                logger = LoggerFactory.getLogger(
-    NodeRepositoryEbean.class);
-  private              Optional<Cache<Node>> mNodeCache;
-  private              EbeanDatabaseManager  mDB;
+  private static final Logger logger = LoggerFactory.getLogger(NodeRepositoryEbean.class);
+
+  private EbeanDatabaseManager mDB;
 
   @Inject
-  public NodeRepositoryEbean(
-    EbeanDatabaseManager ebeanDatabaseManager,
-    CacheHandler cacheHandler
-  ) {
+  public NodeRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager) {
     mDB = ebeanDatabaseManager;
-    mNodeCache = cacheHandler
-      .getCache(Files.Cache.NODE)
-      .map(cache -> mNodeCache = Optional.of(cache))
-      .orElse(Optional.empty());
   }
 
   /**
@@ -437,20 +426,8 @@ public class NodeRepositoryEbean implements NodeRepository {
   }
 
   @Override
-  //	@Transactional
   public Optional<Node> getNode(String nodeId) {
-    return mNodeCache.map(cache -> {
-        return Optional.ofNullable(
-          cache
-            .get(nodeId)
-            .orElseGet(() -> {
-              Optional<Node> dbNode = getRealNode(nodeId);
-              dbNode.ifPresent(node -> cache.add(nodeId, node));
-              return dbNode.orElse(null);
-            })
-        );
-      })
-      .orElseGet(() -> getRealNode(nodeId));
+    return  getRealNode(nodeId);
   }
 
   /**
@@ -476,39 +453,14 @@ public class NodeRepositoryEbean implements NodeRepository {
   }
 
   @Override
-  //	@Transactional
   public Stream<Node> getNodes(
     List<String> nodeIds,
     Optional<NodeSort> sort
   ) {
-    return mNodeCache.map(cache -> {
-        Map<String, Node> result = new LinkedHashMap<>();
-        List<String> missingNodes = new LinkedList<>();
-
-        nodeIds.forEach(nodeId -> {
-          Optional<Node> optNode = cache.get(nodeId);
-          if (optNode.isPresent()) {
-            result.put(nodeId, optNode.get());
-          } else {
-            result.put(nodeId, null);
-            missingNodes.add(nodeId);
-          }
-        });
-
-        if (!missingNodes.isEmpty()) {
-          getRealNodes(missingNodes, Optional.empty()).forEach(node -> {
-            cache.add(node.getId(), node);
-            result.putIfAbsent(node.getId(), node);
-          });
-        }
-
-        return result.values().stream();
-      })
-      .orElse(getRealNodes(nodeIds, sort).stream());
+    return getRealNodes(nodeIds, sort).stream();
   }
 
   @Override
-  //	@Transactional
   public List<String> getChildrenIds(
     String nodeId,
     Optional<NodeSort> sort,
@@ -548,7 +500,7 @@ public class NodeRepositoryEbean implements NodeRepository {
   }
 
   @Override
-  //	@Transactional
+  @Transactional
   public Node createNewNode(
     String nodeId,
     String creatorId,
@@ -573,42 +525,28 @@ public class NodeRepositoryEbean implements NodeRepository {
       ancestorIds,
       size
     );
-    mDB.getEbeanDatabase()
-      .save(node);
+    mDB.getEbeanDatabase().save(node);
+
     return getNode(nodeId).get();
   }
 
   @Override
-  //	@Transactional
   public boolean deleteNode(String nodeId) {
     return getNode(nodeId)
-      .map(node -> {
-        boolean deleted = mDB.getEbeanDatabase()
-          .delete(node);
-        if (deleted) {
-          mNodeCache.map(cache -> {
-            return cache.delete(nodeId);
-          });
-        }
-        return deleted;
-      })
+      .map(node -> mDB.getEbeanDatabase().delete(node))
       .orElse(false);
   }
 
   @Override
   public int deleteNodes(List<String> nodesIds) {
-    int numberDeletedNodes = mDB.getEbeanDatabase()
+    return mDB.getEbeanDatabase()
       .find(Node.class)
       .where()
       .in(Files.Db.Node.ID, nodesIds)
       .delete();
-
-    mNodeCache.ifPresent(cache -> nodesIds.forEach(cache::delete));
-    return numberDeletedNodes;
   }
 
   @Override
-  //	@Transactional
   public void flagForUser(
     String nodeId,
     String userId,
@@ -625,7 +563,6 @@ public class NodeRepositoryEbean implements NodeRepository {
   }
 
   @Override
-  //	@Transactional
   public boolean isFlaggedForUser(
     String nodeId,
     String userId
@@ -675,14 +612,12 @@ public class NodeRepositoryEbean implements NodeRepository {
   }
 
   @Override
-  //	@Transactional
   public void trashNode(
     String nodeId,
     String parentId
   ) {
     TrashedNode tNode = new TrashedNode(nodeId, parentId);
-    mDB.getEbeanDatabase()
-      .save(tNode);
+    mDB.getEbeanDatabase().save(tNode);
   }
 
   @Override
@@ -695,20 +630,14 @@ public class NodeRepositoryEbean implements NodeRepository {
   }
 
   @Override
-  //	@Transactional
   public Node updateNode(Node node) {
     node.setUpdatedAt(System.currentTimeMillis());
-    mDB.getEbeanDatabase()
-      .update(node);
-    mNodeCache.ifPresent(cache -> {
-      cache.add(node.getId(), node);
-    });
+    mDB.getEbeanDatabase().update(node);
     return node;
   }
 
   @Override
   public int deleteTrashedNodesOlderThan(Long retentionTimestamp) {
-    // TODO handle cache
     return mDB.getEbeanDatabase()
       .find(Node.class)
       .where()
@@ -735,7 +664,6 @@ public class NodeRepositoryEbean implements NodeRepository {
       .in(Files.Db.Node.ID, nodesIds)
       .update();
 
-    mNodeCache.ifPresent(cache -> nodesIds.forEach(cache::delete));
     return numberMovedNodes;
   }
 

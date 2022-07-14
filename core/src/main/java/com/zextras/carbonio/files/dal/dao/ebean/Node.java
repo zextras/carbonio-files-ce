@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.dal.dao.ebean;
 import static com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER;
 import static com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT;
 import com.zextras.carbonio.files.Files;
+import io.ebean.annotation.Cache;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -29,6 +30,7 @@ import javax.persistence.Table;
  * input are valid or not because, when these methods are called, these controls
  * <strong>must</strong> be already done.</p>
  */
+@Cache
 @Entity
 @Table(name = Files.Db.Tables.NODE)
 public

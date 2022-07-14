@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.dal.dao.ebean;
 
 import com.zextras.carbonio.files.Files;
+import io.ebean.annotation.Cache;
 import java.util.Optional;
 import javax.persistence.Column;
 import javax.persistence.EmbeddedId;
@@ -20,6 +21,7 @@ import javax.persistence.Table;
  * input are valid or not because, when these methods are called, these controls
  * <strong>must</strong> be already done.</p>
  */
+@Cache
 @Entity
 @Table(name = Files.Db.Tables.SHARE)
 public class Share {
