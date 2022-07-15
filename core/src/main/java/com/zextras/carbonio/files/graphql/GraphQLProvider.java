@@ -267,7 +267,6 @@ public class GraphQLProvider {
           Files.GraphQL.FileVersion.PERMISSIONS,
           nodeDataFetcher.getPermissionsNodeFetcher()
         )
-        .dataFetcher(Files.GraphQL.FileVersion.FLAGGED, nodeDataFetcher.nodeFlagAttributeFetcher())
         .dataFetcher(Files.GraphQL.FileVersion.SHARES, shareDataFetcher.getSharesFetcher())
         .dataFetcher(Files.GraphQL.FileVersion.LINKS, linkDataFetcher.getLinks())
       )
@@ -276,9 +275,8 @@ public class GraphQLProvider {
         .dataFetcher(Files.GraphQL.Folder.OWNER, userDataFetcher.getUserFetcher())
         .dataFetcher(Files.GraphQL.Folder.LAST_EDITOR, userDataFetcher.getUserFetcher())
         .dataFetcher(Files.GraphQL.Folder.PARENT, nodeDataFetcher.getNodeFetcher())
-        .dataFetcher(Files.GraphQL.Folder.CHILDREN, nodeDataFetcher.getChildNodesFetcher())
+        .dataFetcher(Files.GraphQL.Folder.CHILDREN, nodeDataFetcher.getChildNodesFetcherFast())
         .dataFetcher(Files.GraphQL.Folder.PERMISSIONS, nodeDataFetcher.getPermissionsNodeFetcher())
-        .dataFetcher(Files.GraphQL.Folder.FLAGGED, nodeDataFetcher.nodeFlagAttributeFetcher())
         .dataFetcher(Files.GraphQL.Folder.SHARES, shareDataFetcher.getSharesFetcher())
         .dataFetcher(Files.GraphQL.Folder.LINKS, linkDataFetcher.getLinks())
       )

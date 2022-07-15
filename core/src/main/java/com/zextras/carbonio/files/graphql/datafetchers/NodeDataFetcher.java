@@ -14,6 +14,7 @@ import com.zextras.carbonio.files.Files.GraphQL.InputParameters.FlagNodes;
 import com.zextras.carbonio.files.Files.GraphQL.InputParameters.GetVersions;
 import com.zextras.carbonio.files.Files.GraphQL.InputParameters.KeepVersions;
 import com.zextras.carbonio.files.Files.GraphQL.InputParameters.RestoreNodes;
+import com.zextras.carbonio.files.Files.GraphQL.NodePage;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
 import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
@@ -49,6 +50,7 @@ import graphql.schema.DataFetcher;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.TypeResolver;
 import graphql.schema.idl.EnumValuesProvider;
+import io.ebean.annotation.Transactional;
 import io.vavr.control.Try;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -437,6 +439,62 @@ public class NodeDataFetcher {
     );
   }
 
+  @Transactional
+  public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, String>>>> getChildNodesFetcherFast() {
+    return environment -> CompletableFuture.supplyAsync(() -> {
+        Map<String, Object> partialResult = environment.getSource();
+        String requesterId = ((User) environment.getGraphQlContext()
+          .get(Files.GraphQL.Context.REQUESTER)).getUuid();
+        String folderNodeId = (String) partialResult.get(Files.GraphQL.Node.ID);
+        /*
+         * If the execution is arrived in this data fetcher then the partialResult contains the folderId
+         * otherwise the execution would have stopped in the previous data fetcher.
+         * This is only a double check if something goes wrong or if this data fetcher is
+         * used improperly.
+         */
+        if (folderNodeId == null) {
+          return new DataFetcherResult.Builder<Map<String, String>>().build();
+        }
+
+        int limit = environment.getArgument(InputParameters.LIMIT);
+
+        Optional<NodeSort> optSort = Optional.ofNullable(
+          environment.getArgument(InputParameters.SORT)
+        );
+
+        Optional<String> optPageToken = Optional.ofNullable(
+          environment.getArgument(Files.GraphQL.InputParameters.PAGE_TOKEN)
+        );
+
+        ImmutablePair<List<Node>, String> findResult = nodeRepository.findNodes(
+          requesterId,
+          optSort,
+          Optional.empty(),
+          Optional.of(folderNodeId),
+          Optional.of(false),
+          Optional.empty(),
+          Optional.empty(),
+          Optional.empty(),
+          Optional.of(limit),
+          Collections.emptyList(),
+          optPageToken
+        );
+
+        Map<String, List<Node>> localContext = new HashMap<>();
+        localContext.put(NodePage.NODES, findResult.getLeft());
+
+        Map<String, String> results = new HashMap<>();
+        results.put(NodePage.PAGE_TOKEN, findResult.getRight());
+
+        return new DataFetcherResult
+          .Builder<Map<String, String>>()
+          .data(results)
+          .localContext(localContext)
+          .build();
+      }
+    );
+  }
+
   /**
    * <p>This {@link DataFetcher} must be used for the {@link Files.GraphQL.Mutations#CREATE_FOLDER}
    * mutation.</p>
@@ -660,43 +718,6 @@ public class NodeDataFetcher {
         .error(GraphQLResultErrors.nodeNotFound(nodeId, path))
         .build();
     }));
-  }
-
-  /**
-   * <p>This {@link DataFetcher} is bound with the {@link Files.GraphQL.Node#FLAGGED} attribute.
-   * When this attribute is specified on a request then this data fetcher is called. This prevents
-   * the retrieval of node flag for every request even when it is not requested. This is necessary
-   * because the flag is an attribute related to a specific user and is saved in another table that
-   * needs to be queried to retrieve the boolean.</p>
-   *
-   * @return an asynchronous {@link DataFetcher} containing a {@link boolean} representing the node
-   * flag specified by the requester.
-   */
-  public DataFetcher<CompletableFuture<DataFetcherResult<Boolean>>> nodeFlagAttributeFetcher() {
-    return environment -> CompletableFuture.supplyAsync(() -> {
-      String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getUuid();
-      String nodeId = ((Map<String, String>) environment.getLocalContext()).get(
-        Files.GraphQL.Node.ID);
-
-      return permissionsChecker.getPermissions(nodeId, requesterId)
-        .has(SharePermission.READ_ONLY)
-        ? nodeRepository.getNode(nodeId)
-        .map(node ->
-          new DataFetcherResult.Builder<Boolean>()
-            .data(nodeRepository.isFlaggedForUser(node.getId(), requesterId))
-            .build()
-        )
-        .orElse(new DataFetcherResult.Builder<Boolean>()
-          .error(GraphQLResultErrors.nodeNotFound(nodeId, environment.getExecutionStepInfo()
-            .getPath()))
-          .build()
-        )
-        : new DataFetcherResult.Builder<Boolean>()
-          .error(GraphQLResultErrors.nodeNotFound(nodeId, environment.getExecutionStepInfo()
-            .getPath()))
-          .build();
-    });
   }
 
   public DataFetcher<CompletableFuture<List<String>>> flagNodes() {
