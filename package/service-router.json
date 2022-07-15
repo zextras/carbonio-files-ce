@@ -1,0 +1,36 @@
+{
+  "Kind": "service-router",
+  "Name": "carbonio-files",
+  "Routes": [
+    {
+      "Match": {
+        "HTTP": {
+          "PathPrefix": "/download"
+        }
+      },
+      "Destination": {
+        "RequestTimeout": "3600s"
+      }
+    },
+    {
+      "Match": {
+        "HTTP": {
+          "PathPrefix": "/upload"
+        }
+      },
+      "Destination": {
+        "RequestTimeout": "3600s"
+      }
+    },
+    {
+      "Match": {
+        "HTTP": {
+          "PathPrefix": "/upload-version"
+        }
+      },
+      "Destination": {
+        "RequestTimeout": "3600s"
+      }
+    }
+  ]
+}
