@@ -31,8 +31,10 @@ sources=(
   "intentions.json"
   "policies.json"
   "service-protocol.json"
+  "service-router.json"
 )
 hashsums=(
+  "skip"
   "skip"
   "skip"
   "skip"
@@ -61,6 +63,7 @@ package() {
   install -Dm 644 intentions.json "${pkgdir}/etc/carbonio/files/service-discover/intentions.json"
   install -Dm 644 policies.json "${pkgdir}/etc/carbonio/files/service-discover/policies.json"
   install -Dm 644 service-protocol.json "${pkgdir}/etc/carbonio/files/service-discover/service-protocol.json"
+  install -Dm 644 service-router.json "${pkgdir}/etc/carbonio/files/service-discover/service-router.json"
 }
 
 postinst() {
