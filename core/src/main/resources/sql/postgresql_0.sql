@@ -2,152 +2,134 @@
 --
 -- SPDX-License-Identifier: AGPL-3.0-only
 
-create table DB_INFO
-(
-    VERSION INTEGER not null
+BEGIN;
+CREATE TABLE IF NOT EXISTS db_info (
+    version INTEGER NOT NULL PRIMARY KEY
 );
 
-create table NODE
-(
-    OWNER_ID           VARCHAR(256),
-    NODE_ID            CHARACTER(36) not null primary key,
-    FOLDER_ID          CHARACTER(36),
-    NAME               VARCHAR(1024) not null,
-    NODE_TYPE          VARCHAR(50)   not null,
-    NODE_CATEGORY      SMALLINT      not null,
-    DESCRIPTION        VARCHAR(4096) not null,
-    INDEX_STATUS       SMALLINT,
-    CREATION_TIMESTAMP BIGINT        not null,
-    UPDATED_TIMESTAMP  BIGINT        not null,
-    CREATOR_ID         CHARACTER(36),
-    EDITOR_ID          CHARACTER(36),
-    CURRENT_VERSION    INTEGER default NULL,
-    ANCESTOR_IDS       VARCHAR(4096),
-    SIZE               BIGINT
+CREATE TABLE IF NOT EXISTS node (
+    owner_id VARCHAR(256),
+    node_id CHARACTER(36) NOT NULL PRIMARY KEY,
+    folder_id CHARACTER(36),
+    name VARCHAR(1024) NOT NULL,
+    node_type VARCHAR(50) NOT NULL,
+    node_category SMALLINT NOT NULL,
+    description VARCHAR(4096) NOT NULL,
+    index_status SMALLINT,
+    creation_timestamp BIGINT NOT NULL,
+    updated_timestamp BIGINT NOT NULL,
+    creator_id CHARACTER(36),
+    editor_id CHARACTER(36),
+    current_version INTEGER default NULL,
+    ancestor_ids VARCHAR(4096),
+    size BIGINT
 );
 
-create table ACTIVITY
-(
-    NODE_ID     CHARACTER(36) not null
-        references NODE
-            on delete cascade,
-    ACTION_TYPE SMALLINT      not null,
-    USER_ID     VARCHAR(256)  not null,
-    TIMESTAMP   BIGINT        not null,
-    INFO        VARCHAR(65536)
+CREATE TABLE IF NOT EXISTS activity (
+    node_id CHARACTER(36) NOT NULL REFERENCES node ON DELETE CASCADE,
+    action_type SMALLINT NOT NULL,
+    user_id VARCHAR(256) NOT NULL,
+    timestamp BIGINT NOT NULL,
+    info VARCHAR(65536)
 );
 
-create index INDEX_ACTIVITY
-    on ACTIVITY (NODE_ID, TIMESTAMP);
+CREATE INDEX IF NOT EXISTS index_activity ON activity (node_id, timestamp);
 
-create table CUSTOM
-(
-    NODE_ID CHARACTER(36)         not null
-        references NODE
-            on delete cascade,
-    USER_ID VARCHAR(256)          not null,
-    STAR    BOOLEAN default FALSE not null,
-    COLOR   SMALLINT,
-    EXTRA   VARCHAR(65536)        not null,
-    primary key (NODE_ID, USER_ID)
+CREATE TABLE IF NOT EXISTS custom (
+    node_id CHARACTER(36) NOT NULL REFERENCES node ON DELETE CASCADE,
+    user_id VARCHAR(256) NOT NULL,
+    star boolean DEFAULT FALSE NOT NULL,
+    color SMALLINT,
+    extra VARCHAR(65536) NOT NULL,
+
+    PRIMARY KEY(node_id, user_id)
 );
 
-create table LINK
-(
-    ID          CHARACTER(36) NOT NULL PRIMARY KEY,
-    NODE_ID     CHARACTER(36) NOT NULL
-        references NODE
-            on delete cascade,
-    PUBLIC_ID   CHARACTER(8)  NOT NULL,
-    CREATED_AT  BIGINT        not null,
-    EXPIRE_AT   BIGINT,
-    DESCRIPTION VARCHAR(300)
+CREATE TABLE IF NOT EXISTS link (
+    id CHARACTER(36) NOT NULL PRIMARY KEY,
+    node_id CHARACTER(36) NOT NULL REFERENCES node ON DELETE CASCADE,
+    public_id CHARACTER(8) NOT NULL,
+    created_at bigint NOT NULL,
+    expire_at BIGINT,
+    description VARCHAR(300)
 );
 
-create index NODE_TABLE_INDEX_CREATION_TIMESTAMP
-    on NODE (CREATION_TIMESTAMP);
+CREATE INDEX IF NOT EXISTS node_table_index_creation_timestamp ON node (creation_timestamp);
 
-create index NODE_TABLE_INDEX_FOLDER_ID
-    on NODE (FOLDER_ID);
+CREATE INDEX IF NOT EXISTS node_table_index_folder_id ON node (folder_id);
 
-create index NODE_TABLE_INDEX_NAME
-    on NODE (NAME);
+CREATE INDEX IF NOT EXISTS node_table_index_name ON node (name);
 
-create index NODE_TABLE_INDEX_NODE_TYPE
-    on NODE (NODE_TYPE);
+CREATE INDEX IF NOT EXISTS node_table_index_node_type ON node (node_type);
 
-create index NODE_TABLE_INDEX_OWNER_ID
-    on NODE (OWNER_ID);
+CREATE INDEX IF NOT EXISTS node_table_index_owner_id ON node (owner_id);
 
-create index NODE_TABLE_INDEX_UPDATED_TIMESTAMP
-    on NODE (UPDATED_TIMESTAMP);
+CREATE INDEX IF NOT EXISTS node_table_index_updated_timestamp ON node (updated_timestamp);
 
-create table REVISION
-(
-    NODE_ID             CHARACTER(36)         not null
-        references NODE
-            on delete cascade,
-    VERSION             INTEGER               not null,
-    MIME_TYPE           VARCHAR(256)          not null,
-    SIZE                BIGINT                not null,
-    DIGEST              VARCHAR(128)          not null,
-    EDITOR_ID           VARCHAR(256)          not null,
-    TIMESTAMP           BIGINT                not null,
-    IS_AUTOSAVE         BOOLEAN default FALSE,
-    KEEP_FOREVER        BOOLEAN default FALSE not null,
-    CLONED_FROM_VERSION INTEGER default NULL,
-    primary key (NODE_ID, VERSION)
+CREATE TABLE IF NOT EXISTS revision (
+    node_id CHARACTER(36) NOT NULL REFERENCES node ON DELETE CASCADE,
+    version INTEGER NOT NULL,
+    mime_type VARCHAR(256) NOT NULL,
+    size BIGINT NOT NULL,
+    digest VARCHAR(128) NOT NULL,
+    editor_id VARCHAR(256) NOT NULL,
+    timestamp BIGINT NOT NULL,
+    is_autosave BOOLEAN DEFAULT FALSE,
+    keep_forever BOOLEAN DEFAULT FALSE NOT NULL,
+    cloned_from_version INTEGER DEFAULT NULL,
+
+    PRIMARY KEY(node_id, version)
 );
 
-create index REVISION_TABLE_INDEX_MIME_TYPE
-    on REVISION (MIME_TYPE);
+CREATE INDEX IF NOT EXISTS revision_table_index_mime_type ON revision (mime_type);
 
-create index REVISION_TABLE_INDEX_VERSION
-    on REVISION (VERSION);
+CREATE INDEX IF NOT EXISTS revision_table_index_version ON revision (version);
 
-create table SHARE
-(
-    NODE_ID     CHARACTER(36)        not null
-        references NODE
-            on delete cascade,
-    RIGHTS      SMALLINT,
-    TIMESTAMP   BIGINT               not null,
-    TARGET_UUID VARCHAR(256)         not null,
-    EXPIRE_DATE BIGINT,
-    DIRECT      BOOLEAN default TRUE not null,
-    primary key (NODE_ID, TARGET_UUID)
+CREATE TABLE IF NOT EXISTS share (
+    node_id CHARACTER(36) NOT NULL REFERENCES node ON DELETE CASCADE,
+    rights SMALLINT,
+    timestamp BIGINT NOT NULL,
+    target_uuid VARCHAR(256) NOT NULL,
+    expire_date BIGINT,
+    direct BOOLEAN DEFAULT TRUE NOT NULL,
+
+    PRIMARY KEY(node_id, target_uuid)
 );
 
-create index SHARE_TABLE_INDEX_TARGET_UUID
-    on SHARE (TARGET_UUID);
+CREATE INDEX IF NOT EXISTS share_table_index_target_uuid ON share (target_uuid);
 
-create table TOMBSTONE
-(
-    NODE_ID   CHARACTER(36) not null,
-    OWNER_ID  VARCHAR(256),
-    TIMESTAMP BIGINT        not null,
-    VERSION   INTEGER       not null,
-    primary key (NODE_ID, VERSION)
+CREATE TABLE IF NOT EXISTS tombstone (
+    node_id CHARACTER(36) NOT NULL,
+    owner_id VARCHAR(256),
+    timestamp BIGINT NOT NULL,
+    version INTEGER NOT NULL,
+
+    PRIMARY KEY(node_id, version)
 );
 
-create table TRASHED
-(
-    NODE_ID   CHARACTER(36) not null
-        references NODE
-            on delete cascade,
-    PARENT_ID CHARACTER(36) not null,
-    primary key (NODE_ID)
-);
-create index TRASHED_TABLE_INDEX_PARENT_ID
-    on TRASHED (PARENT_ID);
+CREATE TABLE IF NOT EXISTS trashed (
+    node_id CHARACTER(36) NOT NULL REFERENCES node ON DELETE CASCADE,
+    parent_id CHARACTER(36) NOT NULL,
 
-INSERT INTO NODE
+    PRIMARY KEY(node_id)
+);
+
+CREATE INDEX IF NOT EXISTS trashed_table_index_parent_id ON trashed (parent_id);
+
+INSERT INTO node
 VALUES (NULL, 'LOCAL_ROOT', NULL, 'ROOT', 'ROOT', 0, '', 2, EXTRACT(EPOCH FROM NOW()),
         EXTRACT(EPOCH FROM NOW()), NULL,
-        NULL, NULL, '', 0);
-INSERT INTO NODE
+        NULL, NULL, '', 0)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO node
 VALUES (NULL, 'TRASH_ROOT', NULL, 'TRASH', 'ROOT', 0, '', 2, EXTRACT(EPOCH FROM NOW()),
         EXTRACT(EPOCH FROM NOW()), NULL,
-        NULL, NULL, '', 0);
-INSERT INTO DB_INFO
-VALUES (1);
+        NULL, NULL, '', 0)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO db_info
+VALUES (1)
+ON CONFLICT DO NOTHING;
+
+COMMIT;

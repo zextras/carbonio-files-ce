@@ -25,6 +25,10 @@ public class Boot {
    */
   private static final Logger logger     = (Logger) LoggerFactory.getLogger(Boot.class);
 
+  private EbeanDatabaseManager ebeanDatabaseManager;
+  private PurgeService purgeService;
+  private NettyServer nettyServer;
+
   public static void main(String[] args) {
     new Boot().boot();
   }
@@ -41,17 +45,16 @@ public class Boot {
     );
 
     Injector injector = Guice.createInjector(new FilesModule());
-
     injector.getInstance(FilesConfig.class);
 
-    EbeanDatabaseManager ebeanDatabaseManager = injector.getInstance(EbeanDatabaseManager.class);
-    ebeanDatabaseManager.start();
-
-    PurgeService purgeService = injector.getInstance(PurgeService.class);
-    NettyServer nettyServer = injector.getInstance(NettyServer.class);
-
     try {
+      ebeanDatabaseManager = injector.getInstance(EbeanDatabaseManager.class);
+      ebeanDatabaseManager.start();
+
+      purgeService = injector.getInstance(PurgeService.class);
       purgeService.start();
+
+      nettyServer = injector.getInstance(NettyServer.class);
       nettyServer.start();
     } catch (RuntimeException exception) {
       logger.error("Service stopped unexpectedly: " + exception.getMessage());
