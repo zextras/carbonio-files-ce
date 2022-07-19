@@ -161,6 +161,9 @@ public class EbeanDatabaseManager {
     serverConfig.setDataSource(dataSource);
     serverConfig.setDefaultServer(true);
     serverConfig.addAll(entityList);
+    serverConfig.setCacheMaxSize(100_000);
+    serverConfig.setCacheMaxTimeToLive(300);
+    serverConfig.setCacheMaxIdleTime(300);
 
     ebeanDatabase = DatabaseFactory.createWithContextClassLoader(
       serverConfig,

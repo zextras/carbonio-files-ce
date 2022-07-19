@@ -10,6 +10,8 @@ import java.util.Optional;
 import javax.persistence.Column;
 import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
 /**
@@ -53,6 +55,10 @@ public class FileVersion {
   @Column(name = Db.FileVersion.CLONED_FROM_VERSION, nullable = true)
   private Integer clonedFromVersion;
 
+  @ManyToOne
+  @JoinColumn(name = Files.Db.NodeCustomAttributes.NODE_ID, referencedColumnName = Files.Db.Node.ID, insertable = false, updatable = false)
+  private Node node;
+
   public FileVersion(
     String nodeId,
     String lastEditorId,
@@ -73,7 +79,6 @@ public class FileVersion {
     isKeptForever = false;
     mVersion = version;
   }
-
 
   public String getNodeId() {
     return mComposedId.getNodeId()

@@ -6,8 +6,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.cache.Cache;
-import com.zextras.carbonio.files.cache.CacheHandler;
+import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
@@ -15,33 +14,17 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.ShareSor
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import io.ebean.Query;
 import io.ebean.Transaction;
-import io.ebean.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class ShareRepositoryEbean implements ShareRepository {
 
-  private final EbeanDatabaseManager   mDB;
-  private       Optional<Cache<Share>> mShareCache;
+  private final EbeanDatabaseManager mDB;
 
   @Inject
-  public ShareRepositoryEbean(
-    EbeanDatabaseManager ebeanDatabaseManager,
-    CacheHandler cacheHandler
-  ) {
+  public ShareRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager) {
     mDB = ebeanDatabaseManager;
-    mShareCache = cacheHandler
-      .getCache(Files.Cache.NODE)
-      .map(cache -> mShareCache = Optional.of(cache))
-      .orElse(Optional.empty());
-  }
-
-  private String getShareId(
-    String nodeId,
-    String userId
-  ) {
-    return nodeId + "/" + userId;
   }
 
   /**
@@ -57,32 +40,19 @@ public class ShareRepositoryEbean implements ShareRepository {
     String nodeId,
     String userId
   ) {
-    Optional<Share> share = mDB.getEbeanDatabase()
+    return mDB.getEbeanDatabase()
       .find(Share.class)
       .where()
       .eq(Files.Db.Share.NODE_ID, nodeId)
       .eq(Files.Db.Share.SHARE_TARGET_UUID, userId)
       .findOneOrEmpty();
-    return share;
   }
 
-  @Transactional
   public Optional<Share> getShare(
     String nodeId,
     String userId
   ) {
-    return mShareCache.map(cache -> {
-        return Optional.ofNullable(
-          cache
-            .get(getShareId(nodeId, userId))
-            .orElseGet(() -> {
-              Optional<Share> dbShare = getRealShare(nodeId, userId);
-              dbShare.ifPresent(share -> cache.add(getShareId(nodeId, userId), share));
-              return dbShare.orElse(null);
-            })
-        );
-      })
-      .orElse(getRealShare(nodeId, userId));
+    return getRealShare(nodeId, userId);
   }
 
   public Optional<Share> upsertShare(
@@ -102,9 +72,6 @@ public class ShareRepositoryEbean implements ShareRepository {
         }
         updateShare.setPermissions(permissions);
         expireTimestamp.ifPresent(updateShare::setExpiredAt);
-        mShareCache.ifPresent(cache -> {
-          cache.add(getShareId(nodeId, targetUserId), updateShare);
-        });
         return Optional.of(updateShare(updateShare));
       } else {
         // We're trying to convert a direct to an inherited share
@@ -120,9 +87,6 @@ public class ShareRepositoryEbean implements ShareRepository {
       );
       expireTimestamp.ifPresent(share::setExpiredAt);
       mDB.getEbeanDatabase().save(share);
-      mShareCache.ifPresent(cache -> {
-        cache.add(getShareId(nodeId, targetUserId), share);
-      });
       return Optional.of(share);
     }
   }
@@ -151,9 +115,6 @@ public class ShareRepositoryEbean implements ShareRepository {
 
   public Share updateShare(Share share) {
     mDB.getEbeanDatabase().update(share);
-    mShareCache.ifPresent(cache -> {
-      cache.add(getShareId(share.getNodeId(), share.getTargetUserId()), share);
-    });
     return share;
   }
 
@@ -161,15 +122,8 @@ public class ShareRepositoryEbean implements ShareRepository {
     String nodeId,
     String targetUserId
   ) {
-    return getShare(nodeId, targetUserId).map(share -> {
-        boolean deleted = mDB.getEbeanDatabase().delete(share);
-        if (deleted) {
-          mShareCache.map(cache -> {
-            return cache.delete(getShareId(nodeId, targetUserId));
-          });
-        }
-        return deleted;
-      })
+    return getShare(nodeId, targetUserId)
+      .map(share -> mDB.getEbeanDatabase().delete(share))
       .orElse(false);
   }
 
@@ -184,9 +138,8 @@ public class ShareRepositoryEbean implements ShareRepository {
       transaction.setBatchSize(50);
 
       // these go to batch buffer
-      nodeIds.forEach(nodeId -> {
-        deleteShare(nodeId, targetUserId);
-      });
+      nodeIds.forEach(nodeId -> deleteShare(nodeId, targetUserId));
+
       // flush batch and commit
       transaction.commit();
     }
@@ -202,25 +155,18 @@ public class ShareRepositoryEbean implements ShareRepository {
       .delete();
 
     // TODO Uniform the delete behaviour with other delete method when we implement unique shareId
-    mShareCache.ifPresent(Cache::flushAll);
   }
 
   public List<Share> getShares(
     List<String> nodeIds,
     String targetUserId
   ) {
-    List<Share> shares = mDB.getEbeanDatabase()
+    return mDB.getEbeanDatabase()
       .find(Share.class)
       .where()
       .in(Files.Db.Share.NODE_ID, nodeIds)
       .eq(Files.Db.Share.SHARE_TARGET_UUID, targetUserId)
       .findList();
-
-    mShareCache.ifPresent(cache -> {
-      shares.forEach(
-        share -> cache.add(getShareId(share.getNodeId(), share.getTargetUserId()), share));
-    });
-    return shares;
   }
 
   public List<Share> getShares(
@@ -237,13 +183,15 @@ public class ShareRepositoryEbean implements ShareRepository {
       query.where().in(Files.Db.Share.SHARE_TARGET_UUID, targetUserIds);
     }
 
-    List<Share> shares = query.findList();
+    return query.findList();
+  }
 
-    mShareCache.ifPresent(cache -> {
-      shares.forEach(
-        share -> cache.add(getShareId(share.getNodeId(), share.getTargetUserId()), share));
-    });
-    return shares;
+  public List<Share> getShares(List<String> nodeIds) {
+    return mDB.getEbeanDatabase()
+      .find(Share.class)
+      .where()
+      .in(Db.Share.NODE_ID, nodeIds)
+      .findList();
   }
 
   public List<String> getSharesUsersIds(

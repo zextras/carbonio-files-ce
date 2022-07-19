@@ -7,7 +7,6 @@ package com.zextras.carbonio.files.dal.repositories.interfaces;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.ShareSort;
-import io.ebean.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,7 +24,6 @@ public interface ShareRepository {
    *
    * @return an {@link Optional) containing the {@link Share} requested if exists.
    */
-  @Transactional
   Optional<Share> getShare(
     String nodeId,
     String userId
@@ -149,6 +147,14 @@ public interface ShareRepository {
     String nodeId,
     List<String> targetUserIds
   );
+
+  /**
+   * @param nodeIds is a {@link List<String>} of the node ids. For each one of them the query
+   * retrieves all the related shares.
+   *
+   * @return a {@link List} of found {@link Share}s for the specific node ids in input.
+   */
+  List<Share> getShares(List<String> nodeIds);
 
   /**
    * Returns the list of userId for which the given node is shared.

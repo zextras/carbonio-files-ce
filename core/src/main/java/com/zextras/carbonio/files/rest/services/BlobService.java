@@ -30,6 +30,7 @@ import com.zextras.carbonio.usermanagement.exceptions.BadRequest;
 import com.zextras.filestore.api.UploadResponse;
 import com.zextras.filestore.model.FilesIdentifier;
 import com.zextras.storages.api.StoragesClient;
+import io.ebean.annotation.Transactional;
 import io.vavr.control.Try;
 import java.text.MessageFormat;
 import java.util.Collections;
@@ -131,6 +132,7 @@ public class BlobService {
       ).orElseGet(() -> Try.failure(new NodeNotFoundException()));
   }
 
+  @Transactional
   public Try<String> uploadFile(
     User requester,
     BufferInputStream bufferInputStream,
@@ -223,6 +225,7 @@ public class BlobService {
     return Try.failure(new NodePermissionException());
   }
 
+  @Transactional
   public Try<Integer> uploadFileVersion(
     User requester,
     BufferInputStream bufferInputStream,

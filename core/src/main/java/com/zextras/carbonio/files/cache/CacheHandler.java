@@ -7,8 +7,9 @@ package com.zextras.carbonio.files.cache;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.dal.dao.User;
+import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -30,16 +31,6 @@ public class CacheHandler {
     caches = new ConcurrentHashMap<>();
     this.cacheHandlerFactory = cacheHandlerFactory;
 
-    /* Creation of the cache that will contain node elements */
-    caches.put(
-      Files.Cache.NODE,
-      this.cacheHandlerFactory.createNodeCache(
-        Files.Cache.NODE,
-        Files.Cache.DEFAULT_SIZE,
-        Files.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLISEC
-      )
-    );
-
     /* Creation of the cache that will contain file version elements */
     caches.put(
       Files.Cache.FILE_VERSION,
@@ -50,20 +41,22 @@ public class CacheHandler {
       )
     );
 
-    /* Creation of the cache that will contain share elements */
+    /* Creation of the cache that will contain user elements */
     caches.put(
-      Files.Cache.SHARE,
-      this.cacheHandlerFactory.createShareCache(
-        Files.Cache.SHARE,
+      Files.Cache.USER,
+      this.cacheHandlerFactory.createUserCache(
+        Files.Cache.USER,
         Files.Cache.DEFAULT_SIZE,
         Files.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLISEC
       )
     );
   }
 
-  public Optional<Cache> getCache(String name) {
-    return (caches.containsKey(name))
-      ? Optional.of(caches.get(name))
-      : Optional.empty();
+  public Cache<User> getUserCache() {
+    return caches.get(Files.Cache.USER);
+  }
+
+  public Cache<FileVersion> getFileVersionCache() {
+    return caches.get(Files.Cache.FILE_VERSION);
   }
 }

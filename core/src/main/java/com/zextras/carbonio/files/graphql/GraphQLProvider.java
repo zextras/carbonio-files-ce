@@ -18,6 +18,8 @@ import com.zextras.carbonio.files.graphql.validators.InputFieldsController;
 import graphql.GraphQL;
 import graphql.execution.AsyncExecutionStrategy;
 import graphql.execution.ResultPath;
+import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentation;
+import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentationOptions;
 import graphql.execution.instrumentation.fieldvalidation.FieldValidation;
 import graphql.execution.instrumentation.fieldvalidation.FieldValidationInstrumentation;
 import graphql.execution.instrumentation.fieldvalidation.SimpleFieldValidation;
@@ -29,6 +31,7 @@ import graphql.schema.idl.SchemaParser;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import org.dataloader.BatchLoader;
 
 /**
  * <p>Setups the GraphQL instance with all the necessary properties. A GraphQL instance is
@@ -85,6 +88,7 @@ public class GraphQLProvider {
     return GraphQL.newGraphQL(buildSchema(buildWiring()))
       .queryExecutionStrategy(new AsyncExecutionStrategy())
       .instrumentation(buildValidationInstrumentation())
+      .instrumentation(buildDataLoaderDispatcherInstrumentation())
       .build();
   }
 
@@ -175,6 +179,18 @@ public class GraphQLProvider {
   }
 
   /**
+   * @return a {@link DataLoaderDispatcherInstrumentation} that allows to enable the registration of
+   * {@link BatchLoader}s. By default, the statistics are disabled.
+   */
+  private DataLoaderDispatcherInstrumentation buildDataLoaderDispatcherInstrumentation() {
+    return new DataLoaderDispatcherInstrumentation(
+      DataLoaderDispatcherInstrumentationOptions
+        .newOptions()
+        .includeStatistics(false)
+    );
+  }
+
+  /**
    * Creates a {@link RuntimeWiring} object associating a specific {@link DataFetcher} to one of
    * these GraphQL components:
    * <ul>
@@ -251,7 +267,6 @@ public class GraphQLProvider {
           Files.GraphQL.FileVersion.PERMISSIONS,
           nodeDataFetcher.getPermissionsNodeFetcher()
         )
-        .dataFetcher(Files.GraphQL.FileVersion.FLAGGED, nodeDataFetcher.nodeFlagAttributeFetcher())
         .dataFetcher(Files.GraphQL.FileVersion.SHARES, shareDataFetcher.getSharesFetcher())
         .dataFetcher(Files.GraphQL.FileVersion.LINKS, linkDataFetcher.getLinks())
       )
@@ -260,9 +275,8 @@ public class GraphQLProvider {
         .dataFetcher(Files.GraphQL.Folder.OWNER, userDataFetcher.getUserFetcher())
         .dataFetcher(Files.GraphQL.Folder.LAST_EDITOR, userDataFetcher.getUserFetcher())
         .dataFetcher(Files.GraphQL.Folder.PARENT, nodeDataFetcher.getNodeFetcher())
-        .dataFetcher(Files.GraphQL.Folder.CHILDREN, nodeDataFetcher.getChildNodesFetcher())
+        .dataFetcher(Files.GraphQL.Folder.CHILDREN, nodeDataFetcher.getChildNodesFetcherFast())
         .dataFetcher(Files.GraphQL.Folder.PERMISSIONS, nodeDataFetcher.getPermissionsNodeFetcher())
-        .dataFetcher(Files.GraphQL.Folder.FLAGGED, nodeDataFetcher.nodeFlagAttributeFetcher())
         .dataFetcher(Files.GraphQL.Folder.SHARES, shareDataFetcher.getSharesFetcher())
         .dataFetcher(Files.GraphQL.Folder.LINKS, linkDataFetcher.getLinks())
       )

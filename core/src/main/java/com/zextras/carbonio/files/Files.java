@@ -188,7 +188,7 @@ public interface Files {
 
   interface Cache {
 
-    long DEFAULT_ITEM_LIFETIME_IN_MILLISEC = 10_000;
+    long DEFAULT_ITEM_LIFETIME_IN_MILLISEC = 60_000;
     long DEFAULT_SIZE                      = 1000;
 
     /**
@@ -198,6 +198,7 @@ public interface Files {
     String FILE_VERSION = "FileVersion";
     String SHARE        = "Share";
     String LINK         = "Link";
+    String USER         = "User";
   }
 
   interface GraphQL {
@@ -233,21 +234,30 @@ public interface Files {
     }
 
     /**
+     * Names of GraphQL data laoders
+     */
+    interface DataLoaders {
+
+      String NODE_BATCH_LOADER  = "NodeBatchLoader";
+      String SHARE_BATCH_LOADER = "ShareBatchLoader";
+    }
+
+    /**
      * Names of queries
      */
     interface Queries {
 
-      String GET_NODE             = "getNode";
-      String GET_USER             = "getUser";
-      String GET_SHARE            = "getShare";
-      String GET_ROOTS_LIST       = "getRootsList";
-      String GET_PATH             = "getPath";
-      String FIND_NODES           = "findNodes";
-      String GET_VERSIONS         = "getVersions";
-      String GET_LINKS            = "getLinks";
-      String GET_ACCOUNT_BY_EMAIL = "getAccountByEmail";
+      String GET_NODE              = "getNode";
+      String GET_USER              = "getUser";
+      String GET_SHARE             = "getShare";
+      String GET_ROOTS_LIST        = "getRootsList";
+      String GET_PATH              = "getPath";
+      String FIND_NODES            = "findNodes";
+      String GET_VERSIONS          = "getVersions";
+      String GET_LINKS             = "getLinks";
+      String GET_ACCOUNT_BY_EMAIL  = "getAccountByEmail";
       String GET_ACCOUNTS_BY_EMAIL = "getAccountsByEmail";
-      String GET_CONFIGS          = "getConfigs";
+      String GET_CONFIGS           = "getConfigs";
     }
 
     /**
@@ -279,11 +289,12 @@ public interface Files {
      */
     interface InputParameters {
 
-      String NODE_ID = "node_id";
-      String LIMIT   = "limit";
-      String CURSOR  = "cursor";
-      String SORT    = "sort";
-      String EMAIL   = "email";
+      String NODE_ID    = "node_id";
+      String LIMIT      = "limit";
+      String CURSOR     = "cursor";
+      String SORT       = "sort";
+      String EMAIL      = "email";
+      String PAGE_TOKEN = "page_token";
 
       interface CreateFolder {
 
