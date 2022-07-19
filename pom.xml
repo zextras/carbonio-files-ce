@@ -164,6 +164,6 @@ SPDX-License-Identifier: AGPL-3.0-only
       <url>https://repo.zextras.io/maven/release/</url>
     </repository>
   </repositories>
-
-  <version>0.3.7-5</version>
+  
+  <version>0.3.7-6</version>
 </project>

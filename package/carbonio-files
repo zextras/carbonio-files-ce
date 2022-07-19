@@ -43,6 +43,10 @@ consul config write /etc/carbonio/files/service-discover/service-protocol.json
 # Allow other services to contact this service
 consul config write /etc/carbonio/files/service-discover/intentions.json
 
+# Declare the service-router containing the override of the RequestTimeout
+# config for the download, upload and upload-version endpoints
+consul config write /etc/carbonio/files/service-discover/service-router.json
+
 if [[ ! -f "/etc/carbonio/files/service-discover/token" ]]; then
     # Create the token
     consul acl token create -format json -policy-name "${POLICY_NAME}" -description "Token for

@@ -132,7 +132,7 @@ SPDX-License-Identifier: AGPL-3.0-only
   <parent>
     <artifactId>carbonio-files-ce</artifactId>
     <groupId>com.zextras.carbonio.files</groupId>
-    <version>0.3.7-5</version>
+    <version>0.3.7-6</version>
   </parent>
 
   <properties>
