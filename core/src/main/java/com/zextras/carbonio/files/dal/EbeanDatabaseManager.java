@@ -30,9 +30,11 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
@@ -107,11 +109,18 @@ public class EbeanDatabaseManager {
     String data = new BufferedReader(new InputStreamReader(
       Objects.requireNonNull(classLoader.getResourceAsStream("sql/postgresql_0.sql")),
       StandardCharsets.UTF_8
-    )).lines().collect(Collectors.joining("\n"));
+    ))
+      .lines()
+      .collect(Collectors.joining("\n"));
 
     try {
       connection.createStatement().execute(data);
-    } catch (SQLException e) {
+      logger.info("Database successfully initialized!");
+    } catch (SQLException exception) {
+      logger.error("Unable to create schema to database " + postgresDatabase);
+      logger.error(exception.getMessage());
+      stop();
+      throw new RuntimeException("Unable to create schema database");
     }
   }
 
@@ -134,7 +143,10 @@ public class EbeanDatabaseManager {
   public void start() {
 
     if (ebeanDatabase != null) {
-      logger.info("Files database already up and running");
+      logger.warn(""
+        + "Database already up and running!"
+        + "The system is trying to start the database manager multiple times: this is not allowed!"
+      );
       return;
     }
 
@@ -158,18 +170,56 @@ public class EbeanDatabaseManager {
       this.getClass().getClassLoader()
     );
 
-    if (ebeanDatabase != null) {
-      boolean isSchemaCreated = ebeanDatabase
-        .sqlQuery("SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'files'")
-        .findOneOrEmpty()
-        .isPresent();
+    Optional
+      .ofNullable(ebeanDatabase)
+      .orElseThrow(() ->
+        new RuntimeException("Unable to create the database datasource! Something bad happened")
+      );
 
-      if (!isSchemaCreated) {
-        try {
-          createSchemaForPostgreSQL(dataSource.getConnection());
-        } catch (SQLException e) {
-          logger.info("Could not initialize Files database" + e);
-        }
+    boolean isDatabaseCreated = ebeanDatabase
+      .sqlQuery(MessageFormat.format(
+          "SELECT 1 FROM pg_database WHERE datname = {0}{1}{0}",
+          "'",
+          postgresDatabase
+        )
+      )
+      .findOneOrEmpty()
+      .isPresent();
+
+    if (!isDatabaseCreated) {
+      logger.error(MessageFormat.format(
+        "Database: {0} does not exist! Execute carbonio-files-db-bootstrap command",
+        postgresDatabase
+      ));
+      stop();
+      throw new RuntimeException("Database does not exist");
+    }
+
+    boolean isDatabaseInitialized = ebeanDatabase
+      .sqlQuery(MessageFormat.format(
+          "SELECT 1 FROM information_schema.tables where table_name = {0}{1}{0};",
+          "'",
+          Files.Db.Tables.DB_INFO.toLowerCase()
+        )
+      )
+      .findOneOrEmpty()
+      .isPresent();
+
+    logger.info(MessageFormat.format("Database status: the database is{0} initialized",
+        isDatabaseInitialized
+          ? ""
+          : " not"
+      )
+    );
+
+    if (!isDatabaseInitialized) {
+      try {
+        createSchemaForPostgreSQL(dataSource.getConnection());
+      } catch (SQLException exception) {
+        logger.error("Unable to connect to the database " + postgresDatabase);
+        logger.error(exception.getMessage());
+        stop();
+        throw new RuntimeException("Unable to connect to the database");
       }
     }
   }

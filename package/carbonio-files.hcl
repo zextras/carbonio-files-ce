@@ -8,6 +8,9 @@ services {
   connect {
     sidecar_service {
       proxy {
+        config {
+          local_request_timeout_ms = 3600000
+        }
         local_service_address = "127.78.0.2"
         upstreams = [
           {
