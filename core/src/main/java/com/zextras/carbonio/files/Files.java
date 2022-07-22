@@ -74,6 +74,7 @@ public interface Files {
       String FILE_VERSION           = "REVISION";
       String SHARE                  = "SHARE";
       String LINK                   = "LINK";
+      String INVITATION_LINK        = "INVITATION_LINK";
       String TOMBSTONE              = "TOMBSTONE";
     }
 
@@ -183,6 +184,18 @@ public interface Files {
       String TIMESTAMP = "timestamp";
       String VERSION   = "version";
       String VOLUME_ID = "volume_id";
+    }
+
+    /**
+     * Attributes' names for the FILES.INVITATION_LINK table
+     */
+    interface InvitationLink {
+
+      String ID            = "id";
+      String NODE_ID       = "node_id";
+      String INVITATION_ID = "invitation_id";
+      String CREATED_AT    = "created_at";
+      String PERMISSIONS   = "permissions";
     }
   }
 

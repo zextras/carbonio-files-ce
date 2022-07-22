@@ -107,7 +107,7 @@ public class EbeanDatabaseManager {
     ClassLoader classLoader = getClass().getClassLoader();
 
     String data = new BufferedReader(new InputStreamReader(
-      Objects.requireNonNull(classLoader.getResourceAsStream("sql/postgresql_0.sql")),
+      Objects.requireNonNull(classLoader.getResourceAsStream("sql/postgresql_1.sql")),
       StandardCharsets.UTF_8
     ))
       .lines()
