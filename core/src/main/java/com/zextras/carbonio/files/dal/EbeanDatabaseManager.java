@@ -7,12 +7,14 @@ package com.zextras.carbonio.files.dal;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersionPK;
+import com.zextras.carbonio.files.dal.dao.ebean.InvitationLink;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
@@ -98,16 +100,80 @@ public class EbeanDatabaseManager {
     entityList.add(SharePK.class);
     entityList.add(Share.class);
     entityList.add(Link.class);
+    entityList.add(InvitationLink.class);
     entityList.add(TombstonePK.class);
     entityList.add(Tombstone.class);
     entityList.add(TrashedNode.class);
   }
 
-  private void createSchemaForPostgreSQL(Connection connection) {
+  private void checkDatabaseExistence() {
+    ebeanDatabase
+      .sqlQuery(MessageFormat.format(
+          "SELECT 1 FROM pg_database WHERE datname = {0}{1}{0}",
+          "'",
+          postgresDatabase
+        )
+      )
+      .findOneOrEmpty()
+      .orElseThrow(() -> {
+        logger.error(MessageFormat.format(
+          "Database: {0} does not exist! Execute carbonio-files-db-bootstrap command",
+          postgresDatabase
+        ));
+        stop();
+        throw new RuntimeException("Database does not exist");
+      });
+  }
+
+  /**
+   * This method checks if the database
+   *
+   * @return
+   */
+  private int getCurrentDatabaseVersion() {
+    boolean isDatabaseInitialized = ebeanDatabase
+      .sqlQuery(MessageFormat.format(
+          "SELECT 1 FROM information_schema.tables where table_name = {0}{1}{0};",
+          "'",
+          Files.Db.Tables.DB_INFO.toLowerCase()
+        )
+      )
+      .findOneOrEmpty()
+      .isPresent();
+
+    logger.info(MessageFormat.format("Database status: the database is{0} initialized",
+        isDatabaseInitialized
+          ? ""
+          : " not"
+      )
+    );
+
+    return isDatabaseInitialized
+      ? ebeanDatabase.find(DbInfo.class).findOneOrEmpty().map(DbInfo::getVersion).orElse(0)
+      : 0;
+
+  }
+
+  private void populatePostgreSQLSchema(
+    Connection connection,
+    int currentDbVersion
+  ) {
+
+    // Base case: the current database version is equals to the last one. It means that in the
+    // previous iteration (if there was one) the system has already populated the database with the
+    // last version. The database is ready!
+    if (currentDbVersion >= Db.DB_VERSION) {
+      return;
+    }
+
+    // If the execution arrives here then there is at least another version of the schema to populate
+    int dbVersionToPopulate = currentDbVersion + 1;
+
     ClassLoader classLoader = getClass().getClassLoader();
+    String sqlFilesToExecute = MessageFormat.format("sql/postgresql_{0}.sql", dbVersionToPopulate);
 
     String data = new BufferedReader(new InputStreamReader(
-      Objects.requireNonNull(classLoader.getResourceAsStream("sql/postgresql_1.sql")),
+      Objects.requireNonNull(classLoader.getResourceAsStream(sqlFilesToExecute)),
       StandardCharsets.UTF_8
     ))
       .lines()
@@ -115,13 +181,22 @@ public class EbeanDatabaseManager {
 
     try {
       connection.createStatement().execute(data);
-      logger.info("Database successfully initialized!");
+      logger.info(MessageFormat.format(
+        "Database version {0} successfully updated!",
+        dbVersionToPopulate
+      ));
     } catch (SQLException exception) {
-      logger.error("Unable to create schema to database " + postgresDatabase);
+      logger.error(MessageFormat.format(
+        "Unable to create schema to database {0} version {1}",
+        postgresDatabase,
+        dbVersionToPopulate
+      ));
       logger.error(exception.getMessage());
       stop();
       throw new RuntimeException("Unable to create schema database");
     }
+
+    populatePostgreSQLSchema(connection, ++currentDbVersion);
   }
 
   public Database getEbeanDatabase() {
@@ -176,51 +251,15 @@ public class EbeanDatabaseManager {
         new RuntimeException("Unable to create the database datasource! Something bad happened")
       );
 
-    boolean isDatabaseCreated = ebeanDatabase
-      .sqlQuery(MessageFormat.format(
-          "SELECT 1 FROM pg_database WHERE datname = {0}{1}{0}",
-          "'",
-          postgresDatabase
-        )
-      )
-      .findOneOrEmpty()
-      .isPresent();
+    checkDatabaseExistence();
 
-    if (!isDatabaseCreated) {
-      logger.error(MessageFormat.format(
-        "Database: {0} does not exist! Execute carbonio-files-db-bootstrap command",
-        postgresDatabase
-      ));
+    try {
+      populatePostgreSQLSchema(dataSource.getConnection(), getCurrentDatabaseVersion());
+    } catch (SQLException exception) {
+      logger.error("Unable to connect to the database " + postgresDatabase);
+      logger.error(exception.getMessage());
       stop();
-      throw new RuntimeException("Database does not exist");
-    }
-
-    boolean isDatabaseInitialized = ebeanDatabase
-      .sqlQuery(MessageFormat.format(
-          "SELECT 1 FROM information_schema.tables where table_name = {0}{1}{0};",
-          "'",
-          Files.Db.Tables.DB_INFO.toLowerCase()
-        )
-      )
-      .findOneOrEmpty()
-      .isPresent();
-
-    logger.info(MessageFormat.format("Database status: the database is{0} initialized",
-        isDatabaseInitialized
-          ? ""
-          : " not"
-      )
-    );
-
-    if (!isDatabaseInitialized) {
-      try {
-        createSchemaForPostgreSQL(dataSource.getConnection());
-      } catch (SQLException exception) {
-        logger.error("Unable to connect to the database " + postgresDatabase);
-        logger.error(exception.getMessage());
-        stop();
-        throw new RuntimeException("Unable to connect to the database");
-      }
+      throw new RuntimeException("Unable to connect to the database");
     }
   }
 

@@ -62,6 +62,8 @@ public interface Files {
 
   interface Db {
 
+    short DB_VERSION = 2;
+
     /**
      * Names of Files tables
      */
