@@ -195,7 +195,7 @@ public class NodeDataFetcher {
       Optional<FileVersion> optFileVersion = node
         .getFileVersions()
         .stream()
-        .filter(fileVersion -> node.getCurrentVersion().equals(fileVersion.getVersion()))
+        .filter(fileVersion -> version.equals(fileVersion.getVersion()))
         .findFirst();
 
       if (optFileVersion.isPresent()) {
@@ -466,13 +466,22 @@ public class NodeDataFetcher {
           environment.getArgument(Files.GraphQL.InputParameters.PAGE_TOKEN)
         );
 
+        // The LOCAL_ROOT is shared to all the users so in the root potentially can be nodes owned
+        // by someone else and shared with the requester. The system must not return these type of
+        // nodes when the folder id is LOCAL_ROOT.
+        // Optional.empty() option considers all nodes which the requester has permission
+        // Optional.of(false) option considers only nodes owned by the requester
+        Optional<Boolean> optSharedWithMe = RootId.LOCAL_ROOT.equals(folderNodeId)
+          ? Optional.of(false)
+          : Optional.empty();
+
         ImmutablePair<List<Node>, String> findResult = nodeRepository.findNodes(
           requesterId,
           optSort,
           Optional.empty(),
           Optional.of(folderNodeId),
           Optional.of(false),
-          Optional.empty(),
+          optSharedWithMe,
           Optional.empty(),
           Optional.empty(),
           Optional.of(limit),
