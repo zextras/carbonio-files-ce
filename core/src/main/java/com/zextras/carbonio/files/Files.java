@@ -245,6 +245,7 @@ public interface Files {
       String SHARE_PERMISSION  = "SharePermission";
       String SHARE             = "Share";
       String LINK              = "Link";
+      String INVITATION_LINK   = "InvitationLink";
       String NODE_TYPE         = "NodeType";
     }
 
@@ -270,6 +271,7 @@ public interface Files {
       String FIND_NODES            = "findNodes";
       String GET_VERSIONS          = "getVersions";
       String GET_LINKS             = "getLinks";
+      String GET_INVITATION_LINKS  = "getInvitationLinks";
       String GET_ACCOUNT_BY_EMAIL  = "getAccountByEmail";
       String GET_ACCOUNTS_BY_EMAIL = "getAccountsByEmail";
       String GET_CONFIGS           = "getConfigs";
@@ -280,23 +282,25 @@ public interface Files {
      */
     interface Mutations {
 
-      String CREATE_FOLDER   = "createFolder";
-      String UPDATE_NODE     = "updateNode";
-      String FLAG_NODES      = "flagNodes";
-      String TRASH_NODES     = "trashNodes";
-      String RESTORE_NODES   = "restoreNodes";
-      String MOVE_NODES      = "moveNodes";
-      String DELETE_NODES    = "deleteNodes";
-      String DELETE_VERSIONS = "deleteVersions";
-      String KEEP_VERSIONS   = "keepVersions";
-      String CLONE_VERSION   = "cloneVersion";
-      String CREATE_SHARE    = "createShare";
-      String UPDATE_SHARE    = "updateShare";
-      String DELETE_SHARE    = "deleteShare";
-      String CREATE_LINK     = "createLink";
-      String UPDATE_LINK     = "updateLink";
-      String DELETE_LINKS    = "deleteLinks";
-      String COPY_NODES      = "copyNodes";
+      String CREATE_FOLDER           = "createFolder";
+      String UPDATE_NODE             = "updateNode";
+      String FLAG_NODES              = "flagNodes";
+      String TRASH_NODES             = "trashNodes";
+      String RESTORE_NODES           = "restoreNodes";
+      String MOVE_NODES              = "moveNodes";
+      String DELETE_NODES            = "deleteNodes";
+      String DELETE_VERSIONS         = "deleteVersions";
+      String KEEP_VERSIONS           = "keepVersions";
+      String CLONE_VERSION           = "cloneVersion";
+      String CREATE_SHARE            = "createShare";
+      String UPDATE_SHARE            = "updateShare";
+      String DELETE_SHARE            = "deleteShare";
+      String CREATE_LINK             = "createLink";
+      String UPDATE_LINK             = "updateLink";
+      String DELETE_LINKS            = "deleteLinks";
+      String CREATE_INVITATION_LINK  = "createInvitationLink";
+      String DELETE_INVITATION_LINKS = "deleteInvitationLinks";
+      String COPY_NODES              = "copyNodes";
     }
 
     /**
@@ -447,22 +451,23 @@ public interface Files {
      */
     interface Node {
 
-      String ID          = "id";
-      String CREATED_AT  = "created_at";
-      String CREATOR     = "creator";
-      String OWNER       = "owner";
-      String LAST_EDITOR = "last_editor";
-      String UPDATED_AT  = "updated_at";
-      String PERMISSIONS = "permissions";
-      String NAME        = "name";
-      String EXTENSION   = "extension";
-      String DESCRIPTION = "description";
-      String TYPE        = "type";
-      String FLAGGED     = "flagged";
-      String PARENT      = "parent";
-      String ROOT_ID     = "rootId";
-      String SHARES      = "shares";
-      String LINKS       = "links";
+      String ID               = "id";
+      String CREATED_AT       = "created_at";
+      String CREATOR          = "creator";
+      String OWNER            = "owner";
+      String LAST_EDITOR      = "last_editor";
+      String UPDATED_AT       = "updated_at";
+      String PERMISSIONS      = "permissions";
+      String NAME             = "name";
+      String EXTENSION        = "extension";
+      String DESCRIPTION      = "description";
+      String TYPE             = "type";
+      String FLAGGED          = "flagged";
+      String PARENT           = "parent";
+      String ROOT_ID          = "rootId";
+      String SHARES           = "shares";
+      String LINKS            = "links";
+      String INVITATION_LINKS = "invitation_links";
     }
 
     /**
@@ -563,6 +568,7 @@ public interface Files {
       Pattern PUBLIC_LINK         = Pattern.compile(SERVICE + "link/([a-zA-Z0-9]{8})/?$");
 
       String PUBLIC_LINK_URL = "/services/files/link/";
+      String INVITATION_LINK_URL = "/services/files/invite/";
 
       Pattern PREVIEW            = Pattern.compile(SERVICE + "preview/(.*)");
       Pattern PREVIEW_IMAGE      = Pattern.compile(
