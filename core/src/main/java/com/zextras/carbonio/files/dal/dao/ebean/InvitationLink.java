@@ -36,6 +36,18 @@ public class InvitationLink {
   @Column(name = Db.InvitationLink.PERMISSIONS, nullable = false)
   private short permissions;
 
+  public InvitationLink(
+    UUID linkId,
+    String nodeId,
+    String invitationId,
+    short permissions
+  ) {
+    this.id = linkId;
+    this.nodeId = nodeId;
+    this.invitationId = invitationId;
+    this.permissions = permissions;
+  }
+
   public UUID getId() {
     return id;
   }

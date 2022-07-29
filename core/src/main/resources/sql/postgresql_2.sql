@@ -5,11 +5,11 @@
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS invitation_link (
-    id CHARACTER(36) NOT NULL PRIMARY KEY,
+    id UUID NOT NULL PRIMARY KEY,
     node_id CHARACTER(36) NOT NULL REFERENCES node ON DELETE CASCADE,
     invitation_id CHARACTER(8) NOT NULL,
-    created_at bigint NOT NULL,
-    permissions BIGINT
+    created_at TIMESTAMP NOT NULL,
+    permissions SMALLINT
 );
 
 CREATE INDEX IF NOT EXISTS invitation_link_table_index_id ON invitation_link (id);
