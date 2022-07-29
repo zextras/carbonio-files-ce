@@ -9,6 +9,7 @@ import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.graphql.controllers.GraphQLController;
 import com.zextras.carbonio.files.rest.controllers.BlobController;
 import com.zextras.carbonio.files.rest.controllers.HealthController;
+import com.zextras.carbonio.files.rest.controllers.InvitationLinkController;
 import com.zextras.carbonio.files.rest.controllers.PreviewController;
 import com.zextras.carbonio.files.rest.controllers.ProcedureController;
 import io.netty.channel.ChannelHandler.Sharable;
@@ -28,13 +29,14 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
 
   private static final Logger logger = LoggerFactory.getLogger(HttpRoutingHandler.class);
 
-  private final HealthController      healthController;
-  private final GraphQLController     graphQLController;
-  private final BlobController        blobController;
-  private final AuthenticationHandler authenticationHandler;
-  private final ExceptionsHandler     exceptionsHandler;
-  private final PreviewController     previewController;
-  private final ProcedureController   procedureController;
+  private final HealthController         healthController;
+  private final GraphQLController        graphQLController;
+  private final BlobController           blobController;
+  private final AuthenticationHandler    authenticationHandler;
+  private final ExceptionsHandler        exceptionsHandler;
+  private final PreviewController        previewController;
+  private final ProcedureController      procedureController;
+  private final InvitationLinkController invitationLinkController;
 
   @Inject
   public HttpRoutingHandler(
@@ -44,7 +46,8 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     AuthenticationHandler authenticationHandler,
     ExceptionsHandler exceptionsHandler,
     PreviewController previewController,
-    ProcedureController procedureController
+    ProcedureController procedureController,
+    InvitationLinkController invitationLinkController
   ) {
     logger.info("Service ready to receive http requests!");
     this.healthController = healthController;
@@ -54,6 +57,7 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     this.blobController = blobController;
     this.previewController = previewController;
     this.procedureController = procedureController;
+    this.invitationLinkController = invitationLinkController;
   }
 
   @Override
@@ -92,6 +96,15 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     if (Endpoints.PUBLIC_LINK.matcher(request.uri()).matches()) {
       context.pipeline()
         .addLast("rest-handler", blobController);
+      context.fireChannelRead(request);
+      return;
+    }
+
+    if (Endpoints.INVITATION_LINK.matcher(request.uri()).matches()) {
+      context
+        .pipeline()
+        .addLast("auth-handler", authenticationHandler)
+        .addLast("invitation-link-handler", invitationLinkController);
       context.fireChannelRead(request);
       return;
     }

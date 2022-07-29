@@ -555,7 +555,10 @@ public interface Files {
 
     interface Endpoints {
 
-      String  SERVICE             = "/";
+      String SERVICE             = "/";
+      String PUBLIC_LINK_URL     = "/services/files/link/";
+      String INVITATION_LINK_URL = "/services/files/invite/";
+
       Pattern HEALTH              = Pattern.compile(SERVICE + "health/?(live|ready)?/?$");
       Pattern HEALTH_LIVE         = Pattern.compile(SERVICE + "health/live/?$");
       Pattern HEALTH_READY        = Pattern.compile(SERVICE + "health/ready/?$");
@@ -566,9 +569,7 @@ public interface Files {
       Pattern DOWNLOAD_FILE       = Pattern.compile(
         SERVICE + "download/([a-f0-9\\\\-]*)/?([0-9]+)?/?$");
       Pattern PUBLIC_LINK         = Pattern.compile(SERVICE + "link/([a-zA-Z0-9]{8})/?$");
-
-      String PUBLIC_LINK_URL = "/services/files/link/";
-      String INVITATION_LINK_URL = "/services/files/invite/";
+      Pattern INVITATION_LINK     = Pattern.compile(SERVICE + "invite/([a-zA-Z0-9]{8})/?$");
 
       Pattern PREVIEW            = Pattern.compile(SERVICE + "preview/(.*)");
       Pattern PREVIEW_IMAGE      = Pattern.compile(
