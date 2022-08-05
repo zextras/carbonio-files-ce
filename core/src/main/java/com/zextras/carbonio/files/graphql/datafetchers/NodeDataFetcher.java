@@ -1122,8 +1122,6 @@ public class NodeDataFetcher {
         environment.getArgument(Files.GraphQL.InputParameters.FindNodes.KEYWORDS)
       );
 
-      logger.error("Inside findNodesFetcher");
-
       Map<String, List<Node>> nodeContext = new HashMap<>();
       Map<String, String> result = new HashMap<>();
       ImmutablePair<List<Node>, String> findResult = null;
