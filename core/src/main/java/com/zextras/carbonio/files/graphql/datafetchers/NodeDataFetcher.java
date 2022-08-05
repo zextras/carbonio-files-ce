@@ -165,7 +165,7 @@ public class NodeDataFetcher {
       Files.GraphQL.Node.ROOT_ID,
       node.getNodeType().equals(NodeType.ROOT)
         ? node.getId()
-        : result.put(Files.GraphQL.Node.ROOT_ID, node.getAncestorsList().get(0))
+        : node.getAncestorsList().get(0)
     );
 
     result.put(
@@ -1121,6 +1121,8 @@ public class NodeDataFetcher {
       Optional<List<String>> optKeywords = Optional.ofNullable(
         environment.getArgument(Files.GraphQL.InputParameters.FindNodes.KEYWORDS)
       );
+
+      logger.error("Inside findNodesFetcher");
 
       Map<String, List<Node>> nodeContext = new HashMap<>();
       Map<String, String> result = new HashMap<>();
