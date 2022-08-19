@@ -5,6 +5,9 @@ services {
     timeout = "1s"
     interval = "5s"
   }
+  meta = {
+    prom_port = "21500"
+  }
   connect {
     sidecar_service {
       proxy {
@@ -12,6 +15,15 @@ services {
           local_request_timeout_ms = 3600000
         }
         local_service_address = "127.78.0.2"
+        expose {
+          paths = [
+            {
+              path = "/metrics",
+              local_path_port = 10000
+              listener_port = 21500
+            }
+          ]
+        }
         upstreams = [
           {
             destination_name = "carbonio-files-db"
@@ -42,6 +54,7 @@ services {
       }
     }
   }
+
   name = "carbonio-files"
   port = 10000
 }
