@@ -23,6 +23,7 @@ import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
 import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.UploadNodeResponse;
 import com.zextras.carbonio.files.rest.types.UploadVersionResponse;
+import com.zextras.carbonio.files.tasks.PrometheusService;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -79,6 +80,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     };
 
   private final BlobService          blobService;
+
+  private final PrometheusService prometheusService;
   private final PermissionsChecker   permissionsChecker;
   private final int                  maxNumberOfVersions;
   private final int                  maxNumberOfKeepVersions;
@@ -86,10 +89,12 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   @Inject
   public BlobController(
     BlobService blobService,
+    PrometheusService prometheusService,
     PermissionsChecker permissionsChecker
   ) {
     super(true);
     this.blobService = blobService;
+    this.prometheusService = prometheusService;
     this.permissionsChecker = permissionsChecker;
     this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
       .defaultURL(ServiceDiscover.SERVICE_NAME)
@@ -382,6 +387,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         }
 
         context.write(httpResponse);
+        prometheusService.getUploadCounter().increment();
         context.flush().close();
         return null;
       });
@@ -477,6 +483,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         }
 
         context.write(httpResponse);
+        prometheusService.getUploadVersionCounter().increment();
         context.flush().close();
         return null;
       });
