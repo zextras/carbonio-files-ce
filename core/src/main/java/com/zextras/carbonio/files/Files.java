@@ -588,6 +588,7 @@ public interface Files {
       String PUBLIC_LINK_URL        = "/services/files/link/";
       String COLLABORATION_LINK_URL = "/services/files/invite/";
 
+      Pattern METRICS             = Pattern.compile(SERVICE + "metrics/?$");
       Pattern HEALTH              = Pattern.compile(SERVICE + "health/?(live|ready)?/?$");
       Pattern HEALTH_LIVE         = Pattern.compile(SERVICE + "health/live/?$");
       Pattern HEALTH_READY        = Pattern.compile(SERVICE + "health/ready/?$");
