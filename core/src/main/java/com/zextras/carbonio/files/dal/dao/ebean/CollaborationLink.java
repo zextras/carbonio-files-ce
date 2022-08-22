@@ -16,35 +16,35 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 
 @Entity
-@Table(name = Tables.INVITATION_LINK)
-public class InvitationLink {
+@Table(name = Tables.COLLABORATION_LINK)
+public class CollaborationLink {
 
   @Id
-  @Column(name = Db.InvitationLink.ID, nullable = false, length = 36)
+  @Column(name = Db.CollaborationLink.ID, nullable = false, length = 36)
   private UUID id;
 
-  @Column(name = Db.InvitationLink.NODE_ID, nullable = false, length = 36)
+  @Column(name = Db.CollaborationLink.NODE_ID, nullable = false, length = 36)
   private String nodeId;
 
-  @Column(name = Db.InvitationLink.INVITATION_ID, nullable = false, length = 8)
-  private String invitationId;
+  @Column(name = Db.CollaborationLink.COLLABORATION_ID, nullable = false, length = 8)
+  private String collaborationId;
 
   @WhenCreated
-  @Column(name = Db.InvitationLink.CREATED_AT, nullable = false)
+  @Column(name = Db.CollaborationLink.CREATED_AT, nullable = false)
   private Instant createdAt;
 
-  @Column(name = Db.InvitationLink.PERMISSIONS, nullable = false)
+  @Column(name = Db.CollaborationLink.PERMISSIONS, nullable = false)
   private short permissions;
 
-  public InvitationLink(
+  public CollaborationLink(
     UUID linkId,
     String nodeId,
-    String invitationId,
+    String collaborationId,
     short permissions
   ) {
     this.id = linkId;
     this.nodeId = nodeId;
-    this.invitationId = invitationId;
+    this.collaborationId = collaborationId;
     this.permissions = permissions;
   }
 
@@ -56,8 +56,8 @@ public class InvitationLink {
     return nodeId;
   }
 
-  public String getInvitationId() {
-    return invitationId;
+  public String getCollaborationId() {
+    return collaborationId;
   }
 
   public Instant getCreatedAt() {

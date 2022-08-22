@@ -5,73 +5,73 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files.Db;
+import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
-import com.zextras.carbonio.files.dal.dao.ebean.InvitationLink;
-import com.zextras.carbonio.files.dal.repositories.interfaces.InvitationLinkRepository;
+import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
+import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 
-public class InvitationLinkRepositoryEbean implements InvitationLinkRepository {
+public class CollaborationLinkRepositoryEbean implements CollaborationLinkRepository {
 
   private final EbeanDatabaseManager ebeanDatabaseManager;
 
   @Inject
-  public InvitationLinkRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager) {
+  public CollaborationLinkRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager) {
     this.ebeanDatabaseManager = ebeanDatabaseManager;
   }
 
   @Override
-  public InvitationLink createLink(
+  public CollaborationLink createLink(
     UUID linkId,
     String nodeId,
-    String invitationId,
+    String collaborationId,
     SharePermission permissions
   ) {
-    InvitationLink invitationLink = new InvitationLink(
+    CollaborationLink collaborationLink = new CollaborationLink(
       linkId,
       nodeId,
-      invitationId,
+      collaborationId,
       permissions.encode()
     );
 
     ebeanDatabaseManager
       .getEbeanDatabase()
-      .insert(invitationLink);
+      .insert(collaborationLink);
 
     return getLinkById(linkId).get();
   }
 
   @Override
-  public Optional<InvitationLink> getLinkById(UUID linkId) {
+  public Optional<CollaborationLink> getLinkById(UUID linkId) {
     return ebeanDatabaseManager
       .getEbeanDatabase()
-      .find(InvitationLink.class)
+      .find(CollaborationLink.class)
       .where()
       .idEq(linkId)
       .findOneOrEmpty();
   }
 
   @Override
-  public Optional<InvitationLink> getLinkByInvitationId(String invitationId) {
+  public Optional<CollaborationLink> getLinkByCollaborationId(String collaborationId) {
     return ebeanDatabaseManager
       .getEbeanDatabase()
-      .find(InvitationLink.class)
+      .find(CollaborationLink.class)
       .where()
-      .eq(Db.InvitationLink.INVITATION_ID, invitationId)
+      .eq(Files.Db.CollaborationLink.COLLABORATION_ID, collaborationId)
       .findOneOrEmpty();
   }
 
   @Override
-  public Stream<InvitationLink> getLinksByNodeId(String nodeId) {
+  public Stream<CollaborationLink> getLinksByNodeId(String nodeId) {
     return ebeanDatabaseManager
       .getEbeanDatabase()
-      .find(InvitationLink.class)
+      .find(CollaborationLink.class)
       .where()
-      .eq(Db.InvitationLink.NODE_ID, nodeId)
+      .eq(Files.Db.CollaborationLink.NODE_ID, nodeId)
       .findList()
       .stream();
   }
@@ -80,7 +80,7 @@ public class InvitationLinkRepositoryEbean implements InvitationLinkRepository {
   public void deleteLinks(Collection<UUID> linkIds) {
     ebeanDatabaseManager
       .getEbeanDatabase()
-      .find(InvitationLink.class)
+      .find(CollaborationLink.class)
       .where()
       .idIn(linkIds)
       .delete();
