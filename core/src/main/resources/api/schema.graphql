@@ -273,7 +273,7 @@ interface Node {
     # It can be maximum of 2 collaboration links:
     #  - one that allows to auto-share the node with the READ+SHARE permission;
     #  - one that allows to auto-share the node with the WRITE+SHARE permission.
-    collaborationLinks: [CollaborationLink]!
+    collaboration_links: [CollaborationLink]!
 }
 
 # Definition of the Folder type which implements the Node interface
@@ -354,7 +354,7 @@ type Folder implements Node {
     # It can be maximum of 2 collaboration links:
     #  - one that allows to auto-share the node with the READ+SHARE permission;
     #  - one that allows to auto-share the node with the WRITE+SHARE permission.
-    collaborationLinks: [CollaborationLink]!
+    collaboration_links: [CollaborationLink]!
 }
 
 # Definition of the File type which implements the Node interface
@@ -437,7 +437,7 @@ type File implements Node {
     # It can be maximum of 2 collaboration links:
     #  - one that allows to auto-share the node with the READ+SHARE permission;
     #  - one that allows to auto-share the node with the WRITE+SHARE permission.
-    collaborationLinks: [CollaborationLink]!
+    collaboration_links: [CollaborationLink]!
 }
 
 # Definition of the type Root. Represents a root folder
