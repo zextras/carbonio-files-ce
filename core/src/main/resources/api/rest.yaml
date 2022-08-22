@@ -314,14 +314,14 @@ paths:
           $ref: '#/components/responses/422ValidationError'
         502:
           $ref: '#/components/responses/502BadGateway'
-  /invitation/{invitationLinkId}:
+  /collaboration/{collaborationLinkId}:
     get:
-      description: Allows to auto-share a specific node with a specific permission to the logged 
+      description: Allows to auto-share a specific node with a specific permission to the logged
                    user that click on this link.
-      operationId: invitationLink
+      operationId: collaborationLink
       parameters:
         - $ref: '#/components/parameters/headerCookies'
-        - $ref: '#/components/parameters/pathInvitationLinkId'
+        - $ref: '#/components/parameters/pathCollaborationLinkId'
       responses:
         307:
           $ref: '#/components/responses/307TemporaryRedirect'
@@ -339,10 +339,10 @@ components:
       required: true
       schema:
         type: string
-    pathInvitationLinkId:
+    pathCollaborationLinkId:
       in: path
-      name: invitationLinkId
-      description: The id of the invitation link
+      name: collaborationLinkId
+      description: The id of the collaboration link
       required: true
       allowEmptyValue: false
       schema:
