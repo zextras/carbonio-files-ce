@@ -9,6 +9,7 @@ import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.interfaces.InvitationLinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -87,9 +88,8 @@ public class InvitationLinkController extends SimpleChannelInboundHandler<HttpRe
             );
 
             String nodeInternalURL = MessageFormat.format(
-              "{0}/carbonio/files/?folder={1}&node={2}",
+              "{0}/carbonio/files/?file={1}&node={1}&tab=sharing",
               requester.getDomain(),
-              node.getParentId().get(),
               node.getId()
             );
 
