@@ -21,13 +21,13 @@ public interface CollaborationLinkRepository {
   CollaborationLink createLink(
     UUID linkId,
     String nodeId,
-    String collaborationId,
+    String invitationId,
     SharePermission permissions
   );
 
   Optional<CollaborationLink> getLinkById(UUID linkId);
 
-  Optional<CollaborationLink> getLinkByCollaborationId(String collaborationId);
+  Optional<CollaborationLink> getLinkByInvitationId(String invitationId);
 
   Stream<CollaborationLink> getLinksByNodeId(String nodeId);
 

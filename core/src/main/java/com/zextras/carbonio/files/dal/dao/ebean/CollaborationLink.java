@@ -26,8 +26,8 @@ public class CollaborationLink {
   @Column(name = Db.CollaborationLink.NODE_ID, nullable = false, length = 36)
   private String nodeId;
 
-  @Column(name = Db.CollaborationLink.COLLABORATION_ID, nullable = false, length = 8)
-  private String collaborationId;
+  @Column(name = Db.CollaborationLink.INVITATION_ID, nullable = false, length = 8)
+  private String invitationId;
 
   @WhenCreated
   @Column(name = Db.CollaborationLink.CREATED_AT, nullable = false)
@@ -39,12 +39,12 @@ public class CollaborationLink {
   public CollaborationLink(
     UUID linkId,
     String nodeId,
-    String collaborationId,
+    String invitationId,
     short permissions
   ) {
     this.id = linkId;
     this.nodeId = nodeId;
-    this.collaborationId = collaborationId;
+    this.invitationId = invitationId;
     this.permissions = permissions;
   }
 
@@ -56,8 +56,8 @@ public class CollaborationLink {
     return nodeId;
   }
 
-  public String getCollaborationId() {
-    return collaborationId;
+  public String getInvitationId() {
+    return invitationId;
   }
 
   public Instant getCreatedAt() {

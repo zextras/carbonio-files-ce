@@ -193,11 +193,11 @@ public interface Files {
      */
     interface CollaborationLink {
 
-      String ID               = "id";
-      String NODE_ID          = "node_id";
-      String COLLABORATION_ID = "collaboration_id";
-      String CREATED_AT       = "created_at";
-      String PERMISSIONS      = "permissions";
+      String ID            = "id";
+      String NODE_ID       = "node_id";
+      String INVITATION_ID = "invitation_id";
+      String CREATED_AT    = "created_at";
+      String PERMISSIONS   = "permissions";
     }
   }
 

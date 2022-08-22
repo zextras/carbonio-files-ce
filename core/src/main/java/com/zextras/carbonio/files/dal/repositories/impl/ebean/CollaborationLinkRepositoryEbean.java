@@ -28,13 +28,13 @@ public class CollaborationLinkRepositoryEbean implements CollaborationLinkReposi
   public CollaborationLink createLink(
     UUID linkId,
     String nodeId,
-    String collaborationId,
+    String invitationId,
     SharePermission permissions
   ) {
     CollaborationLink collaborationLink = new CollaborationLink(
       linkId,
       nodeId,
-      collaborationId,
+      invitationId,
       permissions.encode()
     );
 
@@ -56,12 +56,12 @@ public class CollaborationLinkRepositoryEbean implements CollaborationLinkReposi
   }
 
   @Override
-  public Optional<CollaborationLink> getLinkByCollaborationId(String collaborationId) {
+  public Optional<CollaborationLink> getLinkByInvitationId(String invitationId) {
     return ebeanDatabaseManager
       .getEbeanDatabase()
       .find(CollaborationLink.class)
       .where()
-      .eq(Files.Db.CollaborationLink.COLLABORATION_ID, collaborationId)
+      .eq(Files.Db.CollaborationLink.INVITATION_ID, invitationId)
       .findOneOrEmpty();
   }
 
