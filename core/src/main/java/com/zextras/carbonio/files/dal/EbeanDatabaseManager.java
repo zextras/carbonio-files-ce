@@ -81,7 +81,7 @@ public class EbeanDatabaseManager {
     postgresPassword = ServiceDiscoverHttpClient
       .defaultURL(ServiceDiscover.SERVICE_NAME)
       .getConfig(ServiceDiscover.Config.Db.PASSWORD)
-      .getOrElse("38ce42d9a2b2d2734303359fb55555e2");
+      .getOrElse("");
 
     jdbcPostgresUrl = "jdbc:postgresql://"
       + config.getProperty(Files.Config.Database.URL, "127.78.0.2")

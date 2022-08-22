@@ -9,9 +9,7 @@ import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.dao.ebean.Share;
-import com.zextras.carbonio.files.dal.repositories.interfaces.InvitationLinkRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
@@ -35,21 +33,21 @@ import org.slf4j.LoggerFactory;
  * BIG TODO: This implementation MUST NOT BE APPROVED
  */
 @ChannelHandler.Sharable
-public class InvitationLinkController extends SimpleChannelInboundHandler<HttpRequest> {
+public class CollaborationLinkController extends SimpleChannelInboundHandler<HttpRequest> {
 
-  private final static Logger logger = LoggerFactory.getLogger(InvitationLinkController.class);
+  private final static Logger logger = LoggerFactory.getLogger(CollaborationLinkController.class);
 
-  private final InvitationLinkRepository invitationLinkRepository;
-  private final NodeRepository           nodeRepository;
-  private final ShareRepository          shareRepository;
+  private final CollaborationLinkRepository collaborationLinkRepository;
+  private final NodeRepository              nodeRepository;
+  private final ShareRepository             shareRepository;
 
   @Inject
-  public InvitationLinkController(
-    InvitationLinkRepository invitationLinkRepository,
+  public CollaborationLinkController(
+    CollaborationLinkRepository collaborationLinkRepository,
     NodeRepository nodeRepository,
     ShareRepository shareRepository
   ) {
-    this.invitationLinkRepository = invitationLinkRepository;
+    this.collaborationLinkRepository = collaborationLinkRepository;
     this.nodeRepository = nodeRepository;
     this.shareRepository = shareRepository;
   }
@@ -59,24 +57,24 @@ public class InvitationLinkController extends SimpleChannelInboundHandler<HttpRe
     ChannelHandlerContext context,
     HttpRequest httpRequest
   ) {
-    Matcher invitationLinkMatcher = Endpoints.INVITATION_LINK.matcher(httpRequest.uri());
+    Matcher collaborationLinkMatcher = Endpoints.COLLABORATION_LINK.matcher(httpRequest.uri());
 
     try {
-      if (invitationLinkMatcher.find()) {
-        String invitationId = invitationLinkMatcher.group(1);
+      if (collaborationLinkMatcher.find()) {
+        String invitationId = collaborationLinkMatcher.group(1);
         User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
-        FullHttpResponse httpResponse = invitationLinkRepository
+        FullHttpResponse httpResponse = collaborationLinkRepository
           .getLinkByInvitationId(invitationId)
-          .map(invitationLink -> {
+          .map(collaborationLink -> {
 
-            Node node = nodeRepository.getNode(invitationLink.getNodeId()).get();
+            Node node = nodeRepository.getNode(collaborationLink.getNodeId()).get();
 
             if (!node.getOwnerId().equals(requester.getUuid().toString())) {
               shareRepository.upsertShare(
-                invitationLink.getNodeId(),
+                collaborationLink.getNodeId(),
                 requester.getUuid(),
-                ACL.decode(invitationLink.getPermissions()),
+                ACL.decode(collaborationLink.getPermissions()),
                 true,
                 Optional.empty()
               );

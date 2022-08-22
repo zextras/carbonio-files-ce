@@ -12,8 +12,8 @@ import com.zextras.carbonio.files.Files.GraphQL.Node;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
-import com.zextras.carbonio.files.dal.dao.ebean.InvitationLink;
-import com.zextras.carbonio.files.dal.repositories.interfaces.InvitationLinkRepository;
+import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
+import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
@@ -32,44 +32,44 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.RandomStringUtils;
 
-public class InvitationLinkDataFetcher {
+public class CollaborationLinkDataFetcher {
 
-  private final InvitationLinkRepository invitationLinkRepository;
-  private final NodeRepository           nodeRepository;
-  private final PermissionsChecker       permissionsChecker;
+  private final CollaborationLinkRepository collaborationLinkRepository;
+  private final NodeRepository              nodeRepository;
+  private final PermissionsChecker          permissionsChecker;
 
   @Inject
-  public InvitationLinkDataFetcher(
-    InvitationLinkRepository invitationLinkRepository,
+  public CollaborationLinkDataFetcher(
+    CollaborationLinkRepository collaborationLinkRepository,
     NodeRepository nodeRepository,
     PermissionsChecker permissionsChecker
   ) {
-    this.invitationLinkRepository = invitationLinkRepository;
+    this.collaborationLinkRepository = collaborationLinkRepository;
     this.nodeRepository = nodeRepository;
     this.permissionsChecker = permissionsChecker;
   }
 
-  private DataFetcherResult<Map<String, Object>> convertInvitationLinkToDataFetcherResult(
-    InvitationLink invitationLink,
+  private DataFetcherResult<Map<String, Object>> convertCollaborationLinkToDataFetcherResult(
+    CollaborationLink collaborationLink,
     String requesterDomain
   ) {
 
     String invitationURL = MessageFormat.format(
       "{0}{1}{2}",
       requesterDomain,
-      Endpoints.INVITATION_LINK_URL,
-      invitationLink.getInvitationId()
+      Endpoints.COLLABORATION_LINK_URL,
+      collaborationLink.getInvitationId()
     );
 
     Map<String, Object> linkMap = new HashMap<>();
     Map<String, String> localContext = new HashMap<>();
 
-    linkMap.put("id", invitationLink.getId().toString());
+    linkMap.put("id", collaborationLink.getId().toString());
     linkMap.put("url", invitationURL);
-    linkMap.put("created_at", invitationLink.getCreatedAt().toEpochMilli());
-    linkMap.put("permission", invitationLink.getPermissions());
+    linkMap.put("created_at", collaborationLink.getCreatedAt().toEpochMilli());
+    linkMap.put("permission", collaborationLink.getPermissions());
 
-    localContext.put("node", invitationLink.getNodeId());
+    localContext.put("node", collaborationLink.getNodeId());
 
     return DataFetcherResult
       .<Map<String, Object>>newResult()
@@ -78,7 +78,7 @@ public class InvitationLinkDataFetcher {
       .build();
   }
 
-  public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> createInvitationLink() {
+  public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> createCollaborationLink() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
       User requester = environment.getGraphQlContext().get(Files.GraphQL.Context.REQUESTER);
@@ -87,21 +87,21 @@ public class InvitationLinkDataFetcher {
 
       if (permissionsChecker.getPermissions(nodeId, requester.getUuid()).has(permissions)) {
 
-        // If there is an existing invitation link having the same permission then it returns it,
-        // otherwise it creates a new invitation link
-        InvitationLink link = invitationLinkRepository
+        // If there is an existing collaboration link having the same permission then it returns it,
+        // otherwise it creates a new collaboration link
+        CollaborationLink link = collaborationLinkRepository
           .getLinksByNodeId(nodeId)
-          .filter(invitationLink -> permissions.equals(invitationLink.getPermissions()))
+          .filter(collaborationLink -> permissions.equals(collaborationLink.getPermissions()))
           .findFirst()
           .orElseGet(() ->
-            invitationLinkRepository.createLink(
+            collaborationLinkRepository.createLink(
               UUID.randomUUID(),
               nodeId,
               RandomStringUtils.randomAlphanumeric(8),
               permissions
             ));
 
-        return convertInvitationLinkToDataFetcherResult(link, requester.getDomain());
+        return convertCollaborationLinkToDataFetcherResult(link, requester.getDomain());
       }
 
       return DataFetcherResult
@@ -111,7 +111,7 @@ public class InvitationLinkDataFetcher {
     });
   }
 
-  public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> getInvitationLinksByNodeId() {
+  public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> getCollaborationLinksByNodeId() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
       User requester = environment.getGraphQlContext().get(Context.REQUESTER);
@@ -127,10 +127,10 @@ public class InvitationLinkDataFetcher {
       if (permissions.has(SharePermission.READ_AND_SHARE)
         || permissions.has(SharePermission.READ_WRITE_AND_SHARE)
       ) {
-        return invitationLinkRepository
+        return collaborationLinkRepository
           .getLinksByNodeId(nodeId)
-          .map(invitationLink ->
-            convertInvitationLinkToDataFetcherResult(invitationLink, requester.getDomain())
+          .map(collaborationLink ->
+            convertCollaborationLinkToDataFetcherResult(collaborationLink, requester.getDomain())
           )
           .collect(Collectors.toList());
       }
@@ -144,19 +144,19 @@ public class InvitationLinkDataFetcher {
     });
   }
 
-  public DataFetcher<CompletableFuture<DataFetcherResult<List<String>>>> deleteInvitationLinks() {
+  public DataFetcher<CompletableFuture<DataFetcherResult<List<String>>>> deleteCollaborationLinks() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
       User requester = environment.getGraphQlContext().get(Context.REQUESTER);
-      List<String> invitationIds = environment.getArgument("invitation_link_ids");
+      List<String> collaborationIds = environment.getArgument("collaboration_link_ids");
 
-      List<String> invitationIdForbidden = new ArrayList<>();
-      invitationIds.forEach(invitationId -> {
-        boolean isForbidden = invitationLinkRepository
-          .getLinkById(UUID.fromString(invitationId))
-          .filter(invitationLink -> {
+      List<String> collaborationIdsForbidden = new ArrayList<>();
+      collaborationIds.forEach(collaborationId -> {
+        boolean isForbidden = collaborationLinkRepository
+          .getLinkById(UUID.fromString(collaborationId))
+          .filter(collaborationLink -> {
             ACL requesterPermission = permissionsChecker
-              .getPermissions(invitationLink.getNodeId(), requester.getUuid());
+              .getPermissions(collaborationLink.getNodeId(), requester.getUuid());
 
             return requesterPermission.has(SharePermission.READ_WRITE_AND_SHARE) ||
               requesterPermission.has(SharePermission.READ_AND_SHARE);
@@ -164,25 +164,25 @@ public class InvitationLinkDataFetcher {
           .isEmpty();
 
         if (isForbidden) {
-          invitationIdForbidden.add(invitationId);
+          collaborationIdsForbidden.add(collaborationId);
         }
       });
 
-      List<UUID> invitationIdsToDelete = invitationIds
+      List<UUID> collaborationIdsToDelete = collaborationIds
         .stream()
-        .filter(invitationId -> !invitationIdForbidden.contains(invitationId))
+        .filter(collaborationId -> !collaborationIdsForbidden.contains(collaborationId))
         .map(UUID::fromString)
         .collect(Collectors.toList());
 
-      invitationLinkRepository.deleteLinks(invitationIdsToDelete);
+      collaborationLinkRepository.deleteLinks(collaborationIdsToDelete);
 
       return DataFetcherResult
         .<List<String>>newResult()
-        .data(invitationIdsToDelete.stream().map(UUID::toString).collect(Collectors.toList()))
+        .data(collaborationIdsToDelete.stream().map(UUID::toString).collect(Collectors.toList()))
         .errors(
-          invitationIdForbidden
+          collaborationIdsForbidden
             .stream()
-            .map(invitationId -> GraphQLResultErrors.missingField(path))
+            .map(collaborationId -> GraphQLResultErrors.missingField(path))
             .collect(Collectors.toList())
         )
         .build();

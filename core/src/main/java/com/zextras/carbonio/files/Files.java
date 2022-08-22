@@ -232,21 +232,21 @@ public interface Files {
      */
     interface Types {
 
-      String NODE_INTERFACE    = "Node";
-      String FILE              = "File";
-      String FOLDER            = "Folder";
-      String NODE_SORT         = "NodeSort";
-      String NODE_PAGE         = "NodePage";
-      String PERMISSIONS       = "Permissions";
-      String USER              = "User";
-      String DISTRIBUTION_LIST = "DistributionList";
-      String SHARED_TARGET     = "SharedTarget";
-      String ACCOUNT           = "Account";
-      String SHARE_PERMISSION  = "SharePermission";
-      String SHARE             = "Share";
-      String LINK              = "Link";
-      String INVITATION_LINK   = "InvitationLink";
-      String NODE_TYPE         = "NodeType";
+      String NODE_INTERFACE     = "Node";
+      String FILE               = "File";
+      String FOLDER             = "Folder";
+      String NODE_SORT          = "NodeSort";
+      String NODE_PAGE          = "NodePage";
+      String PERMISSIONS        = "Permissions";
+      String USER               = "User";
+      String DISTRIBUTION_LIST  = "DistributionList";
+      String SHARED_TARGET      = "SharedTarget";
+      String ACCOUNT            = "Account";
+      String SHARE_PERMISSION   = "SharePermission";
+      String SHARE              = "Share";
+      String LINK               = "Link";
+      String COLLABORATION_LINK = "CollaborationLink";
+      String NODE_TYPE          = "NodeType";
     }
 
     /**
@@ -263,18 +263,18 @@ public interface Files {
      */
     interface Queries {
 
-      String GET_NODE              = "getNode";
-      String GET_USER              = "getUser";
-      String GET_SHARE             = "getShare";
-      String GET_ROOTS_LIST        = "getRootsList";
-      String GET_PATH              = "getPath";
-      String FIND_NODES            = "findNodes";
-      String GET_VERSIONS          = "getVersions";
-      String GET_LINKS             = "getLinks";
-      String GET_INVITATION_LINKS  = "getInvitationLinks";
-      String GET_ACCOUNT_BY_EMAIL  = "getAccountByEmail";
-      String GET_ACCOUNTS_BY_EMAIL = "getAccountsByEmail";
-      String GET_CONFIGS           = "getConfigs";
+      String GET_NODE                = "getNode";
+      String GET_USER                = "getUser";
+      String GET_SHARE               = "getShare";
+      String GET_ROOTS_LIST          = "getRootsList";
+      String GET_PATH                = "getPath";
+      String FIND_NODES              = "findNodes";
+      String GET_VERSIONS            = "getVersions";
+      String GET_LINKS               = "getLinks";
+      String GET_COLLABORATION_LINKS = "getCollaborationLinks";
+      String GET_ACCOUNT_BY_EMAIL    = "getAccountByEmail";
+      String GET_ACCOUNTS_BY_EMAIL   = "getAccountsByEmail";
+      String GET_CONFIGS             = "getConfigs";
     }
 
     /**
@@ -282,25 +282,25 @@ public interface Files {
      */
     interface Mutations {
 
-      String CREATE_FOLDER           = "createFolder";
-      String UPDATE_NODE             = "updateNode";
-      String FLAG_NODES              = "flagNodes";
-      String TRASH_NODES             = "trashNodes";
-      String RESTORE_NODES           = "restoreNodes";
-      String MOVE_NODES              = "moveNodes";
-      String DELETE_NODES            = "deleteNodes";
-      String DELETE_VERSIONS         = "deleteVersions";
-      String KEEP_VERSIONS           = "keepVersions";
-      String CLONE_VERSION           = "cloneVersion";
-      String CREATE_SHARE            = "createShare";
-      String UPDATE_SHARE            = "updateShare";
-      String DELETE_SHARE            = "deleteShare";
-      String CREATE_LINK             = "createLink";
-      String UPDATE_LINK             = "updateLink";
-      String DELETE_LINKS            = "deleteLinks";
-      String CREATE_INVITATION_LINK  = "createInvitationLink";
-      String DELETE_INVITATION_LINKS = "deleteInvitationLinks";
-      String COPY_NODES              = "copyNodes";
+      String CREATE_FOLDER              = "createFolder";
+      String UPDATE_NODE                = "updateNode";
+      String FLAG_NODES                 = "flagNodes";
+      String TRASH_NODES                = "trashNodes";
+      String RESTORE_NODES              = "restoreNodes";
+      String MOVE_NODES                 = "moveNodes";
+      String DELETE_NODES               = "deleteNodes";
+      String DELETE_VERSIONS            = "deleteVersions";
+      String KEEP_VERSIONS              = "keepVersions";
+      String CLONE_VERSION              = "cloneVersion";
+      String CREATE_SHARE               = "createShare";
+      String UPDATE_SHARE               = "updateShare";
+      String DELETE_SHARE               = "deleteShare";
+      String CREATE_LINK                = "createLink";
+      String UPDATE_LINK                = "updateLink";
+      String DELETE_LINKS               = "deleteLinks";
+      String CREATE_COLLABORATION_LINK  = "createCollaborationLink";
+      String DELETE_COLLABORATION_LINKS = "deleteCollaborationLinks";
+      String COPY_NODES                 = "copyNodes";
     }
 
     /**
@@ -451,23 +451,23 @@ public interface Files {
      */
     interface Node {
 
-      String ID               = "id";
-      String CREATED_AT       = "created_at";
-      String CREATOR          = "creator";
-      String OWNER            = "owner";
-      String LAST_EDITOR      = "last_editor";
-      String UPDATED_AT       = "updated_at";
-      String PERMISSIONS      = "permissions";
-      String NAME             = "name";
-      String EXTENSION        = "extension";
-      String DESCRIPTION      = "description";
-      String TYPE             = "type";
-      String FLAGGED          = "flagged";
-      String PARENT           = "parent";
-      String ROOT_ID          = "rootId";
-      String SHARES           = "shares";
-      String LINKS            = "links";
-      String INVITATION_LINKS = "invitation_links";
+      String ID                  = "id";
+      String CREATED_AT          = "created_at";
+      String CREATOR             = "creator";
+      String OWNER               = "owner";
+      String LAST_EDITOR         = "last_editor";
+      String UPDATED_AT          = "updated_at";
+      String PERMISSIONS         = "permissions";
+      String NAME                = "name";
+      String EXTENSION           = "extension";
+      String DESCRIPTION         = "description";
+      String TYPE                = "type";
+      String FLAGGED             = "flagged";
+      String PARENT              = "parent";
+      String ROOT_ID             = "rootId";
+      String SHARES              = "shares";
+      String LINKS               = "links";
+      String COLLABORATION_LINKS = "collaboration_links";
     }
 
     /**
@@ -555,9 +555,9 @@ public interface Files {
 
     interface Endpoints {
 
-      String SERVICE             = "/";
-      String PUBLIC_LINK_URL     = "/services/files/link/";
-      String INVITATION_LINK_URL = "/services/files/invite/";
+      String SERVICE                = "/";
+      String PUBLIC_LINK_URL        = "/services/files/link/";
+      String COLLABORATION_LINK_URL = "/services/files/invite/";
 
       Pattern HEALTH              = Pattern.compile(SERVICE + "health/?(live|ready)?/?$");
       Pattern HEALTH_LIVE         = Pattern.compile(SERVICE + "health/live/?$");
@@ -568,8 +568,8 @@ public interface Files {
       Pattern UPLOAD_FILE_TO      = Pattern.compile(SERVICE + "upload-to/?$");
       Pattern DOWNLOAD_FILE       = Pattern.compile(
         SERVICE + "download/([a-f0-9\\\\-]*)/?([0-9]+)?/?$");
-      Pattern PUBLIC_LINK         = Pattern.compile(SERVICE + "link/([a-zA-Z0-9]{8})/?$");
-      Pattern INVITATION_LINK     = Pattern.compile(SERVICE + "invite/([a-zA-Z0-9]{8})/?$");
+      Pattern PUBLIC_LINK        = Pattern.compile(SERVICE + "link/([a-zA-Z0-9]{8})/?$");
+      Pattern COLLABORATION_LINK = Pattern.compile(SERVICE + "invite/([a-zA-Z0-9]{8})/?$");
 
       Pattern PREVIEW            = Pattern.compile(SERVICE + "preview/(.*)");
       Pattern PREVIEW_IMAGE      = Pattern.compile(
