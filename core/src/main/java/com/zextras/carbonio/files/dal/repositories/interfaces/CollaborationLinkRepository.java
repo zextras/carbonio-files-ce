@@ -5,31 +5,31 @@
 package com.zextras.carbonio.files.dal.repositories.interfaces;
 
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
-import com.zextras.carbonio.files.dal.dao.ebean.InvitationLink;
+import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
- * <p>This is the only class allowed to execute CRUD operations on a {@link InvitationLink}
- * element. In particular it can create a new {@link InvitationLink}, update it, access to and
+ * <p>This is the only class allowed to execute CRUD operations on a {@link CollaborationLink}
+ * element. In particular it can create a new {@link CollaborationLink}, update it, access to and
  * delete an existing one.</p>
  */
-public interface InvitationLinkRepository {
+public interface CollaborationLinkRepository {
 
-  InvitationLink createLink(
+  CollaborationLink createLink(
     UUID linkId,
     String nodeId,
     String invitationId,
     SharePermission permissions
   );
 
-  Optional<InvitationLink> getLinkById(UUID linkId);
+  Optional<CollaborationLink> getLinkById(UUID linkId);
 
-  Optional<InvitationLink> getLinkByInvitationId(String invitationId);
+  Optional<CollaborationLink> getLinkByInvitationId(String invitationId);
 
-  Stream<InvitationLink> getLinksByNodeId(String nodeId);
+  Stream<CollaborationLink> getLinksByNodeId(String nodeId);
 
   void deleteLinks(Collection<UUID> linkIds);
 }

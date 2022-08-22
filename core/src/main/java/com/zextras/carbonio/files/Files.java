@@ -76,7 +76,7 @@ public interface Files {
       String FILE_VERSION           = "REVISION";
       String SHARE                  = "SHARE";
       String LINK                   = "LINK";
-      String INVITATION_LINK        = "INVITATION_LINK";
+      String COLLABORATION_LINK     = "COLLABORATION_LINK";
       String TOMBSTONE              = "TOMBSTONE";
     }
 
@@ -189,9 +189,9 @@ public interface Files {
     }
 
     /**
-     * Attributes' names for the FILES.INVITATION_LINK table
+     * Attributes' names for the FILES.COLLABORATION_LINK table
      */
-    interface InvitationLink {
+    interface CollaborationLink {
 
       String ID            = "id";
       String NODE_ID       = "node_id";

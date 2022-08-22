@@ -14,7 +14,7 @@ import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersionPK;
-import com.zextras.carbonio.files.dal.dao.ebean.InvitationLink;
+import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
@@ -100,7 +100,7 @@ public class EbeanDatabaseManager {
     entityList.add(SharePK.class);
     entityList.add(Share.class);
     entityList.add(Link.class);
-    entityList.add(InvitationLink.class);
+    entityList.add(CollaborationLink.class);
     entityList.add(TombstonePK.class);
     entityList.add(Tombstone.class);
     entityList.add(TrashedNode.class);

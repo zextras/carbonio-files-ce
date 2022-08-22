@@ -184,15 +184,15 @@ type Link {
     description: String
 }
 
-# Definition of an invitation link. It represents an internal link that allows a logged user to
+# Definition of a collaboration link. It represents an internal link that allows a logged user to
 # auto-share a specific node with a specific permission.
-# Each node can have at maximum 2 InvitationLink:
+# Each node can have at maximum 2 CollaborationLink:
 #  - one that allows to auto-share the node with the READ+SHARE permission;
 #  - one that allows to auto-share the node with the WRITE+SHARE permission.
-# An invitation link can be generated only if the requester has the <strong>can_share</strong>
+# A collaboration link can be generated only if the requester has the <strong>can_share</strong>
 # permission on the node.
-type InvitationLink {
-    # Unique identifier of the InvitationLink.
+type CollaborationLink {
+    # Unique identifier of the CollaborationLink.
     id: ID!
 
     # Full URL allowing a logged user to auto-share the related node with the related permission.
@@ -200,13 +200,13 @@ type InvitationLink {
     # the shared node.
     url: String!
 
-    # Node on which the share is created when a logged user clicks on the invitation link.
+    # Node on which the share is created when a logged user clicks on the collaboration link.
     node: Node!
 
     # Link creation timestamp.
     created_at: DateTime!
 
-    # The permission type created/updated when a logged user clicks on the invitation link.
+    # The permission type created/updated when a logged user clicks on the collaboration link.
     permission: SharePermission!
 }
 
@@ -269,11 +269,11 @@ interface Node {
 
     links: [Link]!
 
-    # Returns all the InvitationLinks of current node.
-    # It can be maximum of 2 invitation links:
+    # Returns all the CollaborationLinks of current node.
+    # It can be maximum of 2 collaboration links:
     #  - one that allows to auto-share the node with the READ+SHARE permission;
     #  - one that allows to auto-share the node with the WRITE+SHARE permission.
-    invitation_links: [InvitationLink]!
+    collaboration_links: [CollaborationLink]!
 }
 
 # Definition of the Folder type which implements the Node interface
@@ -350,11 +350,11 @@ type Folder implements Node {
 
     links: [Link]!
 
-    # Returns all the InvitationLinks of current node.
-    # It can be maximum of 2 invitation links:
+    # Returns all the CollaborationLinks of current node.
+    # It can be maximum of 2 collaboration links:
     #  - one that allows to auto-share the node with the READ+SHARE permission;
     #  - one that allows to auto-share the node with the WRITE+SHARE permission.
-    invitation_links: [InvitationLink]!
+    collaboration_links: [CollaborationLink]!
 }
 
 # Definition of the File type which implements the Node interface
@@ -433,11 +433,11 @@ type File implements Node {
 
     links: [Link]!
 
-    # Returns all the InvitationLinks of current node.
-    # It can be maximum of 2 invitation links:
+    # Returns all the CollaborationLinks of current node.
+    # It can be maximum of 2 collaboration links:
     #  - one that allows to auto-share the node with the READ+SHARE permission;
     #  - one that allows to auto-share the node with the WRITE+SHARE permission.
-    invitation_links: [InvitationLink]!
+    collaboration_links: [CollaborationLink]!
 }
 
 # Definition of the type Root. Represents a root folder
@@ -535,13 +535,13 @@ type Query {
         node_id: ID!
     ): [Link]!
 
-    # Returns all the InvitationLinks of the specified node.
-    # The response is not paginated because each node can have a maximum of 2 invitation links:
+    # Returns all the CollaborationLinks of the specified node.
+    # The response is not paginated because each node can have a maximum of 2 collaboration links:
     #  - one that allows to auto-share the node with the READ+SHARE permission;
     #  - one that allows to auto-share the node with the WRITE+SHARE permission.
-    getInvitationLinks(
+    getCollaborationLinks(
         node_id: ID!
-    ): [InvitationLink]!
+    ): [CollaborationLink]!
 
     # Returns the list of all root folders
     getRootsList: [Root]!
@@ -673,24 +673,24 @@ type Mutation {
         link_ids: [ID!]!
     ): [ID]!
 
-    # Allows to create an invitation link for an existing node. An invitation link can be created
+    # Allows to create a collaboration link for an existing node. A collaboration link can be created
     # only if the requester has the <strong>can_share<strong> permission on the specified node.
-    # If the invitation already exists the system returns the already created one.
-    createInvitationLink(
+    # If the collaboration link already exists the system returns the already created one.
+    createCollaborationLink(
         # The unique identifier of the node on which the share will be created (mandatory)
         node_id: ID!
 
         # The permission type that will be created/updated when a logged user clicks on the link.
         # (mandatory)
         permission: SharePermission!
-    ): InvitationLink!
+    ): CollaborationLink!
 
-    # Allows to delete a list of invitation links in batch. It returns:
-    #  - an array of IDs for each invitation link removed;
-    #  - a list of errors for each invitation link that could not be removed.
-    deleteInvitationLinks(
-        # An array of invitation link identifiers (mandatory).
-        invitation_link_ids: [ID!]!
+    # Allows to delete a list of collaboration links in batch. It returns:
+    #  - an array of IDs for each collaboration link removed;
+    #  - a list of errors for each collaboration link that could not be removed.
+    deleteCollaborationLinks(
+        # An array of collaboration link identifiers (mandatory).
+        collaboration_link_ids: [ID!]!
     ): [ID]!
 }
 
