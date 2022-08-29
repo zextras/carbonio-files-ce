@@ -1,0 +1,61 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: carbonio-files-ce
+  title: Carbonio Files Community Edition backend
+  description: Carbonio Files Community Edition backend.
+  tags:
+    - java
+    - backend
+  labels:
+    - rc-version: 0.4.1
+    - release-version: 0.4.1
+spec:
+  type: service
+  lifecycle: production
+  owner: shuffled-waffles
+  providesApis:
+    - carbonio-files-rest-api
+    - carbonio-files-graphql-api
+  dependsOn:
+    - carbonio-files-db
+    - carbonio-user-management
+    - carbonio-storages-ce
+    - carbonio-preview-ce
+    - carbonio-files-ui
+
+---
+
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: carbonio-files-ce-rest-api
+  title: Carbonio Files Community Edition REST APIs
+  description: Carbonio Files Community Edition REST APIs
+  tags:
+    - java
+    - rest
+spec:
+  type: openapi
+  lifecycle: production
+  owner: shuffled-waffles
+  definition:
+    $text: https://github.com/Zextras/carbonio-files-ce/blob/develop/core/src/main/resources/api/rest.yaml
+
+---
+
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: carbonio-files-ce-graphql-api
+  title: Carbonio Files Community Edition GraphQL APIs
+  description: Carbonio Files Community Edition GraphQL APIs
+  tags:
+    - java
+    - graphql
+spec:
+  type: graphql
+  lifecycle: production
+  owner: shuffled-waffles
+  definition:
+    $text: https://github.com/Zextras/carbonio-files-ce/blob/develop/core/src/main/resources/api/schema.graphql
