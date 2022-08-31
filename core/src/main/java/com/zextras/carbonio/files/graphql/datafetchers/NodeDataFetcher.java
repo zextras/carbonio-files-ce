@@ -165,7 +165,7 @@ public class NodeDataFetcher {
       Files.GraphQL.Node.ROOT_ID,
       node.getNodeType().equals(NodeType.ROOT)
         ? node.getId()
-        : result.put(Files.GraphQL.Node.ROOT_ID, node.getAncestorsList().get(0))
+        : node.getAncestorsList().get(0)
     );
 
     result.put(
