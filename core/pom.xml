@@ -137,3 +137,5 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+</project>
