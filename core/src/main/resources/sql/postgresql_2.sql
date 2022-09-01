@@ -17,6 +17,8 @@ CREATE INDEX IF NOT EXISTS collaboration_link_table_index_id ON collaboration_li
 CREATE INDEX IF NOT EXISTS collaboration_link_table_index_invitation_id
     ON collaboration_link (invitation_id);
 
+ALTER TABLE share ADD COLUMN IF NOT EXISTS created_via_link BOOLEAN DEFAULT FALSE NOT NULL;
+
 UPDATE db_info SET version = 2;
 
 COMMIT;

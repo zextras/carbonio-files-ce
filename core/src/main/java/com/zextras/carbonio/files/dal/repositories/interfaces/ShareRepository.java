@@ -40,6 +40,7 @@ public interface ShareRepository {
    * to.
    * @param permissions is a {@link ACL} representing the permissions of this share.
    * @param direct is a boolean used to determine if the share is direct or inherited.
+   * @param createdViaCollaborationLink
    * @param expireTimestamp is an {@link Optional<Long>} for creating a temporary share with an
    * expiration date.
    *
@@ -50,6 +51,7 @@ public interface ShareRepository {
     String targetUserId,
     ACL permissions,
     Boolean direct,
+    Boolean createdViaCollaborationLink,
     Optional<Long> expireTimestamp
   );
 
@@ -72,6 +74,7 @@ public interface ShareRepository {
     String targetUserId,
     ACL permissions,
     Boolean direct,
+    Boolean createdViaCollaborationLink,
     Optional<Long> expireTimestamp
   );
 

@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.graphql.validators;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.GraphQL.InputParameters.DeleteCollaborationLinks;
 import com.zextras.carbonio.files.Files.GraphQL.InputParameters.RestoreNodes;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import graphql.GraphQL;
@@ -285,6 +286,47 @@ public class InputFieldsController {
     return (fieldAndArguments, environment) ->
       mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
         .checkEmails(Files.GraphQL.InputParameters.GetAccountsByEmail.EMAILS)
+        .evaluate();
+  }
+
+  /**
+   * @return a {@link BiFunction} rule bound with the
+   * {@link Files.GraphQL.Mutations#CREATE_COLLABORATION_LINK} to check if the node id is valid.
+   * @see GenericControllerEvaluator#checkNodeId(String)
+   */
+  public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> createCollaborationLinkValidation() {
+    return (fieldAndArguments, environment) ->
+      mGenericControllerEvaluatorFactory
+        .create(fieldAndArguments, environment)
+        .checkNodeId(Files.GraphQL.InputParameters.CreateCollaborationLink.NODE_ID)
+        .evaluate();
+  }
+
+  /**
+   * @return a {@link BiFunction} rule bound with the
+   * {@link Files.GraphQL.Queries#GET_COLLABORATION_LINKS} to check if the node id of the
+   * collaboration links to retrieve is valid.
+   * @see GenericControllerEvaluator#checkNodeId(String)
+   */
+  public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> getCollaborationLinksValidation() {
+    return (fieldAndArguments, environment) ->
+      mGenericControllerEvaluatorFactory
+        .create(fieldAndArguments, environment)
+        .checkNodeId(Files.GraphQL.InputParameters.GetCollaborationLink.NODE_ID)
+        .evaluate();
+  }
+
+  /**
+   * @return a {@link BiFunction} rule bound with the
+   * {@link Files.GraphQL.Mutations#DELETE_COLLABORATION_LINKS} to check if the collaboration link
+   * ids to remove are valid.
+   * @see GenericControllerEvaluator#checkLinkIds(String)
+   */
+  public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> deleteCollaborationLinksValidation() {
+    return (fieldAndArguments, environment) ->
+      mGenericControllerEvaluatorFactory
+        .create(fieldAndArguments, environment)
+        .checkLinkIds(DeleteCollaborationLinks.COLLABORATION_LINK_IDS)
         .evaluate();
   }
 }

@@ -10,6 +10,7 @@ import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.graphql.datafetchers.ConfigDataFetcher;
 import com.zextras.carbonio.files.graphql.datafetchers.DateTimeScalar;
+import com.zextras.carbonio.files.graphql.datafetchers.CollaborationLinkDataFetcher;
 import com.zextras.carbonio.files.graphql.datafetchers.LinkDataFetcher;
 import com.zextras.carbonio.files.graphql.datafetchers.NodeDataFetcher;
 import com.zextras.carbonio.files.graphql.datafetchers.ShareDataFetcher;
@@ -47,13 +48,14 @@ public class GraphQLProvider {
 
   private static final String schemaURL = "/api/schema.graphql";
 
-  private final GraphQL               graphQL;
-  private final InputFieldsController inputFieldsController;
-  private final NodeDataFetcher       nodeDataFetcher;
-  private final UserDataFetcher       userDataFetcher;
-  private final ShareDataFetcher      shareDataFetcher;
-  private final LinkDataFetcher       linkDataFetcher;
-  private final ConfigDataFetcher     configDataFetcher;
+  private final GraphQL                      graphQL;
+  private final InputFieldsController        inputFieldsController;
+  private final NodeDataFetcher              nodeDataFetcher;
+  private final UserDataFetcher              userDataFetcher;
+  private final ShareDataFetcher             shareDataFetcher;
+  private final LinkDataFetcher              linkDataFetcher;
+  private final CollaborationLinkDataFetcher collaborationLinkDataFetcher;
+  private final ConfigDataFetcher            configDataFetcher;
 
   @Inject
   public GraphQLProvider(
@@ -62,6 +64,7 @@ public class GraphQLProvider {
     UserDataFetcher userDataFetcher,
     ShareDataFetcher shareDataFetcher,
     LinkDataFetcher linkDataFetcher,
+    CollaborationLinkDataFetcher collaborationLinkDataFetcher,
     ConfigDataFetcher configDataFetcher
   ) {
     this.inputFieldsController = inputFieldsController;
@@ -69,6 +72,7 @@ public class GraphQLProvider {
     this.userDataFetcher = userDataFetcher;
     this.shareDataFetcher = shareDataFetcher;
     this.linkDataFetcher = linkDataFetcher;
+    this.collaborationLinkDataFetcher = collaborationLinkDataFetcher;
     this.configDataFetcher = configDataFetcher;
     graphQL = this.setup();
   }
@@ -173,6 +177,18 @@ public class GraphQLProvider {
       .addRule(
         ResultPath.parse("/" + Files.GraphQL.Queries.GET_ACCOUNTS_BY_EMAIL),
         inputFieldsController.getAccountsByEmailValidation()
+      )
+      .addRule(
+        ResultPath.parse("/" + Files.GraphQL.Mutations.CREATE_COLLABORATION_LINK),
+        inputFieldsController.createCollaborationLinkValidation()
+      )
+      .addRule(
+        ResultPath.parse("/" + Files.GraphQL.Queries.GET_COLLABORATION_LINKS),
+        inputFieldsController.getCollaborationLinksValidation()
+      )
+      .addRule(
+        ResultPath.parse("/" + Files.GraphQL.Mutations.DELETE_COLLABORATION_LINKS),
+        inputFieldsController.deleteCollaborationLinksValidation()
       );
 
     return new FieldValidationInstrumentation(fieldValidation);
@@ -231,6 +247,10 @@ public class GraphQLProvider {
           userDataFetcher.getAccountsByEmailFetcher()
         )
         .dataFetcher(Files.GraphQL.Queries.GET_LINKS, linkDataFetcher.getLinks())
+        .dataFetcher(
+          Files.GraphQL.Queries.GET_COLLABORATION_LINKS,
+          collaborationLinkDataFetcher.getCollaborationLinksByNodeId()
+        )
         .dataFetcher(Files.GraphQL.Queries.GET_CONFIGS, configDataFetcher.getConfigs())
       )
       .type(newTypeWiring("Mutation")
@@ -254,6 +274,14 @@ public class GraphQLProvider {
         .dataFetcher(Files.GraphQL.Mutations.CREATE_LINK, linkDataFetcher.createLink())
         .dataFetcher(Files.GraphQL.Mutations.UPDATE_LINK, linkDataFetcher.updateLink())
         .dataFetcher(Files.GraphQL.Mutations.DELETE_LINKS, linkDataFetcher.deleteLinks())
+        .dataFetcher(
+          Files.GraphQL.Mutations.CREATE_COLLABORATION_LINK,
+          collaborationLinkDataFetcher.createCollaborationLink()
+        )
+        .dataFetcher(
+          Files.GraphQL.Mutations.DELETE_COLLABORATION_LINKS,
+          collaborationLinkDataFetcher.deleteCollaborationLinks()
+        )
       )
       .type(newTypeWiring(Files.GraphQL.Types.NODE_INTERFACE)
         .typeResolver(nodeDataFetcher.getNodeInterfaceResolver())
@@ -269,6 +297,10 @@ public class GraphQLProvider {
         )
         .dataFetcher(Files.GraphQL.FileVersion.SHARES, shareDataFetcher.getSharesFetcher())
         .dataFetcher(Files.GraphQL.FileVersion.LINKS, linkDataFetcher.getLinks())
+        .dataFetcher(
+          Files.GraphQL.FileVersion.COLLABORATION_LINKS,
+          collaborationLinkDataFetcher.getCollaborationLinksByNodeId()
+        )
       )
       .type(newTypeWiring(Files.GraphQL.Types.FOLDER)
         .dataFetcher(Files.GraphQL.Folder.CREATOR, userDataFetcher.getUserFetcher())
@@ -279,6 +311,10 @@ public class GraphQLProvider {
         .dataFetcher(Files.GraphQL.Folder.PERMISSIONS, nodeDataFetcher.getPermissionsNodeFetcher())
         .dataFetcher(Files.GraphQL.Folder.SHARES, shareDataFetcher.getSharesFetcher())
         .dataFetcher(Files.GraphQL.Folder.LINKS, linkDataFetcher.getLinks())
+        .dataFetcher(
+          Files.GraphQL.Folder.COLLABORATION_LINKS,
+          collaborationLinkDataFetcher.getCollaborationLinksByNodeId()
+        )
       )
       .type(newTypeWiring(Files.GraphQL.Types.NODE_PAGE)
         .dataFetcher(Files.GraphQL.NodePage.NODES, nodeDataFetcher.nodePageFetcher())
@@ -298,6 +334,9 @@ public class GraphQLProvider {
         .dataFetcher(Files.GraphQL.DistributionList.USERS, userDataFetcher.getDLUsersFetcher())
       )
       .type(newTypeWiring(Files.GraphQL.Types.LINK)
+        .dataFetcher(Files.GraphQL.Link.NODE, nodeDataFetcher.sharedNodeFetcher())
+      )
+      .type(newTypeWiring(Files.GraphQL.Types.COLLABORATION_LINK)
         .dataFetcher(Files.GraphQL.Link.NODE, nodeDataFetcher.sharedNodeFetcher())
       )
       .build();
