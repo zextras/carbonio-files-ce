@@ -161,6 +161,7 @@ public interface Files {
       String EXPIRED_AT        = "expire_date";
       String PERMISSIONS       = "rights";
       String DIRECT            = "direct";
+      String CREATED_VIA_LINK  = "created_via_link";
     }
 
     /**
@@ -424,6 +425,22 @@ public interface Files {
 
         String EMAILS = "emails";
       }
+
+      interface CreateCollaborationLink {
+
+        String NODE_ID = InputParameters.NODE_ID;
+        String PERMISSION = "permission";
+      }
+
+      interface GetCollaborationLink {
+
+        String NODE_ID = InputParameters.NODE_ID;
+      }
+
+      interface DeleteCollaborationLinks {
+
+        String COLLABORATION_LINK_IDS = "collaboration_link_ids";
+      }
     }
 
     /**
@@ -544,6 +561,18 @@ public interface Files {
       String DESCRIPTION = "description";
     }
 
+    /**
+     * Attributes name for the type Collaboration Link
+     */
+    interface CollaborationLink {
+
+      String ID         = "id";
+      String FULL_URL   = "url";
+      String NODE       = "node";
+      String CREATED_AT = "created_at";
+      String PERMISSION = "permission";
+    }
+
     interface Config {
 
       String NAME  = "name";
@@ -568,8 +597,8 @@ public interface Files {
       Pattern UPLOAD_FILE_TO      = Pattern.compile(SERVICE + "upload-to/?$");
       Pattern DOWNLOAD_FILE       = Pattern.compile(
         SERVICE + "download/([a-f0-9\\\\-]*)/?([0-9]+)?/?$");
-      Pattern PUBLIC_LINK        = Pattern.compile(SERVICE + "link/([a-zA-Z0-9]{8})/?$");
-      Pattern COLLABORATION_LINK = Pattern.compile(SERVICE + "invite/([a-zA-Z0-9]{8})/?$");
+      Pattern PUBLIC_LINK         = Pattern.compile(SERVICE + "link/([a-zA-Z0-9]{8})/?$");
+      Pattern COLLABORATION_LINK  = Pattern.compile(SERVICE + "invite/([a-zA-Z0-9]{8})/?$");
 
       Pattern PREVIEW            = Pattern.compile(SERVICE + "preview/(.*)");
       Pattern PREVIEW_IMAGE      = Pattern.compile(

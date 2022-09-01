@@ -48,6 +48,9 @@ public class Share {
   @Column(name = Files.Db.Share.DIRECT, nullable = false)
   private Boolean mDirect;
 
+  @Column(name = Files.Db.Share.CREATED_VIA_LINK, nullable = false)
+  private Boolean createdViaLink;
+
   /**
    * <p>Creates a new {@link Share} entity.</p>
    * <p>This constructor does not set the expiration timestamp of the share.</p>
@@ -64,9 +67,10 @@ public class Share {
     String targetUserId,
     ACL permissions,
     long createdAt,
-    Boolean direct
+    Boolean direct,
+    Boolean createdViaLink
   ) {
-    this(nodeId, targetUserId, permissions, createdAt, direct, null);
+    this(nodeId, targetUserId, permissions, createdAt, direct, createdViaLink, null);
   }
 
   /**
@@ -86,12 +90,14 @@ public class Share {
     ACL permissions,
     long createdAt,
     Boolean direct,
+    Boolean createdViaLink,
     Long expiredAt
   ) {
     mComposedPrimaryKey = new SharePK(nodeId, targetUserId);
     mPermissions = permissions.encode();
     mCreatedAt = createdAt;
     mDirect = direct;
+    this.createdViaLink = createdViaLink;
     mExpiredAt = expiredAt;
   }
 
@@ -131,5 +137,13 @@ public class Share {
 
   public void setDirect(Boolean mDirect) {
     this.mDirect = mDirect;
+  }
+
+  public Boolean getCreatedViaLink() {
+    return createdViaLink;
+  }
+
+  public void setCreatedViaLink(Boolean createdViaLink) {
+    this.createdViaLink = createdViaLink;
   }
 }

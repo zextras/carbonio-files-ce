@@ -7,14 +7,17 @@ package com.zextras.carbonio.files.graphql.datafetchers;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.API.Endpoints;
+import com.zextras.carbonio.files.Files.GraphQL;
 import com.zextras.carbonio.files.Files.GraphQL.Context;
+import com.zextras.carbonio.files.Files.GraphQL.InputParameters.CreateCollaborationLink;
+import com.zextras.carbonio.files.Files.GraphQL.InputParameters.DeleteCollaborationLinks;
+import com.zextras.carbonio.files.Files.GraphQL.InputParameters.GetCollaborationLink;
 import com.zextras.carbonio.files.Files.GraphQL.Node;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import graphql.execution.DataFetcherResult;
@@ -35,17 +38,14 @@ import org.apache.commons.lang3.RandomStringUtils;
 public class CollaborationLinkDataFetcher {
 
   private final CollaborationLinkRepository collaborationLinkRepository;
-  private final NodeRepository              nodeRepository;
   private final PermissionsChecker          permissionsChecker;
 
   @Inject
   public CollaborationLinkDataFetcher(
     CollaborationLinkRepository collaborationLinkRepository,
-    NodeRepository nodeRepository,
     PermissionsChecker permissionsChecker
   ) {
     this.collaborationLinkRepository = collaborationLinkRepository;
-    this.nodeRepository = nodeRepository;
     this.permissionsChecker = permissionsChecker;
   }
 
@@ -64,12 +64,15 @@ public class CollaborationLinkDataFetcher {
     Map<String, Object> linkMap = new HashMap<>();
     Map<String, String> localContext = new HashMap<>();
 
-    linkMap.put("id", collaborationLink.getId().toString());
-    linkMap.put("url", invitationURL);
-    linkMap.put("created_at", collaborationLink.getCreatedAt().toEpochMilli());
-    linkMap.put("permission", collaborationLink.getPermissions());
+    linkMap.put(GraphQL.CollaborationLink.ID, collaborationLink.getId().toString());
+    linkMap.put(GraphQL.CollaborationLink.FULL_URL, invitationURL);
+    linkMap.put(
+      GraphQL.CollaborationLink.CREATED_AT,
+      collaborationLink.getCreatedAt().toEpochMilli()
+    );
+    linkMap.put(GraphQL.CollaborationLink.PERMISSION, collaborationLink.getPermissions());
 
-    localContext.put("node", collaborationLink.getNodeId());
+    localContext.put(GraphQL.CollaborationLink.NODE, collaborationLink.getNodeId());
 
     return DataFetcherResult
       .<Map<String, Object>>newResult()
@@ -82,13 +85,13 @@ public class CollaborationLinkDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
       User requester = environment.getGraphQlContext().get(Files.GraphQL.Context.REQUESTER);
-      String nodeId = environment.getArgument("node_id");
-      SharePermission permissions = environment.getArgument("permission");
+      String nodeId = environment.getArgument(CreateCollaborationLink.NODE_ID);
+      SharePermission permissions = environment.getArgument(CreateCollaborationLink.PERMISSION);
 
       if (permissionsChecker.getPermissions(nodeId, requester.getUuid()).has(permissions)) {
 
-        // If there is an existing collaboration link having the same permission then it returns it,
-        // otherwise it creates a new collaboration link
+        // If there is an existing collaboration link having the same permission then the system
+        // returns it, otherwise it creates a new collaboration link
         CollaborationLink link = collaborationLinkRepository
           .getLinksByNodeId(nodeId)
           .filter(collaborationLink -> permissions.equals(collaborationLink.getPermissions()))
@@ -120,15 +123,18 @@ public class CollaborationLinkDataFetcher {
 
       String nodeId = (optLocalContext.isPresent())
         ? optLocalContext.get().get(Node.ID)
-        : environment.getArgument("node_id");
+        : environment.getArgument(GetCollaborationLink.NODE_ID);
 
       ACL permissions = permissionsChecker.getPermissions(nodeId, requester.getUuid());
 
       if (permissions.has(SharePermission.READ_AND_SHARE)
         || permissions.has(SharePermission.READ_WRITE_AND_SHARE)
       ) {
+        // Before returning the list, the system filters the collaborationLinks the user has no
+        // permission to see
         return collaborationLinkRepository
           .getLinksByNodeId(nodeId)
+          .filter(collaborationLink -> permissions.has(collaborationLink.getPermissions()))
           .map(collaborationLink ->
             convertCollaborationLinkToDataFetcherResult(collaborationLink, requester.getDomain())
           )
@@ -148,7 +154,8 @@ public class CollaborationLinkDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
       User requester = environment.getGraphQlContext().get(Context.REQUESTER);
-      List<String> collaborationIds = environment.getArgument("collaboration_link_ids");
+      List<String> collaborationIds =
+        environment.getArgument(DeleteCollaborationLinks.COLLABORATION_LINK_IDS);
 
       List<String> collaborationIdsForbidden = new ArrayList<>();
       collaborationIds.forEach(collaborationId -> {

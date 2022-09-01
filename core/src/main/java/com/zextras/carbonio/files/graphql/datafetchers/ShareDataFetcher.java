@@ -23,7 +23,6 @@ import graphql.execution.DataFetcherResult;
 import graphql.execution.DataFetcherResult.Builder;
 import graphql.schema.DataFetcher;
 import graphql.schema.idl.EnumValuesProvider;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -151,6 +150,7 @@ public class ShareDataFetcher {
             targetUserId,
             ACL.decode(permissions),
             true,
+            false,
             optExpiresAt
           )
           .map(share -> {
@@ -175,7 +175,7 @@ public class ShareDataFetcher {
     });
   }
 
-  void cascadeUpsertShare(
+  public void cascadeUpsertShare(
     String nodeId,
     String userId,
     ACL permission,
@@ -190,7 +190,7 @@ public class ShareDataFetcher {
         .filter(n -> n.getNodeType() == NodeType.FOLDER)
         .collect(Collectors.toList());
 
-      shareRepository.upsertShareBulk(childrenIds, userId, permission, false, expiredAt);
+      shareRepository.upsertShareBulk(childrenIds, userId, permission, false, false, expiredAt);
 
       folderNodes.forEach(folderNode ->
         cascadeUpsertShare(folderNode.getId(), userId, permission, expiredAt)

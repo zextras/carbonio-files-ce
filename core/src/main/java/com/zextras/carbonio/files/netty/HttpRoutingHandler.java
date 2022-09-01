@@ -29,12 +29,12 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
 
   private static final Logger logger = LoggerFactory.getLogger(HttpRoutingHandler.class);
 
-  private final HealthController         healthController;
-  private final GraphQLController        graphQLController;
-  private final BlobController           blobController;
-  private final AuthenticationHandler    authenticationHandler;
-  private final ExceptionsHandler        exceptionsHandler;
-  private final PreviewController        previewController;
+  private final HealthController            healthController;
+  private final GraphQLController           graphQLController;
+  private final BlobController              blobController;
+  private final AuthenticationHandler       authenticationHandler;
+  private final ExceptionsHandler           exceptionsHandler;
+  private final PreviewController           previewController;
   private final ProcedureController         procedureController;
   private final CollaborationLinkController collaborationLinkController;
 

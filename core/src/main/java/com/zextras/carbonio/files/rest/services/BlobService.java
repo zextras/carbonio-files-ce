@@ -215,6 +215,7 @@ public class BlobService {
             share.getTargetUserId(),
             share.getPermissions(),
             false,
+            false,
             share.getExpiredAt()
           )
         );
@@ -240,7 +241,6 @@ public class BlobService {
       .getPermissions(nodeId, requester.getUuid())
       .has(SharePermission.READ_AND_WRITE)
     ) {
-
 
       MediaType mediaType = mimeTypeUtils.detectMimeTypeFromFilename(
         filename,

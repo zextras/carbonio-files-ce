@@ -177,6 +177,18 @@ public class GraphQLProvider {
       .addRule(
         ResultPath.parse("/" + Files.GraphQL.Queries.GET_ACCOUNTS_BY_EMAIL),
         inputFieldsController.getAccountsByEmailValidation()
+      )
+      .addRule(
+        ResultPath.parse("/" + Files.GraphQL.Mutations.CREATE_COLLABORATION_LINK),
+        inputFieldsController.createCollaborationLinkValidation()
+      )
+      .addRule(
+        ResultPath.parse("/" + Files.GraphQL.Queries.GET_COLLABORATION_LINKS),
+        inputFieldsController.getCollaborationLinksValidation()
+      )
+      .addRule(
+        ResultPath.parse("/" + Files.GraphQL.Mutations.DELETE_COLLABORATION_LINKS),
+        inputFieldsController.deleteCollaborationLinksValidation()
       );
 
     return new FieldValidationInstrumentation(fieldValidation);
