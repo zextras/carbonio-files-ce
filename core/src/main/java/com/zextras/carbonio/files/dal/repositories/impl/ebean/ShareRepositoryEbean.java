@@ -60,6 +60,7 @@ public class ShareRepositoryEbean implements ShareRepository {
     String targetUserId,
     ACL permissions,
     Boolean direct,
+    Boolean createdViaCollaborationLink,
     Optional<Long> expireTimestamp
   ) {
     Optional<Share> targetShare = getShare(nodeId, targetUserId);
@@ -83,7 +84,8 @@ public class ShareRepositoryEbean implements ShareRepository {
         targetUserId,
         permissions,
         System.currentTimeMillis(),
-        direct
+        direct,
+        createdViaCollaborationLink
       );
       expireTimestamp.ifPresent(share::setExpiredAt);
       mDB.getEbeanDatabase().save(share);
@@ -96,6 +98,7 @@ public class ShareRepositoryEbean implements ShareRepository {
     String targetUserId,
     ACL permissions,
     Boolean direct,
+    Boolean createdViaCollaborationLink,
     Optional<Long> expireTimestamp
   ) {
     try (Transaction transaction = mDB.getEbeanDatabase().beginTransaction()) {
@@ -105,9 +108,16 @@ public class ShareRepositoryEbean implements ShareRepository {
       transaction.setBatchSize(50);
 
       // these go to batch buffer
-      nodeIds.forEach(nodeId -> {
-        upsertShare(nodeId, targetUserId, permissions, direct, expireTimestamp);
-      });
+      nodeIds.forEach(nodeId ->
+        upsertShare(
+          nodeId,
+          targetUserId,
+          permissions,
+          direct,
+          createdViaCollaborationLink,
+          expireTimestamp
+        )
+      );
       // flush batch and commit
       transaction.commit();
     }

@@ -870,6 +870,7 @@ public class NodeDataFetcher {
                     share.getTargetUserId(),
                     share.getPermissions(),
                     false,
+                    false,
                     share.getExpiredAt()
                   );
 
@@ -1272,6 +1273,7 @@ public class NodeDataFetcher {
                         share.getTargetUserId(),
                         share.getPermissions(),
                         false,
+                        false,
                         share.getExpiredAt()
                       );
                       shareDataFetcher.cascadeUpsertShare(
@@ -1597,6 +1599,7 @@ public class NodeDataFetcher {
           nodeToShare.getId(),
           share.getTargetUserId(),
           share.getPermissions(),
+          false,
           false,
           share.getExpiredAt()
         );
