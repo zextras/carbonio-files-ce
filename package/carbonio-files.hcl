@@ -6,7 +6,6 @@ services {
     interval = "5s"
   }
   meta = {
-    internal_address = "127.78.0.2"
     prom_port = "21500"
   }
   connect {
