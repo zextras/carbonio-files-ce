@@ -8,6 +8,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.5.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.4.1...v0.5.0) (2022-09-01)
+
+
+### Features
+
+* FILES-299 - Implement Collaboration link ([#39](https://github.com/Zextras/carbonio-files-ce/issues/39)) ([347a57d](https://github.com/Zextras/carbonio-files-ce/commit/347a57dd5860b02ea24dda266531fe1ff842ebbc)), closes [#35](https://github.com/Zextras/carbonio-files-ce/issues/35) [#37](https://github.com/Zextras/carbonio-files-ce/issues/37) [#38](https://github.com/Zextras/carbonio-files-ce/issues/38)
+
 ### [0.4.1](https://github.com/Zextras/carbonio-files-ce/compare/v0.4.0...v0.4.1) (2022-08-05)
 
 
@@ -125,3 +132,7 @@ All notable changes to this project will be documented in this file. See [standa
 * FILES-155 - Update config and fix user-management-sdk version ([8ca4beb](https://github.com/Zextras/carbonio-files-ce/commit/8ca4bebef4136e28007fcd766ef44b8af1b472ad))
 * FILES-155 - Update config, fix user-management-sdk version ([22a4b4b](https://github.com/Zextras/carbonio-files-ce/commit/22a4b4b7789e24229a32a33c1ded3fe842a92f48))
 * Refactor how the config is loaded ([f4287ae](https://github.com/Zextras/carbonio-files-ce/commit/f4287ae911e21bae8014756ac18b4632ab77c7ef))
+
+# Changelog
+
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
