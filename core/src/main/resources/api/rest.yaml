@@ -314,8 +314,41 @@ paths:
           $ref: '#/components/responses/422ValidationError'
         502:
           $ref: '#/components/responses/502BadGateway'
+  /collaboration/{collaborationLinkId}:
+    get:
+      description: Allows to auto-share a specific node with a specific permission to the logged
+                   user that click on this link.
+      operationId: collaborationLink
+      parameters:
+        - $ref: '#/components/parameters/headerCookies'
+        - $ref: '#/components/parameters/pathCollaborationLinkId'
+      responses:
+        307:
+          $ref: '#/components/responses/307TemporaryRedirect'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        403:
+          $ref: '#/components/responses/403Forbidden'
+        404:
+          $ref: '#/components/responses/404NotFound'
 components:
   parameters:
+    headerCookies:
+      in: header
+      name: Cookies
+      required: true
+      schema:
+        type: string
+    pathCollaborationLinkId:
+      in: path
+      name: collaborationLinkId
+      description: The id of the collaboration link
+      required: true
+      allowEmptyValue: false
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 8
     pathNodeId:
       in: path
       name: nodeId
@@ -416,6 +449,8 @@ components:
         application/octet-stream:
           schema:
             $ref: '#/components/schemas/NodeBinary'
+    307TemporaryRedirect:
+      description: The request is redirect to another url
     400BadRequest:
       description: The request was malformed
     403Forbidden:

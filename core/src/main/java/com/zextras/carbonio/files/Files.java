@@ -62,6 +62,8 @@ public interface Files {
 
   interface Db {
 
+    short DB_VERSION = 2;
+
     /**
      * Names of Files tables
      */
@@ -74,6 +76,7 @@ public interface Files {
       String FILE_VERSION           = "REVISION";
       String SHARE                  = "SHARE";
       String LINK                   = "LINK";
+      String COLLABORATION_LINK     = "COLLABORATION_LINK";
       String TOMBSTONE              = "TOMBSTONE";
     }
 
@@ -158,6 +161,7 @@ public interface Files {
       String EXPIRED_AT        = "expire_date";
       String PERMISSIONS       = "rights";
       String DIRECT            = "direct";
+      String CREATED_VIA_LINK  = "created_via_link";
     }
 
     /**
@@ -183,6 +187,18 @@ public interface Files {
       String TIMESTAMP = "timestamp";
       String VERSION   = "version";
       String VOLUME_ID = "volume_id";
+    }
+
+    /**
+     * Attributes' names for the FILES.COLLABORATION_LINK table
+     */
+    interface CollaborationLink {
+
+      String ID            = "id";
+      String NODE_ID       = "node_id";
+      String INVITATION_ID = "invitation_id";
+      String CREATED_AT    = "created_at";
+      String PERMISSIONS   = "permissions";
     }
   }
 
@@ -217,20 +233,21 @@ public interface Files {
      */
     interface Types {
 
-      String NODE_INTERFACE    = "Node";
-      String FILE              = "File";
-      String FOLDER            = "Folder";
-      String NODE_SORT         = "NodeSort";
-      String NODE_PAGE         = "NodePage";
-      String PERMISSIONS       = "Permissions";
-      String USER              = "User";
-      String DISTRIBUTION_LIST = "DistributionList";
-      String SHARED_TARGET     = "SharedTarget";
-      String ACCOUNT           = "Account";
-      String SHARE_PERMISSION  = "SharePermission";
-      String SHARE             = "Share";
-      String LINK              = "Link";
-      String NODE_TYPE         = "NodeType";
+      String NODE_INTERFACE     = "Node";
+      String FILE               = "File";
+      String FOLDER             = "Folder";
+      String NODE_SORT          = "NodeSort";
+      String NODE_PAGE          = "NodePage";
+      String PERMISSIONS        = "Permissions";
+      String USER               = "User";
+      String DISTRIBUTION_LIST  = "DistributionList";
+      String SHARED_TARGET      = "SharedTarget";
+      String ACCOUNT            = "Account";
+      String SHARE_PERMISSION   = "SharePermission";
+      String SHARE              = "Share";
+      String LINK               = "Link";
+      String COLLABORATION_LINK = "CollaborationLink";
+      String NODE_TYPE          = "NodeType";
     }
 
     /**
@@ -247,17 +264,18 @@ public interface Files {
      */
     interface Queries {
 
-      String GET_NODE              = "getNode";
-      String GET_USER              = "getUser";
-      String GET_SHARE             = "getShare";
-      String GET_ROOTS_LIST        = "getRootsList";
-      String GET_PATH              = "getPath";
-      String FIND_NODES            = "findNodes";
-      String GET_VERSIONS          = "getVersions";
-      String GET_LINKS             = "getLinks";
-      String GET_ACCOUNT_BY_EMAIL  = "getAccountByEmail";
-      String GET_ACCOUNTS_BY_EMAIL = "getAccountsByEmail";
-      String GET_CONFIGS           = "getConfigs";
+      String GET_NODE                = "getNode";
+      String GET_USER                = "getUser";
+      String GET_SHARE               = "getShare";
+      String GET_ROOTS_LIST          = "getRootsList";
+      String GET_PATH                = "getPath";
+      String FIND_NODES              = "findNodes";
+      String GET_VERSIONS            = "getVersions";
+      String GET_LINKS               = "getLinks";
+      String GET_COLLABORATION_LINKS = "getCollaborationLinks";
+      String GET_ACCOUNT_BY_EMAIL    = "getAccountByEmail";
+      String GET_ACCOUNTS_BY_EMAIL   = "getAccountsByEmail";
+      String GET_CONFIGS             = "getConfigs";
     }
 
     /**
@@ -265,23 +283,25 @@ public interface Files {
      */
     interface Mutations {
 
-      String CREATE_FOLDER   = "createFolder";
-      String UPDATE_NODE     = "updateNode";
-      String FLAG_NODES      = "flagNodes";
-      String TRASH_NODES     = "trashNodes";
-      String RESTORE_NODES   = "restoreNodes";
-      String MOVE_NODES      = "moveNodes";
-      String DELETE_NODES    = "deleteNodes";
-      String DELETE_VERSIONS = "deleteVersions";
-      String KEEP_VERSIONS   = "keepVersions";
-      String CLONE_VERSION   = "cloneVersion";
-      String CREATE_SHARE    = "createShare";
-      String UPDATE_SHARE    = "updateShare";
-      String DELETE_SHARE    = "deleteShare";
-      String CREATE_LINK     = "createLink";
-      String UPDATE_LINK     = "updateLink";
-      String DELETE_LINKS    = "deleteLinks";
-      String COPY_NODES      = "copyNodes";
+      String CREATE_FOLDER              = "createFolder";
+      String UPDATE_NODE                = "updateNode";
+      String FLAG_NODES                 = "flagNodes";
+      String TRASH_NODES                = "trashNodes";
+      String RESTORE_NODES              = "restoreNodes";
+      String MOVE_NODES                 = "moveNodes";
+      String DELETE_NODES               = "deleteNodes";
+      String DELETE_VERSIONS            = "deleteVersions";
+      String KEEP_VERSIONS              = "keepVersions";
+      String CLONE_VERSION              = "cloneVersion";
+      String CREATE_SHARE               = "createShare";
+      String UPDATE_SHARE               = "updateShare";
+      String DELETE_SHARE               = "deleteShare";
+      String CREATE_LINK                = "createLink";
+      String UPDATE_LINK                = "updateLink";
+      String DELETE_LINKS               = "deleteLinks";
+      String CREATE_COLLABORATION_LINK  = "createCollaborationLink";
+      String DELETE_COLLABORATION_LINKS = "deleteCollaborationLinks";
+      String COPY_NODES                 = "copyNodes";
     }
 
     /**
@@ -405,6 +425,22 @@ public interface Files {
 
         String EMAILS = "emails";
       }
+
+      interface CreateCollaborationLink {
+
+        String NODE_ID = InputParameters.NODE_ID;
+        String PERMISSION = "permission";
+      }
+
+      interface GetCollaborationLink {
+
+        String NODE_ID = InputParameters.NODE_ID;
+      }
+
+      interface DeleteCollaborationLinks {
+
+        String COLLABORATION_LINK_IDS = "collaboration_link_ids";
+      }
     }
 
     /**
@@ -432,22 +468,23 @@ public interface Files {
      */
     interface Node {
 
-      String ID          = "id";
-      String CREATED_AT  = "created_at";
-      String CREATOR     = "creator";
-      String OWNER       = "owner";
-      String LAST_EDITOR = "last_editor";
-      String UPDATED_AT  = "updated_at";
-      String PERMISSIONS = "permissions";
-      String NAME        = "name";
-      String EXTENSION   = "extension";
-      String DESCRIPTION = "description";
-      String TYPE        = "type";
-      String FLAGGED     = "flagged";
-      String PARENT      = "parent";
-      String ROOT_ID     = "rootId";
-      String SHARES      = "shares";
-      String LINKS       = "links";
+      String ID                  = "id";
+      String CREATED_AT          = "created_at";
+      String CREATOR             = "creator";
+      String OWNER               = "owner";
+      String LAST_EDITOR         = "last_editor";
+      String UPDATED_AT          = "updated_at";
+      String PERMISSIONS         = "permissions";
+      String NAME                = "name";
+      String EXTENSION           = "extension";
+      String DESCRIPTION         = "description";
+      String TYPE                = "type";
+      String FLAGGED             = "flagged";
+      String PARENT              = "parent";
+      String ROOT_ID             = "rootId";
+      String SHARES              = "shares";
+      String LINKS               = "links";
+      String COLLABORATION_LINKS = "collaboration_links";
     }
 
     /**
@@ -524,6 +561,18 @@ public interface Files {
       String DESCRIPTION = "description";
     }
 
+    /**
+     * Attributes name for the type Collaboration Link
+     */
+    interface CollaborationLink {
+
+      String ID         = "id";
+      String FULL_URL   = "url";
+      String NODE       = "node";
+      String CREATED_AT = "created_at";
+      String PERMISSION = "permission";
+    }
+
     interface Config {
 
       String NAME  = "name";
@@ -535,7 +584,10 @@ public interface Files {
 
     interface Endpoints {
 
-      String  SERVICE             = "/";
+      String SERVICE                = "/";
+      String PUBLIC_LINK_URL        = "/services/files/link/";
+      String COLLABORATION_LINK_URL = "/services/files/invite/";
+
       Pattern HEALTH              = Pattern.compile(SERVICE + "health/?(live|ready)?/?$");
       Pattern HEALTH_LIVE         = Pattern.compile(SERVICE + "health/live/?$");
       Pattern HEALTH_READY        = Pattern.compile(SERVICE + "health/ready/?$");
@@ -546,8 +598,7 @@ public interface Files {
       Pattern DOWNLOAD_FILE       = Pattern.compile(
         SERVICE + "download/([a-f0-9\\\\-]*)/?([0-9]+)?/?$");
       Pattern PUBLIC_LINK         = Pattern.compile(SERVICE + "link/([a-zA-Z0-9]{8})/?$");
-
-      String PUBLIC_LINK_URL = "/services/files/link/";
+      Pattern COLLABORATION_LINK  = Pattern.compile(SERVICE + "invite/([a-zA-Z0-9]{8})/?$");
 
       Pattern PREVIEW            = Pattern.compile(SERVICE + "preview/(.*)");
       Pattern PREVIEW_IMAGE      = Pattern.compile(

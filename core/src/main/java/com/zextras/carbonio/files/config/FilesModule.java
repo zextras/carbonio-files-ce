@@ -8,12 +8,14 @@ import com.google.inject.AbstractModule;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.zextras.carbonio.files.cache.CacheHandlerFactory;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.FileVersionRepositoryEbean;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.CollaborationLinkRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.LinkRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.NodeRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.ShareRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.TombstoneRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.UserRepositoryRest;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
@@ -30,6 +32,7 @@ public class FilesModule extends AbstractModule {
     bind(TombstoneRepository.class).to(TombstoneRepositoryEbean.class);
     bind(FileVersionRepository.class).to(FileVersionRepositoryEbean.class);
     bind(LinkRepository.class).to(LinkRepositoryEbean.class);
+    bind(CollaborationLinkRepository.class).to(CollaborationLinkRepositoryEbean.class);
     bind(UserRepository.class).to(UserRepositoryRest.class);
 
     install(new FactoryModuleBuilder().build(CacheHandlerFactory.class));
