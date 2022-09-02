@@ -3,7 +3,7 @@ targets=(
   "centos"
 )
 pkgname="carbonio-files-ce"
-pkgver="0.4.1"
+pkgver="0.5.0"
 pkgrel="1"
 pkgdesc="Carbonio Files"
 pkgdesclong=(
