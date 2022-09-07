@@ -620,6 +620,8 @@ public interface Files {
       Pattern THUMBNAIL_DOCUMENT = Pattern.compile(
         SERVICE + "preview/document/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/thumbnail/?\\??(.*)"
       );
+
+      Pattern GRAPHQL_WEBSOCKET = Pattern.compile(SERVICE + "graphql-ws/");
     }
 
     interface Headers {

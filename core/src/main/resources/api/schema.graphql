@@ -99,6 +99,13 @@ enum NodeType {
     ROOT
     OTHER
 }
+
+enum NodeEventType {
+    ADDED
+    UPDATED
+    DELETED
+}
+
 # Definition of Permissions type. It represents all the permissions that the requester user has on a specific node.
 #
 #+---------------------------------+-------------------------------------------------------+
@@ -693,8 +700,18 @@ type Mutation {
         collaboration_link_ids: [ID!]!
     ): [ID]!
 }
+type NodeEvent {
+    action: NodeEventType!
+    node: Node!
+}
+
+type Subscription {
+    folderContentSubscribe(node_id: ID!): Node!
+    folderContentUpdated(folder_id: ID!): NodeEvent!
+}
 
 schema {
     query: Query
     mutation: Mutation
+    subscription: Subscription
 }

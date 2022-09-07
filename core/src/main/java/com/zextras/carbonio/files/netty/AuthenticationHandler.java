@@ -59,6 +59,8 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
     }
 
     String cookieString = headersRequest.get(HttpHeaderNames.COOKIE);
+
+    //String cookieString = "ZM_AUTH_TOKEN=0_a9a59037a8bd650aaa1bf147a3ece5eecf6ee502_69643d33363a37646137666436652d393165302d343134372d616633342d6266393333316336363135393b6578703d31333a313636323633303538353736313b747970653d363a7a696d6272613b753d313a613b7469643d31303a313931303539393031333b637372663d313a313b";
     Set<Cookie> cookies = ServerCookieDecoder.STRICT.decode(cookieString);
     Optional<Try<UserId>> optTryUserId = cookies
       .stream()

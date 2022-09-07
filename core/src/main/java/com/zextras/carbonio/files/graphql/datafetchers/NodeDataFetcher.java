@@ -32,8 +32,11 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionReposit
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.files.graphql.FolderPublisher;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
+import com.zextras.carbonio.files.graphql.NodePublisher;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
+import com.zextras.carbonio.files.graphql.types.NodeEvent.NodeEventType;
 import com.zextras.carbonio.files.graphql.types.Permissions;
 import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
@@ -107,6 +110,7 @@ public class NodeDataFetcher {
   private final BlobService           blobService;
   private final int                   maxNumberOfVersions;
   private final int                   maxNumberOfKeepVersions;
+  private final FolderPublisher folderPublisher;
 
   @Inject
   NodeDataFetcher(
@@ -116,7 +120,8 @@ public class NodeDataFetcher {
     ShareRepository shareRepository,
     TombstoneRepository tombstoneRepository,
     ShareDataFetcher shareDataFetcher,
-    BlobService blobService
+    BlobService blobService,
+    FolderPublisher folderPublisher
   ) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -125,6 +130,7 @@ public class NodeDataFetcher {
     this.tombstoneRepository = tombstoneRepository;
     this.shareDataFetcher = shareDataFetcher;
     this.blobService = blobService;
+    this.folderPublisher = folderPublisher;
 
     this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
       .defaultURL(ServiceDiscover.SERVICE_NAME)
@@ -137,7 +143,7 @@ public class NodeDataFetcher {
         : this.maxNumberOfVersions - Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
   }
 
-  private DataFetcherResult<Map<String, Object>> convertNodeToDataFetcherResult(
+  public static DataFetcherResult<Map<String, Object>> convertNodeToDataFetcherResult(
     Node node,
     String requesterId,
     ResultPath path
@@ -145,7 +151,7 @@ public class NodeDataFetcher {
     return convertNodeToDataFetcherResult(node, node.getCurrentVersion(), requesterId, path);
   }
 
-  private DataFetcherResult<Map<String, Object>> convertNodeToDataFetcherResult(
+  private static DataFetcherResult<Map<String, Object>> convertNodeToDataFetcherResult(
     Node node,
     Integer version,
     String requesterId,
@@ -187,6 +193,12 @@ public class NodeDataFetcher {
       .getParentId()
       .ifPresent(parentId -> nodeContext.put(Files.GraphQL.Node.PARENT, parentId));
 
+    node
+      .getParentId()
+      .ifPresent(parentId -> result.put("parent_id", parentId));
+
+    result.put("owner_id", node.getOwnerId());
+
     if (!node.getNodeType().equals(NodeType.FOLDER) && !node.getNodeType().equals(NodeType.ROOT)) {
       node
         .getExtension()
@@ -225,7 +237,7 @@ public class NodeDataFetcher {
       .orElse(resultBuilder.build());
   }
 
-  private Map<String, Object> convertFileVersionToGraphQLMap(FileVersion fileVersion) {
+  private static Map<String, Object> convertFileVersionToGraphQLMap(FileVersion fileVersion) {
 
     Map<String, Object> fileVersionMap = new HashMap<>();
     fileVersionMap.put(Files.GraphQL.FileVersion.UPDATED_AT, fileVersion.getUpdatedAt());
@@ -583,11 +595,15 @@ public class NodeDataFetcher {
               // Create share also for the requester if it is not the owner of the parent folder
               createIndirectShare(parentId, createdFolder);
 
-              return convertNodeToDataFetcherResult(
+              DataFetcherResult<Map<String, Object>> mapDataFetcherResult = convertNodeToDataFetcherResult(
                 createdFolder,
                 requesterId,
                 resultPath
               );
+
+              folderPublisher.addMap(mapDataFetcherResult, NodeEventType.ADDED);
+
+              return mapDataFetcherResult;
             })
             .orElse(new DataFetcherResult
               .Builder<Map<String, Object>>()
@@ -716,11 +732,16 @@ public class NodeDataFetcher {
         optDescription.ifPresent(nodeToUpdate::setDescription);
         optFlagged.ifPresent(flag -> nodeRepository.flagForUser(nodeId, requesterId, flag));
         nodeToUpdate.setLastEditorId(requesterId);
-        return convertNodeToDataFetcherResult(
+
+        DataFetcherResult<Map<String, Object>> mapDataFetcherResult = convertNodeToDataFetcherResult(
           nodeRepository.updateNode(nodeToUpdate),
           requesterId,
           environment.getExecutionStepInfo().getPath()
         );
+
+        nodePublisher.addMap(mapDataFetcherResult.getData());
+        folderPublisher.addMap(mapDataFetcherResult.getData(), NodeEventType.UPDATED);
+        return mapDataFetcherResult;
       }
 
       return new DataFetcherResult.Builder<Map<String, Object>>()
@@ -780,12 +801,13 @@ public class NodeDataFetcher {
       if (!trashableNodes.isEmpty()) {
         nodeRepository.getNodes(trashableNodes, Optional.empty())
           .forEach(trashedNode -> {
-            String nodeParentId = trashedNode.getParentId()
-              .get();
+            folderPublisher.addMap(convertNodeToDataFetcherResult(trashedNode,requesterId, environment.getExecutionStepInfo().getPath()), NodeEventType.DELETED);
+            String nodeParentId = trashedNode.getParentId().get();
             trashedNode.setAncestorIds(Files.Db.RootId.TRASH_ROOT);
             trashedNode.setParentId(RootId.TRASH_ROOT);
             nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
-            nodeRepository.updateNode(trashedNode);
+            Node node = nodeRepository.updateNode(trashedNode);
+            folderPublisher.addMap(convertNodeToDataFetcherResult(node,requesterId, environment.getExecutionStepInfo().getPath()), NodeEventType.ADDED);
             cascadeUpdateAncestors(trashedNode);
           });
       }
@@ -2063,5 +2085,23 @@ public class NodeDataFetcher {
         .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
         .build();
     });
+  }
+
+  private final static NodePublisher   nodePublisher   = new NodePublisher();
+
+  public DataFetcher getFolderContentSubscription() {
+    return environment -> {
+      return nodePublisher.getPub(environment.getArgument("node_id"));
+    };
+  }
+
+  public DataFetcher getFolderContentUpdatedDataFetcher() {
+    return environment -> {
+
+      String requesterId = ((User) environment.getGraphQlContext()
+        .get(Files.GraphQL.Context.REQUESTER)).getUuid();
+
+      return folderPublisher.getPub(environment.getArgument("folder_id"), requesterId);
+    };
   }
 }

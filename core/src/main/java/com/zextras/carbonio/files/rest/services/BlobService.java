@@ -8,6 +8,7 @@ import com.google.common.net.MediaType;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Db.RootId;
+import com.zextras.carbonio.files.Files.GraphQL.Folder;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
@@ -22,6 +23,9 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepositor
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
 import com.zextras.carbonio.files.exceptions.NodePermissionException;
+import com.zextras.carbonio.files.graphql.FolderPublisher;
+import com.zextras.carbonio.files.graphql.datafetchers.NodeDataFetcher;
+import com.zextras.carbonio.files.graphql.types.NodeEvent.NodeEventType;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.utilities.MimeTypeUtils;
@@ -30,11 +34,13 @@ import com.zextras.carbonio.usermanagement.exceptions.BadRequest;
 import com.zextras.filestore.api.UploadResponse;
 import com.zextras.filestore.model.FilesIdentifier;
 import com.zextras.storages.api.StoragesClient;
+import graphql.execution.DataFetcherResult;
 import io.ebean.annotation.Transactional;
 import io.vavr.control.Try;
 import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
@@ -51,8 +57,9 @@ public class BlobService {
   private final        PermissionsChecker    permissionsChecker;
   private final        MimeTypeUtils         mimeTypeUtils;
   private final        String                storageUrl;
-  private final        TombstoneRepository   tombstoneRepository;
-  private static final Logger                logger = LoggerFactory.getLogger(BlobService.class);
+  private final        TombstoneRepository tombstoneRepository;
+  private final        FolderPublisher     folderPublisher;
+  private static final Logger              logger = LoggerFactory.getLogger(BlobService.class);
 
   @Inject
   public BlobService(
@@ -63,7 +70,8 @@ public class BlobService {
     PermissionsChecker permissionsChecker,
     FilesConfig filesConfig,
     TombstoneRepository tombstoneRepository,
-    MimeTypeUtils mimeTypeUtils
+    MimeTypeUtils mimeTypeUtils,
+    FolderPublisher folderPublisher
   ) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -72,6 +80,7 @@ public class BlobService {
     this.permissionsChecker = permissionsChecker;
     this.mimeTypeUtils = mimeTypeUtils;
     this.tombstoneRepository = tombstoneRepository;
+    this.folderPublisher = folderPublisher;
     Properties p = filesConfig.getProperties();
     storageUrl = "http://"
       + p.getProperty(Files.Config.Storages.URL, "127.78.0.2")
@@ -182,7 +191,7 @@ public class BlobService {
       }
 
       Node folder = nodeRepository.getNode(folderId).get();
-      nodeRepository.createNewNode(
+      Node newNode = nodeRepository.createNewNode(
         nodeId,
         requester.getUuid(),
         nodeOwner,
@@ -219,6 +228,9 @@ public class BlobService {
             share.getExpiredAt()
           )
         );
+      DataFetcherResult<Map<String, Object>> mapDataFetcherResult = NodeDataFetcher.convertNodeToDataFetcherResult(
+        newNode, requester.getUuid(), null);
+      folderPublisher.addMap(mapDataFetcherResult, NodeEventType.ADDED);
 
       return Try.success(nodeId);
     }

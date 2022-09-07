@@ -19,6 +19,7 @@ import com.zextras.carbonio.files.graphql.validators.InputFieldsController;
 import graphql.GraphQL;
 import graphql.execution.AsyncExecutionStrategy;
 import graphql.execution.ResultPath;
+import graphql.execution.SubscriptionExecutionStrategy;
 import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentation;
 import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentationOptions;
 import graphql.execution.instrumentation.fieldvalidation.FieldValidation;
@@ -91,6 +92,7 @@ public class GraphQLProvider {
   private GraphQL setup() {
     return GraphQL.newGraphQL(buildSchema(buildWiring()))
       .queryExecutionStrategy(new AsyncExecutionStrategy())
+      .subscriptionExecutionStrategy(new SubscriptionExecutionStrategy())
       .instrumentation(buildValidationInstrumentation())
       .instrumentation(buildDataLoaderDispatcherInstrumentation())
       .build();
@@ -338,6 +340,10 @@ public class GraphQLProvider {
       )
       .type(newTypeWiring(Files.GraphQL.Types.COLLABORATION_LINK)
         .dataFetcher(Files.GraphQL.Link.NODE, nodeDataFetcher.sharedNodeFetcher())
+      )
+      .type(newTypeWiring("Subscription")
+        .dataFetcher("folderContentSubscribe", nodeDataFetcher.getFolderContentSubscription())
+        .dataFetcher("folderContentUpdated", nodeDataFetcher.getFolderContentUpdatedDataFetcher())
       )
       .build();
   }

@@ -14,13 +14,19 @@ import com.zextras.carbonio.files.rest.controllers.PreviewController;
 import com.zextras.carbonio.files.rest.controllers.ProcedureController;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.EventLoop;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
+import io.netty.handler.timeout.ReadTimeoutHandler;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +43,7 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
   private final PreviewController           previewController;
   private final ProcedureController         procedureController;
   private final CollaborationLinkController collaborationLinkController;
+  private final GraphQLWebSocket graphQLWebSocket;
 
   @Inject
   public HttpRoutingHandler(
@@ -47,7 +54,8 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     ExceptionsHandler exceptionsHandler,
     PreviewController previewController,
     ProcedureController procedureController,
-    CollaborationLinkController collaborationLinkController
+    CollaborationLinkController collaborationLinkController,
+    GraphQLWebSocket graphQLWebSocket
   ) {
     logger.info("Service ready to receive http requests!");
     this.healthController = healthController;
@@ -58,6 +66,7 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     this.previewController = previewController;
     this.procedureController = procedureController;
     this.collaborationLinkController = collaborationLinkController;
+    this.graphQLWebSocket = graphQLWebSocket;
   }
 
   @Override
@@ -124,6 +133,23 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
         .addLast("auth-handler", authenticationHandler)
         .addLast("procedure-handler", procedureController)
         .addLast("exceptions-handler", exceptionsHandler);
+      context.fireChannelRead(request);
+      return;
+    }
+
+    if(Endpoints.GRAPHQL_WEBSOCKET.matcher(request.uri()).matches()) {
+      context.executor().scheduleAtFixedRate(() ->
+        context.writeAndFlush(new PingWebSocketFrame()),
+        30,
+        30,
+        TimeUnit.SECONDS
+      );
+      context.pipeline()
+        .addLast("timeout-handler", new ReadTimeoutHandler(40))
+        .addLast("auth-handler", authenticationHandler)
+        .addLast(new HttpObjectAggregator(256 * 1024))
+        .addLast("http-socket-handler", new WebSocketServerProtocolHandler("/graphql-ws/", "graphql-transport-ws"))
+        .addLast("graphql-websocket", graphQLWebSocket);
       context.fireChannelRead(request);
       return;
     }
