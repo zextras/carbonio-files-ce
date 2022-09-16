@@ -71,7 +71,9 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
   ) {
 
     if (Endpoints.METRICS.matcher(request.uri()).matches()) {
-      context.pipeline().addLast("metrics-handler", metricsController);
+      context.pipeline()
+        .addLast("metrics-handler", metricsController)
+        .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }

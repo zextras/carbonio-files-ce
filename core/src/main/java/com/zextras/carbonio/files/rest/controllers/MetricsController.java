@@ -65,51 +65,10 @@ public class MetricsController extends SimpleChannelInboundHandler<HttpRequest> 
   }
 
   /**
-   * Handles the /health endpoint. It responds with an {@link HttpResponseStatus#OK} (200) if the
-   * following  mandatory dependencies are live:
-   * <ul>
-   *   <li>Database</li>
-   *   <li>UserManagement</li>
-   *   <li>Storages</li>
-   * </ul>
-   * If one of the dependency are not reachable it responds with an InternalServerError (500).
-   * <p>
-   * Unlike the /health/ready endpoint, this one returns also a json containing the status of the
-   * service and its dependencies. This is the JSON in response if everything is ok:
-   * <code>
-   *   {
-   *    "dependencies" : [
-   *       {
-   *          "live" : true,
-   *          "name" : "Files Database",
-   *          "ready" : true,
-   *          "type" : "REQUIRED"
-   *       },
-   *       {
-   *          "live" : true,
-   *          "name" : "carbonio-user-management",
-   *          "ready" : true,
-   *          "type" : "REQUIRED"
-   *       },
-   *       {
-   *          "live" : true,
-   *          "name" : "carbonio-storages",
-   *          "ready" : true,
-   *          "type" : "REQUIRED"
-   *       },
-   *       {
-   *          "live" : true,
-   *          "name" : "carbonio-preview",
-   *          "ready" : true,
-   *          "type" : "OPTIONAL"
-   *       }
-   *    ],
-   *    "ready" : true
-   * }
-   * </code>
-   *
+   * Handles the /metrics endpoint. It responds the actual Prometheus metrics inside the
+   * registry.
    * @param context is a {@link ChannelHandlerContext} used to write the response.
-   * @param httpRequest is a {@link HttpRequest} representing the health/ready request
+   * @param httpRequest is a {@link HttpRequest} representing the metrics request
    */
   private void metrics(
     ChannelHandlerContext context,
