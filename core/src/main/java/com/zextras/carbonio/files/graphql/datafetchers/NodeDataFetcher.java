@@ -32,10 +32,9 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionReposit
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
-import com.zextras.carbonio.files.graphql.FolderPublisher;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
-import com.zextras.carbonio.files.graphql.NodePublisher;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
+import com.zextras.carbonio.files.graphql.subscriptions.FolderContentUpdatedPublisher;
 import com.zextras.carbonio.files.graphql.types.NodeEvent.NodeEventType;
 import com.zextras.carbonio.files.graphql.types.Permissions;
 import com.zextras.carbonio.files.rest.services.BlobService;
@@ -101,16 +100,16 @@ public class NodeDataFetcher {
   private static final Logger logger =
     LoggerFactory.getLogger(NodeDataFetcher.class);
 
-  private final NodeRepository        nodeRepository;
-  private final FileVersionRepository fileVersionRepository;
-  private final PermissionsChecker    permissionsChecker;
-  private final ShareRepository       shareRepository;
-  private final TombstoneRepository   tombstoneRepository;
-  private final ShareDataFetcher      shareDataFetcher;
-  private final BlobService           blobService;
-  private final int                   maxNumberOfVersions;
-  private final int                   maxNumberOfKeepVersions;
-  private final FolderPublisher folderPublisher;
+  private final NodeRepository                nodeRepository;
+  private final FileVersionRepository         fileVersionRepository;
+  private final PermissionsChecker            permissionsChecker;
+  private final ShareRepository               shareRepository;
+  private final TombstoneRepository           tombstoneRepository;
+  private final ShareDataFetcher              shareDataFetcher;
+  private final BlobService                   blobService;
+  private final int                           maxNumberOfVersions;
+  private final int                           maxNumberOfKeepVersions;
+  private final FolderContentUpdatedPublisher folderContentUpdatedPublisher;
 
   @Inject
   NodeDataFetcher(
@@ -121,7 +120,7 @@ public class NodeDataFetcher {
     TombstoneRepository tombstoneRepository,
     ShareDataFetcher shareDataFetcher,
     BlobService blobService,
-    FolderPublisher folderPublisher
+    FolderContentUpdatedPublisher folderContentUpdatedPublisher
   ) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -130,7 +129,7 @@ public class NodeDataFetcher {
     this.tombstoneRepository = tombstoneRepository;
     this.shareDataFetcher = shareDataFetcher;
     this.blobService = blobService;
-    this.folderPublisher = folderPublisher;
+    this.folderContentUpdatedPublisher = folderContentUpdatedPublisher;
 
     this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
       .defaultURL(ServiceDiscover.SERVICE_NAME)
@@ -601,7 +600,7 @@ public class NodeDataFetcher {
                 resultPath
               );
 
-              folderPublisher.addMap(mapDataFetcherResult, NodeEventType.ADDED);
+              folderContentUpdatedPublisher.sendEvent(mapDataFetcherResult, NodeEventType.ADDED);
 
               return mapDataFetcherResult;
             })
@@ -739,8 +738,7 @@ public class NodeDataFetcher {
           environment.getExecutionStepInfo().getPath()
         );
 
-        nodePublisher.addMap(mapDataFetcherResult.getData());
-        folderPublisher.addMap(mapDataFetcherResult.getData(), NodeEventType.UPDATED);
+        folderContentUpdatedPublisher.sendEvent(mapDataFetcherResult, NodeEventType.UPDATED);
         return mapDataFetcherResult;
       }
 
@@ -801,13 +799,27 @@ public class NodeDataFetcher {
       if (!trashableNodes.isEmpty()) {
         nodeRepository.getNodes(trashableNodes, Optional.empty())
           .forEach(trashedNode -> {
-            folderPublisher.addMap(convertNodeToDataFetcherResult(trashedNode,requesterId, environment.getExecutionStepInfo().getPath()), NodeEventType.DELETED);
+            folderContentUpdatedPublisher.sendEvent(
+              convertNodeToDataFetcherResult(
+                trashedNode,
+                requesterId,
+                environment.getExecutionStepInfo().getPath()
+              ),
+              NodeEventType.DELETED
+            );
             String nodeParentId = trashedNode.getParentId().get();
             trashedNode.setAncestorIds(Files.Db.RootId.TRASH_ROOT);
             trashedNode.setParentId(RootId.TRASH_ROOT);
             nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
             Node node = nodeRepository.updateNode(trashedNode);
-            folderPublisher.addMap(convertNodeToDataFetcherResult(node,requesterId, environment.getExecutionStepInfo().getPath()), NodeEventType.ADDED);
+            folderContentUpdatedPublisher.sendEvent(
+              convertNodeToDataFetcherResult(
+                node,
+                requesterId,
+                environment.getExecutionStepInfo().getPath()
+              ),
+              NodeEventType.ADDED
+            );
             cascadeUpdateAncestors(trashedNode);
           });
       }
@@ -2087,21 +2099,11 @@ public class NodeDataFetcher {
     });
   }
 
-  private final static NodePublisher   nodePublisher   = new NodePublisher();
-
-  public DataFetcher getFolderContentSubscription() {
-    return environment -> {
-      return nodePublisher.getPub(environment.getArgument("node_id"));
-    };
-  }
-
   public DataFetcher getFolderContentUpdatedDataFetcher() {
-    return environment -> {
-
-      String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getUuid();
-
-      return folderPublisher.getPub(environment.getArgument("folder_id"), requesterId);
-    };
+    return environment ->
+      folderContentUpdatedPublisher.getPublisher(
+        environment.getArgument("folder_id"),
+        ((User) environment.getGraphQlContext().get(Files.GraphQL.Context.REQUESTER)).getUuid()
+      );
   }
 }

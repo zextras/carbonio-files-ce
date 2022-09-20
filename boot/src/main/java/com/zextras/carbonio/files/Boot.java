@@ -4,13 +4,20 @@
 
 package com.zextras.carbonio.files;
 
+import com.google.common.util.concurrent.ServiceManager;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.Key;
+import com.google.inject.TypeLiteral;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.graphql.subscriptions.AbstractEventPublisher;
+import com.zextras.carbonio.files.graphql.subscriptions.FolderContentUpdatedPublisher;
+import com.zextras.carbonio.files.graphql.types.NodeEvent;
 import com.zextras.carbonio.files.tasks.PurgeService;
 import ch.qos.logback.classic.Logger;
+import java.util.Collections;
 import org.slf4j.LoggerFactory;
 import ch.qos.logback.classic.Level;
 
@@ -26,8 +33,9 @@ public class Boot {
   private static final Logger logger     = (Logger) LoggerFactory.getLogger(Boot.class);
 
   private EbeanDatabaseManager ebeanDatabaseManager;
-  private PurgeService purgeService;
-  private NettyServer nettyServer;
+  private ServiceManager       serviceManager;
+  private PurgeService         purgeService;
+  private NettyServer          nettyServer;
 
   public static void main(String[] args) {
     new Boot().boot();
@@ -48,6 +56,11 @@ public class Boot {
     injector.getInstance(FilesConfig.class);
 
     try {
+      serviceManager = new ServiceManager(
+        Collections.singletonList(injector.getInstance(FolderContentUpdatedPublisher.class))
+      );
+      serviceManager.startAsync();
+
       ebeanDatabaseManager = injector.getInstance(EbeanDatabaseManager.class);
       ebeanDatabaseManager.start();
 
@@ -59,6 +72,7 @@ public class Boot {
     } catch (RuntimeException exception) {
       logger.error("Service stopped unexpectedly: " + exception.getMessage());
     } finally {
+      serviceManager.stopAsync().awaitStopped();
       ebeanDatabaseManager.stop();
       purgeService.stop();
     }

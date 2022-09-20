@@ -138,14 +138,8 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     }
 
     if(Endpoints.GRAPHQL_WEBSOCKET.matcher(request.uri()).matches()) {
-      context.executor().scheduleAtFixedRate(() ->
-        context.writeAndFlush(new PingWebSocketFrame()),
-        30,
-        30,
-        TimeUnit.SECONDS
-      );
       context.pipeline()
-        .addLast("timeout-handler", new ReadTimeoutHandler(40))
+        .addLast("timeout-handler", new ReadTimeoutHandler(60))
         .addLast("auth-handler", authenticationHandler)
         .addLast(new HttpObjectAggregator(256 * 1024))
         .addLast("http-socket-handler", new WebSocketServerProtocolHandler("/graphql-ws/", "graphql-transport-ws"))

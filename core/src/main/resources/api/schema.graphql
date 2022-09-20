@@ -706,7 +706,6 @@ type NodeEvent {
 }
 
 type Subscription {
-    folderContentSubscribe(node_id: ID!): Node!
     folderContentUpdated(folder_id: ID!): NodeEvent!
 }
 

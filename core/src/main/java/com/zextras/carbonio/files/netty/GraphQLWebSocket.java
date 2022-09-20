@@ -22,10 +22,12 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.util.AttributeKey;
+import io.reactivex.rxjava3.processors.PublishProcessor;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,9 +37,13 @@ public class GraphQLWebSocket extends SimpleChannelInboundHandler<TextWebSocketF
   private static final Logger logger = LoggerFactory.getLogger(GraphQLWebSocket.class);
 
   private final GraphQL graphQL;
+  private final Map<String, Subscriber<?>> mapSub;
 
   @Inject
-  public GraphQLWebSocket(GraphQLProvider graphQLProvider) {this.graphQL = graphQLProvider.getGraphQL();}
+  public GraphQLWebSocket(GraphQLProvider graphQLProvider) {
+    this.graphQL = graphQLProvider.getGraphQL();
+    mapSub = new HashMap<>();
+  }
 
 
   @Override
@@ -55,8 +61,19 @@ public class GraphQLWebSocket extends SimpleChannelInboundHandler<TextWebSocketF
       Files.GraphQL.Context.REQUESTER,
       channelHandlerContext.channel().attr(AttributeKey.valueOf("requester")).get()
     );
-    if(payload.contains("connection_init")) {
 
+    if (payload.contains("ping")) {
+      ObjectNode n = mapper.createObjectNode().put("type", "pong");
+      String r = mapper.writeValueAsString(n);
+      logger.info("MESSAGE " + r);
+      channelHandlerContext
+        .channel()
+        .writeAndFlush(new TextWebSocketFrame(r));
+      logger.info("SENT");
+      return;
+    }
+
+    if (payload.contains("connection_init")) {
 
       ObjectNode n = mapper.createObjectNode().put("type", "connection_ack");
       String r = mapper.writeValueAsString(n);
@@ -67,7 +84,20 @@ public class GraphQLWebSocket extends SimpleChannelInboundHandler<TextWebSocketF
       logger.info("SENT");
       return;
     }
-    //channelHandlerContext.channel().write(new TextWebSocketFrame(payload));
+
+    if (payload.contains("complete")) {
+      Map<String, Object> payloadMaps = new HashMap<>();
+
+      try {
+        payloadMaps = mapper.readValue(payload, Map.class);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+      mapSub.get(payloadMaps.get("id")).onComplete();
+      mapSub.remove(payloadMaps.get("id"));
+
+      return;
+    }
 
     try {
 
@@ -89,7 +119,10 @@ public class GraphQLWebSocket extends SimpleChannelInboundHandler<TextWebSocketF
 
       ExecutionResult result = graphQL.executeAsync(input).join();
       Publisher<ExecutionResult> stream = result.getData();
-      stream.subscribe(new FolderSubscriber((String)payloadMap.get("id"), channelHandlerContext));
+      FolderSubscriber subscriber = new FolderSubscriber((String) payloadMap.get("id"),
+        channelHandlerContext);
+      stream.subscribe(subscriber);
+      mapSub.put((String) payloadMap.get("id"), subscriber);
 
     } catch (GraphQLException e) {
       channelHandlerContext.channel().writeAndFlush(new TextWebSocketFrame(

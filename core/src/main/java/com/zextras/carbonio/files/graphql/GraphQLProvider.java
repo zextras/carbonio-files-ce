@@ -342,7 +342,6 @@ public class GraphQLProvider {
         .dataFetcher(Files.GraphQL.Link.NODE, nodeDataFetcher.sharedNodeFetcher())
       )
       .type(newTypeWiring("Subscription")
-        .dataFetcher("folderContentSubscribe", nodeDataFetcher.getFolderContentSubscription())
         .dataFetcher("folderContentUpdated", nodeDataFetcher.getFolderContentUpdatedDataFetcher())
       )
       .build();

@@ -7,7 +7,7 @@ package com.zextras.carbonio.files.graphql.types;
 import java.util.Map;
 import java.util.Objects;
 
-public class NodeEvent {
+public class NodeEvent implements GraphQLEvent {
 
   private final NodeEventType       action;
   private final Map<String, Object> node;

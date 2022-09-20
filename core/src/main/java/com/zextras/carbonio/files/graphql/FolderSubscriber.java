@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import graphql.ExecutionResult;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.reactivex.rxjava3.processors.PublishProcessor;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
@@ -22,6 +23,7 @@ public class FolderSubscriber implements Subscriber<ExecutionResult> {
 
   private final ChannelHandlerContext   webSocketContext;
   private final String operationId;
+  private Subscription sub;
 
   public FolderSubscriber(String operationId, ChannelHandlerContext webSocketContext) {
     this.operationId = operationId;
@@ -30,11 +32,13 @@ public class FolderSubscriber implements Subscriber<ExecutionResult> {
 
   @Override
   public void onSubscribe(Subscription subscription) {
+    this.sub =  subscription;
     subscription.request(Long.MAX_VALUE);
   }
 
   @Override
   public void onNext(ExecutionResult subscriptionResult) {
+    System.out.println("ON NEXT: " + Thread.currentThread().getName());
     ObjectMapper mapper = new ObjectMapper();
     ObjectNode node = mapper.createObjectNode()
       .put("id", operationId)
@@ -54,12 +58,25 @@ public class FolderSubscriber implements Subscriber<ExecutionResult> {
   @Override
   public void onError(Throwable throwable) {
     logger.error("CLOSE CONN: " + throwable);
-    webSocketContext.channel().close();
+
+    ObjectMapper mapper = new ObjectMapper();
+    ObjectNode node = mapper.createObjectNode()
+      .put("id", operationId)
+      .put("type", "error");
+
+    try {
+      webSocketContext
+        .channel()
+        .writeAndFlush(new TextWebSocketFrame(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(node)));
+    } catch (JsonProcessingException e) {
+      onError(e);
+    }
+
   }
 
   @Override
   public void onComplete() {
-    logger.info("Complete");
-    webSocketContext.channel().close();
+    logger.info(operationId + " Completed");
+    sub.cancel();
   }
 }
