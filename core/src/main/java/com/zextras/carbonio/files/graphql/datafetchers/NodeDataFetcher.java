@@ -18,6 +18,7 @@ import com.zextras.carbonio.files.Files.GraphQL.NodePage;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
 import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
+import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
@@ -36,11 +37,8 @@ import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.graphql.types.Permissions;
 import com.zextras.carbonio.files.rest.services.BlobService;
-import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
-import com.zextras.filestore.api.UploadResponse;
 import com.zextras.filestore.model.FilesIdentifier;
-import com.zextras.storages.api.StoragesClient;
 import graphql.GraphQLError;
 import graphql.execution.AbortExecutionException;
 import graphql.execution.DataFetcherResult;
@@ -64,6 +62,7 @@ import java.util.UUID;
 import java.util.Vector;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.slf4j.Logger;
@@ -104,7 +103,7 @@ public class NodeDataFetcher {
   private final ShareRepository       shareRepository;
   private final TombstoneRepository   tombstoneRepository;
   private final ShareDataFetcher      shareDataFetcher;
-  private final BlobService           blobService;
+  private final FilesConfig           filesConfig;
   private final int                   maxNumberOfVersions;
   private final int                   maxNumberOfKeepVersions;
 
@@ -116,7 +115,7 @@ public class NodeDataFetcher {
     ShareRepository shareRepository,
     TombstoneRepository tombstoneRepository,
     ShareDataFetcher shareDataFetcher,
-    BlobService blobService
+    FilesConfig filesConfig
   ) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -124,7 +123,7 @@ public class NodeDataFetcher {
     this.permissionsChecker = permissionsChecker;
     this.tombstoneRepository = tombstoneRepository;
     this.shareDataFetcher = shareDataFetcher;
-    this.blobService = blobService;
+    this.filesConfig = filesConfig;
 
     this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
       .defaultURL(ServiceDiscover.SERVICE_NAME)
@@ -1431,7 +1430,7 @@ public class NodeDataFetcher {
    *
    * @return the number of copied nodes.
    */
-  private Node copyFile(
+  private Optional<Node> copyFile(
     Node sourceNode,
     Node destinationFolder,
     String requesterId,
@@ -1445,14 +1444,12 @@ public class NodeDataFetcher {
         : destinationFolder.getOwnerId();
 
     Node createdNode = nodeRepository.createNewNode(
-      UUID.randomUUID()
-        .toString(),
+      UUID.randomUUID().toString(),
       requesterId,
       ownerId,
       destinationFolder.getId(),
       effectiveName,
-      sourceNode.getDescription()
-        .orElse(""),
+      sourceNode.getDescription().orElse(""),
       sourceNode.getNodeType(),
       NodeType.ROOT.equals(destinationFolder.getNodeType())
         ? destinationFolder.getId()
@@ -1460,52 +1457,49 @@ public class NodeDataFetcher {
       sourceNode.getSize()
     );
 
-    // Copy the binary asynchronously //TODO
-    return fileVersionRepository
+    // TODO: handle the corner-case when the current version does not exists.
+    // It should never happened but we should handle anyways
+    FileVersion sourceCurrentFileVersion = fileVersionRepository
       .getFileVersion(sourceNode.getId(), sourceNode.getCurrentVersion())
-      .map(fileVersion -> {
-
-        try {
-          Try<BlobResponse> blobResponses = blobService.downloadFile(
-            sourceNode.getId(),
-            Optional.of(fileVersion.getVersion()),
-            new User(sourceNode.getOwnerId(), "", "", "")
-          );
-
-          UploadResponse copiedBlobResponse = null;
-          if (blobResponses.isSuccess()) {
-            copiedBlobResponse = StoragesClient.atUrl("http://127.78.0.2:20002/")
-              .uploadPost(
-                FilesIdentifier.of(createdNode.getId(), 1, requesterId),
-                blobResponses.get().getBlobStream(),
-                blobResponses.get().getSize()
-              );
-
-          } else {
-
-            logger.error("Error encountered during copy operation");
-            return null;
-          }
-
-          fileVersionRepository.createNewFileVersion(
-            createdNode.getId(),
-            requesterId,
-            1,
-            fileVersion.getMimeType(),
-            copiedBlobResponse.getSize(),
-            copiedBlobResponse.getDigest(),
-            fileVersion.isAutosave()
-          );
-
-          createdNode.setCurrentVersion(1);
-          return nodeRepository.updateNode(createdNode);
-        } catch (Exception e) {
-          e.printStackTrace();
-          return createdNode;
-        }
-      })
       .get();
+
+    // TODO: make the copy async
+    Try
+      .of(() -> filesConfig
+        .getFileStoreClient()
+        .copy(
+          FilesIdentifier.of(sourceNode.getId(), sourceNode.getCurrentVersion(),
+            sourceNode.getOwnerId()),
+          FilesIdentifier.of(createdNode.getId(), 1, requesterId),
+          false
+        )
+      )
+      .onSuccess(copiedBlobResponse -> {
+        fileVersionRepository.createNewFileVersion(
+          createdNode.getId(),
+          requesterId,
+          1,
+          sourceCurrentFileVersion.getMimeType(),
+          copiedBlobResponse.getSize(),
+          copiedBlobResponse.getDigest(),
+          false
+        );
+
+        createdNode.setCurrentVersion(1);
+        nodeRepository.updateNode(createdNode);
+      })
+      .onFailure(failure -> {
+        logger.error(MessageFormat.format(
+          "Unable to copy the node {0}. {1}",
+          sourceNode.getId(),
+          failure
+        ));
+        nodeRepository.deleteNode(createdNode.getId());
+      });
+
+    return nodeRepository.getNode(createdNode.getId());
   }
+
 
   /**
    * Copies recursively a folder.
@@ -1661,14 +1655,13 @@ public class NodeDataFetcher {
    */
   public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> copyNodesFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
-      ResultPath resultPath = environment.getExecutionStepInfo()
-        .getPath();
-      String requesterId = ((User) environment.getGraphQlContext()
+      ResultPath resultPath = environment.getExecutionStepInfo().getPath();
+      String requesterId = ((User) environment
+        .getGraphQlContext()
         .get(Files.GraphQL.Context.REQUESTER)).getUuid();
-      List<String> nodeIds = environment.getArgument(
-        Files.GraphQL.InputParameters.MoveNodes.NODE_IDS);
+      List<String> nodeIds = environment.getArgument(InputParameters.MoveNodes.NODE_IDS);
       String destinationFolderId = environment.getArgument(
-        Files.GraphQL.InputParameters.MoveNodes.DESTINATION_ID);
+        InputParameters.MoveNodes.DESTINATION_ID);
 
       if (permissionsChecker.getPermissions(destinationFolderId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {
@@ -1685,7 +1678,8 @@ public class NodeDataFetcher {
         ) {
 
           List<DataFetcherResult<Map<String, Object>>> copiedNodesResult = new ArrayList<>();
-          List<DataFetcherResult<Map<String, Object>>> errorsOfNodesWithoutPermission = new ArrayList<>();
+          AtomicReference<List<DataFetcherResult<Map<String, Object>>>> errorsOfNodesWithoutPermission =
+            new AtomicReference();
 
           List<Node> nodes = nodeRepository.getNodes(nodeIds, Optional.empty())
             .collect(Collectors.toList());
@@ -1720,14 +1714,16 @@ public class NodeDataFetcher {
               .canRead())
             .collect(Collectors.toList());
 
-          errorsOfNodesWithoutPermission = nodes
-            .stream()
-            .filter(node -> !nodesToCopy.contains(node))
-            .map(node -> new Builder<Map<String, Object>>()
-              .error(GraphQLResultErrors.nodeWriteError(node.getId(), resultPath))
-              .build()
-            )
-            .collect(Collectors.toList());
+          errorsOfNodesWithoutPermission.set(
+            nodes
+              .stream()
+              .filter(node -> !nodesToCopy.contains(node))
+              .map(node -> new Builder<Map<String, Object>>()
+                .error(GraphQLResultErrors.nodeWriteError(node.getId(), resultPath))
+                .build()
+              )
+              .collect(Collectors.toList())
+          );
 
           if (!nodesToCopy.isEmpty()) {
             nodesToCopy
@@ -1748,13 +1744,34 @@ public class NodeDataFetcher {
                     Optional.of(newName));
                   createIndirectShare(destinationFolderId, copiedFolder);
                 } else {
-                  Node copiedFile = copyFile(
-                    nodeDup, optDestinationFolder.get(), requesterId, Optional.of(newName)
+                  Optional<Node> optCopiedFile = copyFile(
+                    nodeDup,
+                    optDestinationFolder.get(),
+                    requesterId,
+                    Optional.of(newName)
                   );
-                  copiedNodesResult.add(
-                    convertNodeToDataFetcherResult(copiedFile, requesterId, resultPath)
-                  );
-                  createIndirectShare(destinationFolderId, copiedFile);
+
+                  if (optCopiedFile.isPresent()) {
+                    copiedNodesResult.add(
+                      convertNodeToDataFetcherResult(optCopiedFile.get(), requesterId, resultPath)
+                    );
+                    createIndirectShare(destinationFolderId, optCopiedFile.get());
+                  } else {
+                    List<DataFetcherResult<Map<String, Object>>> errors =
+                      errorsOfNodesWithoutPermission.get();
+
+                    errors.add(DataFetcherResult
+                      .<Map<String, Object>>newResult()
+                      .error(GraphQLResultErrors.nodeCopyError(
+                        nodeDup.getId(),
+                        nodeDup.getCurrentVersion(),
+                        resultPath
+                      ))
+                      .build()
+                    );
+
+                    errorsOfNodesWithoutPermission.set(errors);
+                  }
                 }
               });
 
@@ -1770,15 +1787,38 @@ public class NodeDataFetcher {
                   copyFolderCascade(node.getId(), copiedFolder, requesterId, Optional.empty());
                   createIndirectShare(destinationFolderId, copiedFolder);
                 } else {
-                  Node copiedFile = copyFile(node, optDestinationFolder.get(), requesterId,
-                    Optional.empty());
-                  copiedNodesResult.add(
-                    convertNodeToDataFetcherResult(copiedFile, requesterId, resultPath));
-                  createIndirectShare(destinationFolderId, copiedFile);
+                  Optional<Node> optCopiedFile = copyFile(
+                    node,
+                    optDestinationFolder.get(),
+                    requesterId,
+                    Optional.empty()
+                  );
+
+                  if (optCopiedFile.isPresent()) {
+                    copiedNodesResult.add(
+                      convertNodeToDataFetcherResult(optCopiedFile.get(), requesterId, resultPath)
+                    );
+                    createIndirectShare(destinationFolderId, optCopiedFile.get());
+                  } else {
+                    List<DataFetcherResult<Map<String, Object>>> errors =
+                      errorsOfNodesWithoutPermission.get();
+
+                    errors.add(DataFetcherResult
+                      .<Map<String, Object>>newResult()
+                      .error(GraphQLResultErrors.nodeCopyError(
+                        node.getId(),
+                        node.getCurrentVersion(),
+                        resultPath
+                      ))
+                      .build()
+                    );
+
+                    errorsOfNodesWithoutPermission.set(errors);
+                  }
                 }
               });
           }
-          copiedNodesResult.addAll(errorsOfNodesWithoutPermission);
+          copiedNodesResult.addAll(errorsOfNodesWithoutPermission.get());
           return copiedNodesResult;
         }
       }
@@ -1960,14 +2000,19 @@ public class NodeDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> cloneVersionFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
-      String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getUuid();
+      String requesterId = ((User) environment
+        .getGraphQlContext()
+        .get(Files.GraphQL.Context.REQUESTER))
+        .getUuid();
       String nodeId = environment.getArgument(Files.GraphQL.InputParameters.CloneVersion.NODE_ID);
       Integer versionToClone = environment.getArgument(
-        Files.GraphQL.InputParameters.CloneVersion.VERSION);
+        Files.GraphQL.InputParameters.CloneVersion.VERSION
+      );
 
-      if (permissionsChecker.getPermissions(nodeId, requesterId)
-        .has(SharePermission.READ_AND_WRITE)) {
+      if (permissionsChecker
+        .getPermissions(nodeId, requesterId)
+        .has(SharePermission.READ_AND_WRITE)
+      ) {
         Node node = nodeRepository.getNode(nodeId).get();
         if (fileVersionRepository.getFileVersions(nodeId).size() >= maxNumberOfVersions) {
           logger.debug(MessageFormat.format(
@@ -1985,72 +2030,61 @@ public class NodeDataFetcher {
           fileVersionRepository.getFileVersion(nodeId, versionToClone).get().getNodeId(),
           node.getCurrentVersion()
         ));
+
         return fileVersionRepository
           .getFileVersion(nodeId, versionToClone)
           .map(fileVersion -> {
             Integer newVersion = node.getCurrentVersion() + 1;
-            int currVer = fileVersion.getVersion();
-            Try<BlobResponse> blobResponses = blobService.downloadFile(
-              nodeId,
-              Optional.of(fileVersion.getVersion()),
-              new User(node.getOwnerId(), "", "", "")
-            );
 
-            logger.debug(MessageFormat.format(
-              "Download operation concluded with result {0} with file {1} and version {2}",
-              blobResponses.isSuccess()
-                ? "success"
-                : "failure",
-              nodeId,
-              currVer
-            ));
-            System.out.flush();
+            return Try
+              .of(() -> filesConfig
+                .getFileStoreClient()
+                .copy(
+                  FilesIdentifier.of(node.getId(), node.getCurrentVersion(), requesterId),
+                  FilesIdentifier.of(node.getId(), newVersion, requesterId),
+                  false
+                )
+              )
+              .onSuccess(copiedBlobResponse -> {
+                Optional<FileVersion> newFileVersion = fileVersionRepository.createNewFileVersion(
+                  node.getId(),
+                  requesterId,
+                  newVersion,
+                  fileVersion.getMimeType(),
+                  copiedBlobResponse.getSize(),
+                  copiedBlobResponse.getDigest(),
+                  false
+                );
 
-            UploadResponse copiedBlobResponse = null;
-            if (blobResponses.isSuccess()) {
-              try {
-                copiedBlobResponse = StoragesClient.atUrl("http://127.78.0.2:20002/")
-                  .uploadPost(
-                    FilesIdentifier.of(node.getId(), newVersion, requesterId),
-                    blobResponses.get().getBlobStream(),
-                    blobResponses.get().getSize()
-                  );
+                node.setCurrentVersion(newVersion);
+                nodeRepository.updateNode(node);
 
-              } catch (Exception e) {
-                e.printStackTrace();
-                return new Builder<Map<String, Object>>()
-                  .error(GraphQLResultErrors.fileVersionNotFound(nodeId, versionToClone, path))
-                  .build();
-              }
+                newFileVersion.get().setClonedFromVersion(versionToClone);
+                fileVersionRepository.updateFileVersion(newFileVersion.get());
 
-            } else {
-              String error = MessageFormat.format(
-                "Copy error with nodeId: {0} and version {1}",
-                nodeId,
-                versionToClone
+                logger.debug(MessageFormat.format(
+                  "Copy operation concluded successfully with file {1} and version {2}",
+                  nodeId,
+                  newVersion
+                ));
+              })
+              .onFailure(failure -> {
+                String error = MessageFormat.format(
+                  "Copy error with nodeId: {0} and version {1}",
+                  nodeId,
+                  versionToClone
+                );
+                logger.error(error);
+                throw new AbortExecutionException(error);
+              })
+              .transform(copiedBlobResponse ->
+                convertNodeToDataFetcherResult(
+                  nodeRepository.getNode(node.getId()).get(),
+                  newVersion,
+                  requesterId,
+                  path
+                )
               );
-              logger.error(error);
-              throw new AbortExecutionException(error);
-            }
-
-            Optional<FileVersion> newFileVersion = fileVersionRepository.createNewFileVersion(
-              node.getId(),
-              requesterId,
-              newVersion,
-              fileVersion.getMimeType(),
-              copiedBlobResponse.getSize(),
-              copiedBlobResponse.getDigest(),
-              false
-            );
-
-            node.setCurrentVersion(newVersion);
-            Node updatedNode = nodeRepository.updateNode(node);
-
-            newFileVersion.get()
-              .setClonedFromVersion(versionToClone);
-            fileVersionRepository.updateFileVersion(newFileVersion.get());
-
-            return convertNodeToDataFetcherResult(updatedNode, newVersion, requesterId, path);
           })
           .orElse(
             new Builder<Map<String, Object>>()
