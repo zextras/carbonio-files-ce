@@ -9,6 +9,7 @@ import graphql.GraphQLError;
 import graphql.GraphqlErrorException;
 import graphql.execution.DataFetcherResult;
 import graphql.execution.ResultPath;
+import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -283,6 +284,41 @@ public class GraphQLResultErrors {
     errorData.put("nodeId", nodeId);
     return GraphqlErrorException.newErrorException()
       .message("There was a problem while executing requested operation on node: " + nodeId)
+      .extensions(errorData)
+      .path(path.toList())
+      .build();
+  }
+  /**
+   * This method generates an error when a copy of a node fails. In addition to the usual data, it
+   * adds custom fields on extensions, mainly <code>errorCode</code>, for easily discriminating
+   * the error type by who called the API.
+   *
+   * @param nodeId is a {@link String} representing the id of the requested node.
+   * @param version is an {@link Integer} representing the version of the requested node.
+   * @param path is a {@link ResultPath } extrapolated from the environment to insert into the error
+   * to know in which part of the tree the error happened.
+   *
+   * @return a {@link GraphQLError} containing info about the error.
+   */
+  public static GraphQLError nodeCopyError(
+    String nodeId,
+    Integer version,
+    ResultPath path
+  ) {
+    Map<String, Object> errorData = new HashMap<>();
+    errorData.put("errorCode", ErrorCodes.NODE_COPY_ERROR);
+    errorData.put("nodeId", nodeId);
+    errorData.put("version", version);
+
+    String errorMessage = MessageFormat.format(
+      "There was a problem while copying the node {0} with version {1}",
+      nodeId,
+      version
+    );
+
+    return GraphqlErrorException
+      .newErrorException()
+      .message(errorMessage)
       .extensions(errorData)
       .path(path.toList())
       .build();
