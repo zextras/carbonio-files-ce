@@ -53,6 +53,7 @@ import io.vavr.control.Try;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -958,62 +959,62 @@ public class NodeDataFetcher {
    */
   public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> getPathFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
-      String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getUuid();
+      ResultPath path = environment.getExecutionStepInfo().getPath();
+      String requesterId = ((User) environment
+        .getGraphQlContext()
+        .get(Files.GraphQL.Context.REQUESTER))
+        .getUuid();
       String nodeId = environment.getArgument(InputParameters.NODE_ID);
 
-      return permissionsChecker.getPermissions(nodeId, requesterId)
-        .has(SharePermission.READ_ONLY)
-        ? nodeRepository.getNode(nodeId)
-        .map(node -> {
-          List<String> pathNodeIds = new ArrayList<String>(node.getAncestorsList());
-          pathNodeIds.add(nodeId);
-          List<Node> treeNodes = nodeRepository.getNodes(pathNodeIds, Optional.empty())
-            .collect(Collectors.toList());
-          if (node.getNodeType()
-            .equals(NodeType.ROOT) || node.getOwnerId()
-            .equals(requesterId)) {
-            return treeNodes
-              .stream()
-              .map(n -> convertNodeToDataFetcherResult(
-                n,
-                requesterId,
-                environment.getExecutionStepInfo().getPath()
-              ))
-              .collect(Collectors.toList());
-          } else {
-            List<Share> shares = shareRepository.getShares(treeNodes
-                .stream()
-                .map(Node::getId)
-                .collect(Collectors.toList()),
-              requesterId);
-            List<Node> sharedNodes = treeNodes
-              .stream()
-              .filter(treeNode -> shares.stream()
-                .anyMatch(share -> share.getNodeId()
-                  .equals(treeNode.getId())))
+      if (permissionsChecker.getPermissions(nodeId, requesterId).has(SharePermission.READ_ONLY)) {
+        return nodeRepository
+          .getNode(nodeId)
+          .map(node -> {
+            List<String> pathNodeIds = new ArrayList<>(node.getAncestorsList());
+            pathNodeIds.add(nodeId);
+            List<Node> treeNodes = nodeRepository
+              .getNodes(pathNodeIds, Optional.empty())
+              // The sort is necessary to reflect the order of the nodes in the path
+              .sorted(Comparator.comparing(nodeToSort -> pathNodeIds.indexOf(nodeToSort.getId())))
               .collect(Collectors.toList());
 
-            List<DataFetcherResult<Map<String, Object>>> result = treeNodes
-              .subList(treeNodes.indexOf(sharedNodes.get(0)), treeNodes.size())
-              .stream()
-              .map(treeNode -> convertNodeToDataFetcherResult(
-                treeNode,
-                requesterId,
-                environment.getExecutionStepInfo().getPath()
-              ))
-              .collect(Collectors.toList());
-            return result;
-          }
-        })
-        .orElse(Collections.singletonList(new DataFetcherResult.Builder<Map<String, Object>>()
-          .error(GraphQLResultErrors.nodeNotFound(nodeId, environment.getExecutionStepInfo()
-            .getPath()))
-          .build()))
-        : Collections.singletonList(new DataFetcherResult.Builder<Map<String, Object>>()
-          .error(GraphQLResultErrors.nodeNotFound(nodeId, environment.getExecutionStepInfo()
-            .getPath()))
-          .build());
+            if (node.getNodeType().equals(NodeType.ROOT) || node.getOwnerId().equals(requesterId)) {
+              return treeNodes
+                .stream()
+                .map(currentNode -> convertNodeToDataFetcherResult(currentNode, requesterId, path))
+                .collect(Collectors.toList());
+            } else {
+              List<Share> shares = shareRepository.getShares(
+                treeNodes.stream().map(Node::getId).collect(Collectors.toList()),
+                requesterId
+              );
+              List<Node> sharedNodes = treeNodes
+                .stream()
+                .filter(treeNode ->
+                  shares.stream().anyMatch(share -> share.getNodeId().equals(treeNode.getId()))
+                )
+                .collect(Collectors.toList());
+
+              return treeNodes
+                .subList(treeNodes.indexOf(sharedNodes.get(0)), treeNodes.size())
+                .stream()
+                .map(treeNode -> convertNodeToDataFetcherResult(treeNode, requesterId, path))
+                .collect(Collectors.toList());
+            }
+          })
+          .orElse(Collections.singletonList(
+            DataFetcherResult
+              .<Map<String, Object>>newResult()
+              .error(GraphQLResultErrors.nodeNotFound(nodeId, path))
+              .build()
+          ));
+      }
+      return Collections.singletonList(
+        DataFetcherResult
+          .<Map<String, Object>>newResult()
+          .error(GraphQLResultErrors.nodeNotFound(nodeId, path))
+          .build()
+      );
     });
   }
 
