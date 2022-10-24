@@ -8,6 +8,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.6.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.5.0...v0.6.0) (2022-09-29)
+
+
+### Features
+
+* AR-62 - Add /metrics endpoint for monitoring with Prometheus ([641a139](https://github.com/Zextras/carbonio-files-ce/commit/641a1390efeebba66b2251f759aa419fc6d49353))
+
+
+### Bug Fixes
+
+* FILES-436 - Fix GetPath API to return nodes ordered correctly ([#41](https://github.com/Zextras/carbonio-files-ce/issues/41)) ([24283d5](https://github.com/Zextras/carbonio-files-ce/commit/24283d5d1ee2e804dd365c93d6e43ae8dfde11d0))
+* FILES-437 - Fix timeout of copy API when file to copy is large ([#42](https://github.com/Zextras/carbonio-files-ce/issues/42)) ([b99eb8c](https://github.com/Zextras/carbonio-files-ce/commit/b99eb8cccc4ecc3bd2b903ec1c709a3a069bcbcd))
+
 ## [0.5.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.4.1...v0.5.0) (2022-09-01)
 
 
@@ -133,6 +146,3 @@ All notable changes to this project will be documented in this file. See [standa
 * FILES-155 - Update config, fix user-management-sdk version ([22a4b4b](https://github.com/Zextras/carbonio-files-ce/commit/22a4b4b7789e24229a32a33c1ded3fe842a92f48))
 * Refactor how the config is loaded ([f4287ae](https://github.com/Zextras/carbonio-files-ce/commit/f4287ae911e21bae8014756ac18b4632ab77c7ef))
 
-# Changelog
-
-All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
