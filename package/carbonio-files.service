@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 [Unit]
 Description=Carbonio Files daemon
 Wants=network.target
@@ -8,6 +12,8 @@ After=network-online.target
 Type=simple
 ExecStart=/opt/zextras/common/bin/java \
   -Djava.net.preferIPv4Stack=true \
+  -Xmx4096m \
+  -Xms4096m \
   -DFILES_LOG_LEVEL=warn \
   -jar /usr/bin/carbonio/files/carbonio-files.jar
 User=carbonio-files

@@ -1,28 +1,34 @@
+# SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: carbonio-files-ce
-  title: Carbonio Files Community Edition backend
-  description: Carbonio Files Community Edition backend.
+  title: Carbonio Files CE service
+  description: Service that allows to upload/download and share files.
+  It exposes a connector to use the carbonio-preview-ce in order to preview files and
+  a connector to open the editing collaboration tool (carbonio-docs-editor).
   tags:
     - java
     - backend
-  labels:
-    - rc-version: 0.4.1
-    - release-version: 0.4.1
+  links:
+    - url: https://github.com/Zextras/carbonio-files-ce/blob/develop/README.md
+      title: README
 spec:
   type: service
   lifecycle: production
   owner: shuffled-waffles
   providesApis:
-    - carbonio-files-rest-api
-    - carbonio-files-graphql-api
+    - carbonio-files-ce-rest-api
+    - carbonio-files-ce-graphql-api
   dependsOn:
     - carbonio-files-db
     - carbonio-user-management
     - carbonio-storages-ce
     - carbonio-preview-ce
-    - carbonio-files-ui
+#    - carbonio-mailbox
 
 ---
 
@@ -30,10 +36,9 @@ apiVersion: backstage.io/v1alpha1
 kind: API
 metadata:
   name: carbonio-files-ce-rest-api
-  title: Carbonio Files Community Edition REST APIs
-  description: Carbonio Files Community Edition REST APIs
+  title: Carbonio Files CE REST APIs
+  description: Carbonio Files Community Edition REST APIs.
   tags:
-    - java
     - rest
 spec:
   type: openapi
@@ -48,10 +53,9 @@ apiVersion: backstage.io/v1alpha1
 kind: API
 metadata:
   name: carbonio-files-ce-graphql-api
-  title: Carbonio Files Community Edition GraphQL APIs
-  description: Carbonio Files Community Edition GraphQL APIs
+  title: Carbonio Files CE GraphQL APIs
+  description: Carbonio Files Community Edition GraphQL APIs.
   tags:
-    - java
     - graphql
 spec:
   type: graphql
