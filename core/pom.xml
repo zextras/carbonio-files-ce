@@ -116,6 +116,10 @@ SPDX-License-Identifier: AGPL-3.0-only
       <groupId>commons-validator</groupId>
     </dependency>
 
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
   </dependencies>
 
   <licenses>

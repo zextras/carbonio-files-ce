@@ -13,7 +13,8 @@ caffeine, 2015, Copyright 2015 Ben Manes. All Rights Reserved.;
 jackson-annotations;
 jackson-databind;
 common-lang3, 2001-2022, Copyright 2001-2022 The Apache Software Foundation;
-common-validator, 2001-2022, Copyright 2001-2022 The Apache Software Foundation.
+common-validator, 2001-2022, Copyright 2001-2022 The Apache Software Foundation;
+micrometer, Copyright (c) 2017-Present VMware, Inc. All Rights Reserved.
 
 
                                  Apache License
