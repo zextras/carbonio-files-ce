@@ -1,10 +1,14 @@
+# SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 targets=(
   "ubuntu"
   "centos"
 )
 pkgname="carbonio-files-ce"
 pkgver="0.6.0"
-pkgrel="1"
+pkgrel="2210311710"
 pkgdesc="Carbonio Files"
 pkgdesclong=(
   "Carbonio Files"
