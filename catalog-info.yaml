@@ -7,9 +7,10 @@ kind: Component
 metadata:
   name: carbonio-files-ce
   title: Carbonio Files CE service
-  description: Service that allows to upload/download and share files.
-  It exposes a connector to use the carbonio-preview-ce in order to preview files and
-  a connector to open the editing collaboration tool (carbonio-docs-editor).
+  description: |
+    Service that allows to upload/download and share files.
+    It exposes a connector to use the carbonio-preview-ce in order to preview files and
+    a connector to open the editing collaboration tool (carbonio-docs-editor).
   tags:
     - java
     - backend
