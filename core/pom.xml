@@ -57,6 +57,11 @@ SPDX-License-Identifier: AGPL-3.0-only
         <version>${maven-jacoco.version}</version>
         <executions>
           <execution>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
             <id>default-report</id>
             <goals>
               <goal>report</goal>

@@ -44,7 +44,7 @@ pipeline {
         stage('Test') {
             steps {
                 sh 'mvn -B --settings settings-jenkins.xml clean verify'
-                publishCoverage adapters: [jacocoAdapter('target/site/jacoco-all-tests/jacoco.xml')]
+                publishCoverage adapters: [jacocoAdapter('core/target/site/jacoco/jacoco.xml')]
 
             }
         }
