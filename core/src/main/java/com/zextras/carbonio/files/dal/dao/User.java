@@ -7,16 +7,15 @@ package com.zextras.carbonio.files.dal.dao;
 /**
  * <p>Represents a {@link User} entity that matches a Files user stored in Carbonio LDAP.</p>
  * <p>The implementation of constructors and setters should not care to check if the values in
- * input
- * are valid or not because, when these methods are called, these controls <strong>must</strong> be
- * already done.</p>
+ * input are valid or not because, when these methods are called, these controls
+ * <strong>must</strong> be already done.</p>
  */
 public class User {
 
-  private String uuid;
-  private String fullName;
-  private String email;
-  private String domain;
+  private final String uuid;
+  private final String fullName;
+  private final String email;
+  private final String domain;
 
   public User(
     String uuid,
