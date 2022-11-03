@@ -41,11 +41,24 @@ pipeline {
                 sh 'cp core/src/main/resources/carbonio-files.properties package/config.properties'
             }
         }
-        stage('Test') {
-            steps {
-                sh 'mvn -B --settings settings-jenkins.xml clean verify'
-                publishCoverage adapters: [jacocoAdapter('core/target/site/jacoco/jacoco.xml')]
-
+        stage("Tests") {
+            parallel {
+                stage("UTs") {
+                    steps {
+                        sh 'mvn -B --settings settings-jenkins.xml clean verify -P run-unit-tests'
+                    }
+                }
+                stage("ITs") {
+                    steps {
+                        sh 'mvn -B --settings settings-jenkins.xml clean verify -P run-integration-tests'
+                    }
+                }
+                stage('Coverage') {
+                    steps {
+                        sh 'mvn -B --settings settings-jenkins.xml org.jacoco:jacoco-maven-plugin:report'
+                        publishCoverage adapters: [jacocoAdapter('core/target/site/jacoco/jacoco.xml')]
+                    }
+                }
             }
         }
         stage('Build deb/rpm') {

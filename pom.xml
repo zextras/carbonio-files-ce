@@ -193,7 +193,6 @@ SPDX-License-Identifier: AGPL-3.0-only
     <commons-lang3.version>3.12.0</commons-lang3.version>
     <commons-validator.version>1.7</commons-validator.version>
     <ebean.version>12.13.1</ebean.version>
-    <ebean-test.version>12.13.1</ebean-test.version>
     <graphql-java.version>17.3</graphql-java.version>
     <guice.version>5.0.1</guice.version>
     <jackson.version>2.13.3</jackson.version>

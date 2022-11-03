@@ -29,7 +29,7 @@ public class FilesPostgreSQLContainer extends PostgreSQLContainer<FilesPostgreSQ
   @Override
   public void start() {
     try (FilesPostgreSQLContainer databaseContainer = self()) {
-      // Avoid hardcoded valued. Must be replaced after the refactor of FilesConfig
+      // Avoid hardcoded values. Must be replaced after the refactor of FilesConfig
       databaseContainer
         .withDatabaseName("carbonio-files-db")
         .withUsername("carbonio-files-db")

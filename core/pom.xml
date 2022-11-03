@@ -43,6 +43,9 @@ SPDX-License-Identifier: AGPL-3.0-only
               <goal>integration-test</goal>
               <goal>verify</goal>
             </goals>
+            <configuration>
+              <skipTests>${skip.integration.tests}</skipTests>
+            </configuration>
           </execution>
         </executions>
       </plugin>
@@ -50,11 +53,17 @@ SPDX-License-Identifier: AGPL-3.0-only
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>${maven-surfire.version}</version>
+        <configuration>
+          <skipTests>${skip.unit.tests}</skipTests>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
         <version>${maven-jacoco.version}</version>
+        <configuration>
+          <skip>${skip.jacoco}</skip>
+        </configuration>
         <executions>
           <execution>
             <goals>
@@ -209,7 +218,29 @@ SPDX-License-Identifier: AGPL-3.0-only
     <version>0.6.0-2211031211</version>
   </parent>
 
+  <profiles>
+    <profile>
+      <id>run-unit-tests</id>
+      <properties>
+        <skip.unit.tests>false</skip.unit.tests>
+        <skip.integration.tests>true</skip.integration.tests>
+        <skip.jacoco>true</skip.jacoco>
+      </properties>
+    </profile>
+    <profile>
+      <id>run-integration-tests</id>
+      <properties>
+        <skip.integration.tests>false</skip.integration.tests>
+        <skip.unit.tests>true</skip.unit.tests>
+        <skip.jacoco>true</skip.jacoco>
+      </properties>
+    </profile>
+  </profiles>
+
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <skip.integration.tests>false</skip.integration.tests>
+    <skip.unit.tests>false</skip.unit.tests>
+    <skip.jacoco>false</skip.jacoco>
   </properties>
 </project>
