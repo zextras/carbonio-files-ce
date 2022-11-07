@@ -47,6 +47,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -508,8 +509,14 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     // These headers are necessary to handle the client caching mechanism
     // (see: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag)
+    //
+    // The Etag header does not handle the comma character. For this reason we must encode
+    // the digest in a base64 string.
     headers.add(HttpHeaderNames.CACHE_CONTROL, HttpHeaderValues.NO_CACHE);
-    headers.add(HttpHeaderNames.ETAG, fileDigest);
+    headers.add(
+      HttpHeaderNames.ETAG,
+      Base64.encodeBase64String(fileDigest.getBytes(StandardCharsets.UTF_8))
+    );
 
     try {
       headers.add(
@@ -564,9 +571,16 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     // These headers are necessary to handle the client caching mechanism
     // (see: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag)
+    //
+    // The Etag header does not handle the comma character. For this reason we must encode
+    // the digest in a base64 string.
     DefaultHttpHeaders headers = new DefaultHttpHeaders(true);
     headers.add(HttpHeaderNames.CACHE_CONTROL, HttpHeaderValues.NO_CACHE);
-    headers.add(HttpHeaderNames.ETAG, fileDigest);
+
+    headers.add(
+      HttpHeaderNames.ETAG,
+      Base64.encodeBase64String(fileDigest.getBytes(StandardCharsets.UTF_8))
+    );
 
     context
       .writeAndFlush(new DefaultHttpResponse(
@@ -653,9 +667,12 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     HttpRequest httpRequest,
     String fileDigest
   ) {
+    // The Etag header does not handle the comma character. For this reason we must encode
+    // the digest in a base64 string.
+    String base64Digest = Base64.encodeBase64String(fileDigest.getBytes(StandardCharsets.UTF_8));
     return Optional
       .ofNullable(httpRequest.headers().getAsString(HttpHeaderNames.IF_NONE_MATCH))
-      .filter(etag -> etag.equals(fileDigest))
+      .filter(etag -> etag.equals(base64Digest))
       .isEmpty();
   }
 }
