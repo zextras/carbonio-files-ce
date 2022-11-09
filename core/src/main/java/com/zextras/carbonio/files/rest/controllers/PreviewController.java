@@ -39,7 +39,6 @@ import io.netty.util.AttributeKey;
 import io.vavr.control.Try;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -48,6 +47,8 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -139,8 +140,8 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         return;
       }
 
-      logger.warn(MessageFormat.format(
-        "Request {0} {1}: bad request",
+      logger.warn(String.format(
+        "Request %s %s: bad request",
         httpRequest.method(),
         httpRequest.uri()
       ));
@@ -148,16 +149,16 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       context.fireExceptionCaught(new BadRequestException());
 
     } catch (IllegalArgumentException exception) {
-      logger.warn(MessageFormat.format(
-        "Request {0}: Illegal arguments in the request:\n{1}",
+      logger.warn(String.format(
+        "Request %s: Illegal arguments in the request:\n%s",
         httpRequest.uri(),
         exception.getMessage()
       ));
       context.fireExceptionCaught(new BadRequestException());
 
     } catch (Exception exception) {
-      logger.error(MessageFormat.format(
-        "Request {0}: Unexpected exception of type: {1} with message: {2}",
+      logger.error(String.format(
+        "Request %s: Unexpected exception of type: %s with message: %s",
         httpRequest.uri(),
         exception.getClass(),
         exception.getMessage()
@@ -189,7 +190,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(5));
 
-    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
+    Try<Pair<Node, FileVersion>> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
       nodeId,
       Integer.parseInt(nodeVersion),
@@ -197,17 +198,22 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     );
 
     if (tryCheckNode.isSuccess()) {
+      String fileDigest = tryCheckNode.get().getRight().getDigest();
 
-      previewService
-        .getPreviewOfImage(
-          tryCheckNode.get().getOwnerId(),
-          nodeId,
-          Integer.parseInt(nodeVersion),
-          previewArea,
-          queryParameters
-        )
-        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
-        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+      if (isPreviewChanged(httpRequest, fileDigest)) {
+        previewService
+          .getPreviewOfImage(
+            tryCheckNode.get().getLeft().getOwnerId(),
+            nodeId,
+            Integer.parseInt(nodeVersion),
+            previewArea,
+            queryParameters
+          )
+          .onSuccess(blob -> successResponse(context, httpRequest, fileDigest, blob))
+          .onFailure(failure -> failureResponse(context, httpRequest, failure));
+      } else {
+        unchangedPreviewResponse(context, httpRequest, fileDigest);
+      }
     } else {
       failureResponse(context, httpRequest, tryCheckNode.failed().get());
     }
@@ -233,7 +239,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
-    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
+    Try<Pair<Node, FileVersion>> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
       nodeId,
       Integer.parseInt(nodeVersion),
@@ -241,17 +247,22 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     );
 
     if (tryCheckNode.isSuccess()) {
+      String fileDigest = tryCheckNode.get().getRight().getDigest();
 
-      previewService
-        .getThumbnailOfImage(
-          tryCheckNode.get().getOwnerId(),
-          nodeId,
-          Integer.parseInt(nodeVersion),
-          previewArea,
-          queryParameters
-        )
-        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
-        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+      if (isPreviewChanged(httpRequest, fileDigest)) {
+        previewService
+          .getThumbnailOfImage(
+            tryCheckNode.get().getLeft().getOwnerId(),
+            nodeId,
+            Integer.parseInt(nodeVersion),
+            previewArea,
+            queryParameters
+          )
+          .onSuccess(blob -> successResponse(context, httpRequest, fileDigest, blob))
+          .onFailure(failure -> failureResponse(context, httpRequest, failure));
+      } else {
+        unchangedPreviewResponse(context, httpRequest, fileDigest);
+      }
     } else {
       failureResponse(context, httpRequest, tryCheckNode.failed().get());
     }
@@ -277,7 +288,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
-    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
+    Try<Pair<Node, FileVersion>> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
       nodeId,
       Integer.parseInt(nodeVersion),
@@ -285,16 +296,21 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     );
 
     if (tryCheckNode.isSuccess()) {
+      String fileDigest = tryCheckNode.get().getRight().getDigest();
 
-      previewService
-        .getPreviewOfPdf(
-          tryCheckNode.get().getOwnerId(),
-          nodeId,
-          Integer.parseInt(nodeVersion),
-          queryParameters
-        )
-        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
-        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+      if (isPreviewChanged(httpRequest, fileDigest)) {
+        previewService
+          .getPreviewOfPdf(
+            tryCheckNode.get().getLeft().getOwnerId(),
+            nodeId,
+            Integer.parseInt(nodeVersion),
+            queryParameters
+          )
+          .onSuccess(blob -> successResponse(context, httpRequest, fileDigest, blob))
+          .onFailure(failure -> failureResponse(context, httpRequest, failure));
+      } else {
+        unchangedPreviewResponse(context, httpRequest, fileDigest);
+      }
     } else {
       failureResponse(context, httpRequest, tryCheckNode.failed().get());
     }
@@ -321,7 +337,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
-    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
+    Try<Pair<Node, FileVersion>> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
       nodeId,
       Integer.parseInt(nodeVersion),
@@ -329,17 +345,22 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     );
 
     if (tryCheckNode.isSuccess()) {
+      String fileDigest = tryCheckNode.get().getRight().getDigest();
 
-      previewService
-        .getThumbnailOfPdf(
-          tryCheckNode.get().getOwnerId(),
-          nodeId,
-          Integer.parseInt(nodeVersion),
-          area,
-          queryParameters
-        )
-        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
-        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+      if (isPreviewChanged(httpRequest, fileDigest)) {
+        previewService
+          .getThumbnailOfPdf(
+            tryCheckNode.get().getLeft().getOwnerId(),
+            nodeId,
+            Integer.parseInt(nodeVersion),
+            area,
+            queryParameters
+          )
+          .onSuccess(blob -> successResponse(context, httpRequest, fileDigest, blob))
+          .onFailure(failure -> failureResponse(context, httpRequest, failure));
+      } else {
+        unchangedPreviewResponse(context, httpRequest, fileDigest);
+      }
     } else {
       failureResponse(context, httpRequest, tryCheckNode.failed().get());
     }
@@ -366,7 +387,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
-    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
+    Try<Pair<Node, FileVersion>> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
       nodeId,
       Integer.parseInt(nodeVersion),
@@ -374,16 +395,21 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     );
 
     if (tryCheckNode.isSuccess()) {
+      String fileDigest = tryCheckNode.get().getRight().getDigest();
 
-      previewService
-        .getPreviewOfDocument(
-          tryCheckNode.get().getOwnerId(),
-          nodeId,
-          Integer.parseInt(nodeVersion),
-          queryParameters
-        )
-        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
-        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+      if (isPreviewChanged(httpRequest, fileDigest)) {
+        previewService
+          .getPreviewOfDocument(
+            tryCheckNode.get().getLeft().getOwnerId(),
+            nodeId,
+            Integer.parseInt(nodeVersion),
+            queryParameters
+          )
+          .onSuccess(blob -> successResponse(context, httpRequest, fileDigest, blob))
+          .onFailure(failure -> failureResponse(context, httpRequest, failure));
+      } else {
+        unchangedPreviewResponse(context, httpRequest, fileDigest);
+      }
     } else {
       failureResponse(context, httpRequest, tryCheckNode.failed().get());
     }
@@ -411,7 +437,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
-    Try<Node> tryCheckNode = checkNodePermissionAndExistence(
+    Try<Pair<Node, FileVersion>> tryCheckNode = checkNodePermissionAndExistence(
       requester.getUuid(),
       nodeId,
       Integer.parseInt(nodeVersion),
@@ -419,17 +445,22 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     );
 
     if (tryCheckNode.isSuccess()) {
+      String fileDigest = tryCheckNode.get().getRight().getDigest();
 
-      previewService
-        .getThumbnailOfDocument(
-          tryCheckNode.get().getOwnerId(),
-          nodeId,
-          Integer.parseInt(nodeVersion),
-          area,
-          queryParameters
-        )
-        .onSuccess(blobResponse -> successResponse(context, httpRequest, blobResponse))
-        .onFailure(failure -> failureResponse(context, httpRequest, failure));
+      if (isPreviewChanged(httpRequest, fileDigest)) {
+        previewService
+          .getThumbnailOfDocument(
+            tryCheckNode.get().getLeft().getOwnerId(),
+            nodeId,
+            Integer.parseInt(nodeVersion),
+            area,
+            queryParameters
+          )
+          .onSuccess(blob -> successResponse(context, httpRequest, fileDigest, blob))
+          .onFailure(failure -> failureResponse(context, httpRequest, failure));
+      } else {
+        unchangedPreviewResponse(context, httpRequest, fileDigest);
+      }
     } else {
       failureResponse(context, httpRequest, tryCheckNode.failed().get());
     }
@@ -458,7 +489,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
   }
 
   /**
-   * <p>This method writes to the netty channel a successful response with metadata found in
+   * This method writes to the netty channel a successful response with metadata found in
    * blobResponse
    *
    * @param context is a {@link ChannelHandlerContext} object in which to write the results.
@@ -468,12 +499,24 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
   private void successResponse(
     ChannelHandlerContext context,
     HttpRequest httpRequest,
+    String fileDigest,
     BlobResponse blobResponse
   ) {
     DefaultHttpHeaders headers = new DefaultHttpHeaders(true);
     headers.add(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
     headers.add(HttpHeaderNames.CONTENT_LENGTH, blobResponse.getSize());
     headers.add(HttpHeaderNames.CONTENT_TYPE, blobResponse.getMimeType());
+
+    // These headers are necessary to handle the client caching mechanism
+    // (see: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag)
+    //
+    // The Etag header does not handle the comma character. For this reason we must encode
+    // the digest in a base64 string.
+    headers.add(HttpHeaderNames.CACHE_CONTROL, HttpHeaderValues.NO_CACHE);
+    headers.add(
+      HttpHeaderNames.ETAG,
+      Base64.encodeBase64String(fileDigest.getBytes(StandardCharsets.UTF_8))
+    );
 
     try {
       headers.add(
@@ -482,8 +525,8 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
           StandardCharsets.UTF_8)
       );
     } catch (Exception e) {
-      logger.error(MessageFormat.format(
-        "Request {0}: Exception of type: {0} encountered while sending success response: {1}",
+      logger.error(String.format(
+        "Request %s: Exception of type: %s encountered while sending success response: %s",
         e.getClass(),
         e.getMessage()
       ));
@@ -502,7 +545,54 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
   }
 
   /**
-   * <p>This method writes to the netty channel a failure response
+   * Sends a {@link HttpResponseStatus#NOT_MODIFIED} status code in the
+   * {@link ChannelHandlerContext#channel()} with the following headers necessary to handle the
+   * client caching mechanism:
+   * <ul>
+   *   <li>{@link HttpHeaderNames#CACHE_CONTROL} set to {@link HttpHeaderValues#NO_CACHE}</li>
+   *   <li>{@link HttpHeaderNames#ETAG} set to {@param fileDigest}</li>
+   * </ul>
+   *
+   * @param context is a {@link ChannelHandlerContext} object in which to write the results.
+   * @param httpRequest is a {@link HttpRequest}.
+   * @param fileDigest is a {@link String} representing the digest of the blob to preview
+   */
+  private void unchangedPreviewResponse(
+    ChannelHandlerContext context,
+    HttpRequest httpRequest,
+    String fileDigest
+  ) {
+    logger.info(String.format(
+      "Request %s: Etag matched: %s. Response: %s",
+      httpRequest.uri(),
+      fileDigest,
+      HttpResponseStatus.NOT_MODIFIED
+    ));
+
+    // These headers are necessary to handle the client caching mechanism
+    // (see: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag)
+    //
+    // The Etag header does not handle the comma character. For this reason we must encode
+    // the digest in a base64 string.
+    DefaultHttpHeaders headers = new DefaultHttpHeaders(true);
+    headers.add(HttpHeaderNames.CACHE_CONTROL, HttpHeaderValues.NO_CACHE);
+
+    headers.add(
+      HttpHeaderNames.ETAG,
+      Base64.encodeBase64String(fileDigest.getBytes(StandardCharsets.UTF_8))
+    );
+
+    context
+      .writeAndFlush(new DefaultHttpResponse(
+        httpRequest.protocolVersion(),
+        HttpResponseStatus.NOT_MODIFIED,
+        headers
+      ))
+      .addListener(ChannelFutureListener.CLOSE);
+  }
+
+  /**
+   * This method writes to the netty channel a failure response.
    *
    * @param context is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
@@ -513,8 +603,8 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     HttpRequest httpRequest,
     Throwable failure
   ) {
-    logger.warn(MessageFormat.format(
-      "Request {0}: Failed with message {1}",
+    logger.warn(String.format(
+      "Request %s: Failed with message %s",
       httpRequest.uri(),
       failure.getMessage()
     ));
@@ -528,21 +618,21 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       .addListener(ChannelFutureListener.CLOSE);
   }
 
-
   /**
-   * <p>This checks if the requested node can be accessed by the requester
-   * and if the node mimetype is supported by the system.
+   * This checks if the requested node can be accessed by the requester and if the node mimetype is
+   * supported by the system.
    *
    * @param requesterId is a {@link String} representing the id of the requester.
    * @param nodeId is a {@link String } representing the nodeId of the node.
    * @param version is a <code> integer </code> representing the version of the node.
    * @param supportedMimeTypeList is a {@link Set} representing the allowed list or instance of
    * mimetype that the calling methods allow (for instance a method may want only mimetype that are
-   * of "image" so "image/something" while another method "application" so "application/something"
+   * of "image" so "image/something" while another method "application" so "application/something".
    *
-   * @return a {@link Try} containing the checked @{link Node} or, on failure, the specific error
+   * @return a {@link Try#success} containing a {@link Pair} of the checked @{link Node} and the
+   * {@link FileVersion} or, a {@link Try#failure} containing the specific error.
    */
-  private Try<Node> checkNodePermissionAndExistence(
+  private Try<Pair<Node, FileVersion>> checkNodePermissionAndExistence(
     String requesterId,
     String nodeId,
     int version,
@@ -556,9 +646,33 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         optFileVersion.get().getMimeType(),
         supportedMimeTypeList)
       )
-        ? Try.success(nodeRepository.getNode(nodeId).get())
+        ? Try.success(Pair.of(nodeRepository.getNode(nodeId).get(), optFileVersion.get()))
         : Try.failure(new BadRequestException());
     }
     return Try.failure(new NodeNotFoundException(requesterId, nodeId));
+  }
+
+  /**
+   * Checks if the {@param fileDigest} of the requested blob to preview has changed from the digest
+   * specified in the etag {@param httpRequest} header.
+   *
+   * @param httpRequest is a {@link HttpRequest}.
+   * @param fileDigest is a {@link String} representing the digest of the blob to preview.
+   *
+   * @return true if the {@link HttpHeaderNames#IF_NONE_MATCH} header is not present (it means this
+   * is the first time the preview of this blob is requested) or if the etag specified differs from
+   * the digest of the requested blob. Otherwise, it returns false.
+   */
+  private boolean isPreviewChanged(
+    HttpRequest httpRequest,
+    String fileDigest
+  ) {
+    // The Etag header does not handle the comma character. For this reason we must encode
+    // the digest in a base64 string.
+    String base64Digest = Base64.encodeBase64String(fileDigest.getBytes(StandardCharsets.UTF_8));
+    return Optional
+      .ofNullable(httpRequest.headers().getAsString(HttpHeaderNames.IF_NONE_MATCH))
+      .filter(etag -> etag.equals(base64Digest))
+      .isEmpty();
   }
 }
