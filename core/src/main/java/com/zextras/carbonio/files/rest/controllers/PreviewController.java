@@ -562,7 +562,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     HttpRequest httpRequest,
     String fileDigest
   ) {
-    logger.debug(String.format(
+    logger.info(String.format(
       "Request %s: Etag matched: %s. Response: %s",
       httpRequest.uri(),
       fileDigest,
