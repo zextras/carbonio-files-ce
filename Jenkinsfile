@@ -48,20 +48,22 @@ pipeline {
             parallel {
                 stage("UTs") {
                     steps {
-                        sh 'mvn -B --settings settings-jenkins.xml clean verify -P run-unit-tests'
+                        sh 'mvn -B --settings settings-jenkins.xml verify -P run-unit-tests'
+                //        stash includes: 'core/target/jacoco-ut-report/*', name: 'jacoco-ut-report'
                     }
                 }
                 stage("ITs") {
                     steps {
-                        sh 'mvn -B --settings settings-jenkins.xml clean verify -P run-integration-tests'
+                        sh 'mvn -B --settings settings-jenkins.xml verify -P run-integration-tests'
+                //        stash includes: 'core/target/jacoco-it-report/*', name: 'jacoco-it-report'
                     }
                 }
-                stage('Coverage') {
-                    steps {
-                        sh 'mvn -B --settings settings-jenkins.xml org.jacoco:jacoco-maven-plugin:report'
-                        publishCoverage adapters: [jacocoAdapter('core/target/site/jacoco/jacoco.xml')]
-                    }
-                }
+            }
+        }
+        stage('Coverage') {
+            steps {
+                sh 'mvn -B --settings settings-jenkins.xml verify -P generate-jacoco-full-report'
+                publishCoverage adapters: [jacocoAdapter('core/target/jacoco-full-report/jacoco.xml')]
             }
         }
         stage('Build deb/rpm') {

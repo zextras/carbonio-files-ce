@@ -11,6 +11,53 @@ SPDX-License-Identifier: AGPL-3.0-only
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <artifactId>carbonio-files-ce</artifactId>
 
+  <!--
+  <build>
+    <plugins>
+      <plugin>
+      <groupId>org.jacoco</groupId>
+      <artifactId>jacoco-maven-plugin</artifactId>
+      <version>${maven-jacoco.version}</version>
+        <executions>
+        <execution>
+          <id>merge-and-full-report</id>
+          <goals>
+            <goal>merge</goal>
+          </goals>
+          <configuration>
+            <fileSets>
+              <fileSet>
+                <directory>${project.build.directory}/core/jacoco-ut-report/</directory>
+                <includes>
+                  <include>*.exec</include>
+                </includes>
+              </fileSet>
+              <fileSet>
+                <directory>${project.build.directory}/core/jacoco-it-report/</directory>
+                <includes>
+                  <include>*.exec</include>
+                </includes>
+              </fileSet>
+            </fileSets></configuration>
+        </execution>
+          <execution>
+            <id>report-aggregate</id>
+            <goals>
+              <goal>report-aggregate</goal>
+            </goals>
+            <configuration>
+              <dataFileIncludes>
+                ${project.build.directory}/core/jacoco-ut-report/jacoco.exec
+                ${project.build.directory}/core/jacoco-it-report/jacoco.exec
+              </dataFileIncludes>
+
+            </configuration>
+          </execution>
+      </executions>
+    </plugin>
+    </plugins>
+  </build>
+        -->
   <dependencyManagement>
     <dependencies>
 
@@ -220,10 +267,12 @@ SPDX-License-Identifier: AGPL-3.0-only
       <id>snapshots-repo</id>
       <url>https://repo.zextras.io/maven/snapshot/</url>
     </repository>
+    <!--
     <repository>
       <id>releases-repo</id>
       <url>https://repo.zextras.io/maven/release/</url>
     </repository>
+    -->
   </repositories>
 
   <version>0.6.0-2211031211</version>
