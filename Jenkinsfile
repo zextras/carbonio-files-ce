@@ -49,13 +49,11 @@ pipeline {
                 stage("UTs") {
                     steps {
                         sh 'mvn -B --settings settings-jenkins.xml verify -P run-unit-tests'
-                //        stash includes: 'core/target/jacoco-ut-report/*', name: 'jacoco-ut-report'
                     }
                 }
                 stage("ITs") {
                     steps {
                         sh 'mvn -B --settings settings-jenkins.xml verify -P run-integration-tests'
-                //        stash includes: 'core/target/jacoco-it-report/*', name: 'jacoco-it-report'
                     }
                 }
             }
