@@ -36,9 +36,32 @@ pipeline {
         }
         stage('Build jar') {
             steps {
-                sh 'mvn -B --settings settings-jenkins.xml -DskipTests package'
+                sh 'mvn -B --settings settings-jenkins.xml -DskipTests clean package'
                 sh 'cp boot/target/carbonio-files-ce-*-jar-with-dependencies.jar package/carbonio-files.jar'
                 sh 'cp core/src/main/resources/carbonio-files.properties package/config.properties'
+            }
+        }
+        stage("Tests") {
+            when {
+              changeRequest()
+            }
+            parallel {
+                stage("UTs") {
+                    steps {
+                        sh 'mvn -B --settings settings-jenkins.xml verify -P run-unit-tests'
+                    }
+                }
+                stage("ITs") {
+                    steps {
+                        sh 'mvn -B --settings settings-jenkins.xml verify -P run-integration-tests'
+                    }
+                }
+            }
+        }
+        stage('Coverage') {
+            steps {
+                sh 'mvn -B --settings settings-jenkins.xml verify -P generate-jacoco-full-report'
+                publishCoverage adapters: [jacocoAdapter('core/target/jacoco-full-report/jacoco.xml')]
             }
         }
         stage('Build deb/rpm') {
