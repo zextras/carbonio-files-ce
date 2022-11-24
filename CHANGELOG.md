@@ -8,6 +8,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.6.0...v0.7.0) (2022-11-24)
+
+
+### Features
+
+* FILES-462 - Setup project to run tests ([#45](https://github.com/Zextras/carbonio-files-ce/issues/45)) ([9de8a7d](https://github.com/Zextras/carbonio-files-ce/commit/9de8a7d26d65eff4e8f35251d2457a11687415df))
+* FILES-484 - Add cache-control and etag headers in Preview responses ([#46](https://github.com/Zextras/carbonio-files-ce/issues/46)) ([577c5d4](https://github.com/Zextras/carbonio-files-ce/commit/577c5d4f8c6fe125225571cb257304fa48c6dbbb))
+
 ### [0.6.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.5.0...v0.6.0) (2022-09-29)
 
 
@@ -145,4 +153,3 @@ All notable changes to this project will be documented in this file. See [standa
 * FILES-155 - Update config and fix user-management-sdk version ([8ca4beb](https://github.com/Zextras/carbonio-files-ce/commit/8ca4bebef4136e28007fcd766ef44b8af1b472ad))
 * FILES-155 - Update config, fix user-management-sdk version ([22a4b4b](https://github.com/Zextras/carbonio-files-ce/commit/22a4b4b7789e24229a32a33c1ded3fe842a92f48))
 * Refactor how the config is loaded ([f4287ae](https://github.com/Zextras/carbonio-files-ce/commit/f4287ae911e21bae8014756ac18b4632ab77c7ef))
-
