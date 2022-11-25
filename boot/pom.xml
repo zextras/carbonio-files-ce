@@ -17,12 +17,12 @@ SPDX-License-Identifier: AGPL-3.0-only
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <release>11</release>
-          <source>11</source>
-          <target>11</target>
+          <release>${java-compiler.version}</release>
+          <source>${java-compiler.version}</source>
+          <target>${java-compiler.version}</target>
         </configuration>
         <groupId>org.apache.maven.plugins</groupId>
-        <version>3.8.1</version>
+        <version>${maven-compiler.version}</version>
       </plugin>
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
@@ -47,7 +47,7 @@ SPDX-License-Identifier: AGPL-3.0-only
           </execution>
         </executions>
         <groupId>org.apache.maven.plugins</groupId>
-        <version>3.3.0</version>
+        <version>${maven-assembly.version}</version>
       </plugin>
     </plugins>
   </build>
@@ -84,10 +84,7 @@ SPDX-License-Identifier: AGPL-3.0-only
   <parent>
     <artifactId>carbonio-files-ce</artifactId>
     <groupId>com.zextras.carbonio.files</groupId>
-    <version>0.7.0-1</version>
+    <version>0.7.0-2211260011</version>
   </parent>
 
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  </properties>
 </project>

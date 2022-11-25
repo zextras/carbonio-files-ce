@@ -39,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
       </dependency>
 
       <dependency>
-        <artifactId>ebean</artifactId>
+        <artifactId>ebean-postgres</artifactId>
         <groupId>io.ebean</groupId>
         <version>${ebean.version}</version>
       </dependency>
@@ -146,21 +146,21 @@ SPDX-License-Identifier: AGPL-3.0-only
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>testcontainers</artifactId>
-        <version>1.17.5</version>
+        <version>${testcontainers.version}</version>
         <scope>test</scope>
       </dependency>
 
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>junit-jupiter</artifactId>
-        <version>1.17.5</version>
+        <version>${testcontainers.version}</version>
         <scope>test</scope>
       </dependency>
 
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>postgresql</artifactId>
-        <version>1.17.5</version>
+        <version>${testcontainers.version}</version>
         <scope>test</scope>
       </dependency>
 
@@ -185,28 +185,44 @@ SPDX-License-Identifier: AGPL-3.0-only
   <packaging>pom</packaging>
 
   <properties>
+    <!-- Dependencies -->
     <asserj.version>3.23.1</asserj.version>
-    <caffeine.version>3.0.4</caffeine.version>
+    <caffeine.version>3.1.2</caffeine.version>
     <carbonio-storages-ce.version>0.0.10-SNAPSHOT</carbonio-storages-ce.version>
     <carbonio-user-management-sdk.version>0.1.3</carbonio-user-management-sdk.version>
     <carbonio-preview-sdk.version>0.2.4</carbonio-preview-sdk.version>
     <commons-lang3.version>3.12.0</commons-lang3.version>
     <commons-validator.version>1.7</commons-validator.version>
-    <ebean.version>12.13.1</ebean.version>
-    <graphql-java.version>17.3</graphql-java.version>
-    <guice.version>5.0.1</guice.version>
-    <jackson.version>2.13.3</jackson.version>
-    <junit5.version>5.9.0</junit5.version>
-    <logback-classic.version>1.3.0-alpha12</logback-classic.version>
-    <maven.compiler.source>11</maven.compiler.source>
-    <maven.compiler.target>11</maven.compiler.target>
+    <ebean.version>13.10.2</ebean.version>
+    <graphql-java.version>19.2</graphql-java.version>
+    <guice.version>5.1.0</guice.version>
+    <jackson.version>2.14.0</jackson.version>
+    <java-compiler.version>11</java-compiler.version>
+    <junit5.version>5.9.1</junit5.version>
+    <logback-classic.version>1.3.5</logback-classic.version>
+    <micrometer.version>1.10.2</micrometer.version>
+    <mockito.version>4.9.0</mockito.version>
+    <netty.version>4.1.85.Final</netty.version>
+    <postgresql.version>42.4.3</postgresql.version>
+    <testcontainers.version>1.17.6</testcontainers.version>
+
+    <!-- Plugins -->
+    <maven-assembly.version>3.4.2</maven-assembly.version>
+    <maven-compiler.version>3.10.1</maven-compiler.version>
     <maven-failsafe.version>3.0.0-M7</maven-failsafe.version>
     <maven-jacoco.version>0.8.8</maven-jacoco.version>
     <maven-surfire.version>3.0.0-M7</maven-surfire.version>
-    <mockito.version>4.7.0</mockito.version>
-    <netty.version>4.1.78.Final</netty.version>
-    <postgresql.version>42.4.1</postgresql.version>
-    <micrometer.version>1.9.3</micrometer.version>
+    <tiles-maven.version>2.19</tiles-maven.version>
+
+    <!-- Other properties -->
+    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>11</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <!-- Flags to skip/run tests and the report generation -->
+    <skip.integration.tests>false</skip.integration.tests>
+    <skip.unit.tests>false</skip.unit.tests>
+    <skip.jacoco.full.report.generation>true</skip.jacoco.full.report.generation>
   </properties>
 
   <repositories>
@@ -222,6 +238,6 @@ SPDX-License-Identifier: AGPL-3.0-only
     </repository>
   </repositories>
 
-  <version>0.7.0-1</version>
+  <version>0.7.0-2211260011</version>
 
 </project>
