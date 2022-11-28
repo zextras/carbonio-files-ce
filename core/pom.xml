@@ -18,21 +18,21 @@ SPDX-License-Identifier: AGPL-3.0-only
         <artifactId>tiles-maven-plugin</artifactId>
         <configuration>
           <tiles>
-            <tile>io.ebean.tile:enhancement:12.11.5</tile>
+            <tile>io.ebean.tile:enhancement:${ebean.version}</tile>
           </tiles>
         </configuration>
         <extensions>true</extensions>
         <groupId>io.repaint.maven</groupId>
-        <version>2.19</version>
+        <version>${tiles-maven.version}</version>
       </plugin>
 
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <release>11</release>
+          <release>${java-compiler.version}</release>
         </configuration>
         <groupId>org.apache.maven.plugins</groupId>
-        <version>3.8.1</version>
+        <version>${maven-compiler.version}</version>
       </plugin>
 
       <plugin>
@@ -178,7 +178,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <dependency>
-      <artifactId>ebean</artifactId>
+      <artifactId>ebean-postgres</artifactId>
       <groupId>io.ebean</groupId>
     </dependency>
 
@@ -290,7 +290,7 @@ SPDX-License-Identifier: AGPL-3.0-only
   <parent>
     <artifactId>carbonio-files-ce</artifactId>
     <groupId>com.zextras.carbonio.files</groupId>
-    <version>0.7.0-1</version>
+    <version>0.7.0-2211260011</version>
   </parent>
 
   <profiles>
@@ -318,10 +318,4 @@ SPDX-License-Identifier: AGPL-3.0-only
     </profile>
   </profiles>
 
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <skip.integration.tests>false</skip.integration.tests>
-    <skip.unit.tests>false</skip.unit.tests>
-    <skip.jacoco.full.report.generation>true</skip.jacoco.full.report.generation>
-  </properties>
 </project>

@@ -25,11 +25,11 @@ spec:
     - carbonio-files-ce-rest-api
     - carbonio-files-ce-graphql-api
   dependsOn:
-    - carbonio-files-db
-    - carbonio-user-management
-    - carbonio-storages-ce
-    - carbonio-preview-ce
-#    - carbonio-mailbox
+    - component:carbonio-files-db
+    - component:carbonio-user-management
+    - component:carbonio-storages-ce
+    - component:carbonio-preview-ce
+    - component:carbonio-mailbox
 
 ---
 
