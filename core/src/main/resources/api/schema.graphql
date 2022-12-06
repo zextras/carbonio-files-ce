@@ -485,6 +485,7 @@ type Query {
         # This flag is only used in conjunction with the folderId field, if valued it will specify if i will search
         # only on the given folder or also on all the subtree, if not valued by default it will search on the whole subtree
         cascade: Boolean
+        type: NodeType
         # If valued it limits the number of nodes to return per page
         limit: Int
         # If valued it will return the next page of nodes based on the given page_token, if this param is passed

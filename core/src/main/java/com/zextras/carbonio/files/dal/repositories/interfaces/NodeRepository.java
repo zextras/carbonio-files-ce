@@ -65,6 +65,7 @@ public interface NodeRepository {
     Optional<Boolean> sharedByMe,
     Optional<Boolean> directShare,
     Optional<Integer> limit,
+    Optional<NodeType> optNodeType,
     List<String> keywords,
     Optional<String> pageToken
   );
@@ -79,6 +80,7 @@ public interface NodeRepository {
     Optional<Boolean> sharedWithMe,
     Optional<Boolean> sharedByMe,
     Optional<Boolean> directShare,
+    Optional<NodeType> optNodeType,
     List<String> keywords
   ) throws JsonProcessingException;
 

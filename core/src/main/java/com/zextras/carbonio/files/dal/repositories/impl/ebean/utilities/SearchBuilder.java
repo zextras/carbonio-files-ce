@@ -4,8 +4,10 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
+import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import io.ebean.Database;
 import io.ebean.Query;
 import java.util.List;
@@ -240,6 +242,16 @@ public class SearchBuilder {
       .and()
       .raw(keyset)
       .endAnd();
+    return this;
+  }
+
+  /**
+   * Allows to set the {@link Files.Db.Node#TYPE} attribute in the <code>where</code>clause of the query.
+   * @param nodeType is a {@link NodeType} representing the node type that needs to be searched.
+   * @return the {@link SearchBuilder} for adding other options if necessary.
+   */
+  public SearchBuilder setNodeType(NodeType nodeType) {
+    this.query.where().eq(Db.Node.TYPE, nodeType);
     return this;
   }
 
