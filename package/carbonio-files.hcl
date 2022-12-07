@@ -12,6 +12,7 @@ services {
   meta = {
     prom_port = "21500"
   }
+  tags: ["prometheus-exporter"]
   connect {
     sidecar_service {
       proxy {
