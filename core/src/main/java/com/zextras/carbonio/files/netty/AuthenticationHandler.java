@@ -5,31 +5,31 @@
 package com.zextras.carbonio.files.netty;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.dal.dao.User;
+import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
-import com.zextras.carbonio.usermanagement.entities.UserId;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelFutureListener;
+import com.zextras.carbonio.files.exceptions.AuthenticationException;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import io.netty.util.AttributeKey;
-import io.vavr.control.Try;
-import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @ChannelHandler.Sharable
 public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpRequest> {
+
+  private final static Logger logger = LoggerFactory.getLogger(AuthenticationHandler.class);
+
+  private final static String UNAUTHORIZED_ERROR_MESSAGE = "Failed to authenticate request %s: %s";
 
   private final UserRepository userRepository;
 
@@ -39,10 +39,13 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
   }
 
   /**
-   * Checks if the cookies exists and are valid, if so it fetches the User that made the request,
-   * then it saves the cookies and the requester in the {@link ChannelHandlerContext} so they can be
-   * used by other channels. Finally, it fires the http request in the next channel of the netty
-   * pipeline.
+   * Authenticates the requests via cookies. It can check one type of cookie:
+   * <ul>
+   *   <li>{@link Files.API.Headers#COOKIE_ZM_AUTH_TOKEN}</li>
+   * </ul>
+   * If the cookie is valid, it fetches the User that made the request, saves some info in the
+   * {@link ChannelHandlerContext} so they can be used by other channels and fires the http request
+   * in the next channel of the netty pipeline.
    *
    * @param context is a {@link ChannelHandlerContext} representing the context of this channel.
    * @param httpRequest is a {@link HttpRequest} representing the request in input.
@@ -54,55 +57,97 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
   ) {
     HttpHeaders headersRequest = httpRequest.headers();
     if (!headersRequest.contains((HttpHeaderNames.COOKIE))) {
-      unAuthorizedResponse(context, httpRequest.protocolVersion(), "Missing Cookies http header");
+      context.fireExceptionCaught(new AuthenticationException(String.format(
+        UNAUTHORIZED_ERROR_MESSAGE,
+        httpRequest.uri(),
+        "Missing cookies"
+      )));
       return;
     }
 
-    String cookieString = headersRequest.get(HttpHeaderNames.COOKIE);
-    Set<Cookie> cookies = ServerCookieDecoder.STRICT.decode(cookieString);
-    Optional<Try<UserId>> optTryUserId = cookies
+    String cookiesString = headersRequest.get(HttpHeaderNames.COOKIE);
+    Set<Cookie> cookies = ServerCookieDecoder.STRICT.decode(cookiesString);
+    Optional<Cookie> optCookie = cookies
       .stream()
-      .filter(cookie -> cookie.name().equals("ZM_AUTH_TOKEN"))
-      .findFirst()
-      .map(cookie -> userRepository.validateToken(cookie.value()));
+      .filter(cookie ->
+        cookie.name().equals(Files.API.Headers.COOKIE_ZM_AUTH_TOKEN)
+      )
+      .findFirst();
 
-    if (optTryUserId.isPresent()) {
-      optTryUserId
-        .get()
-        .onSuccess(id -> {
-            User requester = userRepository
-              .getUserById(cookieString, UUID.fromString(id.getUserId()))
-              .orElse(new User("", "", "", ""));
-            context.channel().attr(AttributeKey.valueOf("requester")).set(requester);
-            context.channel().attr(AttributeKey.valueOf("cookies")).set(cookieString);
-            context.fireChannelRead(httpRequest);
-          }
-        )
-        .onFailure(failure -> unAuthorizedResponse(
-          context,
-          httpRequest.protocolVersion(),
-          "Invalid ZM_AUTH_TOKEN")
-        );
+    if (optCookie.isPresent()) {
+      switch (optCookie.get().name()) {
+        case Files.API.Headers.COOKIE_ZM_AUTH_TOKEN:
+          validateAuthTokenAndFetchAccount(
+            context,
+            httpRequest,
+            cookiesString,
+            optCookie.get().value()
+          );
+          break;
+        default: // The execution will never reach this point
+          break;
+      }
     } else {
-      unAuthorizedResponse(
-        context,
-        httpRequest.protocolVersion(),
-        "Error during the User fetching"
-      );
+      context.fireExceptionCaught(new AuthenticationException(String.format(
+        UNAUTHORIZED_ERROR_MESSAGE,
+        httpRequest.uri(),
+        "Missing cookies"
+      )));
     }
   }
 
-  private void unAuthorizedResponse(
+  /**
+   * This method allows to:
+   * <ul>
+   *   <li>Validate the {@link Files.API.Headers#COOKIE_ZM_AUTH_TOKEN}</li>
+   *   <li>Fetch the User that made the requests (if the token is valid)</li>
+   *   <li>Save the cookies and the requester in the {@link ChannelHandlerContext} so they can be
+   *   used by other channels</li>
+   *   <li>Fire the http request in the next channel of the netty pipeline</li>
+   * </ul>
+   *
+   * @param context is a {@link ChannelHandlerContext} representing the context of this channel.
+   * @param httpRequest is a {@link HttpRequest} representing the request in input.
+   * @param cookies is a {@link String} representing all the received cookies
+   * @param zmAuthToken is a {@link String} representing the ZM_AUTH_TOKEN
+   */
+  private void validateAuthTokenAndFetchAccount(
     ChannelHandlerContext context,
-    HttpVersion httpVersion,
-    String bodyResponse
+    HttpRequest httpRequest,
+    String cookies,
+    String zmAuthToken
   ) {
-    context
-      .writeAndFlush(new DefaultFullHttpResponse(
-        httpVersion,
-        HttpResponseStatus.UNAUTHORIZED,
-        Unpooled.wrappedBuffer(bodyResponse.getBytes(StandardCharsets.UTF_8))
-      ))
-      .addListener(ChannelFutureListener.CLOSE);
+    userRepository
+      .validateToken(zmAuthToken)
+      .onSuccess(userId -> {
+          userRepository
+            .getUserById(cookies, UUID.fromString(userId.getUserId()))
+            .ifPresentOrElse(
+              user -> {
+                context.channel()
+                  .attr(AttributeKey.valueOf(Files.API.ContextAttribute.REQUESTER))
+                  .set(user);
+                context.channel()
+                  .attr(AttributeKey.valueOf(Files.API.ContextAttribute.COOKIES))
+                  .set(cookies);
+
+                context.fireChannelRead(httpRequest);
+              },
+              () ->
+                context.fireExceptionCaught(new AuthenticationException(String.format(
+                  UNAUTHORIZED_ERROR_MESSAGE,
+                  httpRequest.uri(),
+                  "Unable to find user with id " + userId.getUserId()
+                )))
+            );
+        }
+      )
+      .onFailure(failure ->
+        context.fireExceptionCaught(new AuthenticationException(String.format(
+          UNAUTHORIZED_ERROR_MESSAGE,
+          httpRequest.uri(),
+          "Invalid ZM_AUTH_TOKEN"
+        )))
+      );
   }
 }

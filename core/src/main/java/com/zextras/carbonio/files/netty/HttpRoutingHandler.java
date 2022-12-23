@@ -8,9 +8,9 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.graphql.controllers.GraphQLController;
 import com.zextras.carbonio.files.rest.controllers.BlobController;
+import com.zextras.carbonio.files.rest.controllers.CollaborationLinkController;
 import com.zextras.carbonio.files.rest.controllers.HealthController;
 import com.zextras.carbonio.files.rest.controllers.MetricsController;
-import com.zextras.carbonio.files.rest.controllers.CollaborationLinkController;
 import com.zextras.carbonio.files.rest.controllers.PreviewController;
 import com.zextras.carbonio.files.rest.controllers.ProcedureController;
 import io.netty.channel.ChannelHandler.Sharable;
@@ -38,7 +38,7 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
   private final PreviewController           previewController;
   private final ProcedureController         procedureController;
   private final CollaborationLinkController collaborationLinkController;
-  private final MetricsController metricsController;
+  private final MetricsController           metricsController;
 
   @Inject
   public HttpRoutingHandler(
@@ -87,10 +87,11 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     logger.info(request.uri());
 
     if (Endpoints.GRAPHQL.matcher(request.uri()).matches()) {
-      context.pipeline().addLast(new HttpObjectAggregator(256 * 1024));
-      context.pipeline().addLast(new ChunkedWriteHandler());
-      context.pipeline().addLast("auth-handler", authenticationHandler);
-      context.pipeline().addLast("graphql-handler", graphQLController);
+      context.pipeline()
+        .addLast(new HttpObjectAggregator(256 * 1024))
+        .addLast(new ChunkedWriteHandler())
+        .addLast("auth-handler", authenticationHandler)
+        .addLast("graphql-handler", graphQLController);
       context.fireChannelRead(request);
       return;
     }
