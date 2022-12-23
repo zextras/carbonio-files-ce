@@ -32,15 +32,10 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
   private final static String UNAUTHORIZED_ERROR_MESSAGE = "Failed to authenticate request %s: %s";
 
   private final UserRepository userRepository;
-  private final FilesConfig    filesConfig;
 
   @Inject
-  public AuthenticationHandler(
-    UserRepository userRepository,
-    FilesConfig filesConfig
-  ) {
+  public AuthenticationHandler(UserRepository userRepository) {
     this.userRepository = userRepository;
-    this.filesConfig = filesConfig;
   }
 
   /**

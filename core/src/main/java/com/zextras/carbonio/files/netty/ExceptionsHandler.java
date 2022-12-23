@@ -62,7 +62,7 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
       payload = HttpResponseStatus.INTERNAL_SERVER_ERROR.toString();
     }
 
-    logger.debug(String.format("Failed to execute the request. %s", payload));
+    logger.error(String.format("Failed to execute the request. %s", payload));
 
     context
       .writeAndFlush(new DefaultFullHttpResponse(
