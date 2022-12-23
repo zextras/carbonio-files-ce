@@ -25,7 +25,6 @@ import org.mockito.Mockito;
 public class AuthenticationHandlerTest {
 
   private UserRepository        userRepositoryMock;
-  private FilesConfig           filesConfigMock;
   private ChannelHandlerContext channelHandlerContextMock;
   private Channel               channelMock;
   private HttpRequest           httpRequestMock;
@@ -34,7 +33,6 @@ public class AuthenticationHandlerTest {
   @BeforeEach
   void initTest() {
     userRepositoryMock = Mockito.mock(UserRepository.class);
-    filesConfigMock = Mockito.mock(FilesConfig.class);
     channelHandlerContextMock = Mockito.mock(ChannelHandlerContext.class);
     channelMock = Mockito.mock(Channel.class);
     httpRequestMock = Mockito.mock(HttpRequest.class);
@@ -53,10 +51,7 @@ public class AuthenticationHandlerTest {
     ArgumentCaptor<AuthenticationException> captorException =
       ArgumentCaptor.forClass(AuthenticationException.class);
 
-    AuthenticationHandler authenticationHandler = new AuthenticationHandler(
-      userRepositoryMock,
-      filesConfigMock
-    );
+    AuthenticationHandler authenticationHandler = new AuthenticationHandler(userRepositoryMock);
 
     // When
     authenticationHandler.channelRead0(channelHandlerContextMock, httpRequestMock);
@@ -90,10 +85,7 @@ public class AuthenticationHandlerTest {
     ArgumentCaptor<AuthenticationException> captorException =
       ArgumentCaptor.forClass(AuthenticationException.class);
 
-    AuthenticationHandler authenticationHandler = new AuthenticationHandler(
-      userRepositoryMock,
-      filesConfigMock
-    );
+    AuthenticationHandler authenticationHandler = new AuthenticationHandler(userRepositoryMock);
 
     // When
     authenticationHandler.channelRead0(channelHandlerContextMock, httpRequestMock);
@@ -139,10 +131,7 @@ public class AuthenticationHandlerTest {
     ArgumentCaptor<User> captorUserInChannelContext = ArgumentCaptor.forClass(User.class);
     ArgumentCaptor<String> captorCookieInChannelContext = ArgumentCaptor.forClass(String.class);
 
-    AuthenticationHandler authenticationHandler = new AuthenticationHandler(
-      userRepositoryMock,
-      filesConfigMock
-    );
+    AuthenticationHandler authenticationHandler = new AuthenticationHandler(userRepositoryMock);
 
     // When
     authenticationHandler.channelRead0(channelHandlerContextMock, httpRequestMock);
@@ -180,10 +169,7 @@ public class AuthenticationHandlerTest {
     ArgumentCaptor<AuthenticationException> captorException = ArgumentCaptor.forClass(
       AuthenticationException.class);
 
-    AuthenticationHandler authenticationHandler = new AuthenticationHandler(
-      userRepositoryMock,
-      filesConfigMock
-    );
+    AuthenticationHandler authenticationHandler = new AuthenticationHandler(userRepositoryMock);
 
     // When
     authenticationHandler.channelRead0(channelHandlerContextMock, httpRequestMock);
@@ -219,10 +205,7 @@ public class AuthenticationHandlerTest {
     ArgumentCaptor<AuthenticationException> captorException = ArgumentCaptor.forClass(
       AuthenticationException.class);
 
-    AuthenticationHandler authenticationHandler = new AuthenticationHandler(
-      userRepositoryMock,
-      filesConfigMock
-    );
+    AuthenticationHandler authenticationHandler = new AuthenticationHandler(userRepositoryMock);
 
     // When
     authenticationHandler.channelRead0(channelHandlerContextMock, httpRequestMock);
