@@ -10,7 +10,8 @@ import org.junit.jupiter.api.Test;
 public class UserTest {
 
   @Test
-  public void userConstructorCreatesUserObjectCorrectly() {
+  public void givenUserAttributesUserConstructorShouldCreateUserObjectCorrectly() {
+    // Given & When
     User user = new User(
       "fake-user-id",
       "Fake User",
@@ -18,6 +19,7 @@ public class UserTest {
       "example.com"
     );
 
+    // Then
     Assertions
       .assertThat(user.getUuid())
       .isEqualTo("fake-user-id");

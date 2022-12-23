@@ -428,7 +428,7 @@ public interface Files {
 
       interface CreateCollaborationLink {
 
-        String NODE_ID = InputParameters.NODE_ID;
+        String NODE_ID    = InputParameters.NODE_ID;
         String PERMISSION = "permission";
       }
 
@@ -630,6 +630,7 @@ public interface Files {
       String UPLOAD_PARENT_ID         = "ParentId";
       String UPLOAD_NODE_ID           = "NodeId";
       String UPLOAD_OVERWRITE_VERSION = "OverwriteVersion";
+      String COOKIE_ZM_AUTH_TOKEN     = "ZM_AUTH_TOKEN";
     }
 
     interface ContextAttribute {
