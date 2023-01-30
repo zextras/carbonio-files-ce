@@ -15,7 +15,7 @@ ExecStart=/opt/zextras/common/bin/java \
   -Xmx4096m \
   -Xms4096m \
   -DFILES_LOG_LEVEL=warn \
-  -jar /usr/bin/carbonio/files/carbonio-files.jar
+  -jar /usr/bin/carbonio-files.jar
 User=carbonio-files
 Group=carbonio-files
 Restart=on-failure

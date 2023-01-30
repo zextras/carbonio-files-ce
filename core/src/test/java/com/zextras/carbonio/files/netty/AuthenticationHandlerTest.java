@@ -1,7 +1,10 @@
+// SPDX-FileCopyrightText: 2023 Zextras <https://www.zextras.com>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package com.zextras.carbonio.files.netty;
 
 import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.exceptions.AuthenticationException;
