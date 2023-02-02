@@ -67,7 +67,7 @@ package() {
     "${pkgdir}/usr/bin/carbonio-files-setup"
 
   install -Dm 755 carbonio-files.jar \
-    "${pkgdir}/usr/share/carbonio/files/carbonio/files/carbonio-files.jar"
+    "${pkgdir}/usr/share/carbonio/files/carbonio-files.jar"
 
   install -Dm 644 carbonio-files.service \
     "${pkgdir}/lib/systemd/system/carbonio-files.service"
