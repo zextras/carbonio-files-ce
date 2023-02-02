@@ -108,6 +108,8 @@ public class NodeRepositoryEbean implements NodeRepository {
     Optional<Boolean> sharedWithMe,
     Optional<Boolean> sharedByMe,
     Optional<Boolean> directShare,
+    Optional<NodeType> optNodeType,
+    Optional<String> optOwnerId,
     List<String> keywords
   ) {
     PageQuery nextPage = new PageQuery();
@@ -120,6 +122,8 @@ public class NodeRepositoryEbean implements NodeRepository {
     sharedWithMe.ifPresent(nextPage::setSharedWithMe);
     sharedByMe.ifPresent(nextPage::setSharedByMe);
     directShare.ifPresent(nextPage::setDirectShare);
+    optNodeType.ifPresent(nextPage::setNodeType);
+    optOwnerId.ifPresent(nextPage::setOwnerId);
 
     sort.ifPresent(s -> {
       switch (s) {
@@ -296,7 +300,9 @@ public class NodeRepositoryEbean implements NodeRepository {
     Optional<Boolean> sharedByMe,
     Optional<Boolean> directShare,
     List<String> keywords,
-    Optional<String> keyset
+    Optional<String> keyset,
+    Optional<NodeType> optNodeType,
+    Optional<String> optOwnerId
   ) {
 
     SearchBuilder search = new SearchBuilder(mDB.getEbeanDatabase(), userId);
@@ -311,6 +317,8 @@ public class NodeRepositoryEbean implements NodeRepository {
     sharedWithMe.ifPresent(swm -> search.setSharedWithMe(userId, swm));
     sharedByMe.ifPresent(search::setSharedByMe);
     directShare.ifPresent(search::setDirectShare);
+    optNodeType.ifPresent(search::setNodeType);
+    optOwnerId.ifPresent(search::setOwner);
 
     search.setLimit(limit);
     keyset.ifPresent(search::setKeyset);
@@ -349,6 +357,8 @@ public class NodeRepositoryEbean implements NodeRepository {
     Optional<Boolean> sharedByMe,
     Optional<Boolean> directShare,
     Optional<Integer> limit,
+    Optional<NodeType> optNodeType,
+    Optional<String> optOwnerId,
     List<String> keywords,
     Optional<String> pageToken
   ) {
@@ -365,7 +375,9 @@ public class NodeRepositoryEbean implements NodeRepository {
           params.getSharedByMe(),
           params.getDirectShare(),
           params.getKeywords(),
-          params.getKeySet()
+          params.getKeySet(),
+          params.getNodeType(),
+          params.getOwnerId()
         );
 
         if (nodes.size() == params.getLimit()) {
@@ -379,6 +391,8 @@ public class NodeRepositoryEbean implements NodeRepository {
               params.getSharedWithMe(),
               params.getSharedByMe(),
               params.getDirectShare(),
+              params.getNodeType(),
+              params.getOwnerId(),
               params.getKeywords()
             )
           );
@@ -403,7 +417,9 @@ public class NodeRepositoryEbean implements NodeRepository {
           sharedByMe,
           directShare,
           keywords,
-          Optional.empty()
+          Optional.empty(),
+          optNodeType,
+          optOwnerId
         );
 
         if (nodes.size() == realLimit) {
@@ -417,6 +433,8 @@ public class NodeRepositoryEbean implements NodeRepository {
               sharedWithMe,
               sharedByMe,
               directShare,
+              optNodeType,
+              optOwnerId,
               keywords)
           );
         } else {

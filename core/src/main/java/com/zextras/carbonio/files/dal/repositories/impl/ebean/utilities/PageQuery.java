@@ -5,6 +5,8 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +27,8 @@ public class PageQuery {
   private Optional<Boolean>  sharedWithMe;
   private Optional<Boolean>  sharedByMe;
   private Optional<Boolean>  directShare;
+  private Optional<NodeType> nodeType;
+  private Optional<String>   ownerId;
 
   public PageQuery() {
     limit = Files.Config.Pagination.LIMIT;
@@ -37,6 +41,8 @@ public class PageQuery {
     sharedWithMe = Optional.empty();
     sharedByMe = Optional.empty();
     directShare = Optional.empty();
+    nodeType = Optional.empty();
+    ownerId = Optional.empty();
   }
 
   public PageQuery(
@@ -145,4 +151,19 @@ public class PageQuery {
     this.keywords = keywords;
   }
 
+  public Optional<NodeType> getNodeType() {
+    return nodeType;
+  }
+
+  public void setNodeType(NodeType nodeType) {
+    this.nodeType = Optional.ofNullable(nodeType);
+  }
+
+  public Optional<String> getOwnerId() {
+    return ownerId;
+  }
+
+  public void setOwnerId(String ownerId) {
+    this.ownerId = Optional.ofNullable(ownerId);
+  }
 }
