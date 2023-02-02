@@ -58,7 +58,7 @@ backup=(
 package() {
   cd "${srcdir}"
   install -Dm 755 carbonio-files "${pkgdir}/usr/bin/carbonio-files"
-  install -Dm 755 carbonio-files.jar "${pkgdir}/usr/bin/carbonio-files.jar"
+  install -Dm 755 carbonio-files.jar "${pkgdir}/usr/share/carbonio/files/carbonio-files.jar"
   install -Dm 644 carbonio-files.service "${pkgdir}/lib/systemd/system/carbonio-files.service"
   install -Dm 644 carbonio-files-sidecar.service "${pkgdir}/lib/systemd/system/carbonio-files-sidecar.service"
   install -Dm 644 carbonio-files.hcl "${pkgdir}/etc/zextras/service-discover/carbonio-files.hcl"
