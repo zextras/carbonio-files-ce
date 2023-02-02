@@ -486,6 +486,7 @@ type Query {
         # only on the given folder or also on all the subtree, if not valued by default it will search on the whole subtree
         cascade: Boolean
         type: NodeType
+        owner_id: String
         # If valued it limits the number of nodes to return per page
         limit: Int
         # If valued it will return the next page of nodes based on the given page_token, if this param is passed

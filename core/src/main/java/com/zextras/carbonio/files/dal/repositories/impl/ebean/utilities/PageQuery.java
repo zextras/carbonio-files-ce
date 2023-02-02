@@ -28,6 +28,7 @@ public class PageQuery {
   private Optional<Boolean>  sharedByMe;
   private Optional<Boolean>  directShare;
   private Optional<NodeType> nodeType;
+  private Optional<String>   ownerId;
 
   public PageQuery() {
     limit = Files.Config.Pagination.LIMIT;
@@ -41,6 +42,7 @@ public class PageQuery {
     sharedByMe = Optional.empty();
     directShare = Optional.empty();
     nodeType = Optional.empty();
+    ownerId = Optional.empty();
   }
 
   public PageQuery(
@@ -155,5 +157,13 @@ public class PageQuery {
 
   public void setNodeType(NodeType nodeType) {
     this.nodeType = Optional.ofNullable(nodeType);
+  }
+
+  public Optional<String> getOwnerId() {
+    return ownerId;
+  }
+
+  public void setOwnerId(String ownerId) {
+    this.ownerId = Optional.ofNullable(ownerId);
   }
 }
