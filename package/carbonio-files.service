@@ -10,12 +10,7 @@ After=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/opt/zextras/common/bin/java \
-  -Djava.net.preferIPv4Stack=true \
-  -Xmx4096m \
-  -Xms4096m \
-  -DFILES_LOG_LEVEL=warn \
-  -jar /usr/share/carbonio/files/carbonio-files.jar
+ExecStart=/usr/bin/carbonio-files
 User=carbonio-files
 Group=carbonio-files
 Restart=on-failure
