@@ -485,6 +485,8 @@ public class NodeDataFetcher {
           Optional.empty(),
           Optional.empty(),
           Optional.of(limit),
+         Optional.empty(),
+          Optional.empty(),
           Collections.emptyList(),
           optPageToken
         );
@@ -1123,6 +1125,14 @@ public class NodeDataFetcher {
         environment.getArgument(Files.GraphQL.InputParameters.FindNodes.KEYWORDS)
       );
 
+      Optional<NodeType> optNodeType = Optional.ofNullable(
+        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.NODE_TYPE)
+      );
+
+      Optional<String> optOwnerId = Optional.ofNullable(
+        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.OWNER_ID)
+      );
+
       Map<String, List<Node>> nodeContext = new HashMap<>();
       Map<String, String> result = new HashMap<>();
       ImmutablePair<List<Node>, String> findResult = null;
@@ -1135,6 +1145,8 @@ public class NodeDataFetcher {
         optSharedByMe,
         optDirectShare,
         optLimit,
+        optNodeType,
+        optOwnerId,
         optKeywords.orElse(Collections.emptyList()),
         optPageToken);
       result.put(Files.GraphQL.NodePage.PAGE_TOKEN, findResult.getRight());

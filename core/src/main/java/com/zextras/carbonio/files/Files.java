@@ -350,6 +350,8 @@ public interface Files {
         String SORT           = "sort";
         String PAGE_TOKEN     = "page_token";
         String KEYWORDS       = "keywords";
+        String NODE_TYPE      = "type";
+        String OWNER_ID       = "owner_id";
       }
 
       interface GetVersions {

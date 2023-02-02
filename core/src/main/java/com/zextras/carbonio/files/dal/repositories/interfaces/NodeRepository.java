@@ -48,6 +48,8 @@ public interface NodeRepository {
    * with me
    * @param sharedByMe is an {@link Optional<Boolean>} to search only nodes I own that are shared
    * @param limit is an {@link Optional<Integer>} used to limit the number of nodes returned
+   * @param optNodeType is an {@link Optional<NodeType>} to search only nodes having that type
+   * @param optOwnerId is an {@link Optional<String>} to search only nodes owned by that user
    * @param pageToken is an {@link Optional<Boolean>} to search for the next page of a previous find
    * via a given pageToken
    * @param keywords is a {@link List<String>} to search for specific keywords in the name or
@@ -65,6 +67,8 @@ public interface NodeRepository {
     Optional<Boolean> sharedByMe,
     Optional<Boolean> directShare,
     Optional<Integer> limit,
+    Optional<NodeType> optNodeType,
+    Optional<String> optOwnerId,
     List<String> keywords,
     Optional<String> pageToken
   );
@@ -79,6 +83,8 @@ public interface NodeRepository {
     Optional<Boolean> sharedWithMe,
     Optional<Boolean> sharedByMe,
     Optional<Boolean> directShare,
+    Optional<NodeType> optNodeType,
+    Optional<String> optOwnerId,
     List<String> keywords
   ) throws JsonProcessingException;
 
