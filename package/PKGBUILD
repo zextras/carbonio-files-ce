@@ -50,6 +50,7 @@ hashsums=(
   "skip"
   "skip"
   "skip"
+  "skip"
 )
 backup=(
     "/etc/zextras/service-discover/carbonio-files.hcl"
