@@ -8,6 +8,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.8.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.7.0...v0.8.0) (2023-02-03)
+
+
+### Features
+
+* FILES-89 - Add owner_id and type parameters in findNodes ([#52](https://github.com/Zextras/carbonio-files-ce/issues/52)) ([75111c7](https://github.com/Zextras/carbonio-files-ce/commit/75111c7144fa6340160054e95bf55c949112c490))
+
+
+### Bug Fixes
+
+* FILES-572 - Fix tags definition in carbonio-files.hcl ([#53](https://github.com/Zextras/carbonio-files-ce/issues/53)) ([eea76b6](https://github.com/Zextras/carbonio-files-ce/commit/eea76b604052c2037949286b1e46f57759dd1f87))
+
 ### [0.7.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.6.0...v0.7.0) (2022-11-24)
 
 
