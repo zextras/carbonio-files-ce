@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-public class AuthenticationHandlerTest {
+class AuthenticationHandlerTest {
 
   private UserRepository        userRepositoryMock;
   private ChannelHandlerContext channelHandlerContextMock;
@@ -48,7 +48,7 @@ public class AuthenticationHandlerTest {
 
 
   @Test
-  public void givenARequestWithoutCookiesAuthenticationHandlerShouldThrowAuthenticationException() {
+  void givenARequestWithoutCookiesAuthenticationHandlerShouldThrowAuthenticationException() {
     // Given
     Mockito.when(httpHeadersMock.contains(HttpHeaderNames.COOKIE)).thenReturn(false);
     ArgumentCaptor<AuthenticationException> captorException =
@@ -79,7 +79,7 @@ public class AuthenticationHandlerTest {
    * acceptable type of cookie.
    */
   @Test
-  public void givenARequestWithUnmanagedCookieAuthenticationHandlerShouldThrowAuthenticationException() {
+  void givenARequestWithUnmanagedCookieAuthenticationHandlerShouldThrowAuthenticationException() {
     // Given
     Mockito.when(httpHeadersMock.contains(HttpHeaderNames.COOKIE)).thenReturn(true);
     Mockito
@@ -107,7 +107,7 @@ public class AuthenticationHandlerTest {
   }
 
   @Test
-  public void givenARequestWithValidZM_AUTH_TOKENAuthenticationHandlerShouldAuthenticateTheRequestCorrectly() {
+  void givenARequestWithValidZM_AUTH_TOKENAuthenticationHandlerShouldAuthenticateTheRequestCorrectly() {
     // Given
     User userMock = Mockito.mock(User.class);
     Attribute<Object> requesterChannelAttributeMock = Mockito.mock(Attribute.class);
@@ -159,7 +159,7 @@ public class AuthenticationHandlerTest {
   }
 
   @Test
-  public void givenARequestWithInvalidZM_AUTH_TOKENAuthenticationHandlerShouldThrowException() {
+  void givenARequestWithInvalidZM_AUTH_TOKENAuthenticationHandlerShouldThrowException() {
     // Given
     Mockito.when(httpHeadersMock.contains(HttpHeaderNames.COOKIE)).thenReturn(true);
     Mockito
@@ -191,7 +191,7 @@ public class AuthenticationHandlerTest {
   }
 
   @Test
-  public void givenARequestWithValidZM_AUTH_TOKENAndNonExistentUserAuthenticationHandlerShouldThrowException() {
+  void givenARequestWithValidZM_AUTH_TOKENAndNonExistentUserAuthenticationHandlerShouldThrowException() {
     // Given
     Mockito.when(httpHeadersMock.contains(HttpHeaderNames.COOKIE)).thenReturn(true);
     Mockito

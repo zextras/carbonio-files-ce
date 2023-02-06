@@ -15,22 +15,22 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * This is only an example of test. It must be changed
  */
 @Testcontainers
-public class NodeRepositoryEbeanIT {
+class NodeRepositoryEbeanIT {
 
   private static FilesPostgreSQLContainer database;
 
   @BeforeAll
-  public static void setup() {
+  static void setup() {
     database = new FilesPostgreSQLContainer(new FilesConfig());
   }
 
   @BeforeEach
-  public void setupEachTest() {
+  void setupEachTest() {
     database.start();
   }
 
   @Test
-  public void test(){
+  void test(){
     database.start();
     System.out.println(database.getExposedPorts() + " " +database.getPassword());
   }

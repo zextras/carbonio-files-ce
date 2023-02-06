@@ -27,7 +27,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.testcontainers.shaded.com.fasterxml.jackson.core.JsonParseException;
 
-public class ExceptionsHandlerTest {
+class ExceptionsHandlerTest {
 
   private static Stream<Arguments> generateExceptions() {
     return Stream.of(
@@ -59,7 +59,7 @@ public class ExceptionsHandlerTest {
 
   @ParameterizedTest
   @MethodSource("generateExceptions")
-  public void givenAThrowableExceptionsHandlerShouldReturnSpecificHttpResponseStatus(
+  void givenAThrowableExceptionsHandlerShouldReturnSpecificHttpResponseStatus(
     Throwable throwable, HttpResponseStatus httpResponseStatus
   ) {
     // Given
@@ -92,7 +92,7 @@ public class ExceptionsHandlerTest {
 
 
   @Test
-  public void givenAnAuthenticationExceptionExceptionsHandlerShouldReturn401HttpResponse() {
+  void givenAnAuthenticationExceptionExceptionsHandlerShouldReturn401HttpResponse() {
     // Given
     AuthenticationException exception = new AuthenticationException("Missing cookie");
     ArgumentCaptor<DefaultFullHttpResponse> captorHttpResponse = ArgumentCaptor.forClass(
