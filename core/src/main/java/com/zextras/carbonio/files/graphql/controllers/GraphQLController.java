@@ -10,7 +10,6 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.GraphQL.DataLoaders;
-import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.GraphQLRequest;
 import com.zextras.carbonio.files.graphql.dataloaders.NodeBatchLoader;

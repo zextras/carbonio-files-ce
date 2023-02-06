@@ -13,7 +13,6 @@ import graphql.GraphQL;
 import graphql.GraphQLError;
 import graphql.execution.instrumentation.fieldvalidation.FieldAndArguments;
 import graphql.execution.instrumentation.fieldvalidation.FieldValidationEnvironment;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
 

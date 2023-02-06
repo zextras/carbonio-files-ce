@@ -12,7 +12,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.ShareSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
@@ -125,9 +124,6 @@ public class ShareDataFetcher {
       );
       Optional<Long> optExpiresAt = Optional.ofNullable(
         environment.getArgument(Files.GraphQL.InputParameters.Share.EXPIRES_AT)
-      );
-      Optional<String> customMessage = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.Share.CUSTOM_MESSAGE)
       );
 
       if (permissionsChecker
@@ -259,10 +255,7 @@ public class ShareDataFetcher {
         environment.getArgument(Files.GraphQL.InputParameters.CURSOR)
       );
 
-      // At the moment the sorting is not supported
-      Optional<List<ShareSort>> optSort = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.SORT)
-      );
+      //TODO: At the moment the sorting is not supported
 
       return environment
         .getDataLoader(DataLoaders.SHARE_BATCH_LOADER)
@@ -326,7 +319,6 @@ public class ShareDataFetcher {
         .has(ACL.SharePermission.READ_AND_SHARE)
         ? shareRepository.getShare(sharedNodeId, targetUserId)
         .map(share -> {
-          ACL oldAcl = share.getPermissions();
           Optional<ACL.SharePermission> optNewPermissions = Optional.ofNullable(
             environment.getArgument(Files.GraphQL.InputParameters.Share.PERMISSION)
           );
