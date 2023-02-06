@@ -55,13 +55,13 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class GraphQLController extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-  private final static Logger logger = LoggerFactory.getLogger(GraphQLController.class);
+  private static final Logger logger = LoggerFactory.getLogger(GraphQLController.class);
 
   /**
    * This ChannelFutureListener aims to close correctly the channel only after the promise has
    * finished successfully! This listener must be used in every netty response.
    */
-  private final static ChannelFutureListener sNettyChannelFutureClose = (promise) -> {
+  private static final ChannelFutureListener sNettyChannelFutureClose = (promise) -> {
     if (!promise.isSuccess()) {
       logger.error("Failed to send the HTTP response, cause by: " + promise.cause().toString());
     }
@@ -105,14 +105,14 @@ public class GraphQLController extends SimpleChannelInboundHandler<FullHttpReque
     FullHttpRequest httpRequest
   ) {
     try {
-      channelRead_async(context, httpRequest);
+      channelReadAsync(context, httpRequest);
     } catch (Exception e) {
       logger.error(e.getLocalizedMessage());
       context.pipeline().fireExceptionCaught(e);
     }
   }
 
-  private void channelRead_async(
+  private void channelReadAsync(
     ChannelHandlerContext context,
     FullHttpRequest httpRequest
   ) {

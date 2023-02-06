@@ -27,8 +27,8 @@ import org.apache.commons.validator.routines.EmailValidator;
  */
 public class GenericControllerEvaluator {
 
-  private static final int sLengthNodeId = 36;
-  private static final int sLengthLinkId = 36;
+  private static final int LENGTH_NODE_ID = 36;
+  private static final int LENGTH_LINK_ID = 36;
 
   private final FieldAndArguments          fieldAndArguments;
   private final FieldValidationEnvironment environment;
@@ -352,13 +352,13 @@ public class GenericControllerEvaluator {
     if (nodeId == null
       || nodeId.equals(RootId.LOCAL_ROOT)
       || nodeId.equals(RootId.TRASH_ROOT)
-      || nodeId.length() == sLengthNodeId
+      || nodeId.length() == LENGTH_NODE_ID
     ) {
       return Optional.empty();
     }
     return Optional.of("Invalid node ID: \""
       + Optional.ofNullable(nodeId).orElse("")
-      + "\". Length must be " + sLengthNodeId + " characters");
+      + "\". Length must be " + LENGTH_NODE_ID + " characters");
   }
 
   /**
@@ -377,10 +377,10 @@ public class GenericControllerEvaluator {
   }
 
   private Optional<String> validateLinkId(String linkId) {
-    return (linkId.trim().length() == sLengthLinkId)
+    return (linkId.trim().length() == LENGTH_LINK_ID)
       ? Optional.empty()
       : Optional.of(
-        "Invalid link ID: \"" + linkId + "\". Length must be " + sLengthLinkId + " characters");
+        "Invalid link ID: \"" + linkId + "\". Length must be " + LENGTH_LINK_ID + " characters");
   }
 
   /**

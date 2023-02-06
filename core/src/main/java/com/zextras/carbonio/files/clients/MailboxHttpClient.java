@@ -28,8 +28,8 @@ import org.apache.http.impl.client.HttpClients;
  */
 public class MailboxHttpClient {
 
-  private final String mailboxURL;
-  private static final String uploadFileEndpoint = "/service/upload?fmt=raw";
+  private final String        mailboxURL;
+  private static final String UPLOAD_FILE_ENDPOINT = "/service/upload?fmt=raw";
 
   MailboxHttpClient(String mailboxURL) {
     this.mailboxURL = mailboxURL;
@@ -72,7 +72,7 @@ public class MailboxHttpClient {
       multipartEntity.addPart("filename", new StringBody(fullFilename));
       multipartEntity.addPart("ct", new StringBody(mimeType));
 
-      HttpPost request = new HttpPost(mailboxURL + uploadFileEndpoint);
+      HttpPost request = new HttpPost(mailboxURL + UPLOAD_FILE_ENDPOINT);
       request.setHeader("Cookie", cookies);
       request.setProtocolVersion(new ProtocolVersion("HTTP", 1, 1));
       request.setEntity(multipartEntity);
