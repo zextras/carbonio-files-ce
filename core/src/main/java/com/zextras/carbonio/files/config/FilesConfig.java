@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class FilesConfig {
 
-  private final static Logger     logger = LoggerFactory.getLogger(FilesConfig.class);
+  private static final Logger     logger = LoggerFactory.getLogger(FilesConfig.class);
   private final        Properties properties;
   private              String     userManagementURL;
   private              String     fileStoreURL;

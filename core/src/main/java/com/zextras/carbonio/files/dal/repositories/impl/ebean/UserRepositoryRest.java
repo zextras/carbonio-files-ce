@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 
 public class UserRepositoryRest implements UserRepository {
 
-  private final static Logger logger = LoggerFactory.getLogger(UserRepositoryRest.class);
+  private static final Logger logger = LoggerFactory.getLogger(UserRepositoryRest.class);
 
   private final String      usermanagementUrl;
   private final Cache<User> userCache;

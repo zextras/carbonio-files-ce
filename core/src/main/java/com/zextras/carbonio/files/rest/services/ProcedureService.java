@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ProcedureService {
 
-  private final static Logger logger = LoggerFactory.getLogger(ProcedureService.class);
+  private static final Logger logger = LoggerFactory.getLogger(ProcedureService.class);
 
   private final NodeRepository        nodeRepository;
   private final FileVersionRepository fileVersionRepository;

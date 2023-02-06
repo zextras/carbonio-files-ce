@@ -52,9 +52,9 @@ import java.util.stream.Collectors;
  */
 public class ShareDataFetcher {
 
-  final private ShareRepository    shareRepository;
-  final private NodeRepository     nodeRepository;
-  private       PermissionsChecker permissionsChecker;
+  private final ShareRepository    shareRepository;
+  private final NodeRepository     nodeRepository;
+  private final PermissionsChecker permissionsChecker;
 
   @Inject
   public ShareDataFetcher(

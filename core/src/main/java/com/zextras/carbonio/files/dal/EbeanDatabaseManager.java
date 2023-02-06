@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class EbeanDatabaseManager {
 
-  private final static Logger         logger = LoggerFactory.getLogger(EbeanDatabaseManager.class);
+  private static final Logger         logger = LoggerFactory.getLogger(EbeanDatabaseManager.class);
   private final        List<Class<?>> entityList;
   private final        String         jdbcPostgresUrl;
   private final        String         postgresDatabase;

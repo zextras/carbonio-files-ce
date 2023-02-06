@@ -55,7 +55,7 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class GraphQLController extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-  private static final Logger logger = LoggerFactory.getLogger(GraphQLController.class);
+  private final static Logger logger = LoggerFactory.getLogger(GraphQLController.class);
 
   /**
    * This ChannelFutureListener aims to close correctly the channel only after the promise has

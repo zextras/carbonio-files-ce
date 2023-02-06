@@ -27,8 +27,8 @@ import org.apache.commons.validator.routines.EmailValidator;
  */
 public class GenericControllerEvaluator {
 
-  private final static int sLengthNodeId = 36;
-  private final static int sLengthLinkId = 36;
+  private static final int sLengthNodeId = 36;
+  private static final int sLengthLinkId = 36;
 
   private final FieldAndArguments          fieldAndArguments;
   private final FieldValidationEnvironment environment;

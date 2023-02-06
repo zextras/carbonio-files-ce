@@ -23,7 +23,7 @@ import java.util.Set;
 @ChannelHandler.Sharable
 public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpRequest> {
 
-  private final static String UNAUTHORIZED_ERROR_MESSAGE = "Failed to authenticate request %s: %s";
+  private static final String UNAUTHORIZED_ERROR_MESSAGE = "Failed to authenticate request %s: %s";
 
   private final UserRepository userRepository;
 

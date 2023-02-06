@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ShareBatchLoader implements BatchLoader<String, List<Share>> {
 
-  private final static Logger logger = LoggerFactory.getLogger(ShareBatchLoader.class);
+  private static final Logger logger = LoggerFactory.getLogger(ShareBatchLoader.class);
 
   private final ShareRepository shareRepository;
 

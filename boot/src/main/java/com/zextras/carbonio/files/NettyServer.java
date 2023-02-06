@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class NettyServer {
 
-  private final static Logger logger = LoggerFactory.getLogger(NettyServer.class);
+  private static final Logger logger = LoggerFactory.getLogger(NettyServer.class);
 
   private final FilesConfig        filesConfig;
   private final HttpRoutingHandler httpRoutingHandler;

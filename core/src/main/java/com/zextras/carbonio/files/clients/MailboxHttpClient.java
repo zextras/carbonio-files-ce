@@ -29,7 +29,7 @@ import org.apache.http.impl.client.HttpClients;
 public class MailboxHttpClient {
 
   private final String mailboxURL;
-  private final String uploadFileEndpoint = "/service/upload?fmt=raw";
+  private static final String uploadFileEndpoint = "/service/upload?fmt=raw";
 
   MailboxHttpClient(String mailboxURL) {
     this.mailboxURL = mailboxURL;
