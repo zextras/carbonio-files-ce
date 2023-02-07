@@ -20,7 +20,7 @@ import org.apache.http.impl.client.HttpClients;
 
 public class ServiceDiscoverHttpClient {
 
-  private String serviceDiscoverURL;
+  private final String serviceDiscoverURL;
 
   ServiceDiscoverHttpClient(String serviceDiscoverURL) {
     this.serviceDiscoverURL = serviceDiscoverURL;
@@ -38,11 +38,11 @@ public class ServiceDiscoverHttpClient {
   }
 
   public Try<String> getConfig(String configKey) {
-    CloseableHttpClient httpClient = HttpClients.createMinimal();
-    HttpGet request = new HttpGet(serviceDiscoverURL + configKey);
-    request.setHeader("X-Consul-Token", System.getenv("CONSUL_HTTP_TOKEN"));
-    try {
+    try (CloseableHttpClient httpClient = HttpClients.createMinimal()) {
+      HttpGet request = new HttpGet(serviceDiscoverURL + configKey);
+      request.setHeader("X-Consul-Token", System.getenv("CONSUL_HTTP_TOKEN"));
       CloseableHttpResponse response = httpClient.execute(request);
+
       if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
         String bodyResponse = IOUtils.toString(
           response.getEntity().getContent(),

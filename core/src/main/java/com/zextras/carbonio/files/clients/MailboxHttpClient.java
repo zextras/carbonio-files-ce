@@ -65,8 +65,7 @@ public class MailboxHttpClient {
     InputStream file
   ) {
 
-    try {
-      CloseableHttpClient client = HttpClients.createMinimal();
+    try(CloseableHttpClient client = HttpClients.createMinimal()) {
       MultipartEntity multipartEntity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
       multipartEntity.addPart("file", new InputStreamBody(file, fullFilename));
       multipartEntity.addPart("filename", new StringBody(fullFilename));
@@ -118,6 +117,5 @@ public class MailboxHttpClient {
     } catch (Exception exception) {
       return Try.failure(new InternalServerErrorException(exception));
     }
-
   }
 }

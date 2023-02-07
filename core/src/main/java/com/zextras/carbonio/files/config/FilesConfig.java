@@ -13,6 +13,7 @@ import com.zextras.storages.api.StoragesClient;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.MessageFormat;
 import java.util.Properties;
 import org.slf4j.Logger;
@@ -34,14 +35,16 @@ public class FilesConfig {
 
   public void loadConfig() {
     try {
-
       File configFile = new File("/etc/carbonio/files/config.properties");
-      properties.load(
-        configFile.exists()
-          ? new FileInputStream(configFile)
-          : getClass().getClassLoader().getResourceAsStream("carbonio-files.properties")
-      );
 
+      if(configFile.exists()) {
+        try(InputStream inputStream = new FileInputStream(configFile)) {
+          properties.load(inputStream);
+        }
+      } else {
+        properties.load(
+          getClass().getClassLoader().getResourceAsStream("carbonio-files.properties"));
+      }
     } catch (IOException exception) {
       logger.error("Fail to load the configuration file");
     }
