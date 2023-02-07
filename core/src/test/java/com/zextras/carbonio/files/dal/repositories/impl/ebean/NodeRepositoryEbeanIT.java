@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.FilesPostgreSQLContainer;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,7 @@ class NodeRepositoryEbeanIT {
   @Test
   void test(){
     database.start();
+    Assertions.assertEquals("password", database.getPassword());
     System.out.println(database.getExposedPorts() + " " +database.getPassword());
   }
 }
