@@ -28,8 +28,9 @@ sources=(
   "carbonio-files"
   "carbonio-files.hcl"
   "carbonio-files.service"
+  "carbonio-files-pending-setup"
+  "carbonio-files-setup"
   "carbonio-files-sidecar.service"
-  "carbonio-files-setup.sh"
   "carbonio-files.jar"
   "config.properties"
   "intentions.json"
@@ -49,6 +50,7 @@ hashsums=(
   "skip"
   "skip"
   "skip"
+  "skip"
 )
 backup=(
     "/etc/zextras/service-discover/carbonio-files.hcl"
@@ -57,17 +59,42 @@ backup=(
 
 package() {
   cd "${srcdir}"
-  install -Dm 755 carbonio-files "${pkgdir}/usr/bin/carbonio-files"
-  install -Dm 755 carbonio-files.jar "${pkgdir}/usr/bin/carbonio/files/carbonio-files.jar"
-  install -Dm 644 carbonio-files.service "${pkgdir}/lib/systemd/system/carbonio-files.service"
-  install -Dm 644 carbonio-files-sidecar.service "${pkgdir}/lib/systemd/system/carbonio-files-sidecar.service"
-  install -Dm 644 carbonio-files.hcl "${pkgdir}/etc/zextras/service-discover/carbonio-files.hcl"
-  install -Dm 644 carbonio-files-setup.sh "${pkgdir}/etc/zextras/pending-setups.d/carbonio-files.sh"
-  install -Dm 644 config.properties "${pkgdir}/etc/carbonio/files/config.properties"
-  install -Dm 644 intentions.json "${pkgdir}/etc/carbonio/files/service-discover/intentions.json"
-  install -Dm 644 policies.json "${pkgdir}/etc/carbonio/files/service-discover/policies.json"
-  install -Dm 644 service-protocol.json "${pkgdir}/etc/carbonio/files/service-discover/service-protocol.json"
-  install -Dm 644 service-router.json "${pkgdir}/etc/carbonio/files/service-discover/service-router.json"
+
+  install -Dm 755 carbonio-files \
+    "${pkgdir}/usr/bin/carbonio-files"
+
+  install -Dm 755 carbonio-files-setup \
+    "${pkgdir}/usr/bin/carbonio-files-setup"
+
+  install -Dm 755 carbonio-files.jar \
+    "${pkgdir}/usr/share/carbonio/carbonio-files.jar"
+
+  install -Dm 644 carbonio-files.service \
+    "${pkgdir}/lib/systemd/system/carbonio-files.service"
+
+  install -Dm 644 carbonio-files-sidecar.service \
+    "${pkgdir}/lib/systemd/system/carbonio-files-sidecar.service"
+
+  install -Dm 644 carbonio-files.hcl \
+    "${pkgdir}/etc/zextras/service-discover/carbonio-files.hcl"
+
+  install -Dm 644 carbonio-files-pending-setup \
+    "${pkgdir}/etc/zextras/pending-setups.d/carbonio-files.sh"
+
+  install -Dm 644 config.properties \
+    "${pkgdir}/etc/carbonio/files/config.properties"
+
+  install -Dm 644 intentions.json \
+    "${pkgdir}/etc/carbonio/files/service-discover/intentions.json"
+
+  install -Dm 644 policies.json \
+    "${pkgdir}/etc/carbonio/files/service-discover/policies.json"
+
+  install -Dm 644 service-protocol.json \
+    "${pkgdir}/etc/carbonio/files/service-discover/service-protocol.json"
+
+  install -Dm 644 service-router.json \
+    "${pkgdir}/etc/carbonio/files/service-discover/service-router.json"
 }
 
 postinst() {
@@ -86,7 +113,7 @@ postinst() {
   fi
 
   echo "======================================================"
-  echo "Carbonio Files installed successfully!"
+  echo "Carbonio Files installed successfully!                "
   echo "You must run pending-setups to configure it correctly."
   echo "======================================================"
 }

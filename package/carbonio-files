@@ -1,79 +1,14 @@
 #!/bin/bash
 
-# SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
+# SPDX-FileCopyrightText: 2023 Zextras <https://www.zextras.com>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-if [[ $(id -u) -ne 0 ]]; then
-  echo "Please run as root"
-  exit 1
-fi
-
-if [[ "$1" != "setup" ]]; then
-  echo "Syntax: 'carbonio-files setup' to automatically configure the service"
-  exit 1;
-fi
-
-# Decrypt the bootstrap token, asking the password to the sys admin
-# --setup check for SETUP_CONSUL_TOKEN env. variable and uses it
-# to avoid re-asking for the password
-echo -n "Insert the cluster credential password: "
-export CONSUL_HTTP_TOKEN=$(service-discover bootstrap-token --setup)
-EXIT_CODE="$?"
-echo ""
-if [[ "${EXIT_CODE}" != "0" ]]; then
-  echo "Cannot access to bootstrap token"
-  exit 1;
-fi
-# Limit secret visibility as much as possible
-export -n SETUP_CONSUL_TOKEN
-
-POLICY_NAME='carbonio-files-policy'
-POLICY_DESCRIPTION='Carbonio Files service policy for service and sidecar proxy'
-
-# Create or update policy for the specific service (this will be shared across cluster)
-consul acl policy create -name "${POLICY_NAME}" -description "${POLICY_DESCRIPTION}" -rules  @/etc/carbonio/files/service-discover/policies.json >/dev/null 2>&1
-if [[ "$?" != "0" ]]; then
-    consul acl policy update -no-merge -name "${POLICY_NAME}" -description "${POLICY_DESCRIPTION}" -rules @/etc/carbonio/files/service-discover/policies.json
-    if [[ "$?" != "0" ]]; then
-      echo "Setup failed: Cannot update policy for ${POLICY_NAME}"
-      exit 1
-    fi
-fi
-
-# Declare the service as http
-consul config write /etc/carbonio/files/service-discover/service-protocol.json
-
-# Allow other services to contact this service
-consul config write /etc/carbonio/files/service-discover/intentions.json
-
-# Declare the service-router containing the override of the RequestTimeout
-# config for the download, upload and upload-version endpoints
-consul config write /etc/carbonio/files/service-discover/service-router.json
-
-if [[ ! -f "/etc/carbonio/files/service-discover/token" ]]; then
-    # Create the token
-    consul acl token create -format json -policy-name "${POLICY_NAME}" -description "Token for
-    carbonio-files/$(hostname -A)" |
-      jq -r '.SecretID' > /etc/carbonio/files/service-discover/token;
-    chown carbonio-files:carbonio-files /etc/carbonio/files/service-discover/token
-    chmod 0600 /etc/carbonio/files/service-discover/token
-
-    # To pass the token to consul-template we need to inject it to a env. variable
-    # since it doesn't accept a file as an argument
-    mkdir -p /etc/systemd/system/carbonio-files.service.d/
-    cat >/etc/systemd/system/carbonio-files.service.d/override.conf <<EOF
-[Service]
-Environment="CONSUL_HTTP_TOKEN=$(cat /etc/carbonio/files/service-discover/token)"
-EOF
-    chmod 0600 /etc/systemd/system/carbonio-files.service.d/override.conf
-    systemctl daemon-reload
-fi
-
-consul reload
-
-# Limit token visibility as much as possible
-export -n CONSUL_HTTP_TOKEN
-
-systemctl restart carbonio-files.service
-systemctl restart carbonio-files-sidecar.service
+JAVA_HOME="/usr/share/carbonio/files:/opt/zextras/common/lib/jvm/java"
+export JAVA_HOME
+/opt/zextras/common/bin/java \
+  -Djava.net.preferIPv4Stack=true \
+  -Xmx4096m \
+  -Xms4096m \
+  -DFILES_LOG_LEVEL=warn \
+  -jar /usr/share/carbonio/carbonio-files.jar
