@@ -11,4 +11,4 @@ export JAVA_HOME
   -Xmx4096m \
   -Xms4096m \
   -DFILES_LOG_LEVEL=warn \
-  -jar /usr/share/carbonio/files/carbonio-files.jar
+  -jar /usr/share/carbonio/carbonio-files.jar
