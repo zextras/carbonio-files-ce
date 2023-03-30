@@ -19,6 +19,7 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import java.nio.charset.StandardCharsets;
+import java.util.NoSuchElementException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +28,17 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
 
   private static final Logger logger = LoggerFactory.getLogger(ExceptionsHandler.class);
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>This method handles the exception thrown If something goes wrong during the execution of
+   * the request. It creates a response containing a status code based on the type of the
+   * {@link Throwable} and it returns it to the client instead of forwarding the exception to the
+   * next ChannelHandler in the ChannelPipeline.
+   *
+   * @param context is a {@link ChannelHandlerContext}.
+   * @param cause is a {@link Throwable} containing the cause of the exception.
+   */
   @Override
   public void exceptionCaught(
     ChannelHandlerContext context,
@@ -49,7 +61,9 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
       responseStatus = HttpResponseStatus.BAD_REQUEST;
       payload = HttpResponseStatus.BAD_REQUEST.toString();
     }
-    else if( cause instanceof NodeNotFoundException) {
+    else if( cause instanceof NodeNotFoundException
+      || cause instanceof NoSuchElementException
+    ) {
       responseStatus = HttpResponseStatus.NOT_FOUND;
       payload = HttpResponseStatus.NOT_FOUND.toString();
     }

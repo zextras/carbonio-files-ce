@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.rest.controllers;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.User;
+import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.rest.services.CollaborationLinkService;
 import io.netty.channel.ChannelFutureListener;
@@ -20,6 +21,7 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.AttributeKey;
 import java.text.MessageFormat;
+import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,17 +73,19 @@ public class CollaborationLinkController extends SimpleChannelInboundHandler<Htt
               .addListener(ChannelFutureListener.CLOSE);
           })
           .onFailure(failure -> {
-            logger.error(failure.getMessage());
-            context
-              .writeAndFlush(new DefaultFullHttpResponse(
-                httpRequest.protocolVersion(),
-                HttpResponseStatus.NOT_FOUND
-              ))
-              .addListener(ChannelFutureListener.CLOSE);
+            logger.error(
+              String.format("Unable to create the share from invitation di %s", invitationId),
+              failure
+            );
+            context.fireExceptionCaught(new NoSuchElementException());
           });
       }
+
+      context.fireChannelRead(new NoSuchElementException());
+
     } catch (Exception exception) {
-      context.fireExceptionCaught(new InternalServerErrorException(exception));
+      logger.error("CollaborationLinkController catches an exception", exception);
+      context.fireExceptionCaught(exception);
     }
   }
 }

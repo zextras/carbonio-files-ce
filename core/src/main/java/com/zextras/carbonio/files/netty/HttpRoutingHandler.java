@@ -79,7 +79,9 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     }
 
     if (Endpoints.HEALTH.matcher(request.uri()).matches()) {
-      context.pipeline().addLast("health-handler", healthController);
+      context.pipeline()
+        .addLast("health-handler", healthController)
+        .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
@@ -91,7 +93,8 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
         .addLast(new HttpObjectAggregator(256 * 1024))
         .addLast(new ChunkedWriteHandler())
         .addLast("auth-handler", authenticationHandler)
-        .addLast("graphql-handler", graphQLController);
+        .addLast("graphql-handler", graphQLController)
+        .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
@@ -101,14 +104,16 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
       || Endpoints.UPLOAD_FILE_VERSION.matcher(request.uri()).matches()) {
       context.pipeline()
         .addLast("auth-handler", authenticationHandler)
-        .addLast("rest-handler", blobController);
+        .addLast("rest-handler", blobController)
+        .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
 
     if (Endpoints.PUBLIC_LINK.matcher(request.uri()).matches()) {
       context.pipeline()
-        .addLast("rest-handler", blobController);
+        .addLast("rest-handler", blobController)
+        .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
@@ -117,7 +122,8 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
       context
         .pipeline()
         .addLast("auth-handler", authenticationHandler)
-        .addLast("collaboration-link-handler", collaborationLinkController);
+        .addLast("collaboration-link-handler", collaborationLinkController)
+        .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
@@ -125,7 +131,8 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     if (Endpoints.PREVIEW.matcher(request.uri()).matches()) {
       context.pipeline()
         .addLast("auth-handler", authenticationHandler)
-        .addLast("preview-handler", previewController);
+        .addLast("preview-handler", previewController)
+        .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }

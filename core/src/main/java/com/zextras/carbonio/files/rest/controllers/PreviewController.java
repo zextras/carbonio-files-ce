@@ -42,6 +42,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -524,13 +525,12 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
         "attachment; filename*=UTF-8''" + URLEncoder.encode(blobResponse.getFilename(),
           StandardCharsets.UTF_8)
       );
-    } catch (Exception e) {
+    } catch (Exception exception) {
       logger.error(String.format(
         "Request %s: Exception of type: %s encountered while sending success response: %s",
-        e.getClass(),
-        e.getMessage()
-      ));
-      e.printStackTrace();
+        exception.getClass(),
+        exception.getMessage()
+      ), exception);
     }
 
     context.write(new DefaultHttpResponse(
@@ -609,13 +609,11 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       failure.getMessage()
     ));
 
-    HttpResponseStatus statusCode = (failure instanceof BadRequestException)
-      ? HttpResponseStatus.BAD_REQUEST
-      : HttpResponseStatus.NOT_FOUND;
+    Throwable exception = (failure instanceof BadRequestException)
+      ? failure
+      : new NoSuchElementException();
 
-    context
-      .writeAndFlush(new DefaultFullHttpResponse(httpRequest.protocolVersion(), statusCode))
-      .addListener(ChannelFutureListener.CLOSE);
+    context.fireExceptionCaught(exception);
   }
 
   /**
