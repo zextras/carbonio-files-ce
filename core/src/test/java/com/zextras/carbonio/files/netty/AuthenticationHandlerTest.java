@@ -122,7 +122,7 @@ public class AuthenticationHandlerTest {
       .thenReturn(Try.success(new UserId("6c594bb9-f8c7-424f-9320-7bf72daae3e7")));
     Mockito
       .when(userRepositoryMock.getUserById("IRIS=ui; ZM_AUTH_TOKEN=valid-token",
-        UUID.fromString("6c594bb9-f8c7-424f-9320-7bf72daae3e7")))
+        "6c594bb9-f8c7-424f-9320-7bf72daae3e7"))
       .thenReturn(Optional.of(userMock));
     Mockito
       .when(channelMock.attr(AttributeKey.valueOf("requester")))
@@ -202,7 +202,7 @@ public class AuthenticationHandlerTest {
       .thenReturn(Try.success(new UserId("6c594bb9-f8c7-424f-9320-7bf72daae3e7")));
     Mockito
       .when(userRepositoryMock.getUserById("IRIS=ui; ZM_AUTH_TOKEN=valid-token",
-        UUID.fromString("6c594bb9-f8c7-424f-9320-7bf72daae3e7")))
+        "6c594bb9-f8c7-424f-9320-7bf72daae3e7"))
       .thenReturn(Optional.empty());
 
     ArgumentCaptor<AuthenticationException> captorException = ArgumentCaptor.forClass(

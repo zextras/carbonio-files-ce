@@ -115,7 +115,7 @@ public class ProcedureController extends SimpleChannelInboundHandler<FullHttpReq
     }
 
     if (permissionsChecker
-      .getPermissions(bodyRequest.getNodeId().toString(), requester.getUuid())
+      .getPermissions(bodyRequest.getNodeId().toString(), requester.getId())
       .has(SharePermission.READ_ONLY)
     ) {
       procedureService

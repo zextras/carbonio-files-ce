@@ -8,13 +8,12 @@ import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.usermanagement.entities.UserId;
 import io.vavr.control.Try;
 import java.util.Optional;
-import java.util.UUID;
 
 public interface UserRepository {
 
   Optional<User> getUserById(
     String cookies,
-    UUID userUUID
+    String userId
   );
 
   Optional<User> getUserByEmail(

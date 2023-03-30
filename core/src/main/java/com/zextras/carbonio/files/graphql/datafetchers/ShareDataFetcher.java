@@ -115,7 +115,7 @@ public class ShareDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getUuid();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       String sharedNodeId = environment.getArgument(Files.GraphQL.InputParameters.Share.NODE_ID);
       String targetUserId = environment.getArgument(
         Files.GraphQL.InputParameters.Share.SHARE_TARGET_ID
@@ -220,7 +220,7 @@ public class ShareDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getUuid();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       String sharedNodeId = environment.getArgument(Files.GraphQL.InputParameters.Share.NODE_ID);
       String targetUserId = environment.getArgument(
         Files.GraphQL.InputParameters.Share.SHARE_TARGET_ID);
@@ -317,7 +317,7 @@ public class ShareDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getUuid();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       String sharedNodeId = environment.getArgument(Files.GraphQL.InputParameters.Share.NODE_ID);
       String targetUserId = environment.getArgument(
         Files.GraphQL.InputParameters.Share.SHARE_TARGET_ID);
@@ -382,7 +382,7 @@ public class ShareDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getUuid();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       final String sharedNodeId = environment.getArgument(
         Files.GraphQL.InputParameters.Share.NODE_ID);
       final String targetUserId = environment.getArgument(

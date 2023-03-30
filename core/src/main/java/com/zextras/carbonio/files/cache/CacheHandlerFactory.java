@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.cache;
 
 import com.google.inject.assistedinject.Assisted;
+import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
@@ -29,7 +30,7 @@ public interface CacheHandlerFactory {
     @Assisted("defaultItemLifetimeInMillis") long defaultItemLifetimeInMillis
   );
 
-  LocalCacheAdapter<Share> createUserCache(
+  LocalCacheAdapter<User> createUserCache(
     String cacheName,
     @Assisted("defaultCacheSize") long defaultCacheSize,
     @Assisted("defaultItemLifetimeInMillis") long defaultItemLifetimeInMillis

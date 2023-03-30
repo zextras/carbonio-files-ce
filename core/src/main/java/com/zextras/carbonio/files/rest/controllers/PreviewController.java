@@ -191,7 +191,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(5));
 
     Try<Pair<Node, FileVersion>> tryCheckNode = checkNodePermissionAndExistence(
-      requester.getUuid(),
+      requester.getId(),
       nodeId,
       Integer.parseInt(nodeVersion),
       Collections.singleton("image/")
@@ -240,7 +240,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
     Try<Pair<Node, FileVersion>> tryCheckNode = checkNodePermissionAndExistence(
-      requester.getUuid(),
+      requester.getId(),
       nodeId,
       Integer.parseInt(nodeVersion),
       Collections.singleton("image/")
@@ -289,7 +289,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
     Try<Pair<Node, FileVersion>> tryCheckNode = checkNodePermissionAndExistence(
-      requester.getUuid(),
+      requester.getId(),
       nodeId,
       Integer.parseInt(nodeVersion),
       Collections.singleton("application/pdf")
@@ -338,7 +338,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
     Try<Pair<Node, FileVersion>> tryCheckNode = checkNodePermissionAndExistence(
-      requester.getUuid(),
+      requester.getId(),
       nodeId,
       Integer.parseInt(nodeVersion),
       Collections.singleton("application/pdf")
@@ -388,7 +388,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
     Try<Pair<Node, FileVersion>> tryCheckNode = checkNodePermissionAndExistence(
-      requester.getUuid(),
+      requester.getId(),
       nodeId,
       Integer.parseInt(nodeVersion),
       documentAllowedTypes
@@ -438,7 +438,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
     Try<Pair<Node, FileVersion>> tryCheckNode = checkNodePermissionAndExistence(
-      requester.getUuid(),
+      requester.getId(),
       nodeId,
       Integer.parseInt(nodeVersion),
       documentAllowedTypes

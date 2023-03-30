@@ -104,7 +104,7 @@ public class ProcedureService {
             .download(FilesIdentifier.of(
               nodeId.toString(),
               nodeToUpload.getCurrentVersion(),
-              requester.getUuid())
+              requester.getId())
             );
         } catch (Exception exception) {
           logger.error(MessageFormat.format("Failed to download the node: {0}", nodeId));

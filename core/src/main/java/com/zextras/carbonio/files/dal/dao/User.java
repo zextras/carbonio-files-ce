@@ -12,25 +12,25 @@ package com.zextras.carbonio.files.dal.dao;
  */
 public class User {
 
-  private final String uuid;
+  private final String id;
   private final String fullName;
   private final String email;
   private final String domain;
 
   public User(
-    String uuid,
+    String id,
     String fullName,
     String email,
     String domain
   ) {
-    this.uuid = uuid;
+    this.id = id;
     this.fullName = fullName;
     this.email = email;
     this.domain = domain;
   }
 
-  public String getUuid() {
-    return uuid;
+  public String getId() {
+    return id;
   }
 
   public String getFullName() {
