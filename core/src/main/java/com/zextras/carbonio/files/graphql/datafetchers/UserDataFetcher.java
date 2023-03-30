@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -67,7 +66,7 @@ public class UserDataFetcher {
     ResultPath path
   ) {
     return userRepository
-      .getUserById(cookies, UUID.fromString(userId))
+      .getUserById(cookies, userId)
       .map(this::convertUserToDataFetcherResult)
       .orElse(
         new DataFetcherResult.Builder<Map<String, Object>>()
@@ -92,7 +91,7 @@ public class UserDataFetcher {
 
   private DataFetcherResult<Map<String, Object>> convertUserToDataFetcherResult(User user) {
     Map<String, Object> result = new HashMap<>();
-    result.put(Files.GraphQL.User.ID, user.getUuid());
+    result.put(Files.GraphQL.User.ID, user.getId());
     result.put(Files.GraphQL.User.EMAIL, user.getEmail());
     result.put(Files.GraphQL.User.FULL_NAME, user.getFullName());
     result.put(Files.GraphQL.ENTITY_TYPE, Files.GraphQL.Types.USER);

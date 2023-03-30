@@ -21,7 +21,7 @@ public class UserTest {
 
     // Then
     Assertions
-      .assertThat(user.getUuid())
+      .assertThat(user.getId())
       .isEqualTo("fake-user-id");
 
     Assertions

@@ -88,7 +88,7 @@ public class CollaborationLinkDataFetcher {
       String nodeId = environment.getArgument(CreateCollaborationLink.NODE_ID);
       SharePermission permissions = environment.getArgument(CreateCollaborationLink.PERMISSION);
 
-      if (permissionsChecker.getPermissions(nodeId, requester.getUuid()).has(permissions)) {
+      if (permissionsChecker.getPermissions(nodeId, requester.getId()).has(permissions)) {
 
         // If there is an existing collaboration link having the same permission then the system
         // returns it, otherwise it creates a new collaboration link
@@ -125,7 +125,7 @@ public class CollaborationLinkDataFetcher {
         ? optLocalContext.get().get(Node.ID)
         : environment.getArgument(GetCollaborationLink.NODE_ID);
 
-      ACL permissions = permissionsChecker.getPermissions(nodeId, requester.getUuid());
+      ACL permissions = permissionsChecker.getPermissions(nodeId, requester.getId());
 
       if (permissions.has(SharePermission.READ_AND_SHARE)
         || permissions.has(SharePermission.READ_WRITE_AND_SHARE)
@@ -163,7 +163,7 @@ public class CollaborationLinkDataFetcher {
           .getLinkById(UUID.fromString(collaborationId))
           .filter(collaborationLink -> {
             ACL requesterPermission = permissionsChecker
-              .getPermissions(collaborationLink.getNodeId(), requester.getUuid());
+              .getPermissions(collaborationLink.getNodeId(), requester.getId());
 
             return requesterPermission.has(SharePermission.READ_WRITE_AND_SHARE) ||
               requesterPermission.has(SharePermission.READ_AND_SHARE);

@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.netty;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.exceptions.AuthenticationException;
 import io.netty.channel.ChannelHandler;
@@ -20,7 +19,6 @@ import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import io.netty.util.AttributeKey;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -121,7 +119,7 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
       .validateToken(zmAuthToken)
       .onSuccess(userId -> {
           userRepository
-            .getUserById(cookies, UUID.fromString(userId.getUserId()))
+            .getUserById(cookies, userId.getUserId())
             .ifPresentOrElse(
               user -> {
                 context.channel()

@@ -49,7 +49,7 @@ public class CollaborationLinkController extends SimpleChannelInboundHandler<Htt
         User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
         collaborationLinkService
-          .createShareByInvitationId(invitationId, requester.getUuid())
+          .createShareByInvitationId(invitationId, requester.getId())
           .onSuccess(sharedNode -> {
             FullHttpResponse response = new DefaultFullHttpResponse(
               httpRequest.protocolVersion(),

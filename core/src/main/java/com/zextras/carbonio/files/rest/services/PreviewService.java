@@ -293,7 +293,7 @@ public class PreviewService {
   ) {
     QueryBuilder parameterBuilder = new QueryBuilder()
       .setServiceType(ServiceType.FILES)
-      .setNodeId(nodeId)
+      .setFileId(nodeId)
       .setVersion(version)
       .setFileOwnerId(ownerId);
 

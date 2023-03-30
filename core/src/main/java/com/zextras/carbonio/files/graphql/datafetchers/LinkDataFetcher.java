@@ -126,7 +126,7 @@ public class LinkDataFetcher {
       String nodeId = environment.getArgument(Files.GraphQL.InputParameters.Link.NODE_ID);
 
       if (permissionsChecker
-        .getPermissions(nodeId, requester.getUuid())
+        .getPermissions(nodeId, requester.getId())
         .has(SharePermission.READ_AND_SHARE)
         && nodeRepository.getNode(nodeId).get().getNodeType() != NodeType.FOLDER
       ) {
@@ -160,7 +160,7 @@ public class LinkDataFetcher {
         : environment.getArgument(InputParameters.Link.NODE_ID);
 
       return permissionsChecker
-        .getPermissions(nodeId, requester.getUuid())
+        .getPermissions(nodeId, requester.getId())
         .has(SharePermission.READ_AND_SHARE)
         ? linkRepository
         .getLinksByNodeId(nodeId, LinkSort.CREATED_AT_DESC)
@@ -182,7 +182,7 @@ public class LinkDataFetcher {
 
       return linkRepository.getLinkById(linkId)
         .filter(link -> permissionsChecker
-          .getPermissions(link.getNodeId(), requester.getUuid())
+          .getPermissions(link.getNodeId(), requester.getId())
           .has(SharePermission.READ_AND_SHARE)
         )
         .map(link -> {
@@ -213,7 +213,7 @@ public class LinkDataFetcher {
       ResultPath path = environment.getExecutionStepInfo().getPath();
       String requesterId = ((User) environment
         .getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getUuid();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       List<String> linkIds = environment.getArgument(InputParameters.Link.LINK_IDS);
 
       List<String> linkIdsToDelete = linkIds

@@ -143,16 +143,16 @@ public class BlobService {
   ) {
 
     if (permissionsChecker
-      .getPermissions(folderId, requester.getUuid())
+      .getPermissions(folderId, requester.getId())
       .has(SharePermission.READ_AND_WRITE)
     ) {
 
       String nodeId = UUID.randomUUID().toString();
       String nodeOwner = folderId.equals(RootId.LOCAL_ROOT)
-        ? requester.getUuid()
+        ? requester.getId()
         : nodeRepository.getNode(folderId)
           .map(Node::getOwnerId)
-          .orElse(requester.getUuid());
+          .orElse(requester.getId());
 
       MediaType mediaType = mimeTypeUtils.detectMimeTypeFromFilename(
         filename,
@@ -167,7 +167,7 @@ public class BlobService {
         uploadResponse = StoragesClient
           .atUrl(storageUrl)
           .uploadPost(
-            FilesIdentifier.of(nodeId, 1, requester.getUuid()),
+            FilesIdentifier.of(nodeId, 1, requester.getId()),
             bufferInputStream,
             blobLength
           );
@@ -184,7 +184,7 @@ public class BlobService {
       Node folder = nodeRepository.getNode(folderId).get();
       nodeRepository.createNewNode(
         nodeId,
-        requester.getUuid(),
+        requester.getId(),
         nodeOwner,
         folderId,
         searchAlternativeName(filename.trim(), folderId, nodeOwner),
@@ -198,7 +198,7 @@ public class BlobService {
 
       fileVersionRepository.createNewFileVersion(
         nodeId,
-        requester.getUuid(),
+        requester.getId(),
         1,
         mediaType.toString(),
         uploadResponse.getSize(),
@@ -238,7 +238,7 @@ public class BlobService {
   ) {
 
     if (permissionsChecker
-      .getPermissions(nodeId, requester.getUuid())
+      .getPermissions(nodeId, requester.getId())
       .has(SharePermission.READ_AND_WRITE)
     ) {
 
@@ -318,7 +318,7 @@ public class BlobService {
     } else {
       logger.debug(MessageFormat.format(
         "User {0} does not have the necessary permission for node {1}",
-        requester.getUuid(),
+        requester.getId(),
         nodeId
       ));
       return Try.failure(new NodePermissionException());
@@ -346,7 +346,7 @@ public class BlobService {
         uploadResponse = StoragesClient
           .atUrl(storageUrl)
           .uploadPut(
-            FilesIdentifier.of(nodeId, newVersion, requester.getUuid()),
+            FilesIdentifier.of(nodeId, newVersion, requester.getId()),
             bufferInputStream,
             blobLength
           );
@@ -355,7 +355,7 @@ public class BlobService {
         uploadResponse = StoragesClient
           .atUrl(storageUrl)
           .uploadPost(
-            FilesIdentifier.of(nodeId, newVersion, requester.getUuid()),
+            FilesIdentifier.of(nodeId, newVersion, requester.getId()),
             bufferInputStream,
             blobLength
           );
@@ -373,7 +373,7 @@ public class BlobService {
 
     Optional<FileVersion> result = fileVersionRepository.createNewFileVersion(
       nodeId,
-      requester.getUuid(),
+      requester.getId(),
       newVersion,
       mediaType.toString(),
       uploadResponse.getSize(),
@@ -381,7 +381,7 @@ public class BlobService {
       false
     );
     node.setSize(uploadResponse.getSize());
-    node.setLastEditorId(requester.getUuid());
+    node.setLastEditorId(requester.getId());
     nodeRepository.updateNode(node);
 
     return result.map(fileVersion -> Try.success(fileVersion.getVersion()))

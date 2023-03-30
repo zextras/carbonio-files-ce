@@ -16,7 +16,6 @@ import com.zextras.carbonio.usermanagement.entities.UserId;
 import io.vavr.control.Try;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,23 +42,23 @@ public class UserRepositoryRest implements UserRepository {
   @Override
   public Optional<User> getUserById(
     String cookies,
-    UUID userUUID
+    String userId
   ) {
     return userCache
-      .get(userUUID.toString())
+      .get(userId)
       .or(() ->
         UserManagementClient
           .atURL(usermanagementUrl)
-          .getUserByUUID(cookies, userUUID)
+          .getUserById(cookies, userId)
           .onFailure(failure -> logger.error(failure.getMessage()))
           .map(userInfo -> {
               User user = new User(
-                userInfo.getId(),
+                userInfo.getId().getUserId(),
                 userInfo.getFullName(),
                 userInfo.getEmail(),
                 userInfo.getDomain()
               );
-              userCache.add(user.getUuid(), user);
+              userCache.add(user.getId(), user);
               userCache.add(user.getEmail(), user);
 
               return user;
@@ -84,12 +83,12 @@ public class UserRepositoryRest implements UserRepository {
           .onFailure(failure -> logger.error(failure.getMessage()))
           .map(userInfo -> {
               User user = new User(
-                userInfo.getId(),
+                userInfo.getId().getUserId(),
                 userInfo.getFullName(),
                 userInfo.getEmail(),
                 userInfo.getDomain()
               );
-              userCache.add(user.getUuid(), user);
+              userCache.add(user.getId(), user);
               userCache.add(user.getEmail(), user);
 
               return user;

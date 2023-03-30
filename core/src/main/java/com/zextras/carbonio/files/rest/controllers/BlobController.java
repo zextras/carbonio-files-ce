@@ -240,7 +240,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       .map(Integer::parseInt);
 
     if (permissionsChecker
-      .getPermissions(nodeId, requester.getUuid())
+      .getPermissions(nodeId, requester.getId())
       .has(SharePermission.READ_ONLY)
     ) {
 
@@ -250,7 +250,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         optVersion.map(integer -> MessageFormat.format("optional version: {0}", integer))
           .orElse("no optional version"),
         requester.getDomain(),
-        requester.getUuid()
+        requester.getId()
       ));
 
       blobService
@@ -295,7 +295,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       logger.error(MessageFormat.format(
         "Request {0}: The user {1} does not have the READ permission to download the node {2}",
         request.uri(),
-        requester.getUuid(),
+        requester.getId(),
         nodeId
       ));
 
