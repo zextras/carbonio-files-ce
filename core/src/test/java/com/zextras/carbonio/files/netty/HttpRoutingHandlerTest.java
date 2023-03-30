@@ -123,6 +123,9 @@ public class HttpRoutingHandlerTest {
       .verify(channelPipelineMock, Mockito.times(1))
       .addLast("health-handler", healthControllerMock);
     Mockito
+      .verify(channelPipelineMock, Mockito.times(1))
+      .addLast("exceptions-handler", exceptionsHandlerMock);
+    Mockito
       .verify(channelHandlerContextMock, Mockito.times(1))
       .fireChannelRead(httpRequestMock);
   }
@@ -158,6 +161,9 @@ public class HttpRoutingHandlerTest {
       .verify(channelPipelineMock, Mockito.times(1))
       .addLast("graphql-handler", graphQLControllerMock);
     Mockito
+      .verify(channelPipelineMock, Mockito.times(1))
+      .addLast("exceptions-handler", exceptionsHandlerMock);
+    Mockito
       .verify(channelHandlerContextMock, Mockito.times(1))
       .fireChannelRead(httpRequestMock);
   }
@@ -190,6 +196,9 @@ public class HttpRoutingHandlerTest {
       .verify(channelPipelineMock, Mockito.times(1))
       .addLast("rest-handler", blobControllerMock);
     Mockito
+      .verify(channelPipelineMock, Mockito.times(1))
+      .addLast("exceptions-handler", exceptionsHandlerMock);
+    Mockito
       .verify(channelHandlerContextMock, Mockito.times(1))
       .fireChannelRead(httpRequestMock);
   }
@@ -212,6 +221,9 @@ public class HttpRoutingHandlerTest {
     Mockito
       .verify(channelPipelineMock, Mockito.times(1))
       .addLast("rest-handler", blobControllerMock);
+    Mockito
+      .verify(channelPipelineMock, Mockito.times(1))
+      .addLast("exceptions-handler", exceptionsHandlerMock);
     Mockito
       .verify(channelHandlerContextMock, Mockito.times(1))
       .fireChannelRead(httpRequestMock);
@@ -238,6 +250,9 @@ public class HttpRoutingHandlerTest {
     Mockito
       .verify(channelPipelineMock, Mockito.times(1))
       .addLast("collaboration-link-handler", collaborationLinkControllerMock);
+    Mockito
+      .verify(channelPipelineMock, Mockito.times(1))
+      .addLast("exceptions-handler", exceptionsHandlerMock);
     Mockito
       .verify(channelHandlerContextMock, Mockito.times(1))
       .fireChannelRead(httpRequestMock);
@@ -276,6 +291,9 @@ public class HttpRoutingHandlerTest {
     Mockito
       .verify(channelPipelineMock, Mockito.times(1))
       .addLast("preview-handler", previewControllerMock);
+    Mockito
+      .verify(channelPipelineMock, Mockito.times(1))
+      .addLast("exceptions-handler", exceptionsHandlerMock);
     Mockito
       .verify(channelHandlerContextMock, Mockito.times(1))
       .fireChannelRead(httpRequestMock);

@@ -4,7 +4,6 @@
 
 package com.zextras.carbonio.files.rest.controllers;
 
-import static io.netty.buffer.Unpooled.EMPTY_BUFFER;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -17,6 +16,7 @@ import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
+import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
 import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.UploadNodeResponse;
@@ -49,6 +49,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
 import java.text.MessageFormat;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -77,12 +78,12 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       promise.channel().close();
     };
 
-  private final BlobService          blobService;
+  private final BlobService blobService;
 
   private final PrometheusService prometheusService;
-  private final PermissionsChecker   permissionsChecker;
-  private final int                  maxNumberOfVersions;
-  private final int                  maxNumberOfKeepVersions;
+  private final PermissionsChecker permissionsChecker;
+  private final int maxNumberOfVersions;
+  private final int maxNumberOfKeepVersions;
 
   @Inject
   public BlobController(
@@ -102,29 +103,6 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       this.maxNumberOfVersions <= Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION
         ? 0
         : this.maxNumberOfVersions - Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
-  }
-
-  /**
-   * {@inheritDoc}
-   *
-   * <p>This method handles the exception thrown If something goes wrong during the execution of
-   * the request. It returns a response containing an INTERNAL_SERVER_ERROR to the client instead of
-   * forwarding the exception to the next ChannelHandler in the ChannelPipeline.
-   *
-   * @param ctx is a {@link ChannelHandlerContext}.
-   * @param cause is a {@link Throwable} containing the cause of the exception.
-   */
-  @Override
-  public void exceptionCaught(
-    ChannelHandlerContext ctx,
-    Throwable cause
-  ) {
-    logger.warn("BlobController exception:\n" + cause.toString());
-    ctx.writeAndFlush(new DefaultFullHttpResponse(
-        HttpVersion.HTTP_1_0,
-        HttpResponseStatus.INTERNAL_SERVER_ERROR
-      )
-    ).addListener(nettyChannelFutureClose);
   }
 
   @Override
@@ -180,10 +158,15 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
               .get()
           ).ifPresent(BufferInputStream::finishWrite);
         }
+        return;
       }
+
+      context.fireChannelRead(new NoSuchElementException());
+
     } catch (Exception exception) {
       // Catching the RuntimeException and the JsonProcessingException
-      exceptionCaught(context, exception.getCause());
+      logger.error("BlobController catches an exception", exception);
+      context.fireExceptionCaught(exception);
     }
   }
 
@@ -215,14 +198,10 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         writeStream(context, blobResponse.getBlobStream());
       })
       .onFailure(failure -> {
-        logger.error(failure.getMessage());
-        context
-          .writeAndFlush(new DefaultFullHttpResponse(
-              httpRequest.protocolVersion(),
-              HttpResponseStatus.BAD_REQUEST
-            )
-          )
-          .addListener(nettyChannelFutureClose);
+        logger.error(
+          String.format("Download of node via the public link %s failed", publicLinkId), failure
+        );
+        context.fireExceptionCaught(new NoSuchElementException());
       });
   }
 
@@ -267,7 +246,11 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
               "attachment; filename*=UTF-8''" + URLEncoder.encode(blobResponse.getFilename(),
                 "UTF-8")
             );
-          } catch (Exception ignore) {
+          } catch (Exception exception) {
+            logger.error(
+              String.format("Unable to encode filename of node %s to download", nodeId), exception
+            );
+            context.fireExceptionCaught(exception);
           }
 
           context.write(new DefaultHttpResponse(
@@ -279,32 +262,19 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
           writeStream(context, blobResponse.getBlobStream());
         })
         .onFailure(failure -> {
-          logger.error(MessageFormat.format(
-            "Download operation failed with error: {0}",
-            failure.getMessage()
-          ));
-          context
-            .writeAndFlush(new DefaultFullHttpResponse(
-              protocolVersionRequest,
-              HttpResponseStatus.BAD_REQUEST)
-            )
-            .addListener(nettyChannelFutureClose);
+          logger.error("Download operation failed", failure);
+          context.fireChannelRead(new BadRequestException());
         });
 
     } else {
-      logger.error(MessageFormat.format(
-        "Request {0}: The user {1} does not have the READ permission to download the node {2}",
+      logger.error(String.format(
+        "Request %s: The user %s does not have the READ permission to download the node %s",
         request.uri(),
         requester.getId(),
         nodeId
       ));
 
-      context
-        .writeAndFlush(new DefaultFullHttpResponse(
-          protocolVersionRequest,
-          HttpResponseStatus.NOT_FOUND)
-        )
-        .addListener(nettyChannelFutureClose);
+      context.fireExceptionCaught(new NoSuchElementException());
     }
   }
 
@@ -338,12 +308,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       || decodedFilename.trim().isEmpty()
       || decodedFilename.trim().length() > 1024
     ) {
-      context.writeAndFlush(new DefaultFullHttpResponse(
-        httpRequest.protocolVersion(),
-        HttpResponseStatus.BAD_REQUEST,
-        Unpooled.EMPTY_BUFFER)
-      );
-      context.close();
+      context.fireExceptionCaught(new BadRequestException());
       return;
     }
 
@@ -381,7 +346,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
             new DefaultHttpHeaders()
           );
         } catch (JsonProcessingException e) {
-          e.printStackTrace();
+          context.fireExceptionCaught(e);
         }
 
         context.write(httpResponse);
@@ -408,18 +373,13 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       || decodedFilename.trim().isEmpty()
       || decodedFilename.trim().length() > 1024
     ) {
-      context.writeAndFlush(new DefaultFullHttpResponse(
-        httpRequest.protocolVersion(),
-        HttpResponseStatus.BAD_REQUEST,
-        EMPTY_BUFFER
-      ));
-      context.close();
+      context.fireExceptionCaught(new BadRequestException());
       return;
     }
 
     if (blobService.getNumberOfVersionOfFile(nodeId) > maxNumberOfVersions) {
-      logger.info(MessageFormat.format(
-        "Node: {0} has reached max number of versions ({1}), cannot add more versions",
+      logger.info(String.format(
+        "Node: %s has reached max number of versions (%d), cannot add more versions",
         nodeId,
         maxNumberOfVersions
       ));
@@ -477,7 +437,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
             new DefaultHttpHeaders()
           );
         } catch (JsonProcessingException e) {
-          e.printStackTrace();
+          context.fireExceptionCaught(e);
         }
 
         context.write(httpResponse);
@@ -525,7 +485,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       try {
         contentStream.close();
       } catch (IOException e) {
-        e.printStackTrace();
+        logger.error("Upload buffer exception", e);
       }
       promise.setSuccess();
       return;

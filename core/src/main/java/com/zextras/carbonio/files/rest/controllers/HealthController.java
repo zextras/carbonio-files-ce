@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,15 +74,11 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
         return;
       }
 
-      context
-        .writeAndFlush(new DefaultFullHttpResponse(
-          httpRequest.protocolVersion(),
-          HttpResponseStatus.NOT_FOUND
-        ))
-        .addListener(ChannelFutureListener.CLOSE);
+      context.fireExceptionCaught(new NoSuchElementException());
 
     } catch (Exception exception) {
-      context.fireExceptionCaught(new InternalServerErrorException(exception));
+      logger.error("HealthController catches an exception", exception);
+      context.fireExceptionCaught(exception);
     }
   }
 

@@ -87,32 +87,6 @@ public class GraphQLController extends SimpleChannelInboundHandler<FullHttpReque
 
   /**
    * {@inheritDoc}
-   * <p>
-   * This method handles the exception thrown If something goes wrong during the execution of the
-   * request. It returns a response containing an INTERNAL_SERVER_ERROR to the client instead of
-   * forwarding the exception to the next ChannelHandler in the ChannelPipeline.
-   * </p>
-   *
-   * @param ctx
-   * @param cause
-   *
-   * @throws Exception
-   */
-  @Override
-  public void exceptionCaught(
-    ChannelHandlerContext ctx,
-    Throwable cause
-  ) {
-    logger.warn("GraphQLController exception:\n" + cause.toString());
-    ctx.writeAndFlush(new DefaultFullHttpResponse(
-        HttpVersion.HTTP_1_0,
-        HttpResponseStatus.INTERNAL_SERVER_ERROR
-      ))
-      .addListener(sNettyChannelFutureClose);
-  }
-
-  /**
-   * {@inheritDoc}
    * <p>This method:
    *  <ul>
    *   <li>
@@ -206,8 +180,8 @@ public class GraphQLController extends SimpleChannelInboundHandler<FullHttpReque
     }
     // Catching the RuntimeException and the JsonProcessingException
     catch (Exception exception) {
-      exception.printStackTrace();
-      exceptionCaught(context, exception.getCause());
+      logger.error("GraphQLController catches an exception", exception);
+      context.fireExceptionCaught(exception);
     }
   }
 
