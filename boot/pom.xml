@@ -16,13 +16,13 @@ SPDX-License-Identifier: AGPL-3.0-only
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
+        <groupId>org.apache.maven.plugins</groupId>
+        <version>${maven-compiler.version}</version>
         <configuration>
           <release>${java-compiler.version}</release>
           <source>${java-compiler.version}</source>
           <target>${java-compiler.version}</target>
         </configuration>
-        <groupId>org.apache.maven.plugins</groupId>
-        <version>${maven-compiler.version}</version>
       </plugin>
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
@@ -59,15 +59,6 @@ SPDX-License-Identifier: AGPL-3.0-only
       <version>${project.parent.version}</version>
     </dependency>
 
-    <dependency>
-      <artifactId>netty-all</artifactId>
-      <groupId>io.netty</groupId>
-    </dependency>
-
-    <dependency>
-      <artifactId>logback-classic</artifactId>
-      <groupId>ch.qos.logback</groupId>
-    </dependency>
   </dependencies>
 
   <licenses>
@@ -84,7 +75,7 @@ SPDX-License-Identifier: AGPL-3.0-only
   <parent>
     <artifactId>carbonio-files-ce</artifactId>
     <groupId>com.zextras.carbonio.files</groupId>
-    <version>0.8.0-1</version>
+    <version>0.8.0-2303301107</version>
   </parent>
 
 </project>
