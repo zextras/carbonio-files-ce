@@ -8,6 +8,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.8.1](https://github.com/Zextras/carbonio-files-ce/compare/v0.8.0...v0.8.1) (2023-03-31)
+
+
+### Bug Fixes
+
+* FILES-563 - Move jar in /usr/share/carbonio folder ([#51](https://github.com/Zextras/carbonio-files-ce/issues/51)) ([4fb1356](https://github.com/Zextras/carbonio-files-ce/commit/4fb13563189999dd1d4a20c628c36836ec562c70))
+* FILES-618 add ExceptionHandler at the end of each endpoint pipeline ([#56](https://github.com/Zextras/carbonio-files-ce/issues/56)) ([c134a5e](https://github.com/Zextras/carbonio-files-ce/commit/c134a5ec6c43cc03f13e4ed1b0030d090dae2d04))
+
 ### [0.8.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.7.0...v0.8.0) (2023-02-03)
 
 
