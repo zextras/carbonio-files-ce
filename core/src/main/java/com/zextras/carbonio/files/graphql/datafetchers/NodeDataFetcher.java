@@ -287,13 +287,14 @@ public class NodeDataFetcher {
               String requesterId =
                 ((User) environment.getGraphQlContext().get(Context.REQUESTER)).getId();
 
-              Optional<Integer> optVersion = environment.getArgument(
-                Files.GraphQL.FileVersion.VERSION);
+              Integer version = Optional
+                .ofNullable((Integer) environment.getArgument(Files.GraphQL.FileVersion.VERSION))
+                .orElse(((Node) node).getCurrentVersion());
 
               return permissionsChecker
                 .getPermissions(nId, requesterId)
                 .has(SharePermission.READ_ONLY)
-                ? convertNodeToDataFetcherResult((Node) node, requesterId, path)
+                ? convertNodeToDataFetcherResult((Node) node, version, requesterId, path)
                 : (isParent.get())
                   ? new DataFetcherResult.Builder<Map<String, Object>>().build()
                   : new DataFetcherResult
