@@ -8,6 +8,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.8.2](https://github.com/Zextras/carbonio-files-ce/compare/v0.8.1...v0.8.2) (2023-04-27)
+
+
+### Bug Fixes
+
+* fix GetNode when a specific node version is given ([#58](https://github.com/Zextras/carbonio-files-ce/issues/58)) ([13cc3a0](https://github.com/Zextras/carbonio-files-ce/commit/13cc3a079643817b466d2f42a9561ddd65ba43cf))
+
 ### [0.8.1](https://github.com/Zextras/carbonio-files-ce/compare/v0.8.0...v0.8.1) (2023-03-31)
 
 
