@@ -28,7 +28,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-public class HttpRoutingHandlerTest {
+class HttpRoutingHandlerTest {
 
   private HealthController            healthControllerMock;
   private GraphQLController           graphQLControllerMock;
@@ -79,7 +79,7 @@ public class HttpRoutingHandlerTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"/metrics/", "/metrics"})
-  public void givenAMetricsRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
+  void givenAMetricsRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
     // Given
     Mockito
       .when(httpRequestMock.uri())
@@ -109,7 +109,7 @@ public class HttpRoutingHandlerTest {
     "/health/ready",
     "/health/ready/"
   })
-  public void givenAnHealthRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
+  void givenAnHealthRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
     // Given
     Mockito
       .when(httpRequestMock.uri())
@@ -132,7 +132,7 @@ public class HttpRoutingHandlerTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"/graphql/", "/graphql"})
-  public void givenAGraphqlRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
+  void givenAGraphqlRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
     // Given
     Mockito
       .when(channelPipelineMock.addLast(Mockito.any(HttpObjectAggregator.class)))
@@ -179,7 +179,7 @@ public class HttpRoutingHandlerTest {
     "/upload-version",
     "/upload-version/"
   })
-  public void givenAnUploadOrDownloadRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
+  void givenAnUploadOrDownloadRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
     // Given
     Mockito
       .when(httpRequestMock.uri())
@@ -208,7 +208,7 @@ public class HttpRoutingHandlerTest {
     "/link/abcd1234",
     "/link/abcd1234/"
   })
-  public void givenAPublicLinkRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
+  void givenAPublicLinkRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
     // Given
     Mockito
       .when(httpRequestMock.uri())
@@ -234,7 +234,7 @@ public class HttpRoutingHandlerTest {
     "/invite/abcd1234",
     "/invite/abcd1234/"
   })
-  public void givenAnInvitationLinkRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
+  void givenAnInvitationLinkRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
     // Given
     Mockito
       .when(httpRequestMock.uri())
@@ -275,7 +275,7 @@ public class HttpRoutingHandlerTest {
     "/preview/document/8caeef71-6f72-439c-847a-38e90efd0965/1/10x10/thumbnail",
     "/preview/document/8caeef71-6f72-439c-847a-38e90efd0965/1/10x10/thumbnail/"
   })
-  public void givenAPreviewRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
+  void givenAPreviewRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
     // Given
     Mockito
       .when(httpRequestMock.uri())
@@ -301,7 +301,7 @@ public class HttpRoutingHandlerTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"/upload-to/", "/upload-to"})
-  public void givenAnUploadToModuleRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
+  void givenAnUploadToModuleRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
     // Given
     Mockito
       .when(channelPipelineMock.addLast(Mockito.any(HttpObjectAggregator.class)))
@@ -338,7 +338,7 @@ public class HttpRoutingHandlerTest {
   }
 
   @Test
-  public void givenAnInvalidEndpointRequestHttpRoutingHandlerShouldRespondWith404() {
+  void givenAnInvalidEndpointRequestHttpRoutingHandlerShouldRespondWith404() {
     // Given
     Mockito
       .when(httpRequestMock.uri())

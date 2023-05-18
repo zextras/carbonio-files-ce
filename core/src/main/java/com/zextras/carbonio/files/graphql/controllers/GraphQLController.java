@@ -10,7 +10,6 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.GraphQL.DataLoaders;
-import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.GraphQLRequest;
 import com.zextras.carbonio.files.graphql.dataloaders.NodeBatchLoader;
@@ -62,7 +61,7 @@ public class GraphQLController extends SimpleChannelInboundHandler<FullHttpReque
    * This ChannelFutureListener aims to close correctly the channel only after the promise has
    * finished successfully! This listener must be used in every netty response.
    */
-  private final static ChannelFutureListener sNettyChannelFutureClose = (promise) -> {
+  private static final ChannelFutureListener sNettyChannelFutureClose = (promise) -> {
     if (!promise.isSuccess()) {
       logger.error("Failed to send the HTTP response, cause by: " + promise.cause().toString());
     }
@@ -106,14 +105,14 @@ public class GraphQLController extends SimpleChannelInboundHandler<FullHttpReque
     FullHttpRequest httpRequest
   ) {
     try {
-      channelRead_async(context, httpRequest);
+      channelReadAsync(context, httpRequest);
     } catch (Exception e) {
       logger.error(e.getLocalizedMessage());
       context.pipeline().fireExceptionCaught(e);
     }
   }
 
-  private void channelRead_async(
+  private void channelReadAsync(
     ChannelHandlerContext context,
     FullHttpRequest httpRequest
   ) {

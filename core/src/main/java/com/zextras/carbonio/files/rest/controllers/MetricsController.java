@@ -19,16 +19,11 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 
 @ChannelHandler.Sharable
 public class MetricsController extends SimpleChannelInboundHandler<HttpRequest> {
-
-  private final static Logger logger = LoggerFactory.getLogger(MetricsController.class);
 
   private final PrometheusService prometheusService;
 

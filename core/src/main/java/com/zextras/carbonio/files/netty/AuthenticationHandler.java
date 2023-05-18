@@ -19,15 +19,11 @@ import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import io.netty.util.AttributeKey;
 import java.util.Optional;
 import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @ChannelHandler.Sharable
 public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpRequest> {
 
-  private final static Logger logger = LoggerFactory.getLogger(AuthenticationHandler.class);
-
-  private final static String UNAUTHORIZED_ERROR_MESSAGE = "Failed to authenticate request %s: %s";
+  private static final String UNAUTHORIZED_ERROR_MESSAGE = "Failed to authenticate request %s: %s";
 
   private final UserRepository userRepository;
 

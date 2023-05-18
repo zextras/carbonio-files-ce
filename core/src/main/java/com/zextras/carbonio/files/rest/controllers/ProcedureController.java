@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 @Sharable
 public class ProcedureController extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-  private final static Logger logger = LoggerFactory.getLogger(ProcedureController.class);
+  private static final Logger logger = LoggerFactory.getLogger(ProcedureController.class);
 
   private final ProcedureService   procedureService;
   private final PermissionsChecker permissionsChecker;

@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  */
 public class NodeBatchLoader implements BatchLoader<String, Try<Node>> {
 
-  private final static Logger logger = LoggerFactory.getLogger(NodeBatchLoader.class);
+  private static final Logger logger = LoggerFactory.getLogger(NodeBatchLoader.class);
 
   private final NodeRepository nodeRepository;
 

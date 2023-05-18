@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 
 public class PreviewService {
 
-  private final static Logger logger = LoggerFactory.getLogger(PreviewService.class);
+  private static final Logger logger = LoggerFactory.getLogger(PreviewService.class);
 
   private final NodeRepository nodeRepository;
   private final String         previewURL;

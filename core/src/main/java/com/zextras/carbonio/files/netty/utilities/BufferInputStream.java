@@ -109,7 +109,6 @@ public class BufferInputStream extends InputStream {
           readSize
         );
 
-        length -= readSize;
         return readSize;
       }
 

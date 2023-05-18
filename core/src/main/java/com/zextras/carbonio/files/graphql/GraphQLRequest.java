@@ -102,7 +102,7 @@ public class GraphQLRequest {
    * @throws {@link InvalidPayloadRequestError} This exception will be thrown if the payload doesn't
    *                contain a correct request type or has an empty body
    */
-  public final static GraphQLRequest buildFromPayload(String payloadString)
+  public static final GraphQLRequest buildFromPayload(String payloadString)
     throws InvalidPayloadRequestError {
 
     payloadString = payloadString.replace("\\n", "").replace("\\r", "");

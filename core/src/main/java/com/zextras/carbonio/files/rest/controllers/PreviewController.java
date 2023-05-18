@@ -528,6 +528,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     } catch (Exception exception) {
       logger.error(String.format(
         "Request %s: Exception of type: %s encountered while sending success response: %s",
+        httpRequest.uri(),
         exception.getClass(),
         exception.getMessage()
       ), exception);

@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 @ChannelHandler.Sharable
 public class CollaborationLinkController extends SimpleChannelInboundHandler<HttpRequest> {
 
-  private final static Logger logger = LoggerFactory.getLogger(CollaborationLinkController.class);
+  private static final Logger logger = LoggerFactory.getLogger(CollaborationLinkController.class);
 
   private final CollaborationLinkService collaborationLinkService;
 

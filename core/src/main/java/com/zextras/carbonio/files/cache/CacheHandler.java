@@ -37,7 +37,7 @@ public class CacheHandler {
       this.cacheHandlerFactory.createFileVersionCache(
         Files.Cache.FILE_VERSION,
         Files.Cache.DEFAULT_SIZE,
-        Files.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLISEC
+        Files.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
       )
     );
 
@@ -47,7 +47,7 @@ public class CacheHandler {
       this.cacheHandlerFactory.createUserCache(
         Files.Cache.USER,
         Files.Cache.DEFAULT_SIZE,
-        Files.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLISEC
+        Files.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
       )
     );
   }

@@ -7,10 +7,10 @@ package com.zextras.carbonio.files.dal.dao;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-public class UserTest {
+class UserTest {
 
   @Test
-  public void givenUserAttributesUserConstructorShouldCreateUserObjectCorrectly() {
+  void givenUserAttributesUserConstructorShouldCreateUserObjectCorrectly() {
     // Given & When
     User user = new User(
       "fake-user-id",

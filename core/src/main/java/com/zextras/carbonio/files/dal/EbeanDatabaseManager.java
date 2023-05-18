@@ -32,6 +32,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,7 +57,7 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class EbeanDatabaseManager {
 
-  private final static Logger         logger = LoggerFactory.getLogger(EbeanDatabaseManager.class);
+  private static final Logger         logger = LoggerFactory.getLogger(EbeanDatabaseManager.class);
   private final        List<Class<?>> entityList;
   private final        String         jdbcPostgresUrl;
   private final        String         postgresDatabase;
@@ -179,8 +180,8 @@ public class EbeanDatabaseManager {
       .lines()
       .collect(Collectors.joining("\n"));
 
-    try {
-      connection.createStatement().execute(data);
+    try (Statement statement = connection.createStatement()) {
+      statement.execute(data);
       logger.info(MessageFormat.format(
         "Database version {0} successfully updated!",
         dbVersionToPopulate

@@ -46,7 +46,7 @@ import org.dataloader.BatchLoader;
 @Singleton
 public class GraphQLProvider {
 
-  private static final String schemaURL = "/api/schema.graphql";
+  private static final String SCHEMA_URL = "/api/schema.graphql";
 
   private final GraphQL                      graphQL;
   private final InputFieldsController        inputFieldsController;
@@ -353,7 +353,7 @@ public class GraphQLProvider {
    */
   private GraphQLSchema buildSchema(RuntimeWiring wiring) {
     // Fetch the content of the GraphQL schema file into an InputStreamReader
-    InputStream inputStream = getClass().getResourceAsStream(schemaURL);
+    InputStream inputStream = getClass().getResourceAsStream(SCHEMA_URL);
     Reader schema = new InputStreamReader(inputStream);
 
     // Create the GraphQLSchema object

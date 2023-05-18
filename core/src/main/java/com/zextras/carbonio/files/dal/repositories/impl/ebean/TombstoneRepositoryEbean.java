@@ -16,23 +16,23 @@ import java.util.Optional;
 
 public class TombstoneRepositoryEbean implements TombstoneRepository {
 
-  private EbeanDatabaseManager mDB;
+  private final EbeanDatabaseManager dbManager;
 
   @Inject
   public TombstoneRepositoryEbean(EbeanDatabaseManager EbeanDatabaseManager) {
-    mDB = EbeanDatabaseManager;
+    dbManager = EbeanDatabaseManager;
   }
 
   @Override
   public void deleteTombstones() {
-    mDB.getEbeanDatabase()
+    dbManager.getEbeanDatabase()
       .find(Tombstone.class)
       .delete();
   }
 
   @Override
   public List<Tombstone> getTombstones() {
-    return mDB.getEbeanDatabase()
+    return dbManager.getEbeanDatabase()
       .find(Tombstone.class)
       //.setMaxRows(50) TODO: consider pagination
       .findList();
@@ -47,7 +47,7 @@ public class TombstoneRepositoryEbean implements TombstoneRepository {
 
     // Check if the same Tombstone already exists
     if (
-      mDB
+      dbManager
         .getEbeanDatabase()
         .find(Tombstone.class)
         .where()
@@ -67,7 +67,7 @@ public class TombstoneRepositoryEbean implements TombstoneRepository {
     );
 
     // Save the newly created Tombstone in the DB and return its Optional
-    mDB.getEbeanDatabase().save(tombstone);
+    dbManager.getEbeanDatabase().save(tombstone);
     return Optional.of(tombstone);
   }
 
@@ -76,7 +76,7 @@ public class TombstoneRepositoryEbean implements TombstoneRepository {
     List<FileVersion> fileVersions,
     String ownerId
   ) {
-    try (Transaction transaction = mDB.getEbeanDatabase().beginTransaction()) {
+    try (Transaction transaction = dbManager.getEbeanDatabase().beginTransaction()) {
       transaction.setBatchMode(true);
       transaction.setBatchSize(50);
 

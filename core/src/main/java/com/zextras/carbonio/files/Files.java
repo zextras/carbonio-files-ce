@@ -13,658 +13,770 @@ import java.util.regex.Pattern;
  * all the Files classes. This interface is divided in other sub interfaces for a better
  * categorization.
  */
-public interface Files {
+public final class Files {
 
-  interface Config {
+  private Files() {}
 
-    interface Service {
+  public static final class Config {
 
-      String URL  = "service.url";
-      String PORT = "service.port";
+    private Config() {}
+
+    public static final class Service {
+
+      private Service() {}
+
+      public static final String URL  = "service.url";
+      public static final String PORT = "service.port";
     }
 
-    interface Database {
+    public static final class Database {
 
-      String URL  = "db.postgresql.url";
-      String PORT = "db.postgresql.port";
+      private Database() {}
+
+      public static final String URL  = "db.postgresql.url";
+      public static final String PORT = "db.postgresql.port";
     }
 
-    interface UserManagement {
+    public static final class UserManagement {
 
-      String URL  = "carbonio.user-management.url";
-      String PORT = "carbonio.user-management.port";
+      private UserManagement() {}
+
+      public static final String URL  = "carbonio.user-management.url";
+      public static final String PORT = "carbonio.user-management.port";
     }
 
-    interface Storages {
+    public static final class Storages {
 
-      String URL  = "carbonio.storages.url";
-      String PORT = "carbonio.storages.port";
+      private Storages() {}
+
+      public static final String URL  = "carbonio.storages.url";
+      public static final String PORT = "carbonio.storages.port";
     }
 
-    interface Preview {
+    public static final class Preview {
 
-      String URL  = "carbonio.preview.url";
-      String PORT = "carbonio.preview.port";
+      private Preview() {}
+
+      public static final String URL  = "carbonio.preview.url";
+      public static final String PORT = "carbonio.preview.port";
     }
 
-    interface Mailbox {
+    public static final class Mailbox {
 
-      String URL  = "carbonio.mailbox.url";
-      String PORT = "carbonio.mailbox.port";
+      private Mailbox() {}
+
+      public static final String URL  = "carbonio.mailbox.url";
+      public static final String PORT = "carbonio.mailbox.port";
     }
 
-    interface Pagination {
+    public static final class Pagination {
 
-      int LIMIT = 50;
+      private Pagination() {}
+
+      public static final int LIMIT = 50;
     }
 
   }
 
-  interface Db {
+  public static final class Db {
 
-    short DB_VERSION = 2;
+    private Db() {}
+
+    public static final short DB_VERSION = 2;
 
     /**
      * Names of Files tables
      */
-    interface Tables {
+    public static final class Tables {
 
-      String DB_INFO                = "DB_INFO";
-      String NODE                   = "NODE";
-      String TRASHED_NODE           = "TRASHED";
-      String NODE_CUSTOM_ATTRIBUTES = "CUSTOM";
-      String FILE_VERSION           = "REVISION";
-      String SHARE                  = "SHARE";
-      String LINK                   = "LINK";
-      String COLLABORATION_LINK     = "COLLABORATION_LINK";
-      String TOMBSTONE              = "TOMBSTONE";
+      private Tables() {}
+
+      public static final String DB_INFO                = "DB_INFO";
+      public static final String NODE                   = "NODE";
+      public static final String TRASHED_NODE           = "TRASHED";
+      public static final String NODE_CUSTOM_ATTRIBUTES = "CUSTOM";
+      public static final String FILE_VERSION           = "REVISION";
+      public static final String SHARE                  = "SHARE";
+      public static final String LINK                   = "LINK";
+      public static final String COLLABORATION_LINK     = "COLLABORATION_LINK";
+      public static final String TOMBSTONE              = "TOMBSTONE";
     }
 
     /**
      * Attributes name for the FILES.NODE table
      */
-    interface Node {
+    public static final class Node {
 
-      String ID              = "node_id";
-      String OWNER_ID        = "owner_id";
-      String CREATOR_ID      = "creator_id";
-      String EDITOR_ID       = "editor_id";
-      String PARENT_ID       = "folder_id";
-      String ANCESTOR_IDS    = "ancestor_ids";
-      String CREATED_AT      = "creation_timestamp";
-      String UPDATED_AT      = "updated_timestamp";
-      String TYPE            = "node_type";
-      String CATEGORY        = "node_category";
-      String NAME            = "name";
-      String DESCRIPTION     = "description";
-      String CURRENT_VERSION = "current_version";
-      String INDEX_STATUS    = "index_status";
-      String SIZE            = "size";
+      private Node() {}
+
+      public static final String ID              = "node_id";
+      public static final String OWNER_ID        = "owner_id";
+      public static final String CREATOR_ID      = "creator_id";
+      public static final String EDITOR_ID       = "editor_id";
+      public static final String PARENT_ID       = "folder_id";
+      public static final String ANCESTOR_IDS    = "ancestor_ids";
+      public static final String CREATED_AT      = "creation_timestamp";
+      public static final String UPDATED_AT      = "updated_timestamp";
+      public static final String TYPE            = "node_type";
+      public static final String CATEGORY        = "node_category";
+      public static final String NAME            = "name";
+      public static final String DESCRIPTION     = "description";
+      public static final String CURRENT_VERSION = "current_version";
+      public static final String INDEX_STATUS    = "index_status";
+      public static final String SIZE            = "size";
     }
 
-    interface Trashed {
+    public static final class Trashed {
 
-      String NODE_ID    = "node_id";
-      String PARENT_ID  = "parent_id";
-      String TRASHED_AT = "trashed_timestamp";
+      private Trashed() {}
+
+      public static final String NODE_ID   = "node_id";
+      public static final String PARENT_ID = "parent_id";
     }
 
     /**
      * Attributes name for the FILES.CUSTOM table
      */
-    interface NodeCustomAttributes {
+    public static final class NodeCustomAttributes {
 
-      String NODE_ID = "node_id";
-      String USER_ID = "user_id";
+      private NodeCustomAttributes() {}
+
+      public static final String NODE_ID = "node_id";
+      public static final String USER_ID = "user_id";
 
       //The value remains "star" to preserve compatibility with old versions of DB
-      String FLAG = "star";
+      public static final String FLAG = "star";
 
-      String COLOR = "color";
-      String EXTRA = "extra";
+      public static final String COLOR = "color";
+      public static final String EXTRA = "extra";
     }
 
     /**
      * Attributes name for the FILES.REVISION table
      */
-    interface FileVersion {
+    public static final class FileVersion {
 
-      String NODE_ID             = "node_id";
-      String LAST_EDITOR_ID      = "editor_id";
-      String UPDATED_AT          = "timestamp";
-      String VERSION             = "version";
-      String MIME_TYPE           = "mime_type";
-      String SIZE                = "size";
-      String DIGEST              = "digest";
-      String IS_KEPT_FOREVER     = "keep_forever";
-      String CLONED_FROM_VERSION = "cloned_from_version";
-      String AUTOSAVE            = "is_autosave";
+      private FileVersion() {}
+
+      public static final String NODE_ID             = "node_id";
+      public static final String LAST_EDITOR_ID      = "editor_id";
+      public static final String UPDATED_AT          = "timestamp";
+      public static final String VERSION             = "version";
+      public static final String MIME_TYPE           = "mime_type";
+      public static final String SIZE                = "size";
+      public static final String DIGEST              = "digest";
+      public static final String IS_KEPT_FOREVER     = "keep_forever";
+      public static final String CLONED_FROM_VERSION = "cloned_from_version";
+      public static final String AUTOSAVE            = "is_autosave";
     }
 
     /**
      * Names of all the existing roots saved in the database.
      */
-    interface RootId {
+    public static final class RootId {
 
-      String LOCAL_ROOT = "LOCAL_ROOT";
-      String TRASH_ROOT = "TRASH_ROOT";
+      private RootId() {}
+
+      public static final String LOCAL_ROOT = "LOCAL_ROOT";
+      public static final String TRASH_ROOT = "TRASH_ROOT";
     }
 
     /**
      * Attributes name for the FILES.SHARE table
      */
-    interface Share {
+    public static final class Share {
 
-      String NODE_ID           = "node_id";
-      String SHARE_TARGET_UUID = "target_uuid";
-      String CREATED_AT        = "timestamp";
-      String EXPIRED_AT        = "expire_date";
-      String PERMISSIONS       = "rights";
-      String DIRECT            = "direct";
-      String CREATED_VIA_LINK  = "created_via_link";
+      private Share() {}
+
+      public static final String NODE_ID           = "node_id";
+      public static final String SHARE_TARGET_UUID = "target_uuid";
+      public static final String CREATED_AT        = "timestamp";
+      public static final String EXPIRED_AT        = "expire_date";
+      public static final String PERMISSIONS       = "rights";
+      public static final String DIRECT            = "direct";
+      public static final String CREATED_VIA_LINK  = "created_via_link";
     }
 
     /**
      * Attributes name for the FILES.LINK table
      */
-    interface Link {
+    public static final class Link {
 
-      String ID          = "id";
-      String NODE_ID     = "node_id";
-      String PUBLIC_ID   = "public_id";
-      String CREATED_AT  = "created_at";
-      String EXPIRES_AT  = "expire_at";
-      String DESCRIPTION = "description";
+      private Link() {}
+
+      public static final String ID          = "id";
+      public static final String NODE_ID     = "node_id";
+      public static final String PUBLIC_ID   = "public_id";
+      public static final String CREATED_AT  = "created_at";
+      public static final String EXPIRES_AT  = "expire_at";
+      public static final String DESCRIPTION = "description";
     }
 
     /**
      * Attributes' names for the FILES.TOMBSTONE table
      */
-    interface Tombstone {
+    public static final class Tombstone {
 
-      String NODE_ID   = "node_id";
-      String OWNER_ID  = "owner_id";
-      String TIMESTAMP = "timestamp";
-      String VERSION   = "version";
-      String VOLUME_ID = "volume_id";
+      private Tombstone() {}
+
+      public static final String NODE_ID   = "node_id";
+      public static final String OWNER_ID  = "owner_id";
+      public static final String TIMESTAMP = "timestamp";
+      public static final String VERSION   = "version";
     }
 
     /**
      * Attributes' names for the FILES.COLLABORATION_LINK table
      */
-    interface CollaborationLink {
+    public static final class CollaborationLink {
 
-      String ID            = "id";
-      String NODE_ID       = "node_id";
-      String INVITATION_ID = "invitation_id";
-      String CREATED_AT    = "created_at";
-      String PERMISSIONS   = "permissions";
+      private CollaborationLink() {}
+
+      public static final String ID            = "id";
+      public static final String NODE_ID       = "node_id";
+      public static final String INVITATION_ID = "invitation_id";
+      public static final String CREATED_AT    = "created_at";
+      public static final String PERMISSIONS   = "permissions";
     }
   }
 
-  interface Cache {
+  public static final class Cache {
 
-    long DEFAULT_ITEM_LIFETIME_IN_MILLISEC = 60_000;
-    long DEFAULT_SIZE                      = 1000;
+    private Cache() {}
+
+    public static final long DEFAULT_ITEM_LIFETIME_IN_MILLIS = 60_000;
+    public static final long DEFAULT_SIZE                    = 1000;
 
     /**
      * Names of Files caches
      */
-    String NODE         = "Node";
-    String FILE_VERSION = "FileVersion";
-    String SHARE        = "Share";
-    String LINK         = "Link";
-    String USER         = "User";
+    public static final String NODE         = "Node";
+    public static final String FILE_VERSION = "FileVersion";
+    public static final String SHARE        = "Share";
+    public static final String LINK         = "Link";
+    public static final String USER         = "User";
   }
 
-  interface GraphQL {
+  public static final class GraphQL {
 
-    int    LIMIT_ELEMENTS_FOR_PAGE = Pagination.LIMIT;
-    String ENTITY_TYPE             = "type";
+    private GraphQL() {}
 
-    interface Context {
+    public static final int    LIMIT_ELEMENTS_FOR_PAGE = Pagination.LIMIT;
+    public static final String ENTITY_TYPE             = "type";
 
-      String REQUESTER = "requester";
-      String COOKIES   = "cookies";
+    public static final class Context {
+
+      private Context() {}
+
+      public static final String REQUESTER = "requester";
+      public static final String COOKIES   = "cookies";
     }
 
     /**
      * Names of Files GraphQL interfaces/types
      */
-    interface Types {
+    public static final class Types {
 
-      String NODE_INTERFACE     = "Node";
-      String FILE               = "File";
-      String FOLDER             = "Folder";
-      String NODE_SORT          = "NodeSort";
-      String NODE_PAGE          = "NodePage";
-      String PERMISSIONS        = "Permissions";
-      String USER               = "User";
-      String DISTRIBUTION_LIST  = "DistributionList";
-      String SHARED_TARGET      = "SharedTarget";
-      String ACCOUNT            = "Account";
-      String SHARE_PERMISSION   = "SharePermission";
-      String SHARE              = "Share";
-      String LINK               = "Link";
-      String COLLABORATION_LINK = "CollaborationLink";
-      String NODE_TYPE          = "NodeType";
+      private Types() {}
+
+      public static final String NODE_INTERFACE     = "Node";
+      public static final String FILE               = "File";
+      public static final String FOLDER             = "Folder";
+      public static final String NODE_SORT          = "NodeSort";
+      public static final String NODE_PAGE          = "NodePage";
+      public static final String PERMISSIONS        = "Permissions";
+      public static final String USER               = "User";
+      public static final String DISTRIBUTION_LIST  = "DistributionList";
+      public static final String SHARED_TARGET      = "SharedTarget";
+      public static final String ACCOUNT            = "Account";
+      public static final String SHARE_PERMISSION   = "SharePermission";
+      public static final String SHARE              = "Share";
+      public static final String LINK               = "Link";
+      public static final String COLLABORATION_LINK = "CollaborationLink";
+      public static final String NODE_TYPE          = "NodeType";
     }
 
     /**
-     * Names of GraphQL data laoders
+     * Names of GraphQL data loaders
      */
-    interface DataLoaders {
+    public static final class DataLoaders {
 
-      String NODE_BATCH_LOADER  = "NodeBatchLoader";
-      String SHARE_BATCH_LOADER = "ShareBatchLoader";
+      private DataLoaders() {}
+
+      public static final String NODE_BATCH_LOADER  = "NodeBatchLoader";
+      public static final String SHARE_BATCH_LOADER = "ShareBatchLoader";
     }
 
     /**
      * Names of queries
      */
-    interface Queries {
+    public static final class Queries {
 
-      String GET_NODE                = "getNode";
-      String GET_USER                = "getUser";
-      String GET_SHARE               = "getShare";
-      String GET_ROOTS_LIST          = "getRootsList";
-      String GET_PATH                = "getPath";
-      String FIND_NODES              = "findNodes";
-      String GET_VERSIONS            = "getVersions";
-      String GET_LINKS               = "getLinks";
-      String GET_COLLABORATION_LINKS = "getCollaborationLinks";
-      String GET_ACCOUNT_BY_EMAIL    = "getAccountByEmail";
-      String GET_ACCOUNTS_BY_EMAIL   = "getAccountsByEmail";
-      String GET_CONFIGS             = "getConfigs";
+      private Queries() {}
+
+      public static final String GET_NODE                = "getNode";
+      public static final String GET_USER                = "getUser";
+      public static final String GET_SHARE               = "getShare";
+      public static final String GET_ROOTS_LIST          = "getRootsList";
+      public static final String GET_PATH                = "getPath";
+      public static final String FIND_NODES              = "findNodes";
+      public static final String GET_VERSIONS            = "getVersions";
+      public static final String GET_LINKS               = "getLinks";
+      public static final String GET_COLLABORATION_LINKS = "getCollaborationLinks";
+      public static final String GET_ACCOUNT_BY_EMAIL    = "getAccountByEmail";
+      public static final String GET_ACCOUNTS_BY_EMAIL   = "getAccountsByEmail";
+      public static final String GET_CONFIGS             = "getConfigs";
     }
 
     /**
      * Names of mutations
      */
-    interface Mutations {
+    public static final class Mutations {
 
-      String CREATE_FOLDER              = "createFolder";
-      String UPDATE_NODE                = "updateNode";
-      String FLAG_NODES                 = "flagNodes";
-      String TRASH_NODES                = "trashNodes";
-      String RESTORE_NODES              = "restoreNodes";
-      String MOVE_NODES                 = "moveNodes";
-      String DELETE_NODES               = "deleteNodes";
-      String DELETE_VERSIONS            = "deleteVersions";
-      String KEEP_VERSIONS              = "keepVersions";
-      String CLONE_VERSION              = "cloneVersion";
-      String CREATE_SHARE               = "createShare";
-      String UPDATE_SHARE               = "updateShare";
-      String DELETE_SHARE               = "deleteShare";
-      String CREATE_LINK                = "createLink";
-      String UPDATE_LINK                = "updateLink";
-      String DELETE_LINKS               = "deleteLinks";
-      String CREATE_COLLABORATION_LINK  = "createCollaborationLink";
-      String DELETE_COLLABORATION_LINKS = "deleteCollaborationLinks";
-      String COPY_NODES                 = "copyNodes";
+      private Mutations() {}
+
+      public static final String CREATE_FOLDER              = "createFolder";
+      public static final String UPDATE_NODE                = "updateNode";
+      public static final String FLAG_NODES                 = "flagNodes";
+      public static final String TRASH_NODES                = "trashNodes";
+      public static final String RESTORE_NODES              = "restoreNodes";
+      public static final String MOVE_NODES                 = "moveNodes";
+      public static final String DELETE_NODES               = "deleteNodes";
+      public static final String DELETE_VERSIONS            = "deleteVersions";
+      public static final String KEEP_VERSIONS              = "keepVersions";
+      public static final String CLONE_VERSION              = "cloneVersion";
+      public static final String CREATE_SHARE               = "createShare";
+      public static final String UPDATE_SHARE               = "updateShare";
+      public static final String DELETE_SHARE               = "deleteShare";
+      public static final String CREATE_LINK                = "createLink";
+      public static final String UPDATE_LINK                = "updateLink";
+      public static final String DELETE_LINKS               = "deleteLinks";
+      public static final String CREATE_COLLABORATION_LINK  = "createCollaborationLink";
+      public static final String DELETE_COLLABORATION_LINKS = "deleteCollaborationLinks";
+      public static final String COPY_NODES                 = "copyNodes";
     }
 
     /**
      * Names of all GraphQL input parameters divided by queries
      */
-    interface InputParameters {
+    public static final class InputParameters {
 
-      String NODE_ID    = "node_id";
-      String LIMIT      = "limit";
-      String CURSOR     = "cursor";
-      String SORT       = "sort";
-      String EMAIL      = "email";
-      String PAGE_TOKEN = "page_token";
+      private InputParameters() {}
 
-      interface CreateFolder {
+      public static final String NODE_ID    = "node_id";
+      public static final String LIMIT      = "limit";
+      public static final String CURSOR     = "cursor";
+      public static final String SORT       = "sort";
+      public static final String EMAIL      = "email";
+      public static final String PAGE_TOKEN = "page_token";
 
-        String PARENT_ID = "destination_id";
-        String NAME      = "name";
+      public static final class CreateFolder {
+
+        private CreateFolder() {}
+
+        public static final String PARENT_ID = "destination_id";
+        public static final String NAME      = "name";
       }
 
-      interface UpdateNode {
+      public static final class UpdateNode {
 
-        String NODE_ID             = InputParameters.NODE_ID;
-        String NAME                = "name";
-        String DESCRIPTION         = "description";
-        String FLAGGED             = "flagged";
-        String MARKED_FOR_DELETION = "marked_for_deletion";
+        private UpdateNode() {}
+
+        public static final String NODE_ID             = InputParameters.NODE_ID;
+        public static final String NAME                = "name";
+        public static final String DESCRIPTION         = "description";
+        public static final String FLAGGED             = "flagged";
+        public static final String MARKED_FOR_DELETION = "marked_for_deletion";
       }
 
-      interface FlagNodes {
+      public static final class FlagNodes {
 
-        String NODE_IDS = "node_ids";
-        String FLAG     = "flag";
+        private FlagNodes() {}
+
+        public static final String NODE_IDS = "node_ids";
+        public static final String FLAG     = "flag";
       }
 
-      interface FindNodes {
+      public static final class FindNodes {
 
-        String FLAGGED        = "flagged";
-        String SHARED_BY_ME   = "shared_by_me";
-        String SHARED_WITH_ME = "shared_with_me";
-        String DIRECT_SHARE   = "direct_share";
-        String FOLDER_ID      = "folder_id";
-        String CASCADE        = "cascade";
-        String SKIP           = "skip";
-        String LIMIT          = "limit";
-        String SORT           = "sort";
-        String PAGE_TOKEN     = "page_token";
-        String KEYWORDS       = "keywords";
-        String NODE_TYPE      = "type";
-        String OWNER_ID       = "owner_id";
+        private FindNodes() {}
+
+        public static final String FLAGGED        = "flagged";
+        public static final String SHARED_BY_ME   = "shared_by_me";
+        public static final String SHARED_WITH_ME = "shared_with_me";
+        public static final String DIRECT_SHARE   = "direct_share";
+        public static final String FOLDER_ID      = "folder_id";
+        public static final String CASCADE        = "cascade";
+        public static final String SKIP           = "skip";
+        public static final String LIMIT          = "limit";
+        public static final String SORT           = "sort";
+        public static final String PAGE_TOKEN     = "page_token";
+        public static final String KEYWORDS       = "keywords";
+        public static final String NODE_TYPE      = "type";
+        public static final String OWNER_ID       = "owner_id";
       }
 
-      interface GetVersions {
+      public static final class GetVersions {
 
-        String NODE_ID  = "node_id";
-        String VERSIONS = "versions";
+        private GetVersions() {}
+
+        public static final String NODE_ID  = "node_id";
+        public static final String VERSIONS = "versions";
       }
 
-      interface CopyNodes {
+      public static final class CopyNodes {
 
-        String NODE_IDS       = "node_ids";
-        String DESTINATION_ID = "destination_id";
+        private CopyNodes() {}
+
+        public static final String NODE_IDS       = "node_ids";
+        public static final String DESTINATION_ID = "destination_id";
       }
 
-      interface MoveNodes {
+      public static final class MoveNodes {
 
-        String NODE_IDS       = "node_ids";
-        String DESTINATION_ID = "destination_id";
+        private MoveNodes() {}
+
+        public static final String NODE_IDS       = "node_ids";
+        public static final String DESTINATION_ID = "destination_id";
       }
 
-      interface DeleteNodes {
+      public static final class DeleteNodes {
 
-        String NODE_IDS = "node_ids";
+        private DeleteNodes() {}
+
+        public static final String NODE_IDS = "node_ids";
       }
 
-      interface KeepVersions {
+      public static final class KeepVersions {
 
-        String KEEP_FOREVER = "keep_forever";
+        private KeepVersions() {}
+
+        public static final String KEEP_FOREVER = "keep_forever";
 
       }
 
-      interface CloneVersion {
+      public static final class CloneVersion {
 
-        String NODE_ID = "node_id";
-        String VERSION = "version";
+        private CloneVersion() {}
+
+        public static final String NODE_ID = "node_id";
+        public static final String VERSION = "version";
       }
 
-      interface Share {
+      public static final class Share {
 
-        String NODE_ID         = "node_id";
-        String SHARE_TARGET_ID = "share_target_id";
-        String PERMISSION      = "permission";
-        String EXPIRES_AT      = "expires_at";
-        String CUSTOM_MESSAGE  = "custom_message";
+        private Share() {}
+
+        public static final String NODE_ID         = "node_id";
+        public static final String SHARE_TARGET_ID = "share_target_id";
+        public static final String PERMISSION      = "permission";
+        public static final String EXPIRES_AT      = "expires_at";
+        public static final String CUSTOM_MESSAGE  = "custom_message";
       }
 
-      interface Link {
+      public static final class Link {
 
-        String LINK_ID     = "link_id";
-        String NODE_ID     = "node_id";
-        String EXPIRES_AT  = "expires_at";
-        String DESCRIPTION = "description";
-        String LINK_IDS    = "link_ids";
+        private Link() {}
+
+        public static final String LINK_ID     = "link_id";
+        public static final String NODE_ID     = "node_id";
+        public static final String EXPIRES_AT  = "expires_at";
+        public static final String DESCRIPTION = "description";
+        public static final String LINK_IDS    = "link_ids";
       }
 
-      interface TrashNodes {
+      public static final class TrashNodes {
 
-        String NODE_IDS = "node_ids";
+        private TrashNodes() {}
+
+        public static final String NODE_IDS = "node_ids";
       }
 
-      interface RestoreNodes {
+      public static final class RestoreNodes {
 
-        String NODE_IDS = "node_ids";
+        private RestoreNodes() {}
+
+        public static final String NODE_IDS = "node_ids";
       }
 
-      interface GetUser {
+      public static final class GetUser {
 
-        String USER_ID = "user_id";
-        String EMAIL   = "email";
+        private GetUser() {}
+
+        public static final String USER_ID = "user_id";
+        public static final String EMAIL   = "email";
       }
 
-      interface GetAccountsByEmail {
+      public static final class GetAccountsByEmail {
 
-        String EMAILS = "emails";
+        private GetAccountsByEmail() {}
+
+        public static final String EMAILS = "emails";
       }
 
-      interface CreateCollaborationLink {
+      public static final class CreateCollaborationLink {
 
-        String NODE_ID    = InputParameters.NODE_ID;
-        String PERMISSION = "permission";
+        private CreateCollaborationLink() {}
+
+        public static final String NODE_ID    = InputParameters.NODE_ID;
+        public static final String PERMISSION = "permission";
       }
 
-      interface GetCollaborationLink {
+      public static final class GetCollaborationLink {
 
-        String NODE_ID = InputParameters.NODE_ID;
+        private GetCollaborationLink() {}
+
+        public static final String NODE_ID = InputParameters.NODE_ID;
       }
 
-      interface DeleteCollaborationLinks {
+      public static final class DeleteCollaborationLinks {
 
-        String COLLABORATION_LINK_IDS = "collaboration_link_ids";
+        private DeleteCollaborationLinks() {}
+
+        public static final String COLLABORATION_LINK_IDS = "collaboration_link_ids";
       }
     }
 
     /**
      * Attributes name for the type User
      */
-    interface User {
+    public static final class User {
 
-      String ID        = "id";
-      String EMAIL     = "email";
-      String FULL_NAME = "full_name";
+      private User() {}
+
+      public static final String ID        = "id";
+      public static final String EMAIL     = "email";
+      public static final String FULL_NAME = "full_name";
     }
 
     /**
      * Attributes name for the type Distribution List
      */
-    interface DistributionList {
+    public static final class DistributionList {
 
-      String ID    = "id";
-      String NAME  = "name";
-      String USERS = "users";
+      private DistributionList() {}
+
+      public static final String ID    = "id";
+      public static final String NAME  = "name";
+      public static final String USERS = "users";
     }
 
     /**
      * Attributes name for the type Node/File/Folder
      */
-    interface Node {
+    public static class Node {
 
-      String ID                  = "id";
-      String CREATED_AT          = "created_at";
-      String CREATOR             = "creator";
-      String OWNER               = "owner";
-      String LAST_EDITOR         = "last_editor";
-      String UPDATED_AT          = "updated_at";
-      String PERMISSIONS         = "permissions";
-      String NAME                = "name";
-      String EXTENSION           = "extension";
-      String DESCRIPTION         = "description";
-      String TYPE                = "type";
-      String FLAGGED             = "flagged";
-      String PARENT              = "parent";
-      String ROOT_ID             = "rootId";
-      String SHARES              = "shares";
-      String LINKS               = "links";
-      String COLLABORATION_LINKS = "collaboration_links";
+      private Node() {}
+
+      public static final String ID                  = "id";
+      public static final String CREATED_AT          = "created_at";
+      public static final String CREATOR             = "creator";
+      public static final String OWNER               = "owner";
+      public static final String LAST_EDITOR         = "last_editor";
+      public static final String UPDATED_AT          = "updated_at";
+      public static final String PERMISSIONS         = "permissions";
+      public static final String NAME                = "name";
+      public static final String EXTENSION           = "extension";
+      public static final String DESCRIPTION         = "description";
+      public static final String TYPE                = "type";
+      public static final String FLAGGED             = "flagged";
+      public static final String PARENT              = "parent";
+      public static final String ROOT_ID             = "rootId";
+      public static final String SHARES              = "shares";
+      public static final String LINKS               = "links";
+      public static final String COLLABORATION_LINKS = "collaboration_links";
     }
 
     /**
      * Attributes name specific for the type File
      */
-    interface FileVersion extends Node {
+    public static final class FileVersion extends Node {
 
-      String LAST_EDITOR         = "last_editor";
-      String UPDATED_AT          = "updated_at";
-      String VERSION             = "version";
-      String MIME_TYPE           = "mime_type";
-      String SIZE                = "size";
-      String KEEP_FOREVER        = "keep_forever";
-      String CLONED_FROM_VERSION = "cloned_from_version";
-      String DIGEST              = "digest";
+      private FileVersion() {}
+
+      public static final String LAST_EDITOR         = "last_editor";
+      public static final String UPDATED_AT          = "updated_at";
+      public static final String VERSION             = "version";
+      public static final String MIME_TYPE           = "mime_type";
+      public static final String SIZE                = "size";
+      public static final String KEEP_FOREVER        = "keep_forever";
+      public static final String CLONED_FROM_VERSION = "cloned_from_version";
+      public static final String DIGEST              = "digest";
     }
 
     /**
      * Attributes name specific for the type Folder
      */
-    interface Folder extends Node {
+    public static final class Folder extends Node {
 
-      String CHILDREN = "children";
+      private Folder() {}
+
+      public static final String CHILDREN = "children";
     }
 
     /**
      * Attributes name specific for the type NodePage
      */
-    interface NodePage {
+    public static final class NodePage {
 
-      String NODES      = "nodes";
-      String PAGE_TOKEN = "page_token";
-    }
+      private NodePage() {}
 
-    /**
-     * Attributes name specific for the type Permissions
-     */
-    interface Permissions {
-
-      String CAN_READ         = "can_read";
-      String CAN_WRITE_FILE   = "can_write_file";
-      String CAN_WRITE_FOLDER = "can_write_folder";
-      String CAN_DELETE       = "can_delete";
-      String CAN_ADD_VERSION  = "can_add_version";
-      String CAN_READ_LINK    = "can_read_link";
-      String CAN_CHANGE_LINK  = "can_change_link";
-      String CAN_SHARE        = "can_share";
-      String CAN_READ_SHARE   = "can_read_share";
-      String CAN_CHANGE_SHARE = "can_change_share";
+      public static final String NODES      = "nodes";
+      public static final String PAGE_TOKEN = "page_token";
     }
 
     /**
      * Attributes name for the type Share
      */
-    interface Share {
+    public static final class Share {
 
-      String CREATED_AT   = "created_at";
-      String NODE         = "node";
-      String SHARE_TARGET = "share_target";
-      String PERMISSION   = "permission";
-      String EXPIRES_AT   = "expires_at";
+      private Share() {}
+
+      public static final String CREATED_AT   = "created_at";
+      public static final String NODE         = "node";
+      public static final String SHARE_TARGET = "share_target";
+      public static final String PERMISSION   = "permission";
+      public static final String EXPIRES_AT   = "expires_at";
     }
 
     /**
      * Attributes name for the type Link
      */
-    interface Link {
+    public static final class Link {
 
-      String ID          = "id";
-      String URL         = "url";
-      String NODE        = "node";
-      String CREATED_AT  = "created_at";
-      String EXPIRES_AT  = "expires_at";
-      String DESCRIPTION = "description";
+      private Link() {}
+
+      public static final String ID          = "id";
+      public static final String URL         = "url";
+      public static final String NODE        = "node";
+      public static final String CREATED_AT  = "created_at";
+      public static final String EXPIRES_AT  = "expires_at";
+      public static final String DESCRIPTION = "description";
     }
 
     /**
      * Attributes name for the type Collaboration Link
      */
-    interface CollaborationLink {
+    public static final class CollaborationLink {
 
-      String ID         = "id";
-      String FULL_URL   = "url";
-      String NODE       = "node";
-      String CREATED_AT = "created_at";
-      String PERMISSION = "permission";
+      private CollaborationLink() {}
+
+      public static final String ID         = "id";
+      public static final String FULL_URL   = "url";
+      public static final String NODE       = "node";
+      public static final String CREATED_AT = "created_at";
+      public static final String PERMISSION = "permission";
     }
 
-    interface Config {
+    public static final class Config {
 
-      String NAME  = "name";
-      String VALUE = "value";
+      private Config() {}
+
+      public static final String NAME  = "name";
+      public static final String VALUE = "value";
     }
   }
 
-  interface API {
+  public static final class API {
 
-    interface Endpoints {
+    private API() {}
 
-      String SERVICE                = "/";
-      String PUBLIC_LINK_URL        = "/services/files/link/";
-      String COLLABORATION_LINK_URL = "/services/files/invite/";
+    public static final class Endpoints {
 
-      Pattern METRICS             = Pattern.compile(SERVICE + "metrics/?$");
-      Pattern HEALTH              = Pattern.compile(SERVICE + "health/?(live|ready)?/?$");
-      Pattern HEALTH_LIVE         = Pattern.compile(SERVICE + "health/live/?$");
-      Pattern HEALTH_READY        = Pattern.compile(SERVICE + "health/ready/?$");
-      Pattern GRAPHQL             = Pattern.compile(SERVICE + "graphql/?$");
-      Pattern UPLOAD_FILE         = Pattern.compile(SERVICE + "upload/?$");
-      Pattern UPLOAD_FILE_VERSION = Pattern.compile(SERVICE + "upload-version/?$");
-      Pattern UPLOAD_FILE_TO      = Pattern.compile(SERVICE + "upload-to/?$");
-      Pattern DOWNLOAD_FILE       = Pattern.compile(
+      private Endpoints() {}
+
+      public static final String SERVICE                = "/";
+      public static final String PUBLIC_LINK_URL        = "/services/files/link/";
+      public static final String COLLABORATION_LINK_URL = "/services/files/invite/";
+
+      public static final Pattern METRICS             = Pattern.compile(SERVICE + "metrics/?$");
+      public static final Pattern HEALTH              = Pattern.compile(
+        SERVICE + "health/?(live|ready)?/?$");
+      public static final Pattern HEALTH_LIVE         = Pattern.compile(SERVICE + "health/live/?$");
+      public static final Pattern HEALTH_READY        = Pattern.compile(
+        SERVICE + "health/ready/?$");
+      public static final Pattern GRAPHQL             = Pattern.compile(SERVICE + "graphql/?$");
+      public static final Pattern UPLOAD_FILE         = Pattern.compile(SERVICE + "upload/?$");
+      public static final Pattern UPLOAD_FILE_VERSION = Pattern.compile(
+        SERVICE + "upload-version/?$");
+      public static final Pattern UPLOAD_FILE_TO      = Pattern.compile(SERVICE + "upload-to/?$");
+      public static final Pattern DOWNLOAD_FILE       = Pattern.compile(
         SERVICE + "download/([a-f0-9\\\\-]*)/?([0-9]+)?/?$");
-      Pattern PUBLIC_LINK         = Pattern.compile(SERVICE + "link/([a-zA-Z0-9]{8})/?$");
-      Pattern COLLABORATION_LINK  = Pattern.compile(SERVICE + "invite/([a-zA-Z0-9]{8})/?$");
+      public static final Pattern PUBLIC_LINK         = Pattern.compile(
+        SERVICE + "link/([a-zA-Z0-9]{8})/?$");
+      public static final Pattern COLLABORATION_LINK  = Pattern.compile(
+        SERVICE + "invite/([a-zA-Z0-9]{8})/?$");
 
-      Pattern PREVIEW            = Pattern.compile(SERVICE + "preview/(.*)");
-      Pattern PREVIEW_IMAGE      = Pattern.compile(
+      public static final Pattern PREVIEW            = Pattern.compile(SERVICE + "preview/(.*)");
+      public static final Pattern PREVIEW_IMAGE      = Pattern.compile(
         SERVICE
           + "preview/image/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
-      Pattern THUMBNAIL_IMAGE    = Pattern.compile(
+      public static final Pattern THUMBNAIL_IMAGE    = Pattern.compile(
         SERVICE + "preview/image/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/thumbnail/?\\??(.*)"
       );
-      Pattern PREVIEW_PDF        = Pattern.compile(
+      public static final Pattern PREVIEW_PDF        = Pattern.compile(
         SERVICE + "preview/pdf/([a-f0-9\\-]*)/([0-9]+)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
-      Pattern THUMBNAIL_PDF      = Pattern.compile(
+      public static final Pattern THUMBNAIL_PDF      = Pattern.compile(
         SERVICE + "preview/pdf/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/thumbnail/?\\??(.*)"
       );
-      Pattern PREVIEW_DOCUMENT   = Pattern.compile(
+      public static final Pattern PREVIEW_DOCUMENT   = Pattern.compile(
         SERVICE + "preview/document/([a-f0-9\\-]*)/([0-9]+)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
-      Pattern THUMBNAIL_DOCUMENT = Pattern.compile(
+      public static final Pattern THUMBNAIL_DOCUMENT = Pattern.compile(
         SERVICE + "preview/document/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/thumbnail/?\\??(.*)"
       );
     }
 
-    interface Headers {
+    public static final class Headers {
 
-      String UPLOAD_FILENAME          = "Filename";
-      String UPLOAD_DESCRIPTION       = "Description";
-      String UPLOAD_PARENT_ID         = "ParentId";
-      String UPLOAD_NODE_ID           = "NodeId";
-      String UPLOAD_OVERWRITE_VERSION = "OverwriteVersion";
-      String COOKIE_ZM_AUTH_TOKEN     = "ZM_AUTH_TOKEN";
+      private Headers() {}
+
+      public static final String UPLOAD_FILENAME          = "Filename";
+      public static final String UPLOAD_DESCRIPTION       = "Description";
+      public static final String UPLOAD_PARENT_ID         = "ParentId";
+      public static final String UPLOAD_NODE_ID           = "NodeId";
+      public static final String UPLOAD_OVERWRITE_VERSION = "OverwriteVersion";
+      public static final String COOKIE_ZM_AUTH_TOKEN     = "ZM_AUTH_TOKEN";
     }
 
-    interface ContextAttribute {
+    public static final class ContextAttribute {
 
-      String REQUESTER = "requester";
-      String COOKIES   = "cookies";
+      private ContextAttribute() {}
+
+      public static final String REQUESTER = "requester";
+      public static final String COOKIES   = "cookies";
     }
   }
 
-  interface ServiceDiscover {
+  public static final class ServiceDiscover {
 
-    String SERVICE_NAME = "carbonio-files";
+    private ServiceDiscover() {}
 
-    interface Config {
+    public static final String SERVICE_NAME = "carbonio-files";
 
-      String MAX_VERSIONS                          = "max-number-of-versions";
-      int    DEFAULT_MAX_VERSIONS                  = 30;
-      String MAX_KEEP_VERSIONS                     = "max-number-of-keep-versions";
-      int    DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION = 2;
-      int    DEFAULT_MAX_KEEP_VERSIONS             =
+    public static final class Config {
+
+      private Config() {}
+
+      public static final String MAX_VERSIONS                          = "max-number-of-versions";
+      public static final int    DEFAULT_MAX_VERSIONS                  = 30;
+      public static final String MAX_KEEP_VERSIONS                     = "max-number-of-keep-versions";
+      public static final int    DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION = 2;
+      public static final int    DEFAULT_MAX_KEEP_VERSIONS             =
         DEFAULT_MAX_VERSIONS - DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
 
-      interface Db {
+      public static final class Db {
 
-        String NAME             = "db-name";
-        String DEFAULT_NAME     = "carbonio-files-db";
-        String USERNAME         = "db-username";
-        String DEFAULT_USERNAME = "carbonio-files-db";
-        String PASSWORD         = "db-password";
+        private Db() {}
+
+        public static final String NAME             = "db-name";
+        public static final String DEFAULT_NAME     = "carbonio-files-db";
+        public static final String USERNAME         = "db-username";
+        public static final String DEFAULT_USERNAME = "carbonio-files-db";
+        public static final String PASSWORD         = "db-password";
       }
     }
-
   }
-
 }
