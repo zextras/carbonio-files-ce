@@ -9,12 +9,12 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import java.util.Arrays;
 import java.util.Optional;
 import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class NodeTest {
+class NodeTest {
 
   @Test
-  public void givenAllNodeAttributesTheNodeConstructorShouldCreateNodeObjectCorrectly() {
+  void givenAllNodeAttributesTheNodeConstructorShouldCreateNodeObjectCorrectly() {
     // Given && When
     Node node = new Node(
       "868b43cc-3a8f-4c14-a66d-f520d8e7e8bd",
@@ -67,7 +67,7 @@ public class NodeTest {
   }
 
   @Test
-  public void givenOnlyMandatoryNodeAttributesTheNodeConstructorShouldCreateNodeObjectCorrectly() {
+  void givenOnlyMandatoryNodeAttributesTheNodeConstructorShouldCreateNodeObjectCorrectly() {
     // Given && When
     Node node = new Node(
       "868b43cc-3a8f-4c14-a66d-f520d8e7e8bd",
@@ -137,7 +137,7 @@ public class NodeTest {
 
 
   @Test
-  public void givenAFolderNodeTypeTheNodeConstructorShouldInitializeTheNodeCategoryAndTheCurrentVersionCorrectly() {
+  void givenAFolderNodeTypeTheNodeConstructorShouldInitializeTheNodeCategoryAndTheCurrentVersionCorrectly() {
     // Given && When
     Node node = new Node(
       "",
@@ -160,7 +160,7 @@ public class NodeTest {
   }
 
   @Test
-  public void givenARootNodeTypeTheNodeConstructorShouldInitializeTheNodeCategoryAndTheCurrentVersionCorrectly() {
+  void givenARootNodeTypeTheNodeConstructorShouldInitializeTheNodeCategoryAndTheCurrentVersionCorrectly() {
     // Given && When
     Node node = new Node(
       "",
@@ -183,7 +183,7 @@ public class NodeTest {
   }
 
   @Test
-  public void givenAFolderNodeTheGetExtensionShouldReturnAnOptionalEmptyAndTheFullNameShouldMatchWithTheName() {
+  void givenAFolderNodeTheGetExtensionShouldReturnAnOptionalEmptyAndTheFullNameShouldMatchWithTheName() {
     // Given && When
     Node node = new Node(
       "",
@@ -205,7 +205,7 @@ public class NodeTest {
   }
 
   @Test
-  public void givenANodeWithoutAnAncestorIdsTheGetAncestorsListShouldReturnAnEmptyList() {
+  void givenANodeWithoutAnAncestorIdsTheGetAncestorsListShouldReturnAnEmptyList() {
     // Given && When
     Node node = new Node(
       "",
@@ -227,7 +227,7 @@ public class NodeTest {
   }
 
   @Test
-  public void givenANodeIdSurroundedBySpacesAtTheEndTheGetIdShouldReturnItWithoutThem() {
+  void givenANodeIdSurroundedBySpacesAtTheEndTheGetIdShouldReturnItWithoutThem() {
     // Given && When
     Node node = new Node(
       "   868b43cc-3a8f-4c14-a66d-f520d8e7e8bd    ",
