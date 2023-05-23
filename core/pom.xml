@@ -188,6 +188,11 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <dependency>
+      <groupId>com.zaxxer</groupId>
+      <artifactId>HikariCP</artifactId>
+    </dependency>
+
+    <dependency>
       <artifactId>ebean-postgres</artifactId>
       <groupId>io.ebean</groupId>
     </dependency>
@@ -312,7 +317,7 @@ SPDX-License-Identifier: AGPL-3.0-only
   <parent>
     <artifactId>carbonio-files-ce</artifactId>
     <groupId>com.zextras.carbonio.files</groupId>
-    <version>0.8.2-2305121658</version>
+    <version>0.8.2-2305191542</version>
   </parent>
 
   <profiles>

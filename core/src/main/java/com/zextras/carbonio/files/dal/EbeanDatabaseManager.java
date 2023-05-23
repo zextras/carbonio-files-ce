@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.dal;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.zaxxer.hikari.HikariDataSource;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
@@ -84,12 +85,12 @@ public class EbeanDatabaseManager {
       .getConfig(ServiceDiscover.Config.Db.PASSWORD)
       .getOrElse("");
 
-    jdbcPostgresUrl = "jdbc:postgresql://"
-      + config.getProperty(Files.Config.Database.URL, "127.78.0.2")
-      + ":"
-      + config.getProperty(Files.Config.Database.PORT, "20000")
-      + "/"
-      + postgresDatabase;
+    jdbcPostgresUrl = String.format(
+      "jdbc:postgresql://%s:%s/%s",
+      config.getProperty(Files.Config.Database.URL, "127.78.0.2"),
+      config.getProperty(Files.Config.Database.PORT, "20000"),
+      postgresDatabase
+      );
 
     entityList = new ArrayList<>();
     entityList.add(DbInfo.class);
@@ -226,11 +227,14 @@ public class EbeanDatabaseManager {
       return;
     }
 
-    PGSimpleDataSource dataSource = new PGSimpleDataSource();
-    dataSource.setURL(jdbcPostgresUrl);
-    dataSource.setDatabaseName(postgresDatabase);
-    dataSource.setUser(postgresUser);
+    Properties dataSourceProperties = new Properties();
+    dataSourceProperties.setProperty("sslmode", "disable");
+
+    HikariDataSource dataSource = new HikariDataSource();
+    dataSource.setJdbcUrl(jdbcPostgresUrl);
+    dataSource.setUsername(postgresUser);
     dataSource.setPassword(postgresPassword);
+    dataSource.setDataSourceProperties(dataSourceProperties);
 
     DatabaseConfig serverConfig = new DatabaseConfig();
     serverConfig.setName("carbonio-files-postgres");
