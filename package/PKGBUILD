@@ -7,15 +7,15 @@ targets=(
   "centos"
 )
 pkgname="carbonio-files-ce"
-pkgver="0.8.2"
-pkgrel="2305191542"
+pkgver="0.8.3"
+pkgrel="1"
 pkgdesc="Carbonio Files"
 pkgdesclong=(
   "Carbonio Files"
 )
 maintainer="Zextras <packages@zextras.com>"
 arch="amd64"
-license=("spdx:AGPL-3.0-only")
+license=("AGPL-3.0-only")
 section="admin"
 priority="optional"
 url="https://www.zextras.com/"
