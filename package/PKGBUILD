@@ -8,7 +8,7 @@ targets=(
 )
 pkgname="carbonio-files-ce"
 pkgver="0.8.3"
-pkgrel="1"
+pkgrel="2305290940"
 pkgdesc="Carbonio Files"
 pkgdesclong=(
   "Carbonio Files"

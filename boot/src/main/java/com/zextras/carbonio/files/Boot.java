@@ -57,7 +57,7 @@ public class Boot {
       nettyServer = injector.getInstance(NettyServer.class);
       nettyServer.start();
     } catch (RuntimeException exception) {
-      logger.error("Service stopped unexpectedly: " + exception.getMessage());
+      logger.error("Service stopped unexpectedly: ", exception);
     } finally {
       ebeanDatabaseManager.stop();
       purgeService.stop();
