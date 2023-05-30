@@ -8,6 +8,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.9.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.8.3...v0.9.0) (2023-05-30)
+
+
+### Features
+
+* reduce Hikari max pool size to 2 ([#63](https://github.com/Zextras/carbonio-files-ce/issues/63)) ([4e1b9a9](https://github.com/Zextras/carbonio-files-ce/commit/4e1b9a9999f4729c55f8bd2f8460131a68d7050f))
+
 ### [0.8.3](https://github.com/Zextras/carbonio-files-ce/compare/v0.8.2...v0.8.3) (2023-05-25)
 
 ### [0.8.2](https://github.com/Zextras/carbonio-files-ce/compare/v0.8.1...v0.8.2) (2023-04-27)
