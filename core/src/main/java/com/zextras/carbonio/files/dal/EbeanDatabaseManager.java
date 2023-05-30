@@ -105,6 +105,7 @@ public class EbeanDatabaseManager {
       .defaultURL(ServiceDiscover.SERVICE_NAME)
       .getConfig(Config.Db.HIKARI_MIN_IDLE_CONNECTIONS)
       .map(Integer::parseInt)
+      .map(minIdleConnections -> Math.min(minIdleConnections, hikariMaximumPoolSize))
       .getOrElse(Hikari.MIN_IDLE_CONNECTIONS);
 
     entityList = new ArrayList<>();
@@ -250,8 +251,11 @@ public class EbeanDatabaseManager {
     dataSource.setUsername(postgresUser);
     dataSource.setPassword(postgresPassword);
     dataSource.setMaximumPoolSize(hikariMaximumPoolSize);
-    dataSource.setMinimumIdle(Math.min(hikariMinimumIdleConnections, hikariMaximumPoolSize));
+    dataSource.setMinimumIdle(hikariMinimumIdleConnections);
     dataSource.setDataSourceProperties(dataSourceProperties);
+
+    logger.info("Hikari: maximum pool size: {}", hikariMaximumPoolSize);
+    logger.info("Hikari: minimum idle connections: {}", hikariMinimumIdleConnections);
 
     DatabaseConfig serverConfig = new DatabaseConfig();
     serverConfig.setName("carbonio-files-postgres");
