@@ -76,6 +76,14 @@ public final class Files {
       public static final int LIMIT = 50;
     }
 
+    public static final class Hikari {
+
+      public static final int MAX_POOL_SIZE        = 2;
+      public static final int MIN_IDLE_CONNECTIONS = 1;
+
+      private Hikari() {}
+    }
+
   }
 
   public static final class Db {
@@ -771,11 +779,13 @@ public final class Files {
 
         private Db() {}
 
-        public static final String NAME             = "db-name";
-        public static final String DEFAULT_NAME     = "carbonio-files-db";
-        public static final String USERNAME         = "db-username";
-        public static final String DEFAULT_USERNAME = "carbonio-files-db";
-        public static final String PASSWORD         = "db-password";
+        public static final String NAME                        = "db-name";
+        public static final String DEFAULT_NAME                = "carbonio-files-db";
+        public static final String USERNAME                    = "db-username";
+        public static final String DEFAULT_USERNAME            = "carbonio-files-db";
+        public static final String PASSWORD                    = "db-password";
+        public static final String HIKARI_MAX_POOL_SIZE        = "hikari-max-pool-size";
+        public static final String HIKARI_MIN_IDLE_CONNECTIONS = "hikari-min-idle-connections";
       }
     }
   }

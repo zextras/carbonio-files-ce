@@ -8,14 +8,16 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.Config.Hikari;
 import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
+import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
+import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersionPK;
-import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
@@ -42,7 +44,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
-import org.postgresql.ds.PGSimpleDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +65,8 @@ public class EbeanDatabaseManager {
   private final        String         postgresDatabase;
   private final        String         postgresUser;
   private final        String         postgresPassword;
+  private final        int            hikariMaximumPoolSize;
+  private final        int            hikariMinimumIdleConnections;
   private              Database       ebeanDatabase;
 
   @Inject
@@ -90,7 +93,20 @@ public class EbeanDatabaseManager {
       config.getProperty(Files.Config.Database.URL, "127.78.0.2"),
       config.getProperty(Files.Config.Database.PORT, "20000"),
       postgresDatabase
-      );
+    );
+
+    hikariMaximumPoolSize = ServiceDiscoverHttpClient
+      .defaultURL(ServiceDiscover.SERVICE_NAME)
+      .getConfig(Config.Db.HIKARI_MAX_POOL_SIZE)
+      .map(Integer::parseInt)
+      .getOrElse(Hikari.MAX_POOL_SIZE);
+
+    hikariMinimumIdleConnections = ServiceDiscoverHttpClient
+      .defaultURL(ServiceDiscover.SERVICE_NAME)
+      .getConfig(Config.Db.HIKARI_MIN_IDLE_CONNECTIONS)
+      .map(minIdleConnections ->
+        Math.min(Integer.parseInt(minIdleConnections), hikariMaximumPoolSize))
+      .getOrElse(Hikari.MIN_IDLE_CONNECTIONS);
 
     entityList = new ArrayList<>();
     entityList.add(DbInfo.class);
@@ -234,7 +250,12 @@ public class EbeanDatabaseManager {
     dataSource.setJdbcUrl(jdbcPostgresUrl);
     dataSource.setUsername(postgresUser);
     dataSource.setPassword(postgresPassword);
+    dataSource.setMaximumPoolSize(hikariMaximumPoolSize);
+    dataSource.setMinimumIdle(hikariMinimumIdleConnections);
     dataSource.setDataSourceProperties(dataSourceProperties);
+
+    logger.info("Hikari: maximum pool size: {}", hikariMaximumPoolSize);
+    logger.info("Hikari: minimum idle connections: {}", hikariMinimumIdleConnections);
 
     DatabaseConfig serverConfig = new DatabaseConfig();
     serverConfig.setName("carbonio-files-postgres");
