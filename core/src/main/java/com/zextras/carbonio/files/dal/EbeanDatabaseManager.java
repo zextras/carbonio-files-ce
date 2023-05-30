@@ -104,8 +104,8 @@ public class EbeanDatabaseManager {
     hikariMinimumIdleConnections = ServiceDiscoverHttpClient
       .defaultURL(ServiceDiscover.SERVICE_NAME)
       .getConfig(Config.Db.HIKARI_MIN_IDLE_CONNECTIONS)
-      .map(Integer::parseInt)
-      .map(minIdleConnections -> Math.min(minIdleConnections, hikariMaximumPoolSize))
+      .map(minIdleConnections ->
+        Math.min(Integer.parseInt(minIdleConnections), hikariMaximumPoolSize))
       .getOrElse(Hikari.MIN_IDLE_CONNECTIONS);
 
     entityList = new ArrayList<>();
