@@ -5,6 +5,9 @@
 package com.zextras.carbonio.files.config;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.Inject;
+import com.google.inject.Provides;
+import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.zextras.carbonio.files.cache.CacheHandlerFactory;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.FileVersionRepositoryEbean;
@@ -22,8 +25,17 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.validators.GenericControllerEvaluatorFactory;
+import com.zextras.filestore.api.Filestore;
+import com.zextras.storages.api.StoragesClient;
 
 public class FilesModule extends AbstractModule {
+
+  private final FilesConfig filesConfig;
+
+  @Inject
+  public FilesModule(FilesConfig filesConfig) {
+    this.filesConfig = filesConfig;
+  }
 
   @Override
   public void configure() {
@@ -38,5 +50,10 @@ public class FilesModule extends AbstractModule {
     install(new FactoryModuleBuilder().build(CacheHandlerFactory.class));
 
     install(new FactoryModuleBuilder().build(GenericControllerEvaluatorFactory.class));
+  }
+
+  @Provides
+  public Filestore getFileStore() {
+    return StoragesClient.atUrl(filesConfig.getFileStoreUrl());
   }
 }

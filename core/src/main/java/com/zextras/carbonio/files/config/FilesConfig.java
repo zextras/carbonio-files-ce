@@ -80,6 +80,14 @@ public class FilesConfig {
     return StoragesClient.atUrl(fileStoreURL);
   }
 
+  public String getFileStoreUrl() {
+    return String.format(
+      "http://%s:%s/",
+      properties.getProperty(Files.Config.Storages.URL, "127.78.0.2"),
+      properties.getProperty(Files.Config.Storages.PORT, "20002")
+    );
+  }
+
   public PreviewClient getPreviewClient() {
     return PreviewClient.atURL(previewURL);
   }
