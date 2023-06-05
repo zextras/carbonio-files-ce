@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.rest.services;
 
 import com.google.common.net.MediaType;
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
@@ -29,14 +28,12 @@ import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.carbonio.usermanagement.exceptions.BadRequest;
 import com.zextras.filestore.api.UploadResponse;
 import com.zextras.filestore.model.FilesIdentifier;
-import com.zextras.storages.api.StoragesClient;
 import io.ebean.annotation.Transactional;
 import io.vavr.control.Try;
 import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -44,15 +41,16 @@ import org.slf4j.LoggerFactory;
 
 public class BlobService {
 
-  private final        NodeRepository        nodeRepository;
-  private final        FileVersionRepository fileVersionRepository;
-  private final        ShareRepository       shareRepository;
-  private final        LinkRepository        linkRepository;
-  private final        PermissionsChecker    permissionsChecker;
-  private final        MimeTypeUtils         mimeTypeUtils;
-  private final        String                storageUrl;
-  private final        TombstoneRepository   tombstoneRepository;
-  private static final Logger                logger = LoggerFactory.getLogger(BlobService.class);
+  private final NodeRepository        nodeRepository;
+  private final FileVersionRepository fileVersionRepository;
+  private final ShareRepository       shareRepository;
+  private final LinkRepository        linkRepository;
+  private final PermissionsChecker    permissionsChecker;
+  private final FilesConfig           filesConfig;
+  private final MimeTypeUtils         mimeTypeUtils;
+  private final TombstoneRepository   tombstoneRepository;
+
+  private static final Logger logger = LoggerFactory.getLogger(BlobService.class);
 
   @Inject
   public BlobService(
@@ -72,11 +70,7 @@ public class BlobService {
     this.permissionsChecker = permissionsChecker;
     this.mimeTypeUtils = mimeTypeUtils;
     this.tombstoneRepository = tombstoneRepository;
-    Properties p = filesConfig.getProperties();
-    storageUrl = "http://"
-      + p.getProperty(Files.Config.Storages.URL, "127.78.0.2")
-      + ":" + p.getProperty(Files.Config.Storages.PORT, "20002")
-      + "/";
+    this.filesConfig = filesConfig;
   }
 
   public Try<BlobResponse> downloadFile(
@@ -89,8 +83,8 @@ public class BlobService {
       .map(node -> fileVersionRepository
         .getFileVersion(node.getId(), version.orElse(node.getCurrentVersion()))
         .map(fileVersion -> Try
-          .of(() -> StoragesClient
-            .atUrl(storageUrl)
+          .of(() -> filesConfig
+            .getStorages()
             .download(FilesIdentifier.of(
               fileVersion.getNodeId(),
               fileVersion.getVersion(),
@@ -114,8 +108,8 @@ public class BlobService {
       .map(Optional::get)
       .map(node -> fileVersionRepository.getFileVersion(node.getId(), node.getCurrentVersion())
         .map(fileVersion -> Try
-          .of(() -> StoragesClient
-            .atUrl(storageUrl)
+          .of(() -> filesConfig
+            .getStorages()
             .download(FilesIdentifier.of(
               fileVersion.getNodeId(),
               fileVersion.getVersion(),
@@ -162,10 +156,10 @@ public class BlobService {
       NodeType nodeType = NodeType.getNodeType(mediaType);
 
       logger.debug("attributes read: " + filename);
-      UploadResponse uploadResponse = null;
+      UploadResponse uploadResponse;
       try {
-        uploadResponse = StoragesClient
-          .atUrl(storageUrl)
+        uploadResponse = filesConfig
+          .getStorages()
           .uploadPost(
             FilesIdentifier.of(nodeId, 1, requester.getId()),
             bufferInputStream,
@@ -177,8 +171,14 @@ public class BlobService {
           uploadResponse.getDigest(),
           uploadResponse.getSize()
         ));
-      } catch (Exception e) {
-        e.printStackTrace();
+      } catch (Exception exception) {
+        logger.error(String.format(
+          "Filestore failed to upload the node %s: %s",
+          nodeId,
+          exception
+        ));
+
+        return Try.failure(new InternalServerErrorException("Upload new node failed"));
       }
 
       Node folder = nodeRepository.getNode(folderId).get();
@@ -325,7 +325,6 @@ public class BlobService {
     }
   }
 
-
   private Try<Integer> uploadFileVersionOperation(
     User requester,
     BufferInputStream bufferInputStream,
@@ -343,8 +342,8 @@ public class BlobService {
     UploadResponse uploadResponse = null;
     try {
       if (overwrite) {
-        uploadResponse = StoragesClient
-          .atUrl(storageUrl)
+        uploadResponse = filesConfig
+          .getStorages()
           .uploadPut(
             FilesIdentifier.of(nodeId, newVersion, requester.getId()),
             bufferInputStream,
@@ -352,16 +351,23 @@ public class BlobService {
           );
 
       } else {
-        uploadResponse = StoragesClient
-          .atUrl(storageUrl)
+        uploadResponse = filesConfig
+          .getStorages()
           .uploadPost(
             FilesIdentifier.of(nodeId, newVersion, requester.getId()),
             bufferInputStream,
             blobLength
           );
       }
-    } catch (Exception e) {
-      e.printStackTrace();
+    } catch (Exception exception) {
+      logger.error(String.format(
+        "Filestore failed to upload the version %d for node %s: %s",
+        newVersion,
+        nodeId,
+        exception
+      ));
+
+      return Try.failure(new InternalServerErrorException("Upload new version failed"));
     }
 
     if (overwrite) {
@@ -384,7 +390,8 @@ public class BlobService {
     node.setLastEditorId(requester.getId());
     nodeRepository.updateNode(node);
 
-    return result.map(fileVersion -> Try.success(fileVersion.getVersion()))
+    return result
+      .map(fileVersion -> Try.success(fileVersion.getVersion()))
       .orElseGet(() -> Try.failure(new InternalServerErrorException("Upload failed")));
 
   }
