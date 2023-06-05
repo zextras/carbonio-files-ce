@@ -268,19 +268,19 @@ public class BlobService {
         ));
         return Try.failure(new BadRequest());
       }
-      FileVersion lastVersion = null;
+      FileVersion oldestVersionNotKeptForever = null;
       if (!overwrite && getNumberOfVersionOfFile(nodeId) >= maxNumberOfVersions) {
-        List<FileVersion> allVersion = fileVersionRepository.getFileVersions(nodeId);
+        List<FileVersion> allFileVersion = fileVersionRepository.getFileVersions(nodeId);
         int keepForeverCounter = 0;
-        for (FileVersion version : allVersion) {
+        for (FileVersion version : allFileVersion) {
           keepForeverCounter = version.isKeptForever()
             ? keepForeverCounter + 1
             : keepForeverCounter;
         }
-        List<FileVersion> allVersionsNotKeptForever = allVersion.stream()
+        List<FileVersion> allVersionsNotKeptForever = allFileVersion.stream()
           .filter(version -> !version.isKeptForever())
           .collect(Collectors.toList());
-        lastVersion = allVersionsNotKeptForever.get(
+        oldestVersionNotKeptForever = allVersionsNotKeptForever.get(
           allVersionsNotKeptForever.size() - 1);
         /*
         The List of not keep forever element is never <1, at this point the element that are
@@ -305,13 +305,13 @@ public class BlobService {
         nodeId
       ));
 
-      if (uploadResult.isSuccess() && lastVersion != null) {
-        fileVersionRepository.deleteFileVersion(lastVersion);
-        tombstoneRepository.createTombstonesBulk(List.of(lastVersion), currNode.getOwnerId());
+      if (uploadResult.isSuccess() && oldestVersionNotKeptForever != null) {
+        fileVersionRepository.deleteFileVersion(oldestVersionNotKeptForever);
+        tombstoneRepository.createTombstonesBulk(List.of(oldestVersionNotKeptForever), currNode.getOwnerId());
         logger.debug(MessageFormat.format(
           "After successful upload file version limit has been reached, deleting version {0} of {1} to make space for a new version",
-          lastVersion.getVersion(),
-          lastVersion.getNodeId()
+          oldestVersionNotKeptForever.getVersion(),
+          oldestVersionNotKeptForever.getNodeId()
         ));
       }
       return uploadResult;
