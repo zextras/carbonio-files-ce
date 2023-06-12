@@ -62,8 +62,8 @@ class NodeTest {
       .containsAll(Arrays.asList("LOCAL_ROOT", "e2488edb-f408-4468-bb54-21292edc6440"));
     Assertions.assertThat(node.getSize()).isEqualTo(200L);
     Assertions.assertThat(node.getCurrentVersion()).isEqualTo(1);
-    Assertions.assertThat(node.getCustomAttributes()).isNull();
-    Assertions.assertThat(node.getFileVersions()).isNull();
+    Assertions.assertThat(node.getCustomAttributes()).isEmpty();
+    Assertions.assertThat(node.getFileVersions()).isEmpty();
   }
 
   @Test
@@ -131,8 +131,8 @@ class NodeTest {
       .containsAll(Arrays.asList("LOCAL_ROOT", "e2488edb-f408-4468-bb54-21292edc6440"));
     Assertions.assertThat(node.getSize()).isEqualTo(200L);
     Assertions.assertThat(node.getCurrentVersion()).isEqualTo(2);
-    Assertions.assertThat(node.getCustomAttributes()).isNull();
-    Assertions.assertThat(node.getFileVersions()).isNull();
+    Assertions.assertThat(node.getCustomAttributes()).isEmpty();
+    Assertions.assertThat(node.getFileVersions()).isEmpty();
   }
 
 
