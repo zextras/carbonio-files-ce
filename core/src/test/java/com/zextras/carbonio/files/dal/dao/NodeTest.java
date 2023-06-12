@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 class NodeTest {
 
   @Test
-  void givenAllNodeAttributesTheNodeConstructorShouldCreateNodeObjectCorrectly() {
+  void givenAllNodeAttributesTheConstructorShouldCreateNodeObjectCorrectly() {
     // Given && When
     Node node = new Node(
       "868b43cc-3a8f-4c14-a66d-f520d8e7e8bd",
@@ -67,7 +67,7 @@ class NodeTest {
   }
 
   @Test
-  void givenOnlyMandatoryNodeAttributesTheNodeConstructorShouldCreateNodeObjectCorrectly() {
+  void givenDifferentNodeAttributesTheSettersShouldUpdateNodeObjectCorrectly() {
     // Given && When
     Node node = new Node(
       "868b43cc-3a8f-4c14-a66d-f520d8e7e8bd",

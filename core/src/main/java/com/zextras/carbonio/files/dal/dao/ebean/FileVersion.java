@@ -101,27 +101,12 @@ public class FileVersion {
     return mMimeType;
   }
 
-  public FileVersion setMimeType(String mime) {
-    mMimeType = mime;
-    return this;
-  }
-
   public long getSize() {
     return mSize;
   }
 
-  public FileVersion setSize(long size) {
-    mSize = size;
-    return this;
-  }
-
   public String getDigest() {
     return mDigest;
-  }
-
-  public FileVersion setDigest(String digest) {
-    mDigest = digest;
-    return this;
   }
 
   public boolean isAutosave() {
