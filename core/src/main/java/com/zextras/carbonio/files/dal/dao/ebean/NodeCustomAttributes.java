@@ -76,7 +76,7 @@ public class NodeCustomAttributes extends Model {
     return this;
   }
 
-  public short getColor() {
+  public Short getColor() {
     return mColor;
   }
 
