@@ -7,7 +7,9 @@ package com.zextras.carbonio.files.netty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.zextras.carbonio.files.exceptions.AuthenticationException;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
+import com.zextras.carbonio.files.exceptions.FileTypeMismatchException;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
+import com.zextras.carbonio.files.exceptions.MaxNumberOfFileVersionsException;
 import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
 import com.zextras.carbonio.files.exceptions.RequestEntityTooLargeException;
 import io.netty.buffer.Unpooled;
@@ -44,6 +46,7 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
     ChannelHandlerContext context,
     Throwable cause
   ) {
+    cause = cause.getCause() == null ? cause : cause.getCause();
     HttpResponseStatus responseStatus;
     String payload;
 
@@ -57,7 +60,10 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
       responseStatus = HttpResponseStatus.INTERNAL_SERVER_ERROR;
       payload = HttpResponseStatus.INTERNAL_SERVER_ERROR.toString();
     }
-    else if( cause instanceof BadRequestException) {
+    else if( cause instanceof BadRequestException
+      || cause instanceof FileTypeMismatchException
+      || cause instanceof IllegalArgumentException
+    ) {
       responseStatus = HttpResponseStatus.BAD_REQUEST;
       payload = HttpResponseStatus.BAD_REQUEST.toString();
     }
@@ -71,12 +77,16 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
       responseStatus = HttpResponseStatus.UNAUTHORIZED;
       payload = cause.getMessage();
     }
+    else if (cause instanceof MaxNumberOfFileVersionsException) {
+      responseStatus = HttpResponseStatus.METHOD_NOT_ALLOWED;
+      payload = cause.getMessage();
+    }
     else {
       responseStatus = HttpResponseStatus.INTERNAL_SERVER_ERROR;
       payload = HttpResponseStatus.INTERNAL_SERVER_ERROR.toString();
     }
 
-    logger.error(String.format("Failed to execute the request. %s", payload));
+    logger.error(String.format("Failed to execute the request. %s", payload), cause);
 
     context
       .writeAndFlush(new DefaultFullHttpResponse(
