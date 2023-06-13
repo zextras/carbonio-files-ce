@@ -7,7 +7,7 @@ package com.zextras.carbonio.files.dal.dao.ebean;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-public class DbInfoTest {
+class DbInfoTest {
 
   @Test
   void givenADbVersionTheSetterShouldInitializedTheDbInfoVersionCorrectly() {

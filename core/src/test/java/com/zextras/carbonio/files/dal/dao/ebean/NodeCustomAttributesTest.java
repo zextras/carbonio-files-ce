@@ -5,13 +5,10 @@
 package com.zextras.carbonio.files.dal.dao.ebean;
 
 import com.zextras.carbonio.files.dal.EbeanWithInMemoryDatabase;
-import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-public class NodeCustomAttributesTest {
+class NodeCustomAttributesTest {
 
   @Test
   void givenAllNodeCustomAttributesTheConstructorShouldCreateNodeCustomAttributeObjectCorrectly() {

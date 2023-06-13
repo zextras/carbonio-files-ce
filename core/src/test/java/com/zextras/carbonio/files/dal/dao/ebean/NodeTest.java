@@ -4,8 +4,6 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean;
 
-import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import java.util.Arrays;
 import java.util.Optional;
 import org.assertj.core.api.Assertions;
@@ -61,7 +59,7 @@ class NodeTest {
       .isNotEmpty()
       .containsAll(Arrays.asList("LOCAL_ROOT", "e2488edb-f408-4468-bb54-21292edc6440"));
     Assertions.assertThat(node.getSize()).isEqualTo(200L);
-    Assertions.assertThat(node.getCurrentVersion()).isEqualTo(1);
+    Assertions.assertThat(node.getCurrentVersion()).isOne();
     Assertions.assertThat(node.getCustomAttributes()).isEmpty();
     Assertions.assertThat(node.getFileVersions()).isEmpty();
   }
@@ -98,7 +96,7 @@ class NodeTest {
 
     // Then
     Assertions.assertThat(node.getId()).isEqualTo("868b43cc-3a8f-4c14-a66d-f520d8e7e8bd");
-    Assertions.assertThat(node.getCreatorId()).isEqualTo("");
+    Assertions.assertThat(node.getCreatorId()).isEmpty();
     Assertions.assertThat(node.getOwnerId()).isEqualTo("c6bf990d-86b9-49ad-a6c0-12260308b7c5");
     Assertions.assertThat(node.getCreatedAt()).isEqualTo(5L);
     Assertions.assertThat(node.getUpdatedAt()).isEqualTo(10L);
@@ -155,8 +153,8 @@ class NodeTest {
 
     // Then
     Assertions.assertThat(node.getNodeType()).isEqualTo(NodeType.FOLDER);
-    Assertions.assertThat(node.getNodeCategory().intValue()).isEqualTo(1);
-    Assertions.assertThat(node.getCurrentVersion()).isEqualTo(1);
+    Assertions.assertThat(node.getNodeCategory().intValue()).isOne();
+    Assertions.assertThat(node.getCurrentVersion()).isOne();
   }
 
   @Test
@@ -178,8 +176,8 @@ class NodeTest {
 
     // Then
     Assertions.assertThat(node.getNodeType()).isEqualTo(NodeType.ROOT);
-    Assertions.assertThat(node.getNodeCategory().intValue()).isEqualTo(0);
-    Assertions.assertThat(node.getCurrentVersion()).isEqualTo(1);
+    Assertions.assertThat(node.getNodeCategory().intValue()).isZero();
+    Assertions.assertThat(node.getCurrentVersion()).isOne();
   }
 
   @Test
