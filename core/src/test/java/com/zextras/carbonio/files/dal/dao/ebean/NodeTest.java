@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.dal.dao;
+package com.zextras.carbonio.files.dal.dao.ebean;
 
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
@@ -15,7 +15,7 @@ class NodeTest {
 
   @Test
   void givenAllNodeAttributesTheConstructorShouldCreateNodeObjectCorrectly() {
-    // Given && When
+    // Given & When
     Node node = new Node(
       "868b43cc-3a8f-4c14-a66d-f520d8e7e8bd",
       "c6bf990d-86b9-49ad-a6c0-12260308b7c5",
@@ -68,7 +68,7 @@ class NodeTest {
 
   @Test
   void givenDifferentNodeAttributesTheSettersShouldUpdateNodeObjectCorrectly() {
-    // Given && When
+    // Given & When
     Node node = new Node(
       "868b43cc-3a8f-4c14-a66d-f520d8e7e8bd",
       "",
@@ -138,7 +138,7 @@ class NodeTest {
 
   @Test
   void givenAFolderNodeTypeTheNodeConstructorShouldInitializeTheNodeCategoryAndTheCurrentVersionCorrectly() {
-    // Given && When
+    // Given & When
     Node node = new Node(
       "",
       "",
@@ -161,7 +161,7 @@ class NodeTest {
 
   @Test
   void givenARootNodeTypeTheNodeConstructorShouldInitializeTheNodeCategoryAndTheCurrentVersionCorrectly() {
-    // Given && When
+    // Given & When
     Node node = new Node(
       "",
       "",
@@ -184,7 +184,7 @@ class NodeTest {
 
   @Test
   void givenAFolderNodeTheGetExtensionShouldReturnAnOptionalEmptyAndTheFullNameShouldMatchWithTheName() {
-    // Given && When
+    // Given & When
     Node node = new Node(
       "",
       "",
@@ -206,7 +206,7 @@ class NodeTest {
 
   @Test
   void givenANodeWithoutAnAncestorIdsTheGetAncestorsListShouldReturnAnEmptyList() {
-    // Given && When
+    // Given & When
     Node node = new Node(
       "",
       "",
@@ -228,7 +228,7 @@ class NodeTest {
 
   @Test
   void givenANodeIdSurroundedBySpacesAtTheEndTheGetIdShouldReturnItWithoutThem() {
-    // Given && When
+    // Given & When
     Node node = new Node(
       "   868b43cc-3a8f-4c14-a66d-f520d8e7e8bd    ",
       "",

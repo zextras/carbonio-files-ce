@@ -27,7 +27,7 @@ class NodeSortTest {
 
   @Test
   void givenALastEditorAscNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
-    // Given && When
+    // Given & When
     NodeSort.LAST_EDITOR_ASC.getOrderEbeanQuery(queryNodeMock);
 
     // Then
@@ -40,7 +40,7 @@ class NodeSortTest {
 
   @Test
   void givenALastEditorDescNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
-    // Given && When
+    // Given & When
     NodeSort.LAST_EDITOR_DESC.getOrderEbeanQuery(queryNodeMock);
 
     // Then
@@ -53,7 +53,7 @@ class NodeSortTest {
 
   @Test
   void givenANameAscNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
-    // Given && When
+    // Given & When
     NodeSort.NAME_ASC.getOrderEbeanQuery(queryNodeMock);
 
     // Then
@@ -66,7 +66,7 @@ class NodeSortTest {
 
   @Test
   void givenANameDescNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
-    // Given && When
+    // Given & When
     NodeSort.NAME_DESC.getOrderEbeanQuery(queryNodeMock);
 
     // Then
@@ -79,7 +79,7 @@ class NodeSortTest {
 
   @Test
   void givenAnOwnerAscNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
-    // Given && When
+    // Given & When
     NodeSort.OWNER_ASC.getOrderEbeanQuery(queryNodeMock);
 
     // Then
@@ -92,7 +92,7 @@ class NodeSortTest {
 
   @Test
   void givenAnOwnerDescNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
-    // Given && When
+    // Given & When
     NodeSort.OWNER_DESC.getOrderEbeanQuery(queryNodeMock);
 
     // Then
@@ -105,7 +105,7 @@ class NodeSortTest {
 
   @Test
   void givenATypeAscNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
-    // Given && When
+    // Given & When
     NodeSort.TYPE_ASC.getOrderEbeanQuery(queryNodeMock);
 
     // Then
@@ -118,7 +118,7 @@ class NodeSortTest {
 
   @Test
   void givenATypeDescNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
-    // Given && When
+    // Given & When
     NodeSort.TYPE_DESC.getOrderEbeanQuery(queryNodeMock);
 
     // Then
@@ -131,7 +131,7 @@ class NodeSortTest {
 
   @Test
   void givenAnUpdatedAtAscNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
-    // Given && When
+    // Given & When
     NodeSort.UPDATED_AT_ASC.getOrderEbeanQuery(queryNodeMock);
 
     // Then
@@ -144,7 +144,7 @@ class NodeSortTest {
 
   @Test
   void givenAnUpdatedAtDescNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
-    // Given && When
+    // Given & When
     NodeSort.UPDATED_AT_DESC.getOrderEbeanQuery(queryNodeMock);
 
     // Then
@@ -157,7 +157,7 @@ class NodeSortTest {
 
   @Test
   void givenACreatedAtAscNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
-    // Given && When
+    // Given & When
     NodeSort.CREATED_AT_ASC.getOrderEbeanQuery(queryNodeMock);
 
     // Then
@@ -170,7 +170,7 @@ class NodeSortTest {
 
   @Test
   void givenACreatedAtDescNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
-    // Given && When
+    // Given & When
     NodeSort.CREATED_AT_DESC.getOrderEbeanQuery(queryNodeMock);
 
     // Then
@@ -183,7 +183,7 @@ class NodeSortTest {
 
   @Test
   void givenASizeAscNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
-    // Given && When
+    // Given & When
     NodeSort.SIZE_ASC.getOrderEbeanQuery(queryNodeMock);
 
     // Then
@@ -196,7 +196,7 @@ class NodeSortTest {
 
   @Test
   void givenASizeDescNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
-    // Given && When
+    // Given & When
     NodeSort.SIZE_DESC.getOrderEbeanQuery(queryNodeMock);
 
     // Then

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.dal.dao;
+package com.zextras.carbonio.files.dal.dao.ebean;
 
 import com.zextras.carbonio.files.dal.EbeanWithInMemoryDatabase;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -15,7 +15,7 @@ public class NodeCustomAttributesTest {
 
   @Test
   void givenAllNodeCustomAttributesTheConstructorShouldCreateNodeCustomAttributeObjectCorrectly() {
-    // Given && When
+    // Given & When
     NodeCustomAttributes nodeCustomAttributes = new NodeCustomAttributes(
       "56a6a78c-d8b5-447b-847a-e2c3a1c69f35",
       "90d9fb09-bbe6-4441-b09e-f8e17db7baef",
@@ -66,5 +66,22 @@ public class NodeCustomAttributesTest {
       // Then
       Assertions.assertThat(nodeCustomAttributes.getFlag()).isFalse();
     }
+  }
+
+  @Test
+  void givenNodeIdAndVersionTheFileVersionPKConstructorShouldCreateFileVersionPKObjectCorrectly() {
+    // Given & When
+    NodeCustomAttributesPK nodeCustomAttributesPrimaryKey = new NodeCustomAttributesPK(
+      "868b43cc-3a8f-4c14-a66d-f520d8e7e8bd",
+      "90d9fb09-bbe6-4441-b09e-f8e17db7baef"
+    );
+
+    // Then
+    Assertions
+      .assertThat(nodeCustomAttributesPrimaryKey.getNodeId())
+      .isEqualTo("868b43cc-3a8f-4c14-a66d-f520d8e7e8bd");
+    Assertions
+      .assertThat(nodeCustomAttributesPrimaryKey.getUserId())
+      .isEqualTo("90d9fb09-bbe6-4441-b09e-f8e17db7baef");
   }
 }

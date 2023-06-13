@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.dal.dao;
+package com.zextras.carbonio.files.dal.dao.ebean;
 
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
+import com.zextras.carbonio.files.dal.dao.ebean.FileVersionPK;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -12,7 +13,7 @@ class FileVersionTest {
 
   @Test
   void givenAllFileVersionAttributesTheConstructorShouldCreateFileVersionObjectCorrectly() {
-    // Given && When
+    // Given & When
     FileVersion fileVersion = new FileVersion(
       "868b43cc-3a8f-4c14-a66d-f520d8e7e8bd",
       "c6bf990d-86b9-49ad-a6c0-12260308b7c5",
@@ -41,7 +42,7 @@ class FileVersionTest {
 
   @Test
   void givenDifferentFileVersionAttributesTheSettersShouldUpdateFileVersionObjectCorrectly() {
-    // Given && When
+    // Given & When
     FileVersion fileVersion = new FileVersion(
       "868b43cc-3a8f-4c14-a66d-f520d8e7e8bd",
       "c6bf990d-86b9-49ad-a6c0-12260308b7c5",
@@ -61,5 +62,22 @@ class FileVersionTest {
     // Then
     Assertions.assertThat(fileVersion.getClonedFromVersion()).isPresent().contains(5);
     Assertions.assertThat(fileVersion.isKeptForever()).isTrue();
+  }
+
+  @Test
+  void givenNodeIdAndVersionTheFileVersionPKConstructorShouldCreateFileVersionPKObjectCorrectly() {
+    // Given & When
+    FileVersionPK fileVersionPrimaryKey = new FileVersionPK(
+      "868b43cc-3a8f-4c14-a66d-f520d8e7e8bd",
+      10
+    );
+
+    // Then
+    Assertions
+      .assertThat(fileVersionPrimaryKey.getNodeId())
+      .isEqualTo("868b43cc-3a8f-4c14-a66d-f520d8e7e8bd");
+    Assertions
+      .assertThat(fileVersionPrimaryKey.getVersion())
+      .isEqualTo(10);
   }
 }
