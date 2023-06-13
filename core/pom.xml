@@ -118,7 +118,6 @@ SPDX-License-Identifier: AGPL-3.0-only
           <!-- Merge and generate a full report -->
           <execution>
             <id>merge-reports</id>
-            <phase>verify</phase>
             <goals>
               <goal>merge</goal>
             </goals>
@@ -142,17 +141,17 @@ SPDX-License-Identifier: AGPL-3.0-only
             </configuration>
           </execution>
           <execution>
-          <id>full-report</id>
-          <configuration>
-            <skip>${skip.jacoco.full.report.generation}</skip>
-            <dataFile>${project.build.directory}/jacoco-full-report/merged.exec</dataFile>
-            <outputDirectory>${project.build.directory}/jacoco-full-report</outputDirectory>
-          </configuration>
-          <goals>
-            <goal>report</goal>
-          </goals>
+            <id>full-report</id>
+            <configuration>
+              <skip>${skip.jacoco.full.report.generation}</skip>
+              <dataFile>${project.build.directory}/jacoco-full-report/merged.exec</dataFile>
+              <outputDirectory>${project.build.directory}/jacoco-full-report</outputDirectory>
+            </configuration>
+            <goals>
+              <goal>report</goal>
+            </goals>
           </execution>
-          </executions>
+        </executions>
       </plugin>
     </plugins>
   </build>
@@ -351,7 +350,6 @@ SPDX-License-Identifier: AGPL-3.0-only
       <properties>
         <skip.integration.tests>false</skip.integration.tests>
         <skip.unit.tests>false</skip.unit.tests>
-        <skip.jacoco.full.report.generation>false</skip.jacoco.full.report.generation>
       </properties>
     </profile>
     <profile>

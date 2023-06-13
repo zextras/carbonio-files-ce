@@ -255,8 +255,8 @@ SPDX-License-Identifier: AGPL-3.0-only
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
     <!-- Flags to skip/run tests and the report generation -->
-    <skip.integration.tests>false</skip.integration.tests>
-    <skip.unit.tests>false</skip.unit.tests>
+    <skip.integration.tests>true</skip.integration.tests>
+    <skip.unit.tests>true</skip.unit.tests>
     <skip.jacoco.full.report.generation>true</skip.jacoco.full.report.generation>
   </properties>
 
