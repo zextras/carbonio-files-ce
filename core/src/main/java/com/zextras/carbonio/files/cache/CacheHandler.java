@@ -19,11 +19,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * the {@link ConcurrentHashMap}.
  * <p>
  * Every cache is created using the {@link CacheHandlerFactory}.
+ * <p>
+ * This class is marked as a {@link Singleton} to be sure that only one cache instance for each
+ * object exists
  */
 @Singleton
 public class CacheHandler {
 
-  private Map<String, Cache>  caches;
+  private Map<String, Cache> caches;
   private CacheHandlerFactory cacheHandlerFactory;
 
   @Inject
@@ -52,10 +55,16 @@ public class CacheHandler {
     );
   }
 
+  /**
+   * @return the instance of the {@link Cache<User>}
+   */
   public Cache<User> getUserCache() {
     return caches.get(Files.Cache.USER);
   }
 
+  /**
+   * @return the instance of the {@link Cache<FileVersion>}
+   */
   public Cache<FileVersion> getFileVersionCache() {
     return caches.get(Files.Cache.FILE_VERSION);
   }
