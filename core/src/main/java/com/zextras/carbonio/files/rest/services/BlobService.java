@@ -8,6 +8,7 @@ import com.google.common.net.MediaType;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
+import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
@@ -29,6 +30,7 @@ import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.UploadResponse;
 import com.zextras.filestore.model.FilesIdentifier;
+import io.ebean.Transaction;
 import io.ebean.annotation.Transactional;
 import io.vavr.control.Try;
 import java.util.Collections;
@@ -57,6 +59,7 @@ public class BlobService {
   private final TombstoneRepository tombstoneRepository;
   private final Filestore fileStore;
   private final FilesConfig filesConfig;
+  private final EbeanDatabaseManager ebeanDatabaseManager;
 
   @Inject
   public BlobService(
@@ -68,7 +71,8 @@ public class BlobService {
     TombstoneRepository tombstoneRepository,
     MimeTypeUtils mimeTypeUtils,
     Filestore fileStore,
-    FilesConfig filesConfig
+    FilesConfig filesConfig,
+    EbeanDatabaseManager ebeanDatabaseManager
   ) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -79,6 +83,7 @@ public class BlobService {
     this.tombstoneRepository = tombstoneRepository;
     this.fileStore = fileStore;
     this.filesConfig = filesConfig;
+    this.ebeanDatabaseManager = ebeanDatabaseManager;
   }
 
   /**
@@ -177,6 +182,20 @@ public class BlobService {
 
       NodeType nodeType = NodeType.getNodeType(mediaType);
 
+      Node newNode = nodeRepository.createNewNode(
+        nodeId,
+        requester.getId(),
+        nodeOwner,
+        folderId,
+        searchAlternativeName(filename.trim(), folderId, nodeOwner),
+        description,
+        nodeType,
+        NodeType.ROOT.equals(destinationFolder.getNodeType())
+          ? folderId
+          : destinationFolder.getAncestorIds() + "," + folderId,
+        0L
+      );
+
       UploadResponse uploadResponse = Try.of(() ->
         fileStore
           .uploadPost(
@@ -185,6 +204,7 @@ public class BlobService {
             blobLength
           )
       ).getOrElseThrow(failure -> {
+        nodeRepository.deleteNode(nodeId);
         throw new DependencyException(
           String.format("Storages failed: unable to upload node with id %s and version 1", nodeId),
           failure
@@ -198,43 +218,36 @@ public class BlobService {
         uploadResponse.getDigest()
       );
 
-      nodeRepository.createNewNode(
-        nodeId,
-        requester.getId(),
-        nodeOwner,
-        folderId,
-        searchAlternativeName(filename.trim(), folderId, nodeOwner),
-        description,
-        nodeType,
-        NodeType.ROOT.equals(destinationFolder.getNodeType())
-          ? folderId
-          : destinationFolder.getAncestorIds() + "," + folderId,
-        uploadResponse.getSize()
-      );
-
-      fileVersionRepository.createNewFileVersion(
-        nodeId,
-        requester.getId(),
-        1,
-        mediaType.toString(),
-        uploadResponse.getSize(),
-        uploadResponse.getDigest(),
-        false
-      );
-
-      // Add new shares for the new file
-      // Create share also for the requester if it is not the owner of the parent folder
-      shareRepository
-        .getShares(folderId, Collections.emptyList())
-        .forEach(share -> shareRepository.upsertShare(
-            nodeId,
-            share.getTargetUserId(),
-            share.getPermissions(),
-            false,
-            false,
-            share.getExpiredAt()
-          )
+      try (Transaction t = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
+        fileVersionRepository.createNewFileVersion(
+          nodeId,
+          requester.getId(),
+          1,
+          mediaType.toString(),
+          uploadResponse.getSize(),
+          uploadResponse.getDigest(),
+          false
         );
+
+        newNode.setSize(uploadResponse.getSize());
+        nodeRepository.updateNode(newNode);
+
+        // Add new shares for the new file
+        // Create share also for the requester if it is not the owner of the parent folder
+        shareRepository
+          .getShares(folderId, Collections.emptyList())
+          .forEach(share -> shareRepository.upsertShare(
+              nodeId,
+              share.getTargetUserId(),
+              share.getPermissions(),
+              false,
+              false,
+              share.getExpiredAt()
+            )
+          );
+        t.commit();
+      }
+
       return Optional.of(nodeId);
     }
 
@@ -280,7 +293,6 @@ public class BlobService {
    *                                          different {@link NodeType} than previous versions
    * @throws DependencyException              if the {@link Filestore} failed to upload the blob
    */
-  @Transactional
   public Optional<Integer> uploadFileVersion(
     User requester,
     BufferInputStream bufferInputStream,
@@ -442,7 +454,7 @@ public class BlobService {
           Collections.singletonList(versionToUpload));
 
       } else {
-        versionToUpload = node.getCurrentVersion() + 1;
+        versionToUpload += 1;
         uploadResponse = fileStore
           .uploadPost(
             FilesIdentifier.of(nodeId, versionToUpload, requester.getId()),
@@ -461,32 +473,36 @@ public class BlobService {
       );
     }
 
-    Optional<FileVersion> result = fileVersionRepository.createNewFileVersion(
-      nodeId,
-      requester.getId(),
-      versionToUpload,
-      mediaType.toString(),
-      uploadResponse.getSize(),
-      uploadResponse.getDigest(),
-      false
-    );
-    node.setSize(uploadResponse.getSize());
-    node.setLastEditorId(requester.getId());
-    // The update of the current version can be overkill when the version is overwritten but,
-    // since we are already doing the sql query to update the other node metadata, it doesn't add
-    // any extra costs, and it makes the code more readable.
-    node.setCurrentVersion(versionToUpload);
-    nodeRepository.updateNode(node);
+    try (Transaction t = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
+      Optional<FileVersion> result = fileVersionRepository.createNewFileVersion(
+        nodeId,
+        requester.getId(),
+        versionToUpload,
+        mediaType.toString(),
+        uploadResponse.getSize(),
+        uploadResponse.getDigest(),
+        false
+      );
+      node.setSize(uploadResponse.getSize());
+      node.setLastEditorId(requester.getId());
+      // The update of the current version can be overkill when the version is overwritten but,
+      // since we are already doing the sql query to update the other node metadata, it doesn't add
+      // any extra costs, and it makes the code more readable.
+      node.setCurrentVersion(versionToUpload);
+      nodeRepository.updateNode(node);
 
-    logger.info(
-      "Uploaded file to storages successfully: nodeId {}, version {}, size: {}, digest: {}",
-      nodeId,
-      versionToUpload,
-      uploadResponse.getSize(),
-      uploadResponse.getDigest()
-    );
+      t.commit();
 
-    return result.map(FileVersion::getVersion);
+      logger.info(
+        "Uploaded file to storages successfully: nodeId {}, version {}, size: {}, digest: {}",
+        nodeId,
+        versionToUpload,
+        uploadResponse.getSize(),
+        uploadResponse.getDigest()
+      );
+
+      return result.map(FileVersion::getVersion);
+    }
   }
 
   /**
