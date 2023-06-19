@@ -36,6 +36,8 @@ import javax.persistence.Table;
 public
 class Node {
 
+  public static final String ANCESTORS_SEPARATOR = ",";
+
   @Id
   @Column(name = Files.Db.Node.ID, length = 36, nullable = false)
   private String mId;
@@ -160,8 +162,9 @@ class Node {
     return mAncestorIds;
   }
 
-  public void setAncestorIds(String ancestorIds) {
+  public Node setAncestorIds(String ancestorIds) {
     this.mAncestorIds = ancestorIds;
+    return this;
   }
 
   public String getCreatorId() {
@@ -259,7 +262,7 @@ class Node {
   public List<String> getAncestorsList() {
     return (mAncestorIds.isEmpty())
       ? new ArrayList<>()
-      : Arrays.stream(mAncestorIds.split(",")).collect(Collectors.toList());
+      : Arrays.stream(mAncestorIds.split(ANCESTORS_SEPARATOR)).collect(Collectors.toList());
   }
 
   public Long getSize() {

@@ -860,7 +860,7 @@ public class NodeDataFetcher {
 
               String newAncestors = NodeType.ROOT.equals(parentNode.get().getNodeType())
                 ? parentId
-                : parentNode.get().getAncestorIds() + "," + parentId;
+                : parentNode.get().getAncestorIds() + Node.ANCESTORS_SEPARATOR + parentId;
 
               node.setAncestorIds(newAncestors);
 
