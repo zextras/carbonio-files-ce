@@ -6,6 +6,8 @@ package com.zextras.carbonio.files.config;
 
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.ServiceDiscover;
+import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.preview.PreviewClient;
 import com.zextras.carbonio.usermanagement.UserManagementClient;
 import com.zextras.filestore.api.Filestore;
@@ -80,7 +82,22 @@ public class FilesConfig {
     return StoragesClient.atUrl(fileStoreURL);
   }
 
+  public String getFileStoreUrl() {
+    return String.format(
+      "http://%s:%s/",
+      properties.getProperty(Files.Config.Storages.URL, "127.78.0.2"),
+      properties.getProperty(Files.Config.Storages.PORT, "20002")
+    );
+  }
+
   public PreviewClient getPreviewClient() {
     return PreviewClient.atURL(previewURL);
+  }
+
+  public int getMaxNumberOfFileVersion() {
+    return Integer.parseInt(ServiceDiscoverHttpClient
+      .defaultURL(ServiceDiscover.SERVICE_NAME)
+      .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
+      .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
   }
 }
