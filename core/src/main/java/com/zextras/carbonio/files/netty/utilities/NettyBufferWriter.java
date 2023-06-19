@@ -10,8 +10,12 @@ import io.netty.channel.ChannelPromise;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.io.InputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NettyBufferWriter {
+
+  private static final Logger logger = LoggerFactory.getLogger(NettyBufferWriter.class);
 
   private final ChannelHandlerContext context;
   private final ByteBuf               byteBuffer;
@@ -42,8 +46,8 @@ public class NettyBufferWriter {
 
       try {
         contentStream.close();
-      } catch (IOException e) {
-        e.printStackTrace();
+      } catch (IOException exception) {
+       logger.error("Exception when closing the upload input stream", exception);
       }
       promise.setSuccess();
       return;

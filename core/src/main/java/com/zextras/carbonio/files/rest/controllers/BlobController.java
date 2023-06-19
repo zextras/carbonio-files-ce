@@ -11,24 +11,16 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.Files.API.Headers;
-import com.zextras.carbonio.files.Files.ServiceDiscover;
-import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
-import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.dal.dao.User;
-import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
-import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
+import com.zextras.carbonio.files.netty.utilities.NettyBufferWriter;
 import com.zextras.carbonio.files.rest.services.BlobService;
-import com.zextras.carbonio.files.rest.types.UploadNodeResponse;
+import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.UploadVersionResponse;
 import com.zextras.carbonio.files.tasks.PrometheusService;
-import com.zextras.carbonio.files.utilities.PermissionsChecker;
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPromise;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
@@ -43,15 +35,12 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
-import io.netty.util.ReferenceCountUtil;
 import io.vavr.control.Try;
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import org.apache.commons.codec.binary.Base64;
@@ -66,43 +55,17 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   private static final AttributeKey<BufferInputStream> fileStreamReader =
     AttributeKey.valueOf("FileStreamReader");
 
-  /**
-   * This ChannelFutureListener aims to close correctly the channel only after the promise has
-   * finished successfully! This listener must be used in every netty response.
-   */
-  private static final ChannelFutureListener nettyChannelFutureClose =
-    (promise) -> {
-      if (!promise.isSuccess()) {
-        logger.error("Failed to send the HTTP response, cause by: " + promise.cause().toString());
-      }
-      promise.channel().close();
-    };
-
   private final BlobService blobService;
-
   private final PrometheusService prometheusService;
-  private final PermissionsChecker permissionsChecker;
-  private final int maxNumberOfVersions;
-  private final int maxNumberOfKeepVersions;
 
   @Inject
   public BlobController(
     BlobService blobService,
-    PrometheusService prometheusService,
-    PermissionsChecker permissionsChecker
+    PrometheusService prometheusService
   ) {
     super(true);
     this.blobService = blobService;
     this.prometheusService = prometheusService;
-    this.permissionsChecker = permissionsChecker;
-    this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
-      .defaultURL(ServiceDiscover.SERVICE_NAME)
-      .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
-      .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
-    this.maxNumberOfKeepVersions =
-      this.maxNumberOfVersions <= Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION
-        ? 0
-        : this.maxNumberOfVersions - Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
   }
 
   @Override
@@ -120,10 +83,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         Matcher uploadVersionMatcher = Endpoints.UPLOAD_FILE_VERSION.matcher(uriRequest);
         Matcher publicLinkMatcher = Endpoints.PUBLIC_LINK.matcher(uriRequest);
 
-        HttpVersion protocolVersionRequest = httpRequest.protocolVersion();
-
         if (downloadMatcher.find()) {
-          download(context, httpRequest, protocolVersionRequest, downloadMatcher);
+          download(context, httpRequest, downloadMatcher);
         }
 
         if (publicLinkMatcher.find()) {
@@ -165,7 +126,6 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
     } catch (Exception exception) {
       // Catching the RuntimeException and the JsonProcessingException
-      logger.error("BlobController catches an exception", exception);
       context.fireExceptionCaught(exception);
     }
   }
@@ -176,106 +136,44 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     Matcher uriMatched
   ) {
     String publicLinkId = uriMatched.group(1);
-    blobService
+    BlobResponse blobResponse = blobService
       .downloadFileByLink(publicLinkId)
-      .onSuccess(blobResponse -> {
-        DefaultHttpHeaders headers = new DefaultHttpHeaders(true);
-        headers.add(HttpHeaderNames.CONNECTION, HttpHeaders.Values.CLOSE);
-        headers.add(HttpHeaderNames.CONTENT_LENGTH, blobResponse.getSize());
-        headers.add(HttpHeaderNames.CONTENT_TYPE, blobResponse.getMimeType());
+      .orElseThrow(() -> new NoSuchElementException(
+        String.format(
+          "Request %s: the link %s and/or the node associated to it does not exist",
+          httpRequest.uri(),
+          publicLinkId
+        ))
+      );
 
-        try {
-          headers.add(
-            HttpHeaderNames.CONTENT_DISPOSITION,
-            "attachment; filename*=UTF-8''" + URLEncoder.encode(blobResponse.getFilename(), "UTF-8")
-          );
-        } catch (Exception ignore) {
-        }
-
-        context.write(
-          new DefaultHttpResponse(httpRequest.protocolVersion(), HttpResponseStatus.OK, headers)
-        );
-        writeStream(context, blobResponse.getBlobStream());
-      })
-      .onFailure(failure -> {
-        logger.error(
-          String.format("Download of node via the public link %s failed", publicLinkId), failure
-        );
-        context.fireExceptionCaught(new NoSuchElementException());
-      });
+    sendSuccessDownloadResponse(context, blobResponse);
   }
 
   private void download(
     ChannelHandlerContext context,
     HttpRequest request,
-    HttpVersion protocolVersionRequest,
     Matcher uriMatched
   ) {
     User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
     String nodeId = uriMatched.group(1);
-    Optional<Integer> optVersion = Optional
+    Integer version = Optional
       .ofNullable(uriMatched.group(2))
-      .map(Integer::parseInt);
+      .map(Integer::parseInt)
+      .orElse(null);
 
-    if (permissionsChecker
-      .getPermissions(nodeId, requester.getId())
-      .has(SharePermission.READ_ONLY)
-    ) {
 
-      logger.info(MessageFormat.format(
-        "Download of file with nodeId {0} with {1}, from user with mail {2} and uuid {3}",
-        nodeId,
-        optVersion.map(integer -> MessageFormat.format("optional version: {0}", integer))
-          .orElse("no optional version"),
-        requester.getDomain(),
-        requester.getId()
-      ));
 
-      blobService
-        .downloadFile(nodeId, optVersion, requester)
-        .onSuccess(blobResponse -> {
-          DefaultHttpHeaders headers = new DefaultHttpHeaders(true);
-          headers.add(HttpHeaderNames.CONNECTION, HttpHeaders.Values.CLOSE);
-          headers.add(HttpHeaderNames.CONTENT_LENGTH, blobResponse.getSize());
-          headers.add(HttpHeaderNames.CONTENT_TYPE, blobResponse.getMimeType());
-
-          try {
-            headers.add(
-              HttpHeaderNames.CONTENT_DISPOSITION,
-              "attachment; filename*=UTF-8''" + URLEncoder.encode(blobResponse.getFilename(),
-                "UTF-8")
-            );
-          } catch (Exception exception) {
-            logger.error(
-              String.format("Unable to encode filename of node %s to download", nodeId), exception
-            );
-            context.fireExceptionCaught(exception);
-          }
-
-          context.write(new DefaultHttpResponse(
-              protocolVersionRequest,
-              HttpResponseStatus.OK,
-              headers
-            )
-          );
-          writeStream(context, blobResponse.getBlobStream());
-        })
-        .onFailure(failure -> {
-          logger.error("Download operation failed", failure);
-          context.fireChannelRead(new BadRequestException());
-        });
-
-    } else {
-      logger.error(String.format(
-        "Request %s: The user %s does not have the READ permission to download the node %s",
+    BlobResponse blobResponse = blobService
+      .downloadFileById(nodeId, version, requester)
+      .orElseThrow(() -> new NoSuchElementException(String.format(
+        "Request %s: node %s requested by %s does not exist or it does not have the permission to read it",
         request.uri(),
-        requester.getId(),
-        nodeId
-      ));
+        nodeId,
+        requester.getId()
+      )));
 
-      context.fireExceptionCaught(new NoSuchElementException());
-    }
+    sendSuccessDownloadResponse(context, blobResponse);
   }
 
   private void initializeFileStream(ChannelHandlerContext context) {
@@ -308,52 +206,32 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       || decodedFilename.trim().isEmpty()
       || decodedFilename.trim().length() > 1024
     ) {
-      context.fireExceptionCaught(new BadRequestException());
+      context.fireExceptionCaught(new IllegalArgumentException());
       return;
     }
 
     initializeFileStream(context);
 
-    CompletableFuture.supplyAsync(
+    CompletableFuture.runAsync(
       () -> {
-        Try<String> strings =
-          blobService.uploadFile(
-            requester,
-            context.channel().attr(fileStreamReader).get(),
-            blobLength,
-            parentId,
-            decodedFilename,
-            description
-          );
+        String nodeId = blobService.uploadFile(
+          requester,
+          context.channel().attr(fileStreamReader).get(),
+          blobLength,
+          parentId,
+          decodedFilename,
+          description
+        ).orElseThrow(NoSuchElementException::new);
 
-        UploadNodeResponse response = new UploadNodeResponse();
-        response.setNodeId(UUID.fromString(strings.get()));
+        sendSuccessUploadResponse(context, nodeId, 1);
 
-        HttpHeaders headers = new DefaultHttpHeaders(true);
-        headers.add(HttpHeaderNames.CONNECTION, HttpHeaders.Values.CLOSE);
-        headers.add(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
-
-        ObjectMapper mapper = new ObjectMapper()
-          .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-
-        DefaultFullHttpResponse httpResponse = null;
-        try {
-          httpResponse = new DefaultFullHttpResponse(
-            HttpVersion.HTTP_1_0,
-            HttpResponseStatus.OK,
-            Unpooled.wrappedBuffer(mapper.writeValueAsBytes(response)),
-            headers,
-            new DefaultHttpHeaders()
-          );
-        } catch (JsonProcessingException e) {
-          context.fireExceptionCaught(e);
-        }
-
-        context.write(httpResponse);
         prometheusService.getUploadCounter().increment();
         context.flush().close();
-        return null;
-      });
+      }
+    ).exceptionally(throwable -> { // It is necessary because CompletableFuture eats exceptions
+      context.fireExceptionCaught(throwable);
+      return null;
+    });
   }
 
   public void uploadFileVersion(
@@ -373,22 +251,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       || decodedFilename.trim().isEmpty()
       || decodedFilename.trim().length() > 1024
     ) {
-      context.fireExceptionCaught(new BadRequestException());
-      return;
-    }
-
-    if (blobService.getNumberOfVersionOfFile(nodeId) > maxNumberOfVersions) {
-      logger.info(String.format(
-        "Node: %s has reached max number of versions (%d), cannot add more versions",
-        nodeId,
-        maxNumberOfVersions
-      ));
-      context.writeAndFlush(new DefaultFullHttpResponse(
-        httpRequest.protocolVersion(),
-        HttpResponseStatus.METHOD_NOT_ALLOWED
-      ));
-
-      context.close();
+      context.fireExceptionCaught(new IllegalArgumentException());
       return;
     }
 
@@ -401,105 +264,95 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     logger.debug(MessageFormat.format(
       "Uploading new version of node with id: {0}, overwrite: {1}", nodeId, overwrite
     ));
+
     initializeFileStream(context);
 
-    CompletableFuture.supplyAsync(
-      () -> {
-        Try<Integer> uploadedVersion =
-          blobService.uploadFileVersion(
-            requester,
-            context.channel().attr(fileStreamReader).get(),
-            blobLength,
-            nodeId,
-            decodedFilename,
-            overwrite,
-            maxNumberOfVersions
-          );
+    CompletableFuture.runAsync(() -> {
+        Integer version = blobService.uploadFileVersion(
+          requester,
+          context.channel().attr(fileStreamReader).get(),
+          blobLength,
+          nodeId,
+          decodedFilename,
+          overwrite
+        ).orElseThrow(NoSuchElementException::new);
 
-        UploadVersionResponse response = new UploadVersionResponse();
-        response.setNodeId(nodeId);
-        response.setVersion(uploadedVersion.get());
+        sendSuccessUploadResponse(context, nodeId, version);
 
-        HttpHeaders headers = new DefaultHttpHeaders(true);
-        headers.add(HttpHeaderNames.CONNECTION, HttpHeaders.Values.CLOSE);
-        headers.add(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
-
-        ObjectMapper mapper = new ObjectMapper()
-          .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-
-        DefaultFullHttpResponse httpResponse = null;
-        try {
-          httpResponse = new DefaultFullHttpResponse(
-            HttpVersion.HTTP_1_0,
-            HttpResponseStatus.OK,
-            Unpooled.wrappedBuffer(mapper.writeValueAsBytes(response)),
-            headers,
-            new DefaultHttpHeaders()
-          );
-        } catch (JsonProcessingException e) {
-          context.fireExceptionCaught(e);
-        }
-
-        context.write(httpResponse);
         prometheusService.getUploadVersionCounter().increment();
         context.flush().close();
-        return null;
-      });
-  }
-
-  ChannelPromise writeStream(
-    ChannelHandlerContext ctx,
-    InputStream contentStream
-  ) {
-    ChannelPromise promise = ctx.newPromise();
-    ByteBuf buffer = ctx.alloc().buffer(64 * 1024);
-    buffer.retain();
-
-    CompletableFuture.supplyAsync(() -> {
-      writeStream(ctx, contentStream, promise, buffer);
+      }
+    ).exceptionally(throwable -> { // It is necessary because CompletableFuture eats exceptions
+      context.fireExceptionCaught(throwable);
       return null;
     });
-
-    return promise;
   }
 
-  void writeStream(
-    ChannelHandlerContext ctx,
-    InputStream contentStream,
-    ChannelPromise promise,
-    ByteBuf byteBuf
+  private void sendSuccessDownloadResponse(
+    ChannelHandlerContext context,
+    BlobResponse blobResponse
   ) {
-    try {
-      byteBuf.writeBytes(contentStream, byteBuf.capacity());
-    } catch (IOException ex) {
-      promise.setFailure(ex);
-      byteBuf.release(2);
-    }
 
-    // writeBytes() uses a simple .read() from InputStream
-    // so in worst case it could return 1 byte each time
-    // but never 0 until EOF
-    if (byteBuf.writerIndex() == 0) {
-      ReferenceCountUtil.safeRelease(byteBuf, 2);
-      ctx.flush().close();
-      try {
-        contentStream.close();
-      } catch (IOException e) {
-        logger.error("Upload buffer exception", e);
-      }
-      promise.setSuccess();
+    String encodedFilename = Try
+      .of(() -> URLEncoder.encode(blobResponse.getFilename(), StandardCharsets.UTF_8))
+      .getOrElseThrow(failure -> {
+        String errorMessage = String.format(
+          "Unable to encode node filename %s to download",
+          blobResponse.getFilename()
+        );
+        return new IllegalArgumentException(errorMessage, failure);
+      });
+
+    DefaultHttpHeaders headers = new DefaultHttpHeaders(true);
+    headers.add(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
+    headers.add(HttpHeaderNames.CONTENT_LENGTH, blobResponse.getSize());
+    headers.add(HttpHeaderNames.CONTENT_TYPE, blobResponse.getMimeType());
+    headers.add(
+      HttpHeaderNames.CONTENT_DISPOSITION,
+      String.format("attachment; filename*=UTF-8''%s", encodedFilename)
+    );
+
+    context.write(new DefaultHttpResponse(
+        HttpVersion.HTTP_1_1,
+        HttpResponseStatus.OK,
+        headers
+      )
+    );
+
+    // Create netty buffer and start to fill it with the bytes arriving from the blob stream
+    new NettyBufferWriter(context).writeStream(blobResponse.getBlobStream(), context.newPromise());
+  }
+
+  private void sendSuccessUploadResponse(
+    ChannelHandlerContext context,
+    String nodeId,
+    int version
+  ) {
+
+    UploadVersionResponse response = new UploadVersionResponse();
+    response.setNodeId(nodeId);
+    response.setVersion(version);
+
+    byte[] jsonByteArray;
+    try {
+      jsonByteArray = new ObjectMapper()
+        .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
+        .writeValueAsBytes(response);
+    } catch (JsonProcessingException exception) {
+      context.fireExceptionCaught(exception);
       return;
     }
 
-    ctx.writeAndFlush(byteBuf).addListener(future -> {
-        if (future.isSuccess()) {
-          byteBuf.retain();
-          byteBuf.clear();
-          writeStream(ctx, contentStream, promise, byteBuf);
-        } else {
-          promise.setFailure(future.cause());
-        }
-      }
-    );
+    HttpHeaders headers = new DefaultHttpHeaders(true);
+    headers.add(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
+    headers.add(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
+
+    context.write(new DefaultFullHttpResponse(
+      HttpVersion.HTTP_1_0,
+      HttpResponseStatus.OK,
+      Unpooled.wrappedBuffer(jsonByteArray),
+      headers,
+      new DefaultHttpHeaders()
+    ));
   }
 }

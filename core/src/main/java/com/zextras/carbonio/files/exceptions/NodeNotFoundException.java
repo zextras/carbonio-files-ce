@@ -4,8 +4,6 @@
 
 package com.zextras.carbonio.files.exceptions;
 
-import java.text.MessageFormat;
-
 public class NodeNotFoundException extends Exception {
 
   public NodeNotFoundException() {
@@ -16,8 +14,8 @@ public class NodeNotFoundException extends Exception {
     String requesterId,
     String nodeId
   ) {
-    super(MessageFormat.format(
-      "Node {0} requested by {1} does not exist",
+    super(String.format(
+      "Node %s requested by %s does not exist or it does not have the permission to read it",
       nodeId,
       requesterId
     ));
