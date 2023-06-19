@@ -7,8 +7,8 @@ targets=(
   "centos"
 )
 pkgname="carbonio-files-ce"
-pkgver="0.9.0"
-pkgrel="2306051303"
+pkgver="0.9.1"
+pkgrel="1"
 pkgdesc="Carbonio Files"
 pkgdesclong=(
   "Carbonio Files"
