@@ -5,20 +5,30 @@
 package com.zextras.carbonio.files.rest.types;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import java.util.Objects;
+
 
 public class UploadVersionResponse {
 
   public static final String SERIALIZED_NAME_VERSION_ID = "version";
-  private             String nodeId;
-  private             int    version;
+  private String nodeId;
 
-  public int getVersion() {
+  @JsonInclude(Include.NON_NULL)
+  private Integer version;
+
+  public Integer getVersion() {
     return version;
   }
 
   public void setVersion(int version) {
-    this.version = version;
+    // TODO: this is a temporary fix since we need to make a breaking change if we want to return
+    //  always the version
+    if (version > 1) {
+      this.version = version;
+    }
   }
 
   public String getNodeId() {
