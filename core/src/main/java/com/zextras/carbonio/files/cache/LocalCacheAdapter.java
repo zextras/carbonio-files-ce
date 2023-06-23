@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
@@ -25,13 +26,14 @@ public class LocalCacheAdapter<T> implements Cache<T> {
   private final String                                              cacheName;
   private final long                                                defaultCacheSize;
   private final long                                                defaultItemLifetimeInMillis;
-  private       com.github.benmanes.caffeine.cache.Cache<String, T> cache;
+  private final com.github.benmanes.caffeine.cache.Cache<String, T> cache;
 
   @Inject
   public LocalCacheAdapter(
     @Assisted String cacheName,
     @Assisted("defaultCacheSize") long defaultCacheSize,
-    @Assisted("defaultItemLifetimeInMillis") long defaultItemLifetimeInMillis
+    @Assisted("defaultItemLifetimeInMillis") long defaultItemLifetimeInMillis,
+    Clock clock
   ) {
     this.cacheName = cacheName;
     this.defaultCacheSize = defaultCacheSize;
@@ -39,13 +41,14 @@ public class LocalCacheAdapter<T> implements Cache<T> {
 
     /*
      * A functional interface of Ticker is passed to the method ticker():
-     * The implementation returns the current timestamp of the System.currentTimeMillis() converted in nanoseconds.
+     * The implementation returns the current timestamp of the Clock.millis() converted in
+     * nanoseconds.
      */
     cache = Caffeine
       .newBuilder()
       .maximumSize(defaultCacheSize)
       .expireAfterWrite(Duration.ofMillis(defaultItemLifetimeInMillis))
-      .ticker(() -> System.currentTimeMillis() * 1000000)
+      .ticker(() -> clock.millis() * 1000000)
       .build();
   }
 

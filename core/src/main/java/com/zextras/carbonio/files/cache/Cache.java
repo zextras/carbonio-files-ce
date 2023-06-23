@@ -16,7 +16,8 @@ import java.util.Optional;
  * <ul>
  *   <li>the element that must be memorized</li>
  *   <li>
- *     the time in milliseconds when the element is memorized so the cache can verify if the element is still valid
+ *     the time in milliseconds when the element is memorized so the cache can verify if the element
+ *     is still valid
  *   </li>
  * </ul>
  *
