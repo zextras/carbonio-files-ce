@@ -337,12 +337,28 @@ class HttpRoutingHandlerTest {
       .fireChannelRead(httpRequestMock);
   }
 
-  @Test
-  void givenAnInvalidEndpointRequestHttpRoutingHandlerShouldRespondWith404() {
+  @ParameterizedTest
+  @ValueSource(strings = {
+    "/invalid/endpoint",
+    "/metrics/invalid",
+    "/health/invalid",
+    "/health/live/invalid",
+    "/health/ready/invalid",
+    "/graphql/invalid",
+    "/download/invalid",
+    "/download/8caeef71-6f72-439c-847a-38e90efd0965/invalid",
+    "/download/8caeef71-6f72-439c-847a-38e90efd0965/1/invalid",
+    "/upload/invalid",
+    "/upload-version/invalid",
+    "/link/abcd1234/invalid",
+    "/invite/abcd1234/invalid",
+    "/upload-to/invalid"
+  })
+  void givenAnInvalidEndpointRequestHttpRoutingHandlerShouldRespondWith404(String invalidUri) {
     // Given
     Mockito
       .when(httpRequestMock.uri())
-      .thenReturn("/invalid/endpoint");
+      .thenReturn(invalidUri);
     Mockito
       .when(httpRequestMock.protocolVersion())
       .thenReturn(HttpVersion.HTTP_1_1);
