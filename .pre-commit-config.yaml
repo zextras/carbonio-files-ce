@@ -17,11 +17,14 @@ repos:
 
   - repo: local
     hooks:
-      - id: check-if-version-is-bumped
-        name: check-if-version-is-bumped
+      - id: check-if-version-is-snapshot
+        name: check-if-version-is-snapshot
         entry: bash -c '
-          if [[ -z $(git diff develop --staged -G"pkgver|pkgrel" package/PKGBUILD) ]] &&
-             [[ -z $(git diff develop..HEAD -G"pkgver|pkgrel" package/PKGBUILD) ]];
+          currentBranch=$(git branch --show-current)
+          isSnapshot=$(grep -re "pkgrel=\"SNAPSHOT\"" package/PKGBUILD)
+
+          if [[ "$currentBranch" != *"release"* && -z "$isSnapshot" ]] ||
+             [[ "$currentBranch" == *"release"* && -n "$isSnapshot" ]];
           then
             exit 1;
           fi'
