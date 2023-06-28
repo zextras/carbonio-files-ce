@@ -175,16 +175,7 @@ pipeline {
                                 "pattern": "artifacts/*.deb",
                                 "target": "ubuntu-devel/pool/",
                                 "props": "deb.distribution=focal;deb.component=main;deb.architecture=amd64"
-                            }
-                        ]
-                    }'''
-                    server.upload spec: uploadSpec, buildInfo: buildInfo, failNoOp: false
-
-                    //rocky 8
-                    buildInfo = Artifactory.newBuildInfo()
-                    buildInfo.name += '-centos8'
-                    uploadSpec= '''{
-                        "files": [
+                            },
                             {
                                 "pattern": "artifacts/(carbonio-files-ce)-(*).rpm",
                                 "target": "centos8-devel/zextras/{1}/{1}-{2}.rpm",
