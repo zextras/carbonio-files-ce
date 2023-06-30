@@ -123,13 +123,13 @@ class Node {
     mAncestorIds = ancestorIds;
     switch (mNodeType) {
       case ROOT:
-        mNodeCategory = 0;
+        mNodeCategory = NodeCategory.ROOT.getValue();
         break;
       case FOLDER:
-        mNodeCategory = 1;
+        mNodeCategory = NodeCategory.FOLDER.getValue();
         break;
       default:
-        mNodeCategory = 2;
+        mNodeCategory = NodeCategory.FILE.getValue();
         mCurrentVersion = 1;
     }
     mSize = size;
@@ -202,8 +202,8 @@ class Node {
     return this;
   }
 
-  public Short getNodeCategory() {
-    return mNodeCategory;
+  public NodeCategory getNodeCategory() {
+    return NodeCategory.decode(mNodeCategory);
   }
 
   public String getFullName() {

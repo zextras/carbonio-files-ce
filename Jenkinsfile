@@ -43,9 +43,6 @@ pipeline {
             }
         }
         stage("Tests") {
-            when {
-              changeRequest()
-            }
             parallel {
                 stage("UTs") {
                     steps {

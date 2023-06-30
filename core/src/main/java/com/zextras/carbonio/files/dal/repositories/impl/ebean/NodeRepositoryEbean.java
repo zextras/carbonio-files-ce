@@ -14,6 +14,7 @@ import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.Files.Db.RootId;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
@@ -57,7 +58,7 @@ public class NodeRepositoryEbean implements NodeRepository {
    * @return a {@link String} representing the evaluated key set
    */
   private String buildKeyset(
-    Short nodeCategory,
+    NodeCategory nodeCategory,
     String nodeId,
     Optional<ImmutableTriple<String, String, String>> sortField
   ) {
@@ -70,17 +71,17 @@ public class NodeRepositoryEbean implements NodeRepository {
           "OR (" + sField.getLeft() + " = " +
           "'" + sField.getRight()
           .replace("'", "''") + "' AND t0.node_id > '" + nodeId + "')"
-          : "(node_category > " + nodeCategory + ") " +
-            "OR (node_category = " + nodeCategory + " AND " + sField.getLeft() +
+          : "(node_category > " + nodeCategory.getValue() + ") " +
+            "OR (node_category = " + nodeCategory.getValue() + " AND " + sField.getLeft() +
             sField.getMiddle() +
             "'" + sField.getRight()
             .replace("'", "''") + "'" + ") " +
-            "OR (node_category = " + nodeCategory + " AND " + sField.getLeft() + " = " +
+            "OR (node_category = " + nodeCategory.getValue() + " AND " + sField.getLeft() + " = " +
             "'" + sField.getRight()
             .replace("'", "''") + "' AND t0.node_id > '" + nodeId + "')";
       })
-      .orElse("(node_category > " + nodeCategory + ") OR " +
-        "(node_category = " + nodeCategory + " AND t0.node_id > '" + nodeId + "')");
+      .orElse("(node_category > " + nodeCategory.getValue() + ") OR " +
+        "(node_category = " + nodeCategory.getValue() + " AND t0.node_id > '" + nodeId + "')");
 
   }
 
