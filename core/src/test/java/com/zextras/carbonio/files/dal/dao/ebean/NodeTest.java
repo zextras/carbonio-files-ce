@@ -45,7 +45,7 @@ class NodeTest {
       .isPresent()
       .isEqualTo(Optional.of("Fake description"));
     Assertions.assertThat(node.getNodeType()).isEqualTo(NodeType.IMAGE);
-    Assertions.assertThat(node.getNodeCategory().intValue()).isEqualTo(2);
+    Assertions.assertThat(node.getNodeCategory()).isEqualTo(NodeCategory.FILE);
     Assertions.assertThat(node.getLastEditorId()).isEmpty();
     Assertions
       .assertThat(node.getParentId())
@@ -111,7 +111,7 @@ class NodeTest {
       .isPresent()
       .isEqualTo(Optional.of("Fake description"));
     Assertions.assertThat(node.getNodeType()).isEqualTo(NodeType.IMAGE);
-    Assertions.assertThat(node.getNodeCategory().intValue()).isEqualTo(2);
+    Assertions.assertThat(node.getNodeCategory()).isEqualTo(NodeCategory.FILE);
     Assertions
       .assertThat(node.getLastEditorId())
       .isPresent()
@@ -153,7 +153,7 @@ class NodeTest {
 
     // Then
     Assertions.assertThat(node.getNodeType()).isEqualTo(NodeType.FOLDER);
-    Assertions.assertThat(node.getNodeCategory().intValue()).isOne();
+    Assertions.assertThat(node.getNodeCategory()).isEqualTo(NodeCategory.FOLDER);
     Assertions.assertThat(node.getCurrentVersion()).isOne();
   }
 
@@ -176,7 +176,7 @@ class NodeTest {
 
     // Then
     Assertions.assertThat(node.getNodeType()).isEqualTo(NodeType.ROOT);
-    Assertions.assertThat(node.getNodeCategory().intValue()).isZero();
+    Assertions.assertThat(node.getNodeCategory()).isEqualTo(NodeCategory.ROOT);
     Assertions.assertThat(node.getCurrentVersion()).isOne();
   }
 
