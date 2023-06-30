@@ -15,7 +15,7 @@ pipeline {
     }
     parameters {
         booleanParam defaultValue: false, description: 'Whether to upload the packages in playground repositories', name: 'PLAYGROUND'
-        booleanParam defaultValue: false, description: 'Skip dependencyCheck', name: 'RUN_DEPENDENCY_CHECK'
+        booleanParam defaultValue: false, description: 'Run dependencyCheck', name: 'RUN_DEPENDENCY_CHECK'
     }
     options {
         buildDiscarder(logRotator(numToKeepStr: '25'))
