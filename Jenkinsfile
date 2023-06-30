@@ -15,6 +15,7 @@ pipeline {
     }
     parameters {
         booleanParam defaultValue: false, description: 'Whether to upload the packages in playground repositories', name: 'PLAYGROUND'
+        booleanParam defaultValue: false, description: 'Run dependencyCheck', name: 'RUN_DEPENDENCY_CHECK'
     }
     options {
         buildDiscarder(logRotator(numToKeepStr: '25'))
@@ -64,8 +65,44 @@ pipeline {
                 publishCoverage adapters: [jacocoAdapter('core/target/jacoco-full-report/jacoco.xml')]
             }
         }
+        stage('Dependency check'){
+            when {
+                expression { params.RUN_DEPENDENCY_CHECK == true }
+            }
+            steps {
+                dependencyCheck additionalArguments: '''-f "HTML" --prettyPrint''', odcInstallation: 'dependency-check'
+            }
+        }
+        stage('SonarQube analysis') {
+            when {
+                anyOf {
+                    branch 'develop'
+                    expression { env.BRANCH_NAME.contains("PR") }
+                }
+            }
+            steps {
+                withSonarQubeEnv(credentialsId: 'sonarqube-user-token', installationName: 'SonarQube instance') {
+                    sh 'mvn -B --settings settings-jenkins.xml sonar:sonar'
+                }
+            }
+        }
         stage('Build deb/rpm') {
             stages {
+                // Replace the pkgrel value from SNAPSHOT with the git commit hash to ensure that
+                // each merged PR has unique artifacts and to prevent conflicts between them.
+                // Note that the pkgrel value will remain as SNAPSHOT in the codebase to avoid
+                // conflicts between multiple open PRs
+                stage('Snapshot to commit hash') {
+                    when {
+                        branch 'develop'
+                    }
+                    steps {
+                        sh'''
+                            export GIT_COMMIT_SHORT=$(git rev-parse HEAD | head -c 8)
+                            sed -i "s/pkgrel=\\"SNAPSHOT\\"/pkgrel=\\"$GIT_COMMIT_SHORT\\"/" ./package/PKGBUILD
+                        '''
+                    }
+                }
                 stage('Stash') {
                     steps {
                         stash includes: 'pacur.json,package/**', name: 'binaries'
@@ -124,7 +161,9 @@ pipeline {
             }
             steps {
                 unstash 'artifacts-deb'
+                unstash 'artifacts-rpm'
                 script {
+                    // ubuntu
                     def server = Artifactory.server 'zextras-artifactory'
                     def buildInfo
                     def uploadSpec
@@ -136,6 +175,11 @@ pipeline {
                                 "pattern": "artifacts/*.deb",
                                 "target": "ubuntu-devel/pool/",
                                 "props": "deb.distribution=focal;deb.component=main;deb.architecture=amd64"
+                            },
+                            {
+                                "pattern": "artifacts/(carbonio-files-ce)-(*).rpm",
+                                "target": "centos8-devel/zextras/{1}/{1}-{2}.rpm",
+                                "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras"
                             }
                         ]
                     }'''
