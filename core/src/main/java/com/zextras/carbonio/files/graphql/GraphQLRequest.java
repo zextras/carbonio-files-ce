@@ -112,8 +112,8 @@ public class GraphQLRequest {
 
     try {
       payloadMap = mapper.readValue(payloadString, Map.class);
-    } catch (IOException e) {
-      e.printStackTrace();
+    } catch (IOException exception) {
+      throw new InvalidPayloadRequestError("Unable to encode a Graphql payload into a Map object");
     }
 
     if (payloadMap.get(GRAPHQL_FIELD_REQUEST) == null) {

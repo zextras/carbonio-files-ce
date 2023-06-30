@@ -709,31 +709,31 @@ public final class Files {
         SERVICE + "upload-version/?$");
       public static final Pattern UPLOAD_FILE_TO      = Pattern.compile(SERVICE + "upload-to/?$");
       public static final Pattern DOWNLOAD_FILE       = Pattern.compile(
-        SERVICE + "download/([a-f0-9\\\\-]*)/?([0-9]+)?/?$");
+        SERVICE + "download/([a-f\\d\\-]*)(/[\\d]+)?/?$");
       public static final Pattern PUBLIC_LINK         = Pattern.compile(
-        SERVICE + "link/([a-zA-Z0-9]{8})/?$");
+        SERVICE + "link/([\\w]{8})/?$");
       public static final Pattern COLLABORATION_LINK  = Pattern.compile(
-        SERVICE + "invite/([a-zA-Z0-9]{8})/?$");
+        SERVICE + "invite/([\\w]{8})/?$");
 
       public static final Pattern PREVIEW            = Pattern.compile(SERVICE + "preview/(.*)");
       public static final Pattern PREVIEW_IMAGE      = Pattern.compile(
         SERVICE
-          + "preview/image/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
+          + "preview/image/([a-f\\d\\-]*)/([\\d]+)/([\\d]*x[\\d]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
       public static final Pattern THUMBNAIL_IMAGE    = Pattern.compile(
-        SERVICE + "preview/image/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/thumbnail/?\\??(.*)"
+        SERVICE + "preview/image/([a-f\\d\\-]*)/([\\d]+)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
       );
       public static final Pattern PREVIEW_PDF        = Pattern.compile(
-        SERVICE + "preview/pdf/([a-f0-9\\-]*)/([0-9]+)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
+        SERVICE + "preview/pdf/([a-f\\d\\-]*)/([\\d]+)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
       public static final Pattern THUMBNAIL_PDF      = Pattern.compile(
-        SERVICE + "preview/pdf/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/thumbnail/?\\??(.*)"
+        SERVICE + "preview/pdf/([a-f\\d\\-]*)/([\\d]+)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
       );
       public static final Pattern PREVIEW_DOCUMENT   = Pattern.compile(
-        SERVICE + "preview/document/([a-f0-9\\-]*)/([0-9]+)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
+        SERVICE + "preview/document/([a-f\\d\\-]*)/([\\d]+)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
       public static final Pattern THUMBNAIL_DOCUMENT = Pattern.compile(
-        SERVICE + "preview/document/([a-f0-9\\-]*)/([0-9]+)/([0-9]*x[0-9]*)/thumbnail/?\\??(.*)"
+        SERVICE + "preview/document/([a-f\\d\\-]*)/([\\d]+)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
       );
     }
 

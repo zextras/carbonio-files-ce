@@ -230,7 +230,6 @@ public class NodeRepositoryEbean implements NodeRepository {
     try {
       return Base64.getEncoder().encodeToString(mapper.writeValueAsString(nextPage).getBytes());
     } catch (JsonProcessingException e) {
-      e.printStackTrace();
       throw new RuntimeException(e);
     }
 
@@ -249,7 +248,6 @@ public class NodeRepositoryEbean implements NodeRepository {
     try {
       return mapper.readValue(new String(Base64.getDecoder().decode(token)), PageQuery.class);
     } catch (JsonProcessingException e) {
-      e.printStackTrace();
       throw new RuntimeException(e);
     }
   }
