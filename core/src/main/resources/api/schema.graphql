@@ -219,7 +219,7 @@ interface Node {
     creator: User!
 
     # Owner of the node (it will be a User type when it will be implemented)
-    owner: User!
+    owner: User
 
     # Last user who has edited the node (it will be a User type when it will be implemented)
     last_editor: User
@@ -285,7 +285,7 @@ type Folder implements Node {
     creator: User!
 
     # Owner of the folder
-    owner: User!
+    owner: User
 
     # Last user who has edited the folder
     last_editor: User
@@ -366,7 +366,7 @@ type File implements Node {
     creator: User!
 
     # Owner of the file
-    owner: User!
+    owner: User
 
     # Last user who has edited the file
     last_editor: User
