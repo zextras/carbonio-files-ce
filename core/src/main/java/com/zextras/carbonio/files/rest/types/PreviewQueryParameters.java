@@ -81,6 +81,9 @@ public class PreviewQueryParameters {
   }
 
   private enum Format {
+    @JsonProperty("gif")
+    GIF,
+
     @JsonProperty("jpeg")
     JPEG,
 

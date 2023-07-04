@@ -27,6 +27,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.validators.GenericControllerEvaluatorFactory;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.storages.api.StoragesClient;
+import java.time.Clock;
 
 public class FilesModule extends AbstractModule {
 
@@ -39,6 +40,7 @@ public class FilesModule extends AbstractModule {
 
   @Override
   public void configure() {
+    bind(Clock.class).toInstance(Clock.systemUTC());
     bind(NodeRepository.class).to(NodeRepositoryEbean.class);
     bind(ShareRepository.class).to(ShareRepositoryEbean.class);
     bind(TombstoneRepository.class).to(TombstoneRepositoryEbean.class);
