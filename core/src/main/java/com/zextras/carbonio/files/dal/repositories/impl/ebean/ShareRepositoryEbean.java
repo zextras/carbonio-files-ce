@@ -85,7 +85,8 @@ public class ShareRepositoryEbean implements ShareRepository {
         permissions,
         System.currentTimeMillis(),
         direct,
-        createdViaCollaborationLink
+        createdViaCollaborationLink,
+        null
       );
       expireTimestamp.ifPresent(share::setExpiredAt);
       mDB.getEbeanDatabase().save(share);

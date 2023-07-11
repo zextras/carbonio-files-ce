@@ -70,7 +70,7 @@ public class ShareDataFetcher {
   private DataFetcherResult<Map<String, Object>> convertShareToDataFetcherResult(Share share) {
     Map<String, String> shareContext = new HashMap<>();
     Map<String, Object> result = new HashMap<>();
-    result.put(Files.GraphQL.Share.CREATED_AT, share.getCreationAt());
+    result.put(Files.GraphQL.Share.CREATED_AT, share.getCreatedAt());
     result.put(Files.GraphQL.Share.PERMISSION, share.getPermissions().getSharePermission());
     share
       .getExpiredAt()
