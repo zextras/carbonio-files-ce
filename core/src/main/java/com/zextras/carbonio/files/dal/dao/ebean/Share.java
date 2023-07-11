@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.dal.dao.ebean;
 import com.zextras.carbonio.files.Files;
 import io.ebean.annotation.Cache;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import javax.persistence.Column;
 import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
@@ -17,7 +18,7 @@ import javax.persistence.Table;
 /**
  * <p>Represents an Ebean {@link Share} entity that matches a record of the {@link
  * Files.Db.Tables#SHARE} table.</p>
- * <p>The implementation of constructors and setters should not care to check if the values in
+ * <p>The implementation of the constructor and setters should not care to check if the values in
  * input are valid or not because, when these methods are called, these controls
  * <strong>must</strong> be already done.</p>
  */
@@ -27,51 +28,26 @@ import javax.persistence.Table;
 public class Share {
 
   @EmbeddedId
-  private SharePK mComposedPrimaryKey;
-
-  @Column(name = Files.Db.NodeCustomAttributes.NODE_ID, nullable = false)
-  private String mNodeId;
+  private final SharePK composedPrimaryKey;
 
   @Column(name = Files.Db.Share.PERMISSIONS)
-  private Short mPermissions;
+  private Short permissions;
 
   @Column(name = Files.Db.Share.CREATED_AT, nullable = false)
-  private long mCreatedAt;
+  private final Long createdAt;
 
   @Column(name = Files.Db.Share.EXPIRED_AT)
-  private Long mExpiredAt;
+  private Long expiredAt;
 
   @ManyToOne
   @JoinColumn(name = Files.Db.Share.NODE_ID, referencedColumnName = Files.Db.Node.ID, insertable = false, updatable = false)
   private Node node;
 
   @Column(name = Files.Db.Share.DIRECT, nullable = false)
-  private Boolean mDirect;
+  private Boolean direct;
 
   @Column(name = Files.Db.Share.CREATED_VIA_LINK, nullable = false)
   private Boolean createdViaLink;
-
-  /**
-   * <p>Creates a new {@link Share} entity.</p>
-   * <p>This constructor does not set the expiration timestamp of the share.</p>
-   *
-   * @param nodeId is a {@link String} of the node id.
-   * @param targetUserId is a {@link String} of the target user id which the node will be shared
-   * to.
-   * @param permissions is a {@link ACL} representing the permissions of this share.
-   * @param createdAt is a <code>long</code> of the creation timestamp.
-   * @param direct is a {@link Boolean} used for setting if the share is direct or inherited.
-   */
-  public Share(
-    String nodeId,
-    String targetUserId,
-    ACL permissions,
-    long createdAt,
-    Boolean direct,
-    Boolean createdViaLink
-  ) {
-    this(nodeId, targetUserId, permissions, createdAt, direct, createdViaLink, null);
-  }
 
   /**
    * <p>Creates a new {@link Share} entity. </p>
@@ -79,71 +55,73 @@ public class Share {
    * @param nodeId is a {@link String} of the node id.
    * @param targetUserId is a {@link String} of the target user id which the node will be shared
    * to.
-   * @param permissions is a {@link ACL} representing the permissions of this share.
-   * @param createdAt is a <code>long</code> of the creation timestamp.
-   * @param direct is a {@link Boolean} used for setting if the share is direct or inherited.
-   * @param expiredAt is a {@link Long} of the expiration timestamp.
+   * @param permissions is an {@link ACL} representing the permissions of the share.
+   * @param createdAt is a {@link Long} of the creation timestamp.
+   * @param direct is a {@link Boolean} used to set if the share is direct or inherited.
+   * @param expiredAt is a {@link Long} of the expiration timestamp. It could be nullable.
    */
   public Share(
     String nodeId,
     String targetUserId,
     ACL permissions,
-    long createdAt,
+    Long createdAt,
     Boolean direct,
     Boolean createdViaLink,
-    Long expiredAt
+    @Nullable Long expiredAt
   ) {
-    mComposedPrimaryKey = new SharePK(nodeId, targetUserId);
-    mPermissions = permissions.encode();
-    mCreatedAt = createdAt;
-    mDirect = direct;
+    this.composedPrimaryKey = new SharePK(nodeId, targetUserId);
+    this.permissions = permissions.encode();
+    this.createdAt = createdAt;
+    this.direct = direct;
     this.createdViaLink = createdViaLink;
-    mExpiredAt = expiredAt;
+    this.expiredAt = expiredAt;
   }
 
   public String getNodeId() {
-    return mComposedPrimaryKey.getNodeId();
+    return composedPrimaryKey.getNodeId();
   }
 
   public String getTargetUserId() {
-    return mComposedPrimaryKey.getTargetUserId();
+    return composedPrimaryKey.getTargetUserId();
   }
 
   public ACL getPermissions() {
-    return ACL.decode(mPermissions);
+    return ACL.decode(permissions);
   }
 
   public Share setPermissions(ACL permissions) {
-    mPermissions = permissions.encode();
+    this.permissions = permissions.encode();
     return this;
   }
 
-  public long getCreationAt() {
-    return mCreatedAt;
+  public long getCreatedAt() {
+    return createdAt;
   }
 
   public Optional<Long> getExpiredAt() {
-    return Optional.ofNullable(mExpiredAt);
+    return Optional.ofNullable(expiredAt);
   }
 
   public Share setExpiredAt(long expiredAt) {
-    mExpiredAt = expiredAt;
+    this.expiredAt = expiredAt;
     return this;
   }
 
   public Boolean isDirect() {
-    return mDirect;
+    return direct;
   }
 
-  public void setDirect(Boolean mDirect) {
-    this.mDirect = mDirect;
+  public Share setDirect(Boolean mDirect) {
+    this.direct = mDirect;
+    return this;
   }
 
-  public Boolean getCreatedViaLink() {
+  public Boolean isCreatedViaLink() {
     return createdViaLink;
   }
 
-  public void setCreatedViaLink(Boolean createdViaLink) {
+  public Share setCreatedViaLink(Boolean createdViaLink) {
     this.createdViaLink = createdViaLink;
+    return this;
   }
 }
