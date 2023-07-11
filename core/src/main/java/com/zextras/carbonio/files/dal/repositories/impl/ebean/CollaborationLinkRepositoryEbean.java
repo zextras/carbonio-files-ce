@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
+import java.time.Clock;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,10 +18,15 @@ import java.util.stream.Stream;
 
 public class CollaborationLinkRepositoryEbean implements CollaborationLinkRepository {
 
+  private final Clock clock;
   private final EbeanDatabaseManager ebeanDatabaseManager;
 
   @Inject
-  public CollaborationLinkRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager) {
+  public CollaborationLinkRepositoryEbean(
+    Clock clock,
+    EbeanDatabaseManager ebeanDatabaseManager
+  ) {
+    this.clock = clock;
     this.ebeanDatabaseManager = ebeanDatabaseManager;
   }
 
@@ -35,6 +41,7 @@ public class CollaborationLinkRepositoryEbean implements CollaborationLinkReposi
       linkId,
       nodeId,
       invitationId,
+      clock.instant(),
       permissions.encode()
     );
 
