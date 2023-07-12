@@ -41,7 +41,9 @@ public class LinkRepositoryEbean implements LinkRepository {
       linkId,
       nodeId,
       publicId,
-      System.currentTimeMillis()
+      System.currentTimeMillis(),
+      null,
+      null
     );
 
     optExpiresAt.ifPresent(link::setExpiresAt);
