@@ -5,7 +5,7 @@
 pipeline {
     agent {
         node {
-            label 'openjdk11-agent-v1'
+            label 'openjdk17-agent-v1'
         }
     }
     environment {

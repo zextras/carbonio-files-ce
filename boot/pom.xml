@@ -9,14 +9,40 @@ SPDX-License-Identifier: AGPL-3.0-only
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns="http://maven.apache.org/POM/4.0.0"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <licenses>
+    <license>
+      <comments>Copyright (C) 2022 Zextras, https://www.zextras.com</comments>
+      <name>AGPL-3.0-only</name>
+    </license>
+  </licenses>
+
   <artifactId>carbonio-files-ce-boot</artifactId>
+  <name>carbonio-files-ce-boot</name>
+
+  <parent>
+    <artifactId>carbonio-files-ce</artifactId>
+    <groupId>com.zextras.carbonio.files</groupId>
+    <version>0.10.0-SNAPSHOT</version>
+  </parent>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.zextras.carbonio.files</groupId>
+      <artifactId>carbonio-files-ce-core</artifactId>
+      <version>${project.parent.version}</version>
+    </dependency>
+  </dependencies>
 
   <build>
     <finalName>carbonio-files-ce-${project.parent.version}</finalName>
+
     <plugins>
       <plugin>
-        <artifactId>maven-compiler-plugin</artifactId>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
         <version>${maven-compiler.version}</version>
         <configuration>
           <release>${java-compiler.version}</release>
@@ -24,8 +50,11 @@ SPDX-License-Identifier: AGPL-3.0-only
           <target>${java-compiler.version}</target>
         </configuration>
       </plugin>
+
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-assembly-plugin</artifactId>
+        <version>${maven-assembly.version}</version>
         <executions>
           <execution>
             <configuration>
@@ -46,36 +75,7 @@ SPDX-License-Identifier: AGPL-3.0-only
             <phase>package</phase>
           </execution>
         </executions>
-        <groupId>org.apache.maven.plugins</groupId>
-        <version>${maven-assembly.version}</version>
       </plugin>
     </plugins>
   </build>
-  <dependencies>
-
-    <dependency>
-      <artifactId>carbonio-files-ce-core</artifactId>
-      <groupId>com.zextras.carbonio.files</groupId>
-      <version>${project.parent.version}</version>
-    </dependency>
-
-  </dependencies>
-
-  <licenses>
-    <license>
-      <comments>Copyright (C) 2022 Zextras, https://www.zextras.com</comments>
-      <name>AGPL-3.0-only</name>
-    </license>
-  </licenses>
-
-  <modelVersion>4.0.0</modelVersion>
-
-  <name>carbonio-files-ce-boot</name>
-
-  <parent>
-    <artifactId>carbonio-files-ce</artifactId>
-    <groupId>com.zextras.carbonio.files</groupId>
-    <version>0.10.0-1</version>
-  </parent>
-
 </project>

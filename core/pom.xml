@@ -9,30 +9,203 @@ SPDX-License-Identifier: AGPL-3.0-only
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns="http://maven.apache.org/POM/4.0.0"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <licenses>
+    <license>
+      <comments>Copyright (C) 2022 Zextras, https://www.zextras.com</comments>
+      <name>AGPL-3.0-only</name>
+    </license>
+  </licenses>
+
   <artifactId>carbonio-files-ce-core</artifactId>
+  <name>carbonio-files-ce-core</name>
+
+  <parent>
+    <artifactId>carbonio-files-ce</artifactId>
+    <groupId>com.zextras.carbonio.files</groupId>
+    <version>0.10.0-SNAPSHOT</version>
+  </parent>
+
+  <dependencies>
+    <!-- Guice dependencies -->
+    <dependency>
+      <groupId>com.google.inject</groupId>
+      <artifactId>guice</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.inject.extensions</groupId>
+      <artifactId>guice-assistedinject</artifactId>
+    </dependency>
+
+    <!-- Logger -->
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+    </dependency>
+
+    <!-- Netty -->
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-all</artifactId>
+    </dependency>
+
+    <!-- Database -->
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+    </dependency>
+
+    <dependency>
+      <artifactId>HikariCP</artifactId>
+      <groupId>com.zaxxer</groupId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.ebean</groupId>
+      <artifactId>ebean-postgres</artifactId>
+    </dependency>
+
+    <!-- GraphQL -->
+    <dependency>
+      <groupId>com.graphql-java</groupId>
+      <artifactId>graphql-java</artifactId>
+    </dependency>
+
+    <!-- Cache -->
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+
+    <!-- Services: storages, authentication, preview -->
+    <dependency>
+      <groupId>com.zextras.carbonio.user-management</groupId>
+      <artifactId>carbonio-user-management-sdk</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.zextras</groupId>
+      <artifactId>storages-ce-sdk</artifactId>
+    </dependency>
+
+    <dependency>
+      <artifactId>carbonio-preview-sdk</artifactId>
+      <groupId>com.zextras.carbonio.preview</groupId>
+    </dependency>
+
+
+    <!-- Utilities: jackson, apache commons-lang and commons-validator -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.datatype</groupId>
+      <artifactId>jackson-datatype-jdk8</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>commons-validator</groupId>
+      <artifactId>commons-validator</artifactId>
+    </dependency>
+
+    <!-- Metrics -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+
+    <!-- Testing -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.hsqldb</groupId>
+      <artifactId>hsqldb</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.ebean</groupId>
+      <artifactId>ebean-platform-hsqldb</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 
   <build>
     <plugins>
-
       <plugin>
+        <groupId>io.repaint.maven</groupId>
         <artifactId>tiles-maven-plugin</artifactId>
+        <version>${tiles-maven.version}</version>
         <configuration>
           <tiles>
             <tile>io.ebean.tile:enhancement:${ebean.version}</tile>
           </tiles>
         </configuration>
         <extensions>true</extensions>
-        <groupId>io.repaint.maven</groupId>
-        <version>${tiles-maven.version}</version>
       </plugin>
 
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
+        <version>${maven-compiler.version}</version>
         <configuration>
           <release>${java-compiler.version}</release>
         </configuration>
-        <groupId>org.apache.maven.plugins</groupId>
-        <version>${maven-compiler.version}</version>
       </plugin>
 
       <plugin>
@@ -155,180 +328,6 @@ SPDX-License-Identifier: AGPL-3.0-only
       </plugin>
     </plugins>
   </build>
-  <dependencies>
-
-    <!-- Injector -->
-    <dependency>
-      <artifactId>guice</artifactId>
-      <groupId>com.google.inject</groupId>
-    </dependency>
-
-    <dependency>
-      <artifactId>guice-assistedinject</artifactId>
-      <groupId>com.google.inject.extensions</groupId>
-    </dependency>
-
-    <!-- Logger -->
-    <dependency>
-      <artifactId>logback-classic</artifactId>
-      <groupId>ch.qos.logback</groupId>
-    </dependency>
-
-    <!-- Netty -->
-    <dependency>
-      <artifactId>netty-all</artifactId>
-      <groupId>io.netty</groupId>
-    </dependency>
-
-    <!-- Database -->
-    <dependency>
-      <artifactId>postgresql</artifactId>
-      <groupId>org.postgresql</groupId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.zaxxer</groupId>
-      <artifactId>HikariCP</artifactId>
-    </dependency>
-
-    <dependency>
-      <artifactId>ebean-postgres</artifactId>
-      <groupId>io.ebean</groupId>
-    </dependency>
-
-    <!-- GraphQL -->
-    <dependency>
-      <artifactId>graphql-java</artifactId>
-      <groupId>com.graphql-java</groupId>
-    </dependency>
-
-    <!-- Cache -->
-    <dependency>
-      <artifactId>caffeine</artifactId>
-      <groupId>com.github.ben-manes.caffeine</groupId>
-    </dependency>
-
-    <!-- Services: storages, authentication, preview -->
-    <dependency>
-      <artifactId>carbonio-user-management-sdk</artifactId>
-      <groupId>com.zextras.carbonio.user-management</groupId>
-    </dependency>
-
-    <dependency>
-      <artifactId>storages-ce-sdk</artifactId>
-      <groupId>com.zextras</groupId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.zextras.carbonio.preview</groupId>
-      <artifactId>carbonio-preview-sdk</artifactId>
-    </dependency>
-
-
-    <!-- Utilities -->
-    <dependency>
-      <artifactId>jackson-annotations</artifactId>
-      <groupId>com.fasterxml.jackson.core</groupId>
-    </dependency>
-
-    <dependency>
-      <artifactId>jackson-databind</artifactId>
-      <groupId>com.fasterxml.jackson.core</groupId>
-    </dependency>
-
-    <dependency>
-      <artifactId>jackson-datatype-jdk8</artifactId>
-      <groupId>com.fasterxml.jackson.datatype</groupId>
-    </dependency>
-
-    <dependency>
-      <artifactId>commons-lang3</artifactId>
-      <groupId>org.apache.commons</groupId>
-    </dependency>
-
-    <dependency>
-      <artifactId>commons-validator</artifactId>
-      <groupId>commons-validator</groupId>
-    </dependency>
-
-    <!-- Metrics -->
-    <dependency>
-      <groupId>io.micrometer</groupId>
-      <artifactId>micrometer-registry-prometheus</artifactId>
-    </dependency>
-
-    <!-- Testing -->
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-params</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.assertj</groupId>
-      <artifactId>assertj-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.testcontainers</groupId>
-      <artifactId>testcontainers</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.testcontainers</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.testcontainers</groupId>
-      <artifactId>postgresql</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.hsqldb</groupId>
-      <artifactId>hsqldb</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>io.ebean</groupId>
-      <artifactId>ebean-platform-hsqldb</artifactId>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
-
-  <licenses>
-    <license>
-      <comments>Copyright (C) 2022 Zextras, https://www.zextras.com</comments>
-      <name>AGPL-3.0-only</name>
-    </license>
-  </licenses>
-
-  <modelVersion>4.0.0</modelVersion>
-
-  <name>carbonio-files-ce-core</name>
-
-  <parent>
-    <artifactId>carbonio-files-ce</artifactId>
-    <groupId>com.zextras.carbonio.files</groupId>
-    <version>0.10.0-1</version>
-  </parent>
 
   <profiles>
     <profile>
@@ -338,6 +337,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         <skip.integration.tests>true</skip.integration.tests>
       </properties>
     </profile>
+
     <profile>
       <id>run-integration-tests</id>
       <properties>
@@ -345,6 +345,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         <skip.unit.tests>true</skip.unit.tests>
       </properties>
     </profile>
+
     <profile>
       <id>run-all-tests</id>
       <properties>
@@ -352,6 +353,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         <skip.unit.tests>false</skip.unit.tests>
       </properties>
     </profile>
+
     <profile>
       <id>generate-jacoco-full-report</id>
       <properties>
