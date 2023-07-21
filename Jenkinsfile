@@ -15,6 +15,8 @@ pipeline {
     }
     parameters {
         booleanParam defaultValue: false, description: 'Whether to upload the packages in playground repositories', name: 'PLAYGROUND'
+        booleanParam defaultValue: false, description: 'Whether to upload the packages in custom repositories', name: 'CUSTOM'
+        string defaultValue: 'rc-jdk17', description: 'Suffix of the custom repositories (it uploads there only if CUSTOM flag is checked)', name: 'SUFFIX_CUSTOM_REPOS'
         booleanParam defaultValue: false, description: 'Run dependencyCheck', name: 'RUN_DEPENDENCY_CHECK'
     }
     options {
@@ -205,6 +207,39 @@ pipeline {
                                 "pattern": "artifacts/carbonio-files*.deb",
                                 "target": "ubuntu-playground/pool/",
                                 "props": "deb.distribution=bionic;deb.distribution=focal;deb.component=main;deb.architecture=amd64"
+                            }
+                        ]
+                    }'''
+                    server.upload spec: uploadSpec, buildInfo: buildInfo, failNoOp: false
+                }
+            }
+        }
+        stage('Upload To Custom repos') {
+            when {
+                anyOf {
+                    expression { params.CUSTOM == true }
+                }
+            }
+            steps {
+                unstash 'artifacts-deb'
+                unstash 'artifacts-rpm'
+                script {
+                    def server = Artifactory.server 'zextras-artifactory'
+                    def buildInfo
+                    def uploadSpec
+
+                    buildInfo = Artifactory.newBuildInfo()
+                    uploadSpec = '''{
+                        "files": [
+                            {
+                                "pattern": "artifacts/carbonio-files*.deb",
+                                "target": "ubuntu-'''params.NAME_CUSTOM_REPOS'''/pool/",
+                                "props": "deb.distribution=bionic;deb.distribution=focal;deb.component=main;deb.architecture=amd64"
+                            },
+                            {
+                                "pattern": "artifacts/(carbonio-files-ce)-(*).rpm",
+                                "target": "centos8-'''params.NAME_CUSTOM_REPOS'''/zextras/{1}/{1}-{2}.rpm",
+                                "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras"
                             }
                         ]
                     }'''
