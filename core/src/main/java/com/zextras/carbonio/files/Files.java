@@ -709,7 +709,7 @@ public final class Files {
         SERVICE + "upload-version/?$");
       public static final Pattern UPLOAD_FILE_TO      = Pattern.compile(SERVICE + "upload-to/?$");
       public static final Pattern DOWNLOAD_FILE       = Pattern.compile(
-        SERVICE + "download/([a-f\\d\\-]*)(/[\\d]+)?/?$");
+        SERVICE + "download/([a-f\\d\\-]*)/?([\\d]+)?/?$");
       public static final Pattern PUBLIC_LINK         = Pattern.compile(
         SERVICE + "link/([\\w]{8})/?$");
       public static final Pattern COLLABORATION_LINK  = Pattern.compile(

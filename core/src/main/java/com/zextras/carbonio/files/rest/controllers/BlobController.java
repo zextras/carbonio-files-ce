@@ -162,8 +162,6 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       .map(Integer::parseInt)
       .orElse(null);
 
-
-
     BlobResponse blobResponse = blobService
       .downloadFileById(nodeId, version, requester)
       .orElseThrow(() -> new NoSuchElementException(String.format(
