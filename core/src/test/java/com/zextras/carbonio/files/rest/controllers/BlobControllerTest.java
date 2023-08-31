@@ -53,7 +53,10 @@ public class BlobControllerTest {
 
   @ParameterizedTest
   @MethodSource("downloadURLProvider")
-  void downloadBlob(String uri, Integer version) {
+  void givenARightURLTheBlobControllerDownloadShouldReturnTheRequestedFileBlob(
+    String uri,
+    Integer version
+  ) {
     // Given
     User userMock = Mockito.mock(User.class);
 
