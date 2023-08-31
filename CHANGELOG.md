@@ -8,6 +8,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.10.1](https://github.com/Zextras/carbonio-files-ce/compare/v0.10.0...v0.10.1) (2023-08-31)
+
+
+### Bug Fixes
+
+* fix download routing allowing to download a specific file version ([#78](https://github.com/Zextras/carbonio-files-ce/issues/78)) ([9428b06](https://github.com/Zextras/carbonio-files-ce/commit/9428b068c64f856e948601434166254d47a8ad2d))
+
 ## [0.10.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.9.2...v0.10.0) (2023-07-06)
 
 
