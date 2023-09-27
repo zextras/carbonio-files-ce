@@ -1,0 +1,8 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: carbonio-files-ce
+Upstream-Contact: Zextras <packages@zextras.com>
+Source: https://github.com/Zextras/carbonio-files-ce
+
+Files: .github/CODEOWNERS
+Copyright: 2023 Zextras <https://www.zextras.com>
+License: CC0-1.0
