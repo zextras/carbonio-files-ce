@@ -2,19 +2,12 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-targets=(
-  "ubuntu"
-  "centos"
-)
 pkgname="carbonio-files-ce"
 pkgver="0.10.2"
 pkgrel="SNAPSHOT"
 pkgdesc="Carbonio Files"
-pkgdesclong=(
-  "Carbonio Files"
-)
 maintainer="Zextras <packages@zextras.com>"
-arch="amd64"
+arch=('x86_64')
 license=("AGPL-3.0-only")
 section="admin"
 priority="optional"
@@ -24,7 +17,7 @@ depends=(
   "pending-setups"
   "carbonio-openjdk"
 )
-sources=(
+source=(
   "carbonio-files"
   "carbonio-files.hcl"
   "carbonio-files.service"
@@ -38,23 +31,24 @@ sources=(
   "service-protocol.json"
   "service-router.json"
 )
-hashsums=(
-  "skip"
-  "skip"
-  "skip"
-  "skip"
-  "skip"
-  "skip"
-  "skip"
-  "skip"
-  "skip"
-  "skip"
-  "skip"
-  "skip"
+sha256sums=(
+  "SKIP"
+  "SKIP"
+  "SKIP"
+  "SKIP"
+  "SKIP"
+  "SKIP"
+  "SKIP"
+  "SKIP"
+  "SKIP"
+  "SKIP"
+  "SKIP"
+  "SKIP"
 )
+
 backup=(
-    "/etc/zextras/service-discover/carbonio-files.hcl"
-    "/etc/carbonio/files/config.properties"
+  "etc/zextras/service-discover/carbonio-files.hcl"
+  "etc/carbonio/files/config.properties"
 )
 
 package() {

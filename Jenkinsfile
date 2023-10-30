@@ -104,22 +104,22 @@ pipeline {
                 }
                 stage('Stash') {
                     steps {
-                        stash includes: 'pacur.json,package/**', name: 'binaries'
+                        stash includes: 'yap.json,package/**', name: 'binaries'
                     }
                 }
-                stage('pacur') {
+                stage('yap') {
                     parallel {
-                        stage('Ubuntu 20.04') {
+                        stage('Ubuntu') {
                             agent {
                                 node {
-                                    label 'pacur-agent-ubuntu-20.04-v1'
+                                    label 'yap-agent-ubuntu-20.04-v2'
                                 }
                             }
                             steps {
                                 dir('/tmp/staging'){
                                     unstash 'binaries'
                                 }
-                                sh 'sudo pacur build ubuntu /tmp/staging/'
+                                sh 'sudo yap build ubuntu /tmp/staging/'
                                 stash includes: 'artifacts/', name: 'artifacts-deb'
                             }
                             post {
@@ -128,25 +128,22 @@ pipeline {
                                 }
                             }
                         }
-                        stage('Rocky 8') {
+                        stage('RHEL') {
                             agent {
                                 node {
-                                    label 'pacur-agent-rocky-8-v1'
+                                    label 'yap-agent-rocky-8-v2'
                                 }
                             }
                             steps {
                                 dir('/tmp/staging'){
                                     unstash 'binaries'
                                 }
-                                sh 'sudo pacur build rocky-8 /tmp/staging/'
-                                dir('artifacts/') {
-                                    sh 'echo carbonio-files* | sed -E "s#(carbonio-files-ce-[0-9.]*).*#\\0 \\1.x86_64.rpm#" | xargs sudo mv'
-                                }
-                                stash includes: 'artifacts/', name: 'artifacts-rpm'
+                                sh 'sudo yap build rocky /tmp/staging/'
+                                stash includes: 'artifacts/x86_64/*.rpm', name: 'artifacts-rpm'
                             }
                             post {
                                 always {
-                                    archiveArtifacts artifacts: 'artifacts/*.rpm', fingerprint: true
+                                    archiveArtifacts artifacts: 'artifacts/x86_64/*.rpm', fingerprint: true
                                 }
                             }
                         }
@@ -173,11 +170,16 @@ pipeline {
                             {
                                 "pattern": "artifacts/*.deb",
                                 "target": "ubuntu-devel/pool/",
-                                "props": "deb.distribution=focal;deb.component=main;deb.architecture=amd64"
+                                "props": "deb.distribution=focal;deb.distribution=jammy;deb.component=main;deb.architecture=amd64"
                             },
                             {
-                                "pattern": "artifacts/(carbonio-files-ce)-(*).rpm",
-                                "target": "centos8-devel/zextras/{1}/{1}-{2}.rpm",
+                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).x86_64.rpm",
+                                "target": "centos8-devel/zextras/{1}/{1}-{2}.x86_64.rpm",
+                                "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras"
+                            },
+                            {
+                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).x86_64.rpm",
+                                "target": "rhel9-devel/zextras/{1}/{1}-{2}.x86_64.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras"
                             }
                         ]
@@ -206,7 +208,7 @@ pipeline {
                             {
                                 "pattern": "artifacts/carbonio-files*.deb",
                                 "target": "ubuntu-playground/pool/",
-                                "props": "deb.distribution=bionic;deb.distribution=focal;deb.component=main;deb.architecture=amd64"
+                                "props": "deb.distribution=focal;deb.distribution=jammy;deb.component=main;deb.architecture=amd64"
                             }
                         ]
                     }'''
@@ -237,8 +239,13 @@ pipeline {
                                 "props": "deb.distribution=bionic;deb.distribution=focal;deb.component=main;deb.architecture=amd64"
                             },
                             {
-                                "pattern": "artifacts/(carbonio-files-ce)-(*).rpm",
-                                "target": "centos8-''' + params.SUFFIX_CUSTOM_REPOS + '''/zextras/{1}/{1}-{2}.rpm",
+                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).x86_64.rpm",
+                                "target": "centos8-''' + params.SUFFIX_CUSTOM_REPOS + '''/zextras/{1}/{1}-{2}.x86_64.rpm",
+                                "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras"
+                            },
+                            {
+                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).x86_64.rpm",
+                                "target": "rhel9-''' + params.SUFFIX_CUSTOM_REPOS + '''/zextras/{1}/{1}-{2}.x86_64.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras"
                             }
                         ]
@@ -271,7 +278,7 @@ pipeline {
                             {
                                 "pattern": "artifacts/carbonio-files*.deb",
                                 "target": "ubuntu-rc/pool/",
-                                "props": "deb.distribution=bionic;deb.distribution=focal;deb.component=main;deb.architecture=amd64"
+                                "props": "deb.distribution=focal;deb.distribution=jammy;deb.component=main;deb.architecture=amd64"
                             }
                         ]
                     }'''
@@ -290,14 +297,14 @@ pipeline {
                     Artifactory.addInteractivePromotion server: server, promotionConfig: config, displayName: 'Ubuntu Promotion to Release'
                     server.publishBuildInfo buildInfo
 
-                    //rocky 8
+                    //rhel 8
                     buildInfo = Artifactory.newBuildInfo()
                     buildInfo.name += '-centos8'
                     uploadSpec= '''{
                         "files": [
                             {
-                                "pattern": "artifacts/(carbonio-files-ce)-(*).rpm",
-                                "target": "centos8-rc/zextras/{1}/{1}-{2}.rpm",
+                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).x86_64.rpm",
+                                "target": "centos8-rc/zextras/{1}/{1}-{2}.x86_64.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras"
                             }
                         ]
@@ -315,6 +322,33 @@ pipeline {
                             'failFast'           : true
                     ]
                     Artifactory.addInteractivePromotion server: server, promotionConfig: config, displayName: 'RHEL8 Promotion to Release'
+                    server.publishBuildInfo buildInfo
+
+                    //rhel 9
+                    buildInfo = Artifactory.newBuildInfo()
+                    buildInfo.name += '-rhel9'
+                    uploadSpec= '''{
+                        "files": [
+                            {
+                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).x86_64.rpm",
+                                "target": "rhel9-rc/zextras/{1}/{1}-{2}.x86_64.rpm",
+                                "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras"
+                            }
+                        ]
+                    }'''
+                    server.upload spec: uploadSpec, buildInfo: buildInfo, failNoOp: false
+                    config = [
+                            'buildName'          : buildInfo.name,
+                            'buildNumber'        : buildInfo.number,
+                            'sourceRepo'         : 'rhel9-rc',
+                            'targetRepo'         : 'rhel9-release',
+                            'comment'            : 'Do not change anything! Just press the button',
+                            'status'             : 'Released',
+                            'includeDependencies': false,
+                            'copy'               : true,
+                            'failFast'           : true
+                    ]
+                    Artifactory.addInteractivePromotion server: server, promotionConfig: config, displayName: 'RHEL9 Promotion to Release'
                     server.publishBuildInfo buildInfo
                 }
             }
