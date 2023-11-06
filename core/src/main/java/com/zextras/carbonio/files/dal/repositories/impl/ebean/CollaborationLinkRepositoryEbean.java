@@ -22,32 +22,19 @@ public class CollaborationLinkRepositoryEbean implements CollaborationLinkReposi
   private final EbeanDatabaseManager ebeanDatabaseManager;
 
   @Inject
-  public CollaborationLinkRepositoryEbean(
-    Clock clock,
-    EbeanDatabaseManager ebeanDatabaseManager
-  ) {
+  public CollaborationLinkRepositoryEbean(Clock clock, EbeanDatabaseManager ebeanDatabaseManager) {
     this.clock = clock;
     this.ebeanDatabaseManager = ebeanDatabaseManager;
   }
 
   @Override
   public CollaborationLink createLink(
-    UUID linkId,
-    String nodeId,
-    String invitationId,
-    SharePermission permissions
-  ) {
-    CollaborationLink collaborationLink = new CollaborationLink(
-      linkId,
-      nodeId,
-      invitationId,
-      clock.instant(),
-      permissions.encode()
-    );
+      UUID linkId, String nodeId, String invitationId, SharePermission permissions) {
 
-    ebeanDatabaseManager
-      .getEbeanDatabase()
-      .insert(collaborationLink);
+    CollaborationLink collaborationLink =
+        new CollaborationLink(linkId, nodeId, invitationId, clock.instant(), permissions.encode());
+
+    ebeanDatabaseManager.getEbeanDatabase().insert(collaborationLink);
 
     return getLinkById(linkId).get();
   }
@@ -55,41 +42,41 @@ public class CollaborationLinkRepositoryEbean implements CollaborationLinkReposi
   @Override
   public Optional<CollaborationLink> getLinkById(UUID linkId) {
     return ebeanDatabaseManager
-      .getEbeanDatabase()
-      .find(CollaborationLink.class)
-      .where()
-      .idEq(linkId)
-      .findOneOrEmpty();
+        .getEbeanDatabase()
+        .find(CollaborationLink.class)
+        .where()
+        .idEq(linkId)
+        .findOneOrEmpty();
   }
 
   @Override
   public Optional<CollaborationLink> getLinkByInvitationId(String invitationId) {
     return ebeanDatabaseManager
-      .getEbeanDatabase()
-      .find(CollaborationLink.class)
-      .where()
-      .eq(Files.Db.CollaborationLink.INVITATION_ID, invitationId)
-      .findOneOrEmpty();
+        .getEbeanDatabase()
+        .find(CollaborationLink.class)
+        .where()
+        .eq(Files.Db.CollaborationLink.INVITATION_ID, invitationId)
+        .findOneOrEmpty();
   }
 
   @Override
   public Stream<CollaborationLink> getLinksByNodeId(String nodeId) {
     return ebeanDatabaseManager
-      .getEbeanDatabase()
-      .find(CollaborationLink.class)
-      .where()
-      .eq(Files.Db.CollaborationLink.NODE_ID, nodeId)
-      .findList()
-      .stream();
+        .getEbeanDatabase()
+        .find(CollaborationLink.class)
+        .where()
+        .eq(Files.Db.CollaborationLink.NODE_ID, nodeId)
+        .findList()
+        .stream();
   }
 
   @Override
   public void deleteLinks(Collection<UUID> linkIds) {
     ebeanDatabaseManager
-      .getEbeanDatabase()
-      .find(CollaborationLink.class)
-      .where()
-      .idIn(linkIds)
-      .delete();
+        .getEbeanDatabase()
+        .find(CollaborationLink.class)
+        .where()
+        .idIn(linkIds)
+        .delete();
   }
 }
