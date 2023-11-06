@@ -36,7 +36,7 @@ public class CollaborationLinkRepositoryEbean implements CollaborationLinkReposi
 
     ebeanDatabaseManager.getEbeanDatabase().insert(collaborationLink);
 
-    return getLinkById(linkId).get();
+    return collaborationLink;
   }
 
   @Override
