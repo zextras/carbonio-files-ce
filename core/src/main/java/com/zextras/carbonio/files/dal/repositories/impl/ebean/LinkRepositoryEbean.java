@@ -45,7 +45,7 @@ public class LinkRepositoryEbean implements LinkRepository {
 
     ebeanDatabaseManager.getEbeanDatabase().save(link);
 
-    return getLinkById(linkId).get();
+    return link;
   }
 
   public Optional<Link> getLinkById(String linkId) {
