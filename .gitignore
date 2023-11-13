@@ -23,6 +23,9 @@ core/.classpath
 core/.project
 core/.settings/
 
+# LSP
+.metadata/
+jdt.*/
 
 # JetBrains IDE
 .idea/

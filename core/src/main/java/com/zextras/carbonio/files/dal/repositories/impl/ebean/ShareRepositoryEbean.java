@@ -12,6 +12,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.ShareSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
+import io.ebean.ExpressionList;
 import io.ebean.Query;
 import io.ebean.Transaction;
 import java.util.List;
@@ -20,11 +21,11 @@ import java.util.stream.Collectors;
 
 public class ShareRepositoryEbean implements ShareRepository {
 
-  private final EbeanDatabaseManager mDB;
+  private final EbeanDatabaseManager ebeanDatabaseManager;
 
   @Inject
   public ShareRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager) {
-    mDB = ebeanDatabaseManager;
+    this.ebeanDatabaseManager = ebeanDatabaseManager;
   }
 
   /**
@@ -36,7 +37,8 @@ public class ShareRepositoryEbean implements ShareRepository {
    *     otherwise.
    */
   private Optional<Share> getRealShare(String nodeId, String userId) {
-    return mDB.getEbeanDatabase()
+    return ebeanDatabaseManager
+        .getEbeanDatabase()
         .find(Share.class)
         .where()
         .eq(Files.Db.Share.NODE_ID, nodeId)
@@ -64,6 +66,7 @@ public class ShareRepositoryEbean implements ShareRepository {
           updateShare.setDirect(true);
         }
         updateShare.setPermissions(permissions);
+        updateShare.setCreatedViaLink(createdViaCollaborationLink);
         expireTimestamp.ifPresent(updateShare::setExpiredAt);
         return Optional.of(updateShare(updateShare));
       } else {
@@ -81,7 +84,7 @@ public class ShareRepositoryEbean implements ShareRepository {
               createdViaCollaborationLink,
               null);
       expireTimestamp.ifPresent(share::setExpiredAt);
-      mDB.getEbeanDatabase().save(share);
+      ebeanDatabaseManager.getEbeanDatabase().save(share);
       return Optional.of(share);
     }
   }
@@ -93,7 +96,7 @@ public class ShareRepositoryEbean implements ShareRepository {
       Boolean direct,
       Boolean createdViaCollaborationLink,
       Optional<Long> expireTimestamp) {
-    try (Transaction transaction = mDB.getEbeanDatabase().beginTransaction()) {
+    try (Transaction transaction = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
 
       // use JDBC batch
       transaction.setBatchMode(true);
@@ -115,18 +118,18 @@ public class ShareRepositoryEbean implements ShareRepository {
   }
 
   public Share updateShare(Share share) {
-    mDB.getEbeanDatabase().update(share);
+    ebeanDatabaseManager.getEbeanDatabase().update(share);
     return share;
   }
 
   public boolean deleteShare(String nodeId, String targetUserId) {
     return getShare(nodeId, targetUserId)
-        .map(share -> mDB.getEbeanDatabase().delete(share))
+        .map(share -> ebeanDatabaseManager.getEbeanDatabase().delete(share))
         .orElse(false);
   }
 
   public void deleteSharesBulk(List<String> nodeIds, String targetUserId) {
-    try (Transaction transaction = mDB.getEbeanDatabase().beginTransaction()) {
+    try (Transaction transaction = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
 
       // use JDBC batch
       transaction.setBatchMode(true);
@@ -141,13 +144,19 @@ public class ShareRepositoryEbean implements ShareRepository {
   }
 
   public void deleteSharesBulk(List<String> nodeIds) {
-    mDB.getEbeanDatabase().find(Share.class).where().in(Files.Db.Share.NODE_ID, nodeIds).delete();
+    ebeanDatabaseManager
+        .getEbeanDatabase()
+        .find(Share.class)
+        .where()
+        .in(Files.Db.Share.NODE_ID, nodeIds)
+        .delete();
 
     // TODO Uniform the delete behaviour with other delete method when we implement unique shareId
   }
 
   public List<Share> getShares(List<String> nodeIds, String targetUserId) {
-    return mDB.getEbeanDatabase()
+    return ebeanDatabaseManager
+        .getEbeanDatabase()
         .find(Share.class)
         .where()
         .in(Files.Db.Share.NODE_ID, nodeIds)
@@ -156,18 +165,23 @@ public class ShareRepositoryEbean implements ShareRepository {
   }
 
   public List<Share> getShares(String nodeId, List<String> targetUserIds) {
-    Query<Share> query =
-        mDB.getEbeanDatabase().find(Share.class).where().eq(Files.Db.Share.NODE_ID, nodeId).query();
+    ExpressionList<Share> query =
+        ebeanDatabaseManager
+            .getEbeanDatabase()
+            .find(Share.class)
+            .where()
+            .eq(Files.Db.Share.NODE_ID, nodeId);
 
     if (!targetUserIds.isEmpty()) {
-      query.where().in(Files.Db.Share.SHARE_TARGET_UUID, targetUserIds);
+      query.in(Files.Db.Share.SHARE_TARGET_UUID, targetUserIds);
     }
 
     return query.findList();
   }
 
   public List<Share> getShares(List<String> nodeIds) {
-    return mDB.getEbeanDatabase()
+    return ebeanDatabaseManager
+        .getEbeanDatabase()
         .find(Share.class)
         .where()
         .in(Db.Share.NODE_ID, nodeIds)
@@ -176,7 +190,8 @@ public class ShareRepositoryEbean implements ShareRepository {
 
   public List<String> getSharesUsersIds(String nodeId, List<ShareSort> sorts) {
     Query<Share> query =
-        mDB.getEbeanDatabase()
+        ebeanDatabaseManager
+            .getEbeanDatabase()
             .createQuery(Share.class)
             .where()
             .eq(Files.Db.Share.NODE_ID, nodeId)
