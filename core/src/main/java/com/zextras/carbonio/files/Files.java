@@ -334,6 +334,7 @@ public final class Files {
       public static final String GET_ACCOUNT_BY_EMAIL    = "getAccountByEmail";
       public static final String GET_ACCOUNTS_BY_EMAIL   = "getAccountsByEmail";
       public static final String GET_CONFIGS             = "getConfigs";
+      public static final String GET_PUBLIC_NODE         = "getPublicNode";
     }
 
     /**
@@ -738,6 +739,7 @@ public final class Files {
       public static final Pattern THUMBNAIL_DOCUMENT = Pattern.compile(
         SERVICE + "preview/document/([a-f\\d\\-]*)/([\\d]+)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
       );
+      public static final Pattern PUBLIC_GRAPHQL             = Pattern.compile(SERVICE + "public/graphql/?$");
     }
 
     public static final class Headers {
