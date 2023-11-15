@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.dal.repositories.interfaces;
 
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
+import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.LinkSort;
 import java.util.Collection;
 import java.util.Optional;
@@ -39,4 +40,13 @@ public interface LinkRepository {
   void deleteLink(String linkId);
 
   void deleteLinksBulk(Collection<String> linkIds);
+
+  /**
+   * Checks whether a given {@link Node} has at least one unexpired public link associated with it,
+   * which allows access to the node without requiring permissions.
+  *
+   * @param node is a given {@link Node} to check.
+   * @return true if the {@link Node} has at least one public link associated, false otherwise.
+   */
+  boolean hasNodeANotExpiredPublicLink(Node node);
 }

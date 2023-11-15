@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.Config.Pagination;
 import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.Files.Db.RootId;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
@@ -26,9 +27,11 @@ import io.ebean.Query;
 import io.ebean.annotation.Transactional;
 import java.text.MessageFormat;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
@@ -437,6 +440,67 @@ public class NodeRepositoryEbean implements NodeRepository {
           return new ImmutablePair<List<Node>, String>(nodes, null);
         }
       });
+  }
+
+  public ImmutablePair<List<Node>, String> publicFindNodes(String folderId, @Nullable Integer limit, @Nullable String pageToken) {
+    int realLimit = limit != null && limit < Pagination.LIMIT ? limit : Pagination.LIMIT;
+
+    PageQuery pageQuery =
+        Optional
+          .ofNullable(pageToken)
+          .map(this::decodePageToken)
+          .orElseGet(() -> {
+            PageQuery firstPageQuery = new PageQuery();
+            firstPageQuery.setFolderId(folderId);
+            firstPageQuery.setLimit(realLimit);
+            return firstPageQuery;
+          });
+
+    Query<Node> findNodeQuery = mDB.getEbeanDatabase()
+      .find(Node.class)
+      .where()
+      .eq(Db.Node.PARENT_ID, pageQuery.getFolderId().orElse("LOCAL_ROOT"))
+      .query();
+
+    if (pageQuery.getKeySet().isPresent()) {
+      findNodeQuery.where().and().raw(pageQuery.getKeySet().get());
+    }
+
+    List<Node> nodes = findNodeQuery
+      .orderBy()
+      .asc(Db.Node.CATEGORY)
+      .orderBy()
+      .asc(Db.Node.NAME)
+      .setMaxRows(pageQuery.getLimit())
+      .findList()
+      .stream()
+      // This filter is tricky because it denies the access of nodes that are not children of the
+      // requested public folder
+      .filter(node -> node.getAncestorsList().contains(folderId))
+      .toList();
+
+
+    if (nodes.size() == realLimit) {
+      return new ImmutablePair<>(
+        nodes,
+        createPageToken(
+          nodes.get(nodes.size() - 1),
+          realLimit,
+          Optional.of(NodeSort.NAME_ASC),
+          Optional.empty(),
+          Optional.of(folderId),
+          Optional.empty(),
+          Optional.empty(),
+          Optional.empty(),
+          Optional.empty(),
+          Optional.empty(),
+          Optional.empty(),
+          Collections.emptyList()
+          )
+      );
+    } else {
+      return ImmutablePair.of(nodes, null);
+    }
   }
 
   @Override
