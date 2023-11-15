@@ -90,7 +90,8 @@ public class PublicGraphQLProvider {
                 .dataFetcher(NodePage.NODES, publicNodeDataFetchers.findNodesByNodePage()))
         .type(
             newTypeWiring("Query")
-                .dataFetcher(Queries.GET_NODE, publicNodeDataFetchers.getNodeByPublicLinkId())
+                .dataFetcher(
+                    Queries.GET_PUBLIC_NODE, publicNodeDataFetchers.getNodeByPublicLinkId())
                 .dataFetcher(Queries.FIND_NODES, publicNodeDataFetchers.findNodes()))
         .build();
   }

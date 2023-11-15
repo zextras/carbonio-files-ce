@@ -544,6 +544,13 @@ public final class Files {
 
         public static final String COLLABORATION_LINK_IDS = "collaboration_link_ids";
       }
+
+      public static final class GetPublicNode {
+
+        private GetPublicNode() {}
+
+        public static final String NODE_LINK_ID = "node_link_id";
+      }
     }
 
     /**
@@ -683,6 +690,23 @@ public final class Files {
 
       public static final String NAME  = "name";
       public static final String VALUE = "value";
+    }
+
+    /**
+     * Attributes name for the type Node exposed by Public API
+     */
+    public static final class PublicNode {
+
+      private PublicNode() {}
+
+      public static final String ID         = "id";
+      public static final String CREATED_AT = "created_at";
+      public static final String UPDATED_AT = "updated_at";
+      public static final String NAME       = "name";
+      public static final String EXTENSION  = "extension";
+      public static final String TYPE       = "type";
+      public static final String MIME_TYPE  = "mime_type";
+      public static final String SIZE       = "size";
     }
   }
 
