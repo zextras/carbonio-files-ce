@@ -71,8 +71,6 @@ public class EbeanDatabaseManager {
 
   @Inject
   public EbeanDatabaseManager(FilesConfig filesConfig) {
-    Properties config = filesConfig.getProperties();
-
     postgresDatabase = ServiceDiscoverHttpClient
       .defaultURL(ServiceDiscover.SERVICE_NAME)
       .getConfig(ServiceDiscover.Config.Db.NAME)
@@ -89,9 +87,8 @@ public class EbeanDatabaseManager {
       .getOrElse("");
 
     jdbcPostgresUrl = String.format(
-      "jdbc:postgresql://%s:%s/%s",
-      config.getProperty(Files.Config.Database.URL, "127.78.0.2"),
-      config.getProperty(Files.Config.Database.PORT, "20000"),
+      "jdbc:postgresql://%s/%s",
+      filesConfig.getDatabaseUrl(),
       postgresDatabase
     );
 
