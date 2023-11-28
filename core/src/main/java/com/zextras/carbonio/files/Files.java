@@ -90,7 +90,7 @@ public final class Files {
 
     private Db() {}
 
-    public static final short DB_VERSION = 2;
+    public static final short DB_VERSION = 3;
 
     /**
      * Names of Files tables
@@ -710,8 +710,8 @@ public final class Files {
       public static final Pattern UPLOAD_FILE_TO      = Pattern.compile(SERVICE + "upload-to/?$");
       public static final Pattern DOWNLOAD_FILE       = Pattern.compile(
         SERVICE + "download/([a-f\\d\\-]*)/?([\\d]+)?/?$");
-      public static final Pattern PUBLIC_LINK         = Pattern.compile(
-        SERVICE + "link/([\\w]{8})/?$");
+      public static final Pattern PUBLIC_LINK =
+          Pattern.compile(SERVICE + "link/([\\w]{8}|[\\w]{32})/?$");
       public static final Pattern COLLABORATION_LINK  = Pattern.compile(
         SERVICE + "invite/([\\w]{8})/?$");
 

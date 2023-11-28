@@ -30,7 +30,7 @@ public class Link {
   @Column(name = Db.Link.NODE_ID, nullable = false, length = 36)
   private String mNodeId;
 
-  @Column(name = Db.Link.PUBLIC_ID, nullable = false, length = 8)
+  @Column(name = Db.Link.PUBLIC_ID, nullable = false)
   private String mPublicId;
 
   @Column(name = Files.Db.Link.CREATED_AT, nullable = false)

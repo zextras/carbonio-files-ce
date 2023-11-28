@@ -86,7 +86,7 @@ class UpdatePublicLinkApiIT {
     linkRepository.createLink(
         "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
         "00000000-0000-0000-0000-000000000000",
-        "1234abcd",
+        "abcd1234abcd1234abcd1234abcd1234",
         Optional.of(5L),
         Optional.of("super-description"));
 
@@ -117,8 +117,7 @@ class UpdatePublicLinkApiIT {
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "updateLink");
 
     Assertions.assertThat((String) updatedLink.get("url"))
-        .startsWith("example.com/services/files/link/")
-        .hasSize("example.com/services/files/link/".length() + 8);
+        .isEqualTo("example.com/services/files/link/abcd1234abcd1234abcd1234abcd1234");
 
     Assertions.assertThat(updatedLink)
         .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
@@ -137,7 +136,7 @@ class UpdatePublicLinkApiIT {
     linkRepository.createLink(
         "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
         "00000000-0000-0000-0000-000000000000",
-        "1234abcd",
+        "abcd1234abcd1234abcd1234abcd1234",
         Optional.of(5L),
         Optional.of("super-description"));
 
@@ -169,8 +168,7 @@ class UpdatePublicLinkApiIT {
 
     Assertions.assertThat((String) updatedLink.get("id")).isNotNull().hasSize(36);
     Assertions.assertThat((String) updatedLink.get("url"))
-        .startsWith("example.com/services/files/link/")
-        .hasSize("example.com/services/files/link/".length() + 8);
+        .isEqualTo("example.com/services/files/link/abcd1234abcd1234abcd1234abcd1234");
 
     Assertions.assertThat(updatedLink)
         .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
@@ -215,7 +213,7 @@ class UpdatePublicLinkApiIT {
     linkRepository.createLink(
         "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
         "00000000-0000-0000-0000-000000000000",
-        "1234abcd",
+        "abcd1234abcd1234abcd1234abcd1234",
         Optional.of(5L),
         Optional.of("super-description"));
 
@@ -252,7 +250,7 @@ class UpdatePublicLinkApiIT {
     linkRepository.createLink(
         "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
         "00000000-0000-0000-0000-000000000000",
-        "1234abcd",
+        "abcd1234abcd1234abcd1234abcd1234",
         Optional.of(5L),
         Optional.of("super-description"));
 
@@ -284,7 +282,7 @@ class UpdatePublicLinkApiIT {
     linkRepository.createLink(
         "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
         "00000000-0000-0000-0000-000000000000",
-        "1234abcd",
+        "abcd1234abcd1234abcd1234abcd1234",
         Optional.of(5L),
         Optional.of("super-description"));
 
