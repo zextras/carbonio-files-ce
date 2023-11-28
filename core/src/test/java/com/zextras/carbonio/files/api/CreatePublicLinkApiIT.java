@@ -109,7 +109,7 @@ class CreatePublicLinkApiIT {
     Assertions.assertThat((String) createdLink.get("id")).isNotNull().hasSize(36);
     Assertions.assertThat((String) createdLink.get("url"))
         .startsWith("example.com/services/files/link/")
-        .hasSize("example.com/services/files/link/".length() + 8);
+        .hasSize("example.com/services/files/link/".length() + 32);
 
     Assertions.assertThat(createdLink)
         .containsEntry("expires_at", 5)
@@ -153,7 +153,7 @@ class CreatePublicLinkApiIT {
     Assertions.assertThat((String) createdLink.get("id")).isNotNull().hasSize(36);
     Assertions.assertThat((String) createdLink.get("url"))
         .startsWith("example.com/services/files/link/")
-        .hasSize("example.com/services/files/link/".length() + 8);
+        .hasSize("example.com/services/files/link/".length() + 32);
 
     Assertions.assertThat(createdLink)
         .containsEntry("expires_at", null)
