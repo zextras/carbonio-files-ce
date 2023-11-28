@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.config;
 
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.Config.Database;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.preview.PreviewClient;
@@ -17,6 +18,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.MessageFormat;
+import java.util.Optional;
 import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,5 +101,17 @@ public class FilesConfig {
       .defaultURL(ServiceDiscover.SERVICE_NAME)
       .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
       .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
+  }
+
+  public String getDatabaseUrl() {
+    final String databaseHost = Optional
+      .ofNullable(System.getProperty(Database.URL))
+      .orElse(getProperties().getProperty(Database.URL, "127.78.0.2"));
+
+    final String databasePort = Optional
+      .ofNullable(System.getProperty(Database.PORT))
+      .orElse(getProperties().getProperty(Database.PORT, "20000"));
+
+    return String.format("%s:%s", databaseHost, databasePort);
   }
 }

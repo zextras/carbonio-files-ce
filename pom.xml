@@ -51,6 +51,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <logback-classic.version>1.4.8</logback-classic.version>
     <micrometer.version>1.11.2</micrometer.version>
     <mockito.version>5.4.0</mockito.version>
+    <mock-server.version>5.15.0</mock-server.version>
     <netty.version>4.1.94.Final</netty.version>
     <postgresql.version>42.6.0</postgresql.version>
     <testcontainers.version>1.18.3</testcontainers.version>
@@ -268,6 +269,20 @@ SPDX-License-Identifier: AGPL-3.0-only
         <groupId>io.ebean</groupId>
         <artifactId>ebean-platform-hsqldb</artifactId>
         <version>${ebean.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.mock-server</groupId>
+        <artifactId>mockserver-netty-no-dependencies</artifactId>
+        <version>${mock-server.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.mock-server</groupId>
+        <artifactId>mockserver-client-java-no-dependencies</artifactId>
+        <version>${mock-server.version}</version>
         <scope>test</scope>
       </dependency>
     </dependencies>
