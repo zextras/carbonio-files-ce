@@ -88,14 +88,14 @@ class GetPublicLinksApiIT {
     linkRepository.createLink(
         "06e0f2ae-b128-4d25-9b3b-df84eb7948a9",
         "00000000-0000-0000-0000-000000000000",
-        "1234abcd",
+        "abcd1234abcd1234abcd1234abcd1234",
         Optional.of(5L),
         Optional.of("super-description"));
 
     linkRepository.createLink(
         "0c04783b-bdfb-446f-870c-625f5ae02a0a",
         "00000000-0000-0000-0000-000000000000",
-        "0000aaaa",
+        "00001234abcd1234abcd1234abcd1234",
         Optional.empty(),
         Optional.empty());
 
@@ -128,7 +128,7 @@ class GetPublicLinksApiIT {
 
     Assertions.assertThat(publicLinks.get(0))
         .containsEntry("id", "0c04783b-bdfb-446f-870c-625f5ae02a0a")
-        .containsEntry("url", "example.com/services/files/link/0000aaaa")
+        .containsEntry("url", "example.com/services/files/link/00001234abcd1234abcd1234abcd1234")
         .containsEntry("expires_at", null)
         .containsEntry("description", null);
     Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node"))
@@ -136,7 +136,7 @@ class GetPublicLinksApiIT {
 
     Assertions.assertThat(publicLinks.get(1))
         .containsEntry("id", "06e0f2ae-b128-4d25-9b3b-df84eb7948a9")
-        .containsEntry("url", "example.com/services/files/link/1234abcd")
+        .containsEntry("url", "example.com/services/files/link/abcd1234abcd1234abcd1234abcd1234")
         .containsEntry("expires_at", 5)
         .containsEntry("description", "super-description");
     Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node"))
@@ -231,7 +231,7 @@ class GetPublicLinksApiIT {
     linkRepository.createLink(
         "0c04783b-bdfb-446f-870c-625f5ae02a0a",
         "00000000-0000-0000-0000-000000000000",
-        "0000aaaa",
+        "abcd1234abcd1234abcd1234abcd1234",
         Optional.empty(),
         Optional.empty());
 
@@ -266,7 +266,7 @@ class GetPublicLinksApiIT {
     linkRepository.createLink(
         "0c04783b-bdfb-446f-870c-625f5ae02a0a",
         "00000000-0000-0000-0000-000000000000",
-        "0000aaaa",
+        "abcd1234abcd1234abcd1234abcd1234",
         Optional.empty(),
         Optional.empty());
 
@@ -289,5 +289,44 @@ class GetPublicLinksApiIT {
     Assertions.assertThat(publicLinks).hasSize(1);
     Assertions.assertThat(publicLinks.get(0))
         .containsEntry("id", "0c04783b-bdfb-446f-870c-625f5ae02a0a");
+  }
+
+  @Test
+  void givenAnExistingNodeAndAnAssociatedLegacyPublicLinkWithAn8CharsPublicIdentifierTheGetLinksShouldReturnItCorrectly() {
+    // Given
+    createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    createShare(
+      "00000000-0000-0000-0000-000000000000",
+      "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      SharePermission.READ_ONLY);
+
+    linkRepository.createLink(
+      "0c04783b-bdfb-446f-870c-625f5ae02a0a",
+      "00000000-0000-0000-0000-000000000000",
+      "abcd1234",
+      Optional.empty(),
+      Optional.empty());
+
+    final String bodyPayload =
+      "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id url }}";
+
+    final HttpRequest httpRequest =
+      HttpRequest.of(
+        "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse =
+      TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final List<Map<String, Object>> publicLinks =
+      TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "getLinks");
+
+    Assertions.assertThat(publicLinks).hasSize(1);
+    Assertions.assertThat(publicLinks.get(0))
+      .containsEntry("id", "0c04783b-bdfb-446f-870c-625f5ae02a0a")
+      .containsEntry("url", "example.com/services/files/link/abcd1234");
   }
 }
