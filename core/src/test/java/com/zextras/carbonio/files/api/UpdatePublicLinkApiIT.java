@@ -26,13 +26,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-public class UpdatePublicLinkApiIT {
+class UpdatePublicLinkApiIT {
 
-  private static Simulator simulator;
-  private static NodeRepository nodeRepository;
-  private static FileVersionRepository fileVersionRepository;
-  private static LinkRepository linkRepository;
-  private static ShareRepository shareRepository;
+  static Simulator simulator;
+  static NodeRepository nodeRepository;
+  static FileVersionRepository fileVersionRepository;
+  static LinkRepository linkRepository;
+  static ShareRepository shareRepository;
 
   @BeforeAll
   static void init() {
