@@ -6,3 +6,7 @@ Source: https://github.com/Zextras/carbonio-files-ce
 Files: .github/CODEOWNERS
 Copyright: 2023 Zextras <https://www.zextras.com>
 License: CC0-1.0
+
+Files: yap.json
+Copyright: 2023 Zextras s.r.l
+License: AGPL-3.0-only
