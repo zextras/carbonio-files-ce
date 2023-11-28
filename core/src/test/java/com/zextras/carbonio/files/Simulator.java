@@ -13,6 +13,7 @@ import com.zextras.carbonio.files.Files.ServiceDiscover.Config.Db;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.netty.HttpRoutingHandler;
 import com.zextras.carbonio.usermanagement.entities.UserId;
 import com.zextras.carbonio.usermanagement.entities.UserInfo;
@@ -40,13 +41,11 @@ public class Simulator implements AutoCloseable {
   private static final Logger logger = LoggerFactory.getLogger(Simulator.class);
   private Injector injector;
   private PostgreSQLContainer<?> postgreSQLContainer;
+  private EbeanDatabaseManager ebeanDatabaseManager;
   private ClientAndServer clientAndServer;
   private MockServerClient serviceDiscoverMock;
   private MockServerClient userManagementMock;
   private MockServerClient storagesMock;
-  private boolean enableNettyServer;
-
-  private EmbeddedChannel embeddedChannel;
 
   //
   // Private methods
@@ -67,6 +66,15 @@ public class Simulator implements AutoCloseable {
     // Set the System.properties for the dynamic database url and port
     System.setProperty(Database.URL, postgreSQLContainer.getHost());
     System.setProperty(Database.PORT, String.valueOf(postgreSQLContainer.getFirstMappedPort()));
+
+    return this;
+  }
+
+  private Simulator startEbeanDatabaseManager() {
+    if (ebeanDatabaseManager == null) {
+      ebeanDatabaseManager = injector.getInstance(EbeanDatabaseManager.class);
+      ebeanDatabaseManager.start();
+    }
 
     return this;
   }
@@ -164,7 +172,8 @@ public class Simulator implements AutoCloseable {
   }
 
   private void getUser(String cookie, String userId) {
-    UserInfo userInfo = new UserInfo(new UserId(userId), "fake-email", "", "");
+    UserInfo userInfo =
+        new UserInfo(new UserId(userId), "fake-email@example.com", "Fake User", "example.com");
 
     userManagementMock
         .when(
@@ -197,21 +206,15 @@ public class Simulator implements AutoCloseable {
     }
   }
 
-  private void startNettyServer() {
-    if (embeddedChannel == null) {
-      embeddedChannel = new EmbeddedChannel(injector.getInstance(HttpRoutingHandler.class));
-    }
-  }
-
   private void stopDatabase() {
     if (postgreSQLContainer != null && postgreSQLContainer.isRunning()) {
       postgreSQLContainer.stop();
     }
   }
 
-  private void stopNettyServer() {
-    if (embeddedChannel != null) {
-      embeddedChannel.finishAndReleaseAll();
+  private void stopEbeanDatabaseManager() {
+    if (ebeanDatabaseManager != null) {
+      ebeanDatabaseManager.stop();
     }
   }
 
@@ -231,25 +234,17 @@ public class Simulator implements AutoCloseable {
   // Public methods
   //
 
-  public Simulator() {
-    enableNettyServer = false;
-  }
+  public Simulator() {}
 
   public Simulator start() {
-    injector.getInstance(EbeanDatabaseManager.class).start();
-
-    if (enableNettyServer) {
-      startNettyServer();
-    }
-
-    return this;
+    return startEbeanDatabaseManager();
   }
 
   public void stopAll() {
-    stopNettyServer();
     stopUserManagement();
     stopServiceDiscover();
     stopDatabase();
+    stopEbeanDatabaseManager();
   }
 
   @Override
@@ -270,7 +265,11 @@ public class Simulator implements AutoCloseable {
   }
 
   public EmbeddedChannel getNettyChannel() {
-    return embeddedChannel;
+    return new EmbeddedChannel(injector.getInstance(HttpRoutingHandler.class));
+  }
+
+  public void resetDatabase() {
+    ebeanDatabaseManager.getEbeanDatabase().find(Node.class).delete();
   }
 
   public void getBlob(String nodeId, int version) {
@@ -324,11 +323,6 @@ public class Simulator implements AutoCloseable {
 
     public SimulatorBuilder withStorages() {
       simulator.startStorages();
-      return this;
-    }
-
-    public SimulatorBuilder withServer() {
-      simulator.enableNettyServer = true;
       return this;
     }
 
