@@ -50,7 +50,7 @@ class GetPublicLinksApiIT {
             .build()
             .start();
 
-    Injector injector = simulator.getInjector();
+    final Injector injector = simulator.getInjector();
     nodeRepository = injector.getInstance(NodeRepository.class);
     fileVersionRepository = injector.getInstance(FileVersionRepository.class);
     linkRepository = injector.getInstance(LinkRepository.class);
@@ -99,7 +99,7 @@ class GetPublicLinksApiIT {
         Optional.empty(),
         Optional.empty());
 
-    String bodyPayload =
+    final String bodyPayload =
         "query { "
             + "getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { "
             + "id "
@@ -111,16 +111,17 @@ class GetPublicLinksApiIT {
             + "} "
             + "} ";
 
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
-    List<Map<String, Object>> publicLinks =
+    final List<Map<String, Object>> publicLinks =
         TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "getLinks");
 
     Assertions.assertThat(publicLinks).hasSize(2);
@@ -147,14 +148,15 @@ class GetPublicLinksApiIT {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
-    String bodyPayload =
+    final String bodyPayload =
         "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id }}";
 
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -166,14 +168,15 @@ class GetPublicLinksApiIT {
   @Test
   void givenANotExistingNodeTheGetLinksShouldReturn200StatusCodeAndNull() {
     // Given
-    String bodyPayload =
+    final String bodyPayload =
         "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id }}";
 
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -196,15 +199,16 @@ class GetPublicLinksApiIT {
         Optional.empty(),
         Optional.empty());
 
-    String bodyPayload =
+    final String bodyPayload =
         "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id }}";
 
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -231,15 +235,16 @@ class GetPublicLinksApiIT {
         Optional.empty(),
         Optional.empty());
 
-    String bodyPayload =
+    final String bodyPayload =
         "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id }}";
 
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -265,19 +270,20 @@ class GetPublicLinksApiIT {
         Optional.empty(),
         Optional.empty());
 
-    String bodyPayload =
+    final String bodyPayload =
         "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id }}";
 
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<Map<String, Object>> publicLinks =
+    final List<Map<String, Object>> publicLinks =
         TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "getLinks");
 
     Assertions.assertThat(publicLinks).hasSize(1);

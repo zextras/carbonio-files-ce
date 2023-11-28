@@ -49,7 +49,7 @@ class UpdatePublicLinkApiIT {
                     "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"))
             .build()
             .start();
-    Injector injector = simulator.getInjector();
+    final Injector injector = simulator.getInjector();
     nodeRepository = injector.getInstance(NodeRepository.class);
     fileVersionRepository = injector.getInstance(FileVersionRepository.class);
     linkRepository = injector.getInstance(LinkRepository.class);
@@ -90,7 +90,7 @@ class UpdatePublicLinkApiIT {
         Optional.of(5L),
         Optional.of("super-description"));
 
-    String bodyPayload =
+    final String bodyPayload =
         "mutation { "
             + "updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\", expires_at: 10, description: \\\"another-description\\\") {"
             + "id "
@@ -104,15 +104,16 @@ class UpdatePublicLinkApiIT {
             + "} "
             + "}";
 
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    Map<String, Object> updatedLink =
+    final Map<String, Object> updatedLink =
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "updateLink");
 
     Assertions.assertThat((String) updatedLink.get("url"))
@@ -140,7 +141,7 @@ class UpdatePublicLinkApiIT {
         Optional.of(5L),
         Optional.of("super-description"));
 
-    String bodyPayload =
+    final String bodyPayload =
         "mutation { "
             + "updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\") {"
             + "id "
@@ -154,15 +155,16 @@ class UpdatePublicLinkApiIT {
             + "} "
             + "}";
 
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    Map<String, Object> updatedLink =
+    final Map<String, Object> updatedLink =
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "updateLink");
 
     Assertions.assertThat((String) updatedLink.get("id")).isNotNull().hasSize(36);
@@ -182,17 +184,19 @@ class UpdatePublicLinkApiIT {
   @Test
   void givenANotExistingLinkTheUpdateLinkShouldReturn200CodeWithAnErrorMessage() {
     // Given
-    String bodyPayload =
+    final String bodyPayload =
         "mutation { updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\") {id}}";
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    final List<String> errorResponse =
+        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errorResponse)
         .hasSize(1)
         .containsExactly("Could not find link with id cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b");
@@ -215,18 +219,19 @@ class UpdatePublicLinkApiIT {
         Optional.of(5L),
         Optional.of("super-description"));
 
-    String bodyPayload =
+    final String bodyPayload =
         "mutation { updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\", description: \\\"\\\") {id description}}";
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    Map<String, Object> updatedLink =
+    final Map<String, Object> updatedLink =
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "updateLink");
 
     Assertions.assertThat(updatedLink)
@@ -251,18 +256,20 @@ class UpdatePublicLinkApiIT {
         Optional.of(5L),
         Optional.of("super-description"));
 
-    String bodyPayload =
+    final String bodyPayload =
         "mutation { updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\") {id}}";
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    final List<String> errorResponse =
+        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errorResponse)
         .hasSize(1)
         .containsExactly("Could not find link with id cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b");
@@ -281,18 +288,20 @@ class UpdatePublicLinkApiIT {
         Optional.of(5L),
         Optional.of("super-description"));
 
-    String bodyPayload =
+    final String bodyPayload =
         "mutation { updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\") {id}}";
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    final List<String> errorResponse =
+        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errorResponse)
         .hasSize(1)
         .containsExactly("Could not find link with id cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b");

@@ -47,7 +47,7 @@ class CreatePublicLinkApiIT {
                     "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"))
             .build()
             .start();
-    Injector injector = simulator.getInjector();
+    final Injector injector = simulator.getInjector();
     nodeRepository = injector.getInstance(NodeRepository.class);
     fileVersionRepository = injector.getInstance(FileVersionRepository.class);
     shareRepository = injector.getInstance(ShareRepository.class);
@@ -80,7 +80,7 @@ class CreatePublicLinkApiIT {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
-    String bodyPayload =
+    final String bodyPayload =
         "mutation { "
             + "createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\", expires_at: 5, description: \\\"super-description\\\") {"
             + "id "
@@ -94,15 +94,16 @@ class CreatePublicLinkApiIT {
             + "} "
             + "}";
 
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    Map<String, Object> createdLink =
+    final Map<String, Object> createdLink =
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "createLink");
 
     Assertions.assertThat((String) createdLink.get("id")).isNotNull().hasSize(36);
@@ -123,7 +124,7 @@ class CreatePublicLinkApiIT {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
-    String bodyPayload =
+    final String bodyPayload =
         "mutation { "
             + "createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") {"
             + "id "
@@ -137,15 +138,16 @@ class CreatePublicLinkApiIT {
             + "} "
             + "}";
 
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    Map<String, Object> createdLink =
+    final Map<String, Object> createdLink =
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "createLink");
 
     Assertions.assertThat((String) createdLink.get("id")).isNotNull().hasSize(36);
@@ -166,7 +168,7 @@ class CreatePublicLinkApiIT {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
-    String bodyPayload =
+    final String bodyPayload =
         "mutation { "
             + "createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\", expires_at: 0) {"
             + "id "
@@ -174,15 +176,16 @@ class CreatePublicLinkApiIT {
             + "} "
             + "}";
 
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    Map<String, Object> createdLink =
+    final Map<String, Object> createdLink =
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "createLink");
 
     Assertions.assertThat((String) createdLink.get("id")).isNotNull().hasSize(36);
@@ -193,17 +196,19 @@ class CreatePublicLinkApiIT {
   @Test
   void givenANotExistingNodeIdTheCreateLinkShouldReturn200CodeWithAnErrorMessage() {
     // Given
-    String bodyPayload =
+    final String bodyPayload =
         "mutation { createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") {id}}";
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    final List<String> errorResponse =
+        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errorResponse)
         .hasSize(1)
         .containsExactly(
@@ -219,18 +224,19 @@ class CreatePublicLinkApiIT {
         "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
         SharePermission.READ_AND_SHARE);
 
-    String bodyPayload =
+    final String bodyPayload =
         "mutation { createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") {id}}";
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    Map<String, Object> createdLink =
+    final Map<String, Object> createdLink =
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "createLink");
 
     Assertions.assertThat((String) createdLink.get("id")).isNotNull().hasSize(36);
@@ -246,18 +252,20 @@ class CreatePublicLinkApiIT {
         "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
         SharePermission.READ_ONLY);
 
-    String bodyPayload =
+    final String bodyPayload =
         "mutation { createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") {id}}";
-    HttpRequest httpRequest =
+    final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    final List<String> errorResponse =
+        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errorResponse)
         .hasSize(1)
         .containsExactly(
@@ -270,21 +278,23 @@ class CreatePublicLinkApiIT {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
-    String bodyPayload =
-      "mutation { createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") {id}}";
-    HttpRequest httpRequest =
-      HttpRequest.of(
-        "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
+    final String bodyPayload =
+        "mutation { createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") {id}}";
+    final HttpRequest httpRequest =
+        HttpRequest.of(
+            "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    final List<String> errorResponse =
+        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errorResponse)
-      .hasSize(1)
-      .containsExactly(
-        "There was a problem while executing requested operation on node: 00000000-0000-0000-0000-000000000000");
+        .hasSize(1)
+        .containsExactly(
+            "There was a problem while executing requested operation on node: 00000000-0000-0000-0000-000000000000");
   }
 }

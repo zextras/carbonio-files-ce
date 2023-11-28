@@ -39,10 +39,10 @@ public class TestUtils {
   @SuppressWarnings("unchecked")
   public static Map<String, Object> jsonResponseToMap(String json, String operation) {
     try {
-      Map<String, Object> result = new ObjectMapper().readValue(json, HashMap.class);
+      final Map<String, Object> result = new ObjectMapper().readValue(json, HashMap.class);
 
       if (result.get("data") != null) {
-        Map<String, Object> data = (Map<String, Object>) result.get("data");
+        final Map<String, Object> data = (Map<String, Object>) result.get("data");
 
         if (data.get(operation) != null) {
           return (Map<String, Object>) data.get(operation);
@@ -58,10 +58,10 @@ public class TestUtils {
   @SuppressWarnings("unchecked")
   public static List<Map<String, Object>> jsonResponseToList(String json, String operation) {
     try {
-      Map<String, Object> result = new ObjectMapper().readValue(json, Map.class);
+      final Map<String, Object> result = new ObjectMapper().readValue(json, Map.class);
 
       if (result.get("data") != null) {
-        Map<String, Object> data = (Map<String, Object>) result.get("data");
+        final Map<String, Object> data = (Map<String, Object>) result.get("data");
 
         if (data.get(operation) != null) {
           return (List<Map<String, Object>>) data.get(operation);
@@ -76,10 +76,10 @@ public class TestUtils {
 
   public static Optional<String> jsonResponseToString(String json, String operation) {
     try {
-      Map<String, Object> result = new ObjectMapper().readValue(json, Map.class);
+      final Map<String, Object> result = new ObjectMapper().readValue(json, Map.class);
 
       if (result.get("data") != null) {
-        Map<String, Object> data = (Map<String, Object>) result.get("data");
+        final Map<String, Object> data = (Map<String, Object>) result.get("data");
 
         return Optional.ofNullable((String) data.get(operation));
       }
@@ -92,10 +92,10 @@ public class TestUtils {
 
   public static List<String> jsonResponseToErrors(String json) {
     try {
-      Map<String, Object> result = new ObjectMapper().readValue(json, Map.class);
+      final Map<String, Object> result = new ObjectMapper().readValue(json, Map.class);
 
       if (result.get("errors") != null) {
-        List<Map<String, Object>> errors = (List<Map<String, Object>>) result.get("errors");
+        final List<Map<String, Object>> errors = (List<Map<String, Object>>) result.get("errors");
 
         return errors.stream()
             .map(error -> (String) error.get("message"))

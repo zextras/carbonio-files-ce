@@ -101,10 +101,10 @@ public class Simulator implements AutoCloseable {
       dbPassword = Db.PASSWORD;
     }
 
-    String encodedDbName = new String(Base64.encode(dbName.getBytes()));
-    String encodedDbUsername = new String(Base64.encode(dbUsername.getBytes()));
-    String encodedDbPassword = new String(Base64.encode(dbPassword.getBytes()));
-    String bodyPayloadFormat = "[{\"Key\":\"%s\",\"Value\":\"%s\"}]";
+    final String encodedDbName = new String(Base64.encode(dbName.getBytes()));
+    final String encodedDbUsername = new String(Base64.encode(dbUsername.getBytes()));
+    final String encodedDbPassword = new String(Base64.encode(dbPassword.getBytes()));
+    final String bodyPayloadFormat = "[{\"Key\":\"%s\",\"Value\":\"%s\"}]";
 
     serviceDiscoverMock
         .when(
@@ -150,7 +150,7 @@ public class Simulator implements AutoCloseable {
   private Simulator startUserManagement() {
     startMockServer();
 
-    FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
+    final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
     userManagementMock =
         new MockServerClient(
             filesConfig.getProperties().getProperty(UserManagement.URL),
@@ -172,7 +172,7 @@ public class Simulator implements AutoCloseable {
   }
 
   private void getUser(String cookie, String userId) {
-    UserInfo userInfo =
+    final UserInfo userInfo =
         new UserInfo(new UserId(userId), "fake-email@example.com", "Fake User", "example.com");
 
     userManagementMock
@@ -187,7 +187,7 @@ public class Simulator implements AutoCloseable {
   private Simulator startStorages() {
     startMockServer();
 
-    FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
+    final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
     storagesMock =
         new MockServerClient(
             filesConfig.getProperties().getProperty(Storages.URL),
@@ -198,9 +198,9 @@ public class Simulator implements AutoCloseable {
 
   private void startMockServer() {
     if (clientAndServer == null) {
-      Properties properties = injector.getInstance(FilesConfig.class).getProperties();
-      int userManagementPort = Integer.parseInt(properties.getProperty(UserManagement.PORT));
-      int storagesPort = Integer.parseInt(properties.getProperty(Storages.PORT));
+      final Properties properties = injector.getInstance(FilesConfig.class).getProperties();
+      final int userManagementPort = Integer.parseInt(properties.getProperty(UserManagement.PORT));
+      final int storagesPort = Integer.parseInt(properties.getProperty(Storages.PORT));
       clientAndServer =
           ClientAndServer.startClientAndServer(8500, userManagementPort, storagesPort);
     }

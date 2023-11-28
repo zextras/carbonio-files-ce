@@ -104,11 +104,11 @@ public class FilesConfig {
   }
 
   public String getDatabaseUrl() {
-    String databaseHost = Optional
+    final String databaseHost = Optional
       .ofNullable(System.getProperty(Database.URL))
       .orElse(getProperties().getProperty(Database.URL, "127.78.0.2"));
 
-    String databasePort = Optional
+    final String databasePort = Optional
       .ofNullable(System.getProperty(Database.PORT))
       .orElse(getProperties().getProperty(Database.PORT, "20000"));
 
