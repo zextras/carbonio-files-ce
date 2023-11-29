@@ -693,9 +693,10 @@ public final class Files {
 
       private Endpoints() {}
 
-      public static final String SERVICE                = "/";
-      public static final String PUBLIC_LINK_URL        = "/services/files/link/";
-      public static final String COLLABORATION_LINK_URL = "/services/files/invite/";
+      public static final String SERVICE                  = "/";
+      public static final String PUBLIC_LINK_ACCESS_URL   = "/files/public/link/access/";
+      public static final String PUBLIC_LINK_DOWNLOAD_URL = "/services/files/public/link/download/";
+      public static final String COLLABORATION_LINK_URL   = "/services/files/invite/";
 
       public static final Pattern METRICS             = Pattern.compile(SERVICE + "metrics/?$");
       public static final Pattern HEALTH              = Pattern.compile(
@@ -712,6 +713,8 @@ public final class Files {
         SERVICE + "download/([a-f\\d\\-]*)/?([\\d]+)?/?$");
       public static final Pattern PUBLIC_LINK =
           Pattern.compile(SERVICE + "link/([\\w]{8}|[\\w]{32})/?$");
+      public static final Pattern DOWNLOAD_VIA_PUBLIC_LINK =
+        Pattern.compile(SERVICE + "public/link/download/([\\w]{8}|[\\w]{32})/?$");
       public static final Pattern COLLABORATION_LINK  = Pattern.compile(
         SERVICE + "invite/([\\w]{8})/?$");
 

@@ -9,10 +9,10 @@ import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.Files.GraphQL;
 import com.zextras.carbonio.files.Files.GraphQL.InputParameters;
-import com.zextras.carbonio.files.Files.GraphQL.Node;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
+import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.LinkSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
@@ -72,16 +72,19 @@ public class LinkDataFetcher {
 
   private DataFetcherResult<Map<String, Object>> convertLinkToGraphQLMap(
     Link link,
-    String requesterDomain
+    String requesterDomain,
+    boolean isNodeAFolder
   ) {
     Map<String, Object> result = new HashMap<>();
     Map<String, String> linkContext = new HashMap<>();
 
     result.put(Files.GraphQL.Link.ID, link.getLinkId());
-    result.put(
-      Files.GraphQL.Link.URL,
-      requesterDomain + Endpoints.PUBLIC_LINK_URL + link.getPublicId()
-    );
+
+    String publicLinkUrl = (isNodeAFolder)
+      ? requesterDomain + Endpoints.PUBLIC_LINK_ACCESS_URL + link.getPublicId()
+      : requesterDomain + Endpoints.PUBLIC_LINK_DOWNLOAD_URL + link.getPublicId();
+
+    result.put(Files.GraphQL.Link.URL, publicLinkUrl);
     result.put(Files.GraphQL.Link.CREATED_AT, link.getCreatedAt());
 
     link
@@ -125,10 +128,11 @@ public class LinkDataFetcher {
       User requester = environment.getGraphQlContext().get(Files.GraphQL.Context.REQUESTER);
       String nodeId = environment.getArgument(Files.GraphQL.InputParameters.Link.NODE_ID);
 
+      Optional<Node> optNode = nodeRepository.getNode(nodeId);
       if (permissionsChecker
         .getPermissions(nodeId, requester.getId())
         .has(SharePermission.READ_AND_SHARE)
-        && nodeRepository.getNode(nodeId).get().getNodeType() != NodeType.FOLDER
+        && optNode.isPresent() && optNode.get().getNodeType() != NodeType.ROOT
       ) {
         String publicId = RandomStringUtils.randomAlphanumeric(32);
 
@@ -140,7 +144,11 @@ public class LinkDataFetcher {
           Optional.ofNullable(environment.getArgument(InputParameters.Link.DESCRIPTION))
         );
 
-        return convertLinkToGraphQLMap(createdLink, requester.getDomain());
+        return convertLinkToGraphQLMap(
+          createdLink,
+          requester.getDomain(),
+          optNode.get().getNodeType().equals(NodeType.FOLDER)
+        );
       }
 
       return DataFetcherResult.<Map<String, Object>>newResult()
@@ -156,15 +164,21 @@ public class LinkDataFetcher {
         .ofNullable(environment.getLocalContext());
 
       String nodeId = (optLocalContext.isPresent())
-        ? optLocalContext.get().get(Node.ID)
+        ? optLocalContext.get().get(GraphQL.Node.ID)
         : environment.getArgument(InputParameters.Link.NODE_ID);
+
+      Optional<Node> optNode = nodeRepository.getNode(nodeId);
 
       return permissionsChecker
         .getPermissions(nodeId, requester.getId())
-        .has(SharePermission.READ_AND_SHARE)
+        .has(SharePermission.READ_AND_SHARE) && optNode.isPresent()
         ? linkRepository
         .getLinksByNodeId(nodeId, LinkSort.CREATED_AT_DESC)
-        .map(link -> convertLinkToGraphQLMap(link, requester.getDomain()))
+        .map(link ->
+          convertLinkToGraphQLMap(
+            link,
+            requester.getDomain(),
+            optNode.get().getNodeType().equals(NodeType.FOLDER)))
         .collect(Collectors.toList())
         : Collections.singletonList(DataFetcherResult
           .<Map<String, Object>>newResult()
@@ -186,6 +200,15 @@ public class LinkDataFetcher {
           .has(SharePermission.READ_AND_SHARE)
         )
         .map(link -> {
+            Optional<Node> optNode = nodeRepository.getNode(link.getNodeId());
+
+            if (optNode.isEmpty()) {
+              return DataFetcherResult
+                .<Map<String, Object>>newResult()
+                .error(GraphQLResultErrors.nodeNotFound(link.getNodeId(), path))
+                .build();
+            }
+
             Optional<Long> optNewExpirationTimestamp = Optional.ofNullable(
               environment.getArgument(InputParameters.Link.EXPIRES_AT)
             );
@@ -197,7 +220,10 @@ public class LinkDataFetcher {
             optNewDescription.ifPresent(link::setDescription);
 
             Link updatedLink = linkRepository.updateLink(link);
-            return convertLinkToGraphQLMap(updatedLink, requester.getDomain());
+            return convertLinkToGraphQLMap(
+              updatedLink,
+              requester.getDomain(),
+              optNode.get().getNodeType().equals(NodeType.FOLDER));
           }
         )
         .orElse(DataFetcherResult
