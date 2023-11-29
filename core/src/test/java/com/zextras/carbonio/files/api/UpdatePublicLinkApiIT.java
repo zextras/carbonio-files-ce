@@ -75,7 +75,7 @@ class UpdatePublicLinkApiIT {
 
   void createFolder(String nodeId, String ownerId) {
     nodeRepository.createNewNode(
-      nodeId, ownerId, ownerId, "LOCAL_ROOT", "folder", "", NodeType.FOLDER, "LOCAL_ROOT", 0L);
+        nodeId, ownerId, ownerId, "LOCAL_ROOT", "folder", "", NodeType.FOLDER, "LOCAL_ROOT", 0L);
   }
 
   void createShare(String nodeId, String targetUserId, SharePermission permission) {
@@ -190,54 +190,53 @@ class UpdatePublicLinkApiIT {
 
   @Test
   void
-  givenAnExistingFolderAnExistingLinkAndAllUpdatedFieldsTheUpdateLinkShouldReturnTheUpdatedLink() {
+      givenAnExistingFolderAnExistingLinkAndAllUpdatedFieldsTheUpdateLinkShouldReturnTheUpdatedLink() {
     // Given
     createFolder("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     linkRepository.createLink(
-      "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
-      "00000000-0000-0000-0000-000000000000",
-      "abcd1234abcd1234abcd1234abcd1234",
-      Optional.empty(),
-      Optional.empty());
+        "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
+        "00000000-0000-0000-0000-000000000000",
+        "abcd1234abcd1234abcd1234abcd1234",
+        Optional.empty(),
+        Optional.empty());
 
     final String bodyPayload =
-      "mutation { "
-        + "updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\", expires_at: 10, description: \\\"another-description\\\") {"
-        + "id "
-        + "url "
-        + "expires_at "
-        + "created_at "
-        + "description "
-        + "node { "
-        + "  id "
-        + "} "
-        + "} "
-        + "}";
+        "mutation { "
+            + "updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\", expires_at: 10, description: \\\"another-description\\\") {"
+            + "id "
+            + "url "
+            + "expires_at "
+            + "created_at "
+            + "description "
+            + "node { "
+            + "  id "
+            + "} "
+            + "} "
+            + "}";
 
     final HttpRequest httpRequest =
-      HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
     final HttpResponse httpResponse =
-      TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
     final Map<String, Object> updatedLink =
-      TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "updateLink");
+        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "updateLink");
 
     Assertions.assertThat((String) updatedLink.get("url"))
-      .isEqualTo(
-        "example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234");
+        .isEqualTo("example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234");
 
     Assertions.assertThat(updatedLink)
-      .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
-      .containsEntry("expires_at", 10)
-      .containsEntry("description", "another-description");
+        .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
+        .containsEntry("expires_at", 10)
+        .containsEntry("description", "another-description");
 
     Assertions.assertThat((Map<String, Object>) updatedLink.get("node"))
-      .containsEntry("id", "00000000-0000-0000-0000-000000000000");
+        .containsEntry("id", "00000000-0000-0000-0000-000000000000");
   }
 
   @Test
@@ -300,40 +299,39 @@ class UpdatePublicLinkApiIT {
 
   @Test
   void
-  givenAnExistingNodeAnExistingLinkWithExpirationAndAnExpiresAtToZeroTheUpdateLinkShouldReturnAnUpdatedLinkWithoutExpiration() {
+      givenAnExistingNodeAnExistingLinkWithExpirationAndAnExpiresAtToZeroTheUpdateLinkShouldReturnAnUpdatedLinkWithoutExpiration() {
     // Given
     createFolder("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     linkRepository.createLink(
-      "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
-      "00000000-0000-0000-0000-000000000000",
-      "abcd1234abcd1234abcd1234abcd1234",
-      Optional.of(5L),
-      Optional.empty());
+        "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
+        "00000000-0000-0000-0000-000000000000",
+        "abcd1234abcd1234abcd1234abcd1234",
+        Optional.of(5L),
+        Optional.empty());
 
     final String bodyPayload =
-      "mutation { "
-        + "updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\", expires_at: 0) {"
-        + "id "
-        + "expires_at"
-        + "}"
-        + "}";
+        "mutation { "
+            + "updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\", expires_at: 0) {"
+            + "id "
+            + "expires_at"
+            + "}"
+            + "}";
     final HttpRequest httpRequest =
-      HttpRequest.of(
-        "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
     final HttpResponse httpResponse =
-      TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
     final Map<String, Object> updatedLink =
-      TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "updateLink");
+        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "updateLink");
 
     Assertions.assertThat(updatedLink)
-      .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
-      .containsEntry("expires_at", null);
+        .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
+        .containsEntry("expires_at", null);
   }
 
   @Test
