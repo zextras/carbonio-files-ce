@@ -73,13 +73,19 @@ class UpdatePublicLinkApiIT {
     fileVersionRepository.createNewFileVersion(nodeId, ownerId, 1, "text/plain", 1L, "", false);
   }
 
+  void createFolder(String nodeId, String ownerId) {
+    nodeRepository.createNewNode(
+      nodeId, ownerId, ownerId, "LOCAL_ROOT", "folder", "", NodeType.FOLDER, "LOCAL_ROOT", 0L);
+  }
+
   void createShare(String nodeId, String targetUserId, SharePermission permission) {
     shareRepository.upsertShare(
         nodeId, targetUserId, ACL.decode(permission), true, false, Optional.empty());
   }
 
   @Test
-  void givenAnExistingLinkAndAllUpdatedFieldsTheUpdateLinkShouldReturnTheUpdatedLink() {
+  void
+      givenAnExistingFileAnExistingLinkAndAllUpdatedFieldsTheUpdateLinkShouldReturnTheUpdatedLink() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
@@ -117,7 +123,8 @@ class UpdatePublicLinkApiIT {
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "updateLink");
 
     Assertions.assertThat((String) updatedLink.get("url"))
-        .isEqualTo("example.com/services/files/link/abcd1234abcd1234abcd1234abcd1234");
+        .isEqualTo(
+            "example.com/services/files/public/link/download/abcd1234abcd1234abcd1234abcd1234");
 
     Assertions.assertThat(updatedLink)
         .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
@@ -129,7 +136,8 @@ class UpdatePublicLinkApiIT {
   }
 
   @Test
-  void givenAnExistingLinkAndNoFieldsToUpdateTheUpdateLinkShouldReturnTheUntouchedLink() {
+  void
+      givenAnExistingFileAnExistingLinkAndNoFieldsToUpdateTheUpdateLinkShouldReturnTheUntouchedLink() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
@@ -168,7 +176,8 @@ class UpdatePublicLinkApiIT {
 
     Assertions.assertThat((String) updatedLink.get("id")).isNotNull().hasSize(36);
     Assertions.assertThat((String) updatedLink.get("url"))
-        .isEqualTo("example.com/services/files/link/abcd1234abcd1234abcd1234abcd1234");
+        .isEqualTo(
+            "example.com/services/files/public/link/download/abcd1234abcd1234abcd1234abcd1234");
 
     Assertions.assertThat(updatedLink)
         .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
@@ -177,6 +186,58 @@ class UpdatePublicLinkApiIT {
 
     Assertions.assertThat((Map<String, Object>) updatedLink.get("node"))
         .containsEntry("id", "00000000-0000-0000-0000-000000000000");
+  }
+
+  @Test
+  void
+  givenAnExistingFolderAnExistingLinkAndAllUpdatedFieldsTheUpdateLinkShouldReturnTheUpdatedLink() {
+    // Given
+    createFolder("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+
+    linkRepository.createLink(
+      "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
+      "00000000-0000-0000-0000-000000000000",
+      "abcd1234abcd1234abcd1234abcd1234",
+      Optional.empty(),
+      Optional.empty());
+
+    final String bodyPayload =
+      "mutation { "
+        + "updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\", expires_at: 10, description: \\\"another-description\\\") {"
+        + "id "
+        + "url "
+        + "expires_at "
+        + "created_at "
+        + "description "
+        + "node { "
+        + "  id "
+        + "} "
+        + "} "
+        + "}";
+
+    final HttpRequest httpRequest =
+      HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse =
+      TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+    final Map<String, Object> updatedLink =
+      TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "updateLink");
+
+    Assertions.assertThat((String) updatedLink.get("url"))
+      .isEqualTo(
+        "example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234");
+
+    Assertions.assertThat(updatedLink)
+      .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
+      .containsEntry("expires_at", 10)
+      .containsEntry("description", "another-description");
+
+    Assertions.assertThat((Map<String, Object>) updatedLink.get("node"))
+      .containsEntry("id", "00000000-0000-0000-0000-000000000000");
   }
 
   @Test
@@ -235,6 +296,44 @@ class UpdatePublicLinkApiIT {
     Assertions.assertThat(updatedLink)
         .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
         .containsEntry("description", "");
+  }
+
+  @Test
+  void
+  givenAnExistingNodeAnExistingLinkWithExpirationAndAnExpiresAtToZeroTheUpdateLinkShouldReturnAnUpdatedLinkWithoutExpiration() {
+    // Given
+    createFolder("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+
+    linkRepository.createLink(
+      "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
+      "00000000-0000-0000-0000-000000000000",
+      "abcd1234abcd1234abcd1234abcd1234",
+      Optional.of(5L),
+      Optional.empty());
+
+    final String bodyPayload =
+      "mutation { "
+        + "updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\", expires_at: 0) {"
+        + "id "
+        + "expires_at"
+        + "}"
+        + "}";
+    final HttpRequest httpRequest =
+      HttpRequest.of(
+        "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse =
+      TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+    final Map<String, Object> updatedLink =
+      TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "updateLink");
+
+    Assertions.assertThat(updatedLink)
+      .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
+      .containsEntry("expires_at", null);
   }
 
   @Test

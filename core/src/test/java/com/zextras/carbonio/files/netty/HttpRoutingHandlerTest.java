@@ -208,7 +208,11 @@ class HttpRoutingHandlerTest {
     "/link/abcd1234",
     "/link/abcd1234/",
     "/link/abcd1234abcd1234abcd1234abcd1234",
-    "/link/abcd1234abcd1234abcd1234abcd1234/"
+    "/link/abcd1234abcd1234abcd1234abcd1234/",
+    "/public/link/download/abcd1234",
+    "/public/link/download/abcd1234/",
+    "/public/link/download/abcd1234abcd1234abcd1234abcd1234",
+    "/public/link/download/abcd1234abcd1234abcd1234abcd1234/"
   })
   void givenAPublicLinkRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(String uri) {
     // Given
@@ -359,6 +363,13 @@ class HttpRoutingHandlerTest {
     "/link/nine00000/",
     "/link/thirtythreethirtythreethirtythree",
     "/link/thirtythreethirtythreethirtythree/",
+    "/public/link/download/abcd1234/invalid",
+    "/public/link/download/seven00",
+    "/public/link/download/seven00/",
+    "/public/link/download/nine00000",
+    "/public/link/download/nine00000/",
+    "/public/link/download/thirtythreethirtythreethirtythree",
+    "/public/link/download/thirtythreethirtythreethirtythree/",
     "/invite/abcd1234/invalid",
     "/upload-to/invalid"
   })

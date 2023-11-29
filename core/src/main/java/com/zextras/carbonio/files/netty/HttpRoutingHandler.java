@@ -110,7 +110,8 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
       return;
     }
 
-    if (Endpoints.PUBLIC_LINK.matcher(request.uri()).matches()) {
+    if (Endpoints.DOWNLOAD_VIA_PUBLIC_LINK.matcher(request.uri()).matches()
+      || Endpoints.PUBLIC_LINK.matcher(request.uri()).matches()) {
       context.pipeline()
         .addLast("rest-handler", blobController)
         .addLast("exceptions-handler", exceptionsHandler);

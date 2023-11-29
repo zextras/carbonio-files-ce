@@ -70,6 +70,11 @@ class CreatePublicLinkApiIT {
     fileVersionRepository.createNewFileVersion(nodeId, ownerId, 1, "text/plain", 1L, "", false);
   }
 
+  void createFolder(String nodeId, String ownerId) {
+    nodeRepository.createNewNode(
+      nodeId, ownerId, ownerId, "LOCAL_ROOT", "folder", "", NodeType.FOLDER, "LOCAL_ROOT", 0L);
+  }
+
   void createShare(String nodeId, String targetUserId, SharePermission permission) {
     shareRepository.upsertShare(
         nodeId, targetUserId, ACL.decode(permission), true, false, Optional.empty());
@@ -108,8 +113,8 @@ class CreatePublicLinkApiIT {
 
     Assertions.assertThat((String) createdLink.get("id")).isNotNull().hasSize(36);
     Assertions.assertThat((String) createdLink.get("url"))
-        .startsWith("example.com/services/files/link/")
-        .hasSize("example.com/services/files/link/".length() + 32);
+        .startsWith("example.com/services/files/public/link/download/")
+        .hasSize("example.com/services/files/public/link/download/".length() + 32);
 
     Assertions.assertThat(createdLink)
         .containsEntry("expires_at", 5)
@@ -152,8 +157,8 @@ class CreatePublicLinkApiIT {
 
     Assertions.assertThat((String) createdLink.get("id")).isNotNull().hasSize(36);
     Assertions.assertThat((String) createdLink.get("url"))
-        .startsWith("example.com/services/files/link/")
-        .hasSize("example.com/services/files/link/".length() + 32);
+        .startsWith("example.com/services/files/public/link/download/")
+        .hasSize("example.com/services/files/public/link/download/".length() + 32);
 
     Assertions.assertThat(createdLink)
         .containsEntry("expires_at", null)
@@ -164,7 +169,51 @@ class CreatePublicLinkApiIT {
   }
 
   @Test
-  void givenAFileIdAndAnExpiresAtToZeroTheCreateLinkShouldCreateANewPublicLinkWithoutExpiration() {
+  void givenAFolderIdAndOnlyMandatoryLinkFieldsTheCreateLinkShouldCreateANewPublicLink() {
+    // Given
+    createFolder("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+
+    final String bodyPayload =
+      "mutation { "
+        + "createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") {"
+        + "id "
+        + "url "
+        + "expires_at "
+        + "created_at "
+        + "description "
+        + "node { "
+        + "  id "
+        + "} "
+        + "} "
+        + "}";
+
+    final HttpRequest httpRequest =
+      HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse =
+      TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+    final Map<String, Object> createdLink =
+      TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "createLink");
+
+    Assertions.assertThat((String) createdLink.get("id")).isNotNull().hasSize(36);
+    Assertions.assertThat((String) createdLink.get("url"))
+      .startsWith("example.com/files/public/link/access/")
+      .hasSize("example.com/files/public/link/access/".length() + 32);
+
+    Assertions.assertThat(createdLink)
+      .containsEntry("expires_at", null)
+      .containsEntry("description", null);
+
+    Assertions.assertThat((Map<String, Object>) createdLink.get("node"))
+      .containsEntry("id", "00000000-0000-0000-0000-000000000000");
+  }
+
+  @Test
+  void givenANodeIdAndAnExpiresAtToZeroTheCreateLinkShouldCreateANewPublicLinkWithoutExpiration() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 

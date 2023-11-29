@@ -82,6 +82,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         Matcher uploadMatcher = Endpoints.UPLOAD_FILE.matcher(uriRequest);
         Matcher uploadVersionMatcher = Endpoints.UPLOAD_FILE_VERSION.matcher(uriRequest);
         Matcher publicLinkMatcher = Endpoints.PUBLIC_LINK.matcher(uriRequest);
+        Matcher downloadViaPublicLinkMatcher =
+          Endpoints.DOWNLOAD_VIA_PUBLIC_LINK.matcher(uriRequest);
 
         if (downloadMatcher.find()) {
           download(context, httpRequest, downloadMatcher);
@@ -89,6 +91,10 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
         if (publicLinkMatcher.find()) {
           downloadByLink(context, httpRequest, publicLinkMatcher);
+        }
+
+        if (downloadViaPublicLinkMatcher.find()) {
+          downloadByLink(context, httpRequest, downloadViaPublicLinkMatcher);
         }
 
         if (uploadMatcher.find()) {
