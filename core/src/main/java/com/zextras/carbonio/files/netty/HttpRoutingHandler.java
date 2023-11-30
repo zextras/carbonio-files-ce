@@ -13,6 +13,7 @@ import com.zextras.carbonio.files.rest.controllers.HealthController;
 import com.zextras.carbonio.files.rest.controllers.MetricsController;
 import com.zextras.carbonio.files.rest.controllers.PreviewController;
 import com.zextras.carbonio.files.rest.controllers.ProcedureController;
+import com.zextras.carbonio.files.rest.controllers.PublicBlobController;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -33,6 +34,7 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
   private final HealthController            healthController;
   private final GraphQLController           graphQLController;
   private final BlobController              blobController;
+  private final PublicBlobController        publicBlobController;
   private final AuthenticationHandler       authenticationHandler;
   private final ExceptionsHandler           exceptionsHandler;
   private final PreviewController           previewController;
@@ -45,6 +47,7 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     HealthController healthController,
     GraphQLController graphQLController,
     BlobController blobController,
+    PublicBlobController publicBlobController,
     AuthenticationHandler authenticationHandler,
     ExceptionsHandler exceptionsHandler,
     PreviewController previewController,
@@ -58,6 +61,7 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     this.exceptionsHandler = exceptionsHandler;
     this.graphQLController = graphQLController;
     this.blobController = blobController;
+    this.publicBlobController = publicBlobController;
     this.previewController = previewController;
     this.procedureController = procedureController;
     this.collaborationLinkController = collaborationLinkController;
@@ -113,7 +117,7 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     if (Endpoints.DOWNLOAD_VIA_PUBLIC_LINK.matcher(request.uri()).matches()
       || Endpoints.PUBLIC_LINK.matcher(request.uri()).matches()) {
       context.pipeline()
-        .addLast("rest-handler", blobController)
+        .addLast("rest-handler", publicBlobController)
         .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
