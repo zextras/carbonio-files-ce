@@ -264,6 +264,10 @@ public class Simulator implements AutoCloseable {
     return userManagementMock;
   }
 
+  public MockServerClient getStoragesMock() {
+    return storagesMock;
+  }
+
   public EmbeddedChannel getNettyChannel() {
     return new EmbeddedChannel(injector.getInstance(HttpRoutingHandler.class));
   }

@@ -13,6 +13,7 @@ import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.Files.API.Headers;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
+import com.zextras.carbonio.files.netty.utilities.HttpResponseBuilder;
 import com.zextras.carbonio.files.netty.utilities.NettyBufferWriter;
 import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
@@ -81,20 +82,9 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         Matcher downloadMatcher = Endpoints.DOWNLOAD_FILE.matcher(uriRequest);
         Matcher uploadMatcher = Endpoints.UPLOAD_FILE.matcher(uriRequest);
         Matcher uploadVersionMatcher = Endpoints.UPLOAD_FILE_VERSION.matcher(uriRequest);
-        Matcher publicLinkMatcher = Endpoints.PUBLIC_LINK.matcher(uriRequest);
-        Matcher downloadViaPublicLinkMatcher =
-          Endpoints.DOWNLOAD_VIA_PUBLIC_LINK.matcher(uriRequest);
 
         if (downloadMatcher.find()) {
           download(context, httpRequest, downloadMatcher);
-        }
-
-        if (publicLinkMatcher.find()) {
-          downloadByLink(context, httpRequest, publicLinkMatcher);
-        }
-
-        if (downloadViaPublicLinkMatcher.find()) {
-          downloadByLink(context, httpRequest, downloadViaPublicLinkMatcher);
         }
 
         if (uploadMatcher.find()) {
@@ -136,25 +126,6 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     }
   }
 
-  private void downloadByLink(
-    ChannelHandlerContext context,
-    HttpRequest httpRequest,
-    Matcher uriMatched
-  ) {
-    String publicLinkId = uriMatched.group(1);
-    BlobResponse blobResponse = blobService
-      .downloadFileByLink(publicLinkId)
-      .orElseThrow(() -> new NoSuchElementException(
-        String.format(
-          "Request %s: the link %s and/or the node associated to it does not exist",
-          httpRequest.uri(),
-          publicLinkId
-        ))
-      );
-
-    sendSuccessDownloadResponse(context, blobResponse);
-  }
-
   private void download(
     ChannelHandlerContext context,
     HttpRequest request,
@@ -177,7 +148,9 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         requester.getId()
       )));
 
-    sendSuccessDownloadResponse(context, blobResponse);
+    context.write(HttpResponseBuilder.createSuccessDownloadHttpResponse(blobResponse));
+    // Create netty buffer and start to fill it with the bytes arriving from the blob stream
+    new NettyBufferWriter(context).writeStream(blobResponse.getBlobStream(), context.newPromise());
   }
 
   private void initializeFileStream(ChannelHandlerContext context) {
@@ -290,41 +263,6 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       context.fireExceptionCaught(throwable);
       return null;
     });
-  }
-
-  private void sendSuccessDownloadResponse(
-    ChannelHandlerContext context,
-    BlobResponse blobResponse
-  ) {
-
-    String encodedFilename = Try
-      .of(() -> URLEncoder.encode(blobResponse.getFilename(), StandardCharsets.UTF_8))
-      .getOrElseThrow(failure -> {
-        String errorMessage = String.format(
-          "Unable to encode node filename %s to download",
-          blobResponse.getFilename()
-        );
-        return new IllegalArgumentException(errorMessage, failure);
-      });
-
-    DefaultHttpHeaders headers = new DefaultHttpHeaders(true);
-    headers.add(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
-    headers.add(HttpHeaderNames.CONTENT_LENGTH, blobResponse.getSize());
-    headers.add(HttpHeaderNames.CONTENT_TYPE, blobResponse.getMimeType());
-    headers.add(
-      HttpHeaderNames.CONTENT_DISPOSITION,
-      String.format("attachment; filename*=UTF-8''%s", encodedFilename)
-    );
-
-    context.write(new DefaultHttpResponse(
-        HttpVersion.HTTP_1_1,
-        HttpResponseStatus.OK,
-        headers
-      )
-    );
-
-    // Create netty buffer and start to fill it with the bytes arriving from the blob stream
-    new NettyBufferWriter(context).writeStream(blobResponse.getBlobStream(), context.newPromise());
   }
 
   private void sendSuccessUploadResponse(
