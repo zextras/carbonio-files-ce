@@ -12,9 +12,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
+import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
@@ -131,10 +132,14 @@ public class TestUtils {
     fullHttpRequest.retain(1);
     nettyChannel.writeInbound(fullHttpRequest);
 
-    final FullHttpResponse fullHttpResponse = nettyChannel.readOutbound();
+    final DefaultHttpResponse defaultHttpResponse = nettyChannel.readOutbound();
 
-    return HttpResponse.of(
-        fullHttpResponse.status().code(),
-        fullHttpResponse.content().toString(StandardCharsets.UTF_8));
+    if (defaultHttpResponse instanceof DefaultFullHttpResponse fullHttpResponse) {
+      return HttpResponse.of(
+          fullHttpResponse.status().code(),
+          fullHttpResponse.content().toString(StandardCharsets.UTF_8));
+    }
+
+    return HttpResponse.of(defaultHttpResponse.status().code(), null);
   }
 }
