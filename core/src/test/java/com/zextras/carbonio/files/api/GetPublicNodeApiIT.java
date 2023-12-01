@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -39,6 +40,11 @@ public class GetPublicNodeApiIT {
     nodeRepository = injector.getInstance(NodeRepository.class);
     linkRepository = injector.getInstance(LinkRepository.class);
     fileVersionRepository = injector.getInstance(FileVersionRepository.class);
+  }
+
+  @AfterEach
+  void cleanUp() {
+    simulator.resetDatabase();
   }
 
   @AfterAll
