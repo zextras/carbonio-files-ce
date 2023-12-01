@@ -1,0 +1,117 @@
+# SPDX-FileCopyrightText: 2023 Zextras <https://www.zextras.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Public Files API - GraphQL Schema v. 0.0.1
+
+# The Scalar type represents the date on the timestamp EPOCH format
+scalar DateTime
+
+#Definition of NodeType enumerator. This is used for discriminating the specific type of a node
+enum NodeType {
+    IMAGE
+    VIDEO
+    AUDIO
+    TEXT
+    SPREADSHEET
+    PRESENTATION
+    FOLDER
+    APPLICATION
+    MESSAGE
+    OTHER
+}
+
+# Definition of the Node interface
+interface Node {
+    # Unique identifier of the node
+    id: ID!
+
+    # Node creation timestamp
+    created_at: DateTime!
+
+    # Node update timestamp
+    updated_at: DateTime!
+
+    # Name of the node
+    name: String!
+
+    # Type of the node
+    type: NodeType!
+}
+
+# Definition of the Folder type which implements the Node interface
+type Folder implements Node {
+    # Unique identifier of the folder
+    id: ID!
+
+    # Folder creation timestamp
+    created_at: DateTime!
+
+    # Folder update timestamp
+    updated_at: DateTime!
+
+    # Name of the folder
+    name: String!
+
+    # Type of the folder
+    type: NodeType!
+}
+
+# Definition of the File type which implements the Node interface
+type File implements Node {
+    # Unique identifier of the file
+    id: ID!
+
+    # File creation timestamp
+    created_at: DateTime!
+
+    # File update timestamp
+    updated_at: DateTime!
+
+    # Name of the file
+    name: String!
+
+    # Extension of the file
+    extension: String
+
+    # Type of the file
+    type: NodeType!
+
+    # Mime type of the file
+    mime_type: String!
+
+    # Size of the file
+    size: Float!
+}
+
+# Represents a page of node list. It contains a list of nodes of the current page
+# and a token necessary to request the next page of nodes
+type NodePage {
+    # The list of nodes of the requested page
+    nodes: [Node]!
+
+    # The token to use as a cursor for requesting the next page of nodes
+    page_token: String
+}
+
+type Query {
+    # <strong>Returns a Node associated to a given public link identifier</strong>
+    getPublicNode(
+        node_link_id: String!
+    ) : Node
+
+    # <strong>Returns a NodePage based on the given criteria</strong>
+    findNodes(
+        # It searches nodes starting from the given folder
+        folder_id: ID!
+        # If valued it limits the number of nodes to return per page
+        limit: Int
+        # If valued it will return the next page of nodes based on the given page_token,
+        # if this param is passed all other params will be ignored
+        page_token: String
+    ) : NodePage
+}
+
+schema {
+    query: Query
+}
