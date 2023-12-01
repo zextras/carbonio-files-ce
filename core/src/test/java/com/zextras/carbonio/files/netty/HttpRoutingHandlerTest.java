@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.netty;
 
 import com.zextras.carbonio.files.graphql.controllers.GraphQLController;
+import com.zextras.carbonio.files.graphql.controllers.PublicGraphQLController;
 import com.zextras.carbonio.files.rest.controllers.BlobController;
 import com.zextras.carbonio.files.rest.controllers.CollaborationLinkController;
 import com.zextras.carbonio.files.rest.controllers.HealthController;
@@ -32,8 +33,9 @@ class HttpRoutingHandlerTest {
 
   private HealthController healthControllerMock;
   private GraphQLController graphQLControllerMock;
+  private PublicGraphQLController publicGraphQLControllerMock;
   private BlobController blobControllerMock;
-  private PublicBlobController publicBlobController;
+  private PublicBlobController publicBlobControllerMock;
   private AuthenticationHandler authenticationHandlerMock;
   private ExceptionsHandler exceptionsHandlerMock;
   private PreviewController previewControllerMock;
@@ -50,11 +52,12 @@ class HttpRoutingHandlerTest {
     healthControllerMock = Mockito.mock(HealthController.class);
     graphQLControllerMock = Mockito.mock(GraphQLController.class);
     blobControllerMock = Mockito.mock(BlobController.class);
-    publicBlobController = Mockito.mock(PublicBlobController.class);
+    publicBlobControllerMock = Mockito.mock(PublicBlobController.class);
     authenticationHandlerMock = Mockito.mock(AuthenticationHandler.class);
     exceptionsHandlerMock = Mockito.mock(ExceptionsHandler.class);
     previewControllerMock = Mockito.mock(PreviewController.class);
     procedureControllerMock = Mockito.mock(ProcedureController.class);
+    publicGraphQLControllerMock = Mockito.mock(PublicGraphQLController.class);
     collaborationLinkControllerMock = Mockito.mock(CollaborationLinkController.class);
     metricsControllerMock = Mockito.mock(MetricsController.class);
     channelHandlerContextMock = Mockito.mock(ChannelHandlerContext.class);
@@ -71,11 +74,12 @@ class HttpRoutingHandlerTest {
             healthControllerMock,
             graphQLControllerMock,
             blobControllerMock,
-            publicBlobController,
+            publicBlobControllerMock,
             authenticationHandlerMock,
             exceptionsHandlerMock,
             previewControllerMock,
             procedureControllerMock,
+            publicGraphQLControllerMock,
             collaborationLinkControllerMock,
             metricsControllerMock);
   }
@@ -153,6 +157,32 @@ class HttpRoutingHandlerTest {
   }
 
   @ParameterizedTest
+  @ValueSource(strings = {"/public/graphql/", "/public/graphql"})
+  void givenAPublicGraphqlRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(
+    String uri) {
+    // Given
+    Mockito.when(channelPipelineMock.addLast(Mockito.any(HttpObjectAggregator.class)))
+      .thenReturn(channelPipelineMock);
+    Mockito.when(channelPipelineMock.addLast(Mockito.any(ChunkedWriteHandler.class)))
+      .thenReturn(channelPipelineMock);
+    Mockito.when(httpRequestMock.uri()).thenReturn(uri);
+
+    // When
+    httpRoutingHandler.channelRead0(channelHandlerContextMock, httpRequestMock);
+
+    // Then
+    Mockito.verify(channelPipelineMock, Mockito.times(1))
+      .addLast(Mockito.any(HttpObjectAggregator.class));
+    Mockito.verify(channelPipelineMock, Mockito.times(1))
+      .addLast(Mockito.any(ChunkedWriteHandler.class));
+    Mockito.verify(channelPipelineMock, Mockito.times(1))
+      .addLast("public-graphql-handler", publicGraphQLControllerMock);
+    Mockito.verify(channelPipelineMock, Mockito.times(1))
+      .addLast("exceptions-handler", exceptionsHandlerMock);
+    Mockito.verify(channelHandlerContextMock, Mockito.times(1)).fireChannelRead(httpRequestMock);
+  }
+
+  @ParameterizedTest
   @ValueSource(
       strings = {
         "/download/8caeef71-6f72-439c-847a-38e90efd0965",
@@ -205,7 +235,7 @@ class HttpRoutingHandlerTest {
 
     // Then
     Mockito.verify(channelPipelineMock, Mockito.times(1))
-        .addLast("rest-handler", publicBlobController);
+        .addLast("rest-handler", publicBlobControllerMock);
     Mockito.verify(channelPipelineMock, Mockito.times(1))
         .addLast("exceptions-handler", exceptionsHandlerMock);
     Mockito.verify(channelHandlerContextMock, Mockito.times(1)).fireChannelRead(httpRequestMock);

@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.netty;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.graphql.controllers.GraphQLController;
+import com.zextras.carbonio.files.graphql.controllers.PublicGraphQLController;
 import com.zextras.carbonio.files.rest.controllers.BlobController;
 import com.zextras.carbonio.files.rest.controllers.CollaborationLinkController;
 import com.zextras.carbonio.files.rest.controllers.HealthController;
@@ -39,6 +40,7 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
   private final ExceptionsHandler           exceptionsHandler;
   private final PreviewController           previewController;
   private final ProcedureController         procedureController;
+  private final PublicGraphQLController     publicGraphQLController;
   private final CollaborationLinkController collaborationLinkController;
   private final MetricsController           metricsController;
 
@@ -52,6 +54,7 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     ExceptionsHandler exceptionsHandler,
     PreviewController previewController,
     ProcedureController procedureController,
+    PublicGraphQLController publicGraphQLController,
     CollaborationLinkController collaborationLinkController,
     MetricsController metricsController
   ) {
@@ -64,6 +67,7 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     this.publicBlobController = publicBlobController;
     this.previewController = previewController;
     this.procedureController = procedureController;
+    this.publicGraphQLController = publicGraphQLController;
     this.collaborationLinkController = collaborationLinkController;
     this.metricsController = metricsController;
   }
@@ -148,6 +152,16 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
         .addLast(new ChunkedWriteHandler())
         .addLast("auth-handler", authenticationHandler)
         .addLast("procedure-handler", procedureController)
+        .addLast("exceptions-handler", exceptionsHandler);
+      context.fireChannelRead(request);
+      return;
+    }
+
+    if (Endpoints.PUBLIC_GRAPHQL.matcher(request.uri()).matches()) {
+      context.pipeline()
+        .addLast(new HttpObjectAggregator(256 * 1024))
+        .addLast(new ChunkedWriteHandler())
+        .addLast("public-graphql-handler", publicGraphQLController)
         .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
