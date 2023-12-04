@@ -8,8 +8,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-### [0.10.1](https://github.com/Zextras/carbonio-files-ce/compare/v0.10.0...v0.10.1) (2023-08-31)
+## [0.11.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.10.1...v0.11.0) (2023-12-04)
 
+### Features
+
+* enable the creation of public link to folders ([#85](https://github.com/Zextras/carbonio-files-ce/issues/85)) ([716ed1d](https://github.com/Zextras/carbonio-files-ce/commit/716ed1de097ba40cecb9bd677a5ecfef58fbfc0c))
+* expose public GraphQL schema ([#87](https://github.com/Zextras/carbonio-files-ce/issues/87)) ([3ce9958](https://github.com/Zextras/carbonio-files-ce/commit/3ce99583386c1f7e8c8d09b5fefef6fc6f254423))
+* implement FindNodes API ([#89](https://github.com/Zextras/carbonio-files-ce/issues/89)) ([0722048](https://github.com/Zextras/carbonio-files-ce/commit/0722048bf039eca302e3966d225d06b1efb0c7e8))
+* implement GetPublicNode API ([#88](https://github.com/Zextras/carbonio-files-ce/issues/88)) ([47f823d](https://github.com/Zextras/carbonio-files-ce/commit/47f823df28741412abeebcf6418c543a3d59c207))
+* implement public download API ([#90](https://github.com/Zextras/carbonio-files-ce/issues/90)) ([41e9dab](https://github.com/Zextras/carbonio-files-ce/commit/41e9dab54251258be15ed875e515b3af1c4cf64b))
+* increase the length of the hash of a public link to 32 characters ([#84](https://github.com/Zextras/carbonio-files-ce/issues/84)) ([2505fc7](https://github.com/Zextras/carbonio-files-ce/commit/2505fc7dc5cb10bc42644ebea21d4a3c9e6184ef))
+* move to yap agent and add rhel9 support ([#82](https://github.com/Zextras/carbonio-files-ce/issues/82)) ([3352cb3](https://github.com/Zextras/carbonio-files-ce/commit/3352cb3366e46913c32201933f175205813c6269))
+
+### [0.10.1](https://github.com/Zextras/carbonio-files-ce/compare/v0.10.0...v0.10.1) (2023-08-31)
 
 ### Bug Fixes
 
@@ -17,13 +28,11 @@ All notable changes to this project will be documented in this file. See [standa
 
 ## [0.10.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.9.2...v0.10.0) (2023-07-06)
 
-
 ### Features
 
 * integrate preview and thumbnail of GIF images ([#75](https://github.com/Zextras/carbonio-files-ce/issues/75)) ([5f876f7](https://github.com/Zextras/carbonio-files-ce/commit/5f876f7d1ffef8e5b031566bc983069e928f5005))
 
 ### [0.9.2](https://github.com/Zextras/carbonio-files-ce/compare/v0.9.1...v0.9.2) (2023-06-20)
-
 
 ### Bug Fixes
 
@@ -33,7 +42,6 @@ All notable changes to this project will be documented in this file. See [standa
 
 ## [0.9.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.8.3...v0.9.0) (2023-05-30)
 
-
 ### Features
 
 * reduce Hikari max pool size to 2 ([#63](https://github.com/Zextras/carbonio-files-ce/issues/63)) ([4e1b9a9](https://github.com/Zextras/carbonio-files-ce/commit/4e1b9a9999f4729c55f8bd2f8460131a68d7050f))
@@ -42,13 +50,11 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### [0.8.2](https://github.com/Zextras/carbonio-files-ce/compare/v0.8.1...v0.8.2) (2023-04-27)
 
-
 ### Bug Fixes
 
 * fix GetNode when a specific node version is given ([#58](https://github.com/Zextras/carbonio-files-ce/issues/58)) ([13cc3a0](https://github.com/Zextras/carbonio-files-ce/commit/13cc3a079643817b466d2f42a9561ddd65ba43cf))
 
 ### [0.8.1](https://github.com/Zextras/carbonio-files-ce/compare/v0.8.0...v0.8.1) (2023-03-31)
-
 
 ### Bug Fixes
 
@@ -57,18 +63,15 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### [0.8.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.7.0...v0.8.0) (2023-02-03)
 
-
 ### Features
 
 * FILES-89 - Add owner_id and type parameters in findNodes ([#52](https://github.com/Zextras/carbonio-files-ce/issues/52)) ([75111c7](https://github.com/Zextras/carbonio-files-ce/commit/75111c7144fa6340160054e95bf55c949112c490))
-
 
 ### Bug Fixes
 
 * FILES-572 - Fix tags definition in carbonio-files.hcl ([#53](https://github.com/Zextras/carbonio-files-ce/issues/53)) ([eea76b6](https://github.com/Zextras/carbonio-files-ce/commit/eea76b604052c2037949286b1e46f57759dd1f87))
 
 ### [0.7.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.6.0...v0.7.0) (2022-11-24)
-
 
 ### Features
 
@@ -77,11 +80,9 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### [0.6.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.5.0...v0.6.0) (2022-09-29)
 
-
 ### Features
 
 * AR-62 - Add /metrics endpoint for monitoring with Prometheus ([641a139](https://github.com/Zextras/carbonio-files-ce/commit/641a1390efeebba66b2251f759aa419fc6d49353))
-
 
 ### Bug Fixes
 
@@ -90,20 +91,17 @@ All notable changes to this project will be documented in this file. See [standa
 
 ## [0.5.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.4.1...v0.5.0) (2022-09-01)
 
-
 ### Features
 
 * FILES-299 - Implement Collaboration link ([#39](https://github.com/Zextras/carbonio-files-ce/issues/39)) ([347a57d](https://github.com/Zextras/carbonio-files-ce/commit/347a57dd5860b02ea24dda266531fe1ff842ebbc)), closes [#35](https://github.com/Zextras/carbonio-files-ce/issues/35) [#37](https://github.com/Zextras/carbonio-files-ce/issues/37) [#38](https://github.com/Zextras/carbonio-files-ce/issues/38)
 
 ### [0.4.1](https://github.com/Zextras/carbonio-files-ce/compare/v0.4.0...v0.4.1) (2022-08-05)
 
-
 ### Bug Fixes
 
 * FILES-354 - Fix RootId null when root is not LOCAL_ROOT ([#33](https://github.com/Zextras/carbonio-files-ce/issues/33)) ([86d851e](https://github.com/Zextras/carbonio-files-ce/commit/86d851e8a2f1593063c5e5d83dd222c9ac537e42))
 
 ## [0.4.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.3.7...v0.4.0) (2022-07-22)
-
 
 ### Features
 
@@ -112,7 +110,6 @@ All notable changes to this project will be documented in this file. See [standa
 * FILES-320 - Align pom version to package version ([#26](https://github.com/Zextras/carbonio-files-ce/issues/26)) ([cdc591f](https://github.com/Zextras/carbonio-files-ce/commit/cdc591fc43c992533b68697e08c569fc31e21a2d))
 * FILES-325 - Improve how the database schema is initialized ([#29](https://github.com/Zextras/carbonio-files-ce/issues/29)) ([254347a](https://github.com/Zextras/carbonio-files-ce/commit/254347a79495e5ea476fbe80db6a78f1486c4d24))
 
-
 ### Bug Fixes
 
 * FILES-311 - Fix download timeout on large files ([#31](https://github.com/Zextras/carbonio-files-ce/issues/31)) ([0e9f5c3](https://github.com/Zextras/carbonio-files-ce/commit/0e9f5c33347d70444b9eb244923c9cf0062b482e))
@@ -120,12 +117,10 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### [0.3.7](https://github.com/Zextras/carbonio-files-ce/compare/v0.3.6...v0.3.7) (2022-06-09)
 
-
 ### Features
 
 * FILES-283 - Propagate boot log configuration ([#21](https://github.com/Zextras/carbonio-files-ce/issues/21)) ([fe1ac2e](https://github.com/Zextras/carbonio-files-ce/commit/fe1ac2e6e47d0d5c3e131daee3e24e8553471936))
 * FILES-33 - Implement max version logic ([#11](https://github.com/Zextras/carbonio-files-ce/issues/11)) ([60f0465](https://github.com/Zextras/carbonio-files-ce/commit/60f04650b39f27df228f027eb6da996f2645a28f))
-
 
 ### Bug Fixes
 
@@ -135,13 +130,11 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### [0.3.6](https://github.com/Zextras/carbonio-files-ce/compare/v0.3.5...v0.3.6) (2022-05-24)
 
-
 ### Bug Fixes
 
 * Return 404 when the preview is not available ([#20](https://github.com/Zextras/carbonio-files-ce/issues/20)) ([4a07f43](https://github.com/Zextras/carbonio-files-ce/commit/4a07f43502f77c6a4b76f5a2c2a162343750a367))
 
 ### [0.3.5](https://github.com/Zextras/carbonio-files-ce/compare/v0.3.4...v0.3.5) (2022-05-24)
-
 
 ### Bug Fixes
 
@@ -150,11 +143,9 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### [0.3.4](https://github.com/Zextras/carbonio-files-ce/compare/v0.3.3...v0.3.4) (2022-05-16)
 
-
 ### Features
 
 * FILES-198 - Implement health, health/ready, health/live endpoints ([#14](https://github.com/Zextras/carbonio-files-ce/issues/14)) ([1e9e7a6](https://github.com/Zextras/carbonio-files-ce/commit/1e9e7a679a50cda8f5374469c7ccbf40f702417d))
-
 
 ### Bug Fixes
 
@@ -165,7 +156,6 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### [0.3.3](https://github.com/Zextras/carbonio-files-ce/compare/v0.3.2...v0.3.3) (2022-05-10)
 
-
 ### Features
 
 * Add intentions for mailbox and videoserver-recorder ([#10](https://github.com/Zextras/carbonio-files-ce/issues/10)) ([076ff51](https://github.com/Zextras/carbonio-files-ce/commit/076ff516684683e37f82a3ce01b7aaa2aad9f01d))
@@ -173,11 +163,9 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### [0.3.2](https://github.com/Zextras/carbonio-files-ce/compare/v0.3.1...v0.3.2) (2022-05-09)
 
-
 ### Features
 
 * FILES-220 - Implement document preview api ([#7](https://github.com/Zextras/carbonio-files-ce/issues/7)) ([86791d5](https://github.com/Zextras/carbonio-files-ce/commit/86791d519fc91b8b1ca9a11d0069834db3db6916))
-
 
 ### Bug Fixes
 
@@ -185,11 +173,9 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### [0.3.1](https://github.com/Zextras/carbonio-files-ce/compare/v0.3.0...v0.3.1) (2022-04-13)
 
-
 ### Features
 
 * FILES-196 - Implement upload-to API to push files in mailbox store ([#4](https://github.com/Zextras/carbonio-files-ce/issues/4)) ([b8cd9f4](https://github.com/Zextras/carbonio-files-ce/commit/b8cd9f487714dc1855ca85d91b0b70aee0ee8d92))
-
 
 ### Bug Fixes
 
@@ -198,14 +184,12 @@ All notable changes to this project will be documented in this file. See [standa
 
 ## [0.3.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.2.0...v0.3.0) (2022-04-05)
 
-
 ### Features
 
 * FILES-187 - Update carbonio-preview-sdk ([ae39750](https://github.com/Zextras/carbonio-files-ce/commit/ae397501bb8f08c76a6dca0b02e12ef897b09c93))
 * FILES-187 - Update carbonio-preview-sdk ([7455ac2](https://github.com/Zextras/carbonio-files-ce/commit/7455ac25538763559d22cf9c43773134a60b8808))
 * FILES-214 - Update carbonio-storages-sdk ([f0c3368](https://github.com/Zextras/carbonio-files-ce/commit/f0c3368ea00baa2fc14a49792564d1dea8edbffb))
 * FILES-214 - Update carbonio-storages-sdk ([6e8d1be](https://github.com/Zextras/carbonio-files-ce/commit/6e8d1bea82ed54b95b18bc642c404bdddd3c1040))
-
 
 ### Bug Fixes
 
