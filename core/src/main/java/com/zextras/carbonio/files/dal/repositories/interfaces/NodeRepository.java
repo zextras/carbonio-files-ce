@@ -13,6 +13,7 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 /**
@@ -87,6 +88,21 @@ public interface NodeRepository {
     Optional<String> optOwnerId,
     List<String> keywords
   ) throws JsonProcessingException;
+
+  /**
+   * Allows to retrieve a list of {@link Node}s from the database filter by chosen criteria.
+   *
+   * @param folderId is an {@link Optional<String>} to search only nodes on the subtree of that
+   *     folder
+   * @param limit is an {@link Integer} used to limit the number of nodes returned (It can be null).
+   * @param pageToken is an {@link String} representing a token necessary to search for the next
+   *     page (it can be null).
+   * @return an {@link ImmutablePair} containing a {@link List} of found {@link Node}s and a {@link
+   *     String} representing the page token to fetch the next page. The list could be empty if
+   *     there aren't nodes found and the page token could be null if there isn't a next page.
+   */
+  ImmutablePair<List<Node>, String> publicFindNodes(
+    String folderId, @Nullable Integer limit, @Nullable String pageToken);
 
   /**
    * <p>Allows to retrieve the list of {@link Node}s from the database or from the cache if already

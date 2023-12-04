@@ -6,7 +6,10 @@ package com.zextras.carbonio.files.graphql.datafetchers;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.GraphQL.InputParameters.FindNodes;
 import com.zextras.carbonio.files.Files.GraphQL.InputParameters.GetPublicNode;
+import com.zextras.carbonio.files.Files.GraphQL.NodePage;
+import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -19,8 +22,13 @@ import graphql.schema.GraphQLObjectType;
 import graphql.schema.TypeResolver;
 import graphql.schema.idl.EnumValuesProvider;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 
 public class PublicNodeDataFetchers {
 
@@ -84,13 +92,57 @@ public class PublicNodeDataFetchers {
             });
   }
 
-  public DataFetcher<DataFetcherResult<Map<String, String>>> findNodes() {
+  public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, String>>>> findNodes() {
     return environment ->
-        DataFetcherResult.<Map<String, String>>newResult().data(Collections.emptyMap()).build();
+        CompletableFuture.supplyAsync(
+            () -> {
+              ResultPath path = environment.getExecutionStepInfo().getPath();
+              String folderId = environment.getArgument(FindNodes.FOLDER_ID);
+              Integer limit = environment.getArgument(FindNodes.LIMIT);
+              String pageToken = environment.getArgument(FindNodes.PAGE_TOKEN);
+
+              Optional<Node> optFolder = nodeRepository.getNode(folderId);
+
+              if (optFolder.isPresent()
+                  && linkRepository.hasNodeANotExpiredPublicLink(optFolder.get())) {
+                ImmutablePair<List<Node>, String> findResult =
+                    nodeRepository.publicFindNodes(folderId, limit, pageToken);
+
+                Map<String, String> nextPageToken = new HashMap<>();
+                nextPageToken.put(NodePage.PAGE_TOKEN, findResult.getRight());
+
+                return new DataFetcherResult.Builder<Map<String, String>>()
+                    .data(nextPageToken)
+                    .localContext(Map.of(NodePage.NODES, findResult.getLeft()))
+                    .build();
+              }
+
+              return new DataFetcherResult.Builder<Map<String, String>>()
+                  .error(GraphQLResultErrors.nodeNotFound(folderId, path))
+                  .build();
+            });
   }
 
-  public DataFetcher<DataFetcherResult<Map<String, String>>> findNodesByNodePage() {
+  public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>>
+      findNodesByNodePage() {
     return environment ->
-        DataFetcherResult.<Map<String, String>>newResult().data(Collections.emptyMap()).build();
+        CompletableFuture.supplyAsync(
+            () -> {
+              Optional<Map<String, List<Node>>> optLocalContext =
+                  Optional.ofNullable(environment.getLocalContext());
+
+              if (optLocalContext.isPresent()) {
+                final Stream<Node> nodes = optLocalContext.get().get(NodePage.NODES).stream();
+                return nodes
+                    .map(
+                        node ->
+                            DataFetcherResult.<Map<String, Object>>newResult()
+                                .data(PublicNode.createFromNode(node).convertToMap())
+                                .build())
+                    .toList();
+              }
+
+              return Collections.emptyList();
+            });
   }
 }
