@@ -28,7 +28,7 @@ public interface LinkRepository {
 
   Optional<Link> getLinkById(String linkId);
 
-  Optional<Link> getLinkByPublicId(String publicId);
+  Optional<Link> getLinkByNotExpiredPublicId(String publicId);
 
   Stream<Link> getLinksByNodeId(
     String nodeId,

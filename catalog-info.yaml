@@ -64,3 +64,37 @@ spec:
   owner: shuffled-waffles
   definition:
     $text: https://github.com/Zextras/carbonio-files-ce/blob/develop/core/src/main/resources/api/schema.graphql
+
+---
+
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: carbonio-files-ce-public-rest-api
+  title: Carbonio Files CE Public REST APIs
+  description: Carbonio Files Community Edition Public REST APIs.
+  tags:
+    - public-rest
+spec:
+  type: openapi
+  lifecycle: production
+  owner: shuffled-waffles
+  definition:
+    $text: https://github.com/Zextras/carbonio-files-ce/blob/develop/core/src/main/resources/api/public-rest.yaml
+
+---
+
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: carbonio-files-ce-public graphql-api
+  title: Carbonio Files CE Public GraphQL APIs
+  description: Carbonio Files Community Edition Public GraphQL APIs.
+  tags:
+    - public graphql
+spec:
+  type: graphql
+  lifecycle: production
+  owner: shuffled-waffles
+  definition:
+    $text: https://github.com/Zextras/carbonio-files-ce/blob/develop/core/src/main/resources/api/public-schema.graphql
