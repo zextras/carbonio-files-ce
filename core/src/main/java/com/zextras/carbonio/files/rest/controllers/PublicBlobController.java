@@ -39,6 +39,8 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
       final Matcher publicLinkMatcher = Endpoints.PUBLIC_LINK.matcher(httpRequest.uri());
       final Matcher downloadViaPublicLinkMatcher =
           Endpoints.DOWNLOAD_VIA_PUBLIC_LINK.matcher(httpRequest.uri());
+      final Matcher downloadPublicFileMatcher =
+          Endpoints.DOWNLOAD_PUBLIC_FILE.matcher(httpRequest.uri());
 
       if (publicLinkMatcher.find()) {
         downloadByPublicLink(context, httpRequest, publicLinkMatcher);
@@ -47,6 +49,11 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
 
       if (downloadViaPublicLinkMatcher.find()) {
         downloadByPublicLink(context, httpRequest, downloadViaPublicLinkMatcher);
+        return;
+      }
+
+      if (downloadPublicFileMatcher.find()) {
+        downloadByNodeId(context, httpRequest, downloadPublicFileMatcher);
         return;
       }
 
@@ -74,6 +81,27 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
     final String errorMessage =
         String.format(
             "Request %s: the link and/or the node associated to it does not exist",
+            httpRequest.uri());
+
+    context.fireExceptionCaught(new NoSuchElementException(errorMessage));
+  }
+
+  void downloadByNodeId(
+      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched) {
+
+    final String nodeId = uriMatched.group(1);
+    final Optional<BlobResponse> blobResponse = blobService.downloadPublicFileById(nodeId);
+
+    if (blobResponse.isPresent()) {
+      context.write(HttpResponseBuilder.createSuccessDownloadHttpResponse(blobResponse.get()));
+      new NettyBufferWriter(context)
+          .writeStream(blobResponse.get().getBlobStream(), context.newPromise());
+      return;
+    }
+
+    final String errorMessage =
+        String.format(
+            "Request %s: the file does not exist or it is not contained on a public folder",
             httpRequest.uri());
 
     context.fireExceptionCaught(new NoSuchElementException(errorMessage));

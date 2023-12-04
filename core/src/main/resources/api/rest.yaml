@@ -69,29 +69,6 @@ paths:
           $ref: '#/components/responses/403Forbidden'
         404:
           $ref: '#/components/responses/404NotFound'
-  /link/{linkId}:
-    get:
-      description: Download the node associated to the specific link
-      operationId: linkDownload
-      parameters:
-        - in: path
-          name: linkId
-          description: The id of the existing link
-          required: true
-          allowEmptyValue: false
-          schema:
-            type: string
-            minLength: 8
-            maxLength: 8
-      responses:
-        200:
-          $ref: '#/components/responses/200DownloadNode'
-        400:
-          $ref: '#/components/responses/400BadRequest'
-        403:
-          $ref: '#/components/responses/403Forbidden'
-        404:
-          $ref: '#/components/responses/404NotFound'
   /upload:
     post:
       description: Uploads a new node
@@ -253,7 +230,7 @@ paths:
         - Preview
       summary: Get pdf preview
       description: |
-        Creates and returns a preview of the pdf fetched by id and version, 
+        Creates and returns a preview of the pdf fetched by id and version,
         the pdf file will contain the first and last page given. With default values
         it will return a pdf with all the pages.
         - **nodeId**: UUID of the pdf

@@ -223,7 +223,9 @@ class HttpRoutingHandlerTest {
         "/public/link/download/abcd1234",
         "/public/link/download/abcd1234/",
         "/public/link/download/abcd1234abcd1234abcd1234abcd1234",
-        "/public/link/download/abcd1234abcd1234abcd1234abcd1234/"
+        "/public/link/download/abcd1234abcd1234abcd1234abcd1234/",
+        "/public/download/00000000-0000-0000-0000-000000000000",
+        "/public/download/00000000-0000-0000-0000-000000000000/"
       })
   void givenAPublicLinkRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(
       String uri) {
@@ -353,6 +355,8 @@ class HttpRoutingHandlerTest {
         "/public/link/download/nine00000/",
         "/public/link/download/thirtythreethirtythreethirtythree",
         "/public/link/download/thirtythreethirtythreethirtythree/",
+        "/public/download/invalid",
+        "/public/download/00000000-0000-0000-0000-000000000000/invalid",
         "/invite/abcd1234/invalid",
         "/upload-to/invalid"
       })

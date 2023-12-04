@@ -23,12 +23,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockserver.model.HttpError;
 import org.mockserver.model.Parameter;
 import org.mockserver.verify.VerificationTimes;
 
-public class DownloadByPublicLinkApiIT {
+public class PublicDownloadApiIT {
 
   static Simulator simulator;
   static NodeRepository nodeRepository;
@@ -65,17 +65,13 @@ public class DownloadByPublicLinkApiIT {
   }
 
   @ParameterizedTest
-  @CsvSource({
-    "abcd1234,/public/link/download/,",
-    "abcd1234abcd1234abcd1234abcd1234,/public/link/download/,",
-    "abcd1234,/link/,",
-    "abcd1234abcd1234abcd1234abcd1234,/link/,",
-    "abcd1234abcd1234abcd1234abcd1234,/public/link/download/,fake-token",
-    "abcd1234abcd1234abcd1234abcd1234,/link/,fake-token",
-  })
+  @ValueSource(
+      strings = {
+        "fake-token",
+      })
   void
-      givenAUserWithOrWithoutCookieAnExistingFileAndAnExistingPublicLinkAssociatedTheDownloadByPublicLinkShouldReturnTheBlob(
-          String publicLinkId, String publicLinkEndpoint, String userToken) {
+      givenAUserWithOrWithoutCookieAnExistingFileAndAValidPublicLinkAssociatedThePublicDownloadByNodeIdShouldReturnTheBlob(
+          String userToken) {
     // Given
     nodeRepository.createNewNode(
         "00000000-0000-0000-0000-000000000000",
@@ -100,14 +96,14 @@ public class DownloadByPublicLinkApiIT {
     linkRepository.createLink(
         "94103c01-e701-4f3d-9dc9-54b79064ad76",
         "00000000-0000-0000-0000-000000000000",
-        publicLinkId,
+        "abcd1234abcd1234abcd1234abcd1234",
         Optional.empty(),
         Optional.empty());
 
     simulator.getBlob("00000000-0000-0000-0000-000000000000", 1);
 
-    final String publicLinkUrl = publicLinkEndpoint + publicLinkId;
-    final HttpRequest httpRequest = HttpRequest.of("GET", publicLinkUrl, userToken, null);
+    final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000";
+    final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, userToken, null);
 
     // When
     final HttpResponse httpResponse =
@@ -130,7 +126,7 @@ public class DownloadByPublicLinkApiIT {
   }
 
   @Test
-  void givenAnExistingFileAndAnExpiredLinkTheDownloadByPublicLinkShouldReturnA404StatusCode() {
+  void givenAnExistingFileAndAnExpiredLinkThePublicDownloadByNodeIdShouldReturnA404StatusCode() {
     // Given
     nodeRepository.createNewNode(
         "00000000-0000-0000-0000-000000000000",
@@ -146,11 +142,11 @@ public class DownloadByPublicLinkApiIT {
     linkRepository.createLink(
         "94103c01-e701-4f3d-9dc9-54b79064ad76",
         "00000000-0000-0000-0000-000000000000",
-        "1234abcd1234abcd1234abcd1234abcd",
+        "abcd1234abcd1234abcd1234abcd1234",
         Optional.of(1L),
         Optional.empty());
 
-    final String publicDownloadUrl = "/public/link/download/1234abcd1234abcd1234abcd1234abcd";
+    final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
@@ -171,7 +167,7 @@ public class DownloadByPublicLinkApiIT {
   }
 
   @Test
-  void givenANotExistingLinkTheDownloadByPublicLinkShouldReturnA404StatusCode() {
+  void givenAnExistingFileAndANotExistingLinkThePublicDownloadByNodeIdShouldReturnA404StatusCode() {
     // Given
     nodeRepository.createNewNode(
         "00000000-0000-0000-0000-000000000000",
@@ -184,15 +180,8 @@ public class DownloadByPublicLinkApiIT {
         "LOCAL_ROOT",
         1L);
 
-    linkRepository.createLink(
-        "94103c01-e701-4f3d-9dc9-54b79064ad76",
-        "00000000-0000-0000-0000-000000000000",
-        "000000",
-        Optional.empty(),
-        Optional.empty());
-
-    final HttpRequest httpRequest =
-        HttpRequest.of("GET", "/public/link/download/1234abcd", null, null);
+    final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000";
+    final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
     final HttpResponse httpResponse =
@@ -212,10 +201,10 @@ public class DownloadByPublicLinkApiIT {
   }
 
   @Test
-  void givenANotExistingNodeTheDownloadByPublicLinkShouldReturnA404StatusCode() {
+  void givenANotExistingNodeThePublicDownloadByNodeIdShouldReturnA404StatusCode() {
     // Given
-    final HttpRequest httpRequest =
-        HttpRequest.of("GET", "/public/link/download/1234abcd", null, null);
+    final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000";
+    final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
     final HttpResponse httpResponse =
@@ -236,7 +225,7 @@ public class DownloadByPublicLinkApiIT {
 
   @Test
   void
-      givenAnExistingFileAndAValidPublicLinkAssociatedAndAConnectionProblemToStoragesTheTheDownloadByPublicLinkShouldReturnA500StatusCode() {
+      givenAnExistingFileAndAValidPublicLinkAssociatedAndAConnectionProblemToStoragesTheThePublicDownloadByNodeIdShouldReturnA500StatusCode() {
     // Given
     nodeRepository.createNewNode(
         "00000000-0000-0000-0000-000000000000",
@@ -273,8 +262,8 @@ public class DownloadByPublicLinkApiIT {
                 .withPath("/download"))
         .error(HttpError.error().withDropConnection(true));
 
-    final HttpRequest httpRequest =
-        HttpRequest.of("GET", "/public/link/download/1234abcd1234abcd1234abcd1234abcd", null, null);
+    final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000";
+    final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
     final HttpResponse httpResponse =

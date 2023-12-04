@@ -201,4 +201,46 @@ public class GetPublicNodeApiIT {
         .hasSize(1)
         .containsExactly("Could not find link with id abcd1234abcd1234abcd1234abcd1234");
   }
+
+  @Test
+  void
+      givenAnExpiredPublicLinkIdAndAnExistingFolderTheGetPublicNodeShouldReturn200StatusCodeWithAnErrorMessage() {
+    // Given
+    nodeRepository.createNewNode(
+        "00000000-0000-0000-0000-000000000000",
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "LOCAL_ROOT",
+        "folder",
+        "",
+        NodeType.FOLDER,
+        "LOCAL_ROOT",
+        0L);
+
+    linkRepository.createLink(
+        "8cac6df0-3ecb-451d-a953-10c3ac5e3ebc",
+        "00000000-0000-0000-0000-000000000000",
+        "abcd1234abcd1234abcd1234abcd1234",
+        Optional.of(1L),
+        Optional.empty());
+
+    final String bodyPayload =
+        "query { "
+            + "getPublicNode(node_link_id: \\\"abcd1234abcd1234abcd1234abcd1234\\\") { id }}";
+
+    final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
+
+    // When
+    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final List<String> errorMessages =
+        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+
+    Assertions.assertThat(errorMessages)
+        .hasSize(1)
+        .containsExactly("Could not find link with id abcd1234abcd1234abcd1234abcd1234");
+  }
 }

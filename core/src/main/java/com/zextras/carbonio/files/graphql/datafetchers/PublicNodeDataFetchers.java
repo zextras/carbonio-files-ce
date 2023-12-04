@@ -69,7 +69,7 @@ public class PublicNodeDataFetchers {
               ResultPath path = environment.getExecutionStepInfo().getPath();
               String publicLinkId = environment.getArgument(GetPublicNode.NODE_LINK_ID);
               return linkRepository
-                  .getLinkByPublicId(publicLinkId)
+                  .getLinkByNotExpiredPublicId(publicLinkId)
                   .map(
                       publicLink ->
                           nodeRepository

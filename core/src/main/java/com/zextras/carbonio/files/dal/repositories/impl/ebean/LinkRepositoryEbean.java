@@ -60,12 +60,16 @@ public class LinkRepositoryEbean implements LinkRepository {
       .findOneOrEmpty();
   }
 
-  public Optional<Link> getLinkByPublicId(String publicId) {
+  public Optional<Link> getLinkByNotExpiredPublicId(String publicId) {
     return ebeanDatabaseManager
       .getEbeanDatabase()
       .find(Link.class)
       .where()
       .eq(Db.Link.PUBLIC_ID, publicId)
+      .or()
+      .isNull(Db.Link.EXPIRES_AT)
+      .gt(Db.Link.EXPIRES_AT, System.currentTimeMillis())
+      .endOr()
       .findOneOrEmpty();
   }
 

@@ -1,0 +1,88 @@
+# SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+openapi: 3.0.3
+info:
+  title: Files API
+  description: Files API to download blobs and to retrieve a link of a specific node.
+  version: 0.3.0
+servers:
+  - url: 'https://example.com/services/files/public/'
+paths:
+
+  /download/{nodeId}:
+    get:
+      description: Downloads the last version of a node if it has a valid public link associated.
+      operationId: downloadNodeLastVersion
+      parameters:
+        - in: path
+          name: nodeId
+          description: The id of the node to download
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          $ref: '#/components/responses/200DownloadNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        404:
+          $ref: '#/components/responses/404NotFound'
+        503:
+          $ref: '#/components/responses/503BadGateway'
+
+  /link/download/{linkId}:
+    get:
+      description: Download the node associated to the specific link
+      operationId: downloadNodeLastVersionByPublicLink
+      parameters:
+        - in: path
+          name: linkId
+          description: The id of the existing link
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 8
+      responses:
+        200:
+          $ref: '#/components/responses/200DownloadNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        404:
+          $ref: '#/components/responses/404NotFound'
+        503:
+          $ref: '#/components/responses/503BadGateway'
+
+components:
+  parameters:
+    pathNodeId:
+      in: path
+      name: nodeId
+      schema:
+        title: Id
+        type: string
+      required: true
+  responses:
+    200DownloadNode:
+      description: The node to download
+      content:
+        application/octet-stream:
+          schema:
+            $ref: '#/components/schemas/NodeBinary'
+    400BadRequest:
+      description: The request was malformed
+    404NotFound:
+      description: The resource was not found
+    502BadGateway:
+      description: The service was unavailable
+  schemas:
+    NodeBinary:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
