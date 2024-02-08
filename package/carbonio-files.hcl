@@ -4,9 +4,9 @@
 
 services {
   check {
-    http = "http://127.78.0.2:10000/health/ready/",
-    method = "GET",
-    timeout = "1s"
+    http     = "http://127.78.0.2:10000/health/ready/"
+    method   = "GET"
+    timeout  = "1s"
     interval = "5s"
   }
   meta = {
@@ -25,37 +25,37 @@ services {
         expose {
           paths = [
             {
-              path = "/metrics",
+              path            = "/metrics",
               local_path_port = 10000
-              listener_port = 21500
+              listener_port   = 21500
             }
           ]
         }
         upstreams = [
           {
-            destination_name = "carbonio-files-db"
+            destination_name   = "carbonio-files-db"
             local_bind_address = "127.78.0.2"
-            local_bind_port = 20000
+            local_bind_port    = 20000
           },
           {
-            destination_name = "carbonio-user-management"
+            destination_name   = "carbonio-user-management"
             local_bind_address = "127.78.0.2"
-            local_bind_port = 20001
+            local_bind_port    = 20001
           },
           {
-            destination_name = "carbonio-storages"
+            destination_name   = "carbonio-storages"
             local_bind_address = "127.78.0.2"
-            local_bind_port = 20002
+            local_bind_port    = 20002
           },
           {
-            destination_name = "carbonio-preview"
+            destination_name   = "carbonio-preview"
             local_bind_address = "127.78.0.2"
-            local_bind_port = 20003
+            local_bind_port    = 20003
           },
           {
-            destination_name = "carbonio-mailbox"
+            destination_name   = "carbonio-mailbox"
             local_bind_address = "127.78.0.2"
-            local_bind_port = 20004
+            local_bind_port    = 20004
           }
         ]
       }
