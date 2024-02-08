@@ -61,7 +61,7 @@ pipeline {
         stage('Coverage') {
             steps {
                 sh 'mvn -B --settings settings-jenkins.xml verify -P generate-jacoco-full-report'
-                publishCoverage adapters: [jacocoAdapter('core/target/jacoco-full-report/jacoco.xml')]
+                recordCoverage(tools: [[parser: 'JACOCO']],sourceCodeRetention: 'MODIFIED')
             }
         }
         stage('Dependency check'){
