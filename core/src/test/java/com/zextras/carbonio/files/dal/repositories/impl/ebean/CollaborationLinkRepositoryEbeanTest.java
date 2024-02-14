@@ -27,7 +27,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-public class CollaborationLinkRepositoryEbeanTest {
+class CollaborationLinkRepositoryEbeanTest {
 
   private CollaborationLinkRepository collaborationLinkRepository;
   private Database ebeanDatabaseMock;
@@ -201,7 +201,7 @@ public class CollaborationLinkRepositoryEbeanTest {
         collaborationLinkRepository.getLinksByNodeId("not-existing-node-id");
 
     // Then
-    Assertions.assertThat(collaborationLinkStream).hasSize(0);
+    Assertions.assertThat(collaborationLinkStream).isEmpty();
   }
 
   @Test
@@ -242,6 +242,6 @@ public class CollaborationLinkRepositoryEbeanTest {
 
     // Then
     Mockito.verify(expressionListMock, Mockito.times(1)).delete();
-    Assertions.assertThat(uuidsCaptor.getValue()).hasSize(0);
+    Assertions.assertThat(uuidsCaptor.getValue()).isEmpty();
   }
 }

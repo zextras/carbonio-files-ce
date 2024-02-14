@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-public class ShareRepositoryEbeanTest {
+class ShareRepositoryEbeanTest {
 
   private Database ebeanDatabaseMock;
   private ShareRepository shareRepository;
