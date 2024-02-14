@@ -17,7 +17,6 @@ import io.ebean.Query;
 import io.ebean.Transaction;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 public class ShareRepositoryEbean implements ShareRepository {
 
@@ -198,6 +197,6 @@ public class ShareRepositoryEbean implements ShareRepository {
             .query();
 
     sorts.forEach(sort -> sort.getOrderEbeanQuery(query));
-    return query.findList().stream().map(Share::getTargetUserId).collect(Collectors.toList());
+    return query.findList().stream().map(Share::getTargetUserId).toList();
   }
 }

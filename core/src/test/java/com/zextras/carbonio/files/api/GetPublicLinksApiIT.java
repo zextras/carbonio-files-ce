@@ -88,7 +88,8 @@ class GetPublicLinksApiIT {
 
   @Test
   void
-  givenAnExistingFileWithTwoExistingLinksTheGetLinksShouldReturnAListOfAssociatedLinksOrderedByCreationDescending() throws InterruptedException {
+      givenAnExistingFileWithTwoExistingLinksTheGetLinksShouldReturnAListOfAssociatedLinksOrderedByCreationDescending()
+          throws InterruptedException {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -100,7 +101,11 @@ class GetPublicLinksApiIT {
             Optional.of("super-description"),
             Optional.empty());
 
-    Thread.sleep(500); // Ugly fix but it works
+    // These sleep is necessary because some time the creation of the two links is so fast that
+    // causes the same creation timestamp of the two links. When the LinkRepository will have an
+    // injected clock in the LinkRepository, then we will have a better solution for this ugly trick
+    Thread.sleep(500);
+
     DatabasePopulator.aNodePopulator((simulator.getInjector()))
         .addLink(
             "0c04783b-bdfb-446f-870c-625f5ae02a0a",

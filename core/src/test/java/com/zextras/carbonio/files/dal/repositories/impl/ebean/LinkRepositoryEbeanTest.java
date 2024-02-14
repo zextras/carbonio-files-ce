@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-public class LinkRepositoryEbeanTest {
+class LinkRepositoryEbeanTest {
 
   private LinkRepository linkRepository;
   private Database ebeanDatabaseMock;
@@ -244,7 +244,7 @@ public class LinkRepositoryEbeanTest {
             "11111111-1111-1111-1111-111111111111", LinkSort.CREATED_AT_ASC);
 
     // Then
-    Assertions.assertThat(links).hasSize(0);
+    Assertions.assertThat(links).isEmpty();
   }
 
   @Test
