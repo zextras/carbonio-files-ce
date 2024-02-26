@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.config;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Config.Database;
+import com.zextras.carbonio.files.Files.Config.Mailbox;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.preview.PreviewClient;
@@ -26,11 +27,11 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class FilesConfig {
 
-  private static final Logger     logger = LoggerFactory.getLogger(FilesConfig.class);
-  private final        Properties properties;
-  private              String     userManagementURL;
-  private              String     fileStoreURL;
-  private              String     previewURL;
+  private static final Logger logger = LoggerFactory.getLogger(FilesConfig.class);
+  private final Properties properties;
+  private String userManagementURL;
+  private String fileStoreURL;
+  private String previewURL;
 
   public FilesConfig() {
     properties = new Properties();
@@ -41,35 +42,35 @@ public class FilesConfig {
     try {
       File configFile = new File("/etc/carbonio/files/config.properties");
 
-      if(configFile.exists()) {
-        try(InputStream inputStream = new FileInputStream(configFile)) {
+      if (configFile.exists()) {
+        try (InputStream inputStream = new FileInputStream(configFile)) {
           properties.load(inputStream);
         }
       } else {
         properties.load(
-          getClass().getClassLoader().getResourceAsStream("carbonio-files.properties"));
+            getClass().getClassLoader().getResourceAsStream("carbonio-files.properties"));
       }
     } catch (IOException exception) {
       logger.error("Fail to load the configuration file");
     }
 
-    userManagementURL = MessageFormat.format(
-      "http://{0}:{1}",
-      properties.getProperty(Files.Config.UserManagement.URL, "127.78.0.2"),
-      properties.getProperty(Files.Config.UserManagement.PORT, "20001")
-    );
+    userManagementURL =
+        MessageFormat.format(
+            "http://{0}:{1}",
+            properties.getProperty(Files.Config.UserManagement.URL, "127.78.0.2"),
+            properties.getProperty(Files.Config.UserManagement.PORT, "20001"));
 
-    fileStoreURL = MessageFormat.format(
-      "http://{0}:{1}/",
-      properties.getProperty(Files.Config.Storages.URL, "127.78.0.2"),
-      properties.getProperty(Files.Config.Storages.PORT, "20002")
-    );
+    fileStoreURL =
+        MessageFormat.format(
+            "http://{0}:{1}/",
+            properties.getProperty(Files.Config.Storages.URL, "127.78.0.2"),
+            properties.getProperty(Files.Config.Storages.PORT, "20002"));
 
-    previewURL = MessageFormat.format(
-      "http://{0}:{1}",
-      properties.getProperty(Files.Config.Preview.URL, "127.78.0.2"),
-      properties.getProperty(Files.Config.Preview.PORT, "20003")
-    );
+    previewURL =
+        MessageFormat.format(
+            "http://{0}:{1}",
+            properties.getProperty(Files.Config.Preview.URL, "127.78.0.2"),
+            properties.getProperty(Files.Config.Preview.PORT, "20003"));
   }
 
   public Properties getProperties() {
@@ -86,10 +87,9 @@ public class FilesConfig {
 
   public String getFileStoreUrl() {
     return String.format(
-      "http://%s:%s/",
-      properties.getProperty(Files.Config.Storages.URL, "127.78.0.2"),
-      properties.getProperty(Files.Config.Storages.PORT, "20002")
-    );
+        "http://%s:%s/",
+        properties.getProperty(Files.Config.Storages.URL, "127.78.0.2"),
+        properties.getProperty(Files.Config.Storages.PORT, "20002"));
   }
 
   public PreviewClient getPreviewClient() {
@@ -97,21 +97,28 @@ public class FilesConfig {
   }
 
   public int getMaxNumberOfFileVersion() {
-    return Integer.parseInt(ServiceDiscoverHttpClient
-      .defaultURL(ServiceDiscover.SERVICE_NAME)
-      .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
-      .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
+    return Integer.parseInt(
+        ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+            .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
+            .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
   }
 
   public String getDatabaseUrl() {
-    final String databaseHost = Optional
-      .ofNullable(System.getProperty(Database.URL))
-      .orElse(getProperties().getProperty(Database.URL, "127.78.0.2"));
+    final String databaseHost =
+        Optional.ofNullable(System.getProperty(Database.URL))
+            .orElse(getProperties().getProperty(Database.URL, "127.78.0.2"));
 
-    final String databasePort = Optional
-      .ofNullable(System.getProperty(Database.PORT))
-      .orElse(getProperties().getProperty(Database.PORT, "20000"));
+    final String databasePort =
+        Optional.ofNullable(System.getProperty(Database.PORT))
+            .orElse(getProperties().getProperty(Database.PORT, "20000"));
 
     return String.format("%s:%s", databaseHost, databasePort);
+  }
+
+  public String getMailboxUrl() {
+    return String.format(
+        "http://%s:%s/",
+        properties.getProperty(Mailbox.URL, "127.78.0.2"),
+        properties.getProperty(Mailbox.PORT, "20004"));
   }
 }
