@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.dal.dao.ebean;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Db;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -15,9 +16,17 @@ import javax.persistence.Table;
 /**
  * <p>Represents an Ebean {@link Link} entity that matches a record of the {@link Files.Db.Link}
  * table.</p>
- * <p>The implementation of constructors and setters should not care to check if the values in
- * input are valid or not because, when these methods are called, these controls
- * <strong>must</strong> be already done.</p>
+ * <p>The public link has properties mapped to the corresponding table columns:</p>
+ * <ul>
+ *   <li>{@code id}: The unique identifier of the link.</li>
+ *   <li>{@code nodeId}: The identifier of the associated node.</li>
+ *   <li>{@code publicId}: The public identifier of the URL link.</li>
+ *   <li>{@code createdAt}: The timestamp indicating when the link was created.</li>
+ *   <li>{@code expiresAt}: The timestamp indicating when the link should expire.</li>
+ *   <li>{@code description}: A small description of the link (maximum 300 characters).</li>
+ * </ul>
+ * <p>The constructor and setters should not care to check if the values in input are valid or not
+ * because, when these methods are called, these controls <strong>must</strong> be already done.</p>
  */
 @Entity
 @Table(name = Files.Db.Tables.LINK)
@@ -25,97 +34,77 @@ public class Link {
 
   @Id
   @Column(name = Db.Link.ID, nullable = false, length = 36)
-  private String mId;
+  private String id;
 
   @Column(name = Db.Link.NODE_ID, nullable = false, length = 36)
-  private String mNodeId;
+  private String nodeId;
 
   @Column(name = Db.Link.PUBLIC_ID, nullable = false)
-  private String mPublicId;
+  private String publicId;
 
   @Column(name = Files.Db.Link.CREATED_AT, nullable = false)
-  private Long mCreatedAt;
+  private Long createdAt;
 
   @Column(name = Files.Db.Link.EXPIRES_AT)
-  private Long mExpiresAt;
+  private Long expiresAt;
 
   @Column(name = Db.Link.DESCRIPTION, length = 300)
-  private String mDescription;
-
-
-  /**
-   * <p>Creates a new {@link Link} entity that can be saved in the database.</p>
-   * <p>This constructor does not set the expiration timestamp and the description of the link.</p>
-   *
-   * @param linkId is a {@link String} of the unique identifier of the link.
-   * @param nodeId is a {@link String} of the related node id.
-   * @param publicId is a {@link String} of the public id used to build the complete url.
-   * @param createdAt is a {@link Long} of the creation timestamp.
-   */
-  public Link(
-    String linkId,
-    String nodeId,
-    String publicId,
-    Long createdAt
-  ) {
-    mId = linkId;
-    mNodeId = nodeId;
-    mPublicId = publicId;
-    mCreatedAt = createdAt;
-  }
+  private String description;
 
   /**
    * Creates a new {@link Link} entity that can be saved in the database.
    *
-   * @param linkId is a {@link String} of the unique identifier of the link.
-   * @param nodeId is a {@link String} of the related node id.
-   * @param publicId is a {@link String} of the public id used to build the complete url.
-   * @param createdAt is a {@link Long} of the creation timestamp.
-   * @param expiresAt is a {@link Long} of the expiration timestamp.
-   * @param description is a {@link String} of the link description.
+   * @param linkId      is a {@link String} representing the unique identifier of the link.
+   * @param nodeId      is a {@link String} representing the {@link Node} identifier associated to
+   *                    the public link.
+   * @param publicId    is a {@link String} representing the public identifier of the URL link.
+   * @param createdAt   is a {@link Long} of the link creation timestamp.
+   * @param expiresAt   is a {@link Long} of the link expiration timestamp. It can be nullable.
+   * @param description is a {@link String} of the link description. It can be nullable.
    */
   public Link(
     String linkId,
     String nodeId,
     String publicId,
     Long createdAt,
-    Long expiresAt,
-    String description
+    @Nullable Long expiresAt,
+    @Nullable String description
   ) {
-    mId = linkId;
-    mNodeId = nodeId;
-    mPublicId = publicId;
-    mCreatedAt = createdAt;
-    mExpiresAt = expiresAt;
-    mDescription = description;
+    id = linkId;
+    this.nodeId = nodeId;
+    this.publicId = publicId;
+    this.createdAt = createdAt;
+    this.expiresAt = expiresAt;
+    this.description = description;
   }
 
   /**
-   * @return a {@link String} representing the link id.
+   * @return a {@link String} representing the unique identifier of the public link.
    */
   public String getLinkId() {
-    return mId;
+    return id;
   }
 
   /**
-   * @return a {@link String} representing the id of the related node.
+   * @return a {@link String} representing the identifier of the associated node.
    */
   public String getNodeId() {
-    return mNodeId;
+    return nodeId;
   }
 
   /**
-   * @return a {@link String} of the public id used to build the complete url.
+   * @return a {@link String} of <code>8</code> alphanumeric characters representing the public
+   * identifier used to build the complete URL.
    */
   public String getPublicId() {
-    return mPublicId;
+    return publicId;
   }
 
   /**
-   * @return a {@link Long} representing the creation timestamp of the link.
+   * @return a {@link Long} representing the creation timestamp of the public link.
    */
   public Long getCreatedAt() {
-    return mCreatedAt;
+    return createdAt;
   }
 
   /**
@@ -123,15 +112,24 @@ public class Link {
    * the link, if exists.
    */
   public Optional<Long> getExpiresAt() {
-    return Optional.ofNullable(mExpiresAt);
+    return Optional.ofNullable(expiresAt);
   }
 
-  public void setExpiresAt(Long expiresAt) {
+  /**
+   * Allows to set/unset the expiration timestamp of the existing link. If the timestamp is equal to
+   * zero than the expiration is disabled and the public link will not expire.
+   *
+   * @param expiresAt is a {@link Long} representing the expiration timestamp.
+   * @return the current {@link Link}.
+   */
+  public Link setExpiresAt(Long expiresAt) {
     if (expiresAt == 0) {
-      mExpiresAt = null;
+      this.expiresAt = null;
     } else {
-      mExpiresAt = expiresAt;
+      this.expiresAt = expiresAt;
     }
+
+    return this;
   }
 
   /**
@@ -139,10 +137,17 @@ public class Link {
    * exists.
    */
   public Optional<String> getDescription() {
-    return Optional.ofNullable(mDescription);
+    return Optional.ofNullable(description);
   }
 
-  public void setDescription(String description) {
-    mDescription = description;
+  /**
+   * Allows to add/change the description of the existing public link.
+   *
+   * @param description is a {@link String} of the link description.
+   * @return the current {@link Link}.
+   */
+  public Link setDescription(String description) {
+    this.description = description;
+    return this;
   }
 }
