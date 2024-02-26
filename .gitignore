@@ -28,6 +28,12 @@ core/.settings/
 .idea/
 *.iml
 
+# Misc
+workspace/
+jdt.ls-java-project/
+.metadata/
+*.swp
+
 # Unit test reports
 TEST*.xml
 

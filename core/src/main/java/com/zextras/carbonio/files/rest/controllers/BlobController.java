@@ -25,7 +25,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
@@ -36,10 +35,6 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
-import io.vavr.control.Try;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.text.MessageFormat;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -54,26 +49,20 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   private static final Logger logger = LoggerFactory.getLogger(BlobController.class);
 
   private static final AttributeKey<BufferInputStream> fileStreamReader =
-    AttributeKey.valueOf("FileStreamReader");
+      AttributeKey.valueOf("FileStreamReader");
 
   private final BlobService blobService;
   private final PrometheusService prometheusService;
 
   @Inject
-  public BlobController(
-    BlobService blobService,
-    PrometheusService prometheusService
-  ) {
+  public BlobController(BlobService blobService, PrometheusService prometheusService) {
     super(true);
     this.blobService = blobService;
     this.prometheusService = prometheusService;
   }
 
   @Override
-  protected void channelRead0(
-    ChannelHandlerContext context,
-    HttpObject httpObject
-  ) {
+  protected void channelRead0(ChannelHandlerContext context, HttpObject httpObject) {
     try {
       if (httpObject instanceof HttpRequest) {
         HttpRequest httpRequest = (HttpRequest) httpObject;
@@ -98,22 +87,14 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       } else if (httpObject instanceof HttpContent) {
 
         HttpContent httpContent = (HttpContent) httpObject;
-        Optional.ofNullable(
-          context
-            .channel()
-            .attr(fileStreamReader)
-            .get()
-        ).ifPresent((buffer -> buffer.addContent(httpContent.content())));
+        Optional.ofNullable(context.channel().attr(fileStreamReader).get())
+            .ifPresent((buffer -> buffer.addContent(httpContent.content())));
 
         httpContent.content().clear();
 
         if (httpObject instanceof LastHttpContent) {
-          Optional.ofNullable(
-            context
-              .channel()
-              .attr(fileStreamReader)
-              .get()
-          ).ifPresent(BufferInputStream::finishWrite);
+          Optional.ofNullable(context.channel().attr(fileStreamReader).get())
+              .ifPresent(BufferInputStream::finishWrite);
         }
         return;
       }
@@ -126,27 +107,22 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     }
   }
 
-  private void download(
-    ChannelHandlerContext context,
-    HttpRequest request,
-    Matcher uriMatched
-  ) {
+  private void download(ChannelHandlerContext context, HttpRequest request, Matcher uriMatched) {
     User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
     String nodeId = uriMatched.group(1);
-    Integer version = Optional
-      .ofNullable(uriMatched.group(2))
-      .map(Integer::parseInt)
-      .orElse(null);
+    Integer version = Optional.ofNullable(uriMatched.group(2)).map(Integer::parseInt).orElse(null);
 
-    BlobResponse blobResponse = blobService
-      .downloadFileById(nodeId, version, requester)
-      .orElseThrow(() -> new NoSuchElementException(String.format(
-        "Request %s: node %s requested by %s does not exist or it does not have the permission to read it",
-        request.uri(),
-        nodeId,
-        requester.getId()
-      )));
+    BlobResponse blobResponse =
+        blobService
+            .downloadFileById(nodeId, version, requester)
+            .orElseThrow(
+                () ->
+                    new NoSuchElementException(
+                        String.format(
+                            "Request %s: node %s requested by %s does not exist or it does not have"
+                                + " the permission to read it",
+                            request.uri(), nodeId, requester.getId())));
 
     context.write(HttpResponseBuilder.createSuccessDownloadHttpResponse(blobResponse));
     // Create netty buffer and start to fill it with the bytes arriving from the blob stream
@@ -154,35 +130,28 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   }
 
   private void initializeFileStream(ChannelHandlerContext context) {
-    context
-      .channel()
-      .attr(fileStreamReader)
-      .set(new BufferInputStream(context.channel().config()));
+    context.channel().attr(fileStreamReader).set(new BufferInputStream(context.channel().config()));
   }
 
-  private void uploadFile(
-    ChannelHandlerContext context,
-    HttpRequest httpRequest
-  ) {
+  private void uploadFile(ChannelHandlerContext context, HttpRequest httpRequest) {
     User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
-    String parentId = Optional
-      .ofNullable(httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_PARENT_ID))
-      .orElse(Files.Db.RootId.LOCAL_ROOT);
-    String description = Optional
-      .ofNullable(httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_DESCRIPTION))
-      .orElse("");
+    String parentId =
+        Optional.ofNullable(httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_PARENT_ID))
+            .orElse(Files.Db.RootId.LOCAL_ROOT);
+    String description =
+        Optional.ofNullable(httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_DESCRIPTION))
+            .orElse("");
     long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
     String encodedFilename = httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_FILENAME);
     String decodedFilename =
-      encodedFilename == null || !Base64.isBase64(encodedFilename)
-        ? null
-        : new String(Base64.decodeBase64(encodedFilename));
+        encodedFilename == null || !Base64.isBase64(encodedFilename)
+            ? null
+            : new String(Base64.decodeBase64(encodedFilename));
 
     if (decodedFilename == null
-      || decodedFilename.trim().isEmpty()
-      || decodedFilename.trim().length() > 1024
-    ) {
+        || decodedFilename.trim().isEmpty()
+        || decodedFilename.trim().length() > 1024) {
       context.fireExceptionCaught(new IllegalArgumentException());
       return;
     }
@@ -190,86 +159,83 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     initializeFileStream(context);
 
     CompletableFuture.runAsync(
-      () -> {
-        String nodeId = blobService.uploadFile(
-          requester,
-          context.channel().attr(fileStreamReader).get(),
-          blobLength,
-          parentId,
-          decodedFilename,
-          description
-        ).orElseThrow(NoSuchElementException::new);
+            () -> {
+              String nodeId =
+                  blobService
+                      .uploadFile(
+                          requester,
+                          context.channel().attr(fileStreamReader).get(),
+                          blobLength,
+                          parentId,
+                          decodedFilename,
+                          description)
+                      .orElseThrow(NoSuchElementException::new);
 
-        sendSuccessUploadResponse(context, nodeId, 1);
+              sendSuccessUploadResponse(context, nodeId, 1);
 
-        prometheusService.getUploadCounter().increment();
-        context.flush().close();
-      }
-    ).exceptionally(throwable -> { // It is necessary because CompletableFuture eats exceptions
-      context.fireExceptionCaught(throwable);
-      return null;
-    });
+              prometheusService.getUploadCounter().increment();
+              context.flush().close();
+            })
+        .exceptionally(
+            throwable -> { // It is necessary because CompletableFuture eats exceptions
+              context.fireExceptionCaught(throwable);
+              return null;
+            });
   }
 
-  public void uploadFileVersion(
-    ChannelHandlerContext context,
-    HttpRequest httpRequest
-  ) {
+  public void uploadFileVersion(ChannelHandlerContext context, HttpRequest httpRequest) {
 
     String nodeId = httpRequest.headers().getAsString(Headers.UPLOAD_NODE_ID);
     String encodedFilename = httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_FILENAME);
     String decodedFilename =
-      encodedFilename == null || !Base64.isBase64(encodedFilename)
-        ? null
-        : new String(Base64.decodeBase64(encodedFilename));
+        encodedFilename == null || !Base64.isBase64(encodedFilename)
+            ? null
+            : new String(Base64.decodeBase64(encodedFilename));
 
     if (nodeId == null
-      || decodedFilename == null
-      || decodedFilename.trim().isEmpty()
-      || decodedFilename.trim().length() > 1024
-    ) {
+        || decodedFilename == null
+        || decodedFilename.trim().isEmpty()
+        || decodedFilename.trim().length() > 1024) {
       context.fireExceptionCaught(new IllegalArgumentException());
       return;
     }
 
     User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
-    boolean overwrite = Boolean.parseBoolean(
-      httpRequest.headers().getAsString(Headers.UPLOAD_OVERWRITE_VERSION)
-    );
+    boolean overwrite =
+        Boolean.parseBoolean(httpRequest.headers().getAsString(Headers.UPLOAD_OVERWRITE_VERSION));
     long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
 
-    logger.debug(MessageFormat.format(
-      "Uploading new version of node with id: {0}, overwrite: {1}", nodeId, overwrite
-    ));
+    logger.debug("Uploading new version of node with id: {}, overwrite: {}", nodeId, overwrite);
 
     initializeFileStream(context);
 
-    CompletableFuture.runAsync(() -> {
-        Integer version = blobService.uploadFileVersion(
-          requester,
-          context.channel().attr(fileStreamReader).get(),
-          blobLength,
-          nodeId,
-          decodedFilename,
-          overwrite
-        ).orElseThrow(NoSuchElementException::new);
+    CompletableFuture.runAsync(
+            () -> {
+              Integer version =
+                  blobService
+                      .uploadFileVersion(
+                          requester,
+                          context.channel().attr(fileStreamReader).get(),
+                          blobLength,
+                          nodeId,
+                          decodedFilename,
+                          overwrite)
+                      .orElseThrow(NoSuchElementException::new);
 
-        sendSuccessUploadResponse(context, nodeId, version);
+              sendSuccessUploadResponse(context, nodeId, version);
 
-        prometheusService.getUploadVersionCounter().increment();
-        context.flush().close();
-      }
-    ).exceptionally(throwable -> { // It is necessary because CompletableFuture eats exceptions
-      context.fireExceptionCaught(throwable);
-      return null;
-    });
+              prometheusService.getUploadVersionCounter().increment();
+              context.flush().close();
+            })
+        .exceptionally(
+            throwable -> { // It is necessary because CompletableFuture eats exceptions
+              context.fireExceptionCaught(throwable);
+              return null;
+            });
   }
 
   private void sendSuccessUploadResponse(
-    ChannelHandlerContext context,
-    String nodeId,
-    int version
-  ) {
+      ChannelHandlerContext context, String nodeId, int version) {
 
     UploadVersionResponse response = new UploadVersionResponse();
     response.setNodeId(nodeId);
@@ -277,9 +243,10 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
     byte[] jsonByteArray;
     try {
-      jsonByteArray = new ObjectMapper()
-        .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
-        .writeValueAsBytes(response);
+      jsonByteArray =
+          new ObjectMapper()
+              .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
+              .writeValueAsBytes(response);
     } catch (JsonProcessingException exception) {
       context.fireExceptionCaught(exception);
       return;
@@ -289,12 +256,12 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     headers.add(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
     headers.add(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
 
-    context.write(new DefaultFullHttpResponse(
-      HttpVersion.HTTP_1_0,
-      HttpResponseStatus.OK,
-      Unpooled.wrappedBuffer(jsonByteArray),
-      headers,
-      new DefaultHttpHeaders()
-    ));
+    context.write(
+        new DefaultFullHttpResponse(
+            HttpVersion.HTTP_1_0,
+            HttpResponseStatus.OK,
+            Unpooled.wrappedBuffer(jsonByteArray),
+            headers,
+            new DefaultHttpHeaders()));
   }
 }

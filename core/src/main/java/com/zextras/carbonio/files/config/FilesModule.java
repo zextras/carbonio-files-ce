@@ -7,18 +7,17 @@ package com.zextras.carbonio.files.config;
 import com.google.inject.AbstractModule;
 import com.google.inject.Inject;
 import com.google.inject.Provides;
-import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.zextras.carbonio.files.cache.CacheHandlerFactory;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.FileVersionRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.CollaborationLinkRepositoryEbean;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.FileVersionRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.LinkRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.NodeRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.ShareRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.TombstoneRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.UserRepositoryRest;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
@@ -28,6 +27,8 @@ import com.zextras.carbonio.files.graphql.validators.GenericControllerEvaluatorF
 import com.zextras.filestore.api.Filestore;
 import com.zextras.storages.api.StoragesClient;
 import java.time.Clock;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 
 public class FilesModule extends AbstractModule {
 
@@ -57,5 +58,10 @@ public class FilesModule extends AbstractModule {
   @Provides
   public Filestore getFileStore() {
     return StoragesClient.atUrl(filesConfig.getFileStoreUrl());
+  }
+
+  @Provides
+  public CloseableHttpClient getGenericHttpClient() {
+    return HttpClients.createDefault();
   }
 }
