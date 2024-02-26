@@ -68,8 +68,8 @@ class MailboxHttpClientTest {
 
     // Assert request
     final HttpPost postRequest = httpRequestCaptor.getValue();
-    Assertions.assertThat(postRequest.getURI().toString())
-        .isEqualTo("http://127.78.0.2:20004/service/upload?fmt=raw");
+    Assertions.assertThat(postRequest.getURI())
+        .hasToString("http://127.78.0.2:20004/service/upload?fmt=raw");
     Assertions.assertThat(postRequest.getFirstHeader("Cookie").getValue()).isEqualTo("fake-cookie");
     Assertions.assertThat(postRequest.getFirstHeader("Content-Disposition").getValue())
         .isEqualTo("attachment; filename=\"test.txt\"; filename*=UTF-8''test.txt");

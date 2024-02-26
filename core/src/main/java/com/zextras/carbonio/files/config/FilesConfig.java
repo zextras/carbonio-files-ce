@@ -57,19 +57,19 @@ public class FilesConfig {
     userManagementURL =
         MessageFormat.format(
             "http://{0}:{1}",
-            properties.getProperty(Files.Config.UserManagement.URL, "127.78.0.2"),
+            properties.getProperty(Files.Config.UserManagement.URL, Files.Service.IP),
             properties.getProperty(Files.Config.UserManagement.PORT, "20001"));
 
     fileStoreURL =
         MessageFormat.format(
             "http://{0}:{1}/",
-            properties.getProperty(Files.Config.Storages.URL, "127.78.0.2"),
+            properties.getProperty(Files.Config.Storages.URL, Files.Service.IP),
             properties.getProperty(Files.Config.Storages.PORT, "20002"));
 
     previewURL =
         MessageFormat.format(
             "http://{0}:{1}",
-            properties.getProperty(Files.Config.Preview.URL, "127.78.0.2"),
+            properties.getProperty(Files.Config.Preview.URL, Files.Service.IP),
             properties.getProperty(Files.Config.Preview.PORT, "20003"));
   }
 
@@ -88,7 +88,7 @@ public class FilesConfig {
   public String getFileStoreUrl() {
     return String.format(
         "http://%s:%s/",
-        properties.getProperty(Files.Config.Storages.URL, "127.78.0.2"),
+        properties.getProperty(Files.Config.Storages.URL, Files.Service.IP),
         properties.getProperty(Files.Config.Storages.PORT, "20002"));
   }
 
@@ -106,7 +106,7 @@ public class FilesConfig {
   public String getDatabaseUrl() {
     final String databaseHost =
         Optional.ofNullable(System.getProperty(Database.URL))
-            .orElse(getProperties().getProperty(Database.URL, "127.78.0.2"));
+            .orElse(getProperties().getProperty(Database.URL, Files.Service.IP));
 
     final String databasePort =
         Optional.ofNullable(System.getProperty(Database.PORT))
@@ -118,7 +118,7 @@ public class FilesConfig {
   public String getMailboxUrl() {
     return String.format(
         "http://%s:%s/",
-        properties.getProperty(Mailbox.URL, "127.78.0.2"),
+        properties.getProperty(Mailbox.URL, Files.Service.IP),
         properties.getProperty(Mailbox.PORT, "20004"));
   }
 }

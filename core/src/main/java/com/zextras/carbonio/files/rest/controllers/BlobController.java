@@ -35,7 +35,6 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
-import java.text.MessageFormat;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -206,9 +205,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         Boolean.parseBoolean(httpRequest.headers().getAsString(Headers.UPLOAD_OVERWRITE_VERSION));
     long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
 
-    logger.debug(
-        MessageFormat.format(
-            "Uploading new version of node with id: {0}, overwrite: {1}", nodeId, overwrite));
+    logger.debug("Uploading new version of node with id: {}, overwrite: {}", nodeId, overwrite);
 
     initializeFileStream(context);
 

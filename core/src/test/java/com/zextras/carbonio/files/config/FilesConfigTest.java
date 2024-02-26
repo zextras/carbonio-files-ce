@@ -16,7 +16,7 @@ class FilesConfigTest {
 
   // This test will pass when the config.ini is removed or when the FilesConfig
   // uses also the System.getEnv() to retrieve the configuration values.
-  @Disabled
+  @Disabled("Disabled until a refactor on the FilesConfig is done")
   @Test
   void
       givenAMailboxUrlAndAPortSetInPropertiesTheGetMailboxUrlShouldReturnTheFullMailboxUrlString() {

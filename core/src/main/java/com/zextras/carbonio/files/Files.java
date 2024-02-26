@@ -17,6 +17,14 @@ public final class Files {
 
   private Files() {}
 
+  public static final class Service {
+
+    private Service() {}
+
+    public static final String IP = "127.78.0.2";
+    public static final int PORT = 10_000;
+  }
+
   public static final class Config {
 
     private Config() {}
