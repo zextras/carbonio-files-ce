@@ -97,8 +97,9 @@ pipeline {
                     }
                     steps {
                         sh'''
+                            export TIMESTAMP=$(date +%s)
                             export GIT_COMMIT_SHORT=$(git rev-parse HEAD | head -c 8)
-                            sed -i "s/pkgrel=\\"SNAPSHOT\\"/pkgrel=\\"$GIT_COMMIT_SHORT\\"/" ./package/PKGBUILD
+                            sed -i "s/pkgrel=\\"SNAPSHOT\\"/pkgrel=\\"$TIMESTAMP+$GIT_COMMIT_SHORT\\"/" ./package/PKGBUILD
                         '''
                     }
                 }
