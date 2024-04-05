@@ -29,35 +29,29 @@ public class LinkRepositoryEbean implements LinkRepository {
   }
 
   public Link createLink(
-    String linkId,
-    String nodeId,
-    String publicId,
-    Optional<Long> optExpiresAt,
-    Optional<String> optDescription
-  ) {
+      String linkId,
+      String nodeId,
+      String publicId,
+      Optional<Long> optExpiresAt,
+      Optional<String> optDescription) {
 
-    Link link = new Link(
-      linkId,
-      nodeId,
-      publicId,
-      System.currentTimeMillis()
-    );
+    Link link = new Link(linkId, nodeId, publicId, System.currentTimeMillis(), null, null);
 
     optExpiresAt.ifPresent(link::setExpiresAt);
     optDescription.ifPresent(link::setDescription);
 
     ebeanDatabaseManager.getEbeanDatabase().save(link);
 
-    return getLinkById(linkId).get();
+    return link;
   }
 
   public Optional<Link> getLinkById(String linkId) {
     return ebeanDatabaseManager
-      .getEbeanDatabase()
-      .find(Link.class)
-      .where()
-      .eq(Db.Link.ID, linkId)
-      .findOneOrEmpty();
+        .getEbeanDatabase()
+        .find(Link.class)
+        .where()
+        .eq(Db.Link.ID, linkId)
+        .findOneOrEmpty();
   }
 
   public Optional<Link> getLinkByNotExpiredPublicId(String publicId) {
@@ -73,21 +67,16 @@ public class LinkRepositoryEbean implements LinkRepository {
       .findOneOrEmpty();
   }
 
-  public Stream<Link> getLinksByNodeId(
-    String nodeId,
-    LinkSort sort
-  ) {
-    Query<Link> query = ebeanDatabaseManager
-      .getEbeanDatabase()
-      .find(Link.class)
-      .where()
-      .eq(Db.Link.NODE_ID, nodeId)
-      .query();
+  public Stream<Link> getLinksByNodeId(String nodeId, LinkSort sort) {
+    Query<Link> query =
+        ebeanDatabaseManager
+            .getEbeanDatabase()
+            .find(Link.class)
+            .where()
+            .eq(Db.Link.NODE_ID, nodeId)
+            .query();
 
-    return sort
-      .getOrderEbeanQuery(query)
-      .findList()
-      .stream();
+    return sort.getOrderEbeanQuery(query).findList().stream();
   }
 
   public Link updateLink(Link link) {
@@ -97,11 +86,11 @@ public class LinkRepositoryEbean implements LinkRepository {
 
   public void deleteLink(String linkId) {
     ebeanDatabaseManager
-      .getEbeanDatabase()
-      .find(Link.class)
-      .where()
-      .eq(Db.Link.ID, linkId)
-      .delete();
+        .getEbeanDatabase()
+        .find(Link.class)
+        .where()
+        .eq(Db.Link.ID, linkId)
+        .delete();
   }
 
   public void deleteLinksBulk(Collection<String> linkIds) {

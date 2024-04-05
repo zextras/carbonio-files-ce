@@ -86,7 +86,8 @@ class GetPublicLinksApiIT {
 
   @Test
   void
-      givenAnExistingFileWithTwoExistingLinksTheGetLinksShouldReturnAListOfAssociatedLinksOrderedByCreationDescending() {
+      givenAnExistingFileWithTwoExistingLinksTheGetLinksShouldReturnAListOfAssociatedLinksOrderedByCreationDescending()
+          throws InterruptedException {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
@@ -96,6 +97,11 @@ class GetPublicLinksApiIT {
         "abcd1234abcd1234abcd1234abcd1234",
         Optional.of(5L),
         Optional.of("super-description"));
+
+    // These sleep is necessary because some time the creation of the two links is so fast that
+    // causes the same creation timestamp of the two links. When the LinkRepository will have an
+    // injected clock in the LinkRepository, then we will have a better solution for this ugly trick
+    Thread.sleep(10L);
 
     linkRepository.createLink(
         "0c04783b-bdfb-446f-870c-625f5ae02a0a",
@@ -130,7 +136,8 @@ class GetPublicLinksApiIT {
         TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "getLinks");
 
     Assertions.assertThat(publicLinks).hasSize(2);
-
+    System.out.println(publicLinks.get(0).get("id") + " " + publicLinks.get(0).get("created_at"));
+    System.out.println(publicLinks.get(1).get("id") + " " + publicLinks.get(1).get("created_at"));
     Assertions.assertThat(publicLinks.get(0))
         .containsEntry("id", "0c04783b-bdfb-446f-870c-625f5ae02a0a")
         .containsEntry(
