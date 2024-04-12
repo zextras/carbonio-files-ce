@@ -14,7 +14,7 @@ public class SearchQueryBuilder {
     query = new StringBuilder("query { findNodes(");
   }
 
-  public static SearchQueryBuilder aSearchQueryBuilder(){
+  public static SearchQueryBuilder aSearchQueryBuilder() {
     return new SearchQueryBuilder();
   }
 

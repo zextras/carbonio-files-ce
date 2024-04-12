@@ -38,16 +38,18 @@ public class FindNodesApiIT {
   @BeforeAll
   static void init() {
     simulator =
-        SimulatorBuilder.aSimulator().init()
+        SimulatorBuilder.aSimulator()
+            .init()
             .withDatabase()
             .withServiceDiscover()
-            .withUserManagement( //create a fake token to use in cookie for auth
-              Map.of(
-                  "fake-token",
-                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                  "fake-token-account-for-sharing",
-                  "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"))
-            .build().start();
+            .withUserManagement( // create a fake token to use in cookie for auth
+                Map.of(
+                    "fake-token",
+                    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                    "fake-token-account-for-sharing",
+                    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"))
+            .build()
+            .start();
 
     final Injector injector = simulator.getInjector();
     nodeRepository = injector.getInstance(NodeRepository.class);
@@ -65,7 +67,7 @@ public class FindNodesApiIT {
     simulator.stopAll();
   }
 
-  void createNodesDifferentNames(){
+  void createNodesDifferentNames() {
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
             new SimplePopulatorFolder(
@@ -94,26 +96,22 @@ public class FindNodesApiIT {
                 "ccc.txt"));
   }
 
-  void createNodesDifferentSizes(){ //files with same name, to really be sure it's the size that's being compared
+  void
+      createNodesDifferentSizes() { // files with same name, to really be sure it's the size that's
+                                    // being compared
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
             new SimplePopulatorFolder(
-                "10000000-0000-0000-0000-000000000001",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+                "10000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
         .addNode(
             new SimplePopulatorFolder(
-                "10000000-0000-0000-0000-000000000002",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+                "10000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
         .addNode(
             new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000001",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                1L))
+                "00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", 1L))
         .addNode(
             new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000002",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                2L))
+                "00000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", 2L))
         .addNode(
             new SimplePopulatorTextFile(
                 "00000000-0000-0000-0000-000000000003",
@@ -125,15 +123,16 @@ public class FindNodesApiIT {
   void givenFilesOnRootSearchWithSortNameAscShouldReturnCorrectlySortedNodes() {
     // Given
     createNodesDifferentNames();
-    String bodyPayload = SearchQueryBuilder.aSearchQueryBuilder()
-        .withFolderId("LOCAL_ROOT")
-        .withCascade(true)
-        .withSort(NodeSort.NAME_ASC)
-        .withLimit(5)
-        .build();
+    String bodyPayload =
+        SearchQueryBuilder.aSearchQueryBuilder()
+            .withFolderId("LOCAL_ROOT")
+            .withCascade(true)
+            .withSort(NodeSort.NAME_ASC)
+            .withLimit(5)
+            .build();
 
-    final HttpRequest httpRequest = HttpRequest.of("POST", "/graphql/",
-        "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
     final HttpResponse httpResponse =
@@ -148,7 +147,7 @@ public class FindNodesApiIT {
     final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
 
     Assertions.assertThat(nodes).hasSize(5);
-    //folders always on top
+    // folders always on top
     Assertions.assertThat(nodes.get(0))
         .containsEntry("id", "10000000-0000-0000-0000-000000000001")
         .containsEntry("name", "folderA");
@@ -170,15 +169,16 @@ public class FindNodesApiIT {
   void givenFilesOnRootSearchWithSortNameDescShouldReturnCorrectlySortedNodes() {
     // Given
     createNodesDifferentNames();
-    String bodyPayload = SearchQueryBuilder.aSearchQueryBuilder()
-        .withFolderId("LOCAL_ROOT")
-        .withCascade(true)
-        .withSort(NodeSort.NAME_DESC)
-        .withLimit(5)
-        .build();
+    String bodyPayload =
+        SearchQueryBuilder.aSearchQueryBuilder()
+            .withFolderId("LOCAL_ROOT")
+            .withCascade(true)
+            .withSort(NodeSort.NAME_DESC)
+            .withLimit(5)
+            .build();
 
-    final HttpRequest httpRequest = HttpRequest.of("POST", "/graphql/",
-        "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
     final HttpResponse httpResponse =
@@ -193,7 +193,7 @@ public class FindNodesApiIT {
     final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
 
     Assertions.assertThat(nodes).hasSize(5);
-    //folders always on top
+    // folders always on top
     Assertions.assertThat(nodes.get(1))
         .containsEntry("id", "10000000-0000-0000-0000-000000000001")
         .containsEntry("name", "folderA");
@@ -215,15 +215,16 @@ public class FindNodesApiIT {
   void givenFilesOnRootSearchWithSortSizeAscShouldReturnCorrectlySortedNodes() {
     // Given
     createNodesDifferentSizes();
-    String bodyPayload = SearchQueryBuilder.aSearchQueryBuilder()
-        .withFolderId("LOCAL_ROOT")
-        .withCascade(true)
-        .withSort(NodeSort.SIZE_ASC)
-        .withLimit(5)
-        .build();
+    String bodyPayload =
+        SearchQueryBuilder.aSearchQueryBuilder()
+            .withFolderId("LOCAL_ROOT")
+            .withCascade(true)
+            .withSort(NodeSort.SIZE_ASC)
+            .withLimit(5)
+            .build();
 
-    final HttpRequest httpRequest = HttpRequest.of("POST", "/graphql/",
-        "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
     final HttpResponse httpResponse =
@@ -238,7 +239,7 @@ public class FindNodesApiIT {
     final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
 
     Assertions.assertThat(nodes).hasSize(5);
-    //folders have size 0 and are on top
+    // folders have size 0 and are on top
     Assertions.assertThat(nodes.get(0))
         .containsEntry("id", "10000000-0000-0000-0000-000000000001")
         .containsEntry("name", "folder");
@@ -260,15 +261,16 @@ public class FindNodesApiIT {
   void givenFilesOnRootSearchWithSortSizeDescShouldReturnCorrectlySortedNodes() {
     // Given
     createNodesDifferentSizes();
-    String bodyPayload = SearchQueryBuilder.aSearchQueryBuilder()
-        .withFolderId("LOCAL_ROOT")
-        .withCascade(true)
-        .withSort(NodeSort.SIZE_DESC)
-        .withLimit(5)
-        .build();
+    String bodyPayload =
+        SearchQueryBuilder.aSearchQueryBuilder()
+            .withFolderId("LOCAL_ROOT")
+            .withCascade(true)
+            .withSort(NodeSort.SIZE_DESC)
+            .withLimit(5)
+            .build();
 
-    final HttpRequest httpRequest = HttpRequest.of("POST", "/graphql/",
-        "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
     final HttpResponse httpResponse =
@@ -283,7 +285,7 @@ public class FindNodesApiIT {
     final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
 
     Assertions.assertThat(nodes).hasSize(5);
-    //folders have size 0 so they are always on bottom with size desc sorting
+    // folders have size 0 so they are always on bottom with size desc sorting
     Assertions.assertThat(nodes.get(3))
         .containsEntry("id", "10000000-0000-0000-0000-000000000001")
         .containsEntry("name", "folder");
@@ -305,15 +307,16 @@ public class FindNodesApiIT {
   void givenFilesOnRootSearchWithSortLastUpdateAscShouldReturnCorrectlySortedNodes() {
     // Given
     createNodesDifferentNames();
-    String bodyPayload = SearchQueryBuilder.aSearchQueryBuilder()
-        .withFolderId("LOCAL_ROOT")
-        .withCascade(true)
-        .withSort(NodeSort.UPDATED_AT_ASC)
-        .withLimit(5)
-        .build();
+    String bodyPayload =
+        SearchQueryBuilder.aSearchQueryBuilder()
+            .withFolderId("LOCAL_ROOT")
+            .withCascade(true)
+            .withSort(NodeSort.UPDATED_AT_ASC)
+            .withLimit(5)
+            .build();
 
-    final HttpRequest httpRequest = HttpRequest.of("POST", "/graphql/",
-        "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
     final HttpResponse httpResponse =
@@ -328,7 +331,7 @@ public class FindNodesApiIT {
     final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
 
     Assertions.assertThat(nodes).hasSize(5);
-    //folders always on top
+    // folders always on top
     Assertions.assertThat(nodes.get(0))
         .containsEntry("id", "10000000-0000-0000-0000-000000000001")
         .containsEntry("name", "folderA");
@@ -350,15 +353,16 @@ public class FindNodesApiIT {
   void givenFilesOnRootSearchWithSortLastUpdateDescShouldReturnCorrectlySortedNodes() {
     // Given
     createNodesDifferentNames();
-    String bodyPayload = SearchQueryBuilder.aSearchQueryBuilder()
-        .withFolderId("LOCAL_ROOT")
-        .withCascade(true)
-        .withSort(NodeSort.UPDATED_AT_DESC)
-        .withLimit(5)
-        .build();
+    String bodyPayload =
+        SearchQueryBuilder.aSearchQueryBuilder()
+            .withFolderId("LOCAL_ROOT")
+            .withCascade(true)
+            .withSort(NodeSort.UPDATED_AT_DESC)
+            .withLimit(5)
+            .build();
 
-    final HttpRequest httpRequest = HttpRequest.of("POST", "/graphql/",
-        "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
     final HttpResponse httpResponse =
@@ -373,7 +377,7 @@ public class FindNodesApiIT {
     final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
 
     Assertions.assertThat(nodes).hasSize(5);
-    //folders always on top
+    // folders always on top
     Assertions.assertThat(nodes.get(1))
         .containsEntry("id", "10000000-0000-0000-0000-000000000001")
         .containsEntry("name", "folderA");

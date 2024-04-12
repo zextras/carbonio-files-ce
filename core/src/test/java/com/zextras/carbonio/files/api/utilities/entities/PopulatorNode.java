@@ -2,7 +2,7 @@ package com.zextras.carbonio.files.api.utilities.entities;
 
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 
-public class PopulatorNode{
+public class PopulatorNode {
   String nodeId;
   String creatorId;
   String ownerId;
@@ -94,14 +94,23 @@ public class PopulatorNode{
     this.mimeType = mimeType;
   }
 
-  public PopulatorNode(String nodeId, String creatorId, String ownerId, String parentId, String name,
-                       String description, NodeType type, String ancestorIds, Long size, String mimeType) {
+  public PopulatorNode(
+      String nodeId,
+      String creatorId,
+      String ownerId,
+      String parentId,
+      String name,
+      String description,
+      NodeType type,
+      String ancestorIds,
+      Long size,
+      String mimeType) {
 
-    if(type.equals(NodeType.FOLDER) && mimeType != null){
+    if (type.equals(NodeType.FOLDER) && mimeType != null) {
       throw new IllegalArgumentException("Node type is folder but mime type is not null");
     }
 
-    if(!type.equals(NodeType.FOLDER) && mimeType == null){
+    if (!type.equals(NodeType.FOLDER) && mimeType == null) {
       throw new IllegalArgumentException("Node type is not folder but mime type is null");
     }
 
@@ -117,4 +126,3 @@ public class PopulatorNode{
     this.mimeType = mimeType;
   }
 }
-
