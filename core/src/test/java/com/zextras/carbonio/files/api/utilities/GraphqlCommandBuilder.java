@@ -4,11 +4,10 @@
 
 package com.zextras.carbonio.files.api.utilities;
 
-
 public class GraphqlCommandBuilder {
   private StringBuilder query;
 
-  public GraphqlCommandBuilder(String queryType, String queryMethod) { //findNodes for searching
+  public GraphqlCommandBuilder(String queryType, String queryMethod) { // findNodes for searching
     query = new StringBuilder(queryType + " { ");
     query.append(queryMethod).append("(");
   }
@@ -50,7 +49,7 @@ public class GraphqlCommandBuilder {
     return this;
   }
 
-  public String build(String wantedResultFormat) { //{ nodes { id name }, page_token for searching
+  public String build(String wantedResultFormat) { // { nodes { id name }, page_token for searching
     query.setLength(query.length() - 2);
     query.append(") { ").append(wantedResultFormat).append(" } }");
     return query.toString();

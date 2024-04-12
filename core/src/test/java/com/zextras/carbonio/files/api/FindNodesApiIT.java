@@ -97,9 +97,8 @@ public class FindNodesApiIT {
                 "ccc.txt"));
   }
 
-  void
-      createNodesDifferentSizes() { // files with same name, to really be sure it's the size that's
-                                    // being compared
+  void createNodesDifferentSizes() { // files with same name, to really be sure it's the size that's
+    // being compared
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
             new SimplePopulatorFolder(
@@ -125,12 +124,12 @@ public class FindNodesApiIT {
     // Given
     createNodesDifferentNames();
     /*String bodyPayload =
-        SearchQueryBuilder.aSearchQueryBuilder()
-            .withFolderId("LOCAL_ROOT")
-            .withCascade(true)
-            .withSort(NodeSort.NAME_ASC)
-            .withLimit(5)
-            .build();*/
+    SearchQueryBuilder.aSearchQueryBuilder()
+        .withFolderId("LOCAL_ROOT")
+        .withCascade(true)
+        .withSort(NodeSort.NAME_ASC)
+        .withLimit(5)
+        .build();*/
 
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")

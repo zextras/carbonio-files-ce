@@ -87,24 +87,25 @@ class CreatePublicLinkApiIT {
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     /*final String bodyPayload =
-        "mutation { "
-            + "createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\", expires_at: 5, description: \\\"super-description\\\") {"
-            + "id "
-            + "url "
-            + "expires_at "
-            + "created_at "
-            + "description "
-            + "node { "
-            + "  id "
-            + "} "
-            + "} "
-            + "}";*/
+    "mutation { "
+        + "createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\", expires_at: 5, description: \\\"super-description\\\") {"
+        + "id "
+        + "url "
+        + "expires_at "
+        + "created_at "
+        + "description "
+        + "node { "
+        + "  id "
+        + "} "
+        + "} "
+        + "}";*/
 
-    final String bodyPayload = GraphqlCommandBuilder.aMutationBuilder("createLink")
-        .withString("node_id", "00000000-0000-0000-0000-000000000000")
-        .withInteger("expires_at", 5)
-        .withString("description", "super-description")
-        .build("id url expires_at created_at description node { id }");
+    final String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("createLink")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("expires_at", 5)
+            .withString("description", "super-description")
+            .build("id url expires_at created_at description node { id }");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
