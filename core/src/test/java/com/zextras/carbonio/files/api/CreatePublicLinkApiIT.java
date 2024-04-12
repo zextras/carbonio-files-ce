@@ -8,6 +8,7 @@ import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
@@ -85,7 +86,7 @@ class CreatePublicLinkApiIT {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
-    final String bodyPayload =
+    /*final String bodyPayload =
         "mutation { "
             + "createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\", expires_at: 5, description: \\\"super-description\\\") {"
             + "id "
@@ -97,7 +98,13 @@ class CreatePublicLinkApiIT {
             + "  id "
             + "} "
             + "} "
-            + "}";
+            + "}";*/
+
+    final String bodyPayload = GraphqlCommandBuilder.aMutationBuilder("createLink")
+        .withString("node_id", "00000000-0000-0000-0000-000000000000")
+        .withInteger("expires_at", 5)
+        .withString("description", "super-description")
+        .build("id url expires_at created_at description node { id }");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);

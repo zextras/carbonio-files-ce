@@ -9,6 +9,7 @@ import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.SearchQueryBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
@@ -123,13 +124,21 @@ public class FindNodesApiIT {
   void givenFilesOnRootSearchWithSortNameAscShouldReturnCorrectlySortedNodes() {
     // Given
     createNodesDifferentNames();
-    String bodyPayload =
+    /*String bodyPayload =
         SearchQueryBuilder.aSearchQueryBuilder()
             .withFolderId("LOCAL_ROOT")
             .withCascade(true)
             .withSort(NodeSort.NAME_ASC)
             .withLimit(5)
-            .build();
+            .build();*/
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "LOCAL_ROOT")
+            .withBoolean("cascade", true)
+            .withEnum("sort", NodeSort.NAME_ASC)
+            .withInteger("limit", 5)
+            .build("nodes { id name }, page_token");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
