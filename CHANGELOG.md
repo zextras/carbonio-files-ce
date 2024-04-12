@@ -8,6 +8,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.1](https://github.com/Zextras/carbonio-files-ce/compare/v0.11.0...v0.11.1) (2024-04-12)
+
+
+### Bug Fixes
+
+* *.hcl: apply corrections to validate with hclfmt ([#93](https://github.com/Zextras/carbonio-files-ce/issues/93)) ([26f5cba](https://github.com/Zextras/carbonio-files-ce/commit/26f5cba8590ae0464b71269bda5cb2aa209ae1b2))
+* support the upload to the mailbox of file with cyrillic filename ([#96](https://github.com/Zextras/carbonio-files-ce/issues/96)) ([eaf0bde](https://github.com/Zextras/carbonio-files-ce/commit/eaf0bdea2bb3d98efd88b0b2fcacf5fd11509ca3))
+
 ## [0.11.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.10.1...v0.11.0) (2023-12-04)
 
 ### Features
