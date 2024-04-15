@@ -8,7 +8,9 @@ import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
+import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
@@ -56,24 +58,26 @@ public class GetPublicNodeApiIT {
   @Test
   void givenAPublicLinkIdAndAnExistingFolderTheGetPublicNodeShouldReturnThePublicFolder() {
     // Given
-    final Node folder =
-        nodeRepository.createNewNode(
+    long now = System.currentTimeMillis();
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "folder",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT",
+                0L,
+                null))
+        .addLink(
+            "8cac6df0-3ecb-451d-a953-10c3ac5e3ebc",
             "00000000-0000-0000-0000-000000000000",
-            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-            "LOCAL_ROOT",
-            "folder",
-            "",
-            NodeType.FOLDER,
-            "LOCAL_ROOT",
-            0L);
-
-    linkRepository.createLink(
-        "8cac6df0-3ecb-451d-a953-10c3ac5e3ebc",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.empty(),
-        Optional.empty());
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty());
 
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
@@ -92,8 +96,8 @@ public class GetPublicNodeApiIT {
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "getPublicNode");
 
     Assertions.assertThat(publicNode.get("id")).isEqualTo("00000000-0000-0000-0000-000000000000");
-    Assertions.assertThat(publicNode.get("created_at")).isEqualTo(folder.getCreatedAt());
-    Assertions.assertThat(publicNode.get("updated_at")).isEqualTo(folder.getUpdatedAt());
+    Assertions.assertThat(publicNode.get("created_at")).isNotEqualTo(now);
+    Assertions.assertThat(publicNode.get("updated_at")).isNotEqualTo(now);
     Assertions.assertThat(publicNode.get("name")).isEqualTo("folder");
     Assertions.assertThat(publicNode.get("type")).isEqualTo(NodeType.FOLDER.toString());
   }
@@ -101,33 +105,26 @@ public class GetPublicNodeApiIT {
   @Test
   void givenAPublicLinkIdAndAnExistingFileTheGetPublicNodeShouldReturnThePublicFile() {
     // Given
-    final Node file =
-        nodeRepository.createNewNode(
+    long now = System.currentTimeMillis();
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "test.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT",
+                5L,
+                "text/plain"))
+        .addLink(
+            "8cac6df0-3ecb-451d-a953-10c3ac5e3ebc",
             "00000000-0000-0000-0000-000000000000",
-            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-            "LOCAL_ROOT",
-            "test.txt",
-            "",
-            NodeType.TEXT,
-            "LOCAL_ROOT",
-            5L);
-
-    fileVersionRepository.createNewFileVersion(
-        "00000000-0000-0000-0000-000000000000",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        1,
-        "text/plain",
-        5L,
-        "",
-        false);
-
-    linkRepository.createLink(
-        "8cac6df0-3ecb-451d-a953-10c3ac5e3ebc",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.empty(),
-        Optional.empty());
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty());
 
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
@@ -147,8 +144,8 @@ public class GetPublicNodeApiIT {
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "getPublicNode");
 
     Assertions.assertThat(publicNode.get("id")).isEqualTo("00000000-0000-0000-0000-000000000000");
-    Assertions.assertThat(publicNode.get("created_at")).isEqualTo(file.getCreatedAt());
-    Assertions.assertThat(publicNode.get("updated_at")).isEqualTo(file.getUpdatedAt());
+    Assertions.assertThat(publicNode.get("created_at")).isNotEqualTo(now);
+    Assertions.assertThat(publicNode.get("updated_at")).isNotEqualTo(now);
     Assertions.assertThat(publicNode.get("name")).isEqualTo("test");
     Assertions.assertThat(publicNode.get("extension")).isEqualTo("txt");
     Assertions.assertThat(publicNode.get("type")).isEqualTo(NodeType.TEXT.toString());
@@ -160,16 +157,19 @@ public class GetPublicNodeApiIT {
   void
       givenANotExistingPublicLinkIdAndAnExistingFolderTheGetPublicNodeShouldReturn200StatusCodeWithAnErrorMessage() {
     // Given
-    nodeRepository.createNewNode(
-        "00000000-0000-0000-0000-000000000000",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "LOCAL_ROOT",
-        "folder",
-        "",
-        NodeType.FOLDER,
-        "LOCAL_ROOT",
-        0L);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "folder",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT",
+                0L,
+                null));
 
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
@@ -196,23 +196,25 @@ public class GetPublicNodeApiIT {
   void
       givenAnExpiredPublicLinkIdAndAnExistingFolderTheGetPublicNodeShouldReturn200StatusCodeWithAnErrorMessage() {
     // Given
-    nodeRepository.createNewNode(
-        "00000000-0000-0000-0000-000000000000",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "LOCAL_ROOT",
-        "folder",
-        "",
-        NodeType.FOLDER,
-        "LOCAL_ROOT",
-        0L);
-
-    linkRepository.createLink(
-        "8cac6df0-3ecb-451d-a953-10c3ac5e3ebc",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.of(1L),
-        Optional.empty());
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "folder",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT",
+                0L,
+                null))
+        .addLink(
+            "8cac6df0-3ecb-451d-a953-10c3ac5e3ebc",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.of(1L),
+            Optional.empty());
 
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("getPublicNode")

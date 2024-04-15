@@ -8,12 +8,15 @@ import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
+import io.ebeaninternal.server.expression.Op;
 import io.netty.handler.codec.http.HttpMethod;
 import java.util.Map;
 import java.util.Optional;
@@ -77,32 +80,25 @@ public class DownloadByPublicLinkApiIT {
       givenAUserWithOrWithoutCookieAnExistingFileAndAnExistingPublicLinkAssociatedTheDownloadByPublicLinkShouldReturnTheBlob(
           String publicLinkId, String publicLinkEndpoint, String userToken) {
     // Given
-    nodeRepository.createNewNode(
-        "00000000-0000-0000-0000-000000000000",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "LOCAL_ROOT",
-        "test.txt",
-        "",
-        NodeType.TEXT,
-        "LOCAL_ROOT",
-        10L);
-
-    fileVersionRepository.createNewFileVersion(
-        "00000000-0000-0000-0000-000000000000",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        1,
-        "text/plain",
-        10L,
-        "",
-        false);
-
-    linkRepository.createLink(
-        "94103c01-e701-4f3d-9dc9-54b79064ad76",
-        "00000000-0000-0000-0000-000000000000",
-        publicLinkId,
-        Optional.empty(),
-        Optional.empty());
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "test.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT",
+                10L,
+                "text/plain"))
+        .addLink(
+            "94103c01-e701-4f3d-9dc9-54b79064ad76",
+            "00000000-0000-0000-0000-000000000000",
+            publicLinkId,
+            Optional.empty(),
+            Optional.empty());
 
     simulator.getBlob("00000000-0000-0000-0000-000000000000", 1);
 
@@ -132,23 +128,25 @@ public class DownloadByPublicLinkApiIT {
   @Test
   void givenAnExistingFileAndAnExpiredLinkTheDownloadByPublicLinkShouldReturnA404StatusCode() {
     // Given
-    nodeRepository.createNewNode(
-        "00000000-0000-0000-0000-000000000000",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "LOCAL_ROOT",
-        "file.txt",
-        "",
-        NodeType.TEXT,
-        "LOCAL_ROOT",
-        1L);
-
-    linkRepository.createLink(
-        "94103c01-e701-4f3d-9dc9-54b79064ad76",
-        "00000000-0000-0000-0000-000000000000",
-        "1234abcd1234abcd1234abcd1234abcd",
-        Optional.of(1L),
-        Optional.empty());
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "test.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT",
+                1L,
+                "text/plain"))
+        .addLink(
+            "94103c01-e701-4f3d-9dc9-54b79064ad76",
+            "00000000-0000-0000-0000-000000000000",
+            "1234abcd1234abcd1234abcd1234abcd",
+            Optional.of(1L),
+            Optional.empty());
 
     final String publicDownloadUrl = "/public/link/download/1234abcd1234abcd1234abcd1234abcd";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
@@ -173,23 +171,25 @@ public class DownloadByPublicLinkApiIT {
   @Test
   void givenANotExistingLinkTheDownloadByPublicLinkShouldReturnA404StatusCode() {
     // Given
-    nodeRepository.createNewNode(
-        "00000000-0000-0000-0000-000000000000",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "LOCAL_ROOT",
-        "file.txt",
-        "",
-        NodeType.TEXT,
-        "LOCAL_ROOT",
-        1L);
-
-    linkRepository.createLink(
-        "94103c01-e701-4f3d-9dc9-54b79064ad76",
-        "00000000-0000-0000-0000-000000000000",
-        "000000",
-        Optional.empty(),
-        Optional.empty());
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "file.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT",
+                1L,
+                "text/plain"))
+        .addLink(
+            "94103c01-e701-4f3d-9dc9-54b79064ad76",
+            "00000000-0000-0000-0000-000000000000",
+            "000000",
+            Optional.empty(),
+            Optional.empty());
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET", "/public/link/download/1234abcd", null, null);
@@ -238,32 +238,25 @@ public class DownloadByPublicLinkApiIT {
   void
       givenAnExistingFileAndAValidPublicLinkAssociatedAndAConnectionProblemToStoragesTheTheDownloadByPublicLinkShouldReturnA500StatusCode() {
     // Given
-    nodeRepository.createNewNode(
-        "00000000-0000-0000-0000-000000000000",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "LOCAL_ROOT",
-        "test.txt",
-        "",
-        NodeType.TEXT,
-        "LOCAL_ROOT",
-        10L);
-
-    fileVersionRepository.createNewFileVersion(
-        "00000000-0000-0000-0000-000000000000",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        1,
-        "text/plain",
-        10L,
-        "",
-        false);
-
-    linkRepository.createLink(
-        "94103c01-e701-4f3d-9dc9-54b79064ad76",
-        "00000000-0000-0000-0000-000000000000",
-        "1234abcd1234abcd1234abcd1234abcd",
-        Optional.empty(),
-        Optional.empty());
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "test.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT",
+                10L,
+                "text/plain"))
+        .addLink(
+            "94103c01-e701-4f3d-9dc9-54b79064ad76",
+            "00000000-0000-0000-0000-000000000000",
+            "1234abcd1234abcd1234abcd1234abcd",
+            Optional.empty(),
+            Optional.empty());
 
     simulator
         .getStoragesMock()

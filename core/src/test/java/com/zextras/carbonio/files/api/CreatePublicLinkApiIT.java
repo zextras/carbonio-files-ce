@@ -8,7 +8,10 @@ import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
+import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
+import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
@@ -65,20 +68,18 @@ class CreatePublicLinkApiIT {
   }
 
   void createFile(String nodeId, String ownerId) {
-    nodeRepository.createNewNode(
-        nodeId, ownerId, ownerId, "LOCAL_ROOT", "fake.txt", "", NodeType.TEXT, "LOCAL_ROOT", 1L);
-
-    fileVersionRepository.createNewFileVersion(nodeId, ownerId, 1, "text/plain", 1L, "", false);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(new SimplePopulatorTextFile(nodeId, ownerId));
   }
 
   void createFolder(String nodeId, String ownerId) {
-    nodeRepository.createNewNode(
-        nodeId, ownerId, ownerId, "LOCAL_ROOT", "folder", "", NodeType.FOLDER, "LOCAL_ROOT", 0L);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(new SimplePopulatorFolder(nodeId, ownerId));
   }
 
   void createShare(String nodeId, String targetUserId, SharePermission permission) {
-    shareRepository.upsertShare(
-        nodeId, targetUserId, ACL.decode(permission), true, false, Optional.empty());
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addShare(nodeId, targetUserId, permission);
   }
 
   @Test

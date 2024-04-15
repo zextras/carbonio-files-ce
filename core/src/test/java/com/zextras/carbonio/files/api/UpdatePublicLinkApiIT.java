@@ -8,7 +8,10 @@ import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
+import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
+import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
@@ -68,20 +71,18 @@ class UpdatePublicLinkApiIT {
   }
 
   void createFile(String nodeId, String ownerId) {
-    nodeRepository.createNewNode(
-        nodeId, ownerId, ownerId, "LOCAL_ROOT", "fake.txt", "", NodeType.TEXT, "LOCAL_ROOT", 1L);
-
-    fileVersionRepository.createNewFileVersion(nodeId, ownerId, 1, "text/plain", 1L, "", false);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(new SimplePopulatorTextFile(nodeId, ownerId));
   }
 
   void createFolder(String nodeId, String ownerId) {
-    nodeRepository.createNewNode(
-        nodeId, ownerId, ownerId, "LOCAL_ROOT", "folder", "", NodeType.FOLDER, "LOCAL_ROOT", 0L);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(new SimplePopulatorFolder(nodeId, ownerId));
   }
 
   void createShare(String nodeId, String targetUserId, SharePermission permission) {
-    shareRepository.upsertShare(
-        nodeId, targetUserId, ACL.decode(permission), true, false, Optional.empty());
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addShare(nodeId, targetUserId, permission);
   }
 
   @Test
@@ -89,13 +90,13 @@ class UpdatePublicLinkApiIT {
       givenAnExistingFileAnExistingLinkAndAllUpdatedFieldsTheUpdateLinkShouldReturnTheUpdatedLink() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-
-    linkRepository.createLink(
-        "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.of(5L),
-        Optional.of("super-description"));
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.of(5L),
+            Optional.of("super-description"));
 
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("updateLink")
@@ -134,13 +135,13 @@ class UpdatePublicLinkApiIT {
       givenAnExistingFileAnExistingLinkAndNoFieldsToUpdateTheUpdateLinkShouldReturnTheUntouchedLink() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-
-    linkRepository.createLink(
-        "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.of(5L),
-        Optional.of("super-description"));
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.of(5L),
+            Optional.of("super-description"));
 
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("updateLink")
@@ -178,13 +179,13 @@ class UpdatePublicLinkApiIT {
       givenAnExistingFolderAnExistingLinkAndAllUpdatedFieldsTheUpdateLinkShouldReturnTheUpdatedLink() {
     // Given
     createFolder("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-
-    linkRepository.createLink(
-        "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.empty(),
-        Optional.empty());
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty());
 
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("updateLink")
@@ -250,12 +251,13 @@ class UpdatePublicLinkApiIT {
         "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
         SharePermission.READ_AND_SHARE);
 
-    linkRepository.createLink(
-        "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.of(5L),
-        Optional.of("super-description"));
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.of(5L),
+            Optional.of("super-description"));
 
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("updateLink")
@@ -287,12 +289,13 @@ class UpdatePublicLinkApiIT {
     // Given
     createFolder("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
-    linkRepository.createLink(
-        "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.of(5L),
-        Optional.empty());
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.of(5L),
+            Optional.empty());
 
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("updateLink")
@@ -327,12 +330,13 @@ class UpdatePublicLinkApiIT {
         "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
         SharePermission.READ_ONLY);
 
-    linkRepository.createLink(
-        "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.of(5L),
-        Optional.of("super-description"));
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.of(5L),
+            Optional.of("super-description"));
 
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("updateLink")
@@ -362,12 +366,13 @@ class UpdatePublicLinkApiIT {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
-    linkRepository.createLink(
-        "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.of(5L),
-        Optional.of("super-description"));
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.of(5L),
+            Optional.of("super-description"));
 
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("updateLink")

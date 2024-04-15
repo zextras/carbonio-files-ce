@@ -82,10 +82,15 @@ public class DatabasePopulator {
     return this;
   }
 
-  public DatabasePopulator addLink(String linkId, String nodeId, String publicId) {
+  public DatabasePopulator addLink(
+      String linkId,
+      String nodeId,
+      String publicId,
+      Optional<Long> expAt,
+      Optional<String> description) {
     Optional<Node> optionalNode = nodeRepository.getNode(nodeId);
     if (optionalNode.isEmpty()) throw new IllegalArgumentException("Node does not exist");
-    linkRepository.createLink(linkId, nodeId, publicId, Optional.empty(), Optional.empty());
+    linkRepository.createLink(linkId, nodeId, publicId, expAt, description);
     return this;
   }
 }
