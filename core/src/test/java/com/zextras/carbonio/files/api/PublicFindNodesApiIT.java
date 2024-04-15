@@ -8,7 +8,9 @@ import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -120,12 +122,11 @@ public class PublicFindNodesApiIT {
         Optional.empty(),
         Optional.empty());
 
-    final String bodyPayload =
-        "query { findNodes(folder_id: \\\"00000000-0000-0000-0000-000000000000\\\", limit: 3) { "
-            + "nodes {id name},"
-            + "page_token"
-            + "}"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("limit", 3)
+            .build("{ nodes { id name }, page_token }");
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -172,12 +173,11 @@ public class PublicFindNodesApiIT {
         Optional.empty());
 
     // Start request first page of the folder content
-    final String firstBodyPayload =
-        "query { findNodes(folder_id: \\\"00000000-0000-0000-0000-000000000000\\\", limit: 3) { "
-            + "nodes {id name},"
-            + "page_token"
-            + "}"
-            + "}";
+    String firstBodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("limit", 3)
+            .build("{ nodes { id name }, page_token }");
 
     final HttpRequest firstHttpRequest =
         HttpRequest.of("POST", "/public/graphql/", null, firstBodyPayload);
@@ -191,15 +191,12 @@ public class PublicFindNodesApiIT {
                 .get("page_token");
     // End request first page of the folder content
 
-    final String bodyPayload =
-        "query { findNodes("
-            + "folder_id: \\\"00000000-0000-0000-0000-000000000000\\\", "
-            + "limit: 3, "
-            + "page_token: \\\""
-            + pageToken
-            + "\\\") { "
-            + "nodes {id name}, page_token }"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("limit", 3)
+            .withString("page_token", pageToken)
+            .build("{ nodes { id name }, page_token }");
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -240,12 +237,11 @@ public class PublicFindNodesApiIT {
         Optional.empty(),
         Optional.empty());
 
-    final String bodyPayload =
-        "query { findNodes(folder_id: \\\"00000000-0000-0000-0000-000000000000\\\", limit: 6) { "
-            + "nodes {id name},"
-            + "page_token"
-            + "}"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("limit", 6)
+            .build("{ nodes { id name }, page_token }");
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -306,12 +302,10 @@ public class PublicFindNodesApiIT {
         Optional.empty(),
         Optional.empty());
 
-    final String bodyPayload =
-        "query { findNodes(folder_id: \\\"00000000-0000-0000-0000-000000000000\\\") { "
-            + "nodes {id name},"
-            + "page_token"
-            + "}"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .build("{ nodes { id name }, page_token }");
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -358,12 +352,10 @@ public class PublicFindNodesApiIT {
         Optional.of(1L), // The link is already expired
         Optional.empty());
 
-    final String bodyPayload =
-        "query { findNodes(folder_id: \\\"00000000-0000-0000-0000-000000000000\\\") { "
-            + "nodes {id name},"
-            + "page_token"
-            + "}"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .build("{ nodes { id name }, page_token }");
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -391,12 +383,10 @@ public class PublicFindNodesApiIT {
     // Given
     createFolderTree();
 
-    final String bodyPayload =
-        "query { findNodes(folder_id: \\\"00000000-0000-0000-0000-000000000000\\\") { "
-            + "nodes {id name},"
-            + "page_token"
-            + "}"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .build("{ nodes { id name }, page_token }");
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -417,12 +407,10 @@ public class PublicFindNodesApiIT {
   @Test
   void givenANotExistingFolderTheFindNodesShouldReturnAn200StatusWithAnErrorMessage() {
     // Given
-    final String bodyPayload =
-        "query { findNodes(folder_id: \\\"00000000-0000-0000-0000-000000000000\\\") { "
-            + "nodes {id name},"
-            + "page_token"
-            + "}"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .build("{ nodes { id name }, page_token }");
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -508,15 +496,13 @@ public class PublicFindNodesApiIT {
       "ownerId": null
     }""";
 
-    final String bodyPayload =
-        "query { findNodes("
-            + "folder_id: \\\"00000000-0000-0000-0000-000000000000\\\", "
-            + "limit: 1, "
-            + "page_token: \\\""
-            + Base64.getEncoder().encodeToString(pageTokenHacked.getBytes())
-            + "\\\") { "
-            + "nodes {id}, page_token }"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("limit", 1)
+            .withString(
+                "page_token", Base64.getEncoder().encodeToString(pageTokenHacked.getBytes()))
+            .build("{ nodes { id name }, page_token }");
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 

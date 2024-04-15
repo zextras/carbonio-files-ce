@@ -8,6 +8,7 @@ import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
@@ -97,18 +98,11 @@ class UpdatePublicLinkApiIT {
         Optional.of("super-description"));
 
     final String bodyPayload =
-        "mutation { "
-            + "updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\", expires_at: 10, description: \\\"another-description\\\") {"
-            + "id "
-            + "url "
-            + "expires_at "
-            + "created_at "
-            + "description "
-            + "node { "
-            + "  id "
-            + "} "
-            + "} "
-            + "}";
+        GraphqlCommandBuilder.aMutationBuilder("updateLink")
+            .withString("link_id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
+            .withInteger("expires_at", 10)
+            .withString("description", "another-description")
+            .build("{ id url expires_at created_at description node { id } }");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -149,18 +143,9 @@ class UpdatePublicLinkApiIT {
         Optional.of("super-description"));
 
     final String bodyPayload =
-        "mutation { "
-            + "updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\") {"
-            + "id "
-            + "url "
-            + "expires_at "
-            + "created_at "
-            + "description "
-            + "node { "
-            + "  id "
-            + "} "
-            + "} "
-            + "}";
+        GraphqlCommandBuilder.aMutationBuilder("updateLink")
+            .withString("link_id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
+            .build("{ id url expires_at created_at description node { id } }");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -202,18 +187,11 @@ class UpdatePublicLinkApiIT {
         Optional.empty());
 
     final String bodyPayload =
-        "mutation { "
-            + "updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\", expires_at: 10, description: \\\"another-description\\\") {"
-            + "id "
-            + "url "
-            + "expires_at "
-            + "created_at "
-            + "description "
-            + "node { "
-            + "  id "
-            + "} "
-            + "} "
-            + "}";
+        GraphqlCommandBuilder.aMutationBuilder("updateLink")
+            .withString("link_id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
+            .withInteger("expires_at", 10)
+            .withString("description", "another-description")
+            .build("{ id url expires_at created_at description node { id } }");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -243,7 +221,9 @@ class UpdatePublicLinkApiIT {
   void givenANotExistingLinkTheUpdateLinkShouldReturn200CodeWithAnErrorMessage() {
     // Given
     final String bodyPayload =
-        "mutation { updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\") {id}}";
+        GraphqlCommandBuilder.aMutationBuilder("updateLink")
+            .withString("link_id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
+            .build("{ id }");
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
@@ -278,7 +258,11 @@ class UpdatePublicLinkApiIT {
         Optional.of("super-description"));
 
     final String bodyPayload =
-        "mutation { updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\", description: \\\"\\\") {id description}}";
+        GraphqlCommandBuilder.aMutationBuilder("updateLink")
+            .withString("link_id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
+            .withString("description", "")
+            .build("{ id description }");
+
     final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
@@ -311,12 +295,11 @@ class UpdatePublicLinkApiIT {
         Optional.empty());
 
     final String bodyPayload =
-        "mutation { "
-            + "updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\", expires_at: 0) {"
-            + "id "
-            + "expires_at"
-            + "}"
-            + "}";
+        GraphqlCommandBuilder.aMutationBuilder("updateLink")
+            .withString("link_id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
+            .withInteger("expires_at", 0)
+            .build("{ id expires_at }");
+
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
@@ -352,7 +335,10 @@ class UpdatePublicLinkApiIT {
         Optional.of("super-description"));
 
     final String bodyPayload =
-        "mutation { updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\") {id}}";
+        GraphqlCommandBuilder.aMutationBuilder("updateLink")
+            .withString("link_id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
+            .build("{ id }");
+
     final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
@@ -384,7 +370,10 @@ class UpdatePublicLinkApiIT {
         Optional.of("super-description"));
 
     final String bodyPayload =
-        "mutation { updateLink(link_id: \\\"cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b\\\") {id}}";
+        GraphqlCommandBuilder.aMutationBuilder("updateLink")
+            .withString("link_id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
+            .build("{ id }");
+
     final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);

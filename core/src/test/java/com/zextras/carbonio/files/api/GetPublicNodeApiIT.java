@@ -8,6 +8,7 @@ import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
@@ -74,16 +75,10 @@ public class GetPublicNodeApiIT {
         Optional.empty(),
         Optional.empty());
 
-    final String bodyPayload =
-        "query { "
-            + "getPublicNode(node_link_id: \\\"abcd1234abcd1234abcd1234abcd1234\\\") { "
-            + "id "
-            + "created_at "
-            + "updated_at "
-            + "name "
-            + "type "
-            + "} "
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .build("{ id created_at updated_at name type }");
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -134,17 +129,11 @@ public class GetPublicNodeApiIT {
         Optional.empty(),
         Optional.empty());
 
-    final String bodyPayload =
-        "query { "
-            + "getPublicNode(node_link_id: \\\"abcd1234abcd1234abcd1234abcd1234\\\") { "
-            + "id "
-            + "created_at "
-            + "updated_at "
-            + "name "
-            + "type "
-            + "... on File { extension mime_type size }"
-            + "} "
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .build(
+                "{ id created_at updated_at name type ... on File { extension mime_type size } }");
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -182,9 +171,10 @@ public class GetPublicNodeApiIT {
         "LOCAL_ROOT",
         0L);
 
-    final String bodyPayload =
-        "query { "
-            + "getPublicNode(node_link_id: \\\"abcd1234abcd1234abcd1234abcd1234\\\") { id }}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .build("{ id }");
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -224,9 +214,10 @@ public class GetPublicNodeApiIT {
         Optional.of(1L),
         Optional.empty());
 
-    final String bodyPayload =
-        "query { "
-            + "getPublicNode(node_link_id: \\\"abcd1234abcd1234abcd1234abcd1234\\\") { id }}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .build("{ id }");
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 

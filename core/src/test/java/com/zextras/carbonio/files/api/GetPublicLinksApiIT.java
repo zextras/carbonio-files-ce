@@ -8,9 +8,11 @@ import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -165,17 +167,10 @@ class GetPublicLinksApiIT {
         Optional.of(5L),
         Optional.of("super-description"));
 
-    final String bodyPayload =
-        "query { "
-            + "getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { "
-            + "id "
-            + "url "
-            + "expires_at "
-            + "created_at "
-            + "description "
-            + "node { id } "
-            + "} "
-            + "} ";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .build("{ id url expires_at created_at description node { id } }");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -207,8 +202,10 @@ class GetPublicLinksApiIT {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
-    final String bodyPayload =
-        "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id }}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .build("{ id }");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -227,8 +224,10 @@ class GetPublicLinksApiIT {
   @Test
   void givenANotExistingNodeTheGetLinksShouldReturn200StatusCodeAndNull() {
     // Given
-    final String bodyPayload =
-        "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id }}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .build("{ id }");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -258,8 +257,10 @@ class GetPublicLinksApiIT {
         Optional.empty(),
         Optional.empty());
 
-    final String bodyPayload =
-        "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id }}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .build("{ id }");
 
     final HttpRequest httpRequest =
         HttpRequest.of(
@@ -294,8 +295,10 @@ class GetPublicLinksApiIT {
         Optional.empty(),
         Optional.empty());
 
-    final String bodyPayload =
-        "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id }}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .build("{ id }");
 
     final HttpRequest httpRequest =
         HttpRequest.of(
@@ -329,8 +332,10 @@ class GetPublicLinksApiIT {
         Optional.empty(),
         Optional.empty());
 
-    final String bodyPayload =
-        "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id }}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .build("{ id }");
 
     final HttpRequest httpRequest =
         HttpRequest.of(
@@ -367,8 +372,10 @@ class GetPublicLinksApiIT {
         Optional.empty(),
         Optional.empty());
 
-    final String bodyPayload =
-        "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id url }}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .build("{ id url }");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);

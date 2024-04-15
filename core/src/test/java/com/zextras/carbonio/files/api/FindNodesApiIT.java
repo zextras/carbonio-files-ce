@@ -10,7 +10,6 @@ import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
-import com.zextras.carbonio.files.api.utilities.SearchQueryBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
@@ -123,21 +122,13 @@ public class FindNodesApiIT {
   void givenFilesOnRootSearchWithSortNameAscShouldReturnCorrectlySortedNodes() {
     // Given
     createNodesDifferentNames();
-    /*String bodyPayload =
-    SearchQueryBuilder.aSearchQueryBuilder()
-        .withFolderId("LOCAL_ROOT")
-        .withCascade(true)
-        .withSort(NodeSort.NAME_ASC)
-        .withLimit(5)
-        .build();*/
-
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "LOCAL_ROOT")
             .withBoolean("cascade", true)
             .withEnum("sort", NodeSort.NAME_ASC)
             .withInteger("limit", 5)
-            .build("nodes { id name }, page_token");
+            .build("{ nodes { id name }, page_token }");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -178,12 +169,12 @@ public class FindNodesApiIT {
     // Given
     createNodesDifferentNames();
     String bodyPayload =
-        SearchQueryBuilder.aSearchQueryBuilder()
-            .withFolderId("LOCAL_ROOT")
-            .withCascade(true)
-            .withSort(NodeSort.NAME_DESC)
-            .withLimit(5)
-            .build();
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "LOCAL_ROOT")
+            .withBoolean("cascade", true)
+            .withEnum("sort", NodeSort.NAME_DESC)
+            .withInteger("limit", 5)
+            .build("{ nodes { id name }, page_token }");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -224,12 +215,12 @@ public class FindNodesApiIT {
     // Given
     createNodesDifferentSizes();
     String bodyPayload =
-        SearchQueryBuilder.aSearchQueryBuilder()
-            .withFolderId("LOCAL_ROOT")
-            .withCascade(true)
-            .withSort(NodeSort.SIZE_ASC)
-            .withLimit(5)
-            .build();
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "LOCAL_ROOT")
+            .withBoolean("cascade", true)
+            .withEnum("sort", NodeSort.SIZE_ASC)
+            .withInteger("limit", 5)
+            .build("{ nodes { id name }, page_token }");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -270,12 +261,12 @@ public class FindNodesApiIT {
     // Given
     createNodesDifferentSizes();
     String bodyPayload =
-        SearchQueryBuilder.aSearchQueryBuilder()
-            .withFolderId("LOCAL_ROOT")
-            .withCascade(true)
-            .withSort(NodeSort.SIZE_DESC)
-            .withLimit(5)
-            .build();
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "LOCAL_ROOT")
+            .withBoolean("cascade", true)
+            .withEnum("sort", NodeSort.SIZE_DESC)
+            .withInteger("limit", 5)
+            .build("{ nodes { id name }, page_token }");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -316,12 +307,12 @@ public class FindNodesApiIT {
     // Given
     createNodesDifferentNames();
     String bodyPayload =
-        SearchQueryBuilder.aSearchQueryBuilder()
-            .withFolderId("LOCAL_ROOT")
-            .withCascade(true)
-            .withSort(NodeSort.UPDATED_AT_ASC)
-            .withLimit(5)
-            .build();
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "LOCAL_ROOT")
+            .withBoolean("cascade", true)
+            .withEnum("sort", NodeSort.UPDATED_AT_ASC)
+            .withInteger("limit", 5)
+            .build("{ nodes { id name }, page_token }");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -362,12 +353,12 @@ public class FindNodesApiIT {
     // Given
     createNodesDifferentNames();
     String bodyPayload =
-        SearchQueryBuilder.aSearchQueryBuilder()
-            .withFolderId("LOCAL_ROOT")
-            .withCascade(true)
-            .withSort(NodeSort.UPDATED_AT_DESC)
-            .withLimit(5)
-            .build();
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "LOCAL_ROOT")
+            .withBoolean("cascade", true)
+            .withEnum("sort", NodeSort.UPDATED_AT_DESC)
+            .withInteger("limit", 5)
+            .build("{ nodes { id name }, page_token }");
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
