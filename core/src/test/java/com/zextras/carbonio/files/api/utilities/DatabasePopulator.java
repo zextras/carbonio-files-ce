@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.api.utilities;
 
 import com.google.inject.Injector;
+import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
@@ -91,6 +92,21 @@ public class DatabasePopulator {
     Optional<Node> optionalNode = nodeRepository.getNode(nodeId);
     if (optionalNode.isEmpty()) throw new IllegalArgumentException("Node does not exist");
     linkRepository.createLink(linkId, nodeId, publicId, expAt, description);
+    return this;
+  }
+
+  public DatabasePopulator addFlag(String nodeId, String requesterId) {
+    nodeRepository.flagForUser(nodeId, requesterId, true);
+    return this;
+  }
+
+  public DatabasePopulator addNodeToTrash(String nodeId, String nodeParentId) {
+    Optional<Node> trashedNode = nodeRepository.getNode(nodeId);
+    if (trashedNode.isEmpty()) throw new IllegalArgumentException("Node does not exist");
+    trashedNode.get().setAncestorIds(Files.Db.RootId.TRASH_ROOT);
+    trashedNode.get().setParentId(Files.Db.RootId.TRASH_ROOT);
+    nodeRepository.trashNode(nodeId, nodeParentId);
+    nodeRepository.updateNode(trashedNode.get());
     return this;
   }
 }
