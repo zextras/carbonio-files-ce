@@ -82,7 +82,8 @@ public class GetPublicNodeApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
             .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
-            .build("{ id created_at updated_at name type }");
+            .withWantedResultFormat("{ id created_at updated_at name type }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -129,8 +130,9 @@ public class GetPublicNodeApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
             .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
-            .build(
-                "{ id created_at updated_at name type ... on File { extension mime_type size } }");
+            .withWantedResultFormat(
+                "{ id created_at updated_at name type ... on File { extension mime_type size } }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -174,7 +176,8 @@ public class GetPublicNodeApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
             .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
-            .build("{ id }");
+            .withWantedResultFormat("{ id }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -219,7 +222,8 @@ public class GetPublicNodeApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
             .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
-            .build("{ id }");
+            .withWantedResultFormat("{ id }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 

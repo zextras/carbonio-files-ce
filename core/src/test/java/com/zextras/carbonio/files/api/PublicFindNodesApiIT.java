@@ -133,7 +133,8 @@ public class PublicFindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 3)
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -185,7 +186,8 @@ public class PublicFindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 3)
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest firstHttpRequest =
         HttpRequest.of("POST", "/public/graphql/", null, firstBodyPayload);
@@ -204,7 +206,8 @@ public class PublicFindNodesApiIT {
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 3)
             .withString("page_token", pageToken)
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -250,7 +253,8 @@ public class PublicFindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 6)
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -316,7 +320,8 @@ public class PublicFindNodesApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -368,7 +373,8 @@ public class PublicFindNodesApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -399,7 +405,8 @@ public class PublicFindNodesApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -423,7 +430,8 @@ public class PublicFindNodesApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -518,7 +526,8 @@ public class PublicFindNodesApiIT {
             .withInteger("limit", 1)
             .withString(
                 "page_token", Base64.getEncoder().encodeToString(pageTokenHacked.getBytes()))
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 

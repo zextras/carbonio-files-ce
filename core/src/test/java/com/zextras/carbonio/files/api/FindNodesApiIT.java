@@ -127,7 +127,8 @@ class FindNodesApiIT {
             .withBoolean("cascade", true)
             .withEnum("sort", NodeSort.NAME_ASC)
             .withInteger("limit", 5)
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -173,7 +174,8 @@ class FindNodesApiIT {
             .withBoolean("cascade", true)
             .withEnum("sort", NodeSort.NAME_DESC)
             .withInteger("limit", 5)
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -219,7 +221,8 @@ class FindNodesApiIT {
             .withBoolean("cascade", true)
             .withEnum("sort", NodeSort.SIZE_ASC)
             .withInteger("limit", 5)
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -265,7 +268,8 @@ class FindNodesApiIT {
             .withBoolean("cascade", true)
             .withEnum("sort", NodeSort.SIZE_DESC)
             .withInteger("limit", 5)
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -311,7 +315,8 @@ class FindNodesApiIT {
             .withBoolean("cascade", true)
             .withEnum("sort", NodeSort.UPDATED_AT_ASC)
             .withInteger("limit", 5)
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -357,7 +362,8 @@ class FindNodesApiIT {
             .withBoolean("cascade", true)
             .withEnum("sort", NodeSort.UPDATED_AT_DESC)
             .withInteger("limit", 5)
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -415,7 +421,8 @@ class FindNodesApiIT {
             .withEnum("sort", NodeSort.NAME_ASC)
             .withInteger("limit", 5)
             .withBoolean("flagged", true)
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -464,7 +471,8 @@ class FindNodesApiIT {
             .withInteger("limit", 5)
             .withBoolean("shared_by_me", true)
             .withBoolean("direct_share", true)
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -513,7 +521,8 @@ class FindNodesApiIT {
             .withInteger("limit", 5)
             .withBoolean("shared_with_me", true)
             .withBoolean("direct_share", true)
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -557,7 +566,8 @@ class FindNodesApiIT {
             .withBoolean("cascade", false)
             .withEnum("sort", NodeSort.NAME_ASC)
             .withInteger("limit", 5)
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -606,7 +616,8 @@ class FindNodesApiIT {
             .withEnum("sort", NodeSort.NAME_ASC)
             .withInteger("limit", 5)
             .withBoolean("shared_with_me", true)
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -640,7 +651,8 @@ class FindNodesApiIT {
             .withEnum("sort", NodeSort.NAME_ASC)
             .withInteger("limit", 5)
             .withListOfStrings("keywords", new String[] {"a"})
-            .build("{ nodes { id name }, page_token }");
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);

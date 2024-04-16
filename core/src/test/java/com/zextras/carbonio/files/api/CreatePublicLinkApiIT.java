@@ -91,7 +91,8 @@ class CreatePublicLinkApiIT {
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("expires_at", 5)
             .withString("description", "super-description")
-            .build("{ id url expires_at created_at description node { id } }");
+            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -125,7 +126,8 @@ class CreatePublicLinkApiIT {
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("createLink")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
-            .build("{ id url expires_at created_at description node { id } }");
+            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -160,7 +162,8 @@ class CreatePublicLinkApiIT {
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("createLink")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
-            .build("{ id url expires_at created_at description node { id } }");
+            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -195,7 +198,8 @@ class CreatePublicLinkApiIT {
         GraphqlCommandBuilder.aMutationBuilder("createLink")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("expires_at", 0)
-            .build("{ id expires_at }");
+            .withWantedResultFormat("{ id expires_at }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -220,7 +224,8 @@ class CreatePublicLinkApiIT {
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("createLink")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
-            .build("{ id }");
+            .withWantedResultFormat("{ id }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -251,7 +256,8 @@ class CreatePublicLinkApiIT {
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("createLink")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
-            .build("{ id }");
+            .withWantedResultFormat("{ id }")
+            .build();
     final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
@@ -281,7 +287,8 @@ class CreatePublicLinkApiIT {
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("createLink")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
-            .build("{ id }");
+            .withWantedResultFormat("{ id }")
+            .build();
     final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
@@ -309,7 +316,8 @@ class CreatePublicLinkApiIT {
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("createLink")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
-            .build("{ id }");
+            .withWantedResultFormat("{ id }")
+            .build();
     final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);

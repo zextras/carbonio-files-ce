@@ -49,10 +49,13 @@ public class GraphqlCommandBuilder {
     return this;
   }
 
-  public String build(
-      String wantedResultFormat) { // { { nodes { id name }, page_token } for searching
+  public GraphqlCommandBuilder withWantedResultFormat(String wantedResultFormat){
     query.setLength(query.length() - 2);
     query.append(") ").append(wantedResultFormat).append(" }");
+    return this;
+  }
+
+  public String build() {
     return query.toString();
   }
 }
