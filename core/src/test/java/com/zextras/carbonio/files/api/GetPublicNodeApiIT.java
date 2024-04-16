@@ -96,8 +96,8 @@ public class GetPublicNodeApiIT {
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "getPublicNode");
 
     Assertions.assertThat(publicNode.get("id")).isEqualTo("00000000-0000-0000-0000-000000000000");
-    Assertions.assertThat(publicNode.get("created_at")).isNotEqualTo(now);
-    Assertions.assertThat(publicNode.get("updated_at")).isNotEqualTo(now);
+    Assertions.assertThat((long) publicNode.get("created_at")).isGreaterThanOrEqualTo(now);
+    Assertions.assertThat((long) publicNode.get("updated_at")).isGreaterThanOrEqualTo(now);
     Assertions.assertThat(publicNode.get("name")).isEqualTo("folder");
     Assertions.assertThat(publicNode.get("type")).isEqualTo(NodeType.FOLDER.toString());
   }
@@ -144,8 +144,8 @@ public class GetPublicNodeApiIT {
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "getPublicNode");
 
     Assertions.assertThat(publicNode.get("id")).isEqualTo("00000000-0000-0000-0000-000000000000");
-    Assertions.assertThat(publicNode.get("created_at")).isNotEqualTo(now);
-    Assertions.assertThat(publicNode.get("updated_at")).isNotEqualTo(now);
+    Assertions.assertThat((long) publicNode.get("created_at")).isGreaterThanOrEqualTo(now);
+    Assertions.assertThat((long) publicNode.get("updated_at")).isGreaterThanOrEqualTo(now);
     Assertions.assertThat(publicNode.get("name")).isEqualTo("test");
     Assertions.assertThat(publicNode.get("extension")).isEqualTo("txt");
     Assertions.assertThat(publicNode.get("type")).isEqualTo(NodeType.TEXT.toString());
