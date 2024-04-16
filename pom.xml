@@ -70,7 +70,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <java-compiler.version>17</java-compiler.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <sonar.coverage.jacoco.xmlReportPaths>
-      ../core/target/jacoco-full-report/jacoco.xml
+      ./core/target/jacoco-full-report/jacoco.xml
     </sonar.coverage.jacoco.xmlReportPaths>
     <sonar.dependencyCheck.htmlReportPath>
       ./dependency-check-report.html
