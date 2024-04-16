@@ -27,7 +27,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-public class FindNodesApiIT {
+class FindNodesApiIT {
 
   static Simulator simulator;
   static NodeRepository nodeRepository;
