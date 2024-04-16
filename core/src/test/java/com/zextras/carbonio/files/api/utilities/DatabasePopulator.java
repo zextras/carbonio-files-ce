@@ -51,10 +51,7 @@ public class DatabasePopulator {
       fileVersionRepository.createNewFileVersion(
           node.getNodeId(), node.getOwnerId(), 1, node.getMimeType(), node.getSize(), "", false);
 
-    try {
-      Thread.sleep(1L);
-    } catch (Exception ignored) {
-    }
+    delay();
     return this;
   }
 
@@ -62,6 +59,7 @@ public class DatabasePopulator {
       String nodeId, String targetUserId, ACL.SharePermission permission) {
     shareRepository.upsertShare(
         nodeId, targetUserId, ACL.decode(permission), true, false, Optional.empty());
+    delay();
     return this;
   }
 
@@ -84,6 +82,7 @@ public class DatabasePopulator {
         "",
         false);
 
+    delay();
     return this;
   }
 
@@ -96,11 +95,13 @@ public class DatabasePopulator {
     Optional<Node> optionalNode = nodeRepository.getNode(nodeId);
     if (optionalNode.isEmpty()) throw new IllegalArgumentException("Node does not exist");
     linkRepository.createLink(linkId, nodeId, publicId, expAt, description);
+    delay();
     return this;
   }
 
   public DatabasePopulator addFlag(String nodeId, String requesterId) {
     nodeRepository.flagForUser(nodeId, requesterId, true);
+    delay();
     return this;
   }
 
@@ -111,6 +112,14 @@ public class DatabasePopulator {
     trashedNode.get().setParentId(Files.Db.RootId.TRASH_ROOT);
     nodeRepository.trashNode(nodeId, nodeParentId);
     nodeRepository.updateNode(trashedNode.get());
+    delay();
     return this;
+  }
+
+  private void delay() {
+    try {
+      Thread.sleep(1L);
+    } catch (Exception ignored) {
+    }
   }
 }
