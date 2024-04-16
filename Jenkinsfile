@@ -61,7 +61,7 @@ pipeline {
         stage('Coverage') {
             steps {
                 sh 'mvn -B --settings settings-jenkins.xml verify -P generate-jacoco-full-report'
-                recordCoverage(tools: [[parser: 'JACOCO']], sourceCodeRetention: 'MODIFIED', [[pattern: 'core/target/jacoco-full-report/jacoco.xml']])
+                recordCoverage(tools: [[parser: 'JACOCO', pattern: 'core/target/jacoco-full-report/jacoco.xml']], sourceCodeRetention: 'MODIFIED')
             }
         }
         stage('Dependency check'){
