@@ -51,6 +51,10 @@ public class DatabasePopulator {
       fileVersionRepository.createNewFileVersion(
           node.getNodeId(), node.getOwnerId(), 1, node.getMimeType(), node.getSize(), "", false);
 
+    try {
+      Thread.sleep(1L);
+    } catch (Exception ignored) {
+    }
     return this;
   }
 
