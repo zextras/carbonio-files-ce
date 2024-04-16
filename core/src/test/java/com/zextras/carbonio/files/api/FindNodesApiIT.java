@@ -639,7 +639,7 @@ public class FindNodesApiIT {
             .withBoolean("cascade", true)
             .withEnum("sort", NodeSort.NAME_ASC)
             .withInteger("limit", 5)
-            .withListOfStrings("keywords", new String[]{"a"})
+            .withListOfStrings("keywords", new String[] {"a"})
             .build("{ nodes { id name }, page_token }");
 
     final HttpRequest httpRequest =
@@ -666,5 +666,4 @@ public class FindNodesApiIT {
         .containsEntry("id", "00000000-0000-0000-0000-000000000001")
         .containsEntry("name", "aaa");
   }
-
 }
