@@ -8,9 +8,14 @@ import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
+import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
+import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -68,20 +73,18 @@ class GetPublicLinksApiIT {
   }
 
   void createFile(String nodeId, String ownerId) {
-    nodeRepository.createNewNode(
-        nodeId, ownerId, ownerId, "LOCAL_ROOT", "fake.txt", "", NodeType.TEXT, "LOCAL_ROOT", 1L);
-
-    fileVersionRepository.createNewFileVersion(nodeId, ownerId, 1, "text/plain", 1L, "", false);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(new SimplePopulatorTextFile(nodeId, ownerId));
   }
 
   void createFolder(String nodeId, String ownerId) {
-    nodeRepository.createNewNode(
-        nodeId, ownerId, ownerId, "LOCAL_ROOT", "folder", "", NodeType.FOLDER, "LOCAL_ROOT", 0L);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(new SimplePopulatorFolder(nodeId, ownerId));
   }
 
   void createShare(String nodeId, String targetUserId, SharePermission permission) {
-    shareRepository.upsertShare(
-        nodeId, targetUserId, ACL.decode(permission), true, false, Optional.empty());
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addShare(nodeId, targetUserId, permission);
   }
 
   @Test
@@ -89,32 +92,25 @@ class GetPublicLinksApiIT {
       givenAnExistingFileWithTwoExistingLinksTheGetLinksShouldReturnAListOfAssociatedLinksOrderedByCreationDescending() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "06e0f2ae-b128-4d25-9b3b-df84eb7948a9",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.of(5L),
+            Optional.of("super-description"))
+        .addLink(
+            "0c04783b-bdfb-446f-870c-625f5ae02a0a",
+            "00000000-0000-0000-0000-000000000000",
+            "00001234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty());
 
-    linkRepository.createLink(
-        "06e0f2ae-b128-4d25-9b3b-df84eb7948a9",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.of(5L),
-        Optional.of("super-description"));
-
-    linkRepository.createLink(
-        "0c04783b-bdfb-446f-870c-625f5ae02a0a",
-        "00000000-0000-0000-0000-000000000000",
-        "00001234abcd1234abcd1234abcd1234",
-        Optional.empty(),
-        Optional.empty());
-
-    final String bodyPayload =
-        "query { "
-            + "getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { "
-            + "id "
-            + "url "
-            + "expires_at "
-            + "created_at "
-            + "description "
-            + "node { id } "
-            + "} "
-            + "} ";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -157,25 +153,19 @@ class GetPublicLinksApiIT {
       givenAnExistingFolderWithOneExistingLinkTheGetLinksShouldReturnAListContainingTheAssociatedLink() {
     // Given
     createFolder("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "06e0f2ae-b128-4d25-9b3b-df84eb7948a9",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.of(5L),
+            Optional.of("super-description"));
 
-    linkRepository.createLink(
-        "06e0f2ae-b128-4d25-9b3b-df84eb7948a9",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.of(5L),
-        Optional.of("super-description"));
-
-    final String bodyPayload =
-        "query { "
-            + "getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { "
-            + "id "
-            + "url "
-            + "expires_at "
-            + "created_at "
-            + "description "
-            + "node { id } "
-            + "} "
-            + "} ";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -207,8 +197,11 @@ class GetPublicLinksApiIT {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
-    final String bodyPayload =
-        "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id }}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -227,8 +220,11 @@ class GetPublicLinksApiIT {
   @Test
   void givenANotExistingNodeTheGetLinksShouldReturn200StatusCodeAndNull() {
     // Given
-    final String bodyPayload =
-        "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id }}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -250,16 +246,19 @@ class GetPublicLinksApiIT {
       givenAnExistingNodeALinkAssociatedAndAUserWithoutPermissionsTheGetLinksShouldReturn200StatusCodeAndNull() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "0c04783b-bdfb-446f-870c-625f5ae02a0a",
+            "00000000-0000-0000-0000-000000000000",
+            "0000aaaa",
+            Optional.empty(),
+            Optional.empty());
 
-    linkRepository.createLink(
-        "0c04783b-bdfb-446f-870c-625f5ae02a0a",
-        "00000000-0000-0000-0000-000000000000",
-        "0000aaaa",
-        Optional.empty(),
-        Optional.empty());
-
-    final String bodyPayload =
-        "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id }}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of(
@@ -282,20 +281,23 @@ class GetPublicLinksApiIT {
       givenAnExistingNodeSharedToAUserWithoutShareRightsAndAnExistingLinkTheGetLinksShouldReturn200CodeAndNull() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-    createShare(
-        "00000000-0000-0000-0000-000000000000",
-        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-        SharePermission.READ_ONLY);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addShare(
+            "00000000-0000-0000-0000-000000000000",
+            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            SharePermission.READ_ONLY)
+        .addLink(
+            "0c04783b-bdfb-446f-870c-625f5ae02a0a",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty());
 
-    linkRepository.createLink(
-        "0c04783b-bdfb-446f-870c-625f5ae02a0a",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.empty(),
-        Optional.empty());
-
-    final String bodyPayload =
-        "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id }}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of(
@@ -317,20 +319,23 @@ class GetPublicLinksApiIT {
       givenAnExistingNodeSharedToAUserWithShareRightsAndAnExistingLinkTheGetLinksShouldReturnAListOfAssociatedLinks() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-    createShare(
-        "00000000-0000-0000-0000-000000000000",
-        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-        SharePermission.READ_AND_SHARE);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addShare(
+            "00000000-0000-0000-0000-000000000000",
+            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            SharePermission.READ_AND_SHARE)
+        .addLink(
+            "0c04783b-bdfb-446f-870c-625f5ae02a0a",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty());
 
-    linkRepository.createLink(
-        "0c04783b-bdfb-446f-870c-625f5ae02a0a",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.empty(),
-        Optional.empty());
-
-    final String bodyPayload =
-        "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id }}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of(
@@ -355,20 +360,23 @@ class GetPublicLinksApiIT {
       givenAnExistingFileAndAnAssociatedLegacyPublicLinkWithAn8CharsPublicIdentifierTheGetLinksShouldReturnItCorrectly() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-    createShare(
-        "00000000-0000-0000-0000-000000000000",
-        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-        SharePermission.READ_ONLY);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addShare(
+            "00000000-0000-0000-0000-000000000000",
+            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            SharePermission.READ_ONLY)
+        .addLink(
+            "0c04783b-bdfb-446f-870c-625f5ae02a0a",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234",
+            Optional.empty(),
+            Optional.empty());
 
-    linkRepository.createLink(
-        "0c04783b-bdfb-446f-870c-625f5ae02a0a",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234",
-        Optional.empty(),
-        Optional.empty());
-
-    final String bodyPayload =
-        "query { getLinks(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") { id url }}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id url }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);

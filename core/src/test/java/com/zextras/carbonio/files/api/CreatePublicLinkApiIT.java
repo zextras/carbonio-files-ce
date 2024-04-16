@@ -8,6 +8,10 @@ import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
+import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
+import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
@@ -64,40 +68,31 @@ class CreatePublicLinkApiIT {
   }
 
   void createFile(String nodeId, String ownerId) {
-    nodeRepository.createNewNode(
-        nodeId, ownerId, ownerId, "LOCAL_ROOT", "fake.txt", "", NodeType.TEXT, "LOCAL_ROOT", 1L);
-
-    fileVersionRepository.createNewFileVersion(nodeId, ownerId, 1, "text/plain", 1L, "", false);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(new SimplePopulatorTextFile(nodeId, ownerId));
   }
 
   void createFolder(String nodeId, String ownerId) {
-    nodeRepository.createNewNode(
-        nodeId, ownerId, ownerId, "LOCAL_ROOT", "folder", "", NodeType.FOLDER, "LOCAL_ROOT", 0L);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(new SimplePopulatorFolder(nodeId, ownerId));
   }
 
   void createShare(String nodeId, String targetUserId, SharePermission permission) {
-    shareRepository.upsertShare(
-        nodeId, targetUserId, ACL.decode(permission), true, false, Optional.empty());
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addShare(nodeId, targetUserId, permission);
   }
 
   @Test
   void givenAFileIdAndAllLinkFieldsTheCreateLinkShouldCreateANewPublicLink() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-
     final String bodyPayload =
-        "mutation { "
-            + "createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\", expires_at: 5, description: \\\"super-description\\\") {"
-            + "id "
-            + "url "
-            + "expires_at "
-            + "created_at "
-            + "description "
-            + "node { "
-            + "  id "
-            + "} "
-            + "} "
-            + "}";
+        GraphqlCommandBuilder.aMutationBuilder("createLink")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("expires_at", 5)
+            .withString("description", "super-description")
+            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -128,20 +123,11 @@ class CreatePublicLinkApiIT {
   void givenAFileIdAndOnlyMandatoryLinkFieldsTheCreateLinkShouldCreateANewPublicLink() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-
     final String bodyPayload =
-        "mutation { "
-            + "createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") {"
-            + "id "
-            + "url "
-            + "expires_at "
-            + "created_at "
-            + "description "
-            + "node { "
-            + "  id "
-            + "} "
-            + "} "
-            + "}";
+        GraphqlCommandBuilder.aMutationBuilder("createLink")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -174,18 +160,10 @@ class CreatePublicLinkApiIT {
     createFolder("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     final String bodyPayload =
-        "mutation { "
-            + "createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") {"
-            + "id "
-            + "url "
-            + "expires_at "
-            + "created_at "
-            + "description "
-            + "node { "
-            + "  id "
-            + "} "
-            + "} "
-            + "}";
+        GraphqlCommandBuilder.aMutationBuilder("createLink")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -216,14 +194,12 @@ class CreatePublicLinkApiIT {
   void givenANodeIdAndAnExpiresAtToZeroTheCreateLinkShouldCreateANewPublicLinkWithoutExpiration() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-
     final String bodyPayload =
-        "mutation { "
-            + "createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\", expires_at: 0) {"
-            + "id "
-            + "expires_at "
-            + "} "
-            + "}";
+        GraphqlCommandBuilder.aMutationBuilder("createLink")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("expires_at", 0)
+            .withWantedResultFormat("{ id expires_at }")
+            .build();
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
@@ -246,7 +222,11 @@ class CreatePublicLinkApiIT {
   void givenANotExistingNodeIdTheCreateLinkShouldReturn200CodeWithAnErrorMessage() {
     // Given
     final String bodyPayload =
-        "mutation { createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") {id}}";
+        GraphqlCommandBuilder.aMutationBuilder("createLink")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id }")
+            .build();
+
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
@@ -274,7 +254,10 @@ class CreatePublicLinkApiIT {
         SharePermission.READ_AND_SHARE);
 
     final String bodyPayload =
-        "mutation { createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") {id}}";
+        GraphqlCommandBuilder.aMutationBuilder("createLink")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id }")
+            .build();
     final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
@@ -302,7 +285,10 @@ class CreatePublicLinkApiIT {
         SharePermission.READ_ONLY);
 
     final String bodyPayload =
-        "mutation { createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") {id}}";
+        GraphqlCommandBuilder.aMutationBuilder("createLink")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id }")
+            .build();
     final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
@@ -328,7 +314,10 @@ class CreatePublicLinkApiIT {
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     final String bodyPayload =
-        "mutation { createLink(node_id: \\\"00000000-0000-0000-0000-000000000000\\\") {id}}";
+        GraphqlCommandBuilder.aMutationBuilder("createLink")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id }")
+            .build();
     final HttpRequest httpRequest =
         HttpRequest.of(
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);

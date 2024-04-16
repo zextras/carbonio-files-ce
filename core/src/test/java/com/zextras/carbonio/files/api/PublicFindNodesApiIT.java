@@ -8,7 +8,11 @@ import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
+import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -57,27 +61,31 @@ public class PublicFindNodesApiIT {
   void createFolderTree() {
     String ownerId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
-    nodeRepository.createNewNode(
-        "00000000-0000-0000-0000-000000000000",
-        ownerId,
-        ownerId,
-        "LOCAL_ROOT",
-        "public folder",
-        "",
-        NodeType.FOLDER,
-        "LOCAL_ROOT",
-        0L);
-
-    nodeRepository.createNewNode(
-        "11111111-1111-1111-1111-111111111111",
-        ownerId,
-        ownerId,
-        "00000000-0000-0000-0000-000000000000",
-        "folder child",
-        "",
-        NodeType.FOLDER,
-        "LOCAL_ROOT,00000000-0000-0000-0000-000000000000",
-        0L);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                ownerId,
+                ownerId,
+                "LOCAL_ROOT",
+                "public folder",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT",
+                0L,
+                null))
+        .addNode(
+            new PopulatorNode(
+                "11111111-1111-1111-1111-111111111111",
+                ownerId,
+                ownerId,
+                "00000000-0000-0000-0000-000000000000",
+                "folder child",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT,00000000-0000-0000-0000-000000000000",
+                0L,
+                null));
 
     final List<String> childrenFileIds =
         Arrays.asList(
@@ -88,19 +96,19 @@ public class PublicFindNodesApiIT {
 
     childrenFileIds.forEach(
         fileId -> {
-          nodeRepository.createNewNode(
-              fileId,
-              ownerId,
-              ownerId,
-              "00000000-0000-0000-0000-000000000000",
-              "file child id " + fileId.charAt(0) + ".txt",
-              "",
-              NodeType.TEXT,
-              "LOCAL_ROOT,00000000-0000-0000-0000-000000000000",
-              5L);
-
-          fileVersionRepository.createNewFileVersion(
-              fileId, ownerId, 1, "text/plain", 5L, "", false);
+          DatabasePopulator.aNodePopulator(simulator.getInjector())
+              .addNode(
+                  new PopulatorNode(
+                      fileId,
+                      ownerId,
+                      ownerId,
+                      "00000000-0000-0000-0000-000000000000",
+                      "file child id " + fileId.charAt(0) + ".txt",
+                      "",
+                      NodeType.TEXT,
+                      "LOCAL_ROOT,00000000-0000-0000-0000-000000000000",
+                      5L,
+                      "text/plain"));
         });
   }
 
@@ -113,19 +121,20 @@ public class PublicFindNodesApiIT {
   void givenAnExistingFolderAndAValidPublicLinkTheFindNodesShouldReturnTheFirstPage() {
     // Given
     createFolderTree();
-    linkRepository.createLink(
-        "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.empty(),
-        Optional.empty());
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty());
 
-    final String bodyPayload =
-        "query { findNodes(folder_id: \\\"00000000-0000-0000-0000-000000000000\\\", limit: 3) { "
-            + "nodes {id name},"
-            + "page_token"
-            + "}"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("limit", 3)
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -164,20 +173,21 @@ public class PublicFindNodesApiIT {
   void givenAnExistingFolderAndAValidLinkTheFindNodesShouldReturnTheSecondPage() {
     // Given
     createFolderTree();
-    linkRepository.createLink(
-        "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.empty(),
-        Optional.empty());
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty());
 
     // Start request first page of the folder content
-    final String firstBodyPayload =
-        "query { findNodes(folder_id: \\\"00000000-0000-0000-0000-000000000000\\\", limit: 3) { "
-            + "nodes {id name},"
-            + "page_token"
-            + "}"
-            + "}";
+    String firstBodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("limit", 3)
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest firstHttpRequest =
         HttpRequest.of("POST", "/public/graphql/", null, firstBodyPayload);
@@ -191,15 +201,13 @@ public class PublicFindNodesApiIT {
                 .get("page_token");
     // End request first page of the folder content
 
-    final String bodyPayload =
-        "query { findNodes("
-            + "folder_id: \\\"00000000-0000-0000-0000-000000000000\\\", "
-            + "limit: 3, "
-            + "page_token: \\\""
-            + pageToken
-            + "\\\") { "
-            + "nodes {id name}, page_token }"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("limit", 3)
+            .withString("page_token", pageToken)
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -233,19 +241,20 @@ public class PublicFindNodesApiIT {
   void givenAnExistingFolderAndAValidPublicLinkTheFindNodesShouldReturnTheOnlyPageExisting() {
     // Given
     createFolderTree();
-    linkRepository.createLink(
-        "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.empty(),
-        Optional.empty());
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty());
 
-    final String bodyPayload =
-        "query { findNodes(folder_id: \\\"00000000-0000-0000-0000-000000000000\\\", limit: 6) { "
-            + "nodes {id name},"
-            + "page_token"
-            + "}"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("limit", 6)
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -288,30 +297,31 @@ public class PublicFindNodesApiIT {
   @Test
   void givenAnExistingEmptyFolderAndAValidPublicLinkTheFindNodesShouldReturnAnEmptyFirstPage() {
     // Given
-    nodeRepository.createNewNode(
-        "00000000-0000-0000-0000-000000000000",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "LOCAL_ROOT",
-        "public folder",
-        "",
-        NodeType.FOLDER,
-        "LOCAL_ROOT",
-        0L);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "public folder",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT",
+                0L,
+                null))
+        .addLink(
+            "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty());
 
-    linkRepository.createLink(
-        "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.empty(),
-        Optional.empty());
-
-    final String bodyPayload =
-        "query { findNodes(folder_id: \\\"00000000-0000-0000-0000-000000000000\\\") { "
-            + "nodes {id name},"
-            + "page_token"
-            + "}"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -340,30 +350,31 @@ public class PublicFindNodesApiIT {
   void
       givenAnExistingFolderAndAnExpiredPublicLinkTheFindNodesShouldReturn200CodeAndAnErrorMessage() {
     // Given
-    nodeRepository.createNewNode(
-        "00000000-0000-0000-0000-000000000000",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "LOCAL_ROOT",
-        "public folder",
-        "",
-        NodeType.FOLDER,
-        "LOCAL_ROOT",
-        0L);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "public folder",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT",
+                0L,
+                null))
+        .addLink(
+            "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.of(1L),
+            Optional.empty());
 
-    linkRepository.createLink(
-        "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.of(1L), // The link is already expired
-        Optional.empty());
-
-    final String bodyPayload =
-        "query { findNodes(folder_id: \\\"00000000-0000-0000-0000-000000000000\\\") { "
-            + "nodes {id name},"
-            + "page_token"
-            + "}"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -391,12 +402,11 @@ public class PublicFindNodesApiIT {
     // Given
     createFolderTree();
 
-    final String bodyPayload =
-        "query { findNodes(folder_id: \\\"00000000-0000-0000-0000-000000000000\\\") { "
-            + "nodes {id name},"
-            + "page_token"
-            + "}"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -417,12 +427,11 @@ public class PublicFindNodesApiIT {
   @Test
   void givenANotExistingFolderTheFindNodesShouldReturnAn200StatusWithAnErrorMessage() {
     // Given
-    final String bodyPayload =
-        "query { findNodes(folder_id: \\\"00000000-0000-0000-0000-000000000000\\\") { "
-            + "nodes {id name},"
-            + "page_token"
-            + "}"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
@@ -450,46 +459,49 @@ public class PublicFindNodesApiIT {
     // Given
     createFolderTree();
 
-    linkRepository.createLink(
-        "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
-        "00000000-0000-0000-0000-000000000000",
-        "abcd1234abcd1234abcd1234abcd1234",
-        Optional.empty(),
-        Optional.empty());
-
-    // Another folder not public
-    nodeRepository.createNewNode(
-        "77777777-7777-7777-7777-777777777777",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "LOCAL_ROOT",
-        "not public folder",
-        "",
-        NodeType.FOLDER,
-        "LOCAL_ROOT",
-        0L);
-
-    nodeRepository.createNewNode(
-        "88888888-8888-8888-8888-888888888888",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "77777777-7777-7777-7777-777777777777",
-        "folder child",
-        "",
-        NodeType.FOLDER,
-        "LOCAL_ROOT,77777777-7777-7777-7777-777777777777",
-        0L);
-
-    nodeRepository.createNewNode(
-        "99999999-9999-9999-9999-999999999999",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-        "77777777-7777-7777-7777-777777777777",
-        "folder child 2",
-        "",
-        NodeType.FOLDER,
-        "LOCAL_ROOT,77777777-7777-7777-7777-777777777777",
-        0L);
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty())
+        .addNode(
+            new PopulatorNode(
+                "77777777-7777-7777-7777-777777777777",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "not public folder",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT",
+                0L,
+                null))
+        .addNode(
+            new PopulatorNode(
+                "88888888-8888-8888-8888-888888888888",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "77777777-7777-7777-7777-777777777777",
+                "folder child",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT,77777777-7777-7777-7777-777777777777",
+                0L,
+                null))
+        .addNode(
+            new PopulatorNode(
+                "99999999-9999-9999-9999-999999999999",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "77777777-7777-7777-7777-777777777777",
+                "folder child 2",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT,77777777-7777-7777-7777-777777777777",
+                0L,
+                null));
 
     String pageTokenHacked =
         """
@@ -508,15 +520,14 @@ public class PublicFindNodesApiIT {
       "ownerId": null
     }""";
 
-    final String bodyPayload =
-        "query { findNodes("
-            + "folder_id: \\\"00000000-0000-0000-0000-000000000000\\\", "
-            + "limit: 1, "
-            + "page_token: \\\""
-            + Base64.getEncoder().encodeToString(pageTokenHacked.getBytes())
-            + "\\\") { "
-            + "nodes {id}, page_token }"
-            + "}";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("limit", 1)
+            .withString(
+                "page_token", Base64.getEncoder().encodeToString(pageTokenHacked.getBytes()))
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
