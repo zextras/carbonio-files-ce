@@ -84,14 +84,10 @@ public class LinkRepositoryEbean implements LinkRepository {
       .eq(Db.Link.NODE_ID, nodeId)
       .query();
 
-    List<Link> links = sort
-        .getOrderEbeanQuery(query)
-        .findList();
-
-    for(Link l : links){
-      System.err.println(l.getLinkId() + " " + l.getCreatedAt());
-    }
-    return links.stream();
+    return sort
+      .getOrderEbeanQuery(query)
+      .findList()
+      .stream();
   }
 
   public Link updateLink(Link link) {
