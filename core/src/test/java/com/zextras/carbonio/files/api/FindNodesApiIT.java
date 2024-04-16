@@ -10,21 +10,17 @@ import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
-import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
-
 import java.util.List;
 import java.util.Map;
-
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -585,7 +581,7 @@ public class FindNodesApiIT {
   }
 
   @Test
-  void givenFilesSharedWithMeOnTrashSearchSharedWithMeInTrashBinShouldReturnSharedTrashedNodes() {
+  void givenExistingFilesTrashSearchSharedWithMeInTrashBinShouldReturnSharedTrashedNodes() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -632,4 +628,43 @@ public class FindNodesApiIT {
         .containsEntry("id", "00000000-0000-0000-0000-000000000001")
         .containsEntry("name", "trashed");
   }
+
+  @Test
+  void givenFilesOnRootSearchByKeywordsShouldReturnCorrectNodes() {
+    // Given
+    createNodesDifferentNames();
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "LOCAL_ROOT")
+            .withBoolean("cascade", true)
+            .withEnum("sort", NodeSort.NAME_ASC)
+            .withInteger("limit", 5)
+            .withListOfStrings("keywords", new String[]{"a"})
+            .build("{ nodes { id name }, page_token }");
+
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final Map<String, Object> page =
+        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+
+    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+
+    Assertions.assertThat(nodes).hasSize(2);
+    // folders always on top
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", "10000000-0000-0000-0000-000000000001")
+        .containsEntry("name", "folderA");
+    Assertions.assertThat(nodes.get(1))
+        .containsEntry("id", "00000000-0000-0000-0000-000000000001")
+        .containsEntry("name", "aaa");
+  }
+
 }
