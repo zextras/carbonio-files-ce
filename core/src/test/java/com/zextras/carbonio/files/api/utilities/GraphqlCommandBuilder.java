@@ -49,7 +49,7 @@ public class GraphqlCommandBuilder {
     return this;
   }
 
-  public GraphqlCommandBuilder withWantedResultFormat(String wantedResultFormat){
+  public GraphqlCommandBuilder withWantedResultFormat(String wantedResultFormat) {
     query.setLength(query.length() - 2);
     query.append(") ").append(wantedResultFormat).append(" }");
     return this;
