@@ -555,7 +555,12 @@ public class NodeRepositoryEbean implements NodeRepository {
 
     sort.map(
             s -> {
-              if (s.equals(NodeSort.SIZE_ASC) || s.equals(NodeSort.SIZE_DESC)) {
+              if (s.equals(NodeSort.SIZE_ASC)) {
+                NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
+                s.getOrderEbeanQuery(query);
+                NodeSort.NAME_ASC.getOrderEbeanQuery(query);
+              } else if (s.equals(NodeSort.SIZE_DESC)) {
+                NodeSort.TYPE_DESC.getOrderEbeanQuery(query);
                 s.getOrderEbeanQuery(query);
                 NodeSort.NAME_ASC.getOrderEbeanQuery(query);
               } else {
