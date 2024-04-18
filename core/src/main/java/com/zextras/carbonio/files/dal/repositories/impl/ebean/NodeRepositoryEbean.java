@@ -62,6 +62,7 @@ public class NodeRepositoryEbean implements NodeRepository {
   private String buildKeyset(
       NodeCategory nodeCategory,
       String nodeId,
+      //                        SIZE     >      VALUE
       Optional<ImmutableTriple<String, String, String>> sortField) {
     return sortField
         .map(

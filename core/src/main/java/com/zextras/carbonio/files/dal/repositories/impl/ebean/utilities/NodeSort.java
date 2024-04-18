@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import io.ebean.Query;
 
@@ -14,20 +15,44 @@ import io.ebean.Query;
  * sort applied. These implementations can be useful to concatenate multiple sorts to a single
  * {@link Query}.
  */
-public enum NodeSort implements SortingEntityEbean<Node> {
+public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
   LAST_EDITOR_ASC {
+    public String getType() {
+      return Db.Node.EDITOR_ID;
+    }
+
+    public String getOrder() {
+      return ">";
+    }
+
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
       return query.order().asc("t0." + Files.Db.Node.EDITOR_ID);
     }
   },
 
   LAST_EDITOR_DESC {
+    public String getType() {
+      return Db.Node.EDITOR_ID;
+    }
+
+    public String getOrder() {
+      return "<";
+    }
+
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
       return query.order().desc("t0." + Files.Db.Node.EDITOR_ID);
     }
   },
 
   NAME_ASC {
+    public String getType() {
+      return Db.Node.NAME;
+    }
+
+    public String getOrder() {
+      return ">";
+    }
+
     @Override
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
       return query.order().asc("t0." + Files.Db.Node.NAME);
@@ -35,6 +60,14 @@ public enum NodeSort implements SortingEntityEbean<Node> {
   },
 
   NAME_DESC {
+    public String getType() {
+      return Db.Node.NAME;
+    }
+
+    public String getOrder() {
+      return "<";
+    }
+
     public Query<Node> getOrderEbeanQuery(Query<Node> query) {
       return query.order().desc("t0." + Files.Db.Node.NAME);
     }
