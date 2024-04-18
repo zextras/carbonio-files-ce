@@ -106,15 +106,15 @@ class FindNodesApiIT {
                 "10000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
         .addNode(
             new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", 1L))
+                "00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", 0L))
         .addNode(
             new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", 2L))
+                "00000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", 1L))
         .addNode(
             new SimplePopulatorTextFile(
                 "00000000-0000-0000-0000-000000000003",
                 "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                3L));
+                2L));
   }
 
   @Test

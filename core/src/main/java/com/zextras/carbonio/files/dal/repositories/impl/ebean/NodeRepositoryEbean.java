@@ -55,37 +55,64 @@ public class NodeRepositoryEbean implements NodeRepository {
    * @param nodeCategory The value of the nodeCategory of the last node of the current page
    * @param nodeId The nodeId of the last node of the current page
    * @param sortField an {@link ImmutableTriple} that must contain: - the name of the ordering field
-   * - the direction of the ordering - the value of the ordering field of the last node of the
-   * current page
-   *
+   *     - the direction of the ordering - the value of the ordering field of the last node of the
+   *     current page
    * @return a {@link String} representing the evaluated key set
    */
   private String buildKeyset(
-    NodeCategory nodeCategory,
-    String nodeId,
-    Optional<ImmutableTriple<String, String, String>> sortField
-  ) {
-    return sortField.map(sField -> {
-        return sField.getLeft()
-          .equals("size")
-          ? "(" + sField.getLeft() + sField.getMiddle() +
-          "'" + sField.getRight()
-          .replace("'", "''") + "'" + ") " +
-          "OR (" + sField.getLeft() + " = " +
-          "'" + sField.getRight()
-          .replace("'", "''") + "' AND t0.node_id > '" + nodeId + "')"
-          : "(node_category > " + nodeCategory.getValue() + ") " +
-            "OR (node_category = " + nodeCategory.getValue() + " AND " + sField.getLeft() +
-            sField.getMiddle() +
-            "'" + sField.getRight()
-            .replace("'", "''") + "'" + ") " +
-            "OR (node_category = " + nodeCategory.getValue() + " AND " + sField.getLeft() + " = " +
-            "'" + sField.getRight()
-            .replace("'", "''") + "' AND t0.node_id > '" + nodeId + "')";
-      })
-      .orElse("(node_category > " + nodeCategory.getValue() + ") OR " +
-        "(node_category = " + nodeCategory.getValue() + " AND t0.node_id > '" + nodeId + "')");
-
+      NodeCategory nodeCategory,
+      String nodeId,
+      Optional<ImmutableTriple<String, String, String>> sortField) {
+    return sortField
+        .map(
+            sField ->
+                sField.getLeft().equals("size")
+                    ? "("
+                        + sField.getLeft()
+                        + sField.getMiddle()
+                        + "'"
+                        + sField.getRight().replace("'", "''")
+                        + "'"
+                        + ") "
+                        + "OR ("
+                        + sField.getLeft()
+                        + " = "
+                        + "'"
+                        + sField.getRight().replace("'", "''")
+                        + "' AND t0.node_id > '"
+                        + nodeId
+                        + "')"
+                    : "(node_category > "
+                        + nodeCategory.getValue()
+                        + ") "
+                        + "OR (node_category = "
+                        + nodeCategory.getValue()
+                        + " AND "
+                        + sField.getLeft()
+                        + sField.getMiddle()
+                        + "'"
+                        + sField.getRight().replace("'", "''")
+                        + "'"
+                        + ") "
+                        + "OR (node_category = "
+                        + nodeCategory.getValue()
+                        + " AND "
+                        + sField.getLeft()
+                        + " = "
+                        + "'"
+                        + sField.getRight().replace("'", "''")
+                        + "' AND t0.node_id > '"
+                        + nodeId
+                        + "')")
+        .orElse(
+            "(node_category > "
+                + nodeCategory.getValue()
+                + ") OR "
+                + "(node_category = "
+                + nodeCategory.getValue()
+                + " AND t0.node_id > '"
+                + nodeId
+                + "')");
   }
 
   /**
@@ -96,23 +123,21 @@ public class NodeRepositoryEbean implements NodeRepository {
    * @param limit the number of nodes to retrieve
    * @param sort the sort used for ordering the dataset
    * @param flagged the value of the flag
-   *
    * @return a {@link String} containing the next pageToken
    */
   public String createPageToken(
-    Node node,
-    Integer limit,
-    Optional<NodeSort> sort,
-    Optional<Boolean> flagged,
-    Optional<String> folderId,
-    Optional<Boolean> cascade,
-    Optional<Boolean> sharedWithMe,
-    Optional<Boolean> sharedByMe,
-    Optional<Boolean> directShare,
-    Optional<NodeType> optNodeType,
-    Optional<String> optOwnerId,
-    List<String> keywords
-  ) {
+      Node node,
+      Integer limit,
+      Optional<NodeSort> sort,
+      Optional<Boolean> flagged,
+      Optional<String> folderId,
+      Optional<Boolean> cascade,
+      Optional<Boolean> sharedWithMe,
+      Optional<Boolean> sharedByMe,
+      Optional<Boolean> directShare,
+      Optional<NodeType> optNodeType,
+      Optional<String> optOwnerId,
+      List<String> keywords) {
     PageQuery nextPage = new PageQuery();
     nextPage.setLimit(limit);
     nextPage.setKeywords(keywords);
@@ -126,106 +151,89 @@ public class NodeRepositoryEbean implements NodeRepository {
     optNodeType.ifPresent(nextPage::setNodeType);
     optOwnerId.ifPresent(nextPage::setOwnerId);
 
-    sort.ifPresent(s -> {
-      switch (s) {
-        case NAME_ASC:
-          nextPage.setKeySet(
-            buildKeyset(
-              node.getNodeCategory(),
-              node.getId(),
-              Optional.of(new ImmutableTriple(
-                MessageFormat.format("LOWER({0})", Db.Node.NAME),
-                ">",
-                node.getFullName().toLowerCase())
-              )
-            )
-          );
-          break;
-        case NAME_DESC:
-          nextPage.setKeySet(
-            buildKeyset(
-              node.getNodeCategory(),
-              node.getId(),
-              Optional.of(new ImmutableTriple(
-                MessageFormat.format("LOWER({0})", Db.Node.NAME),
-                "<",
-                node.getFullName().toLowerCase())
-              )
-            )
-          );
-          break;
-        case UPDATED_AT_ASC:
-          nextPage.setKeySet(
-            buildKeyset(
-              node.getNodeCategory(),
-              node.getId(),
-              Optional.of(
-                new ImmutableTriple(Db.Node.UPDATED_AT, ">", String.valueOf(node.getUpdatedAt()))
-              )
-            )
-          );
-          break;
-        case UPDATED_AT_DESC:
-          nextPage.setKeySet(
-            buildKeyset(
-              node.getNodeCategory(),
-              node.getId(),
-              Optional.of(
-                new ImmutableTriple(Db.Node.UPDATED_AT, "<", String.valueOf(node.getUpdatedAt()))
-              )
-            )
-          );
-          break;
-        case CREATED_AT_ASC:
-          nextPage.setKeySet(
-            buildKeyset(
-              node.getNodeCategory(),
-              node.getId(),
-              Optional.of(
-                new ImmutableTriple(Db.Node.CREATED_AT, ">", String.valueOf(node.getCreatedAt()))
-              )
-            )
-          );
-          break;
-        case CREATED_AT_DESC:
-          nextPage.setKeySet(
-            buildKeyset(
-              node.getNodeCategory(),
-              node.getId(),
-              Optional.of(
-                new ImmutableTriple(Db.Node.CREATED_AT, "<", String.valueOf(node.getCreatedAt()))
-              )
-            )
-          );
-          break;
-        case SIZE_ASC:
-          nextPage.setKeySet(
-            buildKeyset(
-              node.getNodeCategory(),
-              node.getId(),
-              Optional.of(new ImmutableTriple(Db.Node.SIZE, "<", String.valueOf(node.getSize())))
-            )
-          );
-          break;
-        case SIZE_DESC:
-          nextPage.setKeySet(
-            buildKeyset(
-              node.getNodeCategory(),
-              node.getId(),
-              Optional.of(new ImmutableTriple(Db.Node.SIZE, ">", String.valueOf(node.getSize())))
-            )
-          );
-          break;
-      }
-    });
+    sort.ifPresent(
+        s -> {
+          switch (s) {
+            case NAME_ASC:
+              nextPage.setKeySet(
+                  buildKeyset(
+                      node.getNodeCategory(),
+                      node.getId(),
+                      Optional.of(
+                          new ImmutableTriple<>(
+                              MessageFormat.format("LOWER({0})", Db.Node.NAME),
+                              ">",
+                              node.getFullName().toLowerCase()))));
+              break;
+            case NAME_DESC:
+              nextPage.setKeySet(
+                  buildKeyset(
+                      node.getNodeCategory(),
+                      node.getId(),
+                      Optional.of(
+                          new ImmutableTriple<>(
+                              MessageFormat.format("LOWER({0})", Db.Node.NAME),
+                              "<",
+                              node.getFullName().toLowerCase()))));
+              break;
+            case UPDATED_AT_ASC:
+              nextPage.setKeySet(
+                  buildKeyset(
+                      node.getNodeCategory(),
+                      node.getId(),
+                      Optional.of(
+                          new ImmutableTriple<>(
+                              Db.Node.UPDATED_AT, ">", String.valueOf(node.getUpdatedAt())))));
+              break;
+            case UPDATED_AT_DESC:
+              nextPage.setKeySet(
+                  buildKeyset(
+                      node.getNodeCategory(),
+                      node.getId(),
+                      Optional.of(
+                          new ImmutableTriple<>(
+                              Db.Node.UPDATED_AT, "<", String.valueOf(node.getUpdatedAt())))));
+              break;
+            case CREATED_AT_ASC:
+              nextPage.setKeySet(
+                  buildKeyset(
+                      node.getNodeCategory(),
+                      node.getId(),
+                      Optional.of(
+                          new ImmutableTriple<>(
+                              Db.Node.CREATED_AT, ">", String.valueOf(node.getCreatedAt())))));
+              break;
+            case CREATED_AT_DESC:
+              nextPage.setKeySet(
+                  buildKeyset(
+                      node.getNodeCategory(),
+                      node.getId(),
+                      Optional.of(
+                          new ImmutableTriple<>(
+                              Db.Node.CREATED_AT, "<", String.valueOf(node.getCreatedAt())))));
+              break;
+            case SIZE_ASC:
+              nextPage.setKeySet(
+                  buildKeyset(
+                      node.getNodeCategory(),
+                      node.getId(),
+                      Optional.of(
+                          new ImmutableTriple<>(
+                              Db.Node.SIZE, "<", String.valueOf(node.getSize())))));
+              break;
+            case SIZE_DESC:
+              nextPage.setKeySet(
+                  buildKeyset(
+                      node.getNodeCategory(),
+                      node.getId(),
+                      Optional.of(
+                          new ImmutableTriple<>(
+                              Db.Node.SIZE, ">", String.valueOf(node.getSize())))));
+              break;
+          }
+        });
     if (!sort.isPresent()) {
-      nextPage.setKeySet(
-        buildKeyset(
-          node.getNodeCategory(),
-          node.getId(),
-          Optional.empty()
-        )
-      );
+      nextPage.setKeySet(buildKeyset(node.getNodeCategory(), node.getId(), Optional.empty()));
     }
     ObjectMapper mapper = new ObjectMapper();
     mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
@@ -235,7 +243,6 @@ public class NodeRepositoryEbean implements NodeRepository {
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
-
   }
 
   /**
@@ -243,7 +250,6 @@ public class NodeRepositoryEbean implements NodeRepository {
    * pagination params
    *
    * @param token the given token for retrieving the next page of data
-   *
    * @return the {@link PageQuery} class containing pagination params
    */
   private PageQuery decodePageToken(String token) {
@@ -259,28 +265,22 @@ public class NodeRepositoryEbean implements NodeRepository {
    * Directly retrieves from DB a node given its id
    *
    * @param nodeId the id of the node to retrieve
-   *
    * @return
    */
   private Optional<Node> getRealNode(String nodeId) {
     String normalizedId = nodeId + StringUtils.repeat(" ", 36 - nodeId.length());
-    return mDB.getEbeanDatabase()
-      .find(Node.class)
-      .where()
-      .idEq(normalizedId)
-      .findOneOrEmpty();
+    return mDB.getEbeanDatabase().find(Node.class).where().idEq(normalizedId).findOneOrEmpty();
   }
 
   @Override
   public List<Node> getAllTrashedNodes(Long retentionTimestamp) {
 
     return mDB.getEbeanDatabase()
-      .find(Node.class)
-      .where()
-      .contains(Db.Node.ANCESTOR_IDS, Db.RootId.TRASH_ROOT)
-      .lt(Files.Db.Node.UPDATED_AT, retentionTimestamp)
-      .findList();
-
+        .find(Node.class)
+        .where()
+        .contains(Db.Node.ANCESTOR_IDS, Db.RootId.TRASH_ROOT)
+        .lt(Files.Db.Node.UPDATED_AT, retentionTimestamp)
+        .findList();
   }
 
   /**
@@ -289,20 +289,19 @@ public class NodeRepositoryEbean implements NodeRepository {
    * the provided ones.
    */
   private List<Node> doFind(
-    String userId,
-    Integer limit,
-    Optional<NodeSort> sort,
-    Optional<Boolean> flagged,
-    Optional<String> folderId,
-    Optional<Boolean> cascade,
-    Optional<Boolean> sharedWithMe,
-    Optional<Boolean> sharedByMe,
-    Optional<Boolean> directShare,
-    List<String> keywords,
-    Optional<String> keyset,
-    Optional<NodeType> optNodeType,
-    Optional<String> optOwnerId
-  ) {
+      String userId,
+      Integer limit,
+      Optional<NodeSort> sort,
+      Optional<Boolean> flagged,
+      Optional<String> folderId,
+      Optional<Boolean> cascade,
+      Optional<Boolean> sharedWithMe,
+      Optional<Boolean> sharedByMe,
+      Optional<Boolean> directShare,
+      List<String> keywords,
+      Optional<String> keyset,
+      Optional<NodeType> optNodeType,
+      Optional<String> optOwnerId) {
 
     SearchBuilder search = new SearchBuilder(mDB.getEbeanDatabase(), userId);
 
@@ -322,19 +321,17 @@ public class NodeRepositoryEbean implements NodeRepository {
     search.setLimit(limit);
     keyset.ifPresent(search::setKeyset);
 
-    sort.map(s -> {
-        if (s.equals(NodeSort.SIZE_ASC) || s.equals(NodeSort.SIZE_DESC)) {
-          search.setSort(s).setSort(NodeSort.NAME_ASC);
-        } else {
-          search.setSort(NodeSort.TYPE_ASC).setSort(sort.get());
-
-        }
-        return null;
-      })
-      .orElseGet(() -> {
-        search.setSort(NodeSort.TYPE_ASC);
-        return null;
-      });
+    sort.ifPresentOrElse(
+        s -> {
+          if (s.equals(NodeSort.SIZE_ASC)) {
+            search.setSort(NodeSort.TYPE_ASC).setSort(s).setSort(NodeSort.NAME_ASC);
+          } else if (s.equals(NodeSort.SIZE_DESC)) {
+            search.setSort(NodeSort.TYPE_DESC).setSort(s).setSort(NodeSort.NAME_ASC);
+          } else {
+            search.setSort(NodeSort.TYPE_ASC).setSort(sort.get());
+          }
+        },
+        () -> search.setSort(NodeSort.TYPE_ASC));
 
     List<Node> nodes = search.build().findList();
 
@@ -347,157 +344,166 @@ public class NodeRepositoryEbean implements NodeRepository {
   }
 
   public ImmutablePair<List<Node>, String> findNodes(
-    String userId,
-    Optional<NodeSort> sort,
-    Optional<Boolean> flagged,
-    Optional<String> folderId,
-    Optional<Boolean> cascade,
-    Optional<Boolean> sharedWithMe,
-    Optional<Boolean> sharedByMe,
-    Optional<Boolean> directShare,
-    Optional<Integer> limit,
-    Optional<NodeType> optNodeType,
-    Optional<String> optOwnerId,
-    List<String> keywords,
-    Optional<String> pageToken
-  ) {
+      String userId,
+      Optional<NodeSort> sort,
+      Optional<Boolean> flagged,
+      Optional<String> folderId,
+      Optional<Boolean> cascade,
+      Optional<Boolean> sharedWithMe,
+      Optional<Boolean> sharedByMe,
+      Optional<Boolean> directShare,
+      Optional<Integer> limit,
+      Optional<NodeType> optNodeType,
+      Optional<String> optOwnerId,
+      List<String> keywords,
+      Optional<String> pageToken) {
 
-    return pageToken.map(token -> {
-        PageQuery params = decodePageToken(token);
-        List<Node> nodes = doFind(userId,
-          params.getLimit(),
-          params.getSort().map(NodeSort::valueOf),
-          params.getFlagged(),
-          params.getFolderId(),
-          params.getCascade(),
-          params.getSharedWithMe(),
-          params.getSharedByMe(),
-          params.getDirectShare(),
-          params.getKeywords(),
-          params.getKeySet(),
-          params.getNodeType(),
-          params.getOwnerId()
-        );
+    return pageToken
+        .map(
+            token -> {
+              PageQuery params = decodePageToken(token);
+              List<Node> nodes =
+                  doFind(
+                      userId,
+                      params.getLimit(),
+                      params.getSort().map(NodeSort::valueOf),
+                      params.getFlagged(),
+                      params.getFolderId(),
+                      params.getCascade(),
+                      params.getSharedWithMe(),
+                      params.getSharedByMe(),
+                      params.getDirectShare(),
+                      params.getKeywords(),
+                      params.getKeySet(),
+                      params.getNodeType(),
+                      params.getOwnerId());
 
-        if (nodes.size() == params.getLimit()) {
-          return new ImmutablePair<List<Node>, String>(nodes,
-            createPageToken(nodes.get(nodes.size() - 1),
-              params.getLimit(),
-              params.getSort().map(NodeSort::valueOf),
-              params.getFlagged(),
-              params.getFolderId(),
-              params.getCascade(),
-              params.getSharedWithMe(),
-              params.getSharedByMe(),
-              params.getDirectShare(),
-              params.getNodeType(),
-              params.getOwnerId(),
-              params.getKeywords()
-            )
-          );
-        } else {
-          return new ImmutablePair<List<Node>, String>(nodes, null);
-        }
-      })
-      .orElseGet(() -> {
-        Integer realLimit = limit
-          .map(l -> (l >= Files.Config.Pagination.LIMIT)
-            ? Files.Config.Pagination.LIMIT
-            : l)
-          .orElse(Files.Config.Pagination.LIMIT);
+              if (nodes.size() == params.getLimit()) {
+                return new ImmutablePair<>(
+                    nodes,
+                    createPageToken(
+                        nodes.get(nodes.size() - 1),
+                        params.getLimit(),
+                        params.getSort().map(NodeSort::valueOf),
+                        params.getFlagged(),
+                        params.getFolderId(),
+                        params.getCascade(),
+                        params.getSharedWithMe(),
+                        params.getSharedByMe(),
+                        params.getDirectShare(),
+                        params.getNodeType(),
+                        params.getOwnerId(),
+                        params.getKeywords()));
+              } else {
+                return new ImmutablePair<List<Node>, String>(nodes, null);
+              }
+            })
+        .orElseGet(
+            () -> {
+              Integer realLimit =
+                  limit
+                      .map(
+                          l ->
+                              (l >= Files.Config.Pagination.LIMIT)
+                                  ? Files.Config.Pagination.LIMIT
+                                  : l)
+                      .orElse(Files.Config.Pagination.LIMIT);
 
-        List<Node> nodes = doFind(userId,
-          realLimit,
-          sort,
-          flagged,
-          folderId,
-          cascade,
-          sharedWithMe,
-          sharedByMe,
-          directShare,
-          keywords,
-          Optional.empty(),
-          optNodeType,
-          optOwnerId
-        );
+              List<Node> nodes =
+                  doFind(
+                      userId,
+                      realLimit,
+                      sort,
+                      flagged,
+                      folderId,
+                      cascade,
+                      sharedWithMe,
+                      sharedByMe,
+                      directShare,
+                      keywords,
+                      Optional.empty(),
+                      optNodeType,
+                      optOwnerId);
 
-        if (nodes.size() == realLimit) {
-          return new ImmutablePair<List<Node>, String>(nodes,
-            createPageToken(nodes.get(nodes.size() - 1),
-              realLimit,
-              sort,
-              flagged,
-              folderId,
-              cascade,
-              sharedWithMe,
-              sharedByMe,
-              directShare,
-              optNodeType,
-              optOwnerId,
-              keywords)
-          );
-        } else {
-          return new ImmutablePair<List<Node>, String>(nodes, null);
-        }
-      });
+              if (nodes.size() == realLimit) {
+                return new ImmutablePair<>(
+                    nodes,
+                    createPageToken(
+                        nodes.get(nodes.size() - 1),
+                        realLimit,
+                        sort,
+                        flagged,
+                        folderId,
+                        cascade,
+                        sharedWithMe,
+                        sharedByMe,
+                        directShare,
+                        optNodeType,
+                        optOwnerId,
+                        keywords));
+              } else {
+                return new ImmutablePair<List<Node>, String>(nodes, null);
+              }
+            });
   }
 
-  public ImmutablePair<List<Node>, String> publicFindNodes(String folderId, @Nullable Integer limit, @Nullable String pageToken) {
+  public ImmutablePair<List<Node>, String> publicFindNodes(
+      String folderId, @Nullable Integer limit, @Nullable String pageToken) {
     int realLimit = limit != null && limit < Pagination.LIMIT ? limit : Pagination.LIMIT;
 
     PageQuery pageQuery =
-        Optional
-          .ofNullable(pageToken)
-          .map(this::decodePageToken)
-          .orElseGet(() -> {
-            PageQuery firstPageQuery = new PageQuery();
-            firstPageQuery.setFolderId(folderId);
-            firstPageQuery.setLimit(realLimit);
-            return firstPageQuery;
-          });
+        Optional.ofNullable(pageToken)
+            .map(this::decodePageToken)
+            .orElseGet(
+                () -> {
+                  PageQuery firstPageQuery = new PageQuery();
+                  firstPageQuery.setFolderId(folderId);
+                  firstPageQuery.setLimit(realLimit);
+                  return firstPageQuery;
+                });
 
-    Query<Node> findNodeQuery = mDB.getEbeanDatabase()
-      .find(Node.class)
-      .where()
-      .eq(Db.Node.PARENT_ID, pageQuery.getFolderId().orElse("LOCAL_ROOT"))
-      .query();
+    Query<Node> findNodeQuery =
+        mDB.getEbeanDatabase()
+            .find(Node.class)
+            .where()
+            .eq(Db.Node.PARENT_ID, pageQuery.getFolderId().orElse("LOCAL_ROOT"))
+            .query();
 
     if (pageQuery.getKeySet().isPresent()) {
       findNodeQuery.where().and().raw(pageQuery.getKeySet().get());
     }
 
-    List<Node> nodes = findNodeQuery
-      .orderBy()
-      .asc(Db.Node.CATEGORY)
-      .orderBy()
-      .asc(Db.Node.NAME)
-      .setMaxRows(pageQuery.getLimit())
-      .findList()
-      .stream()
-      // This filter is tricky because it denies the access of nodes that are not children of the
-      // requested public folder
-      .filter(node -> node.getAncestorsList().contains(folderId))
-      .toList();
-
+    List<Node> nodes =
+        findNodeQuery
+            .orderBy()
+            .asc(Db.Node.CATEGORY)
+            .orderBy()
+            .asc(Db.Node.NAME)
+            .setMaxRows(pageQuery.getLimit())
+            .findList()
+            .stream()
+            // This filter is tricky because it denies the access of nodes that are not children of
+            // the
+            // requested public folder
+            .filter(node -> node.getAncestorsList().contains(folderId))
+            .toList();
 
     if (nodes.size() == realLimit) {
       return new ImmutablePair<>(
-        nodes,
-        createPageToken(
-          nodes.get(nodes.size() - 1),
-          realLimit,
-          Optional.of(NodeSort.NAME_ASC),
-          Optional.empty(),
-          Optional.of(folderId),
-          Optional.empty(),
-          Optional.empty(),
-          Optional.empty(),
-          Optional.empty(),
-          Optional.empty(),
-          Optional.empty(),
-          Collections.emptyList()
-          )
-      );
+          nodes,
+          createPageToken(
+              nodes.get(nodes.size() - 1),
+              realLimit,
+              Optional.of(NodeSort.NAME_ASC),
+              Optional.empty(),
+              Optional.of(folderId),
+              Optional.empty(),
+              Optional.empty(),
+              Optional.empty(),
+              Optional.empty(),
+              Optional.empty(),
+              Optional.empty(),
+              Collections.emptyList()));
     } else {
       return ImmutablePair.of(nodes, null);
     }
@@ -505,7 +511,7 @@ public class NodeRepositoryEbean implements NodeRepository {
 
   @Override
   public Optional<Node> getNode(String nodeId) {
-    return  getRealNode(nodeId);
+    return getRealNode(nodeId);
   }
 
   /**
@@ -513,66 +519,52 @@ public class NodeRepositoryEbean implements NodeRepository {
    *
    * @param nodeIds the list of nodes to retrieve
    * @param sort the sorting for the list of nodes
-   *
    * @return
    */
-  private List<Node> getRealNodes(
-    List<String> nodeIds,
-    Optional<NodeSort> sort
-  ) {
-    Query<Node> query = mDB.getEbeanDatabase()
-      .createQuery(Node.class)
-      .where()
-      .idIn(nodeIds)
-      .query();
+  private List<Node> getRealNodes(List<String> nodeIds, Optional<NodeSort> sort) {
+    Query<Node> query =
+        mDB.getEbeanDatabase().createQuery(Node.class).where().idIn(nodeIds).query();
 
     sort.map(s -> s.getOrderEbeanQuery(query));
     return query.findList();
   }
 
   @Override
-  public Stream<Node> getNodes(
-    List<String> nodeIds,
-    Optional<NodeSort> sort
-  ) {
+  public Stream<Node> getNodes(List<String> nodeIds, Optional<NodeSort> sort) {
     return getRealNodes(nodeIds, sort).stream();
   }
 
   @Override
   public List<String> getChildrenIds(
-    String nodeId,
-    Optional<NodeSort> sort,
-    Optional<String> userId,
-    boolean showMarked
-  ) {
-    Query<Node> query = mDB.getEbeanDatabase()
-      .createQuery(Node.class)
-      .select(Files.Db.Node.ID)
-      .where()
-      .eq(Files.Db.Node.PARENT_ID, nodeId)
-      .query();
+      String nodeId, Optional<NodeSort> sort, Optional<String> userId, boolean showMarked) {
+    Query<Node> query =
+        mDB.getEbeanDatabase()
+            .createQuery(Node.class)
+            .select(Files.Db.Node.ID)
+            .where()
+            .eq(Files.Db.Node.PARENT_ID, nodeId)
+            .query();
 
     if (nodeId.equals(RootId.LOCAL_ROOT) && userId.isPresent()) {
-      query
-        .where()
-        .eq(Db.Node.OWNER_ID, userId.get());
+      query.where().eq(Db.Node.OWNER_ID, userId.get());
     }
 
-    sort
-      .map(s -> {
-        if (s.equals(NodeSort.SIZE_ASC) || s.equals(NodeSort.SIZE_DESC)) {
-          s.getOrderEbeanQuery(query);
-          NodeSort.NAME_ASC.getOrderEbeanQuery(query);
-        } else {
-          NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
-          s.getOrderEbeanQuery(query);
-        }
-        return s;
-      })
-      .orElseGet(() -> {
-        NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
-        return null;
-      });
+    sort.ifPresentOrElse(
+        s -> {
+          if (s.equals(NodeSort.SIZE_ASC)) {
+            NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
+            s.getOrderEbeanQuery(query);
+            NodeSort.NAME_ASC.getOrderEbeanQuery(query);
+          } else if (s.equals(NodeSort.SIZE_DESC)) {
+            NodeSort.TYPE_DESC.getOrderEbeanQuery(query);
+            s.getOrderEbeanQuery(query);
+            NodeSort.NAME_ASC.getOrderEbeanQuery(query);
+          } else {
+            NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
+            s.getOrderEbeanQuery(query);
+          }
+        },
+        () -> NodeSort.TYPE_ASC.getOrderEbeanQuery(query));
 
     return query.findIds();
   }
@@ -580,29 +572,28 @@ public class NodeRepositoryEbean implements NodeRepository {
   @Override
   @Transactional
   public Node createNewNode(
-    String nodeId,
-    String creatorId,
-    String ownerId,
-    String parentId,
-    String name,
-    String description,
-    NodeType type,
-    String ancestorIds,
-    Long size
-  ) {
-    Node node = new Node(
-      nodeId,
-      creatorId,
-      ownerId,
-      parentId,
-      System.currentTimeMillis(),
-      System.currentTimeMillis(),
-      name,
-      description,
-      type,
-      ancestorIds,
-      size
-    );
+      String nodeId,
+      String creatorId,
+      String ownerId,
+      String parentId,
+      String name,
+      String description,
+      NodeType type,
+      String ancestorIds,
+      Long size) {
+    Node node =
+        new Node(
+            nodeId,
+            creatorId,
+            ownerId,
+            parentId,
+            System.currentTimeMillis(),
+            System.currentTimeMillis(),
+            name,
+            description,
+            type,
+            ancestorIds,
+            size);
     mDB.getEbeanDatabase().save(node);
 
     return getNode(nodeId).get();
@@ -610,44 +601,31 @@ public class NodeRepositoryEbean implements NodeRepository {
 
   @Override
   public boolean deleteNode(String nodeId) {
-    return getNode(nodeId)
-      .map(node -> mDB.getEbeanDatabase().delete(node))
-      .orElse(false);
+    return getNode(nodeId).map(node -> mDB.getEbeanDatabase().delete(node)).orElse(false);
   }
 
   @Override
   public int deleteNodes(List<String> nodesIds) {
-    return mDB.getEbeanDatabase()
-      .find(Node.class)
-      .where()
-      .in(Files.Db.Node.ID, nodesIds)
-      .delete();
+    return mDB.getEbeanDatabase().find(Node.class).where().in(Files.Db.Node.ID, nodesIds).delete();
   }
 
   @Override
-  public void flagForUser(
-    String nodeId,
-    String userId,
-    boolean flag
-  ) {
+  public void flagForUser(String nodeId, String userId, boolean flag) {
     getCustomAttributesForUser(nodeId, userId)
-      .map(customAttributes -> customAttributes.setFlag(flag))
-      .orElseGet(() ->
-      {
-        NodeCustomAttributes customAttributes = new NodeCustomAttributes(nodeId, userId, flag);
-        customAttributes.save();
-        return customAttributes;
-      });
+        .ifPresentOrElse(
+            customAttributes -> customAttributes.setFlag(flag),
+            () -> {
+              NodeCustomAttributes customAttributes =
+                  new NodeCustomAttributes(nodeId, userId, flag);
+              customAttributes.save();
+            });
   }
 
   @Override
-  public boolean isFlaggedForUser(
-    String nodeId,
-    String userId
-  ) {
+  public boolean isFlaggedForUser(String nodeId, String userId) {
     return getCustomAttributesForUser(nodeId, userId)
-      .map(NodeCustomAttributes::getFlag)
-      .orElse(false);
+        .map(NodeCustomAttributes::getFlag)
+        .orElse(false);
   }
 
   /**
@@ -655,56 +633,45 @@ public class NodeRepositoryEbean implements NodeRepository {
    *
    * @param nodeId the id of the node to retrieve the custom attributes
    * @param userId the id of the user which to retrieve the custom attributes
-   *
    * @return {@link NodeCustomAttributes} if there are custom attributes saved for the user,
-   * otherwise it returns Optional.empty();
+   *     otherwise it returns Optional.empty();
    */
-  private Optional<NodeCustomAttributes> getCustomAttributesForUser(
-    String nodeId,
-    String userId
-  ) {
+  private Optional<NodeCustomAttributes> getCustomAttributesForUser(String nodeId, String userId) {
     return mDB.getEbeanDatabase()
-      .find(NodeCustomAttributes.class)
-      .where()
-      .eq(Files.Db.NodeCustomAttributes.NODE_ID, nodeId)
-      .eq(Files.Db.NodeCustomAttributes.USER_ID, userId)
-      .findOneOrEmpty();
+        .find(NodeCustomAttributes.class)
+        .where()
+        .eq(Files.Db.NodeCustomAttributes.NODE_ID, nodeId)
+        .eq(Files.Db.NodeCustomAttributes.USER_ID, userId)
+        .findOneOrEmpty();
   }
 
   @Override
   public Optional<TrashedNode> getTrashedNode(String nodeId) {
     return mDB.getEbeanDatabase()
-      .find(TrashedNode.class)
-      .where()
-      .eq(Db.Trashed.NODE_ID, nodeId)
-      .findOneOrEmpty();
+        .find(TrashedNode.class)
+        .where()
+        .eq(Db.Trashed.NODE_ID, nodeId)
+        .findOneOrEmpty();
   }
 
   @Override
   public List<String> getTrashedNodeIdsByOldParent(String oldParentId) {
     return mDB.getEbeanDatabase()
-      .find(TrashedNode.class)
-      .where()
-      .eq(Db.Trashed.PARENT_ID, oldParentId)
-      .findIds();
+        .find(TrashedNode.class)
+        .where()
+        .eq(Db.Trashed.PARENT_ID, oldParentId)
+        .findIds();
   }
 
   @Override
-  public void trashNode(
-    String nodeId,
-    String parentId
-  ) {
+  public void trashNode(String nodeId, String parentId) {
     TrashedNode tNode = new TrashedNode(nodeId, parentId);
     mDB.getEbeanDatabase().save(tNode);
   }
 
   @Override
   public void restoreNode(String nodeId) {
-    mDB.getEbeanDatabase()
-      .find(TrashedNode.class)
-      .where()
-      .eq(Db.Trashed.NODE_ID, nodeId)
-      .delete();
+    mDB.getEbeanDatabase().find(TrashedNode.class).where().eq(Db.Trashed.NODE_ID, nodeId).delete();
   }
 
   @Override
@@ -717,63 +684,49 @@ public class NodeRepositoryEbean implements NodeRepository {
   @Override
   public int deleteTrashedNodesOlderThan(Long retentionTimestamp) {
     return mDB.getEbeanDatabase()
-      .find(Node.class)
-      .where()
-      .contains(Db.Node.ANCESTOR_IDS, Db.RootId.TRASH_ROOT)
-      .lt(Files.Db.Node.UPDATED_AT, retentionTimestamp)
-      .delete();
+        .find(Node.class)
+        .where()
+        .contains(Db.Node.ANCESTOR_IDS, Db.RootId.TRASH_ROOT)
+        .lt(Files.Db.Node.UPDATED_AT, retentionTimestamp)
+        .delete();
   }
 
   @Override
-  public int moveNodes(
-    List<String> nodesIds,
-    Node destinationFolder
-  ) {
-    String ancestorIds = NodeType.ROOT.equals(destinationFolder.getNodeType())
-      ? destinationFolder.getId()
-      : destinationFolder.getAncestorIds() + "," + destinationFolder.getId();
+  public int moveNodes(List<String> nodesIds, Node destinationFolder) {
+    String ancestorIds =
+        NodeType.ROOT.equals(destinationFolder.getNodeType())
+            ? destinationFolder.getId()
+            : destinationFolder.getAncestorIds() + "," + destinationFolder.getId();
 
-    int numberMovedNodes = mDB.getEbeanDatabase()
-      .update(Node.class)
-      .set(Files.Db.Node.PARENT_ID, destinationFolder.getId())
-      .set(Files.Db.Node.UPDATED_AT, System.currentTimeMillis())
-      .set(Db.Node.ANCESTOR_IDS, ancestorIds)
-      .where()
-      .in(Files.Db.Node.ID, nodesIds)
-      .update();
-
-    return numberMovedNodes;
+    return mDB.getEbeanDatabase()
+        .update(Node.class)
+        .set(Db.Node.PARENT_ID, destinationFolder.getId())
+        .set(Db.Node.UPDATED_AT, System.currentTimeMillis())
+        .set(Db.Node.ANCESTOR_IDS, ancestorIds)
+        .where()
+        .in(Db.Node.ID, nodesIds)
+        .update();
   }
 
   @Override
   public List<Node> getRootsList() {
-    return mDB.getEbeanDatabase()
-      .find(Node.class)
-      .where()
-      .eq(Db.Node.CATEGORY, 0)
-      .findList();
+    return mDB.getEbeanDatabase().find(Node.class).where().eq(Db.Node.CATEGORY, 0).findList();
   }
 
   @Override
-  public Optional<Node> getNodeByName(
-    String nodeName,
-    String folderId,
-    String nodeOwner
-  ) {
-    Query<Node> query = mDB.getEbeanDatabase()
-      .find(Node.class)
-      .where()
-      .eq(Db.Node.NAME, nodeName)
-      .eq(Db.Node.PARENT_ID, folderId)
-      .eq(Db.Node.OWNER_ID, nodeOwner)
-      .query();
+  public Optional<Node> getNodeByName(String nodeName, String folderId, String nodeOwner) {
+    Query<Node> query =
+        mDB.getEbeanDatabase()
+            .find(Node.class)
+            .where()
+            .eq(Db.Node.NAME, nodeName)
+            .eq(Db.Node.PARENT_ID, folderId)
+            .eq(Db.Node.OWNER_ID, nodeOwner)
+            .query();
 
     // We could use query.findOneOrEmpty() but if, for some reason, there are multiple nodes
     // with the same name the query would explode. So to be extra conservative we fetch all the
     // resulting node and then we return the first one
-    return query
-      .findList()
-      .stream()
-      .findFirst();
+    return query.findList().stream().findFirst();
   }
 }
