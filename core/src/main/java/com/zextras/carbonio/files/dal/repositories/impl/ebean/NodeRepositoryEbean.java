@@ -126,6 +126,7 @@ public class NodeRepositoryEbean implements NodeRepository {
    * @param flagged the value of the flag
    * @return a {@link String} containing the next pageToken
    */
+  //TODO move to pagequery
   public String createPageToken(
       Node node,
       Integer limit,
@@ -152,6 +153,7 @@ public class NodeRepositoryEbean implements NodeRepository {
     optNodeType.ifPresent(nextPage::setNodeType);
     optOwnerId.ifPresent(nextPage::setOwnerId);
 
+    //TODO try to simplify or remove this switch
     sort.ifPresent(
         s -> {
           switch (s) {
@@ -253,6 +255,7 @@ public class NodeRepositoryEbean implements NodeRepository {
    * @param token the given token for retrieving the next page of data
    * @return the {@link PageQuery} class containing pagination params
    */
+  //TODO move to pagequery
   private PageQuery decodePageToken(String token) {
     ObjectMapper mapper = new ObjectMapper();
     try {

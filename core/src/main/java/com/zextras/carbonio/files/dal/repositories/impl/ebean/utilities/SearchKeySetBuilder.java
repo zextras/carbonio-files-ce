@@ -1,136 +1,52 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
-import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 
+import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
+import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import org.checkerframework.checker.units.qual.C;
+
+import javax.swing.*;
+import java.util.Optional;
+
+//TODO add UT
 public class SearchKeySetBuilder {
 
-  private NodeSort nodeSort;
+  Optional<NodeSort> sort;
+  Node node;
 
-  public static SearchKeySetBuilder aKeySetBuilder() {
+  public static SearchKeySetBuilder aSearchKeySetBuilder(){
     return new SearchKeySetBuilder();
   }
 
-  public SearchKeySetBuilder withNodeCategory(NodeCategory nodeCategory) {
+  public SearchKeySetBuilder withNodeSort(Optional<NodeSort> sort){
+    this.sort = sort;
     return this;
   }
 
-  public SearchKeySetBuilder withNodeId(String nodeId) {
+  public SearchKeySetBuilder fromNode(Node node){
+    this.node = node;
     return this;
   }
 
-  public SearchKeySetBuilder withSortFromValue(NodeSort nodeSort, String value) {
-    this.nodeSort = nodeSort;
-    return this;
+  private static String orderToSimbol(SortOrder order){
+    if(order.equals(SortOrder.ASCENDING)) return ">";
+    else if(order.equals(SortOrder.DESCENDING)) return "<";
+    else return "=";
   }
 
-  public SearchKeySetBuilder withNode(Node node) {
-    return this;
-  }
+  public String build(){
 
-  public SearchKeySetBuilder expGeneric(String sort, String order, String value) {
+    sort.ifPresentOrElse(
+        s -> {
+          if(s.getName().equals(Files.Db.Node.SIZE)){
+            new CompareExpression(s.getName(), orderToSimbol(s.getOrder()), String.valueOf(node.getSize()));
+          } else {
 
-    return this;
-  }
-
-  public SearchKeySetBuilder expGeneri(String sort, String order, String value) {
-
-    return this;
-  }
-
-  public SearchKeySetBuilder expMinore(String sort, String value) {
-
-    return this;
-  }
-
-  public SearchKeySetBuilder expEquals(String sort, String value) {
-
-    return this;
-  }
-
-  public SearchKeySetBuilder expMaggiore(String sort, String value) {
-
-    return this;
-  }
-
-  public SearchKeySetBuilder or() {
-
-    return this;
-  }
-
-  public SearchKeySetBuilder endOr() {
-
-    return this;
-  }
-
-  public SearchKeySetBuilder and() {
-
-    return this;
-  }
-
-  public SearchKeySetBuilder endAnd() {
-
-    return this;
-  }
-
-  public SearchKeySetBuilder or(SearchKeySetBuilder e) {
-
-    return this;
-  }
-
-  public SearchKeySetBuilder and(SearchKeySetBuilder e) {
-
-    return this;
-  }
-
-  public void build() {
-    // if size
-    expMinore("size", "").or().expEquals("size", "").expMaggiore("node_id", "");
-
-    // sort != size
-    expGeneric(NodeSort.TYPE_ASC.getType(), ">", "")
-        .or()
-        .expGeneric(NodeSort.TYPE_ASC.getType(), "=", "")
-        .and()
-        .expGeneric(nodeSort.getType(), nodeSort.getOrder(), "")
-        .endAnd()
-        .endOr()
-        .or()
-        .expGeneric(NodeSort.TYPE_ASC.getType(), "=", "")
-        .and()
-        .expGeneric(nodeSort.getType(), "=", "")
-        .and()
-        .expGeneric("node_id", ">", "")
-        .endAnd()
-        .endOr();
-
-    expGeneric(NodeSort.TYPE_ASC.getType(), ">", "")
-        .or(
-            expGeneric(NodeSort.TYPE_ASC.getType(), "=", "")
-                .and()
-                .expGeneric(nodeSort.getType(), nodeSort.getOrder(), "")
-                .endAnd())
-        .or(
-            expGeneric(NodeSort.TYPE_ASC.getType(), "=", "")
-                .and()
-                .expGeneric(nodeSort.getType(), "=", "")
-                .and()
-                .expGeneric("node_id", ">", "")
-                .endAnd());
-    /*
-    .endAnd()
-    .endOr()
-    .or()
-    .expGeneric(NodeSort.TYPE_ASC.getType(), "=", "")
-    .and()
-    .expGeneric(nodeSort.getType(), "=", "")
-    .and()
-    .expGeneric("node_id", ">", "")
-    .endAnd()
-    .endOr();
-    ()*/
-
-    // no sort
-
+          }
+        },
+        () -> {
+          //when sort is not present
+        });
   }
 }

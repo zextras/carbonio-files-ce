@@ -1,7 +1,9 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
+import javax.swing.*;
+
 public interface GenericSort {
 
-  String getType();
-  String getOrder();
+  String getName();
+  SortOrder getOrder();
 }
