@@ -5,7 +5,7 @@
 exclude: "mvnw|package-lock.json|go.sum"
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v4.6.0
     hooks:
       - id: check-added-large-files
         args: [--maxkb=2048]
@@ -31,19 +31,19 @@ repos:
       - id: docker-compose-check
 
   - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v3.1.0
+    rev: v3.2.0
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
         args: []
 
   - repo: https://github.com/fsfe/reuse-tool
-    rev: v3.0.1
+    rev: v3.0.2
     hooks:
       - id: reuse
 
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
-    rev: v2.12.0
+    rev: v2.13.0
     hooks:
       - id: pretty-format-java
         args: [--autofix]
