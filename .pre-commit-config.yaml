@@ -5,7 +5,7 @@
 exclude: "mvnw|package-lock.json|go.sum"
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.6.0
     hooks:
       - id: check-added-large-files
         args: [--maxkb=2048]
@@ -21,7 +21,7 @@ repos:
       - id: trailing-whitespace
 
   - repo: https://github.com/gruntwork-io/pre-commit
-    rev: v0.1.22
+    rev: v0.1.23
     hooks:
       - id: shellcheck
 
@@ -31,33 +31,25 @@ repos:
       - id: docker-compose-check
 
   - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v2.4.0
+    rev: v3.2.0
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
         args: []
 
   - repo: https://github.com/fsfe/reuse-tool
-    rev: v2.1.0
+    rev: v3.0.2
     hooks:
       - id: reuse
 
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
-    rev: v2.10.0
+    rev: v2.13.0
     hooks:
       - id: pretty-format-java
         args: [--autofix]
 
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.37.0
-    hooks:
-      - id: markdownlint
-        language_version: 16.0.0
-      - id: markdownlint-fix
-        language_version: 16.0.0
-
   - repo: https://github.com/ejba/pre-commit-maven
-    rev: v0.3.3
+    rev: v0.3.4
     hooks:
       - id: maven
         args: [ 'compile' ]
