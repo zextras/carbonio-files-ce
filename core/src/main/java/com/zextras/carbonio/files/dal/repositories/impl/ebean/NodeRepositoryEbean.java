@@ -65,46 +65,45 @@ public class NodeRepositoryEbean implements NodeRepository {
       Optional<ImmutableTriple<String, String, String>> sortField) {
     return sortField
         .map(
-            sField -> {
-              return sField.getLeft().equals("size")
-                  ? "("
-                      + sField.getLeft()
-                      + sField.getMiddle()
-                      + "'"
-                      + sField.getRight().replace("'", "''")
-                      + "'"
-                      + ") "
-                      + "OR ("
-                      + sField.getLeft()
-                      + " = "
-                      + "'"
-                      + sField.getRight().replace("'", "''")
-                      + "' AND t0.node_id > '"
-                      + nodeId
-                      + "')"
-                  : "(node_category > "
-                      + nodeCategory.getValue()
-                      + ") "
-                      + "OR (node_category = "
-                      + nodeCategory.getValue()
-                      + " AND "
-                      + sField.getLeft()
-                      + sField.getMiddle()
-                      + "'"
-                      + sField.getRight().replace("'", "''")
-                      + "'"
-                      + ") "
-                      + "OR (node_category = "
-                      + nodeCategory.getValue()
-                      + " AND "
-                      + sField.getLeft()
-                      + " = "
-                      + "'"
-                      + sField.getRight().replace("'", "''")
-                      + "' AND t0.node_id > '"
-                      + nodeId
-                      + "')";
-            })
+            sField ->
+                sField.getLeft().equals("size")
+                    ? "("
+                        + sField.getLeft()
+                        + sField.getMiddle()
+                        + "'"
+                        + sField.getRight().replace("'", "''")
+                        + "'"
+                        + ") "
+                        + "OR ("
+                        + sField.getLeft()
+                        + " = "
+                        + "'"
+                        + sField.getRight().replace("'", "''")
+                        + "' AND t0.node_id > '"
+                        + nodeId
+                        + "')"
+                    : "(node_category > "
+                        + nodeCategory.getValue()
+                        + ") "
+                        + "OR (node_category = "
+                        + nodeCategory.getValue()
+                        + " AND "
+                        + sField.getLeft()
+                        + sField.getMiddle()
+                        + "'"
+                        + sField.getRight().replace("'", "''")
+                        + "'"
+                        + ") "
+                        + "OR (node_category = "
+                        + nodeCategory.getValue()
+                        + " AND "
+                        + sField.getLeft()
+                        + " = "
+                        + "'"
+                        + sField.getRight().replace("'", "''")
+                        + "' AND t0.node_id > '"
+                        + nodeId
+                        + "')")
         .orElse(
             "(node_category > "
                 + nodeCategory.getValue()
@@ -161,7 +160,7 @@ public class NodeRepositoryEbean implements NodeRepository {
                       node.getNodeCategory(),
                       node.getId(),
                       Optional.of(
-                          new ImmutableTriple(
+                          new ImmutableTriple<>(
                               MessageFormat.format("LOWER({0})", Db.Node.NAME),
                               ">",
                               node.getFullName().toLowerCase()))));
@@ -172,7 +171,7 @@ public class NodeRepositoryEbean implements NodeRepository {
                       node.getNodeCategory(),
                       node.getId(),
                       Optional.of(
-                          new ImmutableTriple(
+                          new ImmutableTriple<>(
                               MessageFormat.format("LOWER({0})", Db.Node.NAME),
                               "<",
                               node.getFullName().toLowerCase()))));
@@ -183,7 +182,7 @@ public class NodeRepositoryEbean implements NodeRepository {
                       node.getNodeCategory(),
                       node.getId(),
                       Optional.of(
-                          new ImmutableTriple(
+                          new ImmutableTriple<>(
                               Db.Node.UPDATED_AT, ">", String.valueOf(node.getUpdatedAt())))));
               break;
             case UPDATED_AT_DESC:
@@ -192,7 +191,7 @@ public class NodeRepositoryEbean implements NodeRepository {
                       node.getNodeCategory(),
                       node.getId(),
                       Optional.of(
-                          new ImmutableTriple(
+                          new ImmutableTriple<>(
                               Db.Node.UPDATED_AT, "<", String.valueOf(node.getUpdatedAt())))));
               break;
             case CREATED_AT_ASC:
@@ -201,7 +200,7 @@ public class NodeRepositoryEbean implements NodeRepository {
                       node.getNodeCategory(),
                       node.getId(),
                       Optional.of(
-                          new ImmutableTriple(
+                          new ImmutableTriple<>(
                               Db.Node.CREATED_AT, ">", String.valueOf(node.getCreatedAt())))));
               break;
             case CREATED_AT_DESC:
@@ -210,7 +209,7 @@ public class NodeRepositoryEbean implements NodeRepository {
                       node.getNodeCategory(),
                       node.getId(),
                       Optional.of(
-                          new ImmutableTriple(
+                          new ImmutableTriple<>(
                               Db.Node.CREATED_AT, "<", String.valueOf(node.getCreatedAt())))));
               break;
             case SIZE_ASC:
@@ -219,7 +218,8 @@ public class NodeRepositoryEbean implements NodeRepository {
                       node.getNodeCategory(),
                       node.getId(),
                       Optional.of(
-                          new ImmutableTriple(Db.Node.SIZE, "<", String.valueOf(node.getSize())))));
+                          new ImmutableTriple<>(
+                              Db.Node.SIZE, "<", String.valueOf(node.getSize())))));
               break;
             case SIZE_DESC:
               nextPage.setKeySet(
@@ -227,7 +227,8 @@ public class NodeRepositoryEbean implements NodeRepository {
                       node.getNodeCategory(),
                       node.getId(),
                       Optional.of(
-                          new ImmutableTriple(Db.Node.SIZE, ">", String.valueOf(node.getSize())))));
+                          new ImmutableTriple<>(
+                              Db.Node.SIZE, ">", String.valueOf(node.getSize())))));
               break;
           }
         });
@@ -320,22 +321,17 @@ public class NodeRepositoryEbean implements NodeRepository {
     search.setLimit(limit);
     keyset.ifPresent(search::setKeyset);
 
-    sort.map(
-            s -> {
-              if (s.equals(NodeSort.SIZE_ASC)) {
-                search.setSort(NodeSort.TYPE_ASC).setSort(s).setSort(NodeSort.NAME_ASC);
-              } else if (s.equals(NodeSort.SIZE_DESC)) {
-                search.setSort(NodeSort.TYPE_DESC).setSort(s).setSort(NodeSort.NAME_ASC);
-              } else {
-                search.setSort(NodeSort.TYPE_ASC).setSort(sort.get());
-              }
-              return null;
-            })
-        .orElseGet(
-            () -> {
-              search.setSort(NodeSort.TYPE_ASC);
-              return null;
-            });
+    sort.ifPresentOrElse(
+        s -> {
+          if (s.equals(NodeSort.SIZE_ASC)) {
+            search.setSort(NodeSort.TYPE_ASC).setSort(s).setSort(NodeSort.NAME_ASC);
+          } else if (s.equals(NodeSort.SIZE_DESC)) {
+            search.setSort(NodeSort.TYPE_DESC).setSort(s).setSort(NodeSort.NAME_ASC);
+          } else {
+            search.setSort(NodeSort.TYPE_ASC).setSort(sort.get());
+          }
+        },
+        () -> search.setSort(NodeSort.TYPE_ASC));
 
     List<Node> nodes = search.build().findList();
 
@@ -383,7 +379,7 @@ public class NodeRepositoryEbean implements NodeRepository {
                       params.getOwnerId());
 
               if (nodes.size() == params.getLimit()) {
-                return new ImmutablePair<List<Node>, String>(
+                return new ImmutablePair<>(
                     nodes,
                     createPageToken(
                         nodes.get(nodes.size() - 1),
@@ -430,7 +426,7 @@ public class NodeRepositoryEbean implements NodeRepository {
                       optOwnerId);
 
               if (nodes.size() == realLimit) {
-                return new ImmutablePair<List<Node>, String>(
+                return new ImmutablePair<>(
                     nodes,
                     createPageToken(
                         nodes.get(nodes.size() - 1),
@@ -553,27 +549,22 @@ public class NodeRepositoryEbean implements NodeRepository {
       query.where().eq(Db.Node.OWNER_ID, userId.get());
     }
 
-    sort.map(
-            s -> {
-              if (s.equals(NodeSort.SIZE_ASC)) {
-                NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
-                s.getOrderEbeanQuery(query);
-                NodeSort.NAME_ASC.getOrderEbeanQuery(query);
-              } else if (s.equals(NodeSort.SIZE_DESC)) {
-                NodeSort.TYPE_DESC.getOrderEbeanQuery(query);
-                s.getOrderEbeanQuery(query);
-                NodeSort.NAME_ASC.getOrderEbeanQuery(query);
-              } else {
-                NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
-                s.getOrderEbeanQuery(query);
-              }
-              return s;
-            })
-        .orElseGet(
-            () -> {
-              NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
-              return null;
-            });
+    sort.ifPresentOrElse(
+        s -> {
+          if (s.equals(NodeSort.SIZE_ASC)) {
+            NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
+            s.getOrderEbeanQuery(query);
+            NodeSort.NAME_ASC.getOrderEbeanQuery(query);
+          } else if (s.equals(NodeSort.SIZE_DESC)) {
+            NodeSort.TYPE_DESC.getOrderEbeanQuery(query);
+            s.getOrderEbeanQuery(query);
+            NodeSort.NAME_ASC.getOrderEbeanQuery(query);
+          } else {
+            NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
+            s.getOrderEbeanQuery(query);
+          }
+        },
+        () -> NodeSort.TYPE_ASC.getOrderEbeanQuery(query));
 
     return query.findIds();
   }
@@ -621,13 +612,12 @@ public class NodeRepositoryEbean implements NodeRepository {
   @Override
   public void flagForUser(String nodeId, String userId, boolean flag) {
     getCustomAttributesForUser(nodeId, userId)
-        .map(customAttributes -> customAttributes.setFlag(flag))
-        .orElseGet(
+        .ifPresentOrElse(
+            customAttributes -> customAttributes.setFlag(flag),
             () -> {
               NodeCustomAttributes customAttributes =
                   new NodeCustomAttributes(nodeId, userId, flag);
               customAttributes.save();
-              return customAttributes;
             });
   }
 
@@ -708,17 +698,14 @@ public class NodeRepositoryEbean implements NodeRepository {
             ? destinationFolder.getId()
             : destinationFolder.getAncestorIds() + "," + destinationFolder.getId();
 
-    int numberMovedNodes =
-        mDB.getEbeanDatabase()
-            .update(Node.class)
-            .set(Files.Db.Node.PARENT_ID, destinationFolder.getId())
-            .set(Files.Db.Node.UPDATED_AT, System.currentTimeMillis())
-            .set(Db.Node.ANCESTOR_IDS, ancestorIds)
-            .where()
-            .in(Files.Db.Node.ID, nodesIds)
-            .update();
-
-    return numberMovedNodes;
+    return mDB.getEbeanDatabase()
+        .update(Node.class)
+        .set(Db.Node.PARENT_ID, destinationFolder.getId())
+        .set(Db.Node.UPDATED_AT, System.currentTimeMillis())
+        .set(Db.Node.ANCESTOR_IDS, ancestorIds)
+        .where()
+        .in(Db.Node.ID, nodesIds)
+        .update();
   }
 
   @Override
