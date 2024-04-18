@@ -37,6 +37,18 @@ pipeline {
                 }
             }
         }
+        stage('Check SNAPSHOT') {
+            when {
+                allOf {
+                    expression { env.BRANCH_NAME != "release" }
+                    expression { env.BRANCH_NAME.contains("PR") }
+                    expression { !readFile('package/PKGBUILD').trim().contains('SNAPSHOT') }
+                }
+            }
+            steps {
+              sh 'echo "HELLO"'
+            }
+        }
         stage('Build jar') {
             steps {
                 sh 'mvn -B --settings settings-jenkins.xml clean package'
