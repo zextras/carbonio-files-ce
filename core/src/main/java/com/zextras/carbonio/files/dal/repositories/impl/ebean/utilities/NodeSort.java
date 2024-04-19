@@ -8,7 +8,6 @@ import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import io.ebean.Query;
-
 import javax.swing.*;
 
 /**
@@ -115,9 +114,7 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
     }
   },
 
-  /**
-   * The order is: Root, Folder, File
-   */
+  /** The order is: Root, Folder, File */
   TYPE_ASC {
     @Override
     public String getName() {
@@ -134,9 +131,7 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
     }
   },
 
-  /**
-   * The order is: File, Folder, Root
-   */
+  /** The order is: File, Folder, Root */
   TYPE_DESC {
     @Override
     public String getName() {

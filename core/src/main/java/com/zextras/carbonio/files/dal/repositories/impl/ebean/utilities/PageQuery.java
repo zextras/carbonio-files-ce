@@ -10,7 +10,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
@@ -22,18 +21,18 @@ import java.util.Optional;
  */
 public class PageQuery {
 
-  private Integer            limit;
-  private List<String>       keywords;
-  private Optional<String>   keySet;
+  private Integer limit;
+  private List<String> keywords;
+  private Optional<String> keySet;
   private Optional<NodeSort> sort;
-  private Optional<Boolean>  flagged;
-  private Optional<String>   folderId;
-  private Optional<Boolean>  cascade;
-  private Optional<Boolean>  sharedWithMe;
-  private Optional<Boolean>  sharedByMe;
-  private Optional<Boolean>  directShare;
+  private Optional<Boolean> flagged;
+  private Optional<String> folderId;
+  private Optional<Boolean> cascade;
+  private Optional<Boolean> sharedWithMe;
+  private Optional<Boolean> sharedByMe;
+  private Optional<Boolean> directShare;
   private Optional<NodeType> nodeType;
-  private Optional<String>   ownerId;
+  private Optional<String> ownerId;
 
   public PageQuery() {
     limit = Files.Config.Pagination.LIMIT;
@@ -51,17 +50,16 @@ public class PageQuery {
   }
 
   public PageQuery(
-    String keySet,
-    Integer limit,
-    String sort,
-    Boolean flagged,
-    String folderId,
-    Boolean cascade,
-    Boolean sharedWithMe,
-    Boolean sharedByMe,
-    Boolean directShare,
-    List<String> keywords
-  ) {
+      String keySet,
+      Integer limit,
+      String sort,
+      Boolean flagged,
+      String folderId,
+      Boolean cascade,
+      Boolean sharedWithMe,
+      Boolean sharedByMe,
+      Boolean directShare,
+      List<String> keywords) {
     setKeySet(keySet);
     setLimit(limit);
     setSort(sort);
@@ -172,7 +170,7 @@ public class PageQuery {
     this.ownerId = Optional.ofNullable(ownerId);
   }
 
-  public static PageQuery fromToken(String token){
+  public static PageQuery fromToken(String token) {
     ObjectMapper mapper = new ObjectMapper();
     try {
       return mapper.readValue(new String(Base64.getDecoder().decode(token)), PageQuery.class);
@@ -181,7 +179,7 @@ public class PageQuery {
     }
   }
 
-  public String toToken(){
+  public String toToken() {
     ObjectMapper mapper = new ObjectMapper();
     mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
     mapper.registerModule(new Jdk8Module());
@@ -191,5 +189,4 @@ public class PageQuery {
       throw new RuntimeException(e);
     }
   }
-
 }
