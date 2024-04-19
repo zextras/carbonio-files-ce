@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.dal.dao.ebean;
 
 import static com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER;
 import static com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT;
+
 import com.zextras.carbonio.files.Files;
 import io.ebean.annotation.Cache;
 import java.util.ArrayList;
@@ -24,17 +25,17 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 
 /**
- * <p>Represents an Ebean {@link Node} entity that matches a record of the {@link
- * Files.Db.Tables#NODE} table.</p>
- * <p>The implementation of constructors and setters should not care to check if the values in
- * input are valid or not because, when these methods are called, these controls
- * <strong>must</strong> be already done.</p>
+ * Represents an Ebean {@link Node} entity that matches a record of the {@link Files.Db.Tables#NODE}
+ * table.
+ *
+ * <p>The implementation of constructors and setters should not care to check if the values in input
+ * are valid or not because, when these methods are called, these controls <strong>must</strong> be
+ * already done.
  */
 @Cache
 @Entity
 @Table(name = Files.Db.Tables.NODE)
-public
-class Node {
+public class Node {
 
   public static final String ANCESTORS_SEPARATOR = ",";
 
@@ -86,30 +87,41 @@ class Node {
   private Long mSize;
 
   @OneToMany(fetch = FetchType.EAGER)
-  @JoinColumn(name = Files.Db.Node.ID, referencedColumnName = Files.Db.NodeCustomAttributes.NODE_ID, insertable = false, updatable = false)
+  @JoinColumn(
+      name = Files.Db.Node.ID,
+      referencedColumnName = Files.Db.NodeCustomAttributes.NODE_ID,
+      insertable = false,
+      updatable = false)
   private List<NodeCustomAttributes> mCustomAttributes;
 
   @OneToMany(fetch = FetchType.LAZY)
-  @JoinColumn(name = Files.Db.Node.ID, referencedColumnName = Files.Db.Share.NODE_ID, insertable = false, updatable = false)
+  @JoinColumn(
+      name = Files.Db.Node.ID,
+      referencedColumnName = Files.Db.Share.NODE_ID,
+      insertable = false,
+      updatable = false)
   private List<Share> mShares;
 
   @OneToMany(fetch = FetchType.LAZY)
-  @JoinColumn(name = Files.Db.Node.ID, referencedColumnName = Files.Db.FileVersion.NODE_ID, insertable = false, updatable = false)
+  @JoinColumn(
+      name = Files.Db.Node.ID,
+      referencedColumnName = Files.Db.FileVersion.NODE_ID,
+      insertable = false,
+      updatable = false)
   private List<FileVersion> fileVersions;
 
   public Node(
-    String nodeId,
-    String creatorId,
-    String ownerId,
-    String parentId,
-    Long createdAt,
-    Long updatedAt,
-    String name,
-    String description,
-    NodeType type,
-    String ancestorIds,
-    Long size
-  ) {
+      String nodeId,
+      String creatorId,
+      String ownerId,
+      String parentId,
+      Long createdAt,
+      Long updatedAt,
+      String name,
+      String description,
+      NodeType type,
+      String ancestorIds,
+      Long size) {
     mId = nodeId;
     mCreatorId = creatorId;
     mOwnerId = ownerId;
@@ -149,8 +161,7 @@ class Node {
   }
 
   public Optional<String> getParentId() {
-    return Optional.ofNullable(mParentId)
-      .map(String::trim);
+    return Optional.ofNullable(mParentId).map(String::trim);
   }
 
   public Node setParentId(String parentId) {
@@ -212,9 +223,8 @@ class Node {
 
   public String getName() {
     if (!this.getNodeType().equals(FOLDER)
-      && !this.getNodeType().equals(ROOT)
-      && mName.lastIndexOf(".") != -1
-    ) {
+        && !this.getNodeType().equals(ROOT)
+        && mName.lastIndexOf(".") != -1) {
       return mName.substring(0, mName.lastIndexOf('.'));
     } else {
       return mName;
@@ -228,9 +238,8 @@ class Node {
 
   public Optional<String> getExtension() {
     if (!this.getNodeType().equals(FOLDER)
-      && !this.getNodeType().equals(ROOT)
-      && mName.lastIndexOf(".") != -1
-    ) {
+        && !this.getNodeType().equals(ROOT)
+        && mName.lastIndexOf(".") != -1) {
       return Optional.of(mName.substring(mName.lastIndexOf('.') + 1));
     } else {
       return Optional.empty();
@@ -248,7 +257,7 @@ class Node {
 
   /**
    * @return an {@link Integer} of the node current version. If the node is a {@link
-   * NodeType#FOLDER} then it returns 1.
+   *     NodeType#FOLDER} then it returns 1.
    */
   public Integer getCurrentVersion() {
     return Optional.ofNullable(mCurrentVersion).orElse(1);
@@ -261,8 +270,8 @@ class Node {
 
   public List<String> getAncestorsList() {
     return (mAncestorIds.isEmpty())
-      ? new ArrayList<>()
-      : Arrays.stream(mAncestorIds.split(ANCESTORS_SEPARATOR)).collect(Collectors.toList());
+        ? new ArrayList<>()
+        : Arrays.stream(mAncestorIds.split(ANCESTORS_SEPARATOR)).collect(Collectors.toList());
   }
 
   public Long getSize() {
@@ -282,13 +291,18 @@ class Node {
     return fileVersions;
   }
 
-  public Object getSortingValueFromColumn(String columnName){
-    return switch (columnName) {
-      case Files.Db.Node.CREATED_AT -> getCreatedAt();
-      case Files.Db.Node.UPDATED_AT -> getUpdatedAt();
-      case Files.Db.Node.NAME -> getName();
-      case Files.Db.Node.SIZE -> getSize();
-      default -> throw new IllegalArgumentException("Column not supported");
-    };
+  public Object getSortingValueFromColumn(String columnName) {
+    switch (columnName) {
+      case Files.Db.Node.CREATED_AT:
+        return getCreatedAt();
+      case Files.Db.Node.UPDATED_AT:
+        return getUpdatedAt();
+      case Files.Db.Node.NAME:
+        return getName();
+      case Files.Db.Node.SIZE:
+        return getSize();
+      default:
+        throw new IllegalArgumentException("Column not supported");
+    }
   }
 }

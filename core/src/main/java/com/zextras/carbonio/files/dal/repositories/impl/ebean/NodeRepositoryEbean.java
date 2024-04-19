@@ -4,10 +4,6 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Config.Pagination;
@@ -15,19 +11,16 @@ import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.Files.Db.RootId;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FindNodeKeySetBuilder;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.PageQuery;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SearchBuilder;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FindNodeKeySetBuilder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import io.ebean.Query;
 import io.ebean.annotation.Transactional;
-import java.text.MessageFormat;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -35,7 +28,6 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,10 +79,7 @@ public class NodeRepositoryEbean implements NodeRepository {
     optOwnerId.ifPresent(nextPage::setOwnerId);
 
     nextPage.setKeySet(
-        FindNodeKeySetBuilder.aSearchKeySetBuilder()
-            .withNodeSort(sort)
-            .fromNode(node)
-            .build());
+        FindNodeKeySetBuilder.aSearchKeySetBuilder().withNodeSort(sort).fromNode(node).build());
 
     return nextPage.toToken();
   }

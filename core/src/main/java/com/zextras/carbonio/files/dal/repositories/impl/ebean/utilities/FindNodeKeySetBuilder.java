@@ -85,7 +85,7 @@ public class FindNodeKeySetBuilder {
             } else {
               // In any other case get value and name of comparison and compose query
               formattedNameOfComparison = nameOfComparison;
-              objOfComparison = node.getSortingValueFromColumn(s.getName());
+              objOfComparison = node.getSortingValueFromColumn(nameOfComparison);
             }
 
             String formattedValueOfComparison =
