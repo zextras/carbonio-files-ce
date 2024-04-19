@@ -22,6 +22,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.PageQuery;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SearchBuilder;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FindNodeKeySetBuilder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import io.ebean.Query;
 import io.ebean.annotation.Transactional;
@@ -64,7 +65,7 @@ public class NodeRepositoryEbean implements NodeRepository {
       String nodeId,
       //                        SIZE     >      VALUE
       Optional<ImmutableTriple<String, String, String>> sortField) {
-    return sortField
+    String result = sortField
         .map(
             sField ->
                 sField.getLeft().equals("size")
@@ -114,6 +115,9 @@ public class NodeRepositoryEbean implements NodeRepository {
                 + " AND t0.node_id > '"
                 + nodeId
                 + "')");
+
+    System.out.println("keyset built old: " + result);
+    return result;
   }
 
   /**
@@ -153,7 +157,12 @@ public class NodeRepositoryEbean implements NodeRepository {
     optNodeType.ifPresent(nextPage::setNodeType);
     optOwnerId.ifPresent(nextPage::setOwnerId);
 
-    //TODO try to simplify or remove this switch
+    nextPage.setKeySet(
+        FindNodeKeySetBuilder.aSearchKeySetBuilder()
+            .withNodeSort(sort)
+            .fromNode(node)
+            .build());
+    /*
     sort.ifPresent(
         s -> {
           switch (s) {
@@ -238,6 +247,7 @@ public class NodeRepositoryEbean implements NodeRepository {
     if (!sort.isPresent()) {
       nextPage.setKeySet(buildKeyset(node.getNodeCategory(), node.getId(), Optional.empty()));
     }
+    */
     ObjectMapper mapper = new ObjectMapper();
     mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
     mapper.registerModule(new Jdk8Module());

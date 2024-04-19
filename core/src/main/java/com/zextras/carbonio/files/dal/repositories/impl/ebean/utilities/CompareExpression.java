@@ -4,27 +4,34 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
-
+//represents a sql compare expression, for example (A < B OR B > C)
 public class CompareExpression {
 
   String expression;
+  boolean shouldAddPharentesis;
 
-  public CompareExpression(String key, String operator, String value){
-    this.expression = key + " " + operator + " " + value;
+  private CompareExpression(String expression){
+    this.expression = expression;
+    shouldAddPharentesis = false;
+  }
+
+  public static CompareExpression aCompareExpression(String key, String operator, String value){
+    return new CompareExpression(key + " " + operator + " " + value);
   }
 
   public CompareExpression or(CompareExpression compareExpression){
-    this.expression = "(" + this.expression + " OR " + compareExpression.getExpression() +")";
+    shouldAddPharentesis = true;
+    this.expression = this.expression + " OR " + compareExpression.toExpression();
     return this;
   }
 
   public CompareExpression and(CompareExpression compareExpression){
-    this.expression = "(" + this.expression + " AND " + compareExpression.getExpression() +")";
+    shouldAddPharentesis = true;
+    this.expression = this.expression + " AND " + compareExpression.toExpression();
     return this;
   }
 
-  public String getExpression(){
-    return expression;
+  public String toExpression(){
+    return shouldAddPharentesis ? "(" + expression + ")" : expression;
   }
-
 }

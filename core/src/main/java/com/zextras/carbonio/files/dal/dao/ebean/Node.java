@@ -281,4 +281,14 @@ class Node {
   public List<FileVersion> getFileVersions() {
     return fileVersions;
   }
+
+  public Object getSortingValueFromColumn(String columnName){
+    return switch (columnName) {
+      case Files.Db.Node.CREATED_AT -> getCreatedAt();
+      case Files.Db.Node.UPDATED_AT -> getUpdatedAt();
+      case Files.Db.Node.NAME -> getName();
+      case Files.Db.Node.SIZE -> getSize();
+      default -> throw new IllegalArgumentException("Column not supported");
+    };
+  }
 }
