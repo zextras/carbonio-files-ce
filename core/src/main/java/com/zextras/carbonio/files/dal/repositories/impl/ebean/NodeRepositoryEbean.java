@@ -51,76 +51,6 @@ public class NodeRepositoryEbean implements NodeRepository {
   }
 
   /**
-   * This method construct the key set to use for the next page.
-   *
-   * @param nodeCategory The value of the nodeCategory of the last node of the current page
-   * @param nodeId The nodeId of the last node of the current page
-   * @param sortField an {@link ImmutableTriple} that must contain: - the name of the ordering field
-   *     - the direction of the ordering - the value of the ordering field of the last node of the
-   *     current page
-   * @return a {@link String} representing the evaluated key set
-   */
-  private String buildKeyset(
-      NodeCategory nodeCategory,
-      String nodeId,
-      //                        SIZE     >      VALUE
-      Optional<ImmutableTriple<String, String, String>> sortField) {
-    String result = sortField
-        .map(
-            sField ->
-                sField.getLeft().equals("size")
-                    ? "("
-                        + sField.getLeft()
-                        + sField.getMiddle()
-                        + "'"
-                        + sField.getRight().replace("'", "''")
-                        + "'"
-                        + ") "
-                        + "OR ("
-                        + sField.getLeft()
-                        + " = "
-                        + "'"
-                        + sField.getRight().replace("'", "''")
-                        + "' AND t0.node_id > '"
-                        + nodeId
-                        + "')"
-                    : "(node_category > "
-                        + nodeCategory.getValue()
-                        + ") "
-                        + "OR (node_category = "
-                        + nodeCategory.getValue()
-                        + " AND "
-                        + sField.getLeft()
-                        + sField.getMiddle()
-                        + "'"
-                        + sField.getRight().replace("'", "''")
-                        + "'"
-                        + ") "
-                        + "OR (node_category = "
-                        + nodeCategory.getValue()
-                        + " AND "
-                        + sField.getLeft()
-                        + " = "
-                        + "'"
-                        + sField.getRight().replace("'", "''")
-                        + "' AND t0.node_id > '"
-                        + nodeId
-                        + "')")
-        .orElse(
-            "(node_category > "
-                + nodeCategory.getValue()
-                + ") OR "
-                + "(node_category = "
-                + nodeCategory.getValue()
-                + " AND t0.node_id > '"
-                + nodeId
-                + "')");
-
-    System.out.println("keyset built old: " + result);
-    return result;
-  }
-
-  /**
    * This method creates a new pageToken based on the find params and the data of a node, used to
    * creating the cursor to the nextPage
    *
@@ -130,7 +60,6 @@ public class NodeRepositoryEbean implements NodeRepository {
    * @param flagged the value of the flag
    * @return a {@link String} containing the next pageToken
    */
-  //TODO move to pagequery
   public String createPageToken(
       Node node,
       Integer limit,
@@ -162,117 +91,8 @@ public class NodeRepositoryEbean implements NodeRepository {
             .withNodeSort(sort)
             .fromNode(node)
             .build());
-    /*
-    sort.ifPresent(
-        s -> {
-          switch (s) {
-            case NAME_ASC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              MessageFormat.format("LOWER({0})", Db.Node.NAME),
-                              ">",
-                              node.getFullName().toLowerCase()))));
-              break;
-            case NAME_DESC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              MessageFormat.format("LOWER({0})", Db.Node.NAME),
-                              "<",
-                              node.getFullName().toLowerCase()))));
-              break;
-            case UPDATED_AT_ASC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              Db.Node.UPDATED_AT, ">", String.valueOf(node.getUpdatedAt())))));
-              break;
-            case UPDATED_AT_DESC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              Db.Node.UPDATED_AT, "<", String.valueOf(node.getUpdatedAt())))));
-              break;
-            case CREATED_AT_ASC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              Db.Node.CREATED_AT, ">", String.valueOf(node.getCreatedAt())))));
-              break;
-            case CREATED_AT_DESC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              Db.Node.CREATED_AT, "<", String.valueOf(node.getCreatedAt())))));
-              break;
-            case SIZE_ASC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              Db.Node.SIZE, "<", String.valueOf(node.getSize())))));
-              break;
-            case SIZE_DESC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              Db.Node.SIZE, ">", String.valueOf(node.getSize())))));
-              break;
-          }
-        });
-    if (!sort.isPresent()) {
-      nextPage.setKeySet(buildKeyset(node.getNodeCategory(), node.getId(), Optional.empty()));
-    }
-    */
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-    mapper.registerModule(new Jdk8Module());
-    try {
-      return Base64.getEncoder().encodeToString(mapper.writeValueAsString(nextPage).getBytes());
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
-  }
 
-  /**
-   * This method decodes a pageToken and maps it to a {@link PageQuery} class for retrieving
-   * pagination params
-   *
-   * @param token the given token for retrieving the next page of data
-   * @return the {@link PageQuery} class containing pagination params
-   */
-  //TODO move to pagequery
-  private PageQuery decodePageToken(String token) {
-    ObjectMapper mapper = new ObjectMapper();
-    try {
-      return mapper.readValue(new String(Base64.getDecoder().decode(token)), PageQuery.class);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
+    return nextPage.toToken();
   }
 
   /**
@@ -375,7 +195,7 @@ public class NodeRepositoryEbean implements NodeRepository {
     return pageToken
         .map(
             token -> {
-              PageQuery params = decodePageToken(token);
+              PageQuery params = PageQuery.fromToken(token);
               List<Node> nodes =
                   doFind(
                       userId,
@@ -467,7 +287,7 @@ public class NodeRepositoryEbean implements NodeRepository {
 
     PageQuery pageQuery =
         Optional.ofNullable(pageToken)
-            .map(this::decodePageToken)
+            .map(PageQuery::fromToken)
             .orElseGet(
                 () -> {
                   PageQuery firstPageQuery = new PageQuery();

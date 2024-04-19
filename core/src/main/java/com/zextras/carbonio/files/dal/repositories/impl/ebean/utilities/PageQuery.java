@@ -4,9 +4,14 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -166,4 +171,25 @@ public class PageQuery {
   public void setOwnerId(String ownerId) {
     this.ownerId = Optional.ofNullable(ownerId);
   }
+
+  public static PageQuery fromToken(String token){
+    ObjectMapper mapper = new ObjectMapper();
+    try {
+      return mapper.readValue(new String(Base64.getDecoder().decode(token)), PageQuery.class);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public String toToken(){
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+    mapper.registerModule(new Jdk8Module());
+    try {
+      return Base64.getEncoder().encodeToString(mapper.writeValueAsString(this).getBytes());
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
 }
