@@ -118,6 +118,67 @@ class FindNodesApiIT {
   }
 
   @Test
+  void givenTwoNodesWithSameSizePaginationShouldReturnCorrectNodes() {
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new SimplePopulatorFolder(
+                "e6566a6f-bf00-4a5f-bfa9-a0199e4b17f1", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+        .addNode(
+            new SimplePopulatorFolder(
+                "9593e55f-2608-4ae7-b9bf-5cfbd498a4db", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "LOCAL_ROOT")
+            .withBoolean("cascade", true)
+            .withEnum("sort", NodeSort.SIZE_DESC)
+            .withInteger("limit", 1)
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
+
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    final Map<String, Object> page =
+        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+
+    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+    final String pageToken = (String) page.get("page_token");
+
+    String secondaryBodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "LOCAL_ROOT")
+            .withBoolean("cascade", true)
+            .withEnum("sort", NodeSort.SIZE_DESC)
+            .withInteger("limit", 1)
+            .withString("page_token", pageToken)
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
+
+    final HttpRequest secondaryRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", secondaryBodyPayload);
+
+    // When
+    final HttpResponse secondaryResponse =
+        TestUtils.sendRequest(secondaryRequest, simulator.getNettyChannel());
+
+    final Map<String, Object> secondaryPage =
+        TestUtils.jsonResponseToMap(secondaryResponse.getBodyPayload(), "findNodes");
+
+    final List<Map<String, Object>> secondaryNodes =
+        (List<Map<String, Object>>) secondaryPage.get("nodes");
+
+    // Then
+    Assertions.assertThat(secondaryResponse.getStatus()).isEqualTo(200);
+
+    Assertions.assertThat(secondaryNodes.get(0))
+        .containsEntry("id", "e6566a6f-bf00-4a5f-bfa9-a0199e4b17f1");
+  }
+
+  @Test
   void givenFilesOnRootSearchWithSortNameAscShouldReturnCorrectlySortedNodes() {
     // Given
     createNodesDifferentNames();

@@ -63,10 +63,17 @@ public class FindNodeKeySetBuilder {
 
           if (nameOfComparison.equals(Files.Db.Node.SIZE)) {
             // If sorting by size, get size from node and compose query
+            // Compare first the name and then the id if size is equal to last node, this is needed
+            // because findNodes by size also orders by name
+
+            String formattedNameToCompare = "'" + node.getName() + "'"; // add quotes
             String valueOfComparison = node.getSize().toString();
 
             result.set(
                 compareExpression(nameOfComparison, symbolOfComparison, valueOfComparison)
+                    .or(
+                        compareExpression(nameOfComparison, "=", valueOfComparison)
+                            .and(compareExpression("t0.name", ">", formattedNameToCompare)))
                     .or(
                         compareExpression(nameOfComparison, "=", valueOfComparison)
                             .and(compareExpression("t0.node_id", ">", formattedIdToCompare)))
