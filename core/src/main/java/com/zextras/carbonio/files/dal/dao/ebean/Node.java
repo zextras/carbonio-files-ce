@@ -293,6 +293,10 @@ public class Node {
 
   public Object getSortingValueFromColumn(String columnName) {
     switch (columnName) {
+      case Files.Db.Node.ID:
+        return getId();
+      case Files.Db.Node.CATEGORY:
+        return getNodeCategory().getValue();
       case Files.Db.Node.CREATED_AT:
         return getCreatedAt();
       case Files.Db.Node.UPDATED_AT:
@@ -302,6 +306,7 @@ public class Node {
       case Files.Db.Node.SIZE:
         return getSize();
       default:
+        System.out.println(columnName);
         throw new IllegalArgumentException("Column not supported");
     }
   }

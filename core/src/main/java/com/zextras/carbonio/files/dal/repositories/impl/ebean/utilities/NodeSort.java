@@ -8,7 +8,6 @@ import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import io.ebean.Query;
-import javax.swing.*;
 
 /**
  * Represents all applicable sort types of a list of {@link Node}s. Each of them implements the
@@ -17,6 +16,23 @@ import javax.swing.*;
  * {@link Query}.
  */
 public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
+
+  //used as last sorting method to discriminate between nodes with identical properties
+  ID_ASC {
+    @Override
+    public String getName() {
+      return Db.Node.ID;
+    }
+
+    @Override
+    public SortOrder getOrder() {
+      return SortOrder.ASCENDING;
+    }
+
+    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
+      return query.order().asc("t0." + Files.Db.Node.ID);
+    }
+  },
   LAST_EDITOR_ASC {
     @Override
     public String getName() {

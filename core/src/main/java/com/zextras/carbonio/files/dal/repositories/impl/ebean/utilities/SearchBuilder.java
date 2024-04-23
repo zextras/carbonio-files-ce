@@ -231,6 +231,6 @@ public class SearchBuilder {
    * @return the {@link Query} on where to invoke the find functions.
    */
   public Query<Node> build() {
-    return this.query.orderBy().asc("mId");
+    return this.query;
   }
 }

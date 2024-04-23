@@ -8,11 +8,9 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 public class CompareExpression {
 
   String expression;
-  boolean shouldAddPharentesis;
 
   private CompareExpression(String expression) {
     this.expression = expression;
-    shouldAddPharentesis = false;
   }
 
   public static CompareExpression aCompareExpression(String key, String operator, String value) {
@@ -20,18 +18,21 @@ public class CompareExpression {
   }
 
   public CompareExpression or(CompareExpression compareExpression) {
-    shouldAddPharentesis = true;
     this.expression = this.expression + " OR " + compareExpression.toExpression();
     return this;
   }
 
   public CompareExpression and(CompareExpression compareExpression) {
-    shouldAddPharentesis = true;
     this.expression = this.expression + " AND " + compareExpression.toExpression();
     return this;
   }
 
+  public CompareExpression encapsulate(){
+    this.expression = "(" + this.expression + ")";
+    return this;
+  }
+
   public String toExpression() {
-    return shouldAddPharentesis ? "(" + expression + ")" : expression;
+    return expression;
   }
 }

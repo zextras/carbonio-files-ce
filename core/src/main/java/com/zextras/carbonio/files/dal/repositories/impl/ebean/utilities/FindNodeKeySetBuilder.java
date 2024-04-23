@@ -4,24 +4,27 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
+import static com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.CompareExpression.aCompareExpression;
+
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
+
 import java.text.MessageFormat;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
-import javax.swing.*;
+import java.util.Collections;
+import java.util.List;
 
 public class FindNodeKeySetBuilder {
 
-  Optional<NodeSort> sort;
+  List<NodeSort> sorts;
   Node node;
 
   public static FindNodeKeySetBuilder aSearchKeySetBuilder() {
     return new FindNodeKeySetBuilder();
   }
 
-  public FindNodeKeySetBuilder withNodeSort(Optional<NodeSort> sort) {
-    this.sort = sort;
+  public FindNodeKeySetBuilder withNodeSorts(List<NodeSort> sorts) {
+    if(sorts.isEmpty()) throw new IllegalArgumentException("A default sort option should always be present");
+    this.sorts = sorts;
     return this;
   }
 
@@ -30,104 +33,53 @@ public class FindNodeKeySetBuilder {
     return this;
   }
 
-  private static String orderToSymbol(SortOrder order) {
-    switch (order) {
-      case ASCENDING:
-        return ">";
-      case DESCENDING:
-        return "<";
-      default:
-        return "=";
+  private String formatObjectSql(Object obj){
+    return obj instanceof String ? "'" + obj.toString() + "'" : String.valueOf(obj);
+  }
+
+  private CompareExpression buildSortingExpression(NodeSort sort, SortOrder order) {
+    String nameToCompare = sort.getName();
+    String compareSymbol = order.getSymbol();
+    Object objToCompare;
+
+    if(nameToCompare.equals(Files.Db.Node.NAME)){
+      // Special case: if sorting by name we actually want to compare lowercase names, so
+      // get name and adapt query composition
+      nameToCompare = MessageFormat.format("LOWER({0})", Files.Db.Node.NAME);
+      objToCompare = node.getFullName().toLowerCase();
+    } else if(nameToCompare.equals(Files.Db.Node.ID)) {
+      nameToCompare = "t0.node_id"; //since findnodes makes a join node_id would be ambiguous
+      objToCompare = node.getId();
+    }else{
+      objToCompare = node.getSortingValueFromColumn(nameToCompare);
     }
+    String valueToCompare = formatObjectSql(objToCompare);
+    return aCompareExpression(nameToCompare, compareSymbol, valueToCompare);
   }
 
-  // util to make build more readable
-  private static CompareExpression compareExpression(String key, String symbol, String value) {
-    return CompareExpression.aCompareExpression(key, symbol, value);
-  }
-
+  // This essentially concatenates conditions to put in the WHERE of the find nodes query.
+  // The keyset is constructed following the order of the sortings to apply while querying.
+  // For example, given the last page's node and using sort by category and then by size,
+  // the keyset returned will be CATEGORY > lastNodeCategory OR (CATEGORY = lastNodeCategory AND SIZE > lastNodeSize).
+  // This builder works with N sorts, following the pattern A>B OR (A=B AND B>C) OR (A=B AND B=C AND C>D) and so on.
   public String build() {
 
-    if (this.sort == null) throw new IllegalArgumentException("Set sorting first");
+    if (this.sorts == null) throw new IllegalArgumentException("Set sorting first");
     if (this.node == null) throw new IllegalArgumentException("Set node first");
 
-    String nodeCategory = String.valueOf(node.getNodeCategory().getValue());
-    String formattedIdToCompare = "'" + node.getId() + "'"; // add quotes
+    NodeSort firstSort = sorts.get(0); //there always is a first sort
+    CompareExpression keysetExpression = buildSortingExpression(firstSort, firstSort.getOrder());
 
-    AtomicReference<String> result = new AtomicReference<>();
+    for (NodeSort s : sorts.subList(1, sorts.size())) {
+      NodeSort temp = sorts.get(0);
+      CompareExpression tempEx = buildSortingExpression(temp, SortOrder.EQUAL);
+      for (NodeSort t : sorts.subList(1, sorts.indexOf(s))) {
+        tempEx.and(buildSortingExpression(t, SortOrder.EQUAL));
+      }
+      tempEx.and(buildSortingExpression(sorts.get(sorts.indexOf(s)), sorts.get(sorts.indexOf(s)).getOrder()));
+      keysetExpression.or(tempEx.encapsulate());
+    }
 
-    sort.ifPresentOrElse(
-        s -> {
-          String nameOfComparison = s.getName();
-          String symbolOfComparison = orderToSymbol(s.getOrder());
-
-          if (nameOfComparison.equals(Files.Db.Node.SIZE)) {
-            // If sorting by size, get size from node and compose query
-            // Compare first the name and then the id if size is equal to last node, this is needed
-            // because findNodes by size also orders by name
-
-            String formattedNameToCompare = "'" + node.getName() + "'"; // add quotes
-            String valueOfComparison = node.getSize().toString();
-
-            result.set(
-                compareExpression(nameOfComparison, symbolOfComparison, valueOfComparison)
-                    .or(
-                        compareExpression(nameOfComparison, "=", valueOfComparison)
-                            .and(compareExpression("t0.name", ">", formattedNameToCompare)))
-                    .or(
-                        compareExpression(nameOfComparison, "=", valueOfComparison)
-                            .and(compareExpression("t0.node_id", ">", formattedIdToCompare)))
-                    .toExpression());
-          } else {
-            // If sorting by any other value get that value and compose the query
-            String formattedNameOfComparison;
-            Object objOfComparison;
-
-            if (nameOfComparison.equals(Files.Db.Node.NAME)) {
-              // Special case: if sorting by name we actually want to compare lowercase names, so
-              // get name and adapt query composition
-              formattedNameOfComparison = MessageFormat.format("LOWER({0})", Files.Db.Node.NAME);
-              objOfComparison = node.getFullName().toLowerCase();
-            } else {
-              // In any other case get value and name of comparison and compose query
-              formattedNameOfComparison = nameOfComparison;
-              objOfComparison = node.getSortingValueFromColumn(nameOfComparison);
-            }
-
-            String formattedValueOfComparison =
-                objOfComparison instanceof String
-                    ? "'" + objOfComparison + "'"
-                    : objOfComparison.toString(); // add quotes if value of comparison is a string
-
-            result.set(
-                compareExpression(Files.Db.Node.CATEGORY, ">", nodeCategory)
-                    .or(
-                        compareExpression(Files.Db.Node.CATEGORY, "=", nodeCategory)
-                            .and(
-                                compareExpression(
-                                    formattedNameOfComparison,
-                                    symbolOfComparison,
-                                    formattedValueOfComparison)))
-                    .or(
-                        compareExpression(Files.Db.Node.CATEGORY, "=", nodeCategory)
-                            .and(
-                                compareExpression(
-                                    formattedNameOfComparison,
-                                    symbolOfComparison,
-                                    formattedValueOfComparison))
-                            .and(compareExpression("t0.node_id", ">", formattedIdToCompare)))
-                    .toExpression());
-          }
-        },
-        () -> {
-          // If no sort is set, apply category and id by default
-          result.set(
-              compareExpression(Files.Db.Node.CATEGORY, ">", nodeCategory)
-                  .or(
-                      compareExpression(Files.Db.Node.CATEGORY, "=", nodeCategory)
-                          .and(compareExpression("t0.node_id", ">", formattedIdToCompare)))
-                  .toExpression());
-        });
-    return result.get();
+    return keysetExpression.toExpression();
   }
 }

@@ -21,6 +21,8 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SearchBu
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import io.ebean.Query;
 import io.ebean.annotation.Transactional;
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -78,8 +80,9 @@ public class NodeRepositoryEbean implements NodeRepository {
     optNodeType.ifPresent(nextPage::setNodeType);
     optOwnerId.ifPresent(nextPage::setOwnerId);
 
+    List<NodeSort> realSortsToApply = getRealSortingsToApply(sort);
     nextPage.setKeySet(
-        FindNodeKeySetBuilder.aSearchKeySetBuilder().withNodeSort(sort).fromNode(node).build());
+        FindNodeKeySetBuilder.aSearchKeySetBuilder().withNodeSorts(realSortsToApply).fromNode(node).build());
 
     return nextPage.toToken();
   }
@@ -114,7 +117,7 @@ public class NodeRepositoryEbean implements NodeRepository {
   private List<Node> doFind(
       String userId,
       Integer limit,
-      Optional<NodeSort> sort,
+      List<NodeSort> sorts,
       Optional<Boolean> flagged,
       Optional<String> folderId,
       Optional<Boolean> cascade,
@@ -144,17 +147,7 @@ public class NodeRepositoryEbean implements NodeRepository {
     search.setLimit(limit);
     keyset.ifPresent(search::setKeyset);
 
-    sort.ifPresentOrElse(
-        s -> {
-          if (s.equals(NodeSort.SIZE_ASC)) {
-            search.setSort(NodeSort.TYPE_ASC).setSort(s).setSort(NodeSort.NAME_ASC);
-          } else if (s.equals(NodeSort.SIZE_DESC)) {
-            search.setSort(NodeSort.TYPE_DESC).setSort(s).setSort(NodeSort.NAME_ASC);
-          } else {
-            search.setSort(NodeSort.TYPE_ASC).setSort(sort.get());
-          }
-        },
-        () -> search.setSort(NodeSort.TYPE_ASC));
+    sorts.forEach(search::setSort);
 
     List<Node> nodes = search.build().findList();
 
@@ -164,6 +157,32 @@ public class NodeRepositoryEbean implements NodeRepository {
     logger.info("Search time in milliseconds : " + totalTime);
 
     return nodes;
+  }
+
+  // This is the single method that decides what sortings to apply and in what order.
+  // This is responsible for default sorting, additional sorting not explicitly requested by user, and
+  // keyset generation for pagination.
+  public static List<NodeSort> getRealSortingsToApply(Optional<NodeSort> inputSort){
+    List<NodeSort> result = new ArrayList<>();
+    inputSort.ifPresentOrElse(
+        s -> {
+          if (s.equals(NodeSort.SIZE_ASC)) {
+            result.add(NodeSort.TYPE_ASC);
+            result.add(s);
+            result.add(NodeSort.NAME_ASC);
+          } else if (s.equals(NodeSort.SIZE_DESC)) {
+            result.add(NodeSort.TYPE_DESC);
+            result.add(s);
+            result.add(NodeSort.NAME_ASC);
+          } else {
+            result.add(NodeSort.TYPE_ASC);
+            result.add(s);
+          }
+        },
+        () -> result.add(NodeSort.TYPE_ASC));
+
+    result.add(NodeSort.ID_ASC); //default last sort
+    return result;
   }
 
   public ImmutablePair<List<Node>, String> findNodes(
@@ -185,11 +204,12 @@ public class NodeRepositoryEbean implements NodeRepository {
         .map(
             token -> {
               PageQuery params = PageQuery.fromToken(token);
+              List<NodeSort> realSortsToApply = getRealSortingsToApply(params.getSort().map(NodeSort::valueOf));
               List<Node> nodes =
                   doFind(
                       userId,
                       params.getLimit(),
-                      params.getSort().map(NodeSort::valueOf),
+                      realSortsToApply,
                       params.getFlagged(),
                       params.getFolderId(),
                       params.getCascade(),
@@ -232,11 +252,12 @@ public class NodeRepositoryEbean implements NodeRepository {
                                   : l)
                       .orElse(Files.Config.Pagination.LIMIT);
 
+              List<NodeSort> realSortsToApply = getRealSortingsToApply(sort);
               List<Node> nodes =
                   doFind(
                       userId,
                       realLimit,
-                      sort,
+                      realSortsToApply,
                       flagged,
                       folderId,
                       cascade,
