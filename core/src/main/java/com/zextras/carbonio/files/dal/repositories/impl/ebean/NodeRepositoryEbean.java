@@ -21,7 +21,6 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SearchBu
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import io.ebean.Query;
 import io.ebean.annotation.Transactional;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -82,7 +81,10 @@ public class NodeRepositoryEbean implements NodeRepository {
 
     List<NodeSort> realSortsToApply = getRealSortingsToApply(sort);
     nextPage.setKeySet(
-        FindNodeKeySetBuilder.aSearchKeySetBuilder().withNodeSorts(realSortsToApply).fromNode(node).build());
+        FindNodeKeySetBuilder.aSearchKeySetBuilder()
+            .withNodeSorts(realSortsToApply)
+            .fromNode(node)
+            .build());
 
     return nextPage.toToken();
   }
@@ -160,9 +162,10 @@ public class NodeRepositoryEbean implements NodeRepository {
   }
 
   // This is the single method that decides what sortings to apply and in what order.
-  // This is responsible for default sorting, additional sorting not explicitly requested by user, and
+  // This is responsible for default sorting, additional sorting not explicitly requested by user,
+  // and
   // keyset generation for pagination.
-  public static List<NodeSort> getRealSortingsToApply(Optional<NodeSort> inputSort){
+  public static List<NodeSort> getRealSortingsToApply(Optional<NodeSort> inputSort) {
     List<NodeSort> result = new ArrayList<>();
     inputSort.ifPresentOrElse(
         s -> {
@@ -181,7 +184,7 @@ public class NodeRepositoryEbean implements NodeRepository {
         },
         () -> result.add(NodeSort.TYPE_ASC));
 
-    result.add(NodeSort.ID_ASC); //default last sort
+    result.add(NodeSort.ID_ASC); // default last sort
     return result;
   }
 
@@ -204,7 +207,8 @@ public class NodeRepositoryEbean implements NodeRepository {
         .map(
             token -> {
               PageQuery params = PageQuery.fromToken(token);
-              List<NodeSort> realSortsToApply = getRealSortingsToApply(params.getSort().map(NodeSort::valueOf));
+              List<NodeSort> realSortsToApply =
+                  getRealSortingsToApply(params.getSort().map(NodeSort::valueOf));
               List<Node> nodes =
                   doFind(
                       userId,

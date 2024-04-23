@@ -8,9 +8,7 @@ import static com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.C
 
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
-
 import java.text.MessageFormat;
-import java.util.Collections;
 import java.util.List;
 
 public class FindNodeKeySetBuilder {
@@ -23,7 +21,8 @@ public class FindNodeKeySetBuilder {
   }
 
   public FindNodeKeySetBuilder withNodeSorts(List<NodeSort> sorts) {
-    if(sorts.isEmpty()) throw new IllegalArgumentException("A default sort option should always be present");
+    if (sorts.isEmpty())
+      throw new IllegalArgumentException("A default sort option should always be present");
     this.sorts = sorts;
     return this;
   }
@@ -33,7 +32,7 @@ public class FindNodeKeySetBuilder {
     return this;
   }
 
-  private String formatObjectSql(Object obj){
+  private String formatObjectSql(Object obj) {
     return obj instanceof String ? "'" + obj.toString() + "'" : String.valueOf(obj);
   }
 
@@ -42,15 +41,15 @@ public class FindNodeKeySetBuilder {
     String compareSymbol = order.getSymbol();
     Object objToCompare;
 
-    if(nameToCompare.equals(Files.Db.Node.NAME)){
+    if (nameToCompare.equals(Files.Db.Node.NAME)) {
       // Special case: if sorting by name we actually want to compare lowercase names, so
       // get name and adapt query composition
       nameToCompare = MessageFormat.format("LOWER({0})", Files.Db.Node.NAME);
       objToCompare = node.getFullName().toLowerCase();
-    } else if(nameToCompare.equals(Files.Db.Node.ID)) {
-      nameToCompare = "t0.node_id"; //since findnodes makes a join node_id would be ambiguous
+    } else if (nameToCompare.equals(Files.Db.Node.ID)) {
+      nameToCompare = "t0.node_id"; // since findnodes makes a join node_id would be ambiguous
       objToCompare = node.getId();
-    }else{
+    } else {
       objToCompare = node.getSortingValueFromColumn(nameToCompare);
     }
     String valueToCompare = formatObjectSql(objToCompare);
@@ -60,14 +59,16 @@ public class FindNodeKeySetBuilder {
   // This essentially concatenates conditions to put in the WHERE of the find nodes query.
   // The keyset is constructed following the order of the sortings to apply while querying.
   // For example, given the last page's node and using sort by category and then by size,
-  // the keyset returned will be CATEGORY > lastNodeCategory OR (CATEGORY = lastNodeCategory AND SIZE > lastNodeSize).
-  // This builder works with N sorts, following the pattern A>B OR (A=B AND B>C) OR (A=B AND B=C AND C>D) and so on.
+  // the keyset returned will be CATEGORY > lastNodeCategory OR (CATEGORY = lastNodeCategory AND
+  // SIZE > lastNodeSize).
+  // This builder works with N sorts, following the pattern A>B OR (A=B AND B>C) OR (A=B AND B=C AND
+  // C>D) and so on.
   public String build() {
 
     if (this.sorts == null) throw new IllegalArgumentException("Set sorting first");
     if (this.node == null) throw new IllegalArgumentException("Set node first");
 
-    NodeSort firstSort = sorts.get(0); //there always is a first sort
+    NodeSort firstSort = sorts.get(0); // there always is a first sort
     CompareExpression keysetExpression = buildSortingExpression(firstSort, firstSort.getOrder());
 
     for (NodeSort s : sorts.subList(1, sorts.size())) {
@@ -76,7 +77,9 @@ public class FindNodeKeySetBuilder {
       for (NodeSort t : sorts.subList(1, sorts.indexOf(s))) {
         tempEx.and(buildSortingExpression(t, SortOrder.EQUAL));
       }
-      tempEx.and(buildSortingExpression(sorts.get(sorts.indexOf(s)), sorts.get(sorts.indexOf(s)).getOrder()));
+      tempEx.and(
+          buildSortingExpression(
+              sorts.get(sorts.indexOf(s)), sorts.get(sorts.indexOf(s)).getOrder()));
       keysetExpression.or(tempEx.encapsulate());
     }
 

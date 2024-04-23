@@ -17,7 +17,7 @@ import io.ebean.Query;
  */
 public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
 
-  //used as last sorting method to discriminate between nodes with identical properties
+  // used as last sorting method to discriminate between nodes with identical properties
   ID_ASC {
     @Override
     public String getName() {

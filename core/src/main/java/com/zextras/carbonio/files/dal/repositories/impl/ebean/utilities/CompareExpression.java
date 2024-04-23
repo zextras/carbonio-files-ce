@@ -27,7 +27,7 @@ public class CompareExpression {
     return this;
   }
 
-  public CompareExpression encapsulate(){
+  public CompareExpression encapsulate() {
     this.expression = "(" + this.expression + ")";
     return this;
   }

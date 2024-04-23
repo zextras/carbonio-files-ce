@@ -4,22 +4,22 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
-public enum SortOrder implements  GenericSortOrder{
-  ASCENDING{
+public enum SortOrder implements GenericSortOrder {
+  ASCENDING {
     @Override
     public String getSymbol() {
       return ">";
     }
   },
 
-  DESCENDING{
+  DESCENDING {
     @Override
     public String getSymbol() {
       return "<";
     }
   },
 
-  EQUAL{
+  EQUAL {
     @Override
     public String getSymbol() {
       return "=";
