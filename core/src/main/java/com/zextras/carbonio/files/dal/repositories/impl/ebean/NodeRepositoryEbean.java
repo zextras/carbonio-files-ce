@@ -135,7 +135,7 @@ public class NodeRepositoryEbean implements NodeRepository {
 
     long startTime = java.lang.System.nanoTime();
 
-    if (keywords.size() > 0) {
+    if (!keywords.isEmpty()) {
       search.setKeywords(keywords);
     }
     flagged.ifPresent(search::setFlagged);

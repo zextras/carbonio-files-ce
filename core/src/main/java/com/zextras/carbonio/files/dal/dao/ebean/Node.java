@@ -292,22 +292,14 @@ public class Node {
   }
 
   public Object getSortingValueFromColumn(String columnName) {
-    switch (columnName) {
-      case Files.Db.Node.ID:
-        return getId();
-      case Files.Db.Node.CATEGORY:
-        return getNodeCategory().getValue();
-      case Files.Db.Node.CREATED_AT:
-        return getCreatedAt();
-      case Files.Db.Node.UPDATED_AT:
-        return getUpdatedAt();
-      case Files.Db.Node.NAME:
-        return getName();
-      case Files.Db.Node.SIZE:
-        return getSize();
-      default:
-        System.out.println(columnName);
-        throw new IllegalArgumentException("Column not supported");
-    }
+    return switch (columnName) {
+      case Files.Db.Node.ID -> getId();
+      case Files.Db.Node.CATEGORY -> getNodeCategory().getValue();
+      case Files.Db.Node.CREATED_AT -> getCreatedAt();
+      case Files.Db.Node.UPDATED_AT -> getUpdatedAt();
+      case Files.Db.Node.NAME -> getName();
+      case Files.Db.Node.SIZE -> getSize();
+      default -> throw new IllegalArgumentException("Column not supported");
+    };
   }
 }
