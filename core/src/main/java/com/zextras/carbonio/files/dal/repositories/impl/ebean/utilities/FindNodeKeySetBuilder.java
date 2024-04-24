@@ -65,7 +65,8 @@ public class FindNodeKeySetBuilder {
   // C>D) and so on.
   public String build() {
 
-    if (this.sorts == null) throw new IllegalArgumentException("Set sorting first");
+    if (this.sorts == null || this.sorts.isEmpty())
+      throw new IllegalArgumentException("Set sorting first");
     if (this.node == null) throw new IllegalArgumentException("Set node first");
 
     NodeSort firstSort = sorts.get(0); // there always is a first sort
