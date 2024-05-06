@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.cache.Cache;
 import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.usermanagement.UserManagementClient;
 import com.zextras.carbonio.usermanagement.entities.UserId;
@@ -23,91 +24,114 @@ public class UserRepositoryRest implements UserRepository {
 
   private static final Logger logger = LoggerFactory.getLogger(UserRepositoryRest.class);
 
-  private final String      usermanagementUrl;
+  private final String usermanagementUrl;
   private final Cache<User> userCache;
+  private Optional<UserMyself>
+      userMyselfCached; // separated from normal users cache since there can be only one usermyself
+                        // cached
+
+  // and to ditch casting
 
   @Inject
-  public UserRepositoryRest(
-    FilesConfig filesConfig,
-    CacheHandler cacheHandler
-  ) {
+  public UserRepositoryRest(FilesConfig filesConfig, CacheHandler cacheHandler) {
     Properties p = filesConfig.getProperties();
-    usermanagementUrl = "http://"
-      + p.getProperty(Files.Config.UserManagement.URL, "127.78.0.2")
-      + ":" + p.getProperty(Files.Config.UserManagement.PORT, "20001");
+    usermanagementUrl =
+        "http://"
+            + p.getProperty(Files.Config.UserManagement.URL, "127.78.0.2")
+            + ":"
+            + p.getProperty(Files.Config.UserManagement.PORT, "20001");
 
     userCache = cacheHandler.getUserCache();
+    userMyselfCached = Optional.empty();
   }
 
   @Override
-  public Optional<User> getUserById(
-    String cookies,
-    String userId
-  ) {
-    return userCache
-      .get(userId)
-      .or(() ->
-        UserManagementClient
-          .atURL(usermanagementUrl)
-          .getUserById(cookies, userId)
-          .onFailure(failure -> logger.error(failure.getMessage()))
-          .map(userInfo -> {
-              User user = new User(
-                userInfo.getId().getUserId(),
-                userInfo.getFullName(),
-                userInfo.getEmail(),
-                userInfo.getDomain()
-              );
-              userCache.add(user.getId(), user);
-              userCache.add(user.getEmail(), user);
+  public Optional<UserMyself> getUserMyselfByCookie(
+      String cookies, String userId // only used to get user in cache
+      ) {
+    return userMyselfCached
+        .filter(user -> user.getId().equals(userId))
+        .or(
+            () ->
+                UserManagementClient.atURL(usermanagementUrl)
+                    .getUserMyself(cookies)
+                    .onFailure(failure -> logger.error(failure.getMessage()))
+                    .map(
+                        userInfo -> {
+                          UserMyself user =
+                              new UserMyself(
+                                  userInfo.getId().getUserId(),
+                                  userInfo.getFullName(),
+                                  userInfo.getEmail(),
+                                  userInfo.getDomain(),
+                                  userInfo.getLocale());
+                          userCache.add(user.getId(), user);
+                          userCache.add(user.getEmail(), user);
 
-              return user;
-            }
-          )
-          .toJavaOptional()
-      );
+                          return user;
+                        })
+                    .toJavaOptional());
   }
 
   @Override
-  public Optional<User> getUserByEmail(
-    String cookies,
-    String userEmail
-  ) {
+  public Optional<User> getUserById(String cookies, String userId) {
+    return userCache
+        .get(userId)
+        .or(
+            () ->
+                UserManagementClient.atURL(usermanagementUrl)
+                    .getUserById(cookies, userId)
+                    .onFailure(failure -> logger.error(failure.getMessage()))
+                    .map(
+                        userInfo -> {
+                          User user =
+                              new User(
+                                  userInfo.getId().getUserId(),
+                                  userInfo.getFullName(),
+                                  userInfo.getEmail(),
+                                  userInfo.getDomain());
+                          userCache.add(user.getId(), user);
+                          userCache.add(user.getEmail(), user);
+
+                          return user;
+                        })
+                    .toJavaOptional());
+  }
+
+  @Override
+  public Optional<User> getUserByEmail(String cookies, String userEmail) {
 
     return userCache
-      .get(userEmail)
-      .or(() ->
-        UserManagementClient
-          .atURL(usermanagementUrl)
-          .getUserByEmail(cookies, userEmail)
-          .onFailure(failure -> logger.error(failure.getMessage()))
-          .map(userInfo -> {
-              User user = new User(
-                userInfo.getId().getUserId(),
-                userInfo.getFullName(),
-                userInfo.getEmail(),
-                userInfo.getDomain()
-              );
-              userCache.add(user.getId(), user);
-              userCache.add(user.getEmail(), user);
+        .get(userEmail)
+        .or(
+            () ->
+                UserManagementClient.atURL(usermanagementUrl)
+                    .getUserByEmail(cookies, userEmail)
+                    .onFailure(failure -> logger.error(failure.getMessage()))
+                    .map(
+                        userInfo -> {
+                          User user =
+                              new User(
+                                  userInfo.getId().getUserId(),
+                                  userInfo.getFullName(),
+                                  userInfo.getEmail(),
+                                  userInfo.getDomain());
+                          userCache.add(user.getId(), user);
+                          userCache.add(user.getEmail(), user);
 
-              return user;
-            }
-          )
-          .toJavaOptional()
-      );
+                          return user;
+                        })
+                    .toJavaOptional());
   }
 
   @Override
   public Try<UserId> validateToken(String carbonioUserToken) {
-    return
-      UserManagementClient
-        .atURL(usermanagementUrl)
+    return UserManagementClient.atURL(usermanagementUrl)
         .validateUserToken(carbonioUserToken)
-        .orElse(() -> {
-          logger.info("Non-valid token");
-          return Try.failure(new Exception("Invalid token"));
-        });
-
+        .orElse(
+            () -> {
+              logger.info("Non-valid token");
+              return Try.failure(new Exception("Invalid token"));
+            });
   }
 }

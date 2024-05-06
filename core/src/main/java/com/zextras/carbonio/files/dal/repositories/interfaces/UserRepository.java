@@ -5,22 +5,20 @@
 package com.zextras.carbonio.files.dal.repositories.interfaces;
 
 import com.zextras.carbonio.files.dal.dao.User;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.usermanagement.entities.UserId;
 import io.vavr.control.Try;
 import java.util.Optional;
 
 public interface UserRepository {
 
-  Optional<User> getUserById(
-    String cookies,
-    String userId
-  );
+  Optional<UserMyself> getUserMyselfByCookie(
+      String cookies, String userId // only used to get user in cache
+      );
 
-  Optional<User> getUserByEmail(
-    String cookies,
-    String userEmail
-  );
+  Optional<User> getUserById(String cookies, String userId);
+
+  Optional<User> getUserByEmail(String cookies, String userEmail);
 
   Try<UserId> validateToken(String carbonioUserToken);
-
 }
