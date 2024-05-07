@@ -7,292 +7,292 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xmlns="http://maven.apache.org/POM/4.0.0"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
-  <modelVersion>4.0.0</modelVersion>
+    <modelVersion>4.0.0</modelVersion>
 
-  <licenses>
-    <license>
-      <comments>Copyright (C) 2022 Zextras, https://www.zextras.com</comments>
-      <name>AGPL-3.0-only</name>
-    </license>
-  </licenses>
+    <licenses>
+        <license>
+            <comments>Copyright (C) 2022 Zextras, https://www.zextras.com</comments>
+            <name>AGPL-3.0-only</name>
+        </license>
+    </licenses>
 
-  <groupId>com.zextras.carbonio.files</groupId>
-  <artifactId>carbonio-files-ce</artifactId>
-  <version>0.11.2-SNAPSHOT</version>
-  <packaging>pom</packaging>
+    <groupId>com.zextras.carbonio.files</groupId>
+    <artifactId>carbonio-files-ce</artifactId>
+    <version>0.11.2-SNAPSHOT</version>
+    <packaging>pom</packaging>
 
-  <name>carbonio-files-ce</name>
+    <name>carbonio-files-ce</name>
 
-  <modules>
-    <module>boot</module>
-    <module>core</module>
-  </modules>
+    <modules>
+        <module>boot</module>
+        <module>core</module>
+    </modules>
 
-  <properties>
-    <!-- Dependencies -->
-    <assertj.version>3.24.2</assertj.version>
-    <caffeine.version>3.1.6</caffeine.version>
-    <carbonio-storages-common.version>0.0.15-SNAPSHOT</carbonio-storages-common.version>
-    <carbonio-storages-ce.version>0.0.15-SNAPSHOT</carbonio-storages-ce.version>
-    <carbonio-user-management-sdk.version>0.3.0</carbonio-user-management-sdk.version>
-    <carbonio-preview-sdk.version>1.0.3-SNAPSHOT</carbonio-preview-sdk.version>
-    <commons-lang3.version>3.12.0</commons-lang3.version>
-    <commons-validator.version>1.7</commons-validator.version>
-    <ebean.version>13.20.1</ebean.version>
-    <graphql-java.version>21.0</graphql-java.version>
-    <guice.version>6.0.0</guice.version>
-    <hikaricp.version>5.0.1</hikaricp.version>
-    <hsqldb.version>2.7.2</hsqldb.version>
-    <jackson.version>2.15.2</jackson.version>
-    <junit5.version>5.9.3</junit5.version>
-    <logback-classic.version>1.4.8</logback-classic.version>
-    <micrometer.version>1.11.2</micrometer.version>
-    <mockito.version>5.4.0</mockito.version>
-    <mock-server.version>5.15.0</mock-server.version>
-    <netty.version>4.1.94.Final</netty.version>
-    <postgresql.version>42.6.0</postgresql.version>
-    <testcontainers.version>1.18.3</testcontainers.version>
+    <properties>
+        <!-- Dependencies -->
+        <assertj.version>3.24.2</assertj.version>
+        <caffeine.version>3.1.6</caffeine.version>
+        <carbonio-storages-common.version>0.0.15-SNAPSHOT</carbonio-storages-common.version>
+        <carbonio-storages-ce.version>0.0.15-SNAPSHOT</carbonio-storages-ce.version>
+        <carbonio-user-management-sdk.version>0.3.0</carbonio-user-management-sdk.version>
+        <carbonio-preview-sdk.version>1.0.3-SNAPSHOT</carbonio-preview-sdk.version>
+        <commons-lang3.version>3.12.0</commons-lang3.version>
+        <commons-validator.version>1.7</commons-validator.version>
+        <ebean.version>13.20.1</ebean.version>
+        <graphql-java.version>21.0</graphql-java.version>
+        <guice.version>6.0.0</guice.version>
+        <hikaricp.version>5.0.1</hikaricp.version>
+        <hsqldb.version>2.7.2</hsqldb.version>
+        <jackson.version>2.15.2</jackson.version>
+        <junit5.version>5.9.3</junit5.version>
+        <logback-classic.version>1.4.8</logback-classic.version>
+        <micrometer.version>1.11.2</micrometer.version>
+        <mockito.version>5.4.0</mockito.version>
+        <mock-server.version>5.15.0</mock-server.version>
+        <netty.version>4.1.94.Final</netty.version>
+        <postgresql.version>42.6.0</postgresql.version>
+        <testcontainers.version>1.18.3</testcontainers.version>
 
-    <!-- Plugins -->
-    <maven-assembly.version>3.6.0</maven-assembly.version>
-    <maven-compiler.version>3.11.0</maven-compiler.version>
-    <maven-failsafe.version>3.1.2</maven-failsafe.version>
-    <maven-jacoco.version>0.8.10</maven-jacoco.version>
-    <maven-surfire.version>3.1.2</maven-surfire.version>
-    <tiles-maven.version>2.36</tiles-maven.version>
+        <!-- Plugins -->
+        <maven-assembly.version>3.6.0</maven-assembly.version>
+        <maven-compiler.version>3.11.0</maven-compiler.version>
+        <maven-failsafe.version>3.1.2</maven-failsafe.version>
+        <maven-jacoco.version>0.8.10</maven-jacoco.version>
+        <maven-surfire.version>3.1.2</maven-surfire.version>
+        <tiles-maven.version>2.36</tiles-maven.version>
 
-    <!-- Other properties -->
-    <maven.compiler.source>17</maven.compiler.source>
-    <maven.compiler.target>17</maven.compiler.target>
-    <java-compiler.version>17</java-compiler.version>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <sonar.coverage.jacoco.xmlReportPaths>
-      ../core/target/jacoco-full-report/jacoco.xml
-    </sonar.coverage.jacoco.xmlReportPaths>
-    <sonar.dependencyCheck.htmlReportPath>
-      ./dependency-check-report.html
-    </sonar.dependencyCheck.htmlReportPath>
+        <!-- Other properties -->
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <java-compiler.version>17</java-compiler.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <sonar.coverage.jacoco.xmlReportPaths>
+            ../core/target/jacoco-full-report/jacoco.xml
+        </sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.dependencyCheck.htmlReportPath>
+            ./dependency-check-report.html
+        </sonar.dependencyCheck.htmlReportPath>
 
-    <!-- Flags to skip/run tests and the report generation -->
-    <skip.integration.tests>true</skip.integration.tests>
-    <skip.unit.tests>true</skip.unit.tests>
-    <skip.jacoco.full.report.generation>true</skip.jacoco.full.report.generation>
-  </properties>
+        <!-- Flags to skip/run tests and the report generation -->
+        <skip.integration.tests>true</skip.integration.tests>
+        <skip.unit.tests>true</skip.unit.tests>
+        <skip.jacoco.full.report.generation>true</skip.jacoco.full.report.generation>
+    </properties>
 
-  <dependencyManagement>
-    <dependencies>
-      <!-- Guice dependencies -->
-      <dependency>
-        <groupId>com.google.inject</groupId>
-        <artifactId>guice</artifactId>
-        <version>${guice.version}</version>
-      </dependency>
+    <dependencyManagement>
+        <dependencies>
+            <!-- Guice dependencies -->
+            <dependency>
+                <groupId>com.google.inject</groupId>
+                <artifactId>guice</artifactId>
+                <version>${guice.version}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>com.google.inject.extensions</groupId>
-        <artifactId>guice-assistedinject</artifactId>
-        <version>${guice.version}</version>
-      </dependency>
+            <dependency>
+                <groupId>com.google.inject.extensions</groupId>
+                <artifactId>guice-assistedinject</artifactId>
+                <version>${guice.version}</version>
+            </dependency>
 
-      <!-- Logger -->
-      <dependency>
-        <groupId>ch.qos.logback</groupId>
-        <artifactId>logback-classic</artifactId>
-        <version>${logback-classic.version}</version>
-      </dependency>
+            <!-- Logger -->
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>${logback-classic.version}</version>
+            </dependency>
 
-      <!-- Netty -->
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-all</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
+            <!-- Netty -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-all</artifactId>
+                <version>${netty.version}</version>
+            </dependency>
 
-      <!-- Database -->
-      <dependency>
-        <groupId>org.postgresql</groupId>
-        <artifactId>postgresql</artifactId>
-        <version>${postgresql.version}</version>
-      </dependency>
+            <!-- Database -->
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${postgresql.version}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>com.zaxxer</groupId>
-        <artifactId>HikariCP</artifactId>
-        <version>${hikaricp.version}</version>
-      </dependency>
+            <dependency>
+                <groupId>com.zaxxer</groupId>
+                <artifactId>HikariCP</artifactId>
+                <version>${hikaricp.version}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>io.ebean</groupId>
-        <artifactId>ebean-postgres</artifactId>
-        <version>${ebean.version}</version>
-      </dependency>
+            <dependency>
+                <groupId>io.ebean</groupId>
+                <artifactId>ebean-postgres</artifactId>
+                <version>${ebean.version}</version>
+            </dependency>
 
-      <!-- GraphQL -->
-      <dependency>
-        <groupId>com.graphql-java</groupId>
-        <artifactId>graphql-java</artifactId>
-        <version>${graphql-java.version}</version>
-      </dependency>
+            <!-- GraphQL -->
+            <dependency>
+                <groupId>com.graphql-java</groupId>
+                <artifactId>graphql-java</artifactId>
+                <version>${graphql-java.version}</version>
+            </dependency>
 
-      <!-- Cache -->
-      <dependency>
-        <groupId>com.github.ben-manes.caffeine</groupId>
-        <artifactId>caffeine</artifactId>
-        <version>${caffeine.version}</version>
-      </dependency>
+            <!-- Cache -->
+            <dependency>
+                <groupId>com.github.ben-manes.caffeine</groupId>
+                <artifactId>caffeine</artifactId>
+                <version>${caffeine.version}</version>
+            </dependency>
 
-      <!-- Services: storages, authentication, preview -->
-      <dependency>
-        <groupId>com.zextras.carbonio.user-management</groupId>
-        <artifactId>carbonio-user-management-sdk</artifactId>
-        <version>${carbonio-user-management-sdk.version}</version>
-      </dependency>
+            <!-- Services: storages, authentication, preview -->
+            <dependency>
+                <groupId>com.zextras.carbonio.user-management</groupId>
+                <artifactId>carbonio-user-management-sdk</artifactId>
+                <version>${carbonio-user-management-sdk.version}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>com.zextras</groupId>
-        <artifactId>storages-ce-sdk</artifactId>
-        <version>${carbonio-storages-ce.version}</version>
-      </dependency>
+            <dependency>
+                <groupId>com.zextras</groupId>
+                <artifactId>storages-ce-sdk</artifactId>
+                <version>${carbonio-storages-ce.version}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>com.zextras.carbonio.preview</groupId>
-        <artifactId>carbonio-preview-sdk</artifactId>
-        <version>${carbonio-preview-sdk.version}</version>
-      </dependency>
+            <dependency>
+                <groupId>com.zextras.carbonio.preview</groupId>
+                <artifactId>carbonio-preview-sdk</artifactId>
+                <version>${carbonio-preview-sdk.version}</version>
+            </dependency>
 
-      <!-- Utilities: jackson, apache commons-lang and commons-validator -->
-      <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-annotations</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
+            <!-- Utilities: jackson, apache commons-lang and commons-validator -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-databind</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>com.fasterxml.jackson.datatype</groupId>
-        <artifactId>jackson-datatype-jdk8</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.datatype</groupId>
+                <artifactId>jackson-datatype-jdk8</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-lang3</artifactId>
-        <version>${commons-lang3.version}</version>
-      </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${commons-lang3.version}</version>
+            </dependency>
 
-      <dependency>
-        <groupId>commons-validator</groupId>
-        <artifactId>commons-validator</artifactId>
-        <version>${commons-validator.version}</version>
-        <exclusions>
-          <!-- It is excluded because has vulnerabilities, and it is never used -->
-          <exclusion>
-            <groupId>commons-collections</groupId>
-            <artifactId>commons-collections</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
+            <dependency>
+                <groupId>commons-validator</groupId>
+                <artifactId>commons-validator</artifactId>
+                <version>${commons-validator.version}</version>
+                <exclusions>
+                    <!-- It is excluded because has vulnerabilities, and it is never used -->
+                    <exclusion>
+                        <groupId>commons-collections</groupId>
+                        <artifactId>commons-collections</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
 
-      <!-- Metrics -->
-      <dependency>
-        <groupId>io.micrometer</groupId>
-        <artifactId>micrometer-registry-prometheus</artifactId>
-        <version>${micrometer.version}</version>
-      </dependency>
+            <!-- Metrics -->
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-registry-prometheus</artifactId>
+                <version>${micrometer.version}</version>
+            </dependency>
 
-      <!-- Testing -->
-      <dependency>
-        <groupId>org.junit.jupiter</groupId>
-        <artifactId>junit-jupiter-api</artifactId>
-        <version>${junit5.version}</version>
-        <scope>test</scope>
-      </dependency>
+            <!-- Testing -->
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-api</artifactId>
+                <version>${junit5.version}</version>
+                <scope>test</scope>
+            </dependency>
 
-      <dependency>
-        <groupId>org.junit.jupiter</groupId>
-        <artifactId>junit-jupiter-params</artifactId>
-        <version>${junit5.version}</version>
-        <scope>test</scope>
-      </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-params</artifactId>
+                <version>${junit5.version}</version>
+                <scope>test</scope>
+            </dependency>
 
-      <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-core</artifactId>
-        <version>${mockito.version}</version>
-        <scope>test</scope>
-      </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${mockito.version}</version>
+                <scope>test</scope>
+            </dependency>
 
-      <dependency>
-        <groupId>org.assertj</groupId>
-        <artifactId>assertj-core</artifactId>
-        <version>${assertj.version}</version>
-        <scope>test</scope>
-      </dependency>
+            <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-core</artifactId>
+                <version>${assertj.version}</version>
+                <scope>test</scope>
+            </dependency>
 
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>testcontainers</artifactId>
-        <version>${testcontainers.version}</version>
-        <scope>test</scope>
-      </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers</artifactId>
+                <version>${testcontainers.version}</version>
+                <scope>test</scope>
+            </dependency>
 
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>junit-jupiter</artifactId>
-        <version>${testcontainers.version}</version>
-        <scope>test</scope>
-      </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${testcontainers.version}</version>
+                <scope>test</scope>
+            </dependency>
 
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>postgresql</artifactId>
-        <version>${testcontainers.version}</version>
-        <scope>test</scope>
-      </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${testcontainers.version}</version>
+                <scope>test</scope>
+            </dependency>
 
-      <dependency>
-        <groupId>org.hsqldb</groupId>
-        <artifactId>hsqldb</artifactId>
-        <version>${hsqldb.version}</version>
-        <scope>test</scope>
-      </dependency>
+            <dependency>
+                <groupId>org.hsqldb</groupId>
+                <artifactId>hsqldb</artifactId>
+                <version>${hsqldb.version}</version>
+                <scope>test</scope>
+            </dependency>
 
-      <dependency>
-        <groupId>io.ebean</groupId>
-        <artifactId>ebean-platform-hsqldb</artifactId>
-        <version>${ebean.version}</version>
-        <scope>test</scope>
-      </dependency>
+            <dependency>
+                <groupId>io.ebean</groupId>
+                <artifactId>ebean-platform-hsqldb</artifactId>
+                <version>${ebean.version}</version>
+                <scope>test</scope>
+            </dependency>
 
-      <dependency>
-        <groupId>org.mock-server</groupId>
-        <artifactId>mockserver-netty-no-dependencies</artifactId>
-        <version>${mock-server.version}</version>
-        <scope>test</scope>
-      </dependency>
+            <dependency>
+                <groupId>org.mock-server</groupId>
+                <artifactId>mockserver-netty-no-dependencies</artifactId>
+                <version>${mock-server.version}</version>
+                <scope>test</scope>
+            </dependency>
 
-      <dependency>
-        <groupId>org.mock-server</groupId>
-        <artifactId>mockserver-client-java-no-dependencies</artifactId>
-        <version>${mock-server.version}</version>
-        <scope>test</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
+            <dependency>
+                <groupId>org.mock-server</groupId>
+                <artifactId>mockserver-client-java-no-dependencies</artifactId>
+                <version>${mock-server.version}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
-  <repositories>
-    <repository>
-      <id>zextras-java-sdk</id>
-      <name>Zextras public maven repo</name>
-      <url>https://zextras.jfrog.io/artifactory/java-sdk</url>
-    </repository>
-  </repositories>
+    <repositories>
+        <repository>
+            <id>zextras-java-sdk</id>
+            <name>Zextras public maven repo</name>
+            <url>https://zextras.jfrog.io/artifactory/java-sdk</url>
+        </repository>
+    </repositories>
 </project>
