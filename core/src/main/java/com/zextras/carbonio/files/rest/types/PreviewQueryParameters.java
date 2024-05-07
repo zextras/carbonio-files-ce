@@ -27,20 +27,23 @@ public class PreviewQueryParameters {
   @JsonProperty("last_page")
   private Integer lastPage;
 
+  @JsonProperty("locale")
+  private String locale;
+
+  public Optional<String> getLocale() {
+    return Optional.ofNullable(locale);
+  }
+
+  public void setLocale(String locale) {
+    this.locale = locale;
+  }
+
   public Optional<String> getQuality() {
-    return Optional.ofNullable(
-      quality == null
-        ? null
-        : quality.name()
-    );
+    return Optional.ofNullable(quality == null ? null : quality.name());
   }
 
   public Optional<String> getOutputFormat() {
-    return Optional.ofNullable(
-      outputFormat == null
-        ? null
-        : outputFormat.name()
-    );
+    return Optional.ofNullable(outputFormat == null ? null : outputFormat.name());
   }
 
   public Optional<Boolean> getCrop() {
@@ -48,11 +51,7 @@ public class PreviewQueryParameters {
   }
 
   public Optional<String> getShape() {
-    return Optional.ofNullable(
-      shape == null
-        ? null
-        : shape.name()
-    );
+    return Optional.ofNullable(shape == null ? null : shape.name());
   }
 
   public Optional<Integer> getFirstPage() {

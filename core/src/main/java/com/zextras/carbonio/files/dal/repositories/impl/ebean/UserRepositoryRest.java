@@ -68,7 +68,6 @@ public class UserRepositoryRest implements UserRepository {
                           userCache.add(user.getEmail(), user);
                           userMyselfCached = Optional.of(user);
 
-                          System.out.println(user.getLocale().toLanguageTag());
                           return user;
                         })
                     .toJavaOptional());
