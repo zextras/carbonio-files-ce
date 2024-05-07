@@ -115,7 +115,7 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
       .validateToken(zmAuthToken)
       .onSuccess(userId -> {
           userRepository
-            .getUserById(cookies, userId.getUserId())
+            .getUserMyselfByCookie(cookies, userId.getUserId())
             .ifPresentOrElse(
               user -> {
                 context.channel()

@@ -26,11 +26,10 @@ public class UserRepositoryRest implements UserRepository {
 
   private final String usermanagementUrl;
   private final Cache<User> userCache;
-  private Optional<UserMyself>
-      userMyselfCached; // separated from normal users cache since there can be only one usermyself
-                        // cached
 
-  // and to ditch casting
+  // separated from normal users cache since there can be only one usermyself
+  // cached and to ditch casting
+  private Optional<UserMyself> userMyselfCached;
 
   @Inject
   public UserRepositoryRest(FilesConfig filesConfig, CacheHandler cacheHandler) {
@@ -47,7 +46,7 @@ public class UserRepositoryRest implements UserRepository {
 
   @Override
   public Optional<UserMyself> getUserMyselfByCookie(
-      String cookies, String userId // only used to get user in cache
+      String cookies, String userId // id only used to check myselfuser in cache
       ) {
     return userMyselfCached
         .filter(user -> user.getId().equals(userId))
@@ -67,7 +66,9 @@ public class UserRepositoryRest implements UserRepository {
                                   userInfo.getLocale());
                           userCache.add(user.getId(), user);
                           userCache.add(user.getEmail(), user);
+                          userMyselfCached = Optional.of(user);
 
+                          System.out.println(user.getLocale().toLanguageTag());
                           return user;
                         })
                     .toJavaOptional());
