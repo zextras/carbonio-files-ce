@@ -154,6 +154,8 @@ public class PreviewService {
 
     logger.debug(MessageFormat.format("Document preview query built: {0}", query.toString()));
 
+    System.err.println(query.toString());
+
     Try<com.zextras.carbonio.preview.queries.BlobResponse> response =
         PreviewClient.atURL(previewURL).getPreviewOfDocument(query);
 

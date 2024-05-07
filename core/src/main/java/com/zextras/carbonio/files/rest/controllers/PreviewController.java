@@ -177,7 +177,10 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     String previewArea = uriMatched.group(3);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(5));
-    queryParameters.setLocale(requester.getLocale().toString());
+    queryParameters.setLocale(
+        requester.getLocale().getLanguage()
+            + "-"
+            + requester.getLocale().toLanguageTag().toUpperCase());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
@@ -226,7 +229,10 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     String previewArea = uriMatched.group(3);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
-    queryParameters.setLocale(requester.getLocale().toString());
+    queryParameters.setLocale(
+        requester.getLocale().getLanguage()
+            + "-"
+            + requester.getLocale().toLanguageTag().toUpperCase());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
@@ -275,7 +281,10 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     String nodeVersion = uriMatched.group(2);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
-    queryParameters.setLocale(requester.getLocale().toString());
+    queryParameters.setLocale(
+        requester.getLocale().getLanguage()
+            + "-"
+            + requester.getLocale().toLanguageTag().toUpperCase());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
@@ -324,7 +333,10 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     String area = uriMatched.group(3);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
-    queryParameters.setLocale(requester.getLocale().toString());
+    queryParameters.setLocale(
+        requester.getLocale().getLanguage()
+            + "-"
+            + requester.getLocale().toLanguageTag().toUpperCase());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
@@ -373,7 +385,10 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     String nodeVersion = uriMatched.group(2);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
-    queryParameters.setLocale(requester.getLocale().toString());
+    queryParameters.setLocale(
+        requester.getLocale().getLanguage()
+            + "-"
+            + requester.getLocale().toLanguageTag().toUpperCase());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
@@ -419,7 +434,10 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     String area = uriMatched.group(3);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
-    queryParameters.setLocale(requester.getLocale().toString());
+    queryParameters.setLocale(
+        requester.getLocale().getLanguage()
+            + "-"
+            + requester.getLocale().toLanguageTag().toUpperCase());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
