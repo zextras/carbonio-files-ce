@@ -27,10 +27,6 @@ public class UserRepositoryRest implements UserRepository {
   private final String usermanagementUrl;
   private final Cache<User> userCache;
 
-  // separated from normal users cache since there can be only one usermyself
-  // cached and to ditch casting
-  private Optional<UserMyself> userMyselfCached;
-
   @Inject
   public UserRepositoryRest(FilesConfig filesConfig, CacheHandler cacheHandler) {
     Properties p = filesConfig.getProperties();
@@ -41,36 +37,27 @@ public class UserRepositoryRest implements UserRepository {
             + p.getProperty(Files.Config.UserManagement.PORT, "20001");
 
     userCache = cacheHandler.getUserCache();
-    userMyselfCached = Optional.empty();
   }
 
+  // no cache on this one since it is not requested often and we always want the updated version
   @Override
-  public Optional<UserMyself> getUserMyselfByCookie(
-      String cookies, String userId // id only used to check myselfuser in cache
-      ) {
-    return userMyselfCached
-        .filter(user -> user.getId().equals(userId))
-        .or(
-            () ->
-                UserManagementClient.atURL(usermanagementUrl)
-                    .getUserMyself(cookies)
-                    .onFailure(failure -> logger.error(failure.getMessage()))
-                    .map(
-                        userInfo -> {
-                          UserMyself user =
-                              new UserMyself(
-                                  userInfo.getId().getUserId(),
-                                  userInfo.getFullName(),
-                                  userInfo.getEmail(),
-                                  userInfo.getDomain(),
-                                  userInfo.getLocale());
-                          userCache.add(user.getId(), user);
-                          userCache.add(user.getEmail(), user);
-                          userMyselfCached = Optional.of(user);
+  public Optional<UserMyself> getUserMyselfByCookieNotCached(String cookies) {
+    return UserManagementClient.atURL(usermanagementUrl)
+        .getUserMyself(cookies)
+        .onFailure(failure -> logger.error(failure.getMessage()))
+        .map(
+            userInfo -> {
+              UserMyself user =
+                  new UserMyself(
+                      userInfo.getId().getUserId(),
+                      userInfo.getFullName(),
+                      userInfo.getEmail(),
+                      userInfo.getDomain(),
+                      userInfo.getLocale());
 
-                          return user;
-                        })
-                    .toJavaOptional());
+              return user;
+            })
+        .toJavaOptional();
   }
 
   @Override

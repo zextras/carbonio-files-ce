@@ -152,9 +152,7 @@ public class PreviewService {
       String ownerId, String nodeId, int version, PreviewQueryParameters queryParameters) {
     Query query = generateQuery(nodeId, version, ownerId, Optional.empty(), queryParameters);
 
-    logger.debug(MessageFormat.format("Document preview query built: {0}", query.toString()));
-
-    System.err.println(query.toString());
+    logger.info(MessageFormat.format("Document preview query built: {0}", query.toString()));
 
     Try<com.zextras.carbonio.preview.queries.BlobResponse> response =
         PreviewClient.atURL(previewURL).getPreviewOfDocument(query);

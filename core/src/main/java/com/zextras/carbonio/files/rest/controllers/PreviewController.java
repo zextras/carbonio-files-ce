@@ -6,14 +6,15 @@ package com.zextras.carbonio.files.rest.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files.API.ContextAttribute;
 import com.zextras.carbonio.files.Files.API.Endpoints;
+import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
@@ -23,27 +24,16 @@ import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
 import com.zextras.carbonio.files.utilities.MimeTypeUtils;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.usermanagement.exceptions.UnAuthorized;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderValues;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.util.AttributeKey;
+import io.netty.handler.codec.http.*;
 import io.vavr.control.Try;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -62,7 +52,8 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
   private final FileVersionRepository fileVersionRepository;
   private final MimeTypeUtils mimeTypeUtils;
   private final NodeRepository nodeRepository;
-
+  private final UserRepository userRepository;
+  private Locale cachedLocale;
   private final Set<String> documentAllowedTypes =
       Stream.of(
               "application/vnd.ms-excel",
@@ -82,13 +73,16 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       PermissionsChecker permissionsChecker,
       NodeRepository nodeRepository,
       FileVersionRepository fileVersionRepository,
-      MimeTypeUtils mimeTypeUtils) {
+      MimeTypeUtils mimeTypeUtils,
+      UserRepository userRepository) {
     super(true);
     this.previewService = previewService;
     this.permissionsChecker = permissionsChecker;
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
     this.mimeTypeUtils = mimeTypeUtils;
+    this.userRepository = userRepository;
+    this.cachedLocale = new Locale("en", "US");
   }
 
   @Override
@@ -102,37 +96,50 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       Matcher previewDocumentMatcher = Endpoints.PREVIEW_DOCUMENT.matcher((uriRequest));
       Matcher thumbnailDocumentMatcher = Endpoints.THUMBNAIL_DOCUMENT.matcher((uriRequest));
 
-      UserMyself requester =
-          (UserMyself)
-              context.channel().attr(AttributeKey.valueOf(ContextAttribute.REQUESTER)).get();
+      // get the user with updated locale for every preview request.
+      // if this was cached so would be the locale resulting in incorrect preview if user changes
+      // language and then
+      // requests a preview. all cookie checks here are already passed so we know there is one and
+      // if
+      // user management is not down an usermyself should always be returned given the cookie.
+      HttpHeaders headersRequest = httpRequest.headers();
+      String cookiesString = headersRequest.get(HttpHeaderNames.COOKIE);
+      Optional<UserMyself> requester = userRepository.getUserMyselfByCookieNotCached(cookiesString);
+
+      if (requester.isEmpty()) {
+        logger.warn(
+            String.format("Request %s %s: unauthorized", httpRequest.method(), httpRequest.uri()));
+
+        context.fireExceptionCaught(new UnAuthorized());
+      }
 
       if (thumbnailImageMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        thumbnailImage(context, httpRequest, thumbnailImageMatcher, requester);
+        thumbnailImage(context, httpRequest, thumbnailImageMatcher, requester.get());
         return;
       }
 
       if (thumbnailPdfMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        thumbnailPdf(context, httpRequest, thumbnailPdfMatcher, requester);
+        thumbnailPdf(context, httpRequest, thumbnailPdfMatcher, requester.get());
         return;
       }
 
       if (thumbnailDocumentMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        thumbnailDocument(context, httpRequest, thumbnailDocumentMatcher, requester);
+        thumbnailDocument(context, httpRequest, thumbnailDocumentMatcher, requester.get());
         return;
       }
 
       if (previewImageMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        previewImage(context, httpRequest, previewImageMatcher, requester);
+        previewImage(context, httpRequest, previewImageMatcher, requester.get());
         return;
       }
 
       if (previewPdfMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        previewPdf(context, httpRequest, previewPdfMatcher, requester);
+        previewPdf(context, httpRequest, previewPdfMatcher, requester.get());
         return;
       }
 
       if (previewDocumentMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        previewDocument(context, httpRequest, previewDocumentMatcher, requester);
+        previewDocument(context, httpRequest, previewDocumentMatcher, requester.get());
         return;
       }
 
@@ -163,24 +170,16 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    *
    * @param context is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester is a {@link UserMyself}, to check if the requester has the permission to view
-   *     file.
+   * @param requester is a {@link User}, to check if the requester has the permission to view file.
    */
   private void previewImage(
-      ChannelHandlerContext context,
-      HttpRequest httpRequest,
-      Matcher uriMatched,
-      UserMyself requester) {
+      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, User requester) {
 
     String nodeId = uriMatched.group(1);
     String nodeVersion = uriMatched.group(2);
     String previewArea = uriMatched.group(3);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(5));
-    queryParameters.setLocale(
-        requester.getLocale().getLanguage()
-            + "-"
-            + requester.getLocale().toLanguageTag().toUpperCase());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
@@ -216,23 +215,15 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    *
    * @param context is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester is a {@link UserMyself}, to check if the requester has the permission to view
-   *     file.
+   * @param requester is a {@link User}, to check if the requester has the permission to view file.
    */
   private void thumbnailImage(
-      ChannelHandlerContext context,
-      HttpRequest httpRequest,
-      Matcher uriMatched,
-      UserMyself requester) {
+      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, User requester) {
     String nodeId = uriMatched.group(1);
     String nodeVersion = uriMatched.group(2);
     String previewArea = uriMatched.group(3);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
-    queryParameters.setLocale(
-        requester.getLocale().getLanguage()
-            + "-"
-            + requester.getLocale().toLanguageTag().toUpperCase());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
@@ -268,23 +259,15 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    *
    * @param context is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester is a {@link UserMyself}, to check if the requester has the permission to view
-   *     file.
+   * @param requester is a {@link User}, to check if the requester has the permission to view file.
    */
   private void previewPdf(
-      ChannelHandlerContext context,
-      HttpRequest httpRequest,
-      Matcher uriMatched,
-      UserMyself requester) {
+      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, User requester) {
 
     String nodeId = uriMatched.group(1);
     String nodeVersion = uriMatched.group(2);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
-    queryParameters.setLocale(
-        requester.getLocale().getLanguage()
-            + "-"
-            + requester.getLocale().toLanguageTag().toUpperCase());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
@@ -319,24 +302,16 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    *
    * @param context is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester is a {@link UserMyself}, to check if the requester has the permission to view
-   *     file.
+   * @param requester is a {@link User}, to check if the requester has the permission to view file.
    */
   private void thumbnailPdf(
-      ChannelHandlerContext context,
-      HttpRequest httpRequest,
-      Matcher uriMatched,
-      UserMyself requester) {
+      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, User requester) {
 
     String nodeId = uriMatched.group(1);
     String nodeVersion = uriMatched.group(2);
     String area = uriMatched.group(3);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
-    queryParameters.setLocale(
-        requester.getLocale().getLanguage()
-            + "-"
-            + requester.getLocale().toLanguageTag().toUpperCase());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
@@ -372,8 +347,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    *
    * @param context is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester is a {@link UserMyself}, to check if the requester has the permission to view
-   *     file.
+   * @param requester is a {@link User}, to check if the requester has the permission to view file.
    */
   private void previewDocument(
       ChannelHandlerContext context,
@@ -385,10 +359,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     String nodeVersion = uriMatched.group(2);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
-    queryParameters.setLocale(
-        requester.getLocale().getLanguage()
-            + "-"
-            + requester.getLocale().toLanguageTag().toUpperCase());
+    queryParameters.setLocale("it-IT");
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
@@ -397,7 +368,12 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     if (tryCheckNode.isSuccess()) {
       String fileDigest = tryCheckNode.get().getRight().getDigest();
 
-      if (isPreviewChanged(httpRequest, fileDigest)) {
+      // ispreviewchanged doesn't consider if locale has been changed so we need to check
+      // cachedLocale
+      // to know if a new preview should be generated
+      if (!cachedLocale.equals(requester.getLocale())
+          || isPreviewChanged(httpRequest, fileDigest)) {
+        cachedLocale = requester.getLocale();
         previewService
             .getPreviewOfDocument(
                 tryCheckNode.get().getLeft().getOwnerId(),
@@ -420,8 +396,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    *
    * @param context is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester is a {@link UserMyself}, to check if the requester has the permission to view
-   *     file.
+   * @param requester is a {@link User}, to check if the requester has the permission to view file.
    */
   private void thumbnailDocument(
       ChannelHandlerContext context,
@@ -434,10 +409,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     String area = uriMatched.group(3);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
-    queryParameters.setLocale(
-        requester.getLocale().getLanguage()
-            + "-"
-            + requester.getLocale().toLanguageTag().toUpperCase());
+    queryParameters.setLocale("it-IT");
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
@@ -446,7 +418,12 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     if (tryCheckNode.isSuccess()) {
       String fileDigest = tryCheckNode.get().getRight().getDigest();
 
-      if (isPreviewChanged(httpRequest, fileDigest)) {
+      // ispreviewchanged doesn't consider if locale has been changed so we need to check
+      // cachedLocale
+      // to know if a new preview should be generated
+      if (!cachedLocale.equals(requester.getLocale())
+          || isPreviewChanged(httpRequest, fileDigest)) {
+        cachedLocale = requester.getLocale();
         previewService
             .getThumbnailOfDocument(
                 tryCheckNode.get().getLeft().getOwnerId(),

@@ -12,9 +12,8 @@ import java.util.Optional;
 
 public interface UserRepository {
 
-  Optional<UserMyself> getUserMyselfByCookie(
-      String cookies, String userId // only used to get user in cache
-      );
+  // no cache on this one since it is not requested often and we always want the updated version
+  Optional<UserMyself> getUserMyselfByCookieNotCached(String cookies);
 
   Optional<User> getUserById(String cookies, String userId);
 
