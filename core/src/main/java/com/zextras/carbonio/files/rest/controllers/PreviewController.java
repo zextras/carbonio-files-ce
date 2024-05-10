@@ -38,6 +38,7 @@ import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang3.LocaleUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -359,7 +360,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     String nodeVersion = uriMatched.group(2);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
-    queryParameters.setLocale("it-IT");
+    queryParameters.setLocale(requester.getLocale().toLanguageTag());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
@@ -409,7 +410,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     String area = uriMatched.group(3);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
-    queryParameters.setLocale("it-IT");
+    queryParameters.setLocale(requester.getLocale().toLanguageTag());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
