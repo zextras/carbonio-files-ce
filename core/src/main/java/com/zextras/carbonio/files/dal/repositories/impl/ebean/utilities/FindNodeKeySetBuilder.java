@@ -56,13 +56,14 @@ public class FindNodeKeySetBuilder {
     return aCompareExpression(nameToCompare, compareSymbol, valueToCompare);
   }
 
-  // This essentially concatenates conditions to put in the WHERE of the find nodes query.
-  // The keyset is constructed following the order of the sortings to apply while querying.
-  // For example, given the last page's node and using sort by category and then by size,
-  // the keyset returned will be CATEGORY > lastNodeCategory OR (CATEGORY = lastNodeCategory AND
-  // SIZE > lastNodeSize).
-  // This builder works with N sorts, following the pattern A>B OR (A=B AND B>C) OR (A=B AND B=C AND
-  // C>D) and so on.
+  /**
+   * This essentially concatenates conditions to put in the WHERE of the find nodes query. The
+   * keyset is constructed following the order of the sortings to apply while querying. For example,
+   * given the last page's node and using sort by category and then by size, the keyset returned
+   * will be CATEGORY > lastNodeCategory OR (CATEGORY = lastNodeCategory AND SIZE > lastNodeSize).
+   * This builder works with N sorts, following the pattern A>B OR (A=B AND B>C) OR (A=B AND B=C AND
+   * C>D) and so on.
+   */
   public String build() {
 
     if (this.sorts == null || this.sorts.isEmpty())
