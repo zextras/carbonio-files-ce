@@ -370,8 +370,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       String fileDigest = tryCheckNode.get().getRight().getDigest();
 
       // ispreviewchanged doesn't consider if locale has been changed so we need to check
-      // cachedLocale
-      // to know if a new preview should be generated
+      // cachedLocale to know if a new preview should be generated
       if (!cachedLocale.equals(requester.getLocale())
           || isPreviewChanged(httpRequest, fileDigest)) {
         cachedLocale = requester.getLocale();
@@ -420,8 +419,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       String fileDigest = tryCheckNode.get().getRight().getDigest();
 
       // ispreviewchanged doesn't consider if locale has been changed so we need to check
-      // cachedLocale
-      // to know if a new preview should be generated
+      // cachedLocale to know if a new preview should be generated
       if (!cachedLocale.equals(requester.getLocale())
           || isPreviewChanged(httpRequest, fileDigest)) {
         cachedLocale = requester.getLocale();
