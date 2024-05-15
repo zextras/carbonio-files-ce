@@ -17,6 +17,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.netty.HttpRoutingHandler;
 import com.zextras.carbonio.usermanagement.entities.UserId;
 import com.zextras.carbonio.usermanagement.entities.UserInfo;
+import com.zextras.carbonio.usermanagement.enumerations.Status;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.HttpMethod;
 import java.nio.charset.StandardCharsets;
@@ -173,7 +174,12 @@ public class Simulator implements AutoCloseable {
 
   private void getUser(String cookie, String userId) {
     final UserInfo userInfo =
-        new UserInfo(new UserId(userId), "fake-email@example.com", "Fake User", "example.com");
+        new UserInfo(
+            new UserId(userId),
+            "fake-email@example.com",
+            "Fake User",
+            "example.com",
+            Status.ACTIVE);
 
     userManagementMock
         .when(
