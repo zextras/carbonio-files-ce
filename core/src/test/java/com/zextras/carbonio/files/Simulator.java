@@ -7,6 +7,8 @@ package com.zextras.carbonio.files;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.zextras.carbonio.files.Files.Config.Database;
+import com.zextras.carbonio.files.Files.Config.DocsConnector;
+import com.zextras.carbonio.files.Files.Config.Preview;
 import com.zextras.carbonio.files.Files.Config.Storages;
 import com.zextras.carbonio.files.Files.Config.UserManagement;
 import com.zextras.carbonio.files.Files.ServiceDiscover.Config.Db;
@@ -15,6 +17,7 @@ import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.netty.HttpRoutingHandler;
+import com.zextras.carbonio.preview.PreviewClient;
 import com.zextras.carbonio.usermanagement.entities.UserId;
 import com.zextras.carbonio.usermanagement.entities.UserInfo;
 import com.zextras.carbonio.usermanagement.enumerations.Status;
@@ -23,6 +26,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Properties;
+import org.mockito.Mock;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.integration.ClientAndServer;
 import org.mockserver.model.Cookie;
@@ -47,6 +51,8 @@ public class Simulator implements AutoCloseable {
   private MockServerClient serviceDiscoverMock;
   private MockServerClient userManagementMock;
   private MockServerClient storagesMock;
+  private MockServerClient previewServiceMock;
+  private MockServerClient docsConnectorServiceMock;
 
   //
   // Private methods
@@ -202,13 +208,40 @@ public class Simulator implements AutoCloseable {
     return this;
   }
 
+  private Simulator startPreviewService() {
+    startMockServer();
+
+    final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
+    previewServiceMock = new MockServerClient(
+      filesConfig.getProperties().getProperty(Preview.URL),
+      Integer.parseInt(filesConfig.getProperties().getProperty(Preview.PORT))
+    );
+
+    return this;
+  }
+
+  private Simulator startDocsConnectorService() {
+    startMockServer();
+
+    final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
+    docsConnectorServiceMock = new MockServerClient(
+      filesConfig.getProperties().getProperty(DocsConnector.URL),
+      Integer.parseInt(filesConfig.getProperties().getProperty(DocsConnector.PORT))
+    );
+
+    return this;
+  }
+
   private void startMockServer() {
     if (clientAndServer == null) {
       final Properties properties = injector.getInstance(FilesConfig.class).getProperties();
       final int userManagementPort = Integer.parseInt(properties.getProperty(UserManagement.PORT));
       final int storagesPort = Integer.parseInt(properties.getProperty(Storages.PORT));
+      final int previewServicePort = Integer.parseInt(properties.getProperty(Preview.PORT));
+      final int docsConnectorServicePort = Integer.parseInt(properties.getProperty(DocsConnector.PORT));
+
       clientAndServer =
-          ClientAndServer.startClientAndServer(8500, userManagementPort, storagesPort);
+          ClientAndServer.startClientAndServer(8500, userManagementPort, storagesPort, previewServicePort, docsConnectorServicePort);
     }
   }
 
@@ -236,6 +269,24 @@ public class Simulator implements AutoCloseable {
     }
   }
 
+  private void stopStoragesService() {
+    if (previewServiceMock != null && previewServiceMock.hasStarted()) {
+      previewServiceMock.stop();
+    }
+  }
+
+  private void stopPreviewService() {
+    if (previewServiceMock != null && previewServiceMock.hasStarted()) {
+      previewServiceMock.stop();
+    }
+  }
+
+  private void stopDocsConnectorService() {
+    if (docsConnectorServiceMock != null && docsConnectorServiceMock.hasStarted()) {
+      docsConnectorServiceMock.stop();
+    }
+  }
+
   //
   // Public methods
   //
@@ -247,6 +298,9 @@ public class Simulator implements AutoCloseable {
   }
 
   public void stopAll() {
+    stopDocsConnectorService();
+    stopPreviewService();
+    stopStoragesService();
     stopUserManagement();
     stopServiceDiscover();
     stopDatabase();
@@ -272,6 +326,14 @@ public class Simulator implements AutoCloseable {
 
   public MockServerClient getStoragesMock() {
     return storagesMock;
+  }
+
+  public MockServerClient getPreviewServiceMock() {
+    return previewServiceMock;
+  }
+
+  public MockServerClient getDocsConnectorServiceMock() {
+    return docsConnectorServiceMock;
   }
 
   public EmbeddedChannel getNettyChannel() {
@@ -333,6 +395,16 @@ public class Simulator implements AutoCloseable {
 
     public SimulatorBuilder withStorages() {
       simulator.startStorages();
+      return this;
+    }
+
+    public SimulatorBuilder withPreview() {
+      simulator.startPreviewService();
+      return this;
+    }
+
+    public SimulatorBuilder withDocsConnector() {
+      simulator.startDocsConnectorService();
       return this;
     }
 

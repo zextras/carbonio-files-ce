@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.config;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Config.Database;
+import com.zextras.carbonio.files.Files.Config.DocsConnector;
 import com.zextras.carbonio.files.Files.Config.Mailbox;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
@@ -120,5 +121,12 @@ public class FilesConfig {
         "http://%s:%s/",
         properties.getProperty(Mailbox.URL, Files.Service.IP),
         properties.getProperty(Mailbox.PORT, "20004"));
+  }
+
+  public String getDocsConnectorUrl() {
+    return String.format(
+        "http://%s:%s/",
+        properties.getProperty(DocsConnector.URL, Files.Service.IP),
+        properties.getProperty(DocsConnector.PORT, "20005"));
   }
 }

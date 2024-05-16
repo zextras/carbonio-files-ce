@@ -96,7 +96,7 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
     context
       .writeAndFlush(new DefaultFullHttpResponse(
         httpRequest.protocolVersion(),
-        HttpResponseStatus.OK)
+        HttpResponseStatus.NO_CONTENT)
       )
       .addListener(ChannelFutureListener.CLOSE);
   }
@@ -123,7 +123,7 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
     boolean fileStoreIsUp = healthService.isStoragesLive();
 
     HttpResponseStatus responseStatus = (databaseIsUp && userManagementIsUp && fileStoreIsUp)
-      ? HttpResponseStatus.OK
+      ? HttpResponseStatus.NO_CONTENT
       : HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
     logger.info(MessageFormat.format("carbonio files status: {0}", responseStatus));
@@ -190,6 +190,7 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
     dependencies.add(healthService.getUserManagementHealth());
     dependencies.add(healthService.getStoragesHealth());
     dependencies.add(healthService.getPreviewHealth());
+    dependencies.add(healthService.getDocsConnectorHealth());
 
     boolean filesIsReady = dependencies
       .stream()
