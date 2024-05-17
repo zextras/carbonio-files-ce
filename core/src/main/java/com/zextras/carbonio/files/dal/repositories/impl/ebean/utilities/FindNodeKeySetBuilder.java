@@ -4,8 +4,6 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
-import static com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.CompareExpression.aCompareExpression;
-
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import java.text.MessageFormat;
@@ -41,19 +39,19 @@ public class FindNodeKeySetBuilder {
     String compareSymbol = order.getSymbol();
     Object objToCompare;
 
-    if (nameToCompare.equals(Files.Db.Node.NAME)) {
+    if (Files.Db.Node.NAME.equals(nameToCompare)) {
       // Special case: if sorting by name we actually want to compare lowercase names, so
       // get name and adapt query composition
       nameToCompare = MessageFormat.format("LOWER({0})", Files.Db.Node.NAME);
       objToCompare = node.getFullName().toLowerCase();
-    } else if (nameToCompare.equals(Files.Db.Node.ID)) {
+    } else if (Files.Db.Node.ID.equals(nameToCompare)) {
       nameToCompare = "t0.node_id"; // since findnodes makes a join node_id would be ambiguous
       objToCompare = node.getId();
     } else {
       objToCompare = node.getSortingValueFromColumn(nameToCompare);
     }
     String valueToCompare = formatObjectSql(objToCompare);
-    return aCompareExpression(nameToCompare, compareSymbol, valueToCompare);
+    return CompareExpression.aCompareExpression(nameToCompare, compareSymbol, valueToCompare);
   }
 
   /**

@@ -161,10 +161,11 @@ public class NodeRepositoryEbean implements NodeRepository {
     return nodes;
   }
 
-  // This is the single method that decides what sortings to apply and in what order.
-  // This is responsible for default sorting, additional sorting not explicitly requested by user,
-  // and
-  // keyset generation for pagination.
+  /**
+   * This is the single method that decides what sortings to apply and in what order. This is
+   * responsible for default sorting, additional sorting not explicitly requested by user, and
+   * keyset generation for pagination.
+   */
   public static List<NodeSort> getRealSortingsToApply(Optional<NodeSort> inputSort) {
     List<NodeSort> result = new ArrayList<>();
     inputSort.ifPresentOrElse(
