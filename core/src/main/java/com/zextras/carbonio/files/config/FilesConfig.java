@@ -109,7 +109,7 @@ public class FilesConfig {
   }
 
   public String getMailboxUrl() {
-    return buildUrlFromProperties(Mailbox.URL, Mailbox.PORT, "20004");
+    return buildUrlFromProperties(Mailbox.URL, Mailbox.PORT, "20004") + "/";
   }
 
   public String getDocsConnectorUrl() {
