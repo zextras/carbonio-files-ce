@@ -17,10 +17,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-public class DocsConnectorHttpClientTest {
+class DocsConnectorHttpClientTest {
 
   private CloseableHttpClient httpClientMock;
-
   private DocsConnectorHttpClient docsConnectorHttpClient;
 
   @BeforeEach
@@ -51,7 +50,7 @@ public class DocsConnectorHttpClientTest {
     HttpGet httpRequest = httpRequestCaptor.getValue();
     Assertions.assertThat(httpRequest.getMethod()).isEqualTo("GET");
     Assertions.assertThat(httpRequest.getURI().toString())
-        .isEqualTo("http://127.78.0.2:20005/health/live/");
+        .hasToString("http://127.78.0.2:20005/health/live/");
 
     Assertions.assertThat(httpRequest.getConfig().getConnectTimeout()).isEqualTo(2000L);
     Assertions.assertThat(httpRequest.getConfig().getSocketTimeout()).isEqualTo(2000L);

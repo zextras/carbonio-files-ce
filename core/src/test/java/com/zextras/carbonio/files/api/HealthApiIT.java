@@ -20,7 +20,7 @@ import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 
-public class HealthApiIT {
+class HealthApiIT {
 
   @Test
   void givenAnHealthServiceTheHealthLiveShouldReturn204StatusCode() {

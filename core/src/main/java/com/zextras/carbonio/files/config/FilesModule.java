@@ -28,11 +28,8 @@ import com.zextras.carbonio.files.graphql.validators.GenericControllerEvaluatorF
 import com.zextras.filestore.api.Filestore;
 import com.zextras.storages.api.StoragesClient;
 import java.time.Clock;
-import org.apache.http.HttpConnectionFactory;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 
 public class FilesModule extends AbstractModule {
 

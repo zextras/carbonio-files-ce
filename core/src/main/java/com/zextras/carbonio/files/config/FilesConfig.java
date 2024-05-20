@@ -9,6 +9,9 @@ import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Config.Database;
 import com.zextras.carbonio.files.Files.Config.DocsConnector;
 import com.zextras.carbonio.files.Files.Config.Mailbox;
+import com.zextras.carbonio.files.Files.Config.Preview;
+import com.zextras.carbonio.files.Files.Config.Storages;
+import com.zextras.carbonio.files.Files.Config.UserManagement;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.preview.PreviewClient;
@@ -19,7 +22,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.text.MessageFormat;
 import java.util.Optional;
 import java.util.Properties;
 import org.slf4j.Logger;
@@ -39,6 +41,13 @@ public class FilesConfig {
     loadConfig();
   }
 
+  private String buildUrlFromProperties(String urlPropertyName, String portPropertyName, String defaultPort) {
+    return String.format(
+        "http://%s:%s",
+        properties.getProperty(urlPropertyName, Files.Service.IP),
+        properties.getProperty(portPropertyName, defaultPort));
+  }
+
   public void loadConfig() {
     try {
       File configFile = new File("/etc/carbonio/files/config.properties");
@@ -55,24 +64,10 @@ public class FilesConfig {
       logger.error("Fail to load the configuration file");
     }
 
-    userManagementURL =
-        MessageFormat.format(
-            "http://{0}:{1}",
-            properties.getProperty(Files.Config.UserManagement.URL, Files.Service.IP),
-            properties.getProperty(Files.Config.UserManagement.PORT, "20001"));
-
-    fileStoreURL =
-        MessageFormat.format(
-            "http://{0}:{1}/",
-            properties.getProperty(Files.Config.Storages.URL, Files.Service.IP),
-            properties.getProperty(Files.Config.Storages.PORT, "20002"));
-
-    previewURL =
-        MessageFormat.format(
-            "http://{0}:{1}",
-            properties.getProperty(Files.Config.Preview.URL, Files.Service.IP),
-            properties.getProperty(Files.Config.Preview.PORT, "20003"));
-  }
+    userManagementURL = buildUrlFromProperties(UserManagement.URL, UserManagement.PORT, "20001");
+    fileStoreURL = buildUrlFromProperties(Storages.URL, Storages.PORT, "20002") + "/";
+    previewURL = buildUrlFromProperties(Preview.URL, Preview.PORT, "20003");
+ }
 
   public Properties getProperties() {
     return properties;
@@ -87,10 +82,7 @@ public class FilesConfig {
   }
 
   public String getFileStoreUrl() {
-    return String.format(
-        "http://%s:%s/",
-        properties.getProperty(Files.Config.Storages.URL, Files.Service.IP),
-        properties.getProperty(Files.Config.Storages.PORT, "20002"));
+    return fileStoreURL;
   }
 
   public PreviewClient getPreviewClient() {
@@ -117,16 +109,10 @@ public class FilesConfig {
   }
 
   public String getMailboxUrl() {
-    return String.format(
-        "http://%s:%s/",
-        properties.getProperty(Mailbox.URL, Files.Service.IP),
-        properties.getProperty(Mailbox.PORT, "20004"));
+    return buildUrlFromProperties(Mailbox.URL, Mailbox.PORT, "20004");
   }
 
   public String getDocsConnectorUrl() {
-    return String.format(
-        "http://%s:%s/",
-        properties.getProperty(DocsConnector.URL, Files.Service.IP),
-        properties.getProperty(DocsConnector.PORT, "20005"));
+    return buildUrlFromProperties(DocsConnector.URL, DocsConnector.PORT, "20005");
   }
 }
