@@ -171,6 +171,12 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
    *          "name" : "carbonio-preview",
    *          "ready" : true,
    *          "type" : "OPTIONAL"
+   *       },
+   *       {
+   *          "live" : true,
+   *          "name" : "carbonio-docs-connector",
+   *          "ready" : true,
+   *          "type" : "OPTIONAL"
    *       }
    *    ],
    *    "ready" : true
