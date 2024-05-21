@@ -77,6 +77,14 @@ public final class Files {
       public static final String PORT = "carbonio.mailbox.port";
     }
 
+    public static final class DocsConnector {
+
+      private DocsConnector() {}
+
+      public static final String URL  = "carbonio.docs-connector.url";
+      public static final String PORT = "carbonio.docs-connector.port";
+    }
+
     public static final class Pagination {
 
       private Pagination() {}
