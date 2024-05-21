@@ -76,7 +76,8 @@ public class UserRepositoryRest implements UserRepository {
                                   userInfo.getId().getUserId(),
                                   userInfo.getFullName(),
                                   userInfo.getEmail(),
-                                  userInfo.getDomain());
+                                  userInfo.getDomain(),
+                                  userInfo.getStatus());
                           userCache.add(user.getId(), user);
                           userCache.add(user.getEmail(), user);
 
@@ -102,7 +103,8 @@ public class UserRepositoryRest implements UserRepository {
                                   userInfo.getId().getUserId(),
                                   userInfo.getFullName(),
                                   userInfo.getEmail(),
-                                  userInfo.getDomain());
+                                  userInfo.getDomain(),
+                                  userInfo.getStatus());
                           userCache.add(user.getId(), user);
                           userCache.add(user.getEmail(), user);
 

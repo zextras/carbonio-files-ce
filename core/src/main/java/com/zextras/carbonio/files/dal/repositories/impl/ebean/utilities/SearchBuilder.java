@@ -19,28 +19,26 @@ import java.util.List;
 public class SearchBuilder {
 
   Query<Node> query;
-  Database    db;
-  String      userId;
+  Database db;
+  String userId;
 
-  public SearchBuilder(
-    Database db,
-    String userId
-  ) {
+  public SearchBuilder(Database db, String userId) {
     this.db = db;
     this.userId = userId;
-    this.query = this.db
-      .find(Node.class)
-      .fetchLazy("mShares")
-      .fetchLazy("mCustomAttributes")
-      .where()
-      .or()
-      .eq("mShares.mComposedPrimaryKey.mTargetUserId", userId)
-      .eq("mOwnerId", userId)
-      .endOr()
-      .not()
-      .eq("mNodeCategory", 0)
-      .endNot()
-      .query();
+    this.query =
+        this.db
+            .find(Node.class)
+            .fetchLazy("mShares")
+            .fetchLazy("mCustomAttributes")
+            .where()
+            .or()
+            .eq("mShares.mComposedPrimaryKey.mTargetUserId", userId)
+            .eq("mOwnerId", userId)
+            .endOr()
+            .not()
+            .eq("mNodeCategory", 0)
+            .endNot()
+            .query();
   }
 
   /**
@@ -50,19 +48,19 @@ public class SearchBuilder {
    * ebean.
    *
    * @param keywords is a {@link List} of keyword to search.
-   *
    * @return the {@link SearchBuilder} for adding other options if necessary.
    */
   public SearchBuilder setKeywords(List<String> keywords) {
     if (keywords.size() > 0) {
-      keywords.forEach(keyword -> {
-        this.query
-          .where()
-          .or()
-          .contains("LOWER(mName)", keyword.toLowerCase())
-          .contains("LOWER(mDescription)", keyword.toLowerCase())
-          .endOr();
-      });
+      keywords.forEach(
+          keyword -> {
+            this.query
+                .where()
+                .or()
+                .contains("LOWER(mName)", keyword.toLowerCase())
+                .contains("LOWER(mDescription)", keyword.toLowerCase())
+                .endOr();
+          });
     }
     return this;
   }
@@ -71,28 +69,27 @@ public class SearchBuilder {
    * This method adds the flag condition to the search.
    *
    * @param flagged is a {@link Boolean } used to search a node flagged or not.
-   *
    * @return the {@link SearchBuilder} for adding other options if necessary.
    */
   public SearchBuilder setFlagged(Boolean flagged) {
     if (flagged) {
       this.query
-        .where()
-        .eq("mCustomAttributes.mFlag", true)
-        .eq("mCustomAttributes.mCompositeId.mUserId", userId);
+          .where()
+          .eq("mCustomAttributes.mFlag", true)
+          .eq("mCustomAttributes.mCompositeId.mUserId", userId);
     } else {
       this.query
-        .where()
-        .or()
-        .and()
-        .eq("mCustomAttributes.mFlag", false)
-        .eq("mCustomAttributes.mCompositeId.mUserId", userId)
-        .endAnd()
-        .and()
-        .eq("mCustomAttributes.mFlag", null)
-        .eq("mCustomAttributes.mCompositeId.mUserId", null)
-        .endAnd()
-        .endOr();
+          .where()
+          .or()
+          .and()
+          .eq("mCustomAttributes.mFlag", false)
+          .eq("mCustomAttributes.mCompositeId.mUserId", userId)
+          .endAnd()
+          .and()
+          .eq("mCustomAttributes.mFlag", null)
+          .eq("mCustomAttributes.mCompositeId.mUserId", null)
+          .endAnd()
+          .endOr();
     }
     return this;
   }
@@ -104,22 +101,14 @@ public class SearchBuilder {
    *
    * @param folderId is a {@link String} representing the id of the folder.
    * @param cascade is a {@link Boolean} used to limit the search only on the folder itself or on
-   * the whole subtree.
-   *
+   *     the whole subtree.
    * @return the {@link SearchBuilder} for adding other options if necessary.
    */
-  public SearchBuilder setFolderId(
-    String folderId,
-    Boolean cascade
-  ) {
+  public SearchBuilder setFolderId(String folderId, Boolean cascade) {
     if (cascade) {
-      this.query
-        .where()
-        .contains(Db.Node.ANCESTOR_IDS, folderId);
+      this.query.where().contains(Db.Node.ANCESTOR_IDS, folderId);
     } else {
-      this.query
-        .where()
-        .eq(Db.Node.PARENT_ID, folderId);
+      this.query.where().eq(Db.Node.PARENT_ID, folderId);
     }
     return this;
   }
@@ -132,18 +121,12 @@ public class SearchBuilder {
    *
    * @param userId is a {@link String} representing the id of the user for which to search.
    * @param sharedWithMe is a {@link Boolean} representing the flag used for choosing how to filter
-   * the nodes.
-   *
+   *     the nodes.
    * @return the {@link SearchBuilder} for adding other options if necessary.
    */
-  public SearchBuilder setSharedWithMe(
-    String userId,
-    Boolean sharedWithMe
-  ) {
+  public SearchBuilder setSharedWithMe(String userId, Boolean sharedWithMe) {
     if (sharedWithMe) {
-      this.query
-        .where()
-        .eq("mShares.mComposedPrimaryKey.mTargetUserId", userId);
+      this.query.where().eq("mShares.mComposedPrimaryKey.mTargetUserId", userId);
     } else {
       setOwner(userId);
     }
@@ -157,28 +140,21 @@ public class SearchBuilder {
    * search only nodes not shared with anyone.
    *
    * @param sharedByMe is a {@link Boolean} representing the flag used for choosing how to filter
-   * the nodes.
-   *
+   *     the nodes.
    * @return the {@link SearchBuilder} for adding other options if necessary.
    */
   public SearchBuilder setSharedByMe(Boolean sharedByMe) {
     setOwner(userId);
     if (sharedByMe) {
-      this.query
-        .where()
-        .isNotNull("mShares.mPermissions");
+      this.query.where().isNotNull("mShares.mPermissions");
     } else {
-      this.query
-        .where()
-        .isNull("mShares.mPermissions");
+      this.query.where().isNull("mShares.mPermissions");
     }
     return this;
   }
 
   public SearchBuilder setDirectShare(Boolean directShare) {
-    this.query
-      .where()
-      .eq("mShares.mDirect", directShare);
+    this.query.where().eq("mShares.mDirect", directShare);
 
     return this;
   }
@@ -187,7 +163,6 @@ public class SearchBuilder {
    * This method is used to set the skip on the query for starting from a specific offset.
    *
    * @param skip is an {@link Integer} representing how many nodes to skip.
-   *
    * @return the {@link SearchBuilder} for adding other options if necessary.
    */
   public SearchBuilder setSkip(Integer skip) {
@@ -199,7 +174,6 @@ public class SearchBuilder {
    * This method is used to set the limit of how many nodes to return.
    *
    * @param limit is an {@link Integer} of the number of nodes to return.
-   *
    * @return the {@link SearchBuilder} for adding other options if necessary.
    */
   public SearchBuilder setLimit(Integer limit) {
@@ -211,7 +185,6 @@ public class SearchBuilder {
    * This method is used to only return the nodes of a certain owner.
    *
    * @param ownerId is a {@link String} representing the id of the owner.
-   *
    * @return the {@link SearchBuilder} for adding other options if necessary.
    */
   public SearchBuilder setOwner(String ownerId) {
@@ -223,7 +196,6 @@ public class SearchBuilder {
    * This method is used to add a sort to the query.
    *
    * @param order is a {@link NodeSort} to add.
-   *
    * @return the {@link SearchBuilder} for adding other options if necessary.
    */
   public SearchBuilder setSort(NodeSort order) {
@@ -237,16 +209,14 @@ public class SearchBuilder {
   }
 
   public SearchBuilder setKeyset(String keyset) {
-    this.query
-      .where()
-      .and()
-      .raw(keyset)
-      .endAnd();
+    this.query.where().and().raw(keyset).endAnd();
     return this;
   }
 
   /**
-   * Allows to set the {@link Files.Db.Node#TYPE} attribute in the <code>where</code>clause of the query.
+   * Allows to set the {@link Files.Db.Node#TYPE} attribute in the <code>where</code>clause of the
+   * query.
+   *
    * @param nodeType is a {@link NodeType} representing the node type that needs to be searched.
    * @return the {@link SearchBuilder} for adding other options if necessary.
    */
@@ -261,8 +231,6 @@ public class SearchBuilder {
    * @return the {@link Query} on where to invoke the find functions.
    */
   public Query<Node> build() {
-    return this.query
-      .orderBy()
-      .asc("mId");
+    return this.query;
   }
 }

@@ -4,10 +4,6 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Config.Pagination;
@@ -15,18 +11,17 @@ import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.Files.Db.RootId;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FindNodeKeySetBuilder;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.PageQuery;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SearchBuilder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import io.ebean.Query;
 import io.ebean.annotation.Transactional;
-import java.text.MessageFormat;
-import java.util.Base64;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -34,7 +29,6 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,72 +41,6 @@ public class NodeRepositoryEbean implements NodeRepository {
   @Inject
   public NodeRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager) {
     mDB = ebeanDatabaseManager;
-  }
-
-  /**
-   * This method construct the key set to use for the next page.
-   *
-   * @param nodeCategory The value of the nodeCategory of the last node of the current page
-   * @param nodeId The nodeId of the last node of the current page
-   * @param sortField an {@link ImmutableTriple} that must contain: - the name of the ordering field
-   *     - the direction of the ordering - the value of the ordering field of the last node of the
-   *     current page
-   * @return a {@link String} representing the evaluated key set
-   */
-  private String buildKeyset(
-      NodeCategory nodeCategory,
-      String nodeId,
-      Optional<ImmutableTriple<String, String, String>> sortField) {
-    return sortField
-        .map(
-            sField ->
-                sField.getLeft().equals("size")
-                    ? "("
-                        + sField.getLeft()
-                        + sField.getMiddle()
-                        + "'"
-                        + sField.getRight().replace("'", "''")
-                        + "'"
-                        + ") "
-                        + "OR ("
-                        + sField.getLeft()
-                        + " = "
-                        + "'"
-                        + sField.getRight().replace("'", "''")
-                        + "' AND t0.node_id > '"
-                        + nodeId
-                        + "')"
-                    : "(node_category > "
-                        + nodeCategory.getValue()
-                        + ") "
-                        + "OR (node_category = "
-                        + nodeCategory.getValue()
-                        + " AND "
-                        + sField.getLeft()
-                        + sField.getMiddle()
-                        + "'"
-                        + sField.getRight().replace("'", "''")
-                        + "'"
-                        + ") "
-                        + "OR (node_category = "
-                        + nodeCategory.getValue()
-                        + " AND "
-                        + sField.getLeft()
-                        + " = "
-                        + "'"
-                        + sField.getRight().replace("'", "''")
-                        + "' AND t0.node_id > '"
-                        + nodeId
-                        + "')")
-        .orElse(
-            "(node_category > "
-                + nodeCategory.getValue()
-                + ") OR "
-                + "(node_category = "
-                + nodeCategory.getValue()
-                + " AND t0.node_id > '"
-                + nodeId
-                + "')");
   }
 
   /**
@@ -151,114 +79,14 @@ public class NodeRepositoryEbean implements NodeRepository {
     optNodeType.ifPresent(nextPage::setNodeType);
     optOwnerId.ifPresent(nextPage::setOwnerId);
 
-    sort.ifPresent(
-        s -> {
-          switch (s) {
-            case NAME_ASC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              MessageFormat.format("LOWER({0})", Db.Node.NAME),
-                              ">",
-                              node.getFullName().toLowerCase()))));
-              break;
-            case NAME_DESC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              MessageFormat.format("LOWER({0})", Db.Node.NAME),
-                              "<",
-                              node.getFullName().toLowerCase()))));
-              break;
-            case UPDATED_AT_ASC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              Db.Node.UPDATED_AT, ">", String.valueOf(node.getUpdatedAt())))));
-              break;
-            case UPDATED_AT_DESC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              Db.Node.UPDATED_AT, "<", String.valueOf(node.getUpdatedAt())))));
-              break;
-            case CREATED_AT_ASC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              Db.Node.CREATED_AT, ">", String.valueOf(node.getCreatedAt())))));
-              break;
-            case CREATED_AT_DESC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              Db.Node.CREATED_AT, "<", String.valueOf(node.getCreatedAt())))));
-              break;
-            case SIZE_ASC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              Db.Node.SIZE, "<", String.valueOf(node.getSize())))));
-              break;
-            case SIZE_DESC:
-              nextPage.setKeySet(
-                  buildKeyset(
-                      node.getNodeCategory(),
-                      node.getId(),
-                      Optional.of(
-                          new ImmutableTriple<>(
-                              Db.Node.SIZE, ">", String.valueOf(node.getSize())))));
-              break;
-          }
-        });
-    if (!sort.isPresent()) {
-      nextPage.setKeySet(buildKeyset(node.getNodeCategory(), node.getId(), Optional.empty()));
-    }
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-    mapper.registerModule(new Jdk8Module());
-    try {
-      return Base64.getEncoder().encodeToString(mapper.writeValueAsString(nextPage).getBytes());
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
-  }
+    List<NodeSort> realSortsToApply = getRealSortingsToApply(sort);
+    nextPage.setKeySet(
+        FindNodeKeySetBuilder.aSearchKeySetBuilder()
+            .withNodeSorts(realSortsToApply)
+            .fromNode(node)
+            .build());
 
-  /**
-   * This method decodes a pageToken and maps it to a {@link PageQuery} class for retrieving
-   * pagination params
-   *
-   * @param token the given token for retrieving the next page of data
-   * @return the {@link PageQuery} class containing pagination params
-   */
-  private PageQuery decodePageToken(String token) {
-    ObjectMapper mapper = new ObjectMapper();
-    try {
-      return mapper.readValue(new String(Base64.getDecoder().decode(token)), PageQuery.class);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
+    return nextPage.toToken();
   }
 
   /**
@@ -291,7 +119,7 @@ public class NodeRepositoryEbean implements NodeRepository {
   private List<Node> doFind(
       String userId,
       Integer limit,
-      Optional<NodeSort> sort,
+      List<NodeSort> sorts,
       Optional<Boolean> flagged,
       Optional<String> folderId,
       Optional<Boolean> cascade,
@@ -307,7 +135,7 @@ public class NodeRepositoryEbean implements NodeRepository {
 
     long startTime = java.lang.System.nanoTime();
 
-    if (keywords.size() > 0) {
+    if (!keywords.isEmpty()) {
       search.setKeywords(keywords);
     }
     flagged.ifPresent(search::setFlagged);
@@ -321,17 +149,7 @@ public class NodeRepositoryEbean implements NodeRepository {
     search.setLimit(limit);
     keyset.ifPresent(search::setKeyset);
 
-    sort.ifPresentOrElse(
-        s -> {
-          if (s.equals(NodeSort.SIZE_ASC)) {
-            search.setSort(NodeSort.TYPE_ASC).setSort(s).setSort(NodeSort.NAME_ASC);
-          } else if (s.equals(NodeSort.SIZE_DESC)) {
-            search.setSort(NodeSort.TYPE_DESC).setSort(s).setSort(NodeSort.NAME_ASC);
-          } else {
-            search.setSort(NodeSort.TYPE_ASC).setSort(sort.get());
-          }
-        },
-        () -> search.setSort(NodeSort.TYPE_ASC));
+    sorts.forEach(search::setSort);
 
     List<Node> nodes = search.build().findList();
 
@@ -341,6 +159,34 @@ public class NodeRepositoryEbean implements NodeRepository {
     logger.info("Search time in milliseconds : " + totalTime);
 
     return nodes;
+  }
+
+  /**
+   * This is the single method that decides what sortings to apply and in what order. This is
+   * responsible for default sorting, additional sorting not explicitly requested by user, and
+   * keyset generation for pagination.
+   */
+  public static List<NodeSort> getRealSortingsToApply(Optional<NodeSort> inputSort) {
+    List<NodeSort> result = new ArrayList<>();
+    inputSort.ifPresentOrElse(
+        s -> {
+          if (s.equals(NodeSort.SIZE_ASC)) {
+            result.add(NodeSort.TYPE_ASC);
+            result.add(s);
+            result.add(NodeSort.NAME_ASC);
+          } else if (s.equals(NodeSort.SIZE_DESC)) {
+            result.add(NodeSort.TYPE_DESC);
+            result.add(s);
+            result.add(NodeSort.NAME_ASC);
+          } else {
+            result.add(NodeSort.TYPE_ASC);
+            result.add(s);
+          }
+        },
+        () -> result.add(NodeSort.TYPE_ASC));
+
+    result.add(NodeSort.ID_ASC); // default last sort
+    return result;
   }
 
   public ImmutablePair<List<Node>, String> findNodes(
@@ -361,12 +207,14 @@ public class NodeRepositoryEbean implements NodeRepository {
     return pageToken
         .map(
             token -> {
-              PageQuery params = decodePageToken(token);
+              PageQuery params = PageQuery.fromToken(token);
+              List<NodeSort> realSortsToApply =
+                  getRealSortingsToApply(params.getSort().map(NodeSort::valueOf));
               List<Node> nodes =
                   doFind(
                       userId,
                       params.getLimit(),
-                      params.getSort().map(NodeSort::valueOf),
+                      realSortsToApply,
                       params.getFlagged(),
                       params.getFolderId(),
                       params.getCascade(),
@@ -409,11 +257,12 @@ public class NodeRepositoryEbean implements NodeRepository {
                                   : l)
                       .orElse(Files.Config.Pagination.LIMIT);
 
+              List<NodeSort> realSortsToApply = getRealSortingsToApply(sort);
               List<Node> nodes =
                   doFind(
                       userId,
                       realLimit,
-                      sort,
+                      realSortsToApply,
                       flagged,
                       folderId,
                       cascade,
@@ -453,7 +302,7 @@ public class NodeRepositoryEbean implements NodeRepository {
 
     PageQuery pageQuery =
         Optional.ofNullable(pageToken)
-            .map(this::decodePageToken)
+            .map(PageQuery::fromToken)
             .orElseGet(
                 () -> {
                   PageQuery firstPageQuery = new PageQuery();

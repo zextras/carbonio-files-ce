@@ -4,11 +4,14 @@
 
 package com.zextras.carbonio.files.dal.dao;
 
+import com.zextras.carbonio.usermanagement.enumerations.Status;
+
 /**
- * <p>Represents a {@link User} entity that matches a Files user stored in Carbonio LDAP.</p>
- * <p>The implementation of constructors and setters should not care to check if the values in
- * input are valid or not because, when these methods are called, these controls
- * <strong>must</strong> be already done.</p>
+ * Represents a {@link User} entity that matches a Files user stored in Carbonio LDAP.
+ *
+ * <p>The implementation of constructors and setters should not care to check if the values in input
+ * are valid or not because, when these methods are called, these controls <strong>must</strong> be
+ * already done.
  */
 public class User {
 
@@ -17,16 +20,14 @@ public class User {
   private final String email;
   private final String domain;
 
-  public User(
-    String id,
-    String fullName,
-    String email,
-    String domain
-  ) {
+  private final Status status;
+
+  public User(String id, String fullName, String email, String domain, Status status) {
     this.id = id;
     this.fullName = fullName;
     this.email = email;
     this.domain = domain;
+    this.status = status;
   }
 
   public String getId() {
@@ -43,5 +44,9 @@ public class User {
 
   public String getDomain() {
     return domain;
+  }
+
+  public Status getStatus() {
+    return status;
   }
 }

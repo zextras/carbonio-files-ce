@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.config;
 import com.google.inject.AbstractModule;
 import com.google.inject.Inject;
 import com.google.inject.Provides;
+import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.zextras.carbonio.files.cache.CacheHandlerFactory;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.CollaborationLinkRepositoryEbean;
@@ -28,7 +29,7 @@ import com.zextras.filestore.api.Filestore;
 import com.zextras.storages.api.StoragesClient;
 import java.time.Clock;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.client.HttpClientBuilder;
 
 public class FilesModule extends AbstractModule {
 
@@ -60,8 +61,9 @@ public class FilesModule extends AbstractModule {
     return StoragesClient.atUrl(filesConfig.getFileStoreUrl());
   }
 
+  @Singleton
   @Provides
-  public CloseableHttpClient getGenericHttpClient() {
-    return HttpClients.createDefault();
+  public CloseableHttpClient getGenericHttpClientPool() {
+    return HttpClientBuilder.create().setMaxConnPerRoute(10).setMaxConnTotal(30).build();
   }
 }
