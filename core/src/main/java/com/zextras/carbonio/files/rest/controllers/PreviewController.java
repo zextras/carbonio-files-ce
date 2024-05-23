@@ -38,7 +38,6 @@ import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.lang3.LocaleUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,36 +111,37 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
             String.format("Request %s %s: unauthorized", httpRequest.method(), httpRequest.uri()));
 
         context.fireExceptionCaught(new UnAuthorized());
-      }
+      } else {
 
-      if (thumbnailImageMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        thumbnailImage(context, httpRequest, thumbnailImageMatcher, requester.get());
-        return;
-      }
+        if (thumbnailImageMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+          thumbnailImage(context, httpRequest, thumbnailImageMatcher, requester.get());
+          return;
+        }
 
-      if (thumbnailPdfMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        thumbnailPdf(context, httpRequest, thumbnailPdfMatcher, requester.get());
-        return;
-      }
+        if (thumbnailPdfMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+          thumbnailPdf(context, httpRequest, thumbnailPdfMatcher, requester.get());
+          return;
+        }
 
-      if (thumbnailDocumentMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        thumbnailDocument(context, httpRequest, thumbnailDocumentMatcher, requester.get());
-        return;
-      }
+        if (thumbnailDocumentMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+          thumbnailDocument(context, httpRequest, thumbnailDocumentMatcher, requester.get());
+          return;
+        }
 
-      if (previewImageMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        previewImage(context, httpRequest, previewImageMatcher, requester.get());
-        return;
-      }
+        if (previewImageMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+          previewImage(context, httpRequest, previewImageMatcher, requester.get());
+          return;
+        }
 
-      if (previewPdfMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        previewPdf(context, httpRequest, previewPdfMatcher, requester.get());
-        return;
-      }
+        if (previewPdfMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+          previewPdf(context, httpRequest, previewPdfMatcher, requester.get());
+          return;
+        }
 
-      if (previewDocumentMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-        previewDocument(context, httpRequest, previewDocumentMatcher, requester.get());
-        return;
+        if (previewDocumentMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+          previewDocument(context, httpRequest, previewDocumentMatcher, requester.get());
+          return;
+        }
       }
 
       logger.warn(
@@ -152,7 +152,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     } catch (IllegalArgumentException exception) {
       logger.warn(
           String.format(
-              "Request %s: Illegal arguments in the request:\n%s",
+              "Request %s: Illegal arguments in the request:%n%s",
               httpRequest.uri(), exception.getMessage()));
       context.fireExceptionCaught(new BadRequestException());
 

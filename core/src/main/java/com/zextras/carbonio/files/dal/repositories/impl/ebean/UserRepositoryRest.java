@@ -46,17 +46,13 @@ public class UserRepositoryRest implements UserRepository {
         .getUserMyself(cookies)
         .onFailure(failure -> logger.error(failure.getMessage()))
         .map(
-            userInfo -> {
-              UserMyself user =
-                  new UserMyself(
-                      userInfo.getId().getUserId(),
-                      userInfo.getFullName(),
-                      userInfo.getEmail(),
-                      userInfo.getDomain(),
-                      userInfo.getLocale());
-
-              return user;
-            })
+            userInfo ->
+                new UserMyself(
+                    userInfo.getId().getUserId(),
+                    userInfo.getFullName(),
+                    userInfo.getEmail(),
+                    userInfo.getDomain(),
+                    userInfo.getLocale()))
         .toJavaOptional();
   }
 

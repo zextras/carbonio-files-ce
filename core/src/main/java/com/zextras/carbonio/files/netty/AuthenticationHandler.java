@@ -100,30 +100,28 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
     userRepository
         .validateToken(zmAuthToken)
         .onSuccess(
-            userId -> {
-              userRepository
-                  .getUserById(cookies, userId.getUserId())
-                  .ifPresentOrElse(
-                      user -> {
-                        context
-                            .channel()
-                            .attr(AttributeKey.valueOf(Files.API.ContextAttribute.REQUESTER))
-                            .set(user);
-                        context
-                            .channel()
-                            .attr(AttributeKey.valueOf(Files.API.ContextAttribute.COOKIES))
-                            .set(cookies);
+            userId -> userRepository
+                .getUserById(cookies, userId.getUserId())
+                .ifPresentOrElse(
+                    user -> {
+                      context
+                          .channel()
+                          .attr(AttributeKey.valueOf(Files.API.ContextAttribute.REQUESTER))
+                          .set(user);
+                      context
+                          .channel()
+                          .attr(AttributeKey.valueOf(Files.API.ContextAttribute.COOKIES))
+                          .set(cookies);
 
-                        context.fireChannelRead(httpRequest);
-                      },
-                      () ->
-                          context.fireExceptionCaught(
-                              new AuthenticationException(
-                                  String.format(
-                                      UNAUTHORIZED_ERROR_MESSAGE,
-                                      httpRequest.uri(),
-                                      "Unable to find user with id " + userId.getUserId()))));
-            })
+                      context.fireChannelRead(httpRequest);
+                    },
+                    () ->
+                        context.fireExceptionCaught(
+                            new AuthenticationException(
+                                String.format(
+                                    UNAUTHORIZED_ERROR_MESSAGE,
+                                    httpRequest.uri(),
+                                    "Unable to find user with id " + userId.getUserId())))))
         .onFailure(
             failure ->
                 context.fireExceptionCaught(
