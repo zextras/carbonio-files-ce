@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.dal.dao;
 
 import com.zextras.carbonio.usermanagement.enumerations.Status;
+import com.zextras.carbonio.usermanagement.enumerations.UserType;
 
 /**
  * Represents a {@link User} entity that matches a Files user stored in Carbonio LDAP.
@@ -19,15 +20,16 @@ public class User {
   private final String fullName;
   private final String email;
   private final String domain;
-
   private final Status status;
+  private final UserType userType;
 
-  public User(String id, String fullName, String email, String domain, Status status) {
+  public User(String id, String fullName, String email, String domain, Status status, UserType userType) {
     this.id = id;
     this.fullName = fullName;
     this.email = email;
     this.domain = domain;
     this.status = status;
+    this.userType = userType;
   }
 
   public String getId() {
@@ -49,4 +51,6 @@ public class User {
   public Status getStatus() {
     return status;
   }
+
+  public UserType getUserType() { return userType; }
 }

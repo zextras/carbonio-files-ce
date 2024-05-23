@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.dal.dao;
 
 import com.zextras.carbonio.usermanagement.enumerations.Status;
+import com.zextras.carbonio.usermanagement.enumerations.UserType;
 
 import java.util.Locale;
 
@@ -19,8 +20,8 @@ public class UserMyself extends User {
 
   Locale locale;
 
-  public UserMyself(String id, String fullName, String email, String domain, Locale locale) {
-    super(id, fullName, email, domain, Status.ACTIVE);
+  public UserMyself(String id, String fullName, String email, String domain, Locale locale, UserType userType) {
+    super(id, fullName, email, domain, Status.ACTIVE, userType);
     this.locale = locale;
   }
 
