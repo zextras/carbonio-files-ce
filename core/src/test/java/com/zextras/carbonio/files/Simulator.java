@@ -21,6 +21,7 @@ import com.zextras.carbonio.preview.PreviewClient;
 import com.zextras.carbonio.usermanagement.entities.UserId;
 import com.zextras.carbonio.usermanagement.entities.UserInfo;
 import com.zextras.carbonio.usermanagement.enumerations.Status;
+import com.zextras.carbonio.usermanagement.enumerations.UserType;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.HttpMethod;
 import java.nio.charset.StandardCharsets;
@@ -185,7 +186,8 @@ public class Simulator implements AutoCloseable {
             "fake-email@example.com",
             "Fake User",
             "example.com",
-            Status.ACTIVE);
+            Status.ACTIVE,
+            UserType.INTERNAL);
 
     userManagementMock
         .when(
