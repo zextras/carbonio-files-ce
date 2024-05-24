@@ -14,7 +14,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.rest.types.UploadToRequest.TargetModule;
-import com.zextras.carbonio.usermanagement.enumerations.Status;
+import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
 import com.zextras.carbonio.usermanagement.enumerations.UserType;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.FilesIdentifier;
@@ -59,7 +59,7 @@ class ProcedureServiceTest {
     // Given
     final User requester =
         new User(
-            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "", "", "", Status.ACTIVE, UserType.INTERNAL);
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "", "", "", UserStatus.ACTIVE, UserType.INTERNAL);
 
     final Node nodeMock = Mockito.mock(Node.class);
     Mockito.when(nodeMock.getNodeType()).thenReturn(NodeType.TEXT);
@@ -109,7 +109,7 @@ class ProcedureServiceTest {
     // Given
     final User requester =
         new User(
-            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "", "", "", Status.ACTIVE, UserType.INTERNAL);
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "", "", "", UserStatus.ACTIVE, UserType.INTERNAL);
 
     final Node nodeMock = Mockito.mock(Node.class);
     Mockito.when(nodeMock.getNodeType()).thenReturn(NodeType.TEXT);
@@ -155,7 +155,7 @@ class ProcedureServiceTest {
     // Given
     final User requester =
         new User(
-            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "", "", "", Status.ACTIVE, UserType.INTERNAL);
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "", "", "", UserStatus.ACTIVE, UserType.INTERNAL);
 
     final Node nodeMock = Mockito.mock(Node.class);
     Mockito.when(nodeMock.getNodeType()).thenReturn(NodeType.TEXT);

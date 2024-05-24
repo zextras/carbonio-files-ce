@@ -20,7 +20,7 @@ import com.zextras.carbonio.files.netty.HttpRoutingHandler;
 import com.zextras.carbonio.preview.PreviewClient;
 import com.zextras.carbonio.usermanagement.entities.UserId;
 import com.zextras.carbonio.usermanagement.entities.UserInfo;
-import com.zextras.carbonio.usermanagement.enumerations.Status;
+import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
 import com.zextras.carbonio.usermanagement.enumerations.UserType;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.HttpMethod;
@@ -186,7 +186,7 @@ public class Simulator implements AutoCloseable {
             "fake-email@example.com",
             "Fake User",
             "example.com",
-            Status.ACTIVE,
+            UserStatus.ACTIVE,
             UserType.INTERNAL);
 
     userManagementMock

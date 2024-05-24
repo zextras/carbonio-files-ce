@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.dal.dao;
 
-import com.zextras.carbonio.usermanagement.enumerations.Status;
+import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
 import com.zextras.carbonio.usermanagement.enumerations.UserType;
 
 /**
@@ -20,15 +20,15 @@ public class User {
   private final String fullName;
   private final String email;
   private final String domain;
-  private final Status status;
+  private final UserStatus userStatus;
   private final UserType userType;
 
-  public User(String id, String fullName, String email, String domain, Status status, UserType userType) {
+  public User(String id, String fullName, String email, String domain, UserStatus userStatus, UserType userType) {
     this.id = id;
     this.fullName = fullName;
     this.email = email;
     this.domain = domain;
-    this.status = status;
+    this.userStatus = userStatus;
     this.userType = userType;
   }
 
@@ -48,8 +48,8 @@ public class User {
     return domain;
   }
 
-  public Status getStatus() {
-    return status;
+  public UserStatus getUserStatus() {
+    return userStatus;
   }
 
   public UserType getUserType() { return userType; }
