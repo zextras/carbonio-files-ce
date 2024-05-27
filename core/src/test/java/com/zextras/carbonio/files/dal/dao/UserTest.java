@@ -28,7 +28,7 @@ class UserTest {
     Assertions.assertThat(user.getFullName()).isEqualTo("Fake User");
     Assertions.assertThat(user.getEmail()).isEqualTo("fakeuser@example.com");
     Assertions.assertThat(user.getDomain()).isEqualTo("example.com");
-    Assertions.assertThat(user.getUserStatus()).isEqualTo(UserStatus.ACTIVE);
-    Assertions.assertThat(user.getUserType()).isEqualTo(UserType.INTERNAL);
+    Assertions.assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
+    Assertions.assertThat(user.getType()).isEqualTo(UserType.INTERNAL);
   }
 }

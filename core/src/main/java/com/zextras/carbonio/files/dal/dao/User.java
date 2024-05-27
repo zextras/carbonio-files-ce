@@ -48,9 +48,9 @@ public class User {
     return domain;
   }
 
-  public UserStatus getUserStatus() {
+  public UserStatus getStatus() {
     return userStatus;
   }
 
-  public UserType getUserType() { return userType; }
+  public UserType getType() { return userType; }
 }
