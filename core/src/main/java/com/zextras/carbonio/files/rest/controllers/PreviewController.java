@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.rest.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
+import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
@@ -30,6 +31,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
+import io.netty.util.AttributeKey;
 import io.vavr.control.Try;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -96,52 +98,51 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       Matcher previewDocumentMatcher = Endpoints.PREVIEW_DOCUMENT.matcher((uriRequest));
       Matcher thumbnailDocumentMatcher = Endpoints.THUMBNAIL_DOCUMENT.matcher((uriRequest));
 
-      // get the user with updated locale for every preview request.
-      // if this was cached so would be the locale resulting in incorrect preview if user changes
-      // language and then
-      // requests a preview. all cookie checks here are already passed so we know there is one and
-      // if
-      // user management is not down an usermyself should always be returned given the cookie.
+      /*
+       get the user with updated locale for every preview request.
+       if this was cached so would be the locale resulting in incorrect preview if user changes
+       language and then
+       requests a preview. all cookie checks here are already passed so we know there is one and
+       if user management is not down an usermyself should always be returned given the cookie.
+      */
       HttpHeaders headersRequest = httpRequest.headers();
       String cookiesString = headersRequest.get(HttpHeaderNames.COOKIE);
-      Optional<UserMyself> requester = userRepository.getUserMyselfByCookieNotCached(cookiesString);
 
-      if (requester.isEmpty()) {
-        logger.warn(
-            String.format("Request %s %s: unauthorized", httpRequest.method(), httpRequest.uri()));
+      UserMyself requester = userRepository
+          .getUserMyselfByCookieNotCached(cookiesString)
+          .orElse(UserMyself.mapFromUser((User) context
+              .channel()
+              .attr(AttributeKey.valueOf(Files.API.ContextAttribute.REQUESTER))
+              .get()));
 
-        context.fireExceptionCaught(new UnAuthorized());
-      } else {
+      if (thumbnailImageMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        thumbnailImage(context, httpRequest, thumbnailImageMatcher, requester);
+        return;
+      }
 
-        if (thumbnailImageMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-          thumbnailImage(context, httpRequest, thumbnailImageMatcher, requester.get());
-          return;
-        }
+      if (thumbnailPdfMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        thumbnailPdf(context, httpRequest, thumbnailPdfMatcher, requester);
+        return;
+      }
 
-        if (thumbnailPdfMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-          thumbnailPdf(context, httpRequest, thumbnailPdfMatcher, requester.get());
-          return;
-        }
+      if (thumbnailDocumentMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        thumbnailDocument(context, httpRequest, thumbnailDocumentMatcher, requester);
+        return;
+      }
 
-        if (thumbnailDocumentMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-          thumbnailDocument(context, httpRequest, thumbnailDocumentMatcher, requester.get());
-          return;
-        }
+      if (previewImageMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        previewImage(context, httpRequest, previewImageMatcher, requester);
+        return;
+      }
 
-        if (previewImageMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-          previewImage(context, httpRequest, previewImageMatcher, requester.get());
-          return;
-        }
+      if (previewPdfMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        previewPdf(context, httpRequest, previewPdfMatcher, requester);
+        return;
+      }
 
-        if (previewPdfMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-          previewPdf(context, httpRequest, previewPdfMatcher, requester.get());
-          return;
-        }
-
-        if (previewDocumentMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
-          previewDocument(context, httpRequest, previewDocumentMatcher, requester.get());
-          return;
-        }
+      if (previewDocumentMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
+        previewDocument(context, httpRequest, previewDocumentMatcher, requester);
+        return;
       }
 
       logger.warn(

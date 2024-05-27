@@ -8,11 +8,14 @@ import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.usermanagement.entities.UserId;
 import io.vavr.control.Try;
+
 import java.util.Optional;
 
 public interface UserRepository {
 
-  // no cache on this one since it is not requested often and we always want the updated version
+  /**
+   * no cache on this one since it is not requested often and we always want the updated version
+   */
   Optional<UserMyself> getUserMyselfByCookieNotCached(String cookies);
 
   Optional<User> getUserById(String cookies, String userId);
