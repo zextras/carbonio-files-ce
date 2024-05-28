@@ -87,7 +87,7 @@ public class PreviewApiIT {
                 .withPath("/document/00000000-0000-0000-0000-000000000000/1/")
                 .withQueryStringParameter(new Parameter("locale", "en"))
                 .withQueryStringParameter(new Parameter("service_type", "files"))
-                .withHeader("accountHeaderValue", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+                .withHeader("FileOwnerId", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
         )
         .respond(org.mockserver.model.HttpResponse.response()
             .withStatusCode(200)
