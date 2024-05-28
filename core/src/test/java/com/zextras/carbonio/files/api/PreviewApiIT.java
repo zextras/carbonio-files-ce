@@ -14,20 +14,17 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
-import com.zextras.carbonio.preview.queries.BlobResponse;
 import io.netty.handler.codec.http.HttpMethod;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.BinaryBody;
 import org.mockserver.model.MediaType;
 import org.mockserver.model.Parameter;
 
-import java.io.IOException;
 import java.util.Map;
 
 public class PreviewApiIT {
@@ -65,7 +62,7 @@ public class PreviewApiIT {
   }
 
   @Test
-  void givenAnExistingDocumentGetPreviewShouldReturnTheCorrectPreview() throws IOException {
+  void givenAnExistingDocumentGetPreviewShouldGetAndReturnThePreviewWithLocale() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -83,7 +80,6 @@ public class PreviewApiIT {
         );
 
     MockServerClient previewServiceMock = simulator.getPreviewServiceMock();
-
     previewServiceMock
         .when(
             org.mockserver.model.HttpRequest.request()
@@ -109,6 +105,5 @@ public class PreviewApiIT {
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-
   }
 }

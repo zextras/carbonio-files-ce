@@ -129,7 +129,7 @@ public class TestUtils {
             httpHeaders,
             httpHeaders);
 
-    fullHttpRequest.retain(1);
+    fullHttpRequest.retain(2);
     nettyChannel.writeInbound(fullHttpRequest);
 
     final DefaultHttpResponse defaultHttpResponse = nettyChannel.readOutbound();
