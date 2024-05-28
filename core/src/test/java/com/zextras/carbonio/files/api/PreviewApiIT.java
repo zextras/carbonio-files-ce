@@ -14,13 +14,17 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
+import com.zextras.carbonio.preview.queries.BlobResponse;
 import io.netty.handler.codec.http.HttpMethod;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.mockserver.client.MockServerClient;
+import org.mockserver.model.BinaryBody;
+import org.mockserver.model.MediaType;
 import org.mockserver.model.Parameter;
 
 import java.io.IOException;
@@ -84,14 +88,14 @@ public class PreviewApiIT {
         .when(
             org.mockserver.model.HttpRequest.request()
                 .withMethod(HttpMethod.GET.toString())
-                .withPath("/document/00000000-0000-0000-0000-000000000000/1/")
+                .withPath("/preview/document/00000000-0000-0000-0000-000000000000/1/")
                 .withQueryStringParameter(new Parameter("locale", "en"))
                 .withQueryStringParameter(new Parameter("service_type", "files"))
                 .withHeader("FileOwnerId", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
         )
         .respond(org.mockserver.model.HttpResponse.response()
             .withStatusCode(200)
-            .withBody("0"));
+            .withBody(new BinaryBody("0".getBytes())).withContentType(MediaType.PDF));
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
