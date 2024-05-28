@@ -10,31 +10,20 @@ import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
-import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
-import com.zextras.carbonio.preview.queries.BlobResponse;
 import io.netty.handler.codec.http.HttpMethod;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.Mockito;
 import org.mockserver.client.MockServerClient;
-import org.mockserver.model.HttpError;
-import org.mockserver.model.Parameter;
-import org.mockserver.verify.VerificationTimes;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Optional;
 
 public class PreviewApiIT {
 
@@ -94,14 +83,16 @@ public class PreviewApiIT {
         .when(
             org.mockserver.model.HttpRequest.request()
                 .withMethod(HttpMethod.GET.toString())
-                .withPath("/document/00000000-0000-0000-0000-000000000000/1/?locale=en&service_type=files")
-                .withHeader("FileOwnerId", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+                .withPath("/document/00000000-0000-0000-0000-000000000000/1/?locale=en&service_type=files"))
         .respond(org.mockserver.model.HttpResponse.response()
             .withStatusCode(200)
-            .withBody("0")
-            .withHeader("Content-Type", "application/octet-stream"));
+            .withBody("0"));
 
-    final HttpRequest httpRequest = HttpRequest.of("GET", "/preview/document/00000000-0000-0000-0000-000000000000/1", "ZM_AUTH_TOKEN=fake-token", null);
+    final HttpRequest httpRequest =
+        HttpRequest.of("GET",
+            "/preview/document/00000000-0000-0000-0000-000000000000/1",
+            "ZM_AUTH_TOKEN=fake-token",
+            null);
 
     // When
     final HttpResponse httpResponse =
