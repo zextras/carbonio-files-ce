@@ -21,6 +21,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
+import org.mockserver.model.Parameter;
 
 import java.io.IOException;
 import java.util.Map;
@@ -83,7 +84,11 @@ public class PreviewApiIT {
         .when(
             org.mockserver.model.HttpRequest.request()
                 .withMethod(HttpMethod.GET.toString())
-                .withPath("/document/00000000-0000-0000-0000-000000000000/1/?locale=en&service_type=files"))
+                .withPath("/document/00000000-0000-0000-0000-000000000000/1/")
+                .withQueryStringParameter(new Parameter("locale", "en"))
+                .withQueryStringParameter(new Parameter("service_type", "files"))
+                .withHeader("accountHeaderValue", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+        )
         .respond(org.mockserver.model.HttpResponse.response()
             .withStatusCode(200)
             .withBody("0"));
