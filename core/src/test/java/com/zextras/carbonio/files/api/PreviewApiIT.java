@@ -27,7 +27,7 @@ import org.mockserver.model.Parameter;
 
 import java.util.Map;
 
-public class PreviewApiIT {
+class PreviewApiIT {
 
   static Simulator simulator;
   static NodeRepository nodeRepository;
