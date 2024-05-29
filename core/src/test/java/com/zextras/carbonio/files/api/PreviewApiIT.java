@@ -105,5 +105,8 @@ class PreviewApiIT {
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+    Assertions.assertThat(httpResponse.getHeaders())
+        .extracting(header -> header.getKey().equals("content-type") ? header.getValue() : null)
+        .contains("application/pdf");
   }
 }

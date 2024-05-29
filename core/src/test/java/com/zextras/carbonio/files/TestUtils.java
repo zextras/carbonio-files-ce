@@ -137,9 +137,10 @@ public class TestUtils {
     if (defaultHttpResponse instanceof DefaultFullHttpResponse fullHttpResponse) {
       return HttpResponse.of(
           fullHttpResponse.status().code(),
+          fullHttpResponse.headers().entries(),
           fullHttpResponse.content().toString(StandardCharsets.UTF_8));
     }
 
-    return HttpResponse.of(defaultHttpResponse.status().code(), null);
+    return HttpResponse.of(defaultHttpResponse.status().code(), defaultHttpResponse.headers().entries(), null);
   }
 }
