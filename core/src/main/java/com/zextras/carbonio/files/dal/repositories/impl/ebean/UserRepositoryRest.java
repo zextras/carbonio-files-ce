@@ -39,7 +39,6 @@ public class UserRepositoryRest implements UserRepository {
     userCache = cacheHandler.getUserCache();
   }
 
-  // no cache on this one since it is not requested often and we always want the updated version
   @Override
   public Optional<UserMyself> getUserMyselfByCookieNotCached(String cookies) {
     return UserManagementClient.atURL(usermanagementUrl)

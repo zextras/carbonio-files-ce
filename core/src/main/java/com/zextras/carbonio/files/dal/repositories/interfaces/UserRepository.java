@@ -14,7 +14,10 @@ import java.util.Optional;
 public interface UserRepository {
 
   /**
-   * no cache on this one since it is not requested often and we always want the updated version
+   * Retrieves a {@link UserMyself} without caching the response and/or checking if it already retrieved since it is not requested often and we always want the updated version.
+   *
+   * @param cookies is a {@link String} representing the cookie of the requester used to fetch all the metadata of the requester itself
+   * @return a {@link Optional} of the requested {@link UserMyself} if the cookie is valid, otherwise it returns an {@link Optional#empty}
    */
   Optional<UserMyself> getUserMyselfByCookieNotCached(String cookies);
 

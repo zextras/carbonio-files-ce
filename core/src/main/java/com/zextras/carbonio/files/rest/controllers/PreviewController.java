@@ -303,7 +303,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    *
    * @param context     is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester   is a {@link User}, to check if the requester has the permission to view file.
+   * @param requester   is a {@link UserMyself}, to check if the requester has the permission to view file.
    */
   private void thumbnailPdf(
       ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, User requester) {
@@ -348,7 +348,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    *
    * @param context     is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester   is a {@link User}, to check if the requester has the permission to view file.
+   * @param requester   is a {@link UserMyself}, to check if the requester has the permission to view file.
    */
   private void previewDocument(
       ChannelHandlerContext context,
@@ -392,7 +392,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    *
    * @param context     is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester   is a {@link User}, to check if the requester has the permission to view file.
+   * @param requester   is a {@link UserMyself}, to check if the requester has the permission to view file.
    */
   private void thumbnailDocument(
       ChannelHandlerContext context,
