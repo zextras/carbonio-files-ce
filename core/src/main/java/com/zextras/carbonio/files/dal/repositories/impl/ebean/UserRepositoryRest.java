@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.cache.Cache;
 import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.usermanagement.UserManagementClient;
 import com.zextras.carbonio.usermanagement.entities.UserId;
@@ -36,6 +37,22 @@ public class UserRepositoryRest implements UserRepository {
             + p.getProperty(Files.Config.UserManagement.PORT, "20001");
 
     userCache = cacheHandler.getUserCache();
+  }
+
+  @Override
+  public Optional<UserMyself> getUserMyselfByCookieNotCached(String cookies) {
+    return UserManagementClient.atURL(usermanagementUrl)
+        .getUserMyself(cookies)
+        .onFailure(failure -> logger.error(failure.getMessage()))
+        .map(
+            userInfo ->
+                new UserMyself(
+                    userInfo.getId().getUserId(),
+                    userInfo.getFullName(),
+                    userInfo.getEmail(),
+                    userInfo.getDomain(),
+                    userInfo.getLocale()))
+        .toJavaOptional();
   }
 
   @Override
