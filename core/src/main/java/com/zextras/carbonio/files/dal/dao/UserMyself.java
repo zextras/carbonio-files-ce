@@ -32,4 +32,11 @@ public class UserMyself extends User {
   public void setLocale(Locale locale) {
     this.locale = locale;
   }
+
+  /**
+   * Creates usermyself from user with a default locale (english)
+   */
+  public static UserMyself mapFromUser(User user) {
+    return new UserMyself(user.getId(), user.getFullName(), user.getEmail(), user.getEmail(), Locale.ENGLISH, user.getType());
+  }
 }
