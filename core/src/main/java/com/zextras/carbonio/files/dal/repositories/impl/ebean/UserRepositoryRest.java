@@ -53,7 +53,7 @@ public class UserRepositoryRest implements UserRepository {
                     userInfo.getEmail(),
                     userInfo.getDomain(),
                     userInfo.getLocale(),
-                    userInfo.getUserType()))
+                    userInfo.getType()))
         .toJavaOptional();
   }
 
