@@ -39,6 +39,7 @@ public class UserRepositoryRest implements UserRepository {
     userCache = cacheHandler.getUserCache();
   }
 
+  // no cache on this one since it is not requested often and we always want the updated version
   @Override
   public Optional<UserMyself> getUserMyselfByCookieNotCached(String cookies) {
     return UserManagementClient.atURL(usermanagementUrl)
@@ -51,7 +52,8 @@ public class UserRepositoryRest implements UserRepository {
                     userInfo.getFullName(),
                     userInfo.getEmail(),
                     userInfo.getDomain(),
-                    userInfo.getLocale()))
+                    userInfo.getLocale(),
+                    userInfo.getType()))
         .toJavaOptional();
   }
 
@@ -72,7 +74,8 @@ public class UserRepositoryRest implements UserRepository {
                                   userInfo.getFullName(),
                                   userInfo.getEmail(),
                                   userInfo.getDomain(),
-                                  userInfo.getStatus());
+                                  userInfo.getStatus(),
+                                  userInfo.getType());
                           userCache.add(user.getId(), user);
                           userCache.add(user.getEmail(), user);
 
@@ -99,7 +102,8 @@ public class UserRepositoryRest implements UserRepository {
                                   userInfo.getFullName(),
                                   userInfo.getEmail(),
                                   userInfo.getDomain(),
-                                  userInfo.getStatus());
+                                  userInfo.getStatus(),
+                                  userInfo.getType());
                           userCache.add(user.getId(), user);
                           userCache.add(user.getEmail(), user);
 

@@ -4,7 +4,8 @@
 
 package com.zextras.carbonio.files.dal.dao;
 
-import com.zextras.carbonio.usermanagement.enumerations.Status;
+import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
+import com.zextras.carbonio.usermanagement.enumerations.UserType;
 
 import java.util.Locale;
 
@@ -19,8 +20,8 @@ public class UserMyself extends User {
 
   Locale locale;
 
-  public UserMyself(String id, String fullName, String email, String domain, Locale locale) {
-    super(id, fullName, email, domain, Status.ACTIVE);
+  public UserMyself(String id, String fullName, String email, String domain, Locale locale, UserType userType) {
+    super(id, fullName, email, domain, UserStatus.ACTIVE, userType);
     this.locale = locale;
   }
 
@@ -36,6 +37,6 @@ public class UserMyself extends User {
    * Creates usermyself from user with a default locale (english)
    */
   public static UserMyself mapFromUser(User user) {
-    return new UserMyself(user.getId(), user.getFullName(), user.getEmail(), user.getEmail(), Locale.ENGLISH);
+    return new UserMyself(user.getId(), user.getFullName(), user.getEmail(), user.getEmail(), Locale.ENGLISH, user.getType());
   }
 }
