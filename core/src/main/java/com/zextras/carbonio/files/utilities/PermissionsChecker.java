@@ -13,7 +13,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 
 /**
  * Manages the relationship of permissions between a {@link Node} and a {@link User}. Thanks to the
@@ -25,16 +24,14 @@ public class PermissionsChecker {
 
   private final NodeRepository  nodeRepository;
   private final ShareRepository shareRepository;
-  private final UserRepository userRepository;
 
   @Inject
   public PermissionsChecker(
-      NodeRepository nodeRepository,
-      ShareRepository shareRepository, UserRepository userRepository
+    NodeRepository nodeRepository,
+    ShareRepository shareRepository
   ) {
     this.nodeRepository = nodeRepository;
     this.shareRepository = shareRepository;
-    this.userRepository = userRepository;
   }
 
   /**

@@ -25,14 +25,12 @@ import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
 import com.zextras.carbonio.files.utilities.MimeTypeUtils;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
-import com.zextras.carbonio.usermanagement.exceptions.UnAuthorized;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
 import io.netty.util.AttributeKey;
-import io.netty.handler.codec.http.*;
 import io.vavr.control.Try;
 
 import java.net.URLEncoder;

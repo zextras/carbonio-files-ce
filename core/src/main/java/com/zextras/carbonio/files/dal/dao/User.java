@@ -20,16 +20,16 @@ public class User {
   private final String fullName;
   private final String email;
   private final String domain;
-  private final UserStatus userStatus;
-  private final UserType userType;
+  private final UserStatus status;
+  private final UserType type;
 
-  public User(String id, String fullName, String email, String domain, UserStatus userStatus, UserType userType) {
+  public User(String id, String fullName, String email, String domain, UserStatus status, UserType type) {
     this.id = id;
     this.fullName = fullName;
     this.email = email;
     this.domain = domain;
-    this.userStatus = userStatus;
-    this.userType = userType;
+    this.status = status;
+    this.type = type;
   }
 
   public String getId() {
@@ -49,8 +49,8 @@ public class User {
   }
 
   public UserStatus getStatus() {
-    return userStatus;
+    return status;
   }
 
-  public UserType getType() { return userType; }
+  public UserType getType() { return type; }
 }
