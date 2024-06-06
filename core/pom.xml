@@ -96,6 +96,11 @@ SPDX-License-Identifier: AGPL-3.0-only
       <groupId>com.zextras.carbonio.preview</groupId>
     </dependency>
 
+    <!-- Rabbit MQ -->
+    <dependency>
+      <groupId>com.rabbitmq</groupId>
+      <artifactId>amqp-client</artifactId>
+    </dependency>
 
     <!-- Utilities: jackson, apache commons-lang and commons-validator -->
     <dependency>

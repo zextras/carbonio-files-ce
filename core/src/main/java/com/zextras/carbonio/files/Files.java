@@ -85,6 +85,14 @@ public final class Files {
       public static final String PORT = "carbonio.docs-connector.port";
     }
 
+    public static final class MessageBroker {
+
+      private MessageBroker() {}
+
+      public static final String URL  = "carbonio.message-broker.url";
+      public static final String PORT = "carbonio.message-broker.port";
+    }
+
     public static final class Pagination {
 
       private Pagination() {}
