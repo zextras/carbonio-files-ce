@@ -9,8 +9,10 @@ import com.google.inject.Inject;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
 import com.zextras.carbonio.files.cache.CacheHandlerFactory;
-import com.zextras.carbonio.files.dal.repositories.impl.HideNodesOperationRepositoryAmqp;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.CollaborationLinkRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.FileVersionRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.LinkRepositoryEbean;
@@ -20,9 +22,16 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.TombstoneRepositor
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.UserRepositoryRest;
 import com.zextras.carbonio.files.dal.repositories.interfaces.*;
 import com.zextras.carbonio.files.graphql.validators.GenericControllerEvaluatorFactory;
+import com.zextras.carbonio.files.messageBroker.MessageBrokerManagerImpl;
+import com.zextras.carbonio.files.messageBroker.MessageBrokerManager;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.storages.api.StoragesClient;
+
+import java.io.IOException;
 import java.time.Clock;
+import java.util.Optional;
+import java.util.concurrent.TimeoutException;
+
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 
@@ -45,7 +54,7 @@ public class FilesModule extends AbstractModule {
     bind(LinkRepository.class).to(LinkRepositoryEbean.class);
     bind(CollaborationLinkRepository.class).to(CollaborationLinkRepositoryEbean.class);
     bind(UserRepository.class).to(UserRepositoryRest.class);
-    bind(HideNodesOperationRepository.class).to(HideNodesOperationRepositoryAmqp.class);
+    bind(MessageBrokerManager.class).to(MessageBrokerManagerImpl.class);
 
     install(new FactoryModuleBuilder().build(CacheHandlerFactory.class));
 

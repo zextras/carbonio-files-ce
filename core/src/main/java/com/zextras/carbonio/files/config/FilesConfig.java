@@ -115,4 +115,8 @@ public class FilesConfig {
   public String getDocsConnectorUrl() {
     return buildUrlFromProperties(DocsConnector.URL, DocsConnector.PORT, "20005");
   }
+
+  public String getMessageBrokerIp() { return properties.getProperty(Files.Config.MessageBroker.URL); }
+
+  public Integer getMessageBrokerPort() { return Integer.valueOf(properties.getProperty(Files.Config.MessageBroker.PORT)); }
 }
