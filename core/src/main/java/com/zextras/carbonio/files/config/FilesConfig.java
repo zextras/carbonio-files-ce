@@ -96,6 +96,18 @@ public class FilesConfig {
             .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
   }
 
+  public String getMessageBrokerPassword() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
+            .getConfig("password")
+            .getOrElse("");
+  }
+
+  public String getMessageBrokerUsername() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
+        .getConfig("username")
+        .getOrElse("carbonio-message-broker");
+  }
+
   public String getDatabaseUrl() {
     final String databaseHost =
         Optional.ofNullable(System.getProperty(Database.URL))

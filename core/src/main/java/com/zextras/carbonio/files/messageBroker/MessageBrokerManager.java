@@ -4,9 +4,10 @@
 
 package com.zextras.carbonio.files.messageBroker;
 
-import java.io.IOException;
+import com.zextras.carbonio.files.messageBroker.entities.UserStatusChangedEvent;
 
 public interface MessageBrokerManager {
-  public void startAllConsumers() throws RuntimeException;
+  void startAllConsumers() throws RuntimeException;
 
+  void pushUtil(UserStatusChangedEvent UserStatusChangedEvent);
 }

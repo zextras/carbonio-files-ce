@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.rest.repositories;
 import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.UserRepositoryRest;
+import com.zextras.carbonio.files.messageBroker.MessageBrokerManagerImpl;
 import com.zextras.carbonio.usermanagement.UserManagementClient;
 import com.zextras.carbonio.usermanagement.entities.UserId;
 import com.zextras.carbonio.usermanagement.entities.UserMyself;
@@ -28,7 +29,7 @@ class UserRepositoryRestTest {
 
   @BeforeEach
   void setup() {
-    userRepositoryRest = new UserRepositoryRest(new FilesConfig(), Mockito.mock(CacheHandler.class));
+    userRepositoryRest = new UserRepositoryRest(new FilesConfig(), Mockito.mock(MessageBrokerManagerImpl.class), Mockito.mock(CacheHandler.class));
   }
 
   @Test

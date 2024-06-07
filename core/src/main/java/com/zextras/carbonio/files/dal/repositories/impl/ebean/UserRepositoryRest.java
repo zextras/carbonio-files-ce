@@ -12,8 +12,11 @@ import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
+import com.zextras.carbonio.files.messageBroker.MessageBrokerManager;
+import com.zextras.carbonio.files.messageBroker.entities.UserStatusChangedEvent;
 import com.zextras.carbonio.usermanagement.UserManagementClient;
 import com.zextras.carbonio.usermanagement.entities.UserId;
+import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
 import io.vavr.control.Try;
 import java.util.Optional;
 import java.util.Properties;
@@ -25,10 +28,12 @@ public class UserRepositoryRest implements UserRepository {
   private static final Logger logger = LoggerFactory.getLogger(UserRepositoryRest.class);
 
   private final String usermanagementUrl;
+  private final MessageBrokerManager messageBrokerManager;
   private final Cache<User> userCache;
 
   @Inject
-  public UserRepositoryRest(FilesConfig filesConfig, CacheHandler cacheHandler) {
+  public UserRepositoryRest(FilesConfig filesConfig, MessageBrokerManager messageBrokerManager, CacheHandler cacheHandler) {
+    this.messageBrokerManager = messageBrokerManager;
     Properties p = filesConfig.getProperties();
     usermanagementUrl =
         "http://"
@@ -59,6 +64,8 @@ public class UserRepositoryRest implements UserRepository {
 
   @Override
   public Optional<User> getUserById(String cookies, String userId) {
+    //TODO only to test, remember to remove.
+    messageBrokerManager.pushUtil(new UserStatusChangedEvent(userId, UserStatus.ACTIVE));
     return userCache
         .get(userId)
         .or(

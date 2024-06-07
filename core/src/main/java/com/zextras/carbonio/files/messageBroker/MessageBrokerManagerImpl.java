@@ -4,20 +4,27 @@
 
 package com.zextras.carbonio.files.messageBroker;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.messageBroker.consumers.ChangedStatusUserConsumer;
+import com.zextras.carbonio.files.messageBroker.entities.UserStatusChangedEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
+import static com.zextras.carbonio.files.Files.MessageBrokerManager.USER_STATUS_CHANGED_QUEUE;
+
 public class MessageBrokerManagerImpl implements MessageBrokerManager {
+
+  private static final Logger logger = LoggerFactory.getLogger(MessageBrokerManagerImpl.class);
 
   private Connection connection;
 
@@ -31,8 +38,10 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
     ConnectionFactory factory = new ConnectionFactory();
     factory.setHost(filesConfig.getMessageBrokerIp());
     factory.setPort(filesConfig.getMessageBrokerPort());
-    try (Connection connection = factory.newConnection()) {
-      return connection;
+    factory.setUsername(filesConfig.getMessageBrokerUsername());
+    factory.setPassword(filesConfig.getMessageBrokerPassword());
+    try {
+      return factory.newConnection();
     } catch (IOException | TimeoutException e) {
       throw new RuntimeException("Can't connect to RabbitMQ", e);
     }
@@ -48,25 +57,52 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
     }
   }
 
-  private void createAndStartConsumers(Channel channel) throws IOException{
-    // Declare consumers
+  private void createAndStartUserStatusChangedConsumer(Channel channel) throws RuntimeException{
+    // Create consumer
     ChangedStatusUserConsumer consumer = new ChangedStatusUserConsumer(channel);
 
-    // Start consumers
-    channel.basicConsume("CHANGED_USER_STATUS", true, consumer); //TODO should get name from config
+    try {
+      // Create queue if it doesn't exist
+      // If this queue exists already nothing happens
+      channel.queueDeclare(USER_STATUS_CHANGED_QUEUE, true, false, false, null);
+
+      // Start consumer
+      channel.basicConsume(USER_STATUS_CHANGED_QUEUE, true, consumer);
+    }catch (IOException e) {
+      logger.error("Can't consume from queue", e);
+    }
   }
 
   @Override
-  public void startAllConsumers() throws RuntimeException {
+  public void startAllConsumers() {
     // Open new rabbitMQ channel
     Channel channel = openRabbitChannel();
 
     // Try to start consumers
+    createAndStartUserStatusChangedConsumer(channel);
+  }
+
+  // TODO not really used here, only for testing. Remember to remove.
+  @Override
+  public void pushUtil(UserStatusChangedEvent userStatusChangedEvent) {
+    // Open new rabbitMQ channel
+    Channel channel = openRabbitChannel();
+
     try {
-      createAndStartConsumers(channel);
-    } catch (IOException e) {
-      throw new RuntimeException("Exception while starting rabbitmq consumers", e);
+      // Create queue if it doesn't exist
+      // If this queue exists already nothing happens
+      // Consideration: both reader and writer should create queue if it doesn't exist; this is
+      // because we don't know which service starts first
+      channel.queueDeclare(USER_STATUS_CHANGED_QUEUE, true, false, false, null);
+
+      String message = new ObjectMapper().writeValueAsString(userStatusChangedEvent);
+
+      channel.basicPublish("", USER_STATUS_CHANGED_QUEUE, null, message.getBytes("UTF-8"));
+      channel.close();
+    }catch (IOException | TimeoutException e) {
+      logger.error("Can't push to queue", e);
     }
   }
+
 
 }

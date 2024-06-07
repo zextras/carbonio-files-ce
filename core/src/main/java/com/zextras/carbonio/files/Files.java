@@ -818,6 +818,7 @@ public final class Files {
     private ServiceDiscover() {}
 
     public static final String SERVICE_NAME = "carbonio-files";
+    public static final String MESSAGE_BROKER_SERVICE_NAME = "carbonio-message-broker";
 
     public static final class Config {
 
@@ -843,5 +844,11 @@ public final class Files {
         public static final String HIKARI_MIN_IDLE_CONNECTIONS = "hikari-min-idle-connections";
       }
     }
+  }
+
+  public static final class MessageBrokerManager {
+    private MessageBrokerManager() {}
+
+    public static final String USER_STATUS_CHANGED_QUEUE        = "USER_STATUS_CHANGED_QUEUE";
   }
 }

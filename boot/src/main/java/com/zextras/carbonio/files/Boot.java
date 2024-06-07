@@ -56,11 +56,11 @@ public class Boot {
       purgeService = injector.getInstance(PurgeService.class);
       purgeService.start();
 
-      nettyServer = injector.getInstance(NettyServer.class);
-      nettyServer.start();
-
       messageBrokerManager = injector.getInstance(MessageBrokerManager.class);
       messageBrokerManager.startAllConsumers();
+
+      nettyServer = injector.getInstance(NettyServer.class);
+      nettyServer.start();
     } catch (RuntimeException exception) {
       logger.error("Service stopped unexpectedly: ", exception);
       throw exception;
