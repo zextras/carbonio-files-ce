@@ -26,7 +26,7 @@ class HealthApiIT {
   void givenAnHealthServiceTheHealthLiveShouldReturn204StatusCode() {
     // Given
     SimulatorBuilder simulatorBUilder =
-        SimulatorBuilder.aSimulator().init().withDatabase().withServiceDiscover();
+        SimulatorBuilder.aSimulator().init().withDatabase().withRabbitMq().withServiceDiscover();
 
     try (Simulator simulator = simulatorBUilder.build().start()) {
       com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
@@ -243,6 +243,7 @@ class HealthApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
+            .withRabbitMq()
             .withServiceDiscover()
             .withUserManagement(Collections.emptyMap())
             .withStorages();
@@ -286,6 +287,7 @@ class HealthApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
+            .withRabbitMq()
             .withServiceDiscover()
             .withUserManagement(Collections.emptyMap())
             .withStorages();
@@ -329,6 +331,7 @@ class HealthApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
+            .withRabbitMq()
             .withServiceDiscover()
             .withUserManagement(Collections.emptyMap())
             .withStorages();

@@ -44,6 +44,7 @@ public class DownloadByPublicLinkApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
+            .withRabbitMq()
             .withServiceDiscover()
             .withUserManagement(Map.of("fake-token", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
             .withStorages()
@@ -70,7 +71,7 @@ public class DownloadByPublicLinkApiIT {
   @ParameterizedTest
   @CsvSource({
     "abcd1234,/public/link/download/,",
-    "abcd1234abcd1234abcd1234abcd1234,/public/link/download/,",
+    "abcd1234abcd1234abcd1234abcd1234,/public/link/download/,", //TODO why only first test passes
     "abcd1234,/link/,",
     "abcd1234abcd1234abcd1234abcd1234,/link/,",
     "abcd1234abcd1234abcd1234abcd1234,/public/link/download/,fake-token",

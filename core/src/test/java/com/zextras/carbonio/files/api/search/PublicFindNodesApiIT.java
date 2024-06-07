@@ -40,7 +40,12 @@ public class PublicFindNodesApiIT {
   @BeforeAll
   static void init() {
     simulator =
-        SimulatorBuilder.aSimulator().init().withDatabase().withServiceDiscover().build().start();
+        SimulatorBuilder.aSimulator().init()
+            .withDatabase()
+            .withRabbitMq()
+            .withServiceDiscover()
+            .build()
+            .start();
 
     final Injector injector = simulator.getInjector();
     nodeRepository = injector.getInstance(NodeRepository.class);

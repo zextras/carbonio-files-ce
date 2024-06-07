@@ -847,9 +847,19 @@ public final class Files {
     }
   }
 
-  public static final class MessageBrokerManager {
-    private MessageBrokerManager() {}
+  public static final class MessageBroker {
+    private MessageBroker() {}
 
     public static final String USER_STATUS_CHANGED_QUEUE        = "USER_STATUS_CHANGED_QUEUE";
+
+    public static final class Config {
+
+      private Config() {
+      }
+
+      public static final String DEFAULT_USERNAME            = "carbonio-message-broker";
+      public static final String DEFAULT_PASSWORD            = "";
+
+    }
   }
 }

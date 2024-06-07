@@ -96,18 +96,6 @@ public class FilesConfig {
             .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
   }
 
-  public String getMessageBrokerPassword() {
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
-            .getConfig("password")
-            .getOrElse("");
-  }
-
-  public String getMessageBrokerUsername() {
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
-        .getConfig("username")
-        .getOrElse(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME);
-  }
-
   public String getDatabaseUrl() {
     final String databaseHost =
         Optional.ofNullable(System.getProperty(Database.URL))
@@ -137,5 +125,17 @@ public class FilesConfig {
     String messageBrokerPort = Optional.ofNullable(System.getProperty(Files.Config.MessageBroker.PORT))
         .orElse(properties.getProperty(Files.Config.MessageBroker.PORT));
     return Integer.valueOf(messageBrokerPort);
+  }
+
+  public String getMessageBrokerPassword() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
+        .getConfig("password")
+        .getOrElse(Files.MessageBroker.Config.DEFAULT_PASSWORD);
+  }
+
+  public String getMessageBrokerUsername() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
+        .getConfig("username")
+        .getOrElse(Files.MessageBroker.Config.DEFAULT_USERNAME);
   }
 }

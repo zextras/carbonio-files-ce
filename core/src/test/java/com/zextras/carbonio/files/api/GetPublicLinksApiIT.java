@@ -45,6 +45,7 @@ class GetPublicLinksApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
+            .withRabbitMq()
             .withServiceDiscover()
             .withUserManagement(
                 Map.of(

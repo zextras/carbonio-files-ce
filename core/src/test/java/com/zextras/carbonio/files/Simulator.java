@@ -83,12 +83,11 @@ public class Simulator implements AutoCloseable {
     if (rabbitMQContainer == null) {
       rabbitMQContainer = new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.7.25-management-alpine"));
     }
-
     rabbitMQContainer.start();
 
-    // Set the System.properties for the dynamic database url and port
-    System.setProperty(Files.Config.MessageBroker.URL, postgreSQLContainer.getHost());
-    System.setProperty(Files.Config.MessageBroker.PORT, String.valueOf(postgreSQLContainer.getFirstMappedPort()));
+    // Set the System.properties for the dynamic rabbit url and port
+    System.setProperty(Files.Config.MessageBroker.URL, rabbitMQContainer.getHost());
+    System.setProperty(Files.Config.MessageBroker.PORT, String.valueOf(rabbitMQContainer.getFirstMappedPort()));
 
     return this;
   }
@@ -110,6 +109,9 @@ public class Simulator implements AutoCloseable {
     String dbUsername;
     String dbPassword;
 
+    String adminUsername;
+    String adminPassword;
+
     if (postgreSQLContainer != null && postgreSQLContainer.isRunning()) {
       dbName = postgreSQLContainer.getDatabaseName();
       dbUsername = postgreSQLContainer.getUsername();
@@ -124,9 +126,21 @@ public class Simulator implements AutoCloseable {
       dbPassword = Db.PASSWORD;
     }
 
+    if (rabbitMQContainer != null && rabbitMQContainer.isRunning()) {
+      adminUsername = rabbitMQContainer.getAdminUsername();
+      adminPassword = rabbitMQContainer.getAdminPassword();
+    } else {
+      logger.warn("The ServiceDiscover will be mocked without a rabbitMQ container");
+
+      adminUsername = Files.MessageBroker.Config.DEFAULT_USERNAME;
+      adminPassword = Files.MessageBroker.Config.DEFAULT_PASSWORD;
+    }
+
     final String encodedDbName = new String(Base64.encode(dbName.getBytes()));
     final String encodedDbUsername = new String(Base64.encode(dbUsername.getBytes()));
     final String encodedDbPassword = new String(Base64.encode(dbPassword.getBytes()));
+    final String encodedAdminUsername = new String(Base64.encode(adminUsername.getBytes()));
+    final String encodedAdminPassword = new String(Base64.encode(adminPassword.getBytes()));
     final String bodyPayloadFormat = "[{\"Key\":\"%s\",\"Value\":\"%s\"}]";
 
     serviceDiscoverMock
@@ -166,6 +180,32 @@ public class Simulator implements AutoCloseable {
                 .withBody(
                     String.format(
                         bodyPayloadFormat, "carbonio-files/db-password", encodedDbPassword)));
+
+    serviceDiscoverMock
+        .when(
+            HttpRequest.request()
+                .withMethod(HttpMethod.GET.toString())
+                .withPath("/v1/kv/carbonio-message-broker/password")
+                .withHeader("X-Consul-Token", ""))
+        .respond(
+            HttpResponse.response()
+                .withStatusCode(200)
+                .withBody(
+                    String.format(
+                        bodyPayloadFormat, "carbonio-message-broker/password", encodedAdminPassword)));
+
+    serviceDiscoverMock
+        .when(
+            HttpRequest.request()
+                .withMethod(HttpMethod.GET.toString())
+                .withPath("/v1/kv/carbonio-message-broker/username")
+                .withHeader("X-Consul-Token", ""))
+        .respond(
+            HttpResponse.response()
+                .withStatusCode(200)
+                .withBody(
+                    String.format(
+                        bodyPayloadFormat, "carbonio-message-broker/username", encodedAdminUsername)));
 
     return this;
   }

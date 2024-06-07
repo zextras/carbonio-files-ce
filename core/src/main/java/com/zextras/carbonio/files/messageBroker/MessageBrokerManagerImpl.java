@@ -20,7 +20,7 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
-import static com.zextras.carbonio.files.Files.MessageBrokerManager.USER_STATUS_CHANGED_QUEUE;
+import static com.zextras.carbonio.files.Files.MessageBroker.USER_STATUS_CHANGED_QUEUE;
 
 public class MessageBrokerManagerImpl implements MessageBrokerManager {
 
