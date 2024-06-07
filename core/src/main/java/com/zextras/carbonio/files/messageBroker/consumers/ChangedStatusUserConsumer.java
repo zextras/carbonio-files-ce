@@ -27,28 +27,19 @@ public class ChangedStatusUserConsumer extends DefaultConsumer {
 
   @Override
   public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
-    //TODO event received, handle it accordingly
-    System.err.println("RECEIVED EVENT!");
+    try {
+      String message = new String(body, "UTF-8");
+      UserStatusChangedEvent userStatusChangedEvent = new ObjectMapper().readValue(message, UserStatusChangedEvent.class);
 
-    String message = null;
-    try {
-      message = new String(body, "UTF-8");
-    } catch (UnsupportedEncodingException e) {
-      throw new RuntimeException(e);
-    }
-    ObjectMapper objectMapper = new ObjectMapper();
-    try {
-      UserStatusChangedEvent userStatusChangedEvent = objectMapper.readValue(message, UserStatusChangedEvent.class);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
+      //TODO use entity
 
-    // Ack is sent to confirm operation has been completed, if connection fails before ack is returned
-    // rabbitMQ will repopulate its queue with object.
-    try {
+      // Ack is sent to confirm operation has been completed, if connection fails before ack is returned
+      // rabbitMQ will repopulate its queue with object.
       getChannel().basicAck(envelope.getDeliveryTag(), false);
+    } catch (JsonProcessingException | UnsupportedEncodingException e) {
+      logger.error("Can't process entity in queue", e);
     } catch (IOException e) {
-      throw new RuntimeException("Can't send ack to rabbitmq", e);
+      logger.error("Can't send ack back to rabbitmq", e);
     }
   }
 }

@@ -64,8 +64,6 @@ public class UserRepositoryRest implements UserRepository {
 
   @Override
   public Optional<User> getUserById(String cookies, String userId) {
-    //TODO only to test, remember to remove.
-    messageBrokerManager.pushUtil(new UserStatusChangedEvent(userId, UserStatus.ACTIVE));
     return userCache
         .get(userId)
         .or(
@@ -85,6 +83,9 @@ public class UserRepositoryRest implements UserRepository {
                                   userInfo.getType());
                           userCache.add(user.getId(), user);
                           userCache.add(user.getEmail(), user);
+
+                          //TODO only to test, remember to remove.
+                          messageBrokerManager.pushUtil(new UserStatusChangedEvent(userId, user.getStatus()));
 
                           return user;
                         })
