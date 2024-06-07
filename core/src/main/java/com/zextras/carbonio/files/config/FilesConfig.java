@@ -105,7 +105,7 @@ public class FilesConfig {
   public String getMessageBrokerUsername() {
     return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
         .getConfig("username")
-        .getOrElse("carbonio-message-broker");
+        .getOrElse(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME);
   }
 
   public String getDatabaseUrl() {
@@ -128,7 +128,14 @@ public class FilesConfig {
     return buildUrlFromProperties(DocsConnector.URL, DocsConnector.PORT, "20005");
   }
 
-  public String getMessageBrokerIp() { return properties.getProperty(Files.Config.MessageBroker.URL); }
+  public String getMessageBrokerIp() {
+    return Optional.ofNullable(System.getProperty(Files.Config.MessageBroker.URL))
+            .orElse(properties.getProperty(Files.Config.MessageBroker.URL));
+  }
 
-  public Integer getMessageBrokerPort() { return Integer.valueOf(properties.getProperty(Files.Config.MessageBroker.PORT)); }
+  public Integer getMessageBrokerPort() {
+    String messageBrokerPort = Optional.ofNullable(System.getProperty(Files.Config.MessageBroker.PORT))
+        .orElse(properties.getProperty(Files.Config.MessageBroker.PORT));
+    return Integer.valueOf(messageBrokerPort);
+  }
 }

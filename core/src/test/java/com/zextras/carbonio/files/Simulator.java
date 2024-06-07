@@ -17,7 +17,6 @@ import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.netty.HttpRoutingHandler;
-import com.zextras.carbonio.preview.PreviewClient;
 import com.zextras.carbonio.usermanagement.entities.UserId;
 import com.zextras.carbonio.usermanagement.entities.UserInfo;
 import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
@@ -27,7 +26,6 @@ import io.netty.handler.codec.http.HttpMethod;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Properties;
-import org.mockito.Mock;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.integration.ClientAndServer;
 import org.mockserver.model.Cookie;
@@ -40,6 +38,8 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.shaded.com.trilead.ssh2.crypto.Base64;
+import org.testcontainers.containers.RabbitMQContainer;
+import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
 public class Simulator implements AutoCloseable {
@@ -47,6 +47,7 @@ public class Simulator implements AutoCloseable {
   private static final Logger logger = LoggerFactory.getLogger(Simulator.class);
   private Injector injector;
   private PostgreSQLContainer<?> postgreSQLContainer;
+  private RabbitMQContainer rabbitMQContainer;
   private EbeanDatabaseManager ebeanDatabaseManager;
   private ClientAndServer clientAndServer;
   private MockServerClient serviceDiscoverMock;
@@ -74,6 +75,20 @@ public class Simulator implements AutoCloseable {
     // Set the System.properties for the dynamic database url and port
     System.setProperty(Database.URL, postgreSQLContainer.getHost());
     System.setProperty(Database.PORT, String.valueOf(postgreSQLContainer.getFirstMappedPort()));
+
+    return this;
+  }
+
+  private Simulator startRabbitMq() {
+    if (rabbitMQContainer == null) {
+      rabbitMQContainer = new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.7.25-management-alpine"));
+    }
+
+    rabbitMQContainer.start();
+
+    // Set the System.properties for the dynamic database url and port
+    System.setProperty(Files.Config.MessageBroker.URL, postgreSQLContainer.getHost());
+    System.setProperty(Files.Config.MessageBroker.PORT, String.valueOf(postgreSQLContainer.getFirstMappedPort()));
 
     return this;
   }
@@ -253,6 +268,12 @@ public class Simulator implements AutoCloseable {
     }
   }
 
+  private void stopRabbitMq() {
+    if (rabbitMQContainer != null && rabbitMQContainer.isRunning()) {
+      rabbitMQContainer.stop();
+    }
+  }
+
   private void stopEbeanDatabaseManager() {
     if (ebeanDatabaseManager != null) {
       ebeanDatabaseManager.stop();
@@ -307,6 +328,7 @@ public class Simulator implements AutoCloseable {
     stopServiceDiscover();
     stopDatabase();
     stopEbeanDatabaseManager();
+    stopRabbitMq();
   }
 
   @Override
@@ -377,6 +399,11 @@ public class Simulator implements AutoCloseable {
 
     public SimulatorBuilder withDatabase() {
       simulator.startDatabase();
+      return this;
+    }
+
+    public SimulatorBuilder withRabbitMq() {
+      simulator.startRabbitMq();
       return this;
     }
 

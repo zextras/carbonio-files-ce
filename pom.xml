@@ -55,7 +55,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <netty.version>4.1.94.Final</netty.version>
     <postgresql.version>42.6.0</postgresql.version>
     <com.rabbitmq.amqp-client.version>5.21.0</com.rabbitmq.amqp-client.version>
-    <testcontainers.version>1.18.3</testcontainers.version>
+    <testcontainers.version>1.19.8</testcontainers.version>
 
     <!-- Plugins -->
     <maven-assembly.version>3.6.0</maven-assembly.version>
@@ -261,6 +261,13 @@ SPDX-License-Identifier: AGPL-3.0-only
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>postgresql</artifactId>
+        <version>${testcontainers.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>rabbitmq</artifactId>
         <version>${testcontainers.version}</version>
         <scope>test</scope>
       </dependency>

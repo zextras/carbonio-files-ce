@@ -114,7 +114,7 @@ public final class Files {
 
     private Db() {}
 
-    public static final short DB_VERSION = 3;
+    public static final short DB_VERSION = 4;
 
     /**
      * Names of Files tables
@@ -156,6 +156,7 @@ public final class Files {
       public static final String CURRENT_VERSION = "current_version";
       public static final String INDEX_STATUS    = "index_status";
       public static final String SIZE            = "size";
+      public static final String HIDDEN            = "hidden";
     }
 
     public static final class Trashed {

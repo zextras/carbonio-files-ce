@@ -306,4 +306,10 @@ public interface NodeRepository {
     String folderId,
     String nodeOwner
   );
+
+  List<Node> findNodesByOwner(String ownerId);
+
+  Optional<Node> findFirstByOwner(String ownerId);
+
+  void setHiddenFlagNodes(List<Node> nodesToFlag, boolean hidden);
 }
