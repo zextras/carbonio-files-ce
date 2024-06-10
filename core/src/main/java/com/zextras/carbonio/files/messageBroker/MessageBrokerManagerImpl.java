@@ -11,6 +11,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.zextras.carbonio.files.config.FilesConfig;
+import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.messageBroker.consumers.ChangedStatusUserConsumer;
 import com.zextras.carbonio.files.messageBroker.entities.UserStatusChangedEvent;
 import org.slf4j.Logger;
@@ -27,11 +28,14 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
 
   private static final Logger logger = LoggerFactory.getLogger(MessageBrokerManagerImpl.class);
 
+  private NodeRepository nodeRepository;
+
   private Connection connection;
 
   @Inject
-  public MessageBrokerManagerImpl(FilesConfig filesConfig){
+  public MessageBrokerManagerImpl(FilesConfig filesConfig, NodeRepository nodeRepository){
     this.connection = getRabbitConnection(filesConfig);
+    this.nodeRepository = nodeRepository;
   }
 
   private Connection getRabbitConnection(FilesConfig filesConfig){
@@ -59,7 +63,7 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
 
   private void createAndStartUserStatusChangedConsumer(Channel channel) throws RuntimeException{
     // Create consumer
-    ChangedStatusUserConsumer consumer = new ChangedStatusUserConsumer(channel);
+    ChangedStatusUserConsumer consumer = new ChangedStatusUserConsumer(channel, nodeRepository);
 
     try {
       // Create queue if it doesn't exist
