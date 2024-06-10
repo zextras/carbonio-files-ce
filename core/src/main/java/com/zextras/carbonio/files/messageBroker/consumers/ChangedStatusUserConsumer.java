@@ -69,7 +69,7 @@ public class ChangedStatusUserConsumer extends DefaultConsumer {
   private boolean shouldChangeHiddenFlag(UserStatusChangedEvent userStatusChangedEvent){
     Optional<Node> firstNodeToCheckOpt = nodeRepository.findFirstByOwner(userStatusChangedEvent.getUserId());
     return firstNodeToCheckOpt.isPresent() &&
-        !firstNodeToCheckOpt.get().getHidden().equals(shouldHideByStatus(userStatusChangedEvent.getUserStatus()));
+        !firstNodeToCheckOpt.get().isHidden().equals(shouldHideByStatus(userStatusChangedEvent.getUserStatus()));
   }
 
   /**

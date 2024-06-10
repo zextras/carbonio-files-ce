@@ -307,7 +307,7 @@ public class Node {
     };
   }
 
-  public Boolean getHidden() {
+  public Boolean isHidden() {
     return mHidden;
   }
 

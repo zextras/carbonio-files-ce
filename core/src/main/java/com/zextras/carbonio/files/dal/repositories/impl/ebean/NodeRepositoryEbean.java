@@ -594,7 +594,7 @@ public class NodeRepositoryEbean implements NodeRepository {
   public void invertHiddenFlagNodes(List<Node> nodesToFlag) {
     try (Transaction txn = mDB.getEbeanDatabase().beginTransaction()) {
       for (Node node : nodesToFlag) {
-        mDB.getEbeanDatabase().update(node.setHidden(!node.getHidden()));
+        mDB.getEbeanDatabase().update(node.setHidden(!node.isHidden()));
       }
       txn.commit();
     }
