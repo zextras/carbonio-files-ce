@@ -9,6 +9,7 @@ import com.zextras.carbonio.files.clients.DocsConnectorHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
+import com.zextras.carbonio.files.messageBroker.MessageBrokerManager;
 import com.zextras.carbonio.files.rest.types.health.DependencyType;
 import com.zextras.carbonio.files.rest.types.health.ServiceHealth;
 import com.zextras.filestore.api.Filestore.Liveness;
@@ -18,15 +19,18 @@ public class HealthService {
   private final EbeanDatabaseManager ebeanDatabaseManager;
   private final FilesConfig filesConfig;
   private final DocsConnectorHttpClient docsConnectorHttpClient;
+  private final MessageBrokerManager messageBrokerManager;
 
   @Inject
   public HealthService(
       EbeanDatabaseManager ebeanDatabaseManager,
       FilesConfig filesConfig,
-      DocsConnectorHttpClient docsConnectorHttpClient) {
+      DocsConnectorHttpClient docsConnectorHttpClient,
+      MessageBrokerManager messageBrokerManager) {
     this.ebeanDatabaseManager = ebeanDatabaseManager;
     this.filesConfig = filesConfig;
     this.docsConnectorHttpClient = docsConnectorHttpClient;
+    this.messageBrokerManager = messageBrokerManager;
   }
 
   /**
@@ -55,6 +59,13 @@ public class HealthService {
    */
   public boolean isPreviewLive() {
     return filesConfig.getPreviewClient().healthReady();
+  }
+
+  /**
+   * @return true if the connection to carbonio-message-broker service is open, false otherwise.
+   */
+  public boolean isMessageBrokerLive() {
+    return messageBrokerManager.healthCheck();
   }
 
   /**
@@ -121,5 +132,17 @@ public class HealthService {
         .setType(DependencyType.OPTIONAL)
         .setLive(docsConnectorIsUp)
         .setReady(docsConnectorIsUp);
+  }
+  /**
+   * @return a {@link ServiceHealth} representing the status of the carbonio-message-broker service. This
+   *     dependency is {@link DependencyType#OPTIONAL} for carbonio-files.
+   */
+  public ServiceHealth getMessageBrokerHealth() {
+    boolean messageBrokerIsUp = isMessageBrokerLive();
+    return new ServiceHealth()
+        .setName("carbonio-message-broker")
+        .setType(DependencyType.REQUIRED)
+        .setLive(messageBrokerIsUp)
+        .setReady(messageBrokerIsUp);
   }
 }

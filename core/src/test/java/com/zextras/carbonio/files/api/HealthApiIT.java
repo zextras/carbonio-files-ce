@@ -109,7 +109,7 @@ class HealthApiIT {
 
       Assertions.assertThat(healthStatus.isReady()).isTrue();
       List<ServiceHealth> dependenciesHealth = healthStatus.getDependencies();
-      Assertions.assertThat(dependenciesHealth).hasSize(5);
+      Assertions.assertThat(dependenciesHealth).hasSize(6);
 
       Assertions.assertThat(dependenciesHealth.get(0).getName()).isEqualTo("database");
       Assertions.assertThat(dependenciesHealth.get(0).isLive()).isTrue();
@@ -137,6 +137,12 @@ class HealthApiIT {
       Assertions.assertThat(dependenciesHealth.get(4).isLive()).isTrue();
       Assertions.assertThat(dependenciesHealth.get(4).isReady()).isTrue();
       Assertions.assertThat(dependenciesHealth.get(4).getType()).isEqualTo(DependencyType.OPTIONAL);
+
+      Assertions.assertThat(dependenciesHealth.get(5).getName())
+          .isEqualTo("carbonio-message-broker");
+      Assertions.assertThat(dependenciesHealth.get(5).isLive()).isTrue();
+      Assertions.assertThat(dependenciesHealth.get(5).isReady()).isTrue();
+      Assertions.assertThat(dependenciesHealth.get(5).getType()).isEqualTo(DependencyType.OPTIONAL);
     }
   }
 
@@ -207,7 +213,7 @@ class HealthApiIT {
 
       Assertions.assertThat(healthStatus.isReady()).isFalse();
       List<ServiceHealth> dependenciesHealth = healthStatus.getDependencies();
-      Assertions.assertThat(dependenciesHealth).hasSize(5);
+      Assertions.assertThat(dependenciesHealth).hasSize(6);
 
       Assertions.assertThat(dependenciesHealth.get(0).getName()).isEqualTo("database");
       Assertions.assertThat(dependenciesHealth.get(0).isLive()).isTrue();
@@ -235,6 +241,12 @@ class HealthApiIT {
       Assertions.assertThat(dependenciesHealth.get(4).isLive()).isTrue();
       Assertions.assertThat(dependenciesHealth.get(4).isReady()).isTrue();
       Assertions.assertThat(dependenciesHealth.get(4).getType()).isEqualTo(DependencyType.OPTIONAL);
+
+      Assertions.assertThat(dependenciesHealth.get(5).getName())
+          .isEqualTo("carbonio-message-broker");
+      Assertions.assertThat(dependenciesHealth.get(5).isLive()).isTrue();
+      Assertions.assertThat(dependenciesHealth.get(5).isReady()).isTrue();
+      Assertions.assertThat(dependenciesHealth.get(5).getType()).isEqualTo(DependencyType.OPTIONAL);
     }
   }
 
@@ -354,6 +366,49 @@ class HealthApiIT {
           .when(
               HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/health/live"))
           .respond(HttpResponse.response().withStatusCode(502));
+
+      com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
+          com.zextras.carbonio.files.utilities.http.HttpRequest.of(
+              HttpMethod.GET.toString(), "/health/ready/", null, null);
+
+      // When
+      com.zextras.carbonio.files.utilities.http.HttpResponse httpResponse =
+          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+      // Then
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(500);
+      Assertions.assertThat(httpResponse.getBodyPayload()).isEmpty();
+    }
+  }
+
+  @Test
+  void
+  givenMessageBrokerUnreachableAndOtherMandatoryDependenciesReachableTheHealthReadyShouldReturn502StatusCode() {
+    // Given
+    SimulatorBuilder simulatorBuilder =
+        SimulatorBuilder.aSimulator()
+            .init()
+            .withDatabase()
+            .withServiceDiscover()
+            .withUserManagement(Collections.emptyMap())
+            .withStorages();
+
+    try (Simulator simulator = simulatorBuilder.build().start()) {
+
+      // UserManagement
+      MockServerClient userManagementServiceMock = simulator.getUserManagementMock();
+
+      userManagementServiceMock
+          .when(HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/health/"))
+          .respond(HttpResponse.response().withStatusCode(200));
+
+      // Storages
+      MockServerClient storagesMock = simulator.getStoragesMock();
+
+      storagesMock
+          .when(
+              HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/health/live"))
+          .respond(HttpResponse.response().withStatusCode(200));
 
       com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
           com.zextras.carbonio.files.utilities.http.HttpRequest.of(

@@ -7,7 +7,7 @@ package com.zextras.carbonio.files.messageBroker;
 import com.zextras.carbonio.files.messageBroker.entities.UserStatusChangedEvent;
 
 public interface MessageBrokerManager {
-  void startAllConsumers() throws RuntimeException;
-
+  boolean healthCheck();
+  void startAllConsumers();
   void pushUtil(UserStatusChangedEvent UserStatusChangedEvent);
 }

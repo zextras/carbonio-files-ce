@@ -47,7 +47,8 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
     try {
       return factory.newConnection();
     } catch (IOException | TimeoutException e) {
-      throw new RuntimeException("Can't connect to RabbitMQ", e);
+      logger.error("Can't connect to RabbitMQ", e);
+      return null;
     }
   }
 
@@ -75,6 +76,11 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
     }catch (IOException e) {
       logger.error("Can't consume from queue", e);
     }
+  }
+
+  @Override
+  public boolean healthCheck() {
+    return connection != null && connection.isOpen();
   }
 
   @Override
