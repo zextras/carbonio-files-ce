@@ -6,4 +6,6 @@ BEGIN;
 
 ALTER TABLE node ADD COLUMN hidden BOOLEAN NOT NULL DEFAULT false;
 
+UPDATE db_info SET version = 4;
+
 COMMIT;

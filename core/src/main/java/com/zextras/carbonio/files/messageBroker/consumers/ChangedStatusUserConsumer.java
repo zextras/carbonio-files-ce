@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.List;
+import java.util.Optional;
 
 public class ChangedStatusUserConsumer extends DefaultConsumer {
 
@@ -32,18 +33,19 @@ public class ChangedStatusUserConsumer extends DefaultConsumer {
     this.nodeRepository = nodeRepository;
   }
 
+  /**
+   * Receives every user's status changed event, checks if its nodes should be shown or hidden and then changes
+   * the hidden flag for each node if needed.
+   */
   @Override
   public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
     try {
       String message = new String(body, "UTF-8");
       UserStatusChangedEvent userStatusChangedEvent = new ObjectMapper().readValue(message, UserStatusChangedEvent.class);
 
-      //TODO use entity
       if(shouldChangeHiddenFlag(userStatusChangedEvent)){
         List<Node> nodesToProcess = nodeRepository.findNodesByOwner(userStatusChangedEvent.getUserId());
-        nodeRepository.setHiddenFlagNodes(
-            nodesToProcess,
-            !userStatusChangedEvent.getUserStatus().equals(UserStatus.ACTIVE));
+        nodeRepository.invertHiddenFlagNodes(nodesToProcess);
       }
 
       // Ack is sent to confirm operation has been completed, if connection fails before ack is returned
@@ -54,5 +56,27 @@ public class ChangedStatusUserConsumer extends DefaultConsumer {
     } catch (IOException e) {
       logger.error("Can't send ack back to rabbitmq", e);
     }
+  }
+
+  /**
+   * An operation is useless if all nodes already have the same flag that the operation would set. Since
+   * setting this flag is transactional for all nodes owned by a user, checking a single node is sufficient.
+   * Once obtaining the first node's hidden flag value we can check if is already correctly set or otherwise.
+   * This is useful because if we catch an userstatuschangedevent, but it is from a non-closed status (like active)
+   * to another non-closed status (like maintenance) we do not want to perform a useless update operation for
+   * every node owned by user.
+   */
+  private boolean shouldChangeHiddenFlag(UserStatusChangedEvent userStatusChangedEvent){
+    Optional<Node> firstNodeToCheckOpt = nodeRepository.findFirstByOwner(userStatusChangedEvent.getUserId());
+    return firstNodeToCheckOpt.isPresent() &&
+        !firstNodeToCheckOpt.get().getHidden().equals(shouldHideByStatus(userStatusChangedEvent.getUserStatus()));
+  }
+
+  /**
+   * Small utility method that returns if nodes should be hidden or not given the status of a user.
+   * Here we assume that nodes should be hidden only if user status is closed.
+   */
+  private boolean shouldHideByStatus(UserStatus userStatus){
+    return userStatus.equals(UserStatus.CLOSED);
   }
 }

@@ -16,7 +16,6 @@ import com.zextras.carbonio.files.messageBroker.MessageBrokerManager;
 import com.zextras.carbonio.files.messageBroker.entities.UserStatusChangedEvent;
 import com.zextras.carbonio.usermanagement.UserManagementClient;
 import com.zextras.carbonio.usermanagement.entities.UserId;
-import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
 import io.vavr.control.Try;
 import java.util.Optional;
 import java.util.Properties;
@@ -83,9 +82,6 @@ public class UserRepositoryRest implements UserRepository {
                                   userInfo.getType());
                           userCache.add(user.getId(), user);
                           userCache.add(user.getEmail(), user);
-
-                          //TODO only to test, remember to remove.
-                          messageBrokerManager.pushUtil(new UserStatusChangedEvent(userId, user.getStatus()));
 
                           return user;
                         })

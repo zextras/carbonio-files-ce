@@ -311,5 +311,5 @@ public interface NodeRepository {
 
   Optional<Node> findFirstByOwner(String ownerId);
 
-  void setHiddenFlagNodes(List<Node> nodesToFlag, boolean hidden);
+  void invertHiddenFlagNodes(List<Node> nodesToFlag);
 }

@@ -587,14 +587,14 @@ public class NodeRepositoryEbean implements NodeRepository {
 
   @Override
   public Optional<Node> findFirstByOwner(String ownerId) {
-    return mDB.getEbeanDatabase().find(Node.class).where().eq(Db.Node.OWNER_ID, ownerId).findOneOrEmpty();
+    return mDB.getEbeanDatabase().find(Node.class).where().eq(Db.Node.OWNER_ID, ownerId).setMaxRows(1).findOneOrEmpty();
   }
 
   @Override
-  public void setHiddenFlagNodes(List<Node> nodesToFlag, boolean hidden) {
+  public void invertHiddenFlagNodes(List<Node> nodesToFlag) {
     try (Transaction txn = mDB.getEbeanDatabase().beginTransaction()) {
       for (Node node : nodesToFlag) {
-        mDB.getEbeanDatabase().update(node.setHidden(hidden));
+        mDB.getEbeanDatabase().update(node.setHidden(!node.getHidden()));
       }
       txn.commit();
     }
