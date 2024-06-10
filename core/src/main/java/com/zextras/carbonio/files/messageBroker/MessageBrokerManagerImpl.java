@@ -22,6 +22,7 @@ import java.util.concurrent.TimeoutException;
 
 import static com.zextras.carbonio.files.Files.MessageBroker.USER_STATUS_CHANGED_QUEUE;
 
+@Singleton
 public class MessageBrokerManagerImpl implements MessageBrokerManager {
 
   private static final Logger logger = LoggerFactory.getLogger(MessageBrokerManagerImpl.class);
@@ -33,7 +34,6 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
     this.connection = getRabbitConnection(filesConfig);
   }
 
-  @Singleton
   private Connection getRabbitConnection(FilesConfig filesConfig){
     ConnectionFactory factory = new ConnectionFactory();
     factory.setHost(filesConfig.getMessageBrokerIp());
