@@ -886,6 +886,25 @@ public class NodeDataFetcher {
                   }
                 });
             }
+
+            // check if node needs an alternative name
+            List<String> targetFolderChildrenFilesName = nodeRepository.getNodes(
+                  nodeRepository.getChildrenIds(
+                      node.getParentId().get(),
+                      Optional.empty(),
+                      Optional.empty(),
+                      false),
+                  Optional.empty()
+              )
+              .map(Node::getFullName)
+              .toList();
+
+            if(targetFolderChildrenFilesName.contains(node.getFullName())) {
+              String newName = searchAlternativeName(
+                  node.getFullName(), node.getParentId().get(), node.getOwnerId()
+              );
+              node.setName(newName);
+            }
             nodeRepository.restoreNode(node.getId());
             nodeRepository.updateNode(node);
             cascadeUpdateAncestors(node);
