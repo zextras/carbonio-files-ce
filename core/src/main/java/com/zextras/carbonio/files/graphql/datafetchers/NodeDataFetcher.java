@@ -903,7 +903,7 @@ public class NodeDataFetcher {
               String newName = searchAlternativeName(
                   node.getFullName(), node.getParentId().get(), node.getOwnerId()
               );
-              node.setName(newName);
+              node.setFullName(newName);
             }
             nodeRepository.restoreNode(node.getId());
             nodeRepository.updateNode(node);

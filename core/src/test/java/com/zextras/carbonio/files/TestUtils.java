@@ -20,11 +20,7 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class TestUtils {
@@ -46,7 +42,13 @@ public class TestUtils {
         final Map<String, Object> data = (Map<String, Object>) result.get("data");
 
         if (data.get(operation) != null) {
-          return (Map<String, Object>) data.get(operation);
+          Object dataOperation = data.get(operation);
+          if(dataOperation instanceof ArrayList<?>) {
+            Map<String, Object> listResult = new HashMap<>();
+            listResult.put("listResult", dataOperation);
+            return listResult;
+          }
+          return (Map<String, Object>) dataOperation;
         }
       }
       return Collections.emptyMap();
