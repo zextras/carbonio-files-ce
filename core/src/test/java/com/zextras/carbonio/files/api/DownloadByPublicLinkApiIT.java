@@ -16,7 +16,6 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
-import io.ebeaninternal.server.expression.Op;
 import io.netty.handler.codec.http.HttpMethod;
 import java.util.Map;
 import java.util.Optional;
@@ -44,7 +43,7 @@ public class DownloadByPublicLinkApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
-            .withRabbitMq()
+            .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement(Map.of("fake-token", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
             .withStorages()

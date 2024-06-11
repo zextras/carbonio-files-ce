@@ -26,7 +26,7 @@ class HealthApiIT {
   void givenAnHealthServiceTheHealthLiveShouldReturn204StatusCode() {
     // Given
     SimulatorBuilder simulatorBUilder =
-        SimulatorBuilder.aSimulator().init().withDatabase().withRabbitMq().withServiceDiscover();
+        SimulatorBuilder.aSimulator().init().withDatabase().withMessageBroker().withServiceDiscover();
 
     try (Simulator simulator = simulatorBUilder.build().start()) {
       com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
@@ -51,7 +51,7 @@ class HealthApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
-            .withRabbitMq()
+            .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement(Collections.emptyMap())
             .withStorages()
@@ -142,7 +142,7 @@ class HealthApiIT {
           .isEqualTo("carbonio-message-broker");
       Assertions.assertThat(dependenciesHealth.get(5).isLive()).isTrue();
       Assertions.assertThat(dependenciesHealth.get(5).isReady()).isTrue();
-      Assertions.assertThat(dependenciesHealth.get(5).getType()).isEqualTo(DependencyType.OPTIONAL);
+      Assertions.assertThat(dependenciesHealth.get(5).getType()).isEqualTo(DependencyType.REQUIRED);
     }
   }
 
@@ -155,7 +155,7 @@ class HealthApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
-            .withRabbitMq()
+            .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement(Collections.emptyMap())
             .withStorages()
@@ -246,7 +246,7 @@ class HealthApiIT {
           .isEqualTo("carbonio-message-broker");
       Assertions.assertThat(dependenciesHealth.get(5).isLive()).isTrue();
       Assertions.assertThat(dependenciesHealth.get(5).isReady()).isTrue();
-      Assertions.assertThat(dependenciesHealth.get(5).getType()).isEqualTo(DependencyType.OPTIONAL);
+      Assertions.assertThat(dependenciesHealth.get(5).getType()).isEqualTo(DependencyType.REQUIRED);
     }
   }
 
@@ -257,7 +257,7 @@ class HealthApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
-            .withRabbitMq()
+            .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement(Collections.emptyMap())
             .withStorages();
@@ -301,7 +301,7 @@ class HealthApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
-            .withRabbitMq()
+            .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement(Collections.emptyMap())
             .withStorages();
@@ -345,7 +345,7 @@ class HealthApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
-            .withRabbitMq()
+            .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement(Collections.emptyMap())
             .withStorages();

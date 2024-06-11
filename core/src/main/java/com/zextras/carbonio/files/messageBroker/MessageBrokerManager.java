@@ -4,9 +4,12 @@
 
 package com.zextras.carbonio.files.messageBroker;
 
+import com.rabbitmq.client.Connection;
 import com.zextras.carbonio.files.messageBroker.entities.UserStatusChangedEvent;
 
 public interface MessageBrokerManager {
+  Connection getConnection();
+
   boolean healthCheck();
   void startAllConsumers();
   void pushUtil(UserStatusChangedEvent UserStatusChangedEvent);

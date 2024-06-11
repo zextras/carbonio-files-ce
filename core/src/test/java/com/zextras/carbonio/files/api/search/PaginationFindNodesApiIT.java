@@ -46,7 +46,7 @@ class PaginationFindNodesApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
-            .withRabbitMq()
+            .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement( // create a fake token to use in cookie for auth
                 Map.of(

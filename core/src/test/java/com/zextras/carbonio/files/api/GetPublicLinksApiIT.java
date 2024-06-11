@@ -12,10 +12,7 @@ import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
-import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -45,7 +42,7 @@ class GetPublicLinksApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
-            .withRabbitMq()
+            .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement(
                 Map.of(

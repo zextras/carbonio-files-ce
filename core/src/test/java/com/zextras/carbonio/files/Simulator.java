@@ -47,7 +47,7 @@ public class Simulator implements AutoCloseable {
   private static final Logger logger = LoggerFactory.getLogger(Simulator.class);
   private Injector injector;
   private PostgreSQLContainer<?> postgreSQLContainer;
-  private RabbitMQContainer rabbitMQContainer;
+  private RabbitMQContainer messageBrokerContainer;
   private EbeanDatabaseManager ebeanDatabaseManager;
   private ClientAndServer clientAndServer;
   private MockServerClient serviceDiscoverMock;
@@ -79,15 +79,15 @@ public class Simulator implements AutoCloseable {
     return this;
   }
 
-  private Simulator startRabbitMq() {
-    if (rabbitMQContainer == null) {
-      rabbitMQContainer = new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.7.25-management-alpine"));
+  private Simulator startMessageBroker() {
+    if (messageBrokerContainer == null) {
+      messageBrokerContainer = new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.7.25-management-alpine"));
     }
-    rabbitMQContainer.start();
+    messageBrokerContainer.start();
 
     // Set the System.properties for the dynamic rabbit url and port
-    System.setProperty(Files.Config.MessageBroker.URL, rabbitMQContainer.getHost());
-    System.setProperty(Files.Config.MessageBroker.PORT, String.valueOf(rabbitMQContainer.getFirstMappedPort()));
+    System.setProperty(Files.Config.MessageBroker.URL, messageBrokerContainer.getHost());
+    System.setProperty(Files.Config.MessageBroker.PORT, String.valueOf(messageBrokerContainer.getFirstMappedPort()));
 
     return this;
   }
@@ -126,9 +126,9 @@ public class Simulator implements AutoCloseable {
       dbPassword = Db.PASSWORD;
     }
 
-    if (rabbitMQContainer != null && rabbitMQContainer.isRunning()) {
-      adminUsername = rabbitMQContainer.getAdminUsername();
-      adminPassword = rabbitMQContainer.getAdminPassword();
+    if (messageBrokerContainer != null && messageBrokerContainer.isRunning()) {
+      adminUsername = messageBrokerContainer.getAdminUsername();
+      adminPassword = messageBrokerContainer.getAdminPassword();
     } else {
       logger.warn("The ServiceDiscover will be mocked without a rabbitMQ container");
 
@@ -309,8 +309,8 @@ public class Simulator implements AutoCloseable {
   }
 
   private void stopRabbitMq() {
-    if (rabbitMQContainer != null && rabbitMQContainer.isRunning()) {
-      rabbitMQContainer.stop();
+    if (messageBrokerContainer != null && messageBrokerContainer.isRunning()) {
+      messageBrokerContainer.stop();
     }
   }
 
@@ -404,6 +404,10 @@ public class Simulator implements AutoCloseable {
     return new EmbeddedChannel(injector.getInstance(HttpRoutingHandler.class));
   }
 
+  public RabbitMQContainer getMessageBrokerContainer() {
+    return messageBrokerContainer;
+  }
+
   public void resetDatabase() {
     ebeanDatabaseManager.getEbeanDatabase().find(Node.class).delete();
   }
@@ -442,8 +446,8 @@ public class Simulator implements AutoCloseable {
       return this;
     }
 
-    public SimulatorBuilder withRabbitMq() {
-      simulator.startRabbitMq();
+    public SimulatorBuilder withMessageBroker() {
+      simulator.startMessageBroker();
       return this;
     }
 

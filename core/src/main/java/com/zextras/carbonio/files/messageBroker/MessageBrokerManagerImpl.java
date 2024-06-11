@@ -34,11 +34,16 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
 
   @Inject
   public MessageBrokerManagerImpl(FilesConfig filesConfig, NodeRepository nodeRepository){
-    this.connection = getRabbitConnection(filesConfig);
+    this.connection = createMessageBrokerConnection(filesConfig);
     this.nodeRepository = nodeRepository;
   }
 
-  private Connection getRabbitConnection(FilesConfig filesConfig){
+  @Override
+  public Connection getConnection() {
+    return connection;
+  }
+
+  private Connection createMessageBrokerConnection(FilesConfig filesConfig){
     ConnectionFactory factory = new ConnectionFactory();
     factory.setHost(filesConfig.getMessageBrokerIp());
     factory.setPort(filesConfig.getMessageBrokerPort());
@@ -52,7 +57,7 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
     }
   }
 
-  private Channel openRabbitChannel() {
+  private Channel openMessageBrokerChannel() {
     try {
       Optional<Channel> channelOpt = connection.openChannel();
       if(channelOpt.isPresent()) return channelOpt.get();
@@ -86,7 +91,7 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
   @Override
   public void startAllConsumers() {
     // Open new rabbitMQ channel
-    Channel channel = openRabbitChannel();
+    Channel channel = openMessageBrokerChannel();
 
     // Try to start consumers
     createAndStartUserStatusChangedConsumer(channel);
@@ -96,7 +101,7 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
   @Override
   public void pushUtil(UserStatusChangedEvent userStatusChangedEvent) {
     // Open new rabbitMQ channel
-    Channel channel = openRabbitChannel();
+    Channel channel = openMessageBrokerChannel();
 
     try {
       // Create queue if it doesn't exist

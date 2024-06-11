@@ -38,7 +38,7 @@ class PreviewApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
-            .withRabbitMq()
+            .withMessageBroker()
             .withServiceDiscover()
             .withPreview()
             .withUserManagement( // create a fake token to use in cookie for auth
