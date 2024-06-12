@@ -12,7 +12,8 @@ import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.messageBroker.entities.UserStatusChangedEvent;
+import com.zextras.carbonio.files.messageBroker.interfaces.FilesConsumer;
+import com.zextras.carbonio.files.messageBroker.events.UserStatusChangedEvent;
 import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,13 +23,19 @@ import java.io.UnsupportedEncodingException;
 import java.util.List;
 import java.util.Optional;
 
-public class ChangedStatusUserConsumer extends DefaultConsumer {
+import static com.zextras.carbonio.files.Files.MessageBroker.USER_STATUS_CHANGED_QUEUE;
 
-  private static final Logger logger = LoggerFactory.getLogger(ChangedStatusUserConsumer.class);
+/**
+ * Consumer for the UserStatusChangedEvent, pushed on USER_STATUS_CHANGED_QUEUE queue.
+ * When started, handles receiving UserStatusChangedEvent events and set hidden flag in nodes if necessary.
+ */
+public class ChangedStatusUserFilesConsumer extends DefaultConsumer implements FilesConsumer {
+
+  private static final Logger logger = LoggerFactory.getLogger(ChangedStatusUserFilesConsumer.class);
 
   private NodeRepository nodeRepository;
 
-  public ChangedStatusUserConsumer(Channel channel, NodeRepository nodeRepository) {
+  public ChangedStatusUserFilesConsumer(Channel channel, NodeRepository nodeRepository) {
     super(channel);
     this.nodeRepository = nodeRepository;
   }
@@ -78,5 +85,13 @@ public class ChangedStatusUserConsumer extends DefaultConsumer {
    */
   private boolean shouldHideByStatus(UserStatus userStatus){
     return userStatus.equals(UserStatus.CLOSED);
+  }
+
+  /**
+   * Every consumer consumes from one queue, here that queue is returned to use in MessageBrokerManager
+   */
+  @Override
+  public String getNameOfQueue() {
+    return USER_STATUS_CHANGED_QUEUE;
   }
 }

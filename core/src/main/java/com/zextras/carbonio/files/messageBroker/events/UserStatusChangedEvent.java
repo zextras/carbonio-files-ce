@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.messageBroker.entities;
+package com.zextras.carbonio.files.messageBroker.events;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zextras.carbonio.usermanagement.enumerations.UserStatus;

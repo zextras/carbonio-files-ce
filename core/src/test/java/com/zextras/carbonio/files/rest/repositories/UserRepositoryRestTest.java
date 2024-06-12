@@ -29,7 +29,7 @@ class UserRepositoryRestTest {
 
   @BeforeEach
   void setup() {
-    userRepositoryRest = new UserRepositoryRest(new FilesConfig(), Mockito.mock(MessageBrokerManagerImpl.class), Mockito.mock(CacheHandler.class));
+    userRepositoryRest = new UserRepositoryRest(new FilesConfig(), Mockito.mock(CacheHandler.class));
   }
 
   @Test

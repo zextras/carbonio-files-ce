@@ -9,7 +9,7 @@ import com.google.inject.Injector;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
-import com.zextras.carbonio.files.messageBroker.MessageBrokerManager;
+import com.zextras.carbonio.files.messageBroker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.files.tasks.PurgeService;
 import ch.qos.logback.classic.Logger;
 import org.slf4j.LoggerFactory;
