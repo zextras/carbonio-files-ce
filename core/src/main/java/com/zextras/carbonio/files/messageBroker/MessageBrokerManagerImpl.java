@@ -82,8 +82,8 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
       // Create queue if it doesn't exist, if this queue exists already nothing happens
       filesConsumer.getChannel().queueDeclare(filesConsumer.getNameOfQueue(), true, false, false, null);
 
-      // Start consumer
-      filesConsumer.getChannel().basicConsume(filesConsumer.getNameOfQueue(), true, filesConsumer);
+      // Start consumer with autoAck to false since we want to send manually an ack only once the event has been handled
+      filesConsumer.getChannel().basicConsume(filesConsumer.getNameOfQueue(), false, filesConsumer);
     }catch (IOException e) {
       throw new RuntimeException("Can't consume from queue", e);
     }
