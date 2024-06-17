@@ -236,6 +236,11 @@ public class Node {
     return this;
   }
 
+  public Node setFullName(String fullName) {
+    mName = fullName;
+    return this;
+  }
+
   public Optional<String> getExtension() {
     if (!this.getNodeType().equals(FOLDER)
         && !this.getNodeType().equals(ROOT)
