@@ -8,6 +8,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.12.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.11.1...v0.12.0) (2024-06-17)
+
+
+### Features
+
+* add base structure for ITs and create findNodes ITs ([#99](https://github.com/Zextras/carbonio-files-ce/issues/99)) ([7bac001](https://github.com/Zextras/carbonio-files-ce/commit/7bac001f2590279162fea5e3d00de2e6d9348e12))
+* expose docs-connector liveness in health API ([#104](https://github.com/Zextras/carbonio-files-ce/issues/104)) ([f78baa8](https://github.com/Zextras/carbonio-files-ce/commit/f78baa86232f3d7116d6a38c70eacddf6ec111e2))
+* pass user's locale to preview when requesting a document preview ([#106](https://github.com/Zextras/carbonio-files-ce/issues/106)) ([1781915](https://github.com/Zextras/carbonio-files-ce/commit/17819154e4f195cfdf7b8c59480fd46dc4621374))
+* refactor keyset builder and pagequery, add pagination ITs and keyset UTs ([#103](https://github.com/Zextras/carbonio-files-ce/issues/103)) ([8727588](https://github.com/Zextras/carbonio-files-ce/commit/87275881cef1bb51555b0ed468b7b9914cf36b88))
+* update files to use new user management sdk with returned user type ([#107](https://github.com/Zextras/carbonio-files-ce/issues/107)) ([745c6ca](https://github.com/Zextras/carbonio-files-ce/commit/745c6ca4e9fe8119510b2f2f1f35c0bde990d799))
+* use new user management sdk with returned user status ([#105](https://github.com/Zextras/carbonio-files-ce/issues/105)) ([f5e835b](https://github.com/Zextras/carbonio-files-ce/commit/f5e835b1067a2022241148e4b8020996e75dedfa))
+
+
+### Bug Fixes
+
+* rename node if duplicate when restoring ([#108](https://github.com/Zextras/carbonio-files-ce/issues/108)) ([5b1f8a1](https://github.com/Zextras/carbonio-files-ce/commit/5b1f8a111ef5a7a53a912c0a288e54a1ba792a69))
+* sorting by size with files of size 0 is now coherent ([#101](https://github.com/Zextras/carbonio-files-ce/issues/101)) ([8386360](https://github.com/Zextras/carbonio-files-ce/commit/8386360a72b5ce1b33466e17399d79a85183ffc6))
+
 ### [0.11.1](https://github.com/Zextras/carbonio-files-ce/compare/v0.11.0...v0.11.1) (2024-04-12)
 
 
