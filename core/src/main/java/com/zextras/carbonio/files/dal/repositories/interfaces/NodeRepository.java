@@ -39,7 +39,7 @@ public interface NodeRepository {
    *
    * @param userId is a {@link String} representing the user for which we'll limit the visibility of
    * the nodes
-   * @param sort is an {@link Optional< NodeSort >} used for ordering the nodes
+   * @param sort is an {@link Optional<NodeSort>} used for ordering the nodes
    * @param flagged is an {@link Optional<Boolean>} to search only nodes with or without flag
    * @param folderId is an {@link Optional<String>} to search only nodes on the subtree of that
    * folder

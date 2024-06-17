@@ -888,16 +888,25 @@ public class NodeDataFetcher {
             }
 
             // check if node needs an alternative name
-            List<String> targetFolderChildrenFilesName = nodeRepository.getNodes(
-                  nodeRepository.getChildrenIds(
-                      node.getParentId().get(),
-                      Optional.empty(),
-                      Optional.empty(),
-                      false),
-                  Optional.empty()
-              )
-              .map(Node::getFullName)
-              .toList();
+            List<String> targetFolderChildrenFilesName = nodeRepository.findNodes(
+                requesterId,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.of(node.getParentId().get()),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Collections.emptyList(),
+                Optional.empty()
+            )
+            .getLeft()
+            .stream()
+            .map(Node::getFullName)
+            .toList();
 
             if(targetFolderChildrenFilesName.contains(node.getFullName())) {
               String newName = searchAlternativeName(

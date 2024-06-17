@@ -45,7 +45,7 @@ public class TestUtils {
           Object dataOperation = data.get(operation);
           if(dataOperation instanceof ArrayList<?>) {
             Map<String, Object> listResult = new HashMap<>();
-            listResult.put("listResult", dataOperation);
+            listResult.put("data", dataOperation);
             return listResult;
           }
           return (Map<String, Object>) dataOperation;

@@ -11,11 +11,8 @@ import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
-import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
-import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -31,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-class NodeApiIT {
+class RestoreNodesApiIT {
 
   static Simulator simulator;
   static NodeRepository nodeRepository;
@@ -108,7 +105,7 @@ class NodeApiIT {
     final Map<String, Object> page =
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "restoreNodes");
 
-    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("listResult");
+    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("data");
 
     Assertions.assertThat(nodes).hasSize(1);
     // folders always on top
@@ -151,7 +148,7 @@ class NodeApiIT {
     final Map<String, Object> page =
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "restoreNodes");
 
-    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("listResult");
+    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("data");
 
     Assertions.assertThat(nodes).hasSize(1);
     // folders always on top
