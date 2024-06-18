@@ -4,30 +4,24 @@
 
 package com.zextras.carbonio.files.messageBroker;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Injector;
-import com.rabbitmq.client.Channel;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.messageBroker.events.UserStatusChangedEvent;
 import com.zextras.carbonio.files.messageBroker.interfaces.MessageBrokerManager;
-import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
+import com.zextras.carbonio.message_broker.events.services.mailbox.UserStatusChanged;
+import com.zextras.carbonio.message_broker.events.services.mailbox.enums.UserStatus;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.TimeoutException;
-
-import static com.zextras.carbonio.files.Files.MessageBroker.USER_STATUS_CHANGED_QUEUE;
 
 class MessageBrokerIT {
 
@@ -65,29 +59,15 @@ class MessageBrokerIT {
   }
 
   @Test
-  void givenANotHiddenNodeAndAnUserStatusChangedEventClosedWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeTrue() throws IOException, InterruptedException {
+  void givenANotHiddenNodeAndAnUserStatusChangedEventClosedWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeTrue() throws InterruptedException {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(new SimplePopulatorTextFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
 
     // When
     messageBrokerManager.startAllConsumers();
-
-    Optional<Channel> channelOpt = messageBrokerManager.getConnection().openChannel();
-    channelOpt.ifPresentOrElse(channel -> {
-
-      try {
-        channel.queueDeclare(USER_STATUS_CHANGED_QUEUE, true, false, false, null);
-        UserStatusChangedEvent userStatusChangedEvent = new UserStatusChangedEvent("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", UserStatus.CLOSED);
-        String message = new ObjectMapper().writeValueAsString(userStatusChangedEvent);
-
-        channel.basicPublish("", USER_STATUS_CHANGED_QUEUE, null, message.getBytes("UTF-8"));
-        channel.close();
-      }catch (IOException | TimeoutException e) {
-        Assertions.fail("Can't push to queue", e);
-      }
-
-    }, () -> Assertions.fail("RabbitMQ returned empty channel"));
+    UserStatusChanged userStatusChangedEvent = new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", UserStatus.CLOSED);
+    messageBrokerManager.publishEvent(userStatusChangedEvent);
 
     // Unfortunately there's no simple way of knowing when an event has been consumed without changing the logic of
     // the consumer itself; this solution while ugly is quite clear and fast enough.
@@ -101,7 +81,7 @@ class MessageBrokerIT {
   }
 
   @Test
-  void givenAHiddenNodeAnUserStatusChangedEventActiveWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeFalse() throws IOException, InterruptedException {
+  void givenAHiddenNodeAnUserStatusChangedEventActiveWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeFalse() throws InterruptedException {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(new SimplePopulatorTextFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
@@ -109,22 +89,8 @@ class MessageBrokerIT {
 
     // When
     messageBrokerManager.startAllConsumers();
-
-    Optional<Channel> channelOpt = messageBrokerManager.getConnection().openChannel();
-    channelOpt.ifPresentOrElse(channel -> {
-
-      try {
-        channel.queueDeclare(USER_STATUS_CHANGED_QUEUE, true, false, false, null);
-        UserStatusChangedEvent userStatusChangedEvent = new UserStatusChangedEvent("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", UserStatus.ACTIVE);
-        String message = new ObjectMapper().writeValueAsString(userStatusChangedEvent);
-
-        channel.basicPublish("", USER_STATUS_CHANGED_QUEUE, null, message.getBytes("UTF-8"));
-        channel.close();
-      }catch (IOException | TimeoutException e) {
-        Assertions.fail("Can't push to queue", e);
-      }
-
-    }, () -> Assertions.fail("RabbitMQ returned empty channel"));
+    UserStatusChanged userStatusChangedEvent = new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", UserStatus.ACTIVE);
+    messageBrokerManager.publishEvent(userStatusChangedEvent);
 
     // Unfortunately there's no simple way of knowing when an event has been consumed without changing the logic of
     // the consumer itself; this solution while ugly is quite clear and fast enough.
@@ -138,29 +104,15 @@ class MessageBrokerIT {
   }
 
   @Test
-  void givenANotHiddenNodeAnUserStatusChangedEventMaintenanceWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeUnchanged() throws IOException, InterruptedException {
+  void givenANotHiddenNodeAnUserStatusChangedEventMaintenanceWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeUnchanged() throws InterruptedException {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(new SimplePopulatorTextFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
 
     // When
     messageBrokerManager.startAllConsumers();
-
-    Optional<Channel> channelOpt = messageBrokerManager.getConnection().openChannel();
-    channelOpt.ifPresentOrElse(channel -> {
-
-      try {
-        channel.queueDeclare(USER_STATUS_CHANGED_QUEUE, true, false, false, null);
-        UserStatusChangedEvent userStatusChangedEvent = new UserStatusChangedEvent("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", UserStatus.MAINTENANCE);
-        String message = new ObjectMapper().writeValueAsString(userStatusChangedEvent);
-
-        channel.basicPublish("", USER_STATUS_CHANGED_QUEUE, null, message.getBytes("UTF-8"));
-        channel.close();
-      }catch (IOException | TimeoutException e) {
-        Assertions.fail("Can't push to queue", e);
-      }
-
-    }, () -> Assertions.fail("RabbitMQ returned empty channel"));
+    UserStatusChanged userStatusChangedEvent = new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", UserStatus.MAINTENANCE);
+    messageBrokerManager.publishEvent(userStatusChangedEvent);
 
     // Unfortunately there's no simple way of knowing when an event has been consumed without changing the logic of
     // the consumer itself; this solution while ugly is quite clear and fast enough.

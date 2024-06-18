@@ -850,8 +850,6 @@ public final class Files {
   public static final class MessageBroker {
     private MessageBroker() {}
 
-    public static final String USER_STATUS_CHANGED_QUEUE        = "FILES_USER_STATUS_CHANGED_QUEUE";
-
     public static final class Config {
 
       private Config() {

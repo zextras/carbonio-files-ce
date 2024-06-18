@@ -87,6 +87,11 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <dependency>
+      <groupId>com.zextras.carbonio.message-broker</groupId>
+      <artifactId>carbonio-message-broker-sdk</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.zextras</groupId>
       <artifactId>storages-ce-sdk</artifactId>
     </dependency>
@@ -94,12 +99,6 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <artifactId>carbonio-preview-sdk</artifactId>
       <groupId>com.zextras.carbonio.preview</groupId>
-    </dependency>
-
-    <!-- Rabbit MQ -->
-    <dependency>
-      <groupId>com.rabbitmq</groupId>
-      <artifactId>amqp-client</artifactId>
     </dependency>
 
     <!-- Utilities: jackson, apache commons-lang and commons-validator -->
