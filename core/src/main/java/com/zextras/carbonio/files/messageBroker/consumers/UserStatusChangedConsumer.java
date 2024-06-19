@@ -5,14 +5,19 @@
 package com.zextras.carbonio.files.messageBroker.consumers;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.messageBroker.MessageBrokerManagerImpl;
 import com.zextras.carbonio.message_broker.consumer.BaseConsumer;
 import com.zextras.carbonio.message_broker.events.services.mailbox.UserStatusChanged;
 import com.zextras.carbonio.message_broker.events.services.mailbox.enums.UserStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Optional;
 
 public class UserStatusChangedConsumer extends BaseConsumer<UserStatusChanged> {
+
+  private static final Logger logger = LoggerFactory.getLogger(UserStatusChangedConsumer.class);
 
   private final NodeRepository nodeRepository;
 
@@ -27,7 +32,9 @@ public class UserStatusChangedConsumer extends BaseConsumer<UserStatusChanged> {
 
   @Override
   protected void doHandle(UserStatusChanged userStatusChanged) {
+    logger.info("Received UserStatusChanged({}, {})", userStatusChanged.getUserId(), userStatusChanged.getUserStatus());
     if(shouldChangeHiddenFlag(userStatusChanged)){
+      logger.info("Setting hidden flag for every node of given user");
       List<Node> nodesToProcess = nodeRepository.findNodesByOwner(userStatusChanged.getUserId());
       nodeRepository.invertHiddenFlagNodes(nodesToProcess);
     }
