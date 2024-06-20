@@ -5,8 +5,9 @@
 package com.zextras.carbonio.files.messageBroker.consumers;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.messageBroker.MessageBrokerManagerImpl;
+import com.zextras.carbonio.message_broker.config.EventConfig;
 import com.zextras.carbonio.message_broker.consumer.BaseConsumer;
+import com.zextras.carbonio.message_broker.events.generic.BaseMessageBrokerEvent;
 import com.zextras.carbonio.message_broker.events.services.mailbox.UserStatusChanged;
 import com.zextras.carbonio.message_broker.events.services.mailbox.enums.UserStatus;
 import org.slf4j.Logger;
@@ -15,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Optional;
 
-public class UserStatusChangedConsumer extends BaseConsumer<UserStatusChanged> {
+public class UserStatusChangedConsumer extends BaseConsumer {
 
   private static final Logger logger = LoggerFactory.getLogger(UserStatusChangedConsumer.class);
 
@@ -26,12 +27,13 @@ public class UserStatusChangedConsumer extends BaseConsumer<UserStatusChanged> {
   }
 
   @Override
-  public Class<UserStatusChanged> getEventClass() {
-    return UserStatusChanged.class;
+  protected EventConfig getEventConfig() {
+    return EventConfig.USER_CHANGED_STATUS;
   }
 
   @Override
-  protected void doHandle(UserStatusChanged userStatusChanged) {
+  protected void doHandle(BaseMessageBrokerEvent baseMessageBrokerEvent) {
+    UserStatusChanged userStatusChanged = (UserStatusChanged) baseMessageBrokerEvent;
     logger.info("Received UserStatusChanged({}, {})", userStatusChanged.getUserId(), userStatusChanged.getUserStatus());
     if(shouldChangeHiddenFlag(userStatusChanged)){
       logger.info("Setting hidden flag for every node of given user");

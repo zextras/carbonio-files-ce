@@ -11,7 +11,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.messageBroker.consumers.UserStatusChangedConsumer;
 import com.zextras.carbonio.files.messageBroker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
-import com.zextras.carbonio.message_broker.config.supportEnums.Service;
+import com.zextras.carbonio.message_broker.config.enums.Service;
 import com.zextras.carbonio.message_broker.events.generic.BaseMessageBrokerEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
