@@ -12,7 +12,7 @@ import com.zextras.carbonio.files.messageBroker.consumers.UserStatusChangedConsu
 import com.zextras.carbonio.files.messageBroker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
 import com.zextras.carbonio.message_broker.config.enums.Service;
-import com.zextras.carbonio.message_broker.events.generic.BaseMessageBrokerEvent;
+import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +49,7 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
   }
 
   @Override
-  public void publishEvent(BaseMessageBrokerEvent event) {
+  public void publishEvent(BaseEvent event) {
     messageBrokerClient.publish(event);
   }
 

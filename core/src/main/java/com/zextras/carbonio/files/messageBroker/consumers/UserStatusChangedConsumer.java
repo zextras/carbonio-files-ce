@@ -7,7 +7,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.message_broker.config.EventConfig;
 import com.zextras.carbonio.message_broker.consumer.BaseConsumer;
-import com.zextras.carbonio.message_broker.events.generic.BaseMessageBrokerEvent;
+import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
 import com.zextras.carbonio.message_broker.events.services.mailbox.UserStatusChanged;
 import com.zextras.carbonio.message_broker.events.services.mailbox.enums.UserStatus;
 import org.slf4j.Logger;
@@ -32,7 +32,7 @@ public class UserStatusChangedConsumer extends BaseConsumer {
   }
 
   @Override
-  protected void doHandle(BaseMessageBrokerEvent baseMessageBrokerEvent) {
+  protected void doHandle(BaseEvent baseMessageBrokerEvent) {
     UserStatusChanged userStatusChanged = (UserStatusChanged) baseMessageBrokerEvent;
     logger.info("Received UserStatusChanged({}, {})", userStatusChanged.getUserId(), userStatusChanged.getUserStatus());
     if(shouldChangeHiddenFlag(userStatusChanged)){
