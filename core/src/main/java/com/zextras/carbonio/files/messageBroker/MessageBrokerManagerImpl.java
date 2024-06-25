@@ -54,6 +54,11 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
   }
 
   @Override
+  public MessageBrokerClient getMessageBrokerClient() {
+    return messageBrokerClient;
+  }
+
+  @Override
   public boolean healthCheck() {
     return messageBrokerClient.healthCheck();
   }

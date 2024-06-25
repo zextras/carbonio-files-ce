@@ -12,6 +12,7 @@ import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.messageBroker.interfaces.MessageBrokerManager;
+import com.zextras.carbonio.message_broker.config.enums.Service;
 import com.zextras.carbonio.message_broker.events.services.mailbox.UserStatusChanged;
 import com.zextras.carbonio.message_broker.events.services.mailbox.enums.UserStatus;
 import org.assertj.core.api.Assertions;
@@ -67,7 +68,7 @@ class MessageBrokerIT {
     // When
     messageBrokerManager.startAllConsumers();
     UserStatusChanged userStatusChangedEvent = new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", UserStatus.CLOSED);
-    messageBrokerManager.publishEvent(userStatusChangedEvent);
+    messageBrokerManager.getMessageBrokerClient().withCurrentService(Service.MAILBOX).publish(userStatusChangedEvent);
 
     // Unfortunately there's no simple way of knowing when an event has been consumed without changing the logic of
     // the consumer itself; this solution while ugly is quite clear and fast enough.
@@ -90,7 +91,7 @@ class MessageBrokerIT {
     // When
     messageBrokerManager.startAllConsumers();
     UserStatusChanged userStatusChangedEvent = new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", UserStatus.ACTIVE);
-    messageBrokerManager.publishEvent(userStatusChangedEvent);
+    messageBrokerManager.getMessageBrokerClient().withCurrentService(Service.MAILBOX).publish(userStatusChangedEvent);
 
     // Unfortunately there's no simple way of knowing when an event has been consumed without changing the logic of
     // the consumer itself; this solution while ugly is quite clear and fast enough.
@@ -112,7 +113,7 @@ class MessageBrokerIT {
     // When
     messageBrokerManager.startAllConsumers();
     UserStatusChanged userStatusChangedEvent = new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", UserStatus.MAINTENANCE);
-    messageBrokerManager.publishEvent(userStatusChangedEvent);
+    messageBrokerManager.getMessageBrokerClient().withCurrentService(Service.MAILBOX).publish(userStatusChangedEvent);
 
     // Unfortunately there's no simple way of knowing when an event has been consumed without changing the logic of
     // the consumer itself; this solution while ugly is quite clear and fast enough.

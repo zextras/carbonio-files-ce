@@ -5,10 +5,12 @@
 package com.zextras.carbonio.files.messageBroker.interfaces;
 
 import com.rabbitmq.client.Connection;
+import com.zextras.carbonio.message_broker.MessageBrokerClient;
 import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
 
 public interface MessageBrokerManager {
   boolean healthCheck();
   void startAllConsumers();
   void publishEvent(BaseEvent event);
+  MessageBrokerClient getMessageBrokerClient();
 }
