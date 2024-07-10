@@ -115,4 +115,27 @@ public class FilesConfig {
   public String getDocsConnectorUrl() {
     return buildUrlFromProperties(DocsConnector.URL, DocsConnector.PORT, "20005");
   }
+
+  public String getMessageBrokerIp() {
+    return Optional.ofNullable(System.getProperty(Files.Config.MessageBroker.URL))
+            .orElse(properties.getProperty(Files.Config.MessageBroker.URL));
+  }
+
+  public Integer getMessageBrokerPort() {
+    String messageBrokerPort = Optional.ofNullable(System.getProperty(Files.Config.MessageBroker.PORT))
+        .orElse(properties.getProperty(Files.Config.MessageBroker.PORT));
+    return Integer.valueOf(messageBrokerPort);
+  }
+
+  public String getMessageBrokerPassword() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
+        .getConfig("password")
+        .getOrElse(Files.MessageBroker.Config.DEFAULT_PASSWORD);
+  }
+
+  public String getMessageBrokerUsername() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
+        .getConfig("username")
+        .getOrElse(Files.MessageBroker.Config.DEFAULT_USERNAME);
+  }
 }

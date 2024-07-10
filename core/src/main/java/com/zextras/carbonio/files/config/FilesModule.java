@@ -17,17 +17,15 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.NodeRepositoryEbea
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.ShareRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.TombstoneRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.UserRepositoryRest;
-import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.*;
 import com.zextras.carbonio.files.graphql.validators.GenericControllerEvaluatorFactory;
+import com.zextras.carbonio.files.messageBroker.MessageBrokerManagerImpl;
+import com.zextras.carbonio.files.messageBroker.interfaces.MessageBrokerManager;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.storages.api.StoragesClient;
+
 import java.time.Clock;
+
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 
@@ -50,6 +48,7 @@ public class FilesModule extends AbstractModule {
     bind(LinkRepository.class).to(LinkRepositoryEbean.class);
     bind(CollaborationLinkRepository.class).to(CollaborationLinkRepositoryEbean.class);
     bind(UserRepository.class).to(UserRepositoryRest.class);
+    bind(MessageBrokerManager.class).to(MessageBrokerManagerImpl.class);
 
     install(new FactoryModuleBuilder().build(CacheHandlerFactory.class));
 

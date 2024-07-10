@@ -17,7 +17,6 @@ import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.netty.HttpRoutingHandler;
-import com.zextras.carbonio.preview.PreviewClient;
 import com.zextras.carbonio.usermanagement.entities.UserId;
 import com.zextras.carbonio.usermanagement.entities.UserInfo;
 import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
@@ -27,7 +26,6 @@ import io.netty.handler.codec.http.HttpMethod;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Properties;
-import org.mockito.Mock;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.integration.ClientAndServer;
 import org.mockserver.model.Cookie;
@@ -40,6 +38,8 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.shaded.com.trilead.ssh2.crypto.Base64;
+import org.testcontainers.containers.RabbitMQContainer;
+import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
 public class Simulator implements AutoCloseable {
@@ -47,6 +47,7 @@ public class Simulator implements AutoCloseable {
   private static final Logger logger = LoggerFactory.getLogger(Simulator.class);
   private Injector injector;
   private PostgreSQLContainer<?> postgreSQLContainer;
+  private RabbitMQContainer messageBrokerContainer;
   private EbeanDatabaseManager ebeanDatabaseManager;
   private ClientAndServer clientAndServer;
   private MockServerClient serviceDiscoverMock;
@@ -78,6 +79,19 @@ public class Simulator implements AutoCloseable {
     return this;
   }
 
+  private Simulator startMessageBroker() {
+    if (messageBrokerContainer == null) {
+      messageBrokerContainer = new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.7.25-management-alpine"));
+    }
+    messageBrokerContainer.start();
+
+    // Set the System.properties for the dynamic rabbit url and port
+    System.setProperty(Files.Config.MessageBroker.URL, messageBrokerContainer.getHost());
+    System.setProperty(Files.Config.MessageBroker.PORT, String.valueOf(messageBrokerContainer.getFirstMappedPort()));
+
+    return this;
+  }
+
   private Simulator startEbeanDatabaseManager() {
     if (ebeanDatabaseManager == null) {
       ebeanDatabaseManager = injector.getInstance(EbeanDatabaseManager.class);
@@ -95,6 +109,9 @@ public class Simulator implements AutoCloseable {
     String dbUsername;
     String dbPassword;
 
+    String adminUsername;
+    String adminPassword;
+
     if (postgreSQLContainer != null && postgreSQLContainer.isRunning()) {
       dbName = postgreSQLContainer.getDatabaseName();
       dbUsername = postgreSQLContainer.getUsername();
@@ -109,9 +126,21 @@ public class Simulator implements AutoCloseable {
       dbPassword = Db.PASSWORD;
     }
 
+    if (messageBrokerContainer != null && messageBrokerContainer.isRunning()) {
+      adminUsername = messageBrokerContainer.getAdminUsername();
+      adminPassword = messageBrokerContainer.getAdminPassword();
+    } else {
+      logger.warn("The ServiceDiscover will be mocked without a rabbitMQ container");
+
+      adminUsername = Files.MessageBroker.Config.DEFAULT_USERNAME;
+      adminPassword = Files.MessageBroker.Config.DEFAULT_PASSWORD;
+    }
+
     final String encodedDbName = new String(Base64.encode(dbName.getBytes()));
     final String encodedDbUsername = new String(Base64.encode(dbUsername.getBytes()));
     final String encodedDbPassword = new String(Base64.encode(dbPassword.getBytes()));
+    final String encodedAdminUsername = new String(Base64.encode(adminUsername.getBytes()));
+    final String encodedAdminPassword = new String(Base64.encode(adminPassword.getBytes()));
     final String bodyPayloadFormat = "[{\"Key\":\"%s\",\"Value\":\"%s\"}]";
 
     serviceDiscoverMock
@@ -151,6 +180,32 @@ public class Simulator implements AutoCloseable {
                 .withBody(
                     String.format(
                         bodyPayloadFormat, "carbonio-files/db-password", encodedDbPassword)));
+
+    serviceDiscoverMock
+        .when(
+            HttpRequest.request()
+                .withMethod(HttpMethod.GET.toString())
+                .withPath("/v1/kv/carbonio-message-broker/password")
+                .withHeader("X-Consul-Token", ""))
+        .respond(
+            HttpResponse.response()
+                .withStatusCode(200)
+                .withBody(
+                    String.format(
+                        bodyPayloadFormat, "carbonio-message-broker/password", encodedAdminPassword)));
+
+    serviceDiscoverMock
+        .when(
+            HttpRequest.request()
+                .withMethod(HttpMethod.GET.toString())
+                .withPath("/v1/kv/carbonio-message-broker/username")
+                .withHeader("X-Consul-Token", ""))
+        .respond(
+            HttpResponse.response()
+                .withStatusCode(200)
+                .withBody(
+                    String.format(
+                        bodyPayloadFormat, "carbonio-message-broker/username", encodedAdminUsername)));
 
     return this;
   }
@@ -253,6 +308,12 @@ public class Simulator implements AutoCloseable {
     }
   }
 
+  private void stopRabbitMq() {
+    if (messageBrokerContainer != null && messageBrokerContainer.isRunning()) {
+      messageBrokerContainer.stop();
+    }
+  }
+
   private void stopEbeanDatabaseManager() {
     if (ebeanDatabaseManager != null) {
       ebeanDatabaseManager.stop();
@@ -307,6 +368,7 @@ public class Simulator implements AutoCloseable {
     stopServiceDiscover();
     stopDatabase();
     stopEbeanDatabaseManager();
+    stopRabbitMq();
   }
 
   @Override
@@ -340,6 +402,10 @@ public class Simulator implements AutoCloseable {
 
   public EmbeddedChannel getNettyChannel() {
     return new EmbeddedChannel(injector.getInstance(HttpRoutingHandler.class));
+  }
+
+  public RabbitMQContainer getMessageBrokerContainer() {
+    return messageBrokerContainer;
   }
 
   public void resetDatabase() {
@@ -377,6 +443,11 @@ public class Simulator implements AutoCloseable {
 
     public SimulatorBuilder withDatabase() {
       simulator.startDatabase();
+      return this;
+    }
+
+    public SimulatorBuilder withMessageBroker() {
+      simulator.startMessageBroker();
       return this;
     }
 

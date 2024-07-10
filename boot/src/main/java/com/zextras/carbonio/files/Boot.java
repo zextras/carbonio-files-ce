@@ -9,6 +9,7 @@ import com.google.inject.Injector;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.messageBroker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.files.tasks.PurgeService;
 import ch.qos.logback.classic.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +29,7 @@ public class Boot {
   private EbeanDatabaseManager ebeanDatabaseManager;
   private PurgeService purgeService;
   private NettyServer nettyServer;
+  private MessageBrokerManager messageBrokerManager;
 
   public static void main(String[] args) {
     new Boot().boot();
@@ -53,6 +55,9 @@ public class Boot {
 
       purgeService = injector.getInstance(PurgeService.class);
       purgeService.start();
+
+      messageBrokerManager = injector.getInstance(MessageBrokerManager.class);
+      messageBrokerManager.startAllConsumers();
 
       nettyServer = injector.getInstance(NettyServer.class);
       nettyServer.start();

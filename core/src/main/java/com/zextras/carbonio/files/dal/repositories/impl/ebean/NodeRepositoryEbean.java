@@ -20,6 +20,7 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.PageQuer
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SearchBuilder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import io.ebean.Query;
+import io.ebean.Transaction;
 import io.ebean.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -577,5 +578,25 @@ public class NodeRepositoryEbean implements NodeRepository {
     // with the same name the query would explode. So to be extra conservative we fetch all the
     // resulting node and then we return the first one
     return query.findList().stream().findFirst();
+  }
+
+  @Override
+  public List<Node> findNodesByOwner(String ownerId) {
+    return mDB.getEbeanDatabase().find(Node.class).where().eq(Db.Node.OWNER_ID, ownerId).findList();
+  }
+
+  @Override
+  public Optional<Node> findFirstByOwner(String ownerId) {
+    return mDB.getEbeanDatabase().find(Node.class).where().eq(Db.Node.OWNER_ID, ownerId).setMaxRows(1).findOneOrEmpty();
+  }
+
+  @Override
+  public void invertHiddenFlagNodes(List<Node> nodesToFlag) {
+    try (Transaction txn = mDB.getEbeanDatabase().beginTransaction()) {
+      for (Node node : nodesToFlag) {
+        mDB.getEbeanDatabase().update(node.setHidden(!node.isHidden()));
+      }
+      txn.commit();
+    }
   }
 }

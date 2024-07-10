@@ -40,6 +40,7 @@ class FindNodesApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
+            .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement( // create a fake token to use in cookie for auth
                 Map.of(

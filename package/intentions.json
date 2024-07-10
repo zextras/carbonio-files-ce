@@ -17,6 +17,10 @@
     {
       "Name": "carbonio-videoserver-recorder",
       "Action": "allow"
+    },
+    {
+      "name": "carbonio-message-broker",
+      "action": "allow"
     }
   ]
 }

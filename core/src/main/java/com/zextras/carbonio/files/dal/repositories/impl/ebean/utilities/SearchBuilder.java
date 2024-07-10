@@ -38,6 +38,7 @@ public class SearchBuilder {
             .not()
             .eq("mNodeCategory", 0)
             .endNot()
+            .eq("mHidden", false)
             .query();
   }
 
