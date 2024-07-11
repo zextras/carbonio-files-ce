@@ -120,7 +120,14 @@ pipeline {
                                 dir('/tmp/staging'){
                                     unstash 'binaries'
                                 }
-                                sh 'sudo yap build ubuntu /tmp/staging/'
+                                script {
+                                    if (BRANCH_NAME == 'develop') {
+                                        def timestamp = new Date().format('yyyyMMddHHmmss')
+                                        sh "sudo yap build ubuntu /tmp/staging/ -r ${timestamp} -s"
+                                    } else {
+                                        sh 'sudo yap build ubuntu /tmp/staging/ -s'
+                                    }
+                                }
                                 stash includes: 'artifacts/', name: 'artifacts-deb'
                             }
                             post {
@@ -139,7 +146,14 @@ pipeline {
                                 dir('/tmp/staging'){
                                     unstash 'binaries'
                                 }
-                                sh 'sudo yap build rocky /tmp/staging/'
+                                script {
+                                    if (BRANCH_NAME == 'develop') {
+                                        def timestamp = new Date().format('yyyyMMddHHmmss')
+                                        sh "sudo yap build rocky /tmp/staging/ -r ${timestamp} -s"
+                                    } else {
+                                        sh 'sudo yap build rocky /tmp/staging/ -s'
+                                    }
+                                }
                                 stash includes: 'artifacts/x86_64/*.rpm', name: 'artifacts-rpm'
                             }
                             post {
