@@ -30,8 +30,14 @@ source=(
   "policies.json"
   "service-protocol.json"
   "service-router.json"
+  "watches/carbonio-files.service"
+  "watches/carbonio-files-start-watches.sh"
+  "watches/carbonio-files-handle-kv-changes.sh"
 )
 sha256sums=(
+  "SKIP"
+  "SKIP"
+  "SKIP"
   "SKIP"
   "SKIP"
   "SKIP"
@@ -89,6 +95,15 @@ package() {
 
   install -Dm 644 service-router.json \
     "${pkgdir}/etc/carbonio/files/service-discover/service-router.json"
+
+  install -Dm 644 watches/carbonio-files-watches.service \
+    "${pkgdir}/lib/systemd/system/carbonio-files-watches.service"
+
+  install -Dm 755 watches/carbonio-files-start-watches.sh \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+
+  install -Dm 755 watches/carbonio-files-handle-kv-changes.sh \
+    "${pkgdir}/usr/bin/carbonio-files-handle-kv-changes.sh"
 }
 
 postinst() {
