@@ -16,6 +16,8 @@ depends=(
   "service-discover"
   "pending-setups"
   "carbonio-openjdk"
+  "python3"
+  "python3-pip"
 )
 source=(
   "carbonio-files"
@@ -32,7 +34,7 @@ source=(
   "service-router.json"
   "watches/carbonio-files.service"
   "watches/carbonio-files-start-watches.sh"
-  "watches/carbonio-files-handle-kv-changes.sh"
+  "watches/carbonio-files-handle-kv-changes.py"
 )
 sha256sums=(
   "SKIP"
@@ -59,6 +61,10 @@ backup=(
 
 package() {
   cd "${srcdir}"
+
+  pip3 install \
+      --prefix="${pkgdir}/opt/zextras/common" \
+      pika
 
   install -Dm 755 carbonio-files \
     "${pkgdir}/usr/bin/carbonio-files"
@@ -102,8 +108,8 @@ package() {
   install -Dm 755 watches/carbonio-files-start-watches.sh \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 
-  install -Dm 755 watches/carbonio-files-handle-kv-changes.sh \
-    "${pkgdir}/usr/bin/carbonio-files-handle-kv-changes.sh"
+  install -Dm 755 watches/carbonio-files-handle-kv-changes.py \
+    "${pkgdir}/usr/bin/carbonio-files-handle-kv-changes.py"
 }
 
 postinst() {
