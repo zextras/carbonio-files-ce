@@ -32,11 +32,11 @@ connection = pika.BlockingConnection(parameters)
 channel = connection.channel()
 
 exchange_name = 'KV_CHANGED_EXCHANGE'
-channel.exchange_declare(exchange=exchange_name, exchange_type='direct', durable=True)
+channel.exchange_declare(exchange=exchange_name, exchange_type='fanout', durable=True)
 
 print(f"Declared '{exchange_name}'")
 
-message = json.dumps({key: value})
+message = json.dumps({"key": key, "value": value})
 channel.basic_publish(
     exchange=exchange_name,
     routing_key='',

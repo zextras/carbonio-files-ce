@@ -35,7 +35,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <!-- Dependencies -->
     <assertj.version>3.24.2</assertj.version>
     <caffeine.version>3.1.6</caffeine.version>
-    <carbonio-message-broker-sdk.version>0.0.1-SNAPSHOT</carbonio-message-broker-sdk.version>
+    <carbonio-message-broker-sdk.version>0.0.2-SNAPSHOT</carbonio-message-broker-sdk.version>
     <carbonio-storages-common.version>0.0.15-SNAPSHOT</carbonio-storages-common.version>
     <carbonio-storages-ce.version>0.0.15-SNAPSHOT</carbonio-storages-ce.version>
     <carbonio-user-management-sdk.version>0.5.3</carbonio-user-management-sdk.version>

@@ -70,7 +70,7 @@ public interface FileVersionRepository {
    * @return the {@link List} containing all {@link FileVersion}s associated with the {@link Node}
    * if it is present, or the empty list if it is not present.
    */
-  List<FileVersion> getFileVersions(String nodeId);
+  List<FileVersion> getFileVersions(String nodeId, boolean asc);
 
   List<FileVersion> getFileVersions(
     String nodeId,

@@ -1451,7 +1451,7 @@ public class NodeDataFetcher {
           .equals(NodeType.FOLDER))
         .forEach(node ->
           tombstoneRepository.createTombstonesBulk(
-            fileVersionRepository.getFileVersions(node.getId()),
+            fileVersionRepository.getFileVersions(node.getId(), false),
             node.getOwnerId()
           )
         );
@@ -1888,7 +1888,7 @@ public class NodeDataFetcher {
           .orElseGet(() -> {
             List<Integer> versions = new ArrayList<>();
             fileVersionRepository
-              .getFileVersions(nodeId)
+              .getFileVersions(nodeId, false)
               .forEach(fileVersion -> versions.add(fileVersion.getVersion()));
             return versions;
           })
@@ -1926,7 +1926,7 @@ public class NodeDataFetcher {
 
         List<FileVersion> fileVersionsToDelete = optVersionsToDelete
           .map(versions -> fileVersionRepository.getFileVersions(nodeId, versions))
-          .orElseGet(() -> fileVersionRepository.getFileVersions(nodeId))
+          .orElseGet(() -> fileVersionRepository.getFileVersions(nodeId, false))
           .stream()
           .filter(fileVersion -> !fileVersion.isKeptForever())
           .collect(Collectors.toList());
@@ -1975,7 +1975,7 @@ public class NodeDataFetcher {
       if (permissionsChecker.getPermissions(nodeId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {
 
-        List<FileVersion> listOfFileVersions = fileVersionRepository.getFileVersions(nodeId);
+        List<FileVersion> listOfFileVersions = fileVersionRepository.getFileVersions(nodeId, false);
         int keepForeverCounter = 0;
         for (FileVersion version : listOfFileVersions) {
           keepForeverCounter = version.isKeptForever()
@@ -2055,7 +2055,7 @@ public class NodeDataFetcher {
         .has(SharePermission.READ_AND_WRITE)
       ) {
         Node node = nodeRepository.getNode(nodeId).get();
-        if (fileVersionRepository.getFileVersions(nodeId).size() >= maxNumberOfVersions) {
+        if (fileVersionRepository.getFileVersions(nodeId, false).size() >= maxNumberOfVersions) {
           logger.debug(MessageFormat.format(
             "Node: {0} has reached max number of versions ({1}), cannot add more versions",
             nodeId,

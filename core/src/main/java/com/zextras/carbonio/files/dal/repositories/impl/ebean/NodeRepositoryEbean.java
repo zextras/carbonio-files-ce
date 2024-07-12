@@ -599,4 +599,9 @@ public class NodeRepositoryEbean implements NodeRepository {
       txn.commit();
     }
   }
+
+  @Override
+  public List<Node> findAllNodesFiles() {
+    return mDB.getEbeanDatabase().find(Node.class).where().ne(Db.Node.TYPE, NodeType.FOLDER).and().ne(Db.Node.TYPE, NodeType.ROOT).findList();
+  }
 }

@@ -74,7 +74,7 @@ public class PurgeService implements Runnable {
     // Remove binaries associated with all the versions of trashed nodes
     trashedNodesToDelete.forEach(node -> {
       fileVersionRepository
-        .getFileVersions(node.getId())
+        .getFileVersions(node.getId(), false)
         .forEach(fileVersion -> {
           try {
             StoragesClient

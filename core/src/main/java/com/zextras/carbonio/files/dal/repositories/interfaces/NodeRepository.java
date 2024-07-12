@@ -312,4 +312,6 @@ public interface NodeRepository {
   Optional<Node> findFirstByOwner(String ownerId);
 
   void invertHiddenFlagNodes(List<Node> nodesToFlag);
+
+  List<Node> findAllNodesFiles();
 }
