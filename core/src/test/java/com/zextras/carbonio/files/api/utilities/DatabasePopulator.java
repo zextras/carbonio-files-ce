@@ -66,17 +66,21 @@ public class DatabasePopulator {
     return this;
   }
 
-  public DatabasePopulator addVersion(String nodeId) {
+  public DatabasePopulator addVersion(String nodeId){
+    return addVersion(nodeId, false);
+  }
+
+  public DatabasePopulator addVersion(String nodeId, boolean keepForever) {
     Optional<Node> optionalNode = nodeRepository.getNode(nodeId);
     if (optionalNode.isEmpty()) throw new IllegalArgumentException("Node does not exist");
 
-    List<FileVersion> versions = fileVersionRepository.getFileVersions(nodeId, false);
+    List<FileVersion> versions = fileVersionRepository.getFileVersions(nodeId, true);
     if (versions.isEmpty())
       throw new IllegalArgumentException("No initial version found for this node");
     FileVersion lastVersion = versions.get(versions.size() - 1);
 
     Node node = optionalNode.get();
-    fileVersionRepository.createNewFileVersion(
+    Optional<FileVersion> version = fileVersionRepository.createNewFileVersion(
         node.getId(),
         node.getOwnerId(),
         lastVersion.getVersion() + 1,
@@ -84,6 +88,8 @@ public class DatabasePopulator {
         node.getSize(),
         "",
         false);
+
+    if(keepForever) fileVersionRepository.updateFileVersion(version.get().keepForever(true));
 
     delay();
     return this;

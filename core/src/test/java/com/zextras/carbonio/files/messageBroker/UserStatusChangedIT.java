@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 import java.util.Optional;
 
-class MessageBrokerIT {
+class UserStatusChangedIT {
 
   static Simulator simulator;
   static NodeRepository nodeRepository;
