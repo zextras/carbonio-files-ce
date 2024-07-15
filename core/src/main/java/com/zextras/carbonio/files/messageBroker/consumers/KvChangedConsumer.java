@@ -86,5 +86,9 @@ public class KvChangedConsumer extends BaseConsumer {
         toDelete--;
       }
     }
+
+    if(toDelete > 0) logger.warn("Can't remove enough versions to match the new max version number as some are either " +
+        "marked as keepForever or deleting the current version is required to match the new max version number and we " +
+        "can't do that");
   }
 }
