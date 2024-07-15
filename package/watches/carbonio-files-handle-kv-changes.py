@@ -30,6 +30,7 @@ parameters = pika.ConnectionParameters('127.78.0.2', 20006, '/', credentials)
 
 connection = pika.BlockingConnection(parameters)
 channel = connection.channel()
+channel.confirm_delivery()
 
 exchange_name = 'KV_CHANGED_EXCHANGE'
 channel.exchange_declare(exchange=exchange_name, exchange_type='fanout', durable=True)
@@ -37,7 +38,7 @@ channel.exchange_declare(exchange=exchange_name, exchange_type='fanout', durable
 print(f"Declared '{exchange_name}'")
 
 message = json.dumps({"key": key, "value": value})
-channel.basic_publish(
+success = channel.basic_publish(
     exchange=exchange_name,
     routing_key='',
     body=message,
@@ -46,6 +47,9 @@ channel.basic_publish(
     )
 )
 
-print(f"Published message on '{exchange_name}'")
+if success:
+    print(f"Published message on '{exchange_name}'")
+else:
+    print(f"Failed to publish message on '{exchange_name}'")
 
 connection.close()

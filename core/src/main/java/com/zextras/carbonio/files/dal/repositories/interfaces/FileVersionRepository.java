@@ -67,6 +67,8 @@ public interface FileVersionRepository {
    * @param nodeId the {@link String} representing the identifier of the {@link Node} whose {@link
    * FileVersion}s we are interested in.
    *
+   * @param asc the {@link Boolean} representing if this method should return ascending ordered fileversions.
+   *
    * @return the {@link List} containing all {@link FileVersion}s associated with the {@link Node}
    * if it is present, or the empty list if it is not present.
    */
