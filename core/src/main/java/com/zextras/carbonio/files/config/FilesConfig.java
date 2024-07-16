@@ -129,13 +129,13 @@ public class FilesConfig {
 
   public String getMessageBrokerPassword() {
     return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
-        .getConfig("password")
+        .getConfig("default/password")
         .getOrElse(Files.MessageBroker.Config.DEFAULT_PASSWORD);
   }
 
   public String getMessageBrokerUsername() {
     return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
-        .getConfig("username")
+        .getConfig("default/username")
         .getOrElse(Files.MessageBroker.Config.DEFAULT_USERNAME);
   }
 }
