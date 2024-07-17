@@ -9,7 +9,6 @@ import com.google.inject.Singleton;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.messageBroker.consumers.KvChangedConsumer;
 import com.zextras.carbonio.files.messageBroker.consumers.UserStatusChangedConsumer;
 import com.zextras.carbonio.files.messageBroker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
@@ -54,7 +53,6 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
   @Override
   public void startAllConsumers() {
     messageBrokerClient.consume(new UserStatusChangedConsumer(nodeRepository));
-    messageBrokerClient.consume(new KvChangedConsumer(nodeRepository, fileVersionRepository));
   }
 
   @Override
