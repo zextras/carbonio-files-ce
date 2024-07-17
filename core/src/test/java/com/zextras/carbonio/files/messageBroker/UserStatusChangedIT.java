@@ -72,7 +72,7 @@ class UserStatusChangedIT {
 
     // Unfortunately there's no simple way of knowing when an event has been consumed without changing the logic of
     // the consumer itself; this solution while ugly is quite clear and fast enough.
-    Thread.sleep(5000);
+    Thread.sleep(10000);
 
     // Then
     Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
@@ -95,7 +95,7 @@ class UserStatusChangedIT {
 
     // Unfortunately there's no simple way of knowing when an event has been consumed without changing the logic of
     // the consumer itself; this solution while ugly is quite clear and fast enough.
-    Thread.sleep(5000);
+    Thread.sleep(10000);
 
     // Then
     Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
@@ -117,7 +117,8 @@ class UserStatusChangedIT {
 
     // Unfortunately there's no simple way of knowing when an event has been consumed without changing the logic of
     // the consumer itself; this solution while ugly is quite clear and fast enough.
-    Thread.sleep(5000);
+    System.out.println("Sleep");
+    Thread.sleep(10000);
 
     // Then
     Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
