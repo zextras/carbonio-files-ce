@@ -81,7 +81,7 @@ public class Simulator implements AutoCloseable {
 
   private Simulator startMessageBroker() {
     if (messageBrokerContainer == null) {
-      messageBrokerContainer = new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.7.25-management-alpine"));
+      messageBrokerContainer = new RabbitMQContainer("rabbitmq:3.7.25-management-alpine");
     }
     messageBrokerContainer.start();
 
