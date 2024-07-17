@@ -185,27 +185,27 @@ public class Simulator implements AutoCloseable {
         .when(
             HttpRequest.request()
                 .withMethod(HttpMethod.GET.toString())
-                .withPath("/v1/kv/carbonio-message-broker/password")
+                .withPath("/v1/kv/carbonio-message-broker/default/password")
                 .withHeader("X-Consul-Token", ""))
         .respond(
             HttpResponse.response()
                 .withStatusCode(200)
                 .withBody(
                     String.format(
-                        bodyPayloadFormat, "carbonio-message-broker/password", encodedAdminPassword)));
+                        bodyPayloadFormat, "carbonio-message-broker/default/password", encodedAdminPassword)));
 
     serviceDiscoverMock
         .when(
             HttpRequest.request()
                 .withMethod(HttpMethod.GET.toString())
-                .withPath("/v1/kv/carbonio-message-broker/username")
+                .withPath("/v1/kv/carbonio-message-broker/default/username")
                 .withHeader("X-Consul-Token", ""))
         .respond(
             HttpResponse.response()
                 .withStatusCode(200)
                 .withBody(
                     String.format(
-                        bodyPayloadFormat, "carbonio-message-broker/username", encodedAdminUsername)));
+                        bodyPayloadFormat, "carbonio-message-broker/default/username", encodedAdminUsername)));
 
     return this;
   }
