@@ -84,12 +84,29 @@ backup=(
   "etc/carbonio/files/config.properties"
 )
 
+build__ubuntu_jammy() {
+  pip3 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+}
+build__ubuntu_focal() {
+  pip3 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+}
+build__rocky_8() {
+  pip3.8 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+}
+build__rocky_9() {
+  pip3 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+}
+
 package() {
   cd "${srcdir}"
-
-  pip3 install \
-      --prefix="${pkgdir}/opt/zextras/common" \
-      pika
 
   install -Dm 755 carbonio-files \
     "${pkgdir}/usr/bin/carbonio-files"
