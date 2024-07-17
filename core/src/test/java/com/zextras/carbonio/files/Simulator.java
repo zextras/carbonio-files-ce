@@ -24,6 +24,7 @@ import com.zextras.carbonio.usermanagement.enumerations.UserType;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.HttpMethod;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
 import org.mockserver.client.MockServerClient;
@@ -36,10 +37,13 @@ import org.mockserver.model.Parameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.shaded.com.trilead.ssh2.crypto.Base64;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.utility.DockerImageName;
+
+import static java.time.temporal.ChronoUnit.SECONDS;
 
 @Testcontainers
 public class Simulator implements AutoCloseable {
@@ -82,6 +86,10 @@ public class Simulator implements AutoCloseable {
   private Simulator startMessageBroker() {
     if (messageBrokerContainer == null) {
       messageBrokerContainer = new RabbitMQContainer("rabbitmq:3.7.25-management-alpine");
+      messageBrokerContainer.setWaitStrategy(new LogMessageWaitStrategy()
+          .withRegEx(".*Server startup complete.*")
+          .withTimes(1)
+          .withStartupTimeout(Duration.of(180, SECONDS)));
     }
     messageBrokerContainer.start();
 
