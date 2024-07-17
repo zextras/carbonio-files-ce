@@ -17,9 +17,6 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 
 import java.util.*;
-import java.util.concurrent.TimeUnit;
-
-import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 public class DatabasePopulator {
   static NodeRepository nodeRepository;
@@ -126,6 +123,10 @@ public class DatabasePopulator {
   }
 
   private void delay() {
-    await().atLeast(1, TimeUnit.MILLISECONDS);
+    try {
+      Thread.sleep(500);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
