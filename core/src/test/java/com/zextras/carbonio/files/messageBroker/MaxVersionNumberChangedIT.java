@@ -24,6 +24,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,16 +38,16 @@ class MaxVersionNumberChangedIT {
 
   @BeforeAll
   static void init() {
+    Map<String, String> users = new HashMap<String, String>();
+    users.put("fake-token", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    users.put("fake-token2", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab");
     simulator =
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
             .withMessageBroker()
             .withServiceDiscover()
-            .withUserManagement(
-                Map.of(
-                    "fake-token",
-                    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+            .withUserManagement(users)
             .build()
             .start();
     final Injector injector = simulator.getInjector();
@@ -102,11 +103,11 @@ class MaxVersionNumberChangedIT {
   void givenANodeWithMultipleVersionWhenMaxNumberVersionChangesLeastRecentVersionsShouldBeDeletedExcludingKeepForeverAndCurrent() throws InterruptedException {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addNode(new SimplePopulatorTextFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
-        .addVersion("00000000-0000-0000-0000-000000000000", true)
-        .addVersion("00000000-0000-0000-0000-000000000000", true)
-        .addVersion("00000000-0000-0000-0000-000000000000")
-        .addVersion("00000000-0000-0000-0000-000000000000");
+        .addNode(new SimplePopulatorTextFile("00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab"))
+        .addVersion("00000000-0000-0000-0000-000000000001", true)
+        .addVersion("00000000-0000-0000-0000-000000000001", true)
+        .addVersion("00000000-0000-0000-0000-000000000001")
+        .addVersion("00000000-0000-0000-0000-000000000001");
 
     // When
     messageBrokerManager.startAllConsumers();
@@ -119,13 +120,13 @@ class MaxVersionNumberChangedIT {
     // the consumer itself; this solution while ugly is quite clear and fast enough.
     // Essentially, polling that retries every 5 seconds to a max of 24 attempts (2 min).
     boolean success = Utils.executeWithRetry(24, () -> {
-      List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000000", true);
+      List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000001", true);
       return fileVersionList.size() == 3;
     });
 
     Assertions.assertThat(success).isTrue();
 
-    List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000000", true);
+    List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000001", true);
     Assertions.assertThat(fileVersionList.get(0).getVersion()).isEqualTo(2);
     Assertions.assertThat(fileVersionList.get(1).getVersion()).isEqualTo(3);
     Assertions.assertThat(fileVersionList.get(2).getVersion()).isEqualTo(5);

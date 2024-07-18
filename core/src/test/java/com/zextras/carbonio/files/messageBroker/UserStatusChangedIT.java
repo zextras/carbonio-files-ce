@@ -16,6 +16,7 @@ import com.zextras.carbonio.message_broker.config.enums.Service;
 import com.zextras.carbonio.message_broker.events.services.mailbox.UserStatusChanged;
 import com.zextras.carbonio.message_broker.events.services.mailbox.enums.UserStatus;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -33,13 +34,17 @@ class UserStatusChangedIT {
 
   @BeforeAll
   static void init() {
+    Map<String, String> users = new HashMap<String, String>();
+    users.put("fake-token", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    users.put("fake-token2", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab");
+    users.put("fake-token3", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaac");
     simulator =
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
             .withMessageBroker()
             .withServiceDiscover()
-            .withUserManagement(Map.of("fake-token", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+            .withUserManagement(users)
             .build()
             .start();
     final Injector injector = simulator.getInjector();
@@ -97,14 +102,14 @@ class UserStatusChangedIT {
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
             new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+                "00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab"));
     nodeRepository.updateNode(
         nodeRepository.getNode("00000000-0000-0000-0000-000000000001").get().setHidden(true));
 
     // When
     messageBrokerManager.startAllConsumers();
     UserStatusChanged userStatusChangedEvent =
-        new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", UserStatus.ACTIVE);
+        new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab", UserStatus.ACTIVE);
     messageBrokerManager
         .getMessageBrokerClient()
         .withCurrentService(Service.MAILBOX)
@@ -130,12 +135,12 @@ class UserStatusChangedIT {
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
             new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+                "00000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaac"));
 
     // When
     messageBrokerManager.startAllConsumers();
     UserStatusChanged userStatusChangedEvent =
-        new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", UserStatus.MAINTENANCE);
+        new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaac", UserStatus.MAINTENANCE);
     messageBrokerManager
         .getMessageBrokerClient()
         .withCurrentService(Service.MAILBOX)
