@@ -15,8 +15,10 @@ import com.zextras.carbonio.files.messageBroker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.message_broker.config.enums.Service;
 import com.zextras.carbonio.message_broker.events.services.mailbox.UserStatusChanged;
 import com.zextras.carbonio.message_broker.events.services.mailbox.enums.UserStatus;
+
 import java.util.Map;
 import java.util.Optional;
+
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -57,8 +59,8 @@ class UserStatusChangedIT {
 
   @Test
   void
-      givenANotHiddenNodeAndAnUserStatusChangedEventClosedWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeTrue()
-          throws InterruptedException {
+  givenANotHiddenNodeAndAnUserStatusChangedEventClosedWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeTrue()
+      throws InterruptedException {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -74,24 +76,23 @@ class UserStatusChangedIT {
         .withCurrentService(Service.MAILBOX)
         .publish(userStatusChangedEvent);
 
+    // Then
     // Unfortunately there's no simple way of knowing when an event has been consumed without
     // changing the logic of
     // the consumer itself; this solution while ugly is quite clear and fast enough.
-    Thread.sleep(10000);
+    // Essentially, polling that retries every 5 seconds to a max of 24 attempts (2 min).
+    boolean success = Utils.executeWithRetry(24, () -> {
+      Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
+      return nodeOpt.isPresent() && nodeOpt.get().isHidden();
+    });
 
-    // Then
-    Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
-    nodeOpt.ifPresentOrElse(
-        node -> {
-          Assertions.assertThat(node.isHidden()).isTrue();
-        },
-        () -> Assertions.fail("Node not found"));
+    Assertions.assertThat(success).isTrue();
   }
 
   @Test
   void
-      givenAHiddenNodeAnUserStatusChangedEventActiveWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeFalse()
-          throws InterruptedException {
+  givenAHiddenNodeAnUserStatusChangedEventActiveWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeFalse()
+      throws InterruptedException {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -112,21 +113,19 @@ class UserStatusChangedIT {
     // Unfortunately there's no simple way of knowing when an event has been consumed without
     // changing the logic of
     // the consumer itself; this solution while ugly is quite clear and fast enough.
-    Thread.sleep(10000);
+    // Essentially, polling that retries every 5 seconds to a max of 24 attempts (2 min).
+    boolean success = Utils.executeWithRetry(24, () -> {
+      Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
+      return nodeOpt.isPresent() && !nodeOpt.get().isHidden();
+    });
 
-    // Then
-    Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
-    nodeOpt.ifPresentOrElse(
-        node -> {
-          Assertions.assertThat(node.isHidden()).isFalse();
-        },
-        () -> Assertions.fail("Node not found"));
+    Assertions.assertThat(success).isTrue();
   }
 
   @Test
   void
-      givenANotHiddenNodeAnUserStatusChangedEventMaintenanceWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeUnchanged()
-          throws InterruptedException {
+  givenANotHiddenNodeAnUserStatusChangedEventMaintenanceWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeUnchanged()
+      throws InterruptedException {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -145,15 +144,12 @@ class UserStatusChangedIT {
     // Unfortunately there's no simple way of knowing when an event has been consumed without
     // changing the logic of
     // the consumer itself; this solution while ugly is quite clear and fast enough.
-    System.out.println("Sleep");
-    Thread.sleep(10000);
+    // Essentially, polling that retries every 5 seconds to a max of 24 attempts (2 min).
+    boolean success = Utils.executeWithRetry(24, () -> {
+      Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
+      return nodeOpt.isPresent() && !nodeOpt.get().isHidden();
+    });
 
-    // Then
-    Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
-    nodeOpt.ifPresentOrElse(
-        node -> {
-          Assertions.assertThat(node.isHidden()).isFalse();
-        },
-        () -> Assertions.fail("Node not found"));
+    Assertions.assertThat(success).isTrue();
   }
 }

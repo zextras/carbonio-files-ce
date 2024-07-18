@@ -80,13 +80,19 @@ class MaxVersionNumberChangedIT {
     KvChanged kvChanged = new KvChanged("carbonio-files/max-number-of-versions", "3");
     messageBrokerManager.getMessageBrokerClient().withCurrentService(Service.SERVICE_DISCOVER).publish(kvChanged);
 
-    // Unfortunately there's no simple way of knowing when an event has been consumed without changing the logic of
-    // the consumer itself; this solution while ugly is quite clear and fast enough.
-    Thread.sleep(10000);
-
     // Then
+    // Unfortunately there's no simple way of knowing when an event has been consumed without
+    // changing the logic of
+    // the consumer itself; this solution while ugly is quite clear and fast enough.
+    // Essentially, polling that retries every 5 seconds to a max of 24 attempts (2 min).
+    boolean success = Utils.executeWithRetry(24, () -> {
+      List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000000", true);
+      return fileVersionList.size() == 3;
+    });
+
+    Assertions.assertThat(success).isTrue();
+
     List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000000", true);
-    Assertions.assertThat(fileVersionList.size()).isEqualTo(3);
     Assertions.assertThat(fileVersionList.get(0).getVersion()).isEqualTo(3);
     Assertions.assertThat(fileVersionList.get(1).getVersion()).isEqualTo(4);
     Assertions.assertThat(fileVersionList.get(2).getVersion()).isEqualTo(5);
@@ -107,15 +113,19 @@ class MaxVersionNumberChangedIT {
     KvChanged kvChanged = new KvChanged("carbonio-files/max-number-of-versions", "2");
     messageBrokerManager.getMessageBrokerClient().withCurrentService(Service.SERVICE_DISCOVER).publish(kvChanged);
 
-    // Unfortunately there's no simple way of knowing when an event has been consumed without changing the logic of
-    // the consumer itself; this solution while ugly is quite clear and fast enough.
-    Thread.sleep(10000);
-
     // Then
+    // Unfortunately there's no simple way of knowing when an event has been consumed without
+    // changing the logic of
+    // the consumer itself; this solution while ugly is quite clear and fast enough.
+    // Essentially, polling that retries every 5 seconds to a max of 24 attempts (2 min).
+    boolean success = Utils.executeWithRetry(24, () -> {
+      List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000000", true);
+      return fileVersionList.size() == 3;
+    });
+
+    Assertions.assertThat(success).isTrue();
+
     List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000000", true);
-    // Since keepForever versions and current one can't be deleted, here we can expect a number of versions greater than the
-    // max number of versions allowed, it's a (probably) rare corner case but ynk.
-    Assertions.assertThat(fileVersionList.size()).isEqualTo(3);
     Assertions.assertThat(fileVersionList.get(0).getVersion()).isEqualTo(2);
     Assertions.assertThat(fileVersionList.get(1).getVersion()).isEqualTo(3);
     Assertions.assertThat(fileVersionList.get(2).getVersion()).isEqualTo(5);
