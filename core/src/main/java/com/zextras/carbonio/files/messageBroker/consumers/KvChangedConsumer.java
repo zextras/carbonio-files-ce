@@ -35,7 +35,7 @@ public class KvChangedConsumer extends BaseConsumer {
   }
 
   @Override
-  protected void doHandle(BaseEvent baseMessageBrokerEvent) {
+  public void doHandle(BaseEvent baseMessageBrokerEvent) {
     KvChanged kvChanged = (KvChanged) baseMessageBrokerEvent;
     logger.info("Received KvChanged({}, {})", kvChanged.getKey(), kvChanged.getValue());
 

@@ -32,7 +32,7 @@ public class UserStatusChangedConsumer extends BaseConsumer {
   }
 
   @Override
-  protected void doHandle(BaseEvent baseMessageBrokerEvent) {
+  public void doHandle(BaseEvent baseMessageBrokerEvent) {
     UserStatusChanged userStatusChanged = (UserStatusChanged) baseMessageBrokerEvent;
     logger.info("Received UserStatusChanged({}, {})", userStatusChanged.getUserId(), userStatusChanged.getUserStatus());
     if(shouldChangeHiddenFlag(userStatusChanged)){
