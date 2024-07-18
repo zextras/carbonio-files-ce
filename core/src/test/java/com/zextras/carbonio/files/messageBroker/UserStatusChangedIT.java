@@ -97,9 +97,9 @@ class UserStatusChangedIT {
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
             new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+                "00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
     nodeRepository.updateNode(
-        nodeRepository.getNode("00000000-0000-0000-0000-000000000000").get().setHidden(true));
+        nodeRepository.getNode("00000000-0000-0000-0000-000000000001").get().setHidden(true));
 
     // When
     messageBrokerManager.startAllConsumers();
@@ -115,7 +115,7 @@ class UserStatusChangedIT {
     // the consumer itself; this solution while ugly is quite clear and fast enough.
     // Essentially, polling that retries every 5 seconds to a max of 24 attempts (2 min).
     boolean success = Utils.executeWithRetry(24, () -> {
-      Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
+      Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000001");
       return nodeOpt.isPresent() && !nodeOpt.get().isHidden();
     });
 
@@ -130,7 +130,7 @@ class UserStatusChangedIT {
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
             new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+                "00000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
 
     // When
     messageBrokerManager.startAllConsumers();
@@ -146,7 +146,7 @@ class UserStatusChangedIT {
     // the consumer itself; this solution while ugly is quite clear and fast enough.
     // Essentially, polling that retries every 5 seconds to a max of 24 attempts (2 min).
     boolean success = Utils.executeWithRetry(24, () -> {
-      Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
+      Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000002");
       return nodeOpt.isPresent() && !nodeOpt.get().isHidden();
     });
 
