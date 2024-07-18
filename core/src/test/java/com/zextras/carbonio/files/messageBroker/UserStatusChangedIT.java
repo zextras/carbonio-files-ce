@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Zextras <https://www.zextras.com>
+// SPDX-FileCopyrightText: 2024 Zextras <https://www.zextras.com>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -15,8 +15,11 @@ import com.zextras.carbonio.files.messageBroker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.message_broker.config.enums.Service;
 import com.zextras.carbonio.message_broker.events.services.mailbox.UserStatusChanged;
 import com.zextras.carbonio.message_broker.events.services.mailbox.enums.UserStatus;
+
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -31,13 +34,17 @@ class UserStatusChangedIT {
 
   @BeforeAll
   static void init() {
+    Map<String, String> users = new HashMap<String, String>();
+    users.put("fake-token", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    users.put("fake-token2", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab");
+    users.put("fake-token3", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaac");
     simulator =
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
             .withMessageBroker()
             .withServiceDiscover()
-            .withUserManagement(Map.of("fake-token", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+            .withUserManagement(users)
             .build()
             .start();
     final Injector injector = simulator.getInjector();
@@ -57,8 +64,8 @@ class UserStatusChangedIT {
 
   @Test
   void
-      givenANotHiddenNodeAndAnUserStatusChangedEventClosedWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeTrue()
-          throws InterruptedException {
+  givenANotHiddenNodeAndAnUserStatusChangedEventClosedWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeTrue()
+      throws InterruptedException {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -74,36 +81,35 @@ class UserStatusChangedIT {
         .withCurrentService(Service.MAILBOX)
         .publish(userStatusChangedEvent);
 
+    // Then
     // Unfortunately there's no simple way of knowing when an event has been consumed without
     // changing the logic of
     // the consumer itself; this solution while ugly is quite clear and fast enough.
-    Thread.sleep(10000);
+    // Essentially, polling that retries every 5 seconds to a max of 24 attempts (2 min).
+    boolean success = Utils.executeWithRetry(24, () -> {
+      Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
+      return nodeOpt.isPresent() && nodeOpt.get().isHidden();
+    });
 
-    // Then
-    Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
-    nodeOpt.ifPresentOrElse(
-        node -> {
-          Assertions.assertThat(node.isHidden()).isTrue();
-        },
-        () -> Assertions.fail("Node not found"));
+    Assertions.assertThat(success).isTrue();
   }
 
   @Test
   void
-      givenAHiddenNodeAnUserStatusChangedEventActiveWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeFalse()
-          throws InterruptedException {
+  givenAHiddenNodeAnUserStatusChangedEventActiveWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeFalse()
+      throws InterruptedException {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
             new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+                "00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab"));
     nodeRepository.updateNode(
-        nodeRepository.getNode("00000000-0000-0000-0000-000000000000").get().setHidden(true));
+        nodeRepository.getNode("00000000-0000-0000-0000-000000000001").get().setHidden(true));
 
     // When
     messageBrokerManager.startAllConsumers();
     UserStatusChanged userStatusChangedEvent =
-        new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", UserStatus.ACTIVE);
+        new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab", UserStatus.ACTIVE);
     messageBrokerManager
         .getMessageBrokerClient()
         .withCurrentService(Service.MAILBOX)
@@ -112,31 +118,29 @@ class UserStatusChangedIT {
     // Unfortunately there's no simple way of knowing when an event has been consumed without
     // changing the logic of
     // the consumer itself; this solution while ugly is quite clear and fast enough.
-    Thread.sleep(10000);
+    // Essentially, polling that retries every 5 seconds to a max of 24 attempts (2 min).
+    boolean success = Utils.executeWithRetry(24, () -> {
+      Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000001");
+      return nodeOpt.isPresent() && !nodeOpt.get().isHidden();
+    });
 
-    // Then
-    Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
-    nodeOpt.ifPresentOrElse(
-        node -> {
-          Assertions.assertThat(node.isHidden()).isFalse();
-        },
-        () -> Assertions.fail("Node not found"));
+    Assertions.assertThat(success).isTrue();
   }
 
   @Test
   void
-      givenANotHiddenNodeAnUserStatusChangedEventMaintenanceWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeUnchanged()
-          throws InterruptedException {
+  givenANotHiddenNodeAnUserStatusChangedEventMaintenanceWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeUnchanged()
+      throws InterruptedException {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
             new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+                "00000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaac"));
 
     // When
     messageBrokerManager.startAllConsumers();
     UserStatusChanged userStatusChangedEvent =
-        new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", UserStatus.MAINTENANCE);
+        new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaac", UserStatus.MAINTENANCE);
     messageBrokerManager
         .getMessageBrokerClient()
         .withCurrentService(Service.MAILBOX)
@@ -145,15 +149,12 @@ class UserStatusChangedIT {
     // Unfortunately there's no simple way of knowing when an event has been consumed without
     // changing the logic of
     // the consumer itself; this solution while ugly is quite clear and fast enough.
-    System.out.println("Sleep");
-    Thread.sleep(10000);
+    // Essentially, polling that retries every 5 seconds to a max of 24 attempts (2 min).
+    boolean success = Utils.executeWithRetry(24, () -> {
+      Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000002");
+      return nodeOpt.isPresent() && !nodeOpt.get().isHidden();
+    });
 
-    // Then
-    Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
-    nodeOpt.ifPresentOrElse(
-        node -> {
-          Assertions.assertThat(node.isHidden()).isFalse();
-        },
-        () -> Assertions.fail("Node not found"));
+    Assertions.assertThat(success).isTrue();
   }
 }
