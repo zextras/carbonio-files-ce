@@ -39,6 +39,7 @@ public class KvChangedConsumer extends BaseConsumer {
     KvChanged kvChanged = (KvChanged) baseMessageBrokerEvent;
     logger.info("Received KvChanged({}, {})", kvChanged.getKey(), kvChanged.getValue());
 
+    // switch for future use cases with KVs
     switch (kvChanged.getKey()) {
       case "carbonio-files/max-number-of-versions":
         handleMaxVersionNumerChanged(Integer.parseInt(kvChanged.getValue()));
