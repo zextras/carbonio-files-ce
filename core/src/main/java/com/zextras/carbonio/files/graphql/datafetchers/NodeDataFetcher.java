@@ -1310,8 +1310,10 @@ public class NodeDataFetcher {
                     .map(Node::getFullName)
                     .toList();
 
-                // since node was already moved, obviously it is already contained in this list;
-                // apply a new name only if it is contained more than one time
+                /*
+                 since node was already moved, obviously it is already contained in this list;
+                 apply a new name only if it is contained more than one time
+                */
                 if(Collections.frequency(targetFolderChildrenFilesName, node.getFullName()) > 1) {
                   String newName = searchAlternativeName(
                       node.getFullName(), destinationFolderId, node.getOwnerId()
