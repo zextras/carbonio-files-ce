@@ -1276,18 +1276,51 @@ public class NodeDataFetcher {
           if (!nodeIdsToMove.isEmpty()) {
             nodeRepository.moveNodes(nodeIdsToMove, optDestinationFolder.get());
 
-        /*
-          We must align ancestors of moved nodes
-          We must align shares of moved nodes and it can be done in two steps:
-          1. Remove every share of the node to move (and its child up to the leaves, if it is a folder)
-          2. Create all the shares of the destination folder (if it has at least one) for the node to move
-             (and for its child up to the leaves, if it is a folder)
-         */
+            /*
+              We must align ancestors of moved nodes
+              We must align shares of moved nodes and it can be done in two steps:
+              1. Remove every share of the node to move (and its child up to the leaves, if it is a folder)
+              2. Create all the shares of the destination folder (if it has at least one) for the node to move
+                 (and for its child up to the leaves, if it is a folder)
+             */
 
             nodeIdsToMove
               .forEach(nodeId -> {
-                cascadeUpdateAncestors(nodeRepository.getNode(nodeId)
-                  .get());
+
+                Node node = nodeRepository.getNode(nodeId).get();
+
+                // check if node needs an alternative name
+                List<String> targetFolderChildrenFilesName = nodeRepository.findNodes(
+                        requesterId,
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.of(destinationFolderId),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Collections.emptyList(),
+                        Optional.empty()
+                    )
+                    .getLeft()
+                    .stream()
+                    .map(Node::getFullName)
+                    .toList();
+
+                // since node was already moved, obviously it is already contained in this list;
+                // apply a new name only if it is contained more than one time
+                if(Collections.frequency(targetFolderChildrenFilesName, node.getFullName()) > 1) {
+                  String newName = searchAlternativeName(
+                      node.getFullName(), destinationFolderId, node.getOwnerId()
+                  );
+                  node.setFullName(newName);
+                  node = nodeRepository.updateNode(node);
+                }
+
+                cascadeUpdateAncestors(node);
                 // Remove inherited shares on source node
                 shareRepository
                   .getShares(nodeId, Collections.emptyList())
