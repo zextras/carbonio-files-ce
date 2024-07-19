@@ -7,7 +7,6 @@ package com.zextras.carbonio.files.message_broker;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.message_broker.consumers.UserStatusChangedConsumer;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
