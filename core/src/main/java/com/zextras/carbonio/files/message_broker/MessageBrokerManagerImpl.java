@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.messageBroker;
+package com.zextras.carbonio.files.message_broker;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.messageBroker.consumers.UserStatusChangedConsumer;
-import com.zextras.carbonio.files.messageBroker.interfaces.MessageBrokerManager;
+import com.zextras.carbonio.files.message_broker.consumers.UserStatusChangedConsumer;
+import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
 import com.zextras.carbonio.message_broker.config.enums.Service;
 import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
@@ -28,13 +28,11 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
 
   private final MessageBrokerClient messageBrokerClient;
   private final NodeRepository nodeRepository;
-  private final FileVersionRepository fileVersionRepository;
 
   @Inject
   public MessageBrokerManagerImpl(
       FilesConfig filesConfig,
-      NodeRepository nodeRepository,
-      FileVersionRepository fileVersionRepository)
+      NodeRepository nodeRepository)
   {
     this.messageBrokerClient =
         MessageBrokerClient.fromConfig(
@@ -44,7 +42,6 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
             filesConfig.getMessageBrokerPassword())
         .withCurrentService(Service.FILES);
     this.nodeRepository = nodeRepository;
-    this.fileVersionRepository = fileVersionRepository;
   }
 
   /**

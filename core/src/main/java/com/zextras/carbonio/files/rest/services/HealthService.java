@@ -9,7 +9,7 @@ import com.zextras.carbonio.files.clients.DocsConnectorHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
-import com.zextras.carbonio.files.messageBroker.interfaces.MessageBrokerManager;
+import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.files.rest.types.health.DependencyType;
 import com.zextras.carbonio.files.rest.types.health.ServiceHealth;
 import com.zextras.filestore.api.Filestore.Liveness;

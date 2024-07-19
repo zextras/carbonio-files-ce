@@ -107,7 +107,7 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
           .find(FileVersion.class)
           .where()
           .eq(Files.Db.FileVersion.NODE_ID, nodeId)
-          .order()
+          .orderBy()
           .asc(Db.FileVersion.VERSION)
           .findList();
     }else {
@@ -115,7 +115,7 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
           .find(FileVersion.class)
           .where()
           .eq(Files.Db.FileVersion.NODE_ID, nodeId)
-          .order()
+          .orderBy()
           .desc(Db.FileVersion.VERSION)
           .findList();
     }

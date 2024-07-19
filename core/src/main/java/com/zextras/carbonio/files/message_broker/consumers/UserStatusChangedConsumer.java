@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.messageBroker.consumers;
+package com.zextras.carbonio.files.message_broker.consumers;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.message_broker.config.EventConfig;
@@ -53,7 +53,7 @@ public class UserStatusChangedConsumer extends BaseConsumer {
   private boolean shouldChangeHiddenFlag(UserStatusChanged userStatusChanged){
     Optional<Node> firstNodeToCheckOpt = nodeRepository.findFirstByOwner(userStatusChanged.getUserId());
     return firstNodeToCheckOpt.isPresent() &&
-        !firstNodeToCheckOpt.get().isHidden().equals(shouldHideByStatus(userStatusChanged.getUserStatus()));
+        firstNodeToCheckOpt.get().isHidden() != shouldHideByStatus(userStatusChanged.getUserStatus());
   }
 
   /**
