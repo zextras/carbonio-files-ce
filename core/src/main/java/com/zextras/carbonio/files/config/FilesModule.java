@@ -19,8 +19,8 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.TombstoneRepositor
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.UserRepositoryRest;
 import com.zextras.carbonio.files.dal.repositories.interfaces.*;
 import com.zextras.carbonio.files.graphql.validators.GenericControllerEvaluatorFactory;
-import com.zextras.carbonio.files.messageBroker.MessageBrokerManagerImpl;
-import com.zextras.carbonio.files.messageBroker.interfaces.MessageBrokerManager;
+import com.zextras.carbonio.files.message_broker.MessageBrokerManagerImpl;
+import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.storages.api.StoragesClient;
 

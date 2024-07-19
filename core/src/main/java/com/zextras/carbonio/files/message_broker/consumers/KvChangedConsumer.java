@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.messageBroker.consumers;
+package com.zextras.carbonio.files.message_broker.consumers;
 
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -59,9 +59,11 @@ public class KvChangedConsumer extends BaseConsumer {
     logger.info("Handling new max version number");
     List<Node> allFiles = nodeRepository.findAllNodesFiles();
 
-    // I don't know how to make this more efficient (at least just a query once retrieved all files) without
-    // writing an unreadable mess of a query with subqueries that essentially do the same thing;
-    // since it's a rare operation I think it can stay like this for readability
+    /*
+     I don't know how to make this more efficient (at least just a query once retrieved all files) without
+     writing an unreadable mess of a query with subqueries that essentially do the same thing;
+     since it's a rare operation I think it can stay like this for readability
+    */
     for (Node node : allFiles) {
       logger.info("Checking node {}", node.getFullName());
       List<FileVersion> filesToCheck = fileVersionRepository.getFileVersions(node.getId(), true);

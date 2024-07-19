@@ -312,11 +312,11 @@ public class Node {
     };
   }
 
-  public Boolean isHidden() {
+  public boolean isHidden() {
     return mHidden;
   }
 
-  public Node setHidden(Boolean mHidden) {
+  public Node setHidden(boolean mHidden) {
     this.mHidden = mHidden;
     return this;
   }

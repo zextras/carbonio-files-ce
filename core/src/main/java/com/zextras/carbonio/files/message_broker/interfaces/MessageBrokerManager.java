@@ -2,9 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.messageBroker.interfaces;
+package com.zextras.carbonio.files.message_broker.interfaces;
 
-import com.rabbitmq.client.Connection;
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
 import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
 

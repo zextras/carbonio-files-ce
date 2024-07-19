@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.messageBroker;
+package com.zextras.carbonio.files.message_broker;
 
 import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
@@ -11,7 +11,7 @@ import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.messageBroker.consumers.UserStatusChangedConsumer;
+import com.zextras.carbonio.files.message_broker.consumers.UserStatusChangedConsumer;
 import com.zextras.carbonio.message_broker.events.services.mailbox.UserStatusChanged;
 import com.zextras.carbonio.message_broker.events.services.mailbox.enums.UserStatus;
 

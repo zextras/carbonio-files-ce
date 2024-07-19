@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.messageBroker;
+package com.zextras.carbonio.files.message_broker;
 
 import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
@@ -10,14 +10,10 @@ import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
-import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.messageBroker.consumers.KvChangedConsumer;
-import com.zextras.carbonio.files.messageBroker.interfaces.MessageBrokerManager;
-import com.zextras.carbonio.message_broker.config.enums.Service;
-import com.zextras.carbonio.message_broker.events.services.mailbox.UserStatusChanged;
-import com.zextras.carbonio.message_broker.events.services.mailbox.enums.UserStatus;
+import com.zextras.carbonio.files.message_broker.consumers.KvChangedConsumer;
+import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.message_broker.events.services.service_discover.KvChanged;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
@@ -28,7 +24,6 @@ import org.junit.jupiter.api.Test;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 class MaxVersionNumberChangedIT {
 
@@ -84,7 +79,7 @@ class MaxVersionNumberChangedIT {
 
     // Then
     List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000000", true);
-    Assertions.assertThat(fileVersionList.size() == 3).isTrue();
+    Assertions.assertThat(fileVersionList.size()).isEqualTo(3);
     Assertions.assertThat(fileVersionList.get(0).getVersion()).isEqualTo(3);
     Assertions.assertThat(fileVersionList.get(1).getVersion()).isEqualTo(4);
     Assertions.assertThat(fileVersionList.get(2).getVersion()).isEqualTo(5);
@@ -107,7 +102,7 @@ class MaxVersionNumberChangedIT {
 
     // Then
     List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000001", true);
-    Assertions.assertThat(fileVersionList.size() == 3).isTrue();
+    Assertions.assertThat(fileVersionList.size()).isEqualTo(3);
     Assertions.assertThat(fileVersionList.get(0).getVersion()).isEqualTo(2);
     Assertions.assertThat(fileVersionList.get(1).getVersion()).isEqualTo(3);
     Assertions.assertThat(fileVersionList.get(2).getVersion()).isEqualTo(5);
