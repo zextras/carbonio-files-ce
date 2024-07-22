@@ -93,7 +93,7 @@ pipeline {
                 // conflicts between multiple open PRs
                 stage('Snapshot to commit hash') {
                     when {
-                        branch 'develop'
+                        //branch 'develop'
                     }
                     steps {
                         sh'''
