@@ -87,12 +87,14 @@ pipeline {
         }
         stage('Build deb/rpm') {
             stages {
-                // Replace the pkgrel value from SNAPSHOT with the git commit hash to ensure that
+                // Replace the pkgrel value with the git commit hash to ensure that
                 // each merged PR has unique artifacts and to prevent conflicts between them.
-                // Note that the pkgrel value will remain as SNAPSHOT in the codebase to avoid
+                // Note that the pkgrel value will remain as it was in the codebase to avoid
                 // conflicts between multiple open PRs
                 stage('Snapshot to commit hash') {
-
+                    when {
+                        branch 'develop'
+                    }
                     steps {
                         sh'''
                             export TIMESTAMP=$(date +%s)
