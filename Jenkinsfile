@@ -91,7 +91,7 @@ pipeline {
                 // each merged PR has unique artifacts and to prevent conflicts between them.
                 // Note that the pkgrel value will remain as it was in the codebase to avoid
                 // conflicts between multiple open PRs
-                stage('Snapshot to commit hash') {
+                stage('Add timestamp and commit hash') {
                     when {
                         branch 'develop'
                     }
