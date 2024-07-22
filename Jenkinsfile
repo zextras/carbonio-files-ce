@@ -92,9 +92,7 @@ pipeline {
                 // Note that the pkgrel value will remain as SNAPSHOT in the codebase to avoid
                 // conflicts between multiple open PRs
                 stage('Snapshot to commit hash') {
-                    when {
-                        //branch 'develop'
-                    }
+
                     steps {
                         sh'''
                             export TIMESTAMP=$(date +%s)
