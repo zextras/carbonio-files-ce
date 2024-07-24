@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.message_broker.consumers.KvChangedConsumer;
@@ -63,7 +64,7 @@ class MaxVersionNumberChangedIT {
   }
 
   @Test
-  void givenANodeWithMultipleVersionWhenMaxNumberVersionChangesLeastRecentVersionsShouldBeDeleted() throws InterruptedException {
+  void givenANodeWithMultipleVersionWhenMaxNumberVersionChangesLeastRecentVersionsShouldBeDeleted() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(new SimplePopulatorTextFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
@@ -78,7 +79,7 @@ class MaxVersionNumberChangedIT {
     kvChangedConsumer.doHandle(kvChanged);
 
     // Then
-    List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000000", true);
+    List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000000", List.of(FileVersionSort.VERSION_ASC));
     Assertions.assertThat(fileVersionList.size()).isEqualTo(3);
     Assertions.assertThat(fileVersionList.get(0).getVersion()).isEqualTo(3);
     Assertions.assertThat(fileVersionList.get(1).getVersion()).isEqualTo(4);
@@ -86,7 +87,7 @@ class MaxVersionNumberChangedIT {
   }
 
   @Test
-  void givenANodeWithMultipleVersionWhenMaxNumberVersionChangesLeastRecentVersionsShouldBeDeletedExcludingKeepForeverAndCurrent() throws InterruptedException {
+  void givenANodeWithMultipleVersionWhenMaxNumberVersionChangesLeastRecentVersionsShouldBeDeletedExcludingKeepForeverAndCurrent() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(new SimplePopulatorTextFile("00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab"))
@@ -101,7 +102,7 @@ class MaxVersionNumberChangedIT {
     kvChangedConsumer.doHandle(kvChanged);
 
     // Then
-    List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000001", true);
+    List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000001", List.of(FileVersionSort.VERSION_ASC));
     Assertions.assertThat(fileVersionList.size()).isEqualTo(3);
     Assertions.assertThat(fileVersionList.get(0).getVersion()).isEqualTo(2);
     Assertions.assertThat(fileVersionList.get(1).getVersion()).isEqualTo(3);

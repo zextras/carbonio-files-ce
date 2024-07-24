@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.message_broker.consumers;
 
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.message_broker.config.EventConfig;
@@ -67,7 +68,7 @@ public class KvChangedConsumer extends BaseConsumer {
     */
     for (Node node : allFiles) {
       logger.info("Checking node {}", node.getFullName());
-      List<FileVersion> filesToCheck = fileVersionRepository.getFileVersions(node.getId(), true);
+      List<FileVersion> filesToCheck = fileVersionRepository.getFileVersions(node.getId(), List.of(FileVersionSort.VERSION_ASC));
 
       if (filesToCheck.size() > newMaxVersionNumber) {
         trimFileVersions(filesToCheck, newMaxVersionNumber);
