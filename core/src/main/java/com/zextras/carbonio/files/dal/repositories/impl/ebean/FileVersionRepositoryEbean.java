@@ -98,27 +98,16 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
   }
 
   @Override
-  public List<FileVersion> getFileVersions(String nodeId, boolean asc) {
-
-    List<FileVersion> fileVersions;
-
-    if(asc){
-      fileVersions = mDB.getEbeanDatabase()
-          .find(FileVersion.class)
-          .where()
-          .eq(Files.Db.FileVersion.NODE_ID, nodeId)
-          .orderBy()
-          .asc(Db.FileVersion.VERSION)
-          .findList();
-    }else {
-      fileVersions = mDB.getEbeanDatabase()
+  public List<FileVersion> getFileVersions(String nodeId) {
+    List<FileVersion> fileVersions =
+        mDB.getEbeanDatabase()
           .find(FileVersion.class)
           .where()
           .eq(Files.Db.FileVersion.NODE_ID, nodeId)
           .orderBy()
           .desc(Db.FileVersion.VERSION)
           .findList();
-    }
+
     fileVersions.forEach(fileVersion ->
       fileVersionCache.add(
         getFileVersionId(fileVersion.getNodeId(), fileVersion.getVersion()),
@@ -156,7 +145,7 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
   @Override
   public Optional<FileVersion> getLastFileVersion(String nodeId) {
 
-    return getFileVersions(nodeId, false)
+    return getFileVersions(nodeId)
       .stream()
       .sorted(Comparator.comparingInt(FileVersion::getVersion).reversed())
       .findFirst();

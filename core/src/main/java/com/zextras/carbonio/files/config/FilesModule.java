@@ -21,6 +21,8 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.*;
 import com.zextras.carbonio.files.graphql.validators.GenericControllerEvaluatorFactory;
 import com.zextras.carbonio.files.message_broker.MessageBrokerManagerImpl;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
+import com.zextras.carbonio.message_broker.MessageBrokerClient;
+import com.zextras.carbonio.message_broker.config.enums.Service;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.storages.api.StoragesClient;
 
@@ -64,5 +66,16 @@ public class FilesModule extends AbstractModule {
   @Provides
   public CloseableHttpClient getGenericHttpClientPool() {
     return HttpClientBuilder.create().setMaxConnPerRoute(10).setMaxConnTotal(30).build();
+  }
+
+  @Singleton
+  @Provides
+  public MessageBrokerClient getMessageBrokerClient() {
+    return MessageBrokerClient.fromConfig(
+            filesConfig.getMessageBrokerUrl(),
+            filesConfig.getMessageBrokerPort(),
+            filesConfig.getMessageBrokerUsername(),
+            filesConfig.getMessageBrokerPassword())
+        .withCurrentService(Service.FILES);
   }
 }

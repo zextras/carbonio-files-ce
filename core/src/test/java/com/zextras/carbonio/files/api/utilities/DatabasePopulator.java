@@ -71,7 +71,8 @@ public class DatabasePopulator {
     Optional<Node> optionalNode = nodeRepository.getNode(nodeId);
     if (optionalNode.isEmpty()) throw new IllegalArgumentException("Node does not exist");
 
-    List<FileVersion> versions = fileVersionRepository.getFileVersions(nodeId, true);
+    List<FileVersion> versions = fileVersionRepository.getFileVersions(nodeId);
+    Collections.reverse(versions);
     if (versions.isEmpty())
       throw new IllegalArgumentException("No initial version found for this node");
     FileVersion lastVersion = versions.get(versions.size() - 1);

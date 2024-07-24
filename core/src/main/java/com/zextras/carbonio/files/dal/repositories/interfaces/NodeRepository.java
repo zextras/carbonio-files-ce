@@ -307,11 +307,27 @@ public interface NodeRepository {
     String nodeOwner
   );
 
+  /**
+   * @param ownerId is the owner id from which to return nodes.
+   *
+   * <p>Returns a {@link List<Node>} representing all nodes owned by ownerId.</p>
+   */
   List<Node> findNodesByOwner(String ownerId);
 
+  /**
+   * @param ownerId is the owner id from which to return node.
+   *
+   * <p>Returns the first {@link Node} of all nodes owned by ownerIds.</p>
+   */
   Optional<Node> findFirstByOwner(String ownerId);
 
+  /**
+   * @param nodesToFlag is the list of the nodes to show/hide.
+   */
   void invertHiddenFlagNodes(List<Node> nodesToFlag);
 
+  /**
+   * <p>Returns a {@link List<Node>} with absolutely all the nodes ever saved.</p>
+   */
   List<Node> findAllNodesFiles();
 }

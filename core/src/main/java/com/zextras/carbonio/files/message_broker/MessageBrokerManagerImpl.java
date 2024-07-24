@@ -12,14 +12,14 @@ import com.zextras.carbonio.files.message_broker.consumers.UserStatusChangedCons
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
 import com.zextras.carbonio.message_broker.config.enums.Service;
+import com.zextras.carbonio.message_broker.consumer.BaseConsumer;
 import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * This class is basically a repository for MessageBroker (RabbitMQ).
- * This class has the responsibility of starting consumers of events that need to be listened to.
- */
+import java.util.ArrayList;
+import java.util.List;
+
 @Singleton
 public class MessageBrokerManagerImpl implements MessageBrokerManager {
 
@@ -27,19 +27,15 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
 
   private final MessageBrokerClient messageBrokerClient;
   private final NodeRepository nodeRepository;
+  private List<BaseConsumer> allConsumers;
 
   @Inject
   public MessageBrokerManagerImpl(
-      FilesConfig filesConfig,
+      MessageBrokerClient messageBrokerClient,
       NodeRepository nodeRepository)
   {
-    this.messageBrokerClient =
-        MessageBrokerClient.fromConfig(
-            filesConfig.getMessageBrokerIp(),
-            filesConfig.getMessageBrokerPort(),
-            filesConfig.getMessageBrokerUsername(),
-            filesConfig.getMessageBrokerPassword())
-        .withCurrentService(Service.FILES);
+    this.allConsumers = new ArrayList<>();
+    this.messageBrokerClient = messageBrokerClient;
     this.nodeRepository = nodeRepository;
   }
 
@@ -48,7 +44,10 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
    */
   @Override
   public void startAllConsumers() {
-    messageBrokerClient.consume(new UserStatusChangedConsumer(nodeRepository));
+    allConsumers.add(new UserStatusChangedConsumer(nodeRepository));
+    for(BaseConsumer consumer : allConsumers) {
+      messageBrokerClient.consume(consumer);
+    }
   }
 
   @Override
@@ -64,5 +63,12 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
   @Override
   public boolean healthCheck() {
     return messageBrokerClient.healthCheck();
+  }
+
+  @Override
+  public void close() throws Exception {
+    for(BaseConsumer consumer : allConsumers) {
+      consumer.close();
+    }
   }
 }
