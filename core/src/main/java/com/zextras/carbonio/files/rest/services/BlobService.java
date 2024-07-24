@@ -322,7 +322,7 @@ public class BlobService {
       .getPermissions(nodeId, requester.getId())
       .has(SharePermission.READ_AND_WRITE)
     ) {
-      List<FileVersion> allFileVersion = fileVersionRepository.getFileVersions(nodeId, false);
+      List<FileVersion> allFileVersion = fileVersionRepository.getFileVersions(nodeId);
       int maxNumberOfVersions = filesConfig.getMaxNumberOfFileVersion();
 
       // This check seems (at first) useless since there is a mechanism to remove the oldest version

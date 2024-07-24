@@ -53,14 +53,14 @@ public class UserStatusChangedConsumer extends BaseConsumer {
   private boolean shouldChangeHiddenFlag(UserStatusChanged userStatusChanged){
     Optional<Node> firstNodeToCheckOpt = nodeRepository.findFirstByOwner(userStatusChanged.getUserId());
     return firstNodeToCheckOpt.isPresent() &&
-        firstNodeToCheckOpt.get().isHidden() != shouldHideByStatus(userStatusChanged.getUserStatus());
+        firstNodeToCheckOpt.get().isHidden() != shouldNodesHideByUserStatus(userStatusChanged.getUserStatus());
   }
 
   /**
    * Small utility method that returns if nodes should be hidden or not given the status of a user.
    * Here we assume that nodes should be hidden only if user status is closed.
    */
-  private Boolean shouldHideByStatus(UserStatus userStatus) {
+  private Boolean shouldNodesHideByUserStatus(UserStatus userStatus) {
     return userStatus.equals(UserStatus.CLOSED);
   }
 }

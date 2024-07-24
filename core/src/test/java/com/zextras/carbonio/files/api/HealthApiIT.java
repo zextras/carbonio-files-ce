@@ -295,7 +295,7 @@ class HealthApiIT {
 
   @Test
   void
-      givenUserManagementUnreachableAndOtherMandatoryDependenciesReachableTheHealthReadyShouldReturn502StatusCode() {
+      givenUserManagementUnreachableAndOtherMandatoryDependenciesReachableTheHealthReadyShouldReturn500StatusCode() {
     // Given
     SimulatorBuilder simulatorBuilder =
         SimulatorBuilder.aSimulator()
@@ -383,7 +383,7 @@ class HealthApiIT {
 
   @Test
   void
-  givenMessageBrokerUnreachableAndOtherMandatoryDependenciesReachableTheHealthReadyShouldReturn502StatusCode() {
+  givenMessageBrokerUnreachableAndOtherMandatoryDependenciesReachableTheHealthReadyShouldReturn500StatusCode() {
     // Given
     SimulatorBuilder simulatorBuilder =
         SimulatorBuilder.aSimulator()

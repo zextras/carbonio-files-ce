@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.assertj.core.api.Assertions;
+import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -33,6 +34,8 @@ class UserStatusChangedIT {
 
   static Simulator simulator;
   static NodeRepository nodeRepository;
+  static Condition<Node> isNodeHidden;
+
 
   @BeforeAll
   static void init() {
@@ -51,6 +54,7 @@ class UserStatusChangedIT {
             .start();
     final Injector injector = simulator.getInjector();
     nodeRepository = injector.getInstance(NodeRepository.class);
+    isNodeHidden = new Condition<Node>(Node::isHidden, "node is hidden");
   }
 
   @AfterEach
@@ -78,7 +82,8 @@ class UserStatusChangedIT {
 
     // Then
     Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
-    Assertions.assertThat(nodeOpt.isPresent() && nodeOpt.get().isHidden()).isTrue();
+    Assertions.assertThat(nodeOpt).isPresent();
+    Assertions.assertThat(nodeOpt.get()).is(isNodeHidden);
   }
 
   @Test
@@ -98,7 +103,8 @@ class UserStatusChangedIT {
 
     // Then
     Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000001");
-    Assertions.assertThat(nodeOpt.isPresent() && !nodeOpt.get().isHidden()).isTrue();
+    Assertions.assertThat(nodeOpt).isPresent();
+    Assertions.assertThat(nodeOpt.get()).isNot(isNodeHidden);
   }
 
   @Test
@@ -116,6 +122,7 @@ class UserStatusChangedIT {
 
     // Then
     Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000002");
-    Assertions.assertThat(nodeOpt.isPresent() && !nodeOpt.get().isHidden()).isTrue();
+    Assertions.assertThat(nodeOpt).isPresent();
+    Assertions.assertThat(nodeOpt.get()).isNot(isNodeHidden);
   }
 }
