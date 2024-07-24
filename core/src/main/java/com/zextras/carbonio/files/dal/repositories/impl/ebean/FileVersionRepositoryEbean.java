@@ -201,7 +201,7 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
         .having()
         .gt("node.mCurrentVersion", maxNumberOfVersions)
         .orderBy()
-        .desc(Db.FileVersion.VERSION)
+        .asc(Db.FileVersion.VERSION)
         .setMapKey(Db.FileVersion.NODE_ID)
         .findList()
         .stream()

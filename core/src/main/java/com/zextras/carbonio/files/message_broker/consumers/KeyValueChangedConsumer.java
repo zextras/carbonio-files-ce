@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.message_broker.consumers;
 
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.message_broker.config.EventConfig;
 import com.zextras.carbonio.message_broker.consumer.BaseConsumer;
 import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
