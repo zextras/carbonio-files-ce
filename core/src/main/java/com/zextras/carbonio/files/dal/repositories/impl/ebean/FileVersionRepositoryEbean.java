@@ -17,69 +17,67 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionReposit
 import io.ebean.Database;
 import io.ebean.Query;
 
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class FileVersionRepositoryEbean implements FileVersionRepository {
 
   private EbeanDatabaseManager mDB;
-  private Cache<FileVersion>   fileVersionCache;
+  private Cache<FileVersion> fileVersionCache;
 
   @Inject
   public FileVersionRepositoryEbean(
-    EbeanDatabaseManager ebeanDatabaseManager,
-    CacheHandler cacheHandler
+      EbeanDatabaseManager ebeanDatabaseManager,
+      CacheHandler cacheHandler
   ) {
     mDB = ebeanDatabaseManager;
     fileVersionCache = cacheHandler.getFileVersionCache();
   }
 
   private String getFileVersionId(
-    String nodeId,
-    int version
+      String nodeId,
+      int version
   ) {
     return nodeId + "/" + version;
   }
 
   private Optional<FileVersion> getRealFileVersion(
-    String nodeId,
-    int version
+      String nodeId,
+      int version
   ) {
     return mDB.getEbeanDatabase()
-      .find(FileVersion.class)
-      .where()
-      .eq(Files.Db.FileVersion.NODE_ID, nodeId)
-      .eq(Files.Db.FileVersion.VERSION, version)
-      .findOneOrEmpty();
+        .find(FileVersion.class)
+        .where()
+        .eq(Files.Db.FileVersion.NODE_ID, nodeId)
+        .eq(Files.Db.FileVersion.VERSION, version)
+        .findOneOrEmpty();
   }
 
   @Override
   public Optional<FileVersion> getFileVersion(
-    String nodeId,
-    int version
+      String nodeId,
+      int version
   ) {
     String fileVersionId = getFileVersionId(nodeId, version);
     return Optional.ofNullable(fileVersionCache
-      .get(fileVersionId)
-      .orElseGet(() -> {
-        Optional<FileVersion> dbFileVersion = getRealFileVersion(nodeId, version);
-        dbFileVersion.ifPresent(fileVersion -> fileVersionCache.add(fileVersionId, fileVersion));
-        return dbFileVersion.orElse(null);
-      })
+        .get(fileVersionId)
+        .orElseGet(() -> {
+          Optional<FileVersion> dbFileVersion = getRealFileVersion(nodeId, version);
+          dbFileVersion.ifPresent(fileVersion -> fileVersionCache.add(fileVersionId, fileVersion));
+          return dbFileVersion.orElse(null);
+        })
     );
   }
 
   @Override
   public Optional<FileVersion> createNewFileVersion(
-    String nodeId,
-    String lastEditorId,
-    int version,
-    String mimeType,
-    long size,
-    String digest,
-    boolean autosave
+      String nodeId,
+      String lastEditorId,
+      int version,
+      String mimeType,
+      long size,
+      String digest,
+      boolean autosave
   ) {
     Database db = mDB.getEbeanDatabase();
     if (!db.find(Node.class).where().idEq(nodeId).exists()) {
@@ -87,14 +85,14 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
     }
 
     FileVersion fileVersion = new FileVersion(
-      nodeId,
-      lastEditorId,
-      System.currentTimeMillis(),
-      version,
-      mimeType,
-      size,
-      digest,
-      autosave
+        nodeId,
+        lastEditorId,
+        System.currentTimeMillis(),
+        version,
+        mimeType,
+        size,
+        digest,
+        autosave
     );
     mDB.getEbeanDatabase().save(fileVersion);
     return getFileVersion(nodeId, version);
@@ -104,19 +102,19 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
   public List<FileVersion> getFileVersions(String nodeId, List<FileVersionSort> sorts) {
     Query<FileVersion> query =
         mDB.getEbeanDatabase()
-          .find(FileVersion.class)
-          .where()
-          .eq(Files.Db.FileVersion.NODE_ID, nodeId)
-          .query();
+            .find(FileVersion.class)
+            .where()
+            .eq(Files.Db.FileVersion.NODE_ID, nodeId)
+            .query();
 
     sorts.forEach(sort -> sort.getOrderEbeanQuery(query));
 
     List<FileVersion> fileVersions = query.findList();
     fileVersions.forEach(fileVersion ->
-      fileVersionCache.add(
-        getFileVersionId(fileVersion.getNodeId(), fileVersion.getVersion()),
-        fileVersion
-      )
+        fileVersionCache.add(
+            getFileVersionId(fileVersion.getNodeId(), fileVersion.getVersion()),
+            fileVersion
+        )
     );
 
     return fileVersions;
@@ -124,23 +122,23 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
 
   @Override
   public List<FileVersion> getFileVersions(
-    String nodeId,
-    Collection<Integer> versions
+      String nodeId,
+      Collection<Integer> versions
   ) {
 
     List<FileVersion> fileVersions = mDB.getEbeanDatabase()
-      .find(FileVersion.class)
-      .where()
-      .eq(Files.Db.FileVersion.NODE_ID, nodeId)
-      .and()
-      .in(Files.Db.FileVersion.VERSION, versions)
-      .findList();
+        .find(FileVersion.class)
+        .where()
+        .eq(Files.Db.FileVersion.NODE_ID, nodeId)
+        .and()
+        .in(Files.Db.FileVersion.VERSION, versions)
+        .findList();
 
     fileVersions.forEach(fileVersion ->
-      fileVersionCache.add(
-        getFileVersionId(fileVersion.getNodeId(), fileVersion.getVersion()),
-        fileVersion
-      )
+        fileVersionCache.add(
+            getFileVersionId(fileVersion.getNodeId(), fileVersion.getVersion()),
+            fileVersion
+        )
     );
 
     return fileVersions;
@@ -150,9 +148,9 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
   public Optional<FileVersion> getLastFileVersion(String nodeId) {
 
     return getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC))
-      .stream()
-      .sorted(Comparator.comparingInt(FileVersion::getVersion).reversed())
-      .findFirst();
+        .stream()
+        .sorted(Comparator.comparingInt(FileVersion::getVersion).reversed())
+        .findFirst();
   }
 
   @Override
@@ -170,17 +168,43 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
   }
 
   public void deleteFileVersions(
-    String nodeId,
-    Collection<Integer> versions
+      String nodeId,
+      Collection<Integer> versions
   ) {
     mDB.getEbeanDatabase()
-      .find(FileVersion.class)
-      .where()
-      .eq(Db.FileVersion.NODE_ID, nodeId)
-      .and()
-      .in(Db.FileVersion.VERSION, versions)
-      .delete();
+        .find(FileVersion.class)
+        .where()
+        .eq(Db.FileVersion.NODE_ID, nodeId)
+        .and()
+        .in(Db.FileVersion.VERSION, versions)
+        .delete();
 
     versions.forEach(version -> fileVersionCache.delete(getFileVersionId(nodeId, version)));
+  }
+
+  /**
+   * Retrieves all @link FileVersion}s belonging to a {@link Node} representing a file having a
+   * number of version greater than a specific value.
+   *
+   * @param maxNumberOfVersions is a <code>int</code> representing the max number of version a
+   * {@link Node} should have
+   *
+   * @return a {@link Map} where the key is the node identifier and the value contains a
+   * {@link List} of {@link FileVersion}s linked to that node ordered by version descending.
+   */
+  @Override
+  public Map<String, List<FileVersion>> getFileVersionsRelatedToNodesHavingVersionsGreaterThan(
+      int maxNumberOfVersions) {
+    return mDB.getEbeanDatabase()
+        .find(FileVersion.class)
+        .fetch("node")
+        .having()
+        .gt("node.mCurrentVersion", maxNumberOfVersions)
+        .orderBy()
+        .desc(Db.FileVersion.VERSION)
+        .setMapKey(Db.FileVersion.NODE_ID)
+        .findList()
+        .stream()
+        .collect(Collectors.groupingBy(FileVersion::getNodeId));
   }
 }

@@ -88,7 +88,12 @@ public class DatabasePopulator {
         "",
         false);
 
-    if(keepForever) fileVersionRepository.updateFileVersion(version.get().keepForever(true));
+    if(keepForever) {
+      fileVersionRepository.updateFileVersion(version.get().keepForever(true));
+    }
+
+    node.setCurrentVersion(lastVersion.getVersion() + 1);
+    nodeRepository.updateNode(node);
 
     delay();
     return this;

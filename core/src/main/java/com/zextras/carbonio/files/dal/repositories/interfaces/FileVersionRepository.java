@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVers
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -113,4 +114,7 @@ public interface FileVersionRepository {
     String nodeId,
     Collection<Integer> versions
   );
+
+  Map<String, List<FileVersion>> getFileVersionsRelatedToNodesHavingVersionsGreaterThan(
+      int maxNumberOfVersions);
 }

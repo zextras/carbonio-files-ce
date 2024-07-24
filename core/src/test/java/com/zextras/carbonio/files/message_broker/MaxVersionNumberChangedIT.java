@@ -12,10 +12,9 @@ import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.message_broker.consumers.KvChangedConsumer;
+import com.zextras.carbonio.files.message_broker.consumers.KeyValueChangedConsumer;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
-import com.zextras.carbonio.message_broker.events.services.service_discover.KvChanged;
+import com.zextras.carbonio.message_broker.events.services.service_discover.KeyValueChanged;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -29,7 +28,6 @@ import java.util.Map;
 class MaxVersionNumberChangedIT {
 
   static Simulator simulator;
-  static NodeRepository nodeRepository;
   static FileVersionRepository fileVersionRepository;
   static MessageBrokerManager messageBrokerManager;
 
@@ -48,7 +46,6 @@ class MaxVersionNumberChangedIT {
             .build()
             .start();
     final Injector injector = simulator.getInjector();
-    nodeRepository = injector.getInstance(NodeRepository.class);
     messageBrokerManager = injector.getInstance(MessageBrokerManager.class);
     fileVersionRepository = injector.getInstance(FileVersionRepository.class);
   }
@@ -74,9 +71,9 @@ class MaxVersionNumberChangedIT {
         .addVersion("00000000-0000-0000-0000-000000000000");
 
     // When
-    KvChanged kvChanged = new KvChanged("carbonio-files/max-number-of-versions", "3");
-    KvChangedConsumer kvChangedConsumer = new KvChangedConsumer(nodeRepository, fileVersionRepository);
-    kvChangedConsumer.doHandle(kvChanged);
+    KeyValueChanged kvChanged = new KeyValueChanged("carbonio-files/max-number-of-versions", "3");
+    KeyValueChangedConsumer keyValueChangedConsumer = new KeyValueChangedConsumer(fileVersionRepository);
+    keyValueChangedConsumer.doHandle(kvChanged);
 
     // Then
     List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000000", List.of(FileVersionSort.VERSION_ASC));
@@ -97,9 +94,9 @@ class MaxVersionNumberChangedIT {
         .addVersion("00000000-0000-0000-0000-000000000001");
 
     // When
-    KvChanged kvChanged = new KvChanged("carbonio-files/max-number-of-versions", "2");
-    KvChangedConsumer kvChangedConsumer = new KvChangedConsumer(nodeRepository, fileVersionRepository);
-    kvChangedConsumer.doHandle(kvChanged);
+    KeyValueChanged kvChanged = new KeyValueChanged("carbonio-files/max-number-of-versions", "2");
+    KeyValueChangedConsumer keyValueChangedConsumer = new KeyValueChangedConsumer(fileVersionRepository);
+    keyValueChangedConsumer.doHandle(kvChanged);
 
     // Then
     List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000001", List.of(FileVersionSort.VERSION_ASC));
