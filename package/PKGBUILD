@@ -84,25 +84,62 @@ backup=(
   "etc/carbonio/files/config.properties"
 )
 
-build__ubuntu_jammy() {
-  pip3 install \
-    --prefix="${pkgdir}/opt/zextras/common" \
-    pika
-}
 build__ubuntu_focal() {
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+      "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+
   pip3 install \
     --prefix="${pkgdir}/opt/zextras/common" \
     pika
+
+  # Replace python version and prefix according to distro
+  # without modify the start script in srcdir.
+  sed -i "s/PYTHON_VER/3.8/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 }
+
+build__ubuntu_jammy() {
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+      "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+
+  pip3 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+
+  sed -i "s/PYTHON_VER/3.10/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common\/local/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+}
+
 build__rocky_8() {
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+      "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+
   pip3.8 install \
     --prefix="${pkgdir}/opt/zextras/common" \
     pika
+
+  sed -i "s/PYTHON_VER/3.8/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 }
+
 build__rocky_9() {
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+      "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+
   pip3 install \
     --prefix="${pkgdir}/opt/zextras/common" \
     pika
+
+  sed -i "s/PYTHON_VER/3.9/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 }
 
 package() {
@@ -146,9 +183,6 @@ package() {
 
   install -Dm 644 carbonio-files-watches.service \
     "${pkgdir}/lib/systemd/system/carbonio-files-watches.service"
-
-  install -Dm 755 carbonio-files-start-watches.sh \
-    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 
   install -Dm 755 carbonio-files-handle-kv-changes.py \
     "${pkgdir}/usr/bin/carbonio-files-handle-kv-changes.py"
