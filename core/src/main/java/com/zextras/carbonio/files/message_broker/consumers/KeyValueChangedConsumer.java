@@ -66,12 +66,7 @@ public class KeyValueChangedConsumer extends BaseConsumer {
     Map<String, List<FileVersion>> mapToProcess =
         fileVersionRepository.getFileVersionsRelatedToNodesHavingVersionsGreaterThan(newMaxVersionNumber);
 
-    for (String key : mapToProcess.keySet()) {
-      List<FileVersion> filesToCheck = mapToProcess.get(key);
-      if (filesToCheck.size() > newMaxVersionNumber) {
-        trimFileVersions(filesToCheck, newMaxVersionNumber);
-      }
-    }
+    mapToProcess.keySet().forEach(key -> trimFileVersions(mapToProcess.get(key), newMaxVersionNumber));
   }
 
   private void trimFileVersions(List<FileVersion> fileVersions, Integer newMaxVersionNumber) {

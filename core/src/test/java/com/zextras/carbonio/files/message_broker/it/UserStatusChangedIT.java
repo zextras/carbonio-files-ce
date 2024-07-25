@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.message_broker;
+package com.zextras.carbonio.files.message_broker.it;
 
 import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
