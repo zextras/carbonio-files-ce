@@ -19,8 +19,8 @@ value = base64.b64decode(input_json['Value']).decode()
 
 print(f"Key {key} has been changed into {value}.")
 
-username = subprocess.run(["consul", "kv", "get", "-token-file=/etc/carbonio/files/service-discover/token", "carbonio-message-broker/username"], capture_output=True, text=True)
-password = subprocess.run(["consul", "kv", "get", "-token-file=/etc/carbonio/files/service-discover/token", "carbonio-message-broker/password"], capture_output=True, text=True)
+username = subprocess.run(["consul", "kv", "get", "-token-file=/etc/carbonio/files/service-discover/token", "carbonio-message-broker/default/username"], capture_output=True, text=True)
+password = subprocess.run(["consul", "kv", "get", "-token-file=/etc/carbonio/files/service-discover/token", "carbonio-message-broker/default/password"], capture_output=True, text=True)
 
 username = username.stdout.strip()
 password = password.stdout.strip()
@@ -38,18 +38,15 @@ channel.exchange_declare(exchange=exchange_name, exchange_type='fanout', durable
 print(f"Declared '{exchange_name}'")
 
 message = json.dumps({"key": key, "value": value})
-success = channel.basic_publish(
+channel.basic_publish(
     exchange=exchange_name,
     routing_key='',
     body=message,
     properties=pika.BasicProperties(
-        delivery_mode=2,
+        delivery_mode=pika.spec.PERSISTENT_DELIVERY_MODE,
     )
 )
 
-if success:
-    print(f"Published message on '{exchange_name}'")
-else:
-    print(f"Failed to publish message on '{exchange_name}'")
+print("Message published")
 
 connection.close()
