@@ -77,7 +77,7 @@ class MaxVersionNumberChangedIT {
 
     // Then
     List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000000", List.of(FileVersionSort.VERSION_ASC));
-    Assertions.assertThat(fileVersionList.size()).isEqualTo(3);
+    Assertions.assertThat(fileVersionList).hasSize(3);
     Assertions.assertThat(fileVersionList.get(0).getVersion()).isEqualTo(3);
     Assertions.assertThat(fileVersionList.get(1).getVersion()).isEqualTo(4);
     Assertions.assertThat(fileVersionList.get(2).getVersion()).isEqualTo(5);
@@ -100,7 +100,7 @@ class MaxVersionNumberChangedIT {
 
     // Then
     List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000001", List.of(FileVersionSort.VERSION_ASC));
-    Assertions.assertThat(fileVersionList.size()).isEqualTo(3);
+    Assertions.assertThat(fileVersionList).hasSize(3);
     Assertions.assertThat(fileVersionList.get(0).getVersion()).isEqualTo(2);
     Assertions.assertThat(fileVersionList.get(1).getVersion()).isEqualTo(3);
     Assertions.assertThat(fileVersionList.get(2).getVersion()).isEqualTo(5);

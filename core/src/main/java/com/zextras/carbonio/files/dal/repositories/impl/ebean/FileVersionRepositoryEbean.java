@@ -182,16 +182,6 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
     versions.forEach(version -> fileVersionCache.delete(getFileVersionId(nodeId, version)));
   }
 
-  /**
-   * Retrieves all @link FileVersion}s belonging to a {@link Node} representing a file having a
-   * number of version greater than a specific value.
-   *
-   * @param maxNumberOfVersions is a <code>int</code> representing the max number of version a
-   * {@link Node} should have
-   *
-   * @return a {@link Map} where the key is the node identifier and the value contains a
-   * {@link List} of {@link FileVersion}s linked to that node ordered by version descending.
-   */
   @Override
   public Map<String, List<FileVersion>> getFileVersionsRelatedToNodesHavingVersionsGreaterThan(
       int maxNumberOfVersions) {

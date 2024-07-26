@@ -18,14 +18,14 @@ public enum FileVersionSort implements SortingEntityEbean<FileVersion> {
   VERSION_ASC {
     @Override
     public Query<FileVersion> getOrderEbeanQuery(Query<FileVersion> query) {
-      return query.order().asc(Files.Db.FileVersion.VERSION);
+      return query.orderBy().asc(Files.Db.FileVersion.VERSION);
     }
   },
 
   VERSION_DESC {
     @Override
     public Query<FileVersion> getOrderEbeanQuery(Query<FileVersion> query) {
-      return query.order().desc(Files.Db.FileVersion.VERSION);
+      return query.orderBy().desc(Files.Db.FileVersion.VERSION);
     }
   },
 

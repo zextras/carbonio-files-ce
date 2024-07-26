@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.message_broker.consumers;
 
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.message_broker.config.EventConfig;
 import com.zextras.carbonio.message_broker.consumer.BaseConsumer;
 import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
@@ -50,7 +49,7 @@ public class KeyValueChangedConsumer extends BaseConsumer {
     // switch for future use cases with KVs
     switch (kvChanged.getKey()) {
       case "carbonio-files/max-number-of-versions" ->
-          handleMaxVersionNumerChanged(Integer.parseInt(kvChanged.getValue()));
+          handleMaxVersionNumberChanged(Integer.parseInt(kvChanged.getValue()));
       default -> logger.info("Event was ignored");
     }
   }
@@ -61,7 +60,7 @@ public class KeyValueChangedConsumer extends BaseConsumer {
    * can cause a situation where there are more versions that new max version number); it also does not delete the current
    * (last) version of a node ever, possibly resulting in the same scenario of having more versions than maximum.
    */
-  private void handleMaxVersionNumerChanged(int newMaxVersionNumber) {
+  private void handleMaxVersionNumberChanged(int newMaxVersionNumber) {
     logger.info("Handling new max version number");
     Map<String, List<FileVersion>> mapToProcess =
         fileVersionRepository.getFileVersionsRelatedToNodesHavingVersionsGreaterThan(newMaxVersionNumber);
