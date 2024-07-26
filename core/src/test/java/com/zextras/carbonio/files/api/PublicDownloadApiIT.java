@@ -43,7 +43,6 @@ public class PublicDownloadApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
-            .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement(Map.of("fake-token", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
             .withStorages()

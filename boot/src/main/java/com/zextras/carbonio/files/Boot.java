@@ -67,9 +67,7 @@ public class Boot {
     } finally {
       ebeanDatabaseManager.stop();
       purgeService.stop();
-      try {
-        messageBrokerManager.close();
-      }catch (Exception ignored) { }
+      messageBrokerManager.close();
     }
   }
 }

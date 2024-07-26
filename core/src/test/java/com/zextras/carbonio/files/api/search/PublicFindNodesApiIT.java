@@ -41,7 +41,6 @@ public class PublicFindNodesApiIT {
     simulator =
         SimulatorBuilder.aSimulator().init()
             .withDatabase()
-            .withMessageBroker()
             .withServiceDiscover()
             .build()
             .start();

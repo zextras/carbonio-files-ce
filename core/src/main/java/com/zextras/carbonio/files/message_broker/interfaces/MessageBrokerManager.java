@@ -26,4 +26,5 @@ public interface MessageBrokerManager extends AutoCloseable {
   void startAllConsumers();
   void publishEvent(BaseEvent event);
   MessageBrokerClient getMessageBrokerClient();
+  void close();
 }

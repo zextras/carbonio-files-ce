@@ -40,7 +40,6 @@ class CreatePublicLinkApiIT {
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
-            .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement(
                 Map.of(

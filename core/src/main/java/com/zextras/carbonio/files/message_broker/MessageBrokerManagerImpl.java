@@ -6,17 +6,16 @@ package com.zextras.carbonio.files.message_broker;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.message_broker.consumers.UserStatusChangedConsumer;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
-import com.zextras.carbonio.message_broker.config.enums.Service;
 import com.zextras.carbonio.message_broker.consumer.BaseConsumer;
 import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,17 +25,17 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
   private static final Logger logger = LoggerFactory.getLogger(MessageBrokerManagerImpl.class);
 
   private final MessageBrokerClient messageBrokerClient;
-  private final NodeRepository nodeRepository;
+  private final UserStatusChangedConsumer userStatusChangedConsumer;
   private List<BaseConsumer> allConsumers;
 
   @Inject
   public MessageBrokerManagerImpl(
       MessageBrokerClient messageBrokerClient,
-      NodeRepository nodeRepository)
+      UserStatusChangedConsumer userStatusChangedConsumer)
   {
     this.allConsumers = new ArrayList<>();
     this.messageBrokerClient = messageBrokerClient;
-    this.nodeRepository = nodeRepository;
+    this.userStatusChangedConsumer = userStatusChangedConsumer;
   }
 
   /**
@@ -44,10 +43,9 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
    */
   @Override
   public void startAllConsumers() {
-    allConsumers.add(new UserStatusChangedConsumer(nodeRepository));
-    for(BaseConsumer consumer : allConsumers) {
-      messageBrokerClient.consume(consumer);
-    }
+    allConsumers.add(userStatusChangedConsumer);
+
+    allConsumers.forEach(messageBrokerClient::consume);
   }
 
   @Override
@@ -66,9 +64,13 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
   }
 
   @Override
-  public void close() throws Exception {
+  public void close() {
     for(BaseConsumer consumer : allConsumers) {
-      consumer.close();
+      try {
+        consumer.close();
+      } catch (IOException e) {
+        logger.warn("Error while closing consumer", e);
+      }
     }
   }
 }
