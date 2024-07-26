@@ -71,5 +71,4 @@ consul reload
 export -n CONSUL_HTTP_TOKEN
 
 systemctl restart carbonio-files.service
-systemctl restart carbonio-files-watches.service
 systemctl restart carbonio-files-sidecar.service
