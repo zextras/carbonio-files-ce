@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 package com.zextras.carbonio.files.message_broker.consumers;
+import com.google.inject.Inject;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.message_broker.config.EventConfig;
@@ -22,6 +23,7 @@ public class UserStatusChangedConsumer extends BaseConsumer {
 
   private final NodeRepository nodeRepository;
 
+  @Inject
   public UserStatusChangedConsumer(NodeRepository nodeRepository) {
     this.nodeRepository = nodeRepository;
   }

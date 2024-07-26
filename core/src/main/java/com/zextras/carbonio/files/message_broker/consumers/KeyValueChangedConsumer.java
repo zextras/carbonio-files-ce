@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.message_broker.consumers;
 
+import com.google.inject.Inject;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.message_broker.config.EventConfig;
@@ -32,6 +33,7 @@ public class KeyValueChangedConsumer extends BaseConsumer {
 
   private final FileVersionRepository fileVersionRepository;
 
+  @Inject
   public KeyValueChangedConsumer(FileVersionRepository fileVersionRepository) {
     this.fileVersionRepository = fileVersionRepository;
   }

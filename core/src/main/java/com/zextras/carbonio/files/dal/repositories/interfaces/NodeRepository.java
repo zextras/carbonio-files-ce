@@ -310,7 +310,7 @@ public interface NodeRepository {
   /**
    * @param ownerId is the owner id from which to return nodes.
    *
-   * <p>Returns a {@link List<Node>} representing all nodes owned by ownerId.</p>
+   * @return a {@link List<Node>} representing all nodes owned by ownerId.</p>
    */
   List<Node> findNodesByOwner(String ownerId);
 

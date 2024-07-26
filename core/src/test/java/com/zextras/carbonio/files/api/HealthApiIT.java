@@ -26,7 +26,7 @@ class HealthApiIT {
   void givenAnHealthServiceTheHealthLiveShouldReturn204StatusCode() {
     // Given
     SimulatorBuilder simulatorBUilder =
-        SimulatorBuilder.aSimulator().init().withDatabase().withMessageBroker().withServiceDiscover();
+        SimulatorBuilder.aSimulator().init().withDatabase().withServiceDiscover();
 
     try (Simulator simulator = simulatorBUilder.build().start()) {
       com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
