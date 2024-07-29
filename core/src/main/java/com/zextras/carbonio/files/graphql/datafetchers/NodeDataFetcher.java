@@ -886,34 +886,10 @@ public class NodeDataFetcher {
                   }
                 });
             }
-
-            // check if node needs an alternative name
-            List<String> targetFolderChildrenFilesName = nodeRepository.findNodes(
-                requesterId,
-                Optional.empty(),
-                Optional.empty(),
-                Optional.of(node.getParentId().get()),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                Collections.emptyList(),
-                Optional.empty()
-            )
-            .getLeft()
-            .stream()
-            .map(Node::getFullName)
-            .toList();
-
-            if(targetFolderChildrenFilesName.contains(node.getFullName())) {
-              String newName = searchAlternativeName(
-                  node.getFullName(), node.getParentId().get(), node.getOwnerId()
-              );
-              node.setFullName(newName);
-            }
+            String newName = searchAlternativeName(
+                node.getFullName(), node.getParentId().get(), node.getOwnerId()
+            );
+            node.setFullName(newName);
             nodeRepository.restoreNode(node.getId());
             nodeRepository.updateNode(node);
             cascadeUpdateAncestors(node);
@@ -1274,6 +1250,16 @@ public class NodeDataFetcher {
 
           List<DataFetcherResult<Map<String, Object>>> movedNodesResult = new ArrayList<>();
           if (!nodeIdsToMove.isEmpty()) {
+            nodeIdsToMove
+                .forEach(nodeId -> {
+                    Node node = nodeRepository.getNode(nodeId).get();
+
+                    String newName = searchAlternativeName(
+                        node.getFullName(), destinationFolderId, node.getOwnerId()
+                    );
+                    node.setFullName(newName);
+                    nodeRepository.updateNode(node);
+                });
             nodeRepository.moveNodes(nodeIdsToMove, optDestinationFolder.get());
 
             /*
@@ -1286,41 +1272,7 @@ public class NodeDataFetcher {
 
             nodeIdsToMove
               .forEach(nodeId -> {
-
                 Node node = nodeRepository.getNode(nodeId).get();
-
-                // check if node needs an alternative name
-                List<String> targetFolderChildrenFilesName = nodeRepository.findNodes(
-                        requesterId,
-                        Optional.empty(),
-                        Optional.empty(),
-                        Optional.of(destinationFolderId),
-                        Optional.empty(),
-                        Optional.empty(),
-                        Optional.empty(),
-                        Optional.empty(),
-                        Optional.empty(),
-                        Optional.empty(),
-                        Optional.empty(),
-                        Collections.emptyList(),
-                        Optional.empty()
-                    )
-                    .getLeft()
-                    .stream()
-                    .map(Node::getFullName)
-                    .toList();
-
-                /*
-                 since node was already moved, obviously it is already contained in this list;
-                 apply a new name only if it is contained more than one time
-                */
-                if(Collections.frequency(targetFolderChildrenFilesName, node.getFullName()) > 1) {
-                  String newName = searchAlternativeName(
-                      node.getFullName(), destinationFolderId, node.getOwnerId()
-                  );
-                  node.setFullName(newName);
-                  node = nodeRepository.updateNode(node);
-                }
 
                 cascadeUpdateAncestors(node);
                 // Remove inherited shares on source node
