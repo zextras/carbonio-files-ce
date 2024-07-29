@@ -21,4 +21,4 @@ PYTHONPATH+="/opt/zextras/common/local/lib64/${py_ver}/site-packages:"
 export PYTHONPATH
 
 # Here we start all watchers instead of having a systemd service for each kv
-consul watch -type=key -key=carbonio-files/max-number-of-versions -token-file=/etc/carbonio/files/service-discover/token "python3 /usr/bin/carbonio-files-handle-kv-changes.py"
+consul watch -type=key -key=carbonio-files/max-number-of-versions -token-file=/etc/carbonio/files/service-discover/token "$py_ver /usr/bin/carbonio-files-handle-kv-changes.py"

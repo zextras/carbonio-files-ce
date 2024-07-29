@@ -14,6 +14,9 @@ import pika
 input_str = sys.stdin.read()
 input_json = json.loads(input_str)
 
+if input_json is None:
+    sys.exit(0) # can happen when starting if max version number is not set
+
 key = input_json['Key']
 value = base64.b64decode(input_json['Value']).decode()
 
