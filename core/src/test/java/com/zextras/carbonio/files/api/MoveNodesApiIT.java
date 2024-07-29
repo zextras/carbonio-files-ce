@@ -89,7 +89,7 @@ class MoveNodesApiIT {
                 "name.txt",
                 "",
                 NodeType.TEXT,
-                "00000000-0000-0000-0000-000000000001",
+                "LOCAL_ROOT,00000000-0000-0000-0000-000000000001",
                 1L,
                 "text/plain"));
 
