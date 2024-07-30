@@ -140,7 +140,7 @@ pipeline {
                                 dir('/tmp/staging'){
                                     unstash 'binaries'
                                 }
-                                sh 'sudo yap build rocky /tmp/staging/'
+                                sh 'sudo yap build rocky-8 /tmp/staging/'
                                 stash includes: 'artifacts/x86_64/*.rpm', name: 'artifacts-rpm'
                             }
                             post {
