@@ -20,8 +20,14 @@ import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
-import com.zextras.carbonio.files.dal.dao.ebean.*;
+import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
+import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
+import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.dao.ebean.Share;
+import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
@@ -44,16 +50,24 @@ import graphql.schema.TypeResolver;
 import graphql.schema.idl.EnumValuesProvider;
 import io.ebean.annotation.Transactional;
 import io.vavr.control.Try;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.text.MessageFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.Vector;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Contains all the implementations of the {@link DataFetcher}s for all the queries and mutations
@@ -82,27 +96,27 @@ import java.util.stream.Collectors;
 public class NodeDataFetcher {
 
   private static final Logger logger =
-      LoggerFactory.getLogger(NodeDataFetcher.class);
+    LoggerFactory.getLogger(NodeDataFetcher.class);
 
-  private final NodeRepository nodeRepository;
+  private final NodeRepository        nodeRepository;
   private final FileVersionRepository fileVersionRepository;
-  private final PermissionsChecker permissionsChecker;
-  private final ShareRepository shareRepository;
-  private final TombstoneRepository tombstoneRepository;
-  private final ShareDataFetcher shareDataFetcher;
-  private final FilesConfig filesConfig;
-  private final int maxNumberOfVersions;
-  private final int maxNumberOfKeepVersions;
+  private final PermissionsChecker    permissionsChecker;
+  private final ShareRepository       shareRepository;
+  private final TombstoneRepository   tombstoneRepository;
+  private final ShareDataFetcher      shareDataFetcher;
+  private final FilesConfig           filesConfig;
+  private final int                   maxNumberOfVersions;
+  private final int                   maxNumberOfKeepVersions;
 
   @Inject
   NodeDataFetcher(
-      NodeRepository nodeRepository,
-      FileVersionRepository fileVersionRepository,
-      PermissionsChecker permissionsChecker,
-      ShareRepository shareRepository,
-      TombstoneRepository tombstoneRepository,
-      ShareDataFetcher shareDataFetcher,
-      FilesConfig filesConfig
+    NodeRepository nodeRepository,
+    FileVersionRepository fileVersionRepository,
+    PermissionsChecker permissionsChecker,
+    ShareRepository shareRepository,
+    TombstoneRepository tombstoneRepository,
+    ShareDataFetcher shareDataFetcher,
+    FilesConfig filesConfig
   ) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -113,29 +127,29 @@ public class NodeDataFetcher {
     this.filesConfig = filesConfig;
 
     this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
-        .defaultURL(ServiceDiscover.SERVICE_NAME)
-        .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
-        .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
+      .defaultURL(ServiceDiscover.SERVICE_NAME)
+      .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
+      .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
 
     this.maxNumberOfKeepVersions =
-        this.maxNumberOfVersions <= Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION
-            ? 0
-            : this.maxNumberOfVersions - Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
+      this.maxNumberOfVersions <= Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION
+        ? 0
+        : this.maxNumberOfVersions - Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
   }
 
   private DataFetcherResult<Map<String, Object>> convertNodeToDataFetcherResult(
-      Node node,
-      String requesterId,
-      ResultPath path
+    Node node,
+    String requesterId,
+    ResultPath path
   ) {
     return convertNodeToDataFetcherResult(node, node.getCurrentVersion(), requesterId, path);
   }
 
   private DataFetcherResult<Map<String, Object>> convertNodeToDataFetcherResult(
-      Node node,
-      Integer version,
-      String requesterId,
-      ResultPath path
+    Node node,
+    Integer version,
+    String requesterId,
+    ResultPath path
   ) {
     Map<String, Object> result = new HashMap<>();
     Map<String, String> nodeContext = new HashMap<>();
@@ -148,47 +162,47 @@ public class NodeDataFetcher {
     result.put(Files.GraphQL.Node.TYPE, node.getNodeType().name());
 
     result.put(
-        Files.GraphQL.Node.ROOT_ID,
-        node.getNodeType().equals(NodeType.ROOT)
-            ? node.getId()
-            : node.getAncestorsList().get(0)
+      Files.GraphQL.Node.ROOT_ID,
+      node.getNodeType().equals(NodeType.ROOT)
+        ? node.getId()
+        : node.getAncestorsList().get(0)
     );
 
     result.put(
-        GraphQL.Node.FLAGGED,
-        node
-            .getCustomAttributes()
-            .stream()
-            .filter(attributes -> requesterId.equals(attributes.getUserId()))
-            .findFirst()
-            .map(NodeCustomAttributes::getFlag)
-            .orElse(false)
+      GraphQL.Node.FLAGGED,
+      node
+        .getCustomAttributes()
+        .stream()
+        .filter(attributes -> requesterId.equals(attributes.getUserId()))
+        .findFirst()
+        .map(NodeCustomAttributes::getFlag)
+        .orElse(false)
     );
 
     node
-        .getDescription()
-        .ifPresent(description -> result.put(Files.GraphQL.Node.DESCRIPTION, description));
+      .getDescription()
+      .ifPresent(description -> result.put(Files.GraphQL.Node.DESCRIPTION, description));
 
     node
-        .getParentId()
-        .ifPresent(parentId -> nodeContext.put(Files.GraphQL.Node.PARENT, parentId));
+      .getParentId()
+      .ifPresent(parentId -> nodeContext.put(Files.GraphQL.Node.PARENT, parentId));
 
     if (!node.getNodeType().equals(NodeType.FOLDER) && !node.getNodeType().equals(NodeType.ROOT)) {
       node
-          .getExtension()
-          .ifPresent(extension -> result.put(Files.GraphQL.Node.EXTENSION, extension));
+        .getExtension()
+        .ifPresent(extension -> result.put(Files.GraphQL.Node.EXTENSION, extension));
 
       Optional<FileVersion> optFileVersion = node
-          .getFileVersions()
-          .stream()
-          .filter(fileVersion -> version.equals(fileVersion.getVersion()))
-          .findFirst();
+        .getFileVersions()
+        .stream()
+        .filter(fileVersion -> version.equals(fileVersion.getVersion()))
+        .findFirst();
 
       if (optFileVersion.isPresent()) {
         result.putAll(convertFileVersionToGraphQLMap(optFileVersion.get()));
       } else {
         versionError = Optional.of(
-            GraphQLResultErrors.fileVersionNotFound(node.getId(), version, path));
+          GraphQLResultErrors.fileVersionNotFound(node.getId(), version, path));
       }
     }
 
@@ -198,17 +212,17 @@ public class NodeDataFetcher {
 
     // TODO Move up when the last_editor coherent between node and file version will be coherent
     Optional
-        .ofNullable((String) result.get(GraphQL.Node.LAST_EDITOR))
-        .ifPresent(lastEditorId -> nodeContext.put(Files.GraphQL.Node.LAST_EDITOR, lastEditorId));
+      .ofNullable((String) result.get(GraphQL.Node.LAST_EDITOR))
+      .ifPresent(lastEditorId -> nodeContext.put(Files.GraphQL.Node.LAST_EDITOR, lastEditorId));
 
     DataFetcherResult.Builder<Map<String, Object>> resultBuilder = new DataFetcherResult
-        .Builder<Map<String, Object>>()
-        .data(result)
-        .localContext(nodeContext);
+      .Builder<Map<String, Object>>()
+      .data(result)
+      .localContext(nodeContext);
 
     return versionError
-        .map(error -> resultBuilder.error(error).build())
-        .orElse(resultBuilder.build());
+      .map(error -> resultBuilder.error(error).build())
+      .orElse(resultBuilder.build());
   }
 
   private Map<String, Object> convertFileVersionToGraphQLMap(FileVersion fileVersion) {
@@ -222,11 +236,11 @@ public class NodeDataFetcher {
     fileVersionMap.put(Files.GraphQL.FileVersion.KEEP_FOREVER, fileVersion.isKeptForever());
     fileVersionMap.put(Files.GraphQL.FileVersion.DIGEST, fileVersion.getDigest());
     fileVersion
-        .getClonedFromVersion()
-        .ifPresent(clonedFromVersion -> fileVersionMap.put(
-            GraphQL.FileVersion.CLONED_FROM_VERSION,
-            clonedFromVersion)
-        );
+      .getClonedFromVersion()
+      .ifPresent(clonedFromVersion -> fileVersionMap.put(
+        GraphQL.FileVersion.CLONED_FROM_VERSION,
+        clonedFromVersion)
+      );
     return fileVersionMap;
   }
 
@@ -252,53 +266,53 @@ public class NodeDataFetcher {
       ResultPath path = environment.getExecutionStepInfo().getPath();
       AtomicBoolean isParent = new AtomicBoolean(false);
       String nodeId = Optional
-          .ofNullable((String) environment.getArgument(InputParameters.NODE_ID))
-          .orElseGet(() -> Optional
-              .ofNullable(environment.getLocalContext())
-              .map(context -> {
-                String fieldName = environment.getField().getName();
-                if (fieldName.equals(Files.GraphQL.Node.PARENT)) {
-                  isParent.set(true);
-                }
-                return ((Map<String, String>) context).get(fieldName);
-              })
-              .orElse(null));
+        .ofNullable((String) environment.getArgument(InputParameters.NODE_ID))
+        .orElseGet(() -> Optional
+          .ofNullable(environment.getLocalContext())
+          .map(context -> {
+            String fieldName = environment.getField().getName();
+            if (fieldName.equals(Files.GraphQL.Node.PARENT)) {
+              isParent.set(true);
+            }
+            return ((Map<String, String>) context).get(fieldName);
+          })
+          .orElse(null));
 
       return Optional
-          .ofNullable(nodeId)
-          .map(nId ->
-              environment
-                  .getDataLoader("NodeBatchLoader")
-                  .load(nId)
-                  .thenApply(node -> {
-                    String requesterId =
-                        ((User) environment.getGraphQlContext().get(Context.REQUESTER)).getId();
+        .ofNullable(nodeId)
+        .map(nId ->
+          environment
+            .getDataLoader("NodeBatchLoader")
+            .load(nId)
+            .thenApply(node -> {
+              String requesterId =
+                ((User) environment.getGraphQlContext().get(Context.REQUESTER)).getId();
 
-                    Integer version = Optional
-                        .ofNullable((Integer) environment.getArgument(Files.GraphQL.FileVersion.VERSION))
-                        .orElse(((Node) node).getCurrentVersion());
+              Integer version = Optional
+                .ofNullable((Integer) environment.getArgument(Files.GraphQL.FileVersion.VERSION))
+                .orElse(((Node) node).getCurrentVersion());
 
-                    return permissionsChecker
-                        .getPermissions(nId, requesterId)
-                        .has(SharePermission.READ_ONLY)
-                        ? convertNodeToDataFetcherResult((Node) node, version, requesterId, path)
-                        : (isParent.get())
-                        ? new DataFetcherResult.Builder<Map<String, Object>>().build()
-                        : new DataFetcherResult
-                        .Builder<Map<String, Object>>()
-                        .error(GraphQLResultErrors.nodeNotFound(nId, path))
-                        .build();
-                  }).exceptionally((e) ->
-                      (isParent.get())
-                          ? new DataFetcherResult.Builder<Map<String, Object>>().build()
-                          : new DataFetcherResult
-                          .Builder<Map<String, Object>>()
-                          .error(GraphQLResultErrors.nodeNotFound(nId, path))
-                          .build()
-                  ))
-          .orElse(CompletableFuture.supplyAsync(() ->
-              new DataFetcherResult.Builder<Map<String, Object>>().build()
-          ));
+              return permissionsChecker
+                .getPermissions(nId, requesterId)
+                .has(SharePermission.READ_ONLY)
+                ? convertNodeToDataFetcherResult((Node) node, version, requesterId, path)
+                : (isParent.get())
+                  ? new DataFetcherResult.Builder<Map<String, Object>>().build()
+                  : new DataFetcherResult
+                    .Builder<Map<String, Object>>()
+                    .error(GraphQLResultErrors.nodeNotFound(nId, path))
+                    .build();
+            }).exceptionally((e) ->
+              (isParent.get())
+                ? new DataFetcherResult.Builder<Map<String, Object>>().build()
+                : new DataFetcherResult
+                  .Builder<Map<String, Object>>()
+                  .error(GraphQLResultErrors.nodeNotFound(nId, path))
+                  .build()
+            ))
+        .orElse(CompletableFuture.supplyAsync(() ->
+          new DataFetcherResult.Builder<Map<String, Object>>().build()
+        ));
     };
   }
 
@@ -313,10 +327,10 @@ public class NodeDataFetcher {
     {
       Map<String, Object> result = environment.getObject();
       return (result.get(Files.GraphQL.Node.TYPE).equals(NodeType.FOLDER.toString())
-          || result.get(Files.GraphQL.Node.TYPE).equals(NodeType.ROOT.toString())
+        || result.get(Files.GraphQL.Node.TYPE).equals(NodeType.ROOT.toString())
       )
-          ? (GraphQLObjectType) environment.getSchema().getType(Files.GraphQL.Types.FOLDER)
-          : (GraphQLObjectType) environment.getSchema().getType(Files.GraphQL.Types.FILE);
+        ? (GraphQLObjectType) environment.getSchema().getType(Files.GraphQL.Types.FOLDER)
+        : (GraphQLObjectType) environment.getSchema().getType(Files.GraphQL.Types.FILE);
     };
   }
 
@@ -366,36 +380,36 @@ public class NodeDataFetcher {
    */
   public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> getChildNodesFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
-          Map<String, Object> partialResult = environment.getSource();
-          String requesterId = ((User) environment.getGraphQlContext()
-              .get(Files.GraphQL.Context.REQUESTER)).getId();
-          String folderNodeId = (String) partialResult.get(Files.GraphQL.Node.ID);
-          /*
-           * If the execution is arrived in this data fetcher then the partialResult contains the folderId
-           * otherwise the execution would have stopped in the previous data fetcher.
-           * This is only a double check if something goes wrong or if this data fetcher is
-           * used improperly.
-           */
-          if (folderNodeId == null) {
-            return Collections.emptyList();
-          }
+        Map<String, Object> partialResult = environment.getSource();
+        String requesterId = ((User) environment.getGraphQlContext()
+          .get(Files.GraphQL.Context.REQUESTER)).getId();
+        String folderNodeId = (String) partialResult.get(Files.GraphQL.Node.ID);
+        /*
+         * If the execution is arrived in this data fetcher then the partialResult contains the folderId
+         * otherwise the execution would have stopped in the previous data fetcher.
+         * This is only a double check if something goes wrong or if this data fetcher is
+         * used improperly.
+         */
+        if (folderNodeId == null) {
+          return Collections.emptyList();
+        }
 
-          return nodeRepository.getNode(folderNodeId)
-              .map(node -> {
-                int limit = environment.getArgument(Files.GraphQL.InputParameters.LIMIT);
-                Optional<String> optCursor = Optional.ofNullable(
-                    environment.getArgument(Files.GraphQL.InputParameters.CURSOR)
-                );
-                Optional<NodeSort> optSort = Optional.ofNullable(
-                    environment.getArgument(Files.GraphQL.InputParameters.SORT)
-                );
+        return nodeRepository.getNode(folderNodeId)
+          .map(node -> {
+            int limit = environment.getArgument(Files.GraphQL.InputParameters.LIMIT);
+            Optional<String> optCursor = Optional.ofNullable(
+              environment.getArgument(Files.GraphQL.InputParameters.CURSOR)
+            );
+            Optional<NodeSort> optSort = Optional.ofNullable(
+              environment.getArgument(Files.GraphQL.InputParameters.SORT)
+            );
 
-                List<String> childrenIds = nodeRepository
-                    .getChildrenIds(node.getId(), optSort, Optional.of(requesterId), false)
-                    .stream()
-                    .filter(nodeId -> permissionsChecker.getPermissions(nodeId, requesterId)
-                        .has(SharePermission.READ_ONLY))
-                    .collect(Collectors.toList());
+            List<String> childrenIds = nodeRepository
+              .getChildrenIds(node.getId(), optSort, Optional.of(requesterId), false)
+              .stream()
+              .filter(nodeId -> permissionsChecker.getPermissions(nodeId, requesterId)
+                .has(SharePermission.READ_ONLY))
+              .collect(Collectors.toList());
 
         /*
           Why I need to add 1 to the result of indexOf?
@@ -405,91 +419,91 @@ public class NodeDataFetcher {
           list.indexOf(6) returns the index 2 because the array starts to 0, so I need to add 1
           to skip the first three elements.
          */
-                int numberNodesToSkip = optCursor.map(cursor -> childrenIds.indexOf(cursor) + 1)
-                    .orElse(0);
+            int numberNodesToSkip = optCursor.map(cursor -> childrenIds.indexOf(cursor) + 1)
+              .orElse(0);
 
-                return Optional.of(nodeRepository.getNodes(childrenIds.stream()
-                        .skip(numberNodesToSkip)
-                        .limit(limit)
-                        .collect(Collectors.toList()), optSort)
-                    .map(childNode -> this.convertNodeToDataFetcherResult(
-                        childNode,
-                        requesterId,
-                        environment.getExecutionStepInfo().getPath())
-                    )
-                    .collect(Collectors.toList()));
+            return Optional.of(nodeRepository.getNodes(childrenIds.stream()
+                .skip(numberNodesToSkip)
+                .limit(limit)
+                .collect(Collectors.toList()), optSort)
+              .map(childNode -> this.convertNodeToDataFetcherResult(
+                childNode,
+                requesterId,
+                environment.getExecutionStepInfo().getPath())
+              )
+              .collect(Collectors.toList()));
 
-              })
-              .orElse(Optional.of(new ArrayList<>()))
-              .get();
-        }
+          })
+          .orElse(Optional.of(new ArrayList<>()))
+          .get();
+      }
     );
   }
 
   @Transactional
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, String>>>> getChildNodesFetcherFast() {
     return environment -> CompletableFuture.supplyAsync(() -> {
-          Map<String, Object> partialResult = environment.getSource();
-          String requesterId = ((User) environment.getGraphQlContext()
-              .get(Files.GraphQL.Context.REQUESTER)).getId();
-          String folderNodeId = (String) partialResult.get(Files.GraphQL.Node.ID);
-          /*
-           * If the execution is arrived in this data fetcher then the partialResult contains the folderId
-           * otherwise the execution would have stopped in the previous data fetcher.
-           * This is only a double check if something goes wrong or if this data fetcher is
-           * used improperly.
-           */
-          if (folderNodeId == null) {
-            return new DataFetcherResult.Builder<Map<String, String>>().build();
-          }
-
-          int limit = environment.getArgument(InputParameters.LIMIT);
-
-          Optional<NodeSort> optSort = Optional.ofNullable(
-              environment.getArgument(InputParameters.SORT)
-          );
-
-          Optional<String> optPageToken = Optional.ofNullable(
-              environment.getArgument(Files.GraphQL.InputParameters.PAGE_TOKEN)
-          );
-
-          // The LOCAL_ROOT is shared to all the users so in the root potentially can be nodes owned
-          // by someone else and shared with the requester. The system must not return these type of
-          // nodes when the folder id is LOCAL_ROOT.
-          // Optional.empty() option considers all nodes which the requester has permission
-          // Optional.of(false) option considers only nodes owned by the requester
-          Optional<Boolean> optSharedWithMe = RootId.LOCAL_ROOT.equals(folderNodeId)
-              ? Optional.of(false)
-              : Optional.empty();
-
-          ImmutablePair<List<Node>, String> findResult = nodeRepository.findNodes(
-              requesterId,
-              optSort,
-              Optional.empty(),
-              Optional.of(folderNodeId),
-              Optional.of(false),
-              optSharedWithMe,
-              Optional.empty(),
-              Optional.empty(),
-              Optional.of(limit),
-              Optional.empty(),
-              Optional.empty(),
-              Collections.emptyList(),
-              optPageToken
-          );
-
-          Map<String, List<Node>> localContext = new HashMap<>();
-          localContext.put(NodePage.NODES, findResult.getLeft());
-
-          Map<String, String> results = new HashMap<>();
-          results.put(NodePage.PAGE_TOKEN, findResult.getRight());
-
-          return new DataFetcherResult
-              .Builder<Map<String, String>>()
-              .data(results)
-              .localContext(localContext)
-              .build();
+        Map<String, Object> partialResult = environment.getSource();
+        String requesterId = ((User) environment.getGraphQlContext()
+          .get(Files.GraphQL.Context.REQUESTER)).getId();
+        String folderNodeId = (String) partialResult.get(Files.GraphQL.Node.ID);
+        /*
+         * If the execution is arrived in this data fetcher then the partialResult contains the folderId
+         * otherwise the execution would have stopped in the previous data fetcher.
+         * This is only a double check if something goes wrong or if this data fetcher is
+         * used improperly.
+         */
+        if (folderNodeId == null) {
+          return new DataFetcherResult.Builder<Map<String, String>>().build();
         }
+
+        int limit = environment.getArgument(InputParameters.LIMIT);
+
+        Optional<NodeSort> optSort = Optional.ofNullable(
+          environment.getArgument(InputParameters.SORT)
+        );
+
+        Optional<String> optPageToken = Optional.ofNullable(
+          environment.getArgument(Files.GraphQL.InputParameters.PAGE_TOKEN)
+        );
+
+        // The LOCAL_ROOT is shared to all the users so in the root potentially can be nodes owned
+        // by someone else and shared with the requester. The system must not return these type of
+        // nodes when the folder id is LOCAL_ROOT.
+        // Optional.empty() option considers all nodes which the requester has permission
+        // Optional.of(false) option considers only nodes owned by the requester
+        Optional<Boolean> optSharedWithMe = RootId.LOCAL_ROOT.equals(folderNodeId)
+          ? Optional.of(false)
+          : Optional.empty();
+
+        ImmutablePair<List<Node>, String> findResult = nodeRepository.findNodes(
+          requesterId,
+          optSort,
+          Optional.empty(),
+          Optional.of(folderNodeId),
+          Optional.of(false),
+          optSharedWithMe,
+          Optional.empty(),
+          Optional.empty(),
+          Optional.of(limit),
+         Optional.empty(),
+          Optional.empty(),
+          Collections.emptyList(),
+          optPageToken
+        );
+
+        Map<String, List<Node>> localContext = new HashMap<>();
+        localContext.put(NodePage.NODES, findResult.getLeft());
+
+        Map<String, String> results = new HashMap<>();
+        results.put(NodePage.PAGE_TOKEN, findResult.getRight());
+
+        return new DataFetcherResult
+          .Builder<Map<String, String>>()
+          .data(results)
+          .localContext(localContext)
+          .build();
+      }
     );
   }
 
@@ -524,71 +538,71 @@ public class NodeDataFetcher {
    */
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> createFolderFetcher() {
     return (environment) -> CompletableFuture.supplyAsync(() -> {
-          ResultPath resultPath = environment.getExecutionStepInfo().getPath();
-          String parentId = environment.getArgument(InputParameters.CreateFolder.PARENT_ID);
-          String requesterId = ((User) environment
-              .getGraphQlContext()
-              .get(Files.GraphQL.Context.REQUESTER)
-          ).getId();
+        ResultPath resultPath = environment.getExecutionStepInfo().getPath();
+        String parentId = environment.getArgument(InputParameters.CreateFolder.PARENT_ID);
+        String requesterId = ((User) environment
+          .getGraphQlContext()
+          .get(Files.GraphQL.Context.REQUESTER)
+        ).getId();
 
-          if (permissionsChecker
-              .getPermissions(parentId, requesterId)
-              .has(SharePermission.READ_AND_WRITE)
-          ) {
-            return nodeRepository
-                .getNode(parentId)
-                .filter(parent -> NodeType.FOLDER.equals(parent.getNodeType())
-                    || NodeType.ROOT.equals(parent.getNodeType())
-                )
-                .map(parent -> {
-                  String ownerId = (
-                      NodeType.ROOT.equals(parent.getNodeType())
-                          || requesterId.equals(parent.getOwnerId())
-                  )
-                      ? requesterId
-                      : parent.getOwnerId();
+        if (permissionsChecker
+          .getPermissions(parentId, requesterId)
+          .has(SharePermission.READ_AND_WRITE)
+        ) {
+          return nodeRepository
+            .getNode(parentId)
+            .filter(parent -> NodeType.FOLDER.equals(parent.getNodeType())
+              || NodeType.ROOT.equals(parent.getNodeType())
+            )
+            .map(parent -> {
+              String ownerId = (
+                NodeType.ROOT.equals(parent.getNodeType())
+                  || requesterId.equals(parent.getOwnerId())
+              )
+                ? requesterId
+                : parent.getOwnerId();
 
-                  String folderName = searchAlternativeName(
-                      ((String) environment.getArgument(InputParameters.CreateFolder.NAME)).trim(),
-                      parent.getId(),
-                      ownerId
-                  );
+              String folderName = searchAlternativeName(
+                ((String) environment.getArgument(InputParameters.CreateFolder.NAME)).trim(),
+                parent.getId(),
+                ownerId
+              );
 
-                  final Node createdFolder = nodeRepository.createNewNode(
-                      UUID.randomUUID().toString(),
-                      requesterId,
-                      ownerId,
-                      parent.getId(),
-                      folderName,
-                      "",
-                      NodeType.FOLDER,
-                      NodeType.ROOT.equals(parent.getNodeType())
-                          ? parentId
-                          : parent.getAncestorIds() + "," + parentId,
-                      0L
-                  );
+              final Node createdFolder = nodeRepository.createNewNode(
+                UUID.randomUUID().toString(),
+                requesterId,
+                ownerId,
+                parent.getId(),
+                folderName,
+                "",
+                NodeType.FOLDER,
+                NodeType.ROOT.equals(parent.getNodeType())
+                  ? parentId
+                  : parent.getAncestorIds() + "," + parentId,
+                0L
+              );
 
-                  // Add new inherited shares for the new folder.
-                  // Create share also for the requester if it is not the owner of the parent folder
-                  createIndirectShare(parentId, createdFolder);
+              // Add new inherited shares for the new folder.
+              // Create share also for the requester if it is not the owner of the parent folder
+              createIndirectShare(parentId, createdFolder);
 
-                  return convertNodeToDataFetcherResult(
-                      createdFolder,
-                      requesterId,
-                      resultPath
-                  );
-                })
-                .orElse(new DataFetcherResult
-                    .Builder<Map<String, Object>>()
-                    .error(GraphQLResultErrors.nodeNotFound(parentId.trim(), resultPath))
-                    .build()
-                );
-          }
-          return new DataFetcherResult
+              return convertNodeToDataFetcherResult(
+                createdFolder,
+                requesterId,
+                resultPath
+              );
+            })
+            .orElse(new DataFetcherResult
               .Builder<Map<String, Object>>()
-              .error(GraphQLResultErrors.nodeWriteError(parentId.trim(), resultPath))
-              .build();
+              .error(GraphQLResultErrors.nodeNotFound(parentId.trim(), resultPath))
+              .build()
+            );
         }
+        return new DataFetcherResult
+          .Builder<Map<String, Object>>()
+          .error(GraphQLResultErrors.nodeWriteError(parentId.trim(), resultPath))
+          .build();
+      }
     );
   }
 
@@ -614,7 +628,7 @@ public class NodeDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() -> {
       Map<String, Object> partialResult = environment.getSource();
       String requesterId = ((User) environment.getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       String nodeId = (String) partialResult.get(Files.GraphQL.Node.ID);
 
       /*
@@ -622,11 +636,11 @@ public class NodeDataFetcher {
        * This is only a double check if something goes wrong or if this data fetcher is used improperly.
        */
       Optional.ofNullable(nodeId)
-          .orElseThrow(AbortExecutionException::new);
+        .orElseThrow(AbortExecutionException::new);
 
       return new DataFetcherResult.Builder<Permissions>()
-          .data(Permissions.build(permissionsChecker.getPermissions(nodeId, requesterId)))
-          .build();
+        .data(Permissions.build(permissionsChecker.getPermissions(nodeId, requesterId)))
+        .build();
     });
   }
 
@@ -664,74 +678,74 @@ public class NodeDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> updateNodeFetcher() {
     return (environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo()
-          .getPath();
+        .getPath();
       String requesterId = ((User) environment.getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       String nodeId = environment.getArgument(Files.GraphQL.InputParameters.UpdateNode.NODE_ID);
 
       if (permissionsChecker.getPermissions(nodeId, requesterId)
-          .has(SharePermission.READ_AND_WRITE)) {
+        .has(SharePermission.READ_AND_WRITE)) {
         Node nodeToUpdate = nodeRepository.getNode(nodeId)
-            .get();
+          .get();
         String parentFolderId = nodeToUpdate.getParentId()
-            .orElse(RootId.LOCAL_ROOT);
+          .orElse(RootId.LOCAL_ROOT);
         Optional<String> optName = Optional.ofNullable(
-            environment.getArgument(Files.GraphQL.InputParameters.UpdateNode.NAME)
+          environment.getArgument(Files.GraphQL.InputParameters.UpdateNode.NAME)
         );
         Optional<String> optDescription = Optional.ofNullable(
-            environment.getArgument(Files.GraphQL.InputParameters.UpdateNode.DESCRIPTION)
+          environment.getArgument(Files.GraphQL.InputParameters.UpdateNode.DESCRIPTION)
         );
         Optional<Boolean> optFlagged = Optional.ofNullable(
-            environment.getArgument(Files.GraphQL.InputParameters.UpdateNode.FLAGGED)
+          environment.getArgument(Files.GraphQL.InputParameters.UpdateNode.FLAGGED)
         );
 
         if (optName.isPresent()) {
           // In input the system receives only the name without its extension.
           // Here we create the fullName to check if there are duplicates in the destination folder
           String nodeFullName = nodeToUpdate
-              .getExtension()
-              .map(extension -> optName.get() + "." + extension)
-              .orElse(optName.get());
+            .getExtension()
+            .map(extension -> optName.get() + "." + extension)
+            .orElse(optName.get());
 
           if (searchAlternativeName(nodeFullName, parentFolderId, nodeToUpdate.getOwnerId()).equals(
-              nodeFullName)) {
+            nodeFullName)) {
             nodeToUpdate.setName(optName.get());
           } else {
             return new DataFetcherResult.Builder<Map<String, Object>>()
-                .error(GraphQLResultErrors.duplicateNode(nodeId, parentFolderId, path))
-                .build();
+              .error(GraphQLResultErrors.duplicateNode(nodeId, parentFolderId, path))
+              .build();
           }
         }
         optDescription.ifPresent(nodeToUpdate::setDescription);
         optFlagged.ifPresent(flag -> nodeRepository.flagForUser(nodeId, requesterId, flag));
         nodeToUpdate.setLastEditorId(requesterId);
         return convertNodeToDataFetcherResult(
-            nodeRepository.updateNode(nodeToUpdate),
-            requesterId,
-            environment.getExecutionStepInfo().getPath()
+          nodeRepository.updateNode(nodeToUpdate),
+          requesterId,
+          environment.getExecutionStepInfo().getPath()
         );
       }
 
       return new DataFetcherResult.Builder<Map<String, Object>>()
-          .error(GraphQLResultErrors.nodeNotFound(nodeId, path))
-          .build();
+        .error(GraphQLResultErrors.nodeNotFound(nodeId, path))
+        .build();
     }));
   }
 
   public DataFetcher<CompletableFuture<List<String>>> flagNodes() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       String requesterId = ((User) environment.getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       List<String> nodesIds = environment.getArgument(FlagNodes.NODE_IDS);
       boolean starNodes = environment.getArgument(FlagNodes.FLAG);
 
       return nodesIds
-          .stream()
-          .map(nodeId -> {
-            nodeRepository.flagForUser(nodeId, requesterId, starNodes);
-            return nodeId;
-          })
-          .collect(Collectors.toList());
+        .stream()
+        .map(nodeId -> {
+          nodeRepository.flagForUser(nodeId, requesterId, starNodes);
+          return nodeId;
+        })
+        .collect(Collectors.toList());
     });
   }
 
@@ -746,47 +760,47 @@ public class NodeDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
       String requesterId = ((User) environment.getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       List<String> nodesIds = environment.getArgument(
-          Files.GraphQL.InputParameters.TrashNodes.NODE_IDS);
+        Files.GraphQL.InputParameters.TrashNodes.NODE_IDS);
 
       List<String> trashableNodes = nodesIds.stream()
-          .filter(nodeId -> {
-            Optional<Node> rNode = nodeRepository.getNode(nodeId);
-            return rNode.isPresent() && rNode.get()
-                .getNodeType() != NodeType.ROOT;
-          })
-          .filter(nodeId -> {
-            return permissionsChecker.getPermissions(nodeId, requesterId)
-                .has(SharePermission.READ_AND_WRITE);
-          })
-          .collect(Collectors.toList());
+        .filter(nodeId -> {
+          Optional<Node> rNode = nodeRepository.getNode(nodeId);
+          return rNode.isPresent() && rNode.get()
+            .getNodeType() != NodeType.ROOT;
+        })
+        .filter(nodeId -> {
+          return permissionsChecker.getPermissions(nodeId, requesterId)
+            .has(SharePermission.READ_AND_WRITE);
+        })
+        .collect(Collectors.toList());
 
       List<String> nodesInError = nodesIds.stream()
-          .filter(nodeId -> !trashableNodes.contains(nodeId))
-          .collect(Collectors.toList());
+        .filter(nodeId -> !trashableNodes.contains(nodeId))
+        .collect(Collectors.toList());
 
       if (!trashableNodes.isEmpty()) {
         nodeRepository.getNodes(trashableNodes, Optional.empty())
-            .forEach(trashedNode -> {
-              String nodeParentId = trashedNode.getParentId()
-                  .get();
-              trashedNode.setAncestorIds(Files.Db.RootId.TRASH_ROOT);
-              trashedNode.setParentId(RootId.TRASH_ROOT);
-              nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
-              nodeRepository.updateNode(trashedNode);
-              cascadeUpdateAncestors(trashedNode);
-            });
+          .forEach(trashedNode -> {
+            String nodeParentId = trashedNode.getParentId()
+              .get();
+            trashedNode.setAncestorIds(Files.Db.RootId.TRASH_ROOT);
+            trashedNode.setParentId(RootId.TRASH_ROOT);
+            nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
+            nodeRepository.updateNode(trashedNode);
+            cascadeUpdateAncestors(trashedNode);
+          });
       }
 
       return new DataFetcherResult.Builder<List<String>>()
-          .data(trashableNodes)
-          .errors(nodesInError.stream()
-              .map(nodeId -> GraphQLResultErrors.nodeWriteError(nodeId,
-                  environment.getExecutionStepInfo()
-                      .getPath()))
-              .collect(Collectors.toList()))
-          .build();
+        .data(trashableNodes)
+        .errors(nodesInError.stream()
+          .map(nodeId -> GraphQLResultErrors.nodeWriteError(nodeId,
+            environment.getExecutionStepInfo()
+              .getPath()))
+          .collect(Collectors.toList()))
+        .build();
     });
   }
 
@@ -801,129 +815,105 @@ public class NodeDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
       String requesterId = ((User) environment.getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       List<String> nodesIds = environment.getArgument(RestoreNodes.NODE_IDS);
 
       List<String> restorableNodeIds = nodesIds.stream()
-          .filter(nodeId -> {
-            Optional<Node> rNode = nodeRepository.getNode(nodeId);
-            return rNode.isPresent() && rNode.get()
-                .getNodeType() != NodeType.ROOT;
-          })
-          .filter(nodeId -> permissionsChecker.getPermissions(nodeId, requesterId)
-              .has(SharePermission.READ_AND_WRITE))
-          .filter(nodeId -> nodeRepository.getTrashedNode(nodeId)
-              .isPresent())
-          .collect(Collectors.toList());
+        .filter(nodeId -> {
+          Optional<Node> rNode = nodeRepository.getNode(nodeId);
+          return rNode.isPresent() && rNode.get()
+            .getNodeType() != NodeType.ROOT;
+        })
+        .filter(nodeId -> permissionsChecker.getPermissions(nodeId, requesterId)
+          .has(SharePermission.READ_AND_WRITE))
+        .filter(nodeId -> nodeRepository.getTrashedNode(nodeId)
+          .isPresent())
+        .collect(Collectors.toList());
 
       List<String> nodesInError = nodesIds.stream()
-          .filter(nodeId -> !restorableNodeIds.contains(nodeId))
-          .collect(Collectors.toList());
+        .filter(nodeId -> !restorableNodeIds.contains(nodeId))
+        .collect(Collectors.toList());
 
       List<Node> restoredNodes = nodeRepository.getNodes(restorableNodeIds, Optional.empty())
-          .map(node -> {
-                TrashedNode trashedNode = nodeRepository.getTrashedNode(node.getId())
-                    .get();
-                Optional<Node> parentNode = nodeRepository.getNode(trashedNode.getParentId());
-                if (!parentNode.isPresent() || parentNode.get()
-                    .getAncestorsList()
-                    .contains(RootId.TRASH_ROOT)) {
-                  node.setParentId(RootId.LOCAL_ROOT);
-                  node.setAncestorIds(RootId.LOCAL_ROOT);
+        .map(node -> {
+            TrashedNode trashedNode = nodeRepository.getTrashedNode(node.getId())
+              .get();
+            Optional<Node> parentNode = nodeRepository.getNode(trashedNode.getParentId());
+            if (!parentNode.isPresent() || parentNode.get()
+              .getAncestorsList()
+              .contains(RootId.TRASH_ROOT)) {
+              node.setParentId(RootId.LOCAL_ROOT);
+              node.setAncestorIds(RootId.LOCAL_ROOT);
 
-                  // If the fatherless node has indirect shares then they should become direct
-                  shareRepository
-                      .getShares(node.getId(), Collections.emptyList())
-                      .stream()
-                      .filter(share -> !share.isDirect())
-                      .forEach(share -> {
-                        share.setDirect(true);
-                        shareRepository.updateShare(share); // This can be optimized
-                      });
+              // If the fatherless node has indirect shares then they should become direct
+              shareRepository
+                .getShares(node.getId(), Collections.emptyList())
+                .stream()
+                .filter(share -> !share.isDirect())
+                .forEach(share -> {
+                  share.setDirect(true);
+                  shareRepository.updateShare(share); // This can be optimized
+                });
 
-                } else {
-                  String parentId = parentNode.get().getId();
-                  node.setParentId(parentId);
+            } else {
+              String parentId = parentNode.get().getId();
+              node.setParentId(parentId);
 
-                  String newAncestors = NodeType.ROOT.equals(parentNode.get().getNodeType())
-                      ? parentId
-                      : parentNode.get().getAncestorIds() + Node.ANCESTORS_SEPARATOR + parentId;
+              String newAncestors = NodeType.ROOT.equals(parentNode.get().getNodeType())
+                ? parentId
+                : parentNode.get().getAncestorIds() + Node.ANCESTORS_SEPARATOR + parentId;
 
-                  node.setAncestorIds(newAncestors);
+              node.setAncestorIds(newAncestors);
 
-                  shareRepository
-                      .getShares(parentId, Collections.emptyList())
-                      .forEach(share -> {
-                        shareRepository.upsertShare(
-                            node.getId(),
-                            share.getTargetUserId(),
-                            share.getPermissions(),
-                            false,
-                            false,
-                            share.getExpiredAt()
-                        );
-
-                        if (node.getNodeType() == NodeType.FOLDER) {
-                          shareDataFetcher.cascadeUpsertShare(
-                              node.getId(),
-                              share.getTargetUserId(),
-                              share.getPermissions(),
-                              share.getExpiredAt()
-                          );
-                        }
-                      });
-                }
-
-                // check if node needs an alternative name
-                List<String> targetFolderChildrenFilesName = nodeRepository.findNodes(
-                        requesterId,
-                        Optional.empty(),
-                        Optional.empty(),
-                        Optional.of(node.getParentId().get()),
-                        Optional.empty(),
-                        Optional.empty(),
-                        Optional.empty(),
-                        Optional.empty(),
-                        Optional.empty(),
-                        Optional.empty(),
-                        Optional.empty(),
-                        Collections.emptyList(),
-                        Optional.empty()
-                    )
-                    .getLeft()
-                    .stream()
-                    .map(Node::getFullName)
-                    .toList();
-
-                if (targetFolderChildrenFilesName.contains(node.getFullName())) {
-                  String newName = searchAlternativeName(
-                      node.getFullName(), node.getParentId().get(), node.getOwnerId()
+              shareRepository
+                .getShares(parentId, Collections.emptyList())
+                .forEach(share -> {
+                  shareRepository.upsertShare(
+                    node.getId(),
+                    share.getTargetUserId(),
+                    share.getPermissions(),
+                    false,
+                    false,
+                    share.getExpiredAt()
                   );
-                  node.setFullName(newName);
-                }
-                nodeRepository.restoreNode(node.getId());
-                nodeRepository.updateNode(node);
-                cascadeUpdateAncestors(node);
-                return node;
-              }
-          )
-          .collect(Collectors.toList());
+
+                  if (node.getNodeType() == NodeType.FOLDER) {
+                    shareDataFetcher.cascadeUpsertShare(
+                      node.getId(),
+                      share.getTargetUserId(),
+                      share.getPermissions(),
+                      share.getExpiredAt()
+                    );
+                  }
+                });
+            }
+            String newName = searchAlternativeName(
+                node.getFullName(), node.getParentId().get(), node.getOwnerId()
+            );
+            node.setFullName(newName);
+            nodeRepository.restoreNode(node.getId());
+            nodeRepository.updateNode(node);
+            cascadeUpdateAncestors(node);
+            return node;
+          }
+        )
+        .collect(Collectors.toList());
 
       ResultPath path = environment.getExecutionStepInfo()
-          .getPath();
+        .getPath();
 
       List<DataFetcherResult<Map<String, Object>>> results = restoredNodes
-          .stream()
-          .map(node -> convertNodeToDataFetcherResult(node, requesterId, path))
-          .collect(Collectors.toList());
+        .stream()
+        .map(node -> convertNodeToDataFetcherResult(node, requesterId, path))
+        .collect(Collectors.toList());
 
       results.addAll(nodesInError
-          .stream()
-          .map(nodeId -> new Builder<Map<String, Object>>()
-              .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
-              .build()
-          )
-          .collect(Collectors.toList()));
+        .stream()
+        .map(nodeId -> new Builder<Map<String, Object>>()
+          .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
+          .build()
+        )
+        .collect(Collectors.toList()));
       return results;
     });
   }
@@ -946,21 +936,21 @@ public class NodeDataFetcher {
       String nodeIdField = environment.getField().getName();
 
       return Optional
-          .ofNullable(((Map<String, String>) environment.getLocalContext()).get(nodeIdField))
-          .map(nodeId ->
-              environment
-                  .getDataLoader("NodeBatchLoader")
-                  .load(nodeId)
-                  .thenApply(node -> convertNodeToDataFetcherResult(
-                      (Node) node,
-                      ((User) environment.getGraphQlContext().get(Context.REQUESTER)).getId(),
-                      environment.getExecutionStepInfo().getPath())
-                  )
-                  .exceptionally((e) -> new DataFetcherResult.Builder<Map<String, Object>>().build())
-          )
-          .orElse(CompletableFuture.supplyAsync(() ->
-              new DataFetcherResult.Builder<Map<String, Object>>().build())
-          );
+        .ofNullable(((Map<String, String>) environment.getLocalContext()).get(nodeIdField))
+        .map(nodeId ->
+          environment
+            .getDataLoader("NodeBatchLoader")
+            .load(nodeId)
+            .thenApply(node -> convertNodeToDataFetcherResult(
+              (Node) node,
+              ((User) environment.getGraphQlContext().get(Context.REQUESTER)).getId(),
+              environment.getExecutionStepInfo().getPath())
+            )
+            .exceptionally((e) -> new DataFetcherResult.Builder<Map<String, Object>>().build())
+        )
+        .orElse(CompletableFuture.supplyAsync(() ->
+          new DataFetcherResult.Builder<Map<String, Object>>().build())
+        );
 
     };
   }
@@ -978,59 +968,59 @@ public class NodeDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
       String requesterId = ((User) environment
-          .getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER))
-          .getId();
+        .getGraphQlContext()
+        .get(Files.GraphQL.Context.REQUESTER))
+        .getId();
       String nodeId = environment.getArgument(InputParameters.NODE_ID);
 
       if (permissionsChecker.getPermissions(nodeId, requesterId).has(SharePermission.READ_ONLY)) {
         return nodeRepository
-            .getNode(nodeId)
-            .map(node -> {
-              List<String> pathNodeIds = new ArrayList<>(node.getAncestorsList());
-              pathNodeIds.add(nodeId);
-              List<Node> treeNodes = nodeRepository
-                  .getNodes(pathNodeIds, Optional.empty())
-                  // The sort is necessary to reflect the order of the nodes in the path
-                  .sorted(Comparator.comparing(nodeToSort -> pathNodeIds.indexOf(nodeToSort.getId())))
-                  .collect(Collectors.toList());
+          .getNode(nodeId)
+          .map(node -> {
+            List<String> pathNodeIds = new ArrayList<>(node.getAncestorsList());
+            pathNodeIds.add(nodeId);
+            List<Node> treeNodes = nodeRepository
+              .getNodes(pathNodeIds, Optional.empty())
+              // The sort is necessary to reflect the order of the nodes in the path
+              .sorted(Comparator.comparing(nodeToSort -> pathNodeIds.indexOf(nodeToSort.getId())))
+              .collect(Collectors.toList());
 
-              if (node.getNodeType().equals(NodeType.ROOT) || node.getOwnerId().equals(requesterId)) {
-                return treeNodes
-                    .stream()
-                    .map(currentNode -> convertNodeToDataFetcherResult(currentNode, requesterId, path))
-                    .collect(Collectors.toList());
-              } else {
-                List<Share> shares = shareRepository.getShares(
-                    treeNodes.stream().map(Node::getId).collect(Collectors.toList()),
-                    requesterId
-                );
-                List<Node> sharedNodes = treeNodes
-                    .stream()
-                    .filter(treeNode ->
-                        shares.stream().anyMatch(share -> share.getNodeId().equals(treeNode.getId()))
-                    )
-                    .collect(Collectors.toList());
+            if (node.getNodeType().equals(NodeType.ROOT) || node.getOwnerId().equals(requesterId)) {
+              return treeNodes
+                .stream()
+                .map(currentNode -> convertNodeToDataFetcherResult(currentNode, requesterId, path))
+                .collect(Collectors.toList());
+            } else {
+              List<Share> shares = shareRepository.getShares(
+                treeNodes.stream().map(Node::getId).collect(Collectors.toList()),
+                requesterId
+              );
+              List<Node> sharedNodes = treeNodes
+                .stream()
+                .filter(treeNode ->
+                  shares.stream().anyMatch(share -> share.getNodeId().equals(treeNode.getId()))
+                )
+                .collect(Collectors.toList());
 
-                return treeNodes
-                    .subList(treeNodes.indexOf(sharedNodes.get(0)), treeNodes.size())
-                    .stream()
-                    .map(treeNode -> convertNodeToDataFetcherResult(treeNode, requesterId, path))
-                    .collect(Collectors.toList());
-              }
-            })
-            .orElse(Collections.singletonList(
-                DataFetcherResult
-                    .<Map<String, Object>>newResult()
-                    .error(GraphQLResultErrors.nodeNotFound(nodeId, path))
-                    .build()
-            ));
-      }
-      return Collections.singletonList(
-          DataFetcherResult
+              return treeNodes
+                .subList(treeNodes.indexOf(sharedNodes.get(0)), treeNodes.size())
+                .stream()
+                .map(treeNode -> convertNodeToDataFetcherResult(treeNode, requesterId, path))
+                .collect(Collectors.toList());
+            }
+          })
+          .orElse(Collections.singletonList(
+            DataFetcherResult
               .<Map<String, Object>>newResult()
               .error(GraphQLResultErrors.nodeNotFound(nodeId, path))
               .build()
+          ));
+      }
+      return Collections.singletonList(
+        DataFetcherResult
+          .<Map<String, Object>>newResult()
+          .error(GraphQLResultErrors.nodeNotFound(nodeId, path))
+          .build()
       );
     });
   }
@@ -1061,8 +1051,8 @@ public class NodeDataFetcher {
       });
 
       return new DataFetcherResult.Builder<List<Map<String, Object>>>()
-          .data(result)
-          .build();
+        .data(result)
+        .build();
     });
   }
 
@@ -1108,69 +1098,69 @@ public class NodeDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, String>>>> findNodesFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       String requesterId = ((User) environment.getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       Optional<Boolean> optFlagged = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.FindNodes.FLAGGED)
+        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.FLAGGED)
       );
       Optional<Boolean> optSharedByMe = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.FindNodes.SHARED_BY_ME)
+        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.SHARED_BY_ME)
       );
       Optional<Boolean> optSharedWithMe = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.FindNodes.SHARED_WITH_ME)
+        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.SHARED_WITH_ME)
       );
       Optional<Boolean> optDirectShare = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.FindNodes.DIRECT_SHARE)
+        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.DIRECT_SHARE)
       );
       Optional<String> optFolderId = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.FindNodes.FOLDER_ID)
+        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.FOLDER_ID)
       );
       Optional<Boolean> optCascade = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.FindNodes.CASCADE)
+        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.CASCADE)
       );
       Optional<Integer> optLimit = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.FindNodes.LIMIT)
+        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.LIMIT)
       );
       Optional<NodeSort> optSort = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.FindNodes.SORT)
+        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.SORT)
       );
       Optional<String> optPageToken = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.FindNodes.PAGE_TOKEN)
+        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.PAGE_TOKEN)
       );
       Optional<List<String>> optKeywords = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.FindNodes.KEYWORDS)
+        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.KEYWORDS)
       );
 
       Optional<NodeType> optNodeType = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.FindNodes.NODE_TYPE)
+        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.NODE_TYPE)
       );
 
       Optional<String> optOwnerId = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.FindNodes.OWNER_ID)
+        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.OWNER_ID)
       );
 
       Map<String, List<Node>> nodeContext = new HashMap<>();
       Map<String, String> result = new HashMap<>();
       ImmutablePair<List<Node>, String> findResult = null;
       findResult = nodeRepository.findNodes(requesterId,
-          optSort,
-          optFlagged,
-          optFolderId,
-          optCascade,
-          optSharedWithMe,
-          optSharedByMe,
-          optDirectShare,
-          optLimit,
-          optNodeType,
-          optOwnerId,
-          optKeywords.orElse(Collections.emptyList()),
-          optPageToken);
+        optSort,
+        optFlagged,
+        optFolderId,
+        optCascade,
+        optSharedWithMe,
+        optSharedByMe,
+        optDirectShare,
+        optLimit,
+        optNodeType,
+        optOwnerId,
+        optKeywords.orElse(Collections.emptyList()),
+        optPageToken);
       result.put(Files.GraphQL.NodePage.PAGE_TOKEN, findResult.getRight());
 
       nodeContext.put(Files.GraphQL.NodePage.NODES, findResult.getLeft());
       return new DataFetcherResult.Builder<Map<String, String>>()
-          .data(result)
-          .localContext(nodeContext)
-          .build();
+        .data(result)
+        .localContext(nodeContext)
+        .build();
 
     });
   }
@@ -1190,19 +1180,19 @@ public class NodeDataFetcher {
   public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> nodePageFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       return Optional.ofNullable(environment.getLocalContext())
-          .map(context -> {
-            return ((Map<String, List<Node>>) context).get(Files.GraphQL.NodePage.NODES)
-                .stream()
-                .map(node ->
-                    convertNodeToDataFetcherResult(
-                        node,
-                        ((User) environment.getGraphQlContext().get(Context.REQUESTER)).getId(),
-                        environment.getExecutionStepInfo().getPath()
-                    )
-                )
-                .collect(Collectors.toList());
-          })
-          .orElse(Collections.emptyList());
+        .map(context -> {
+          return ((Map<String, List<Node>>) context).get(Files.GraphQL.NodePage.NODES)
+            .stream()
+            .map(node ->
+              convertNodeToDataFetcherResult(
+                node,
+                ((User) environment.getGraphQlContext().get(Context.REQUESTER)).getId(),
+                environment.getExecutionStepInfo().getPath()
+              )
+            )
+            .collect(Collectors.toList());
+        })
+        .orElse(Collections.emptyList());
     });
   }
 
@@ -1223,99 +1213,110 @@ public class NodeDataFetcher {
   public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> moveNodesFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath resultPath = environment.getExecutionStepInfo()
-          .getPath();
+        .getPath();
       String requesterId = ((User) environment.getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       List<String> nodeIds = environment.getArgument(
-          Files.GraphQL.InputParameters.MoveNodes.NODE_IDS);
+        Files.GraphQL.InputParameters.MoveNodes.NODE_IDS);
       String destinationFolderId = environment.getArgument(
-          Files.GraphQL.InputParameters.MoveNodes.DESTINATION_ID);
+        Files.GraphQL.InputParameters.MoveNodes.DESTINATION_ID);
 
       if (permissionsChecker.getPermissions(destinationFolderId, requesterId)
-          .has(SharePermission.READ_AND_WRITE)) {
+        .has(SharePermission.READ_AND_WRITE)) {
 
         Optional<Node> optDestinationFolder = nodeRepository.getNode(destinationFolderId);
         if (optDestinationFolder.isPresent() &&
-            (optDestinationFolder.get()
-                .getNodeType()
-                .equals(NodeType.FOLDER)
-                || optDestinationFolder.get()
-                .getNodeType()
-                .equals(NodeType.ROOT))
+          (optDestinationFolder.get()
+            .getNodeType()
+            .equals(NodeType.FOLDER)
+            || optDestinationFolder.get()
+            .getNodeType()
+            .equals(NodeType.ROOT))
         ) {
 
           List<String> rootIds = nodeRepository.getRootsList()
-              .stream()
-              .map(Node::getId)
-              .collect(Collectors.toList());
+            .stream()
+            .map(Node::getId)
+            .collect(Collectors.toList());
 
           List<String> nodeIdsToMove = nodeIds
-              .stream()
-              .filter(nodeId ->
-                  permissionsChecker.getPermissions(nodeId, requesterId)
-                      .has(SharePermission.READ_AND_WRITE)
-              )
-              .filter(nodeId -> !rootIds.contains(nodeId))
-              .filter(nodeId -> !destinationFolderId.equals(nodeId))
-              .collect(Collectors.toList());
+            .stream()
+            .filter(nodeId ->
+              permissionsChecker.getPermissions(nodeId, requesterId)
+                .has(SharePermission.READ_AND_WRITE)
+            )
+            .filter(nodeId -> !rootIds.contains(nodeId))
+            .filter(nodeId -> !destinationFolderId.equals(nodeId))
+            .collect(Collectors.toList());
 
           List<DataFetcherResult<Map<String, Object>>> movedNodesResult = new ArrayList<>();
           if (!nodeIdsToMove.isEmpty()) {
-            nodeRepository.moveNodes(nodeIdsToMove, optDestinationFolder.get());
-
-        /*
-          We must align ancestors of moved nodes
-          We must align shares of moved nodes and it can be done in two steps:
-          1. Remove every share of the node to move (and its child up to the leaves, if it is a folder)
-          2. Create all the shares of the destination folder (if it has at least one) for the node to move
-             (and for its child up to the leaves, if it is a folder)
-         */
-
             nodeIdsToMove
                 .forEach(nodeId -> {
-                  cascadeUpdateAncestors(nodeRepository.getNode(nodeId)
-                      .get());
-                  // Remove inherited shares on source node
-                  shareRepository
-                      .getShares(nodeId, Collections.emptyList())
-                      .stream()
-                      .filter(share -> !share.isDirect())
-                      .forEach(share -> {
-                        shareRepository.deleteShare(nodeId, share.getTargetUserId());
-                        shareDataFetcher.cascadeDeleteShare(nodeId, share.getTargetUserId());
-                      });
-                  // Add new inherited shares from destination node
-                  shareRepository
-                      .getShares(destinationFolderId, Collections.emptyList())
-                      .forEach(share -> {
-                        Optional<Share> sourceShare = shareRepository.getShare(nodeId,
-                            share.getTargetUserId());
-                        // If there's a share on source node is one of the direct shares i did not delete on previous step
-                        // I still added the second condition because of safety reasons and to be sure i only operate on
-                        // inherited share if other operations in future make it so shares are still present
-                        if (!sourceShare.isPresent() || !sourceShare.get()
-                            .isDirect()) {
-                          shareRepository.upsertShare(
-                              nodeId,
-                              share.getTargetUserId(),
-                              share.getPermissions(),
-                              false,
-                              false,
-                              share.getExpiredAt()
-                          );
-                          shareDataFetcher.cascadeUpsertShare(
-                              nodeId,
-                              share.getTargetUserId(),
-                              share.getPermissions(),
-                              share.getExpiredAt());
-                        }
-                      });
+                    Node node = nodeRepository.getNode(nodeId).get();
+
+                    String newName = searchAlternativeName(
+                        node.getFullName(), destinationFolderId, node.getOwnerId()
+                    );
+                    node.setFullName(newName);
+                    nodeRepository.updateNode(node);
                 });
+            nodeRepository.moveNodes(nodeIdsToMove, optDestinationFolder.get());
+
+            /*
+              We must align ancestors of moved nodes
+              We must align shares of moved nodes and it can be done in two steps:
+              1. Remove every share of the node to move (and its child up to the leaves, if it is a folder)
+              2. Create all the shares of the destination folder (if it has at least one) for the node to move
+                 (and for its child up to the leaves, if it is a folder)
+             */
+
+            nodeIdsToMove
+              .forEach(nodeId -> {
+                Node node = nodeRepository.getNode(nodeId).get();
+
+                cascadeUpdateAncestors(node);
+                // Remove inherited shares on source node
+                shareRepository
+                  .getShares(nodeId, Collections.emptyList())
+                  .stream()
+                  .filter(share -> !share.isDirect())
+                  .forEach(share -> {
+                    shareRepository.deleteShare(nodeId, share.getTargetUserId());
+                    shareDataFetcher.cascadeDeleteShare(nodeId, share.getTargetUserId());
+                  });
+                // Add new inherited shares from destination node
+                shareRepository
+                  .getShares(destinationFolderId, Collections.emptyList())
+                  .forEach(share -> {
+                    Optional<Share> sourceShare = shareRepository.getShare(nodeId,
+                      share.getTargetUserId());
+                    // If there's a share on source node is one of the direct shares i did not delete on previous step
+                    // I still added the second condition because of safety reasons and to be sure i only operate on
+                    // inherited share if other operations in future make it so shares are still present
+                    if (!sourceShare.isPresent() || !sourceShare.get()
+                      .isDirect()) {
+                      shareRepository.upsertShare(
+                        nodeId,
+                        share.getTargetUserId(),
+                        share.getPermissions(),
+                        false,
+                        false,
+                        share.getExpiredAt()
+                      );
+                      shareDataFetcher.cascadeUpsertShare(
+                        nodeId,
+                        share.getTargetUserId(),
+                        share.getPermissions(),
+                        share.getExpiredAt());
+                    }
+                  });
+              });
 
             movedNodesResult.addAll(nodeRepository
-                .getNodes(nodeIdsToMove, Optional.empty())
-                .map(node -> convertNodeToDataFetcherResult(node, requesterId, resultPath))
-                .collect(Collectors.toList()));
+              .getNodes(nodeIdsToMove, Optional.empty())
+              .map(node -> convertNodeToDataFetcherResult(node, requesterId, resultPath))
+              .collect(Collectors.toList()));
           }
 
           // List containing every node id that cannot be moved because:
@@ -1323,12 +1324,12 @@ public class NodeDataFetcher {
           //  * The requester wants to move a node on itself (nodeId == destinationId)
           //  * The requester wants to move a ROOT
           List<DataFetcherResult<Map<String, Object>>> errorsOfNodesWithoutPermission = nodeIds.stream()
-              .filter(nodeId -> !nodeIdsToMove.contains(nodeId))
-              .map(nodeId -> new Builder<Map<String, Object>>()
-                  .error(GraphQLResultErrors.nodeWriteError(nodeId, resultPath))
-                  .build()
-              )
-              .collect(Collectors.toList());
+            .filter(nodeId -> !nodeIdsToMove.contains(nodeId))
+            .map(nodeId -> new Builder<Map<String, Object>>()
+              .error(GraphQLResultErrors.nodeWriteError(nodeId, resultPath))
+              .build()
+            )
+            .collect(Collectors.toList());
 
           movedNodesResult.addAll(errorsOfNodesWithoutPermission);
           return movedNodesResult;
@@ -1336,8 +1337,8 @@ public class NodeDataFetcher {
       }
 
       return Collections.singletonList(new Builder<Map<String, Object>>()
-          .error(GraphQLResultErrors.nodeWriteError(destinationFolderId, resultPath))
-          .build());
+        .error(GraphQLResultErrors.nodeWriteError(destinationFolderId, resultPath))
+        .build());
     });
   }
 
@@ -1350,17 +1351,17 @@ public class NodeDataFetcher {
    */
   void cascadeUpdateAncestors(Node parentNode) {
     List<String> childrenIds = nodeRepository.getChildrenIds(parentNode.getId(), Optional.empty(),
-        Optional.empty(), true);
+      Optional.empty(), true);
     if (!childrenIds.isEmpty()) {
       nodeRepository.moveNodes(childrenIds, parentNode);
       List<Node> childrenNodes = nodeRepository
-          .getNodes(childrenIds, Optional.empty())
-          .collect(Collectors.toList());
+        .getNodes(childrenIds, Optional.empty())
+        .collect(Collectors.toList());
       childrenNodes
-          .stream()
-          .filter(n -> n.getNodeType()
-              .equals(NodeType.FOLDER))
-          .forEach(this::cascadeUpdateAncestors);
+        .stream()
+        .filter(n -> n.getNodeType()
+          .equals(NodeType.FOLDER))
+        .forEach(this::cascadeUpdateAncestors);
     }
   }
 
@@ -1369,55 +1370,55 @@ public class NodeDataFetcher {
 
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath resultPath = environment.getExecutionStepInfo()
-          .getPath();
+        .getPath();
       String requesterId = ((User) environment.getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       List<String> nodeIds = environment.getArgument(
-          Files.GraphQL.InputParameters.DeleteNodes.NODE_IDS);
+        Files.GraphQL.InputParameters.DeleteNodes.NODE_IDS);
 
       List<Node> nodesToDelete = nodeRepository.getNodes(nodeIds, Optional.empty())
-          .filter(Objects::nonNull)
-          .filter(node -> !node.getNodeType()
-              .equals(NodeType.ROOT))
-          .filter(node -> permissionsChecker
-              .getPermissions(node.getId(), requesterId)
-              .has(SharePermission.READ_AND_WRITE)
-          )
-          .collect(Collectors.toList());
+        .filter(Objects::nonNull)
+        .filter(node -> !node.getNodeType()
+          .equals(NodeType.ROOT))
+        .filter(node -> permissionsChecker
+          .getPermissions(node.getId(), requesterId)
+          .has(SharePermission.READ_AND_WRITE)
+        )
+        .collect(Collectors.toList());
 
       deleteNodes(nodesToDelete);
 
       List<String> nodeIdsToDelete = nodesToDelete
-          .stream()
-          .map(Node::getId)
-          .collect(Collectors.toList());
+        .stream()
+        .map(Node::getId)
+        .collect(Collectors.toList());
 
       nodeIdsToDelete.forEach(this::cascadeDeleteNode);
 
       return new Builder<List<String>>()
-          .data(nodeIdsToDelete)
-          .errors(nodeIds.stream()
-              .filter(nodeId -> !nodeIdsToDelete.contains(nodeId))
-              .map(nodeId -> GraphQLResultErrors.nodeNotFound(nodeId, resultPath))
-              .collect(Collectors.toList())
-          )
-          .build();
+        .data(nodeIdsToDelete)
+        .errors(nodeIds.stream()
+          .filter(nodeId -> !nodeIdsToDelete.contains(nodeId))
+          .map(nodeId -> GraphQLResultErrors.nodeNotFound(nodeId, resultPath))
+          .collect(Collectors.toList())
+        )
+        .build();
     });
   }
 
   private void cascadeDeleteNode(String nodeId) {
     List<String> childrenIds = nodeRepository.getChildrenIds(nodeId, Optional.empty(),
-        Optional.empty(), true);
+      Optional.empty(), true);
 
     if (!childrenIds.isEmpty()) {
       List<Node> children = nodeRepository.getNodes(childrenIds, Optional.empty())
-          .collect(Collectors.toList());
+        .collect(Collectors.toList());
       deleteNodes(children);
       children
-          .stream()
-          .filter(node -> node.getNodeType()
-              .equals(NodeType.FOLDER))
-          .forEach(node -> cascadeDeleteNode(node.getId()));
+        .stream()
+        .filter(node -> node.getNodeType()
+          .equals(NodeType.FOLDER))
+        .forEach(node -> cascadeDeleteNode(node.getId()));
     }
 
     // Delete all shares of nodes that are in trash, but not in the hierarchy of the nodeId.
@@ -1427,21 +1428,21 @@ public class NodeDataFetcher {
 
   private void deleteNodes(List<Node> nodes) {
     List<String> nodeIds = nodes.stream()
-        .map(Node::getId)
-        .collect(Collectors.toList());
+      .map(Node::getId)
+      .collect(Collectors.toList());
 
     if (!nodeIds.isEmpty()) {
       shareRepository.deleteSharesBulk(nodeIds);
 
       nodes.stream()
-          .filter(node -> !node.getNodeType()
-              .equals(NodeType.FOLDER))
-          .forEach(node ->
-              tombstoneRepository.createTombstonesBulk(
-                  fileVersionRepository.getFileVersions(node.getId(), List.of(FileVersionSort.VERSION_DESC)),
-                  node.getOwnerId()
-              )
-          );
+        .filter(node -> !node.getNodeType()
+          .equals(NodeType.FOLDER))
+        .forEach(node ->
+          tombstoneRepository.createTombstonesBulk(
+            fileVersionRepository.getFileVersions(node.getId(), List.of(FileVersionSort.VERSION_DESC)),
+            node.getOwnerId()
+          )
+        );
 
       nodeRepository.deleteNodes(nodeIds);
     }
@@ -1450,79 +1451,80 @@ public class NodeDataFetcher {
   /**
    * Copies a {@link Node} of type File into a destination folder.
    *
-   * @param sourceNode        the file that must be copied.
+   * @param sourceNode the file that must be copied.
    * @param destinationFolder the {@link Node} representing the destination folder.
-   * @param requesterId       requester identifier.
-   * @param newFileName       is an {@link Optional<String>} if we want to give a new name to the copied
-   *                          file, used for name clashes
+   * @param requesterId requester identifier.
+   * @param newFileName is an {@link Optional<String>} if we want to give a new name to the copied
+   * file, used for name clashes
+   *
    * @return the number of copied nodes.
    */
   private Optional<Node> copyFile(
-      Node sourceNode,
-      Node destinationFolder,
-      String requesterId,
-      Optional<String> newFileName
+    Node sourceNode,
+    Node destinationFolder,
+    String requesterId,
+    Optional<String> newFileName
   ) {
     String effectiveName = newFileName.orElse(sourceNode.getFullName());
     String ownerId =
-        (destinationFolder.getNodeType()
-            .equals(NodeType.ROOT) || requesterId.equals(destinationFolder.getOwnerId()))
-            ? requesterId
-            : destinationFolder.getOwnerId();
+      (destinationFolder.getNodeType()
+        .equals(NodeType.ROOT) || requesterId.equals(destinationFolder.getOwnerId()))
+        ? requesterId
+        : destinationFolder.getOwnerId();
 
     Node createdNode = nodeRepository.createNewNode(
-        UUID.randomUUID().toString(),
-        requesterId,
-        ownerId,
-        destinationFolder.getId(),
-        effectiveName,
-        sourceNode.getDescription().orElse(""),
-        sourceNode.getNodeType(),
-        NodeType.ROOT.equals(destinationFolder.getNodeType())
-            ? destinationFolder.getId()
-            : destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
-        sourceNode.getSize()
+      UUID.randomUUID().toString(),
+      requesterId,
+      ownerId,
+      destinationFolder.getId(),
+      effectiveName,
+      sourceNode.getDescription().orElse(""),
+      sourceNode.getNodeType(),
+      NodeType.ROOT.equals(destinationFolder.getNodeType())
+        ? destinationFolder.getId()
+        : destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
+      sourceNode.getSize()
     );
 
     // TODO: handle the corner-case when the current version does not exists.
     // It should never happened but we should handle anyways
     FileVersion sourceCurrentFileVersion = fileVersionRepository
-        .getFileVersion(sourceNode.getId(), sourceNode.getCurrentVersion())
-        .get();
+      .getFileVersion(sourceNode.getId(), sourceNode.getCurrentVersion())
+      .get();
 
     // TODO: make the copy async
     Try
-        .of(() -> filesConfig
-            .getFileStoreClient()
-            .copy(
-                FilesIdentifier.of(sourceNode.getId(), sourceNode.getCurrentVersion(),
-                    sourceNode.getOwnerId()),
-                FilesIdentifier.of(createdNode.getId(), 1, requesterId),
-                false
-            )
+      .of(() -> filesConfig
+        .getFileStoreClient()
+        .copy(
+          FilesIdentifier.of(sourceNode.getId(), sourceNode.getCurrentVersion(),
+            sourceNode.getOwnerId()),
+          FilesIdentifier.of(createdNode.getId(), 1, requesterId),
+          false
         )
-        .onSuccess(copiedBlobResponse -> {
-          fileVersionRepository.createNewFileVersion(
-              createdNode.getId(),
-              requesterId,
-              1,
-              sourceCurrentFileVersion.getMimeType(),
-              copiedBlobResponse.getSize(),
-              copiedBlobResponse.getDigest(),
-              false
-          );
+      )
+      .onSuccess(copiedBlobResponse -> {
+        fileVersionRepository.createNewFileVersion(
+          createdNode.getId(),
+          requesterId,
+          1,
+          sourceCurrentFileVersion.getMimeType(),
+          copiedBlobResponse.getSize(),
+          copiedBlobResponse.getDigest(),
+          false
+        );
 
-          createdNode.setCurrentVersion(1);
-          nodeRepository.updateNode(createdNode);
-        })
-        .onFailure(failure -> {
-          logger.error(MessageFormat.format(
-              "Unable to copy the node {0}. {1}",
-              sourceNode.getId(),
-              failure
-          ));
-          nodeRepository.deleteNode(createdNode.getId());
-        });
+        createdNode.setCurrentVersion(1);
+        nodeRepository.updateNode(createdNode);
+      })
+      .onFailure(failure -> {
+        logger.error(MessageFormat.format(
+          "Unable to copy the node {0}. {1}",
+          sourceNode.getId(),
+          failure
+        ));
+        nodeRepository.deleteNode(createdNode.getId());
+      });
 
     return nodeRepository.getNode(createdNode.getId());
   }
@@ -1531,39 +1533,40 @@ public class NodeDataFetcher {
   /**
    * Copies recursively a folder.
    *
-   * @param sourceFolderId    the folder that must be copied
+   * @param sourceFolderId the folder that must be copied
    * @param destinationFolder the {@link Node} representing the destination folder
-   * @param requesterId       the id of the requester
-   * @param newName           is an {@link Optional<String>} if we want to give a new name to the copied
-   *                          folder, used for name clashes
+   * @param requesterId the id of the requester
+   * @param newName is an {@link Optional<String>} if we want to give a new name to the copied
+   * folder, used for name clashes
+   *
    * @return the number of files copied
    */
   private void copyFolderCascade(
-      String sourceFolderId,
-      Node destinationFolder,
-      String requesterId,
-      Optional<String> newName
+    String sourceFolderId,
+    Node destinationFolder,
+    String requesterId,
+    Optional<String> newName
   ) {
 
     // Divide folders from files
     List<Node> folderChildren = nodeRepository
-        .getNodes(
-            nodeRepository.getChildrenIds(sourceFolderId, Optional.empty(), Optional.empty(), false),
-            Optional.empty()
-        )
-        .collect(Collectors.toList());
+      .getNodes(
+        nodeRepository.getChildrenIds(sourceFolderId, Optional.empty(), Optional.empty(), false),
+        Optional.empty()
+      )
+      .collect(Collectors.toList());
 
     List<Node> filesToCopy = folderChildren
-        .stream()
-        .filter(node -> !node.getNodeType()
-            .equals(NodeType.FOLDER))
-        .collect(Collectors.toList());
+      .stream()
+      .filter(node -> !node.getNodeType()
+        .equals(NodeType.FOLDER))
+      .collect(Collectors.toList());
 
     List<Node> foldersToCopy = folderChildren
-        .stream()
-        .filter(node -> node.getNodeType()
-            .equals(NodeType.FOLDER))
-        .collect(Collectors.toList());
+      .stream()
+      .filter(node -> node.getNodeType()
+        .equals(NodeType.FOLDER))
+      .collect(Collectors.toList());
 
     // Copy each file
     filesToCopy.forEach(file -> copyFile(file, destinationFolder, requesterId, Optional.empty()));
@@ -1571,93 +1574,94 @@ public class NodeDataFetcher {
     // Copy recursively each folder
     foldersToCopy.forEach(folderToCopy -> {
       Node copiedFolder = copyFolder(folderToCopy, destinationFolder, requesterId,
-          Optional.empty());
+        Optional.empty());
       copyFolderCascade(folderToCopy.getId(), copiedFolder, requesterId, Optional.empty());
     });
   }
 
   private Node copyFolder(
-      Node sourceFolder,
-      Node destinationFolder,
-      String requesterId,
-      Optional<String> newName
+    Node sourceFolder,
+    Node destinationFolder,
+    String requesterId,
+    Optional<String> newName
   ) {
     String effectiveName = newName.orElse(sourceFolder.getName());
 
     String ownerId = (
-        destinationFolder.getNodeType().equals(NodeType.ROOT)
-            || requesterId.equals(destinationFolder.getOwnerId())
+      destinationFolder.getNodeType().equals(NodeType.ROOT)
+        || requesterId.equals(destinationFolder.getOwnerId())
     )
-        ? requesterId
-        : destinationFolder.getOwnerId();
+      ? requesterId
+      : destinationFolder.getOwnerId();
 
     // Create the new folder
     return nodeRepository.createNewNode(
-        UUID.randomUUID()
-            .toString(),
-        requesterId,
-        ownerId,
-        destinationFolder.getId(),
-        effectiveName,
-        sourceFolder.getDescription()
-            .orElse(""),
-        NodeType.FOLDER,
-        NodeType.ROOT.equals(destinationFolder.getNodeType())
-            ? destinationFolder.getId()
-            : destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
-        0L
+      UUID.randomUUID()
+        .toString(),
+      requesterId,
+      ownerId,
+      destinationFolder.getId(),
+      effectiveName,
+      sourceFolder.getDescription()
+        .orElse(""),
+      NodeType.FOLDER,
+      NodeType.ROOT.equals(destinationFolder.getNodeType())
+        ? destinationFolder.getId()
+        : destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
+      0L
     );
   }
 
   private void createIndirectShare(
-      String sharedParentId,
-      Node nodeToShare
+    String sharedParentId,
+    Node nodeToShare
   ) {
     shareRepository.getShares(sharedParentId, Collections.emptyList())
-        .forEach(share -> {
-          shareRepository.upsertShare(
-              nodeToShare.getId(),
-              share.getTargetUserId(),
-              share.getPermissions(),
-              false,
-              false,
-              share.getExpiredAt()
-          );
+      .forEach(share -> {
+        shareRepository.upsertShare(
+          nodeToShare.getId(),
+          share.getTargetUserId(),
+          share.getPermissions(),
+          false,
+          false,
+          share.getExpiredAt()
+        );
 
-          if (nodeToShare.getNodeType()
-              .equals(NodeType.FOLDER)) {
-            shareDataFetcher.cascadeUpsertShare(
-                nodeToShare.getId(),
-                share.getTargetUserId(),
-                share.getPermissions(),
-                share.getExpiredAt());
-          }
-        });
+        if (nodeToShare.getNodeType()
+          .equals(NodeType.FOLDER)) {
+          shareDataFetcher.cascadeUpsertShare(
+            nodeToShare.getId(),
+            share.getTargetUserId(),
+            share.getPermissions(),
+            share.getExpiredAt());
+        }
+      });
   }
 
   /**
    * @param filename
    * @param destinationFolderId the id of the destination folder
    * @param nodeOwner
+   *
    * @return the alternative name
    */
   private String searchAlternativeName(
-      String filename,
-      String destinationFolderId,
-      String nodeOwner
+    String filename,
+    String destinationFolderId,
+    String nodeOwner
   ) {
     int level = 1;
     String finalFilename = filename;
 
     while (nodeRepository
-        .getNodeByName(finalFilename, destinationFolderId, nodeOwner)
-        .isPresent()
+      .getNodeByName(finalFilename, destinationFolderId, nodeOwner)
+      .isPresent()
     ) {
       int dotPosition = filename.lastIndexOf('.');
 
       finalFilename = (dotPosition != -1)
-          ? filename.substring(0, dotPosition) + " (" + level + ")" + filename.substring(dotPosition)
-          : filename + " (" + level + ")";
+        ? filename.substring(0, dotPosition) + " (" + level + ")" + filename.substring(dotPosition)
+        : filename + " (" + level + ")";
 
       ++level;
     }
@@ -1682,166 +1686,166 @@ public class NodeDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath resultPath = environment.getExecutionStepInfo().getPath();
       String requesterId = ((User) environment
-          .getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .getGraphQlContext()
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       List<String> nodeIds = environment.getArgument(InputParameters.MoveNodes.NODE_IDS);
       String destinationFolderId = environment.getArgument(
-          InputParameters.MoveNodes.DESTINATION_ID);
+        InputParameters.MoveNodes.DESTINATION_ID);
 
       if (permissionsChecker.getPermissions(destinationFolderId, requesterId)
-          .has(SharePermission.READ_AND_WRITE)) {
+        .has(SharePermission.READ_AND_WRITE)) {
 
         Optional<Node> optDestinationFolder = nodeRepository.getNode(destinationFolderId);
 
         if (optDestinationFolder.isPresent() &&
-            (optDestinationFolder.get()
-                .getNodeType()
-                .equals(NodeType.FOLDER)
-                || optDestinationFolder.get()
-                .getNodeType()
-                .equals(NodeType.ROOT))
+          (optDestinationFolder.get()
+            .getNodeType()
+            .equals(NodeType.FOLDER)
+            || optDestinationFolder.get()
+            .getNodeType()
+            .equals(NodeType.ROOT))
         ) {
 
           List<DataFetcherResult<Map<String, Object>>> copiedNodesResult = new ArrayList<>();
           AtomicReference<List<DataFetcherResult<Map<String, Object>>>> errorsOfNodesWithoutPermission =
-              new AtomicReference();
+            new AtomicReference();
 
           List<Node> nodes = nodeRepository.getNodes(nodeIds, Optional.empty())
-              .collect(Collectors.toList());
+            .collect(Collectors.toList());
           List<String> targetFolderChildrenFilesName = nodeRepository.getNodes(
-                  nodeRepository.getChildrenIds(
-                      destinationFolderId,
-                      Optional.empty(),
-                      Optional.empty(),
-                      false),
-                  Optional.empty()
-              )
-              .map(Node::getFullName)
-              .collect(Collectors.toList());
+              nodeRepository.getChildrenIds(
+                destinationFolderId,
+                Optional.empty(),
+                Optional.empty(),
+                false),
+              Optional.empty()
+            )
+            .map(Node::getFullName)
+            .collect(Collectors.toList());
 
           // Handle permissions
           List<Node> nodesToCopy = nodes
-              .stream()
-              .filter(node ->
-                  node.getNodeType() != NodeType.FOLDER ||
-                      (node.getNodeType() == NodeType.FOLDER &&
-                          !node.getId()
-                              .equals(destinationFolderId) && // Can't copy a folder inside itself
-                          (!optDestinationFolder.get()
-                              .getAncestorsList()
-                              .contains(node.getId()) || // Can't copy a folder inside one of it's child
-                              node.getParentId()
-                                  .equals(destinationFolderId) // Can copy a folder inside its parent
-                          )
-                      )
-              )
-              .filter(node -> permissionsChecker.getPermissions(node.getId(), requesterId)
-                  .canRead())
-              .collect(Collectors.toList());
+            .stream()
+            .filter(node ->
+              node.getNodeType() != NodeType.FOLDER ||
+                (node.getNodeType() == NodeType.FOLDER &&
+                  !node.getId()
+                    .equals(destinationFolderId) && // Can't copy a folder inside itself
+                  (!optDestinationFolder.get()
+                    .getAncestorsList()
+                    .contains(node.getId()) || // Can't copy a folder inside one of it's child
+                    node.getParentId()
+                      .equals(destinationFolderId) // Can copy a folder inside its parent
+                  )
+                )
+            )
+            .filter(node -> permissionsChecker.getPermissions(node.getId(), requesterId)
+              .canRead())
+            .collect(Collectors.toList());
 
           errorsOfNodesWithoutPermission.set(
-              nodes
-                  .stream()
-                  .filter(node -> !nodesToCopy.contains(node))
-                  .map(node -> new Builder<Map<String, Object>>()
-                      .error(GraphQLResultErrors.nodeWriteError(node.getId(), resultPath))
-                      .build()
-                  )
-                  .collect(Collectors.toList())
+            nodes
+              .stream()
+              .filter(node -> !nodesToCopy.contains(node))
+              .map(node -> new Builder<Map<String, Object>>()
+                .error(GraphQLResultErrors.nodeWriteError(node.getId(), resultPath))
+                .build()
+              )
+              .collect(Collectors.toList())
           );
 
           if (!nodesToCopy.isEmpty()) {
             nodesToCopy
-                .stream()
-                .filter(node -> targetFolderChildrenFilesName.contains(node.getFullName()))
-                .forEach(nodeDup -> {
-                  String newName = searchAlternativeName(
-                      nodeDup.getFullName(), destinationFolderId, nodeDup.getOwnerId()
+              .stream()
+              .filter(node -> targetFolderChildrenFilesName.contains(node.getFullName()))
+              .forEach(nodeDup -> {
+                String newName = searchAlternativeName(
+                  nodeDup.getFullName(), destinationFolderId, nodeDup.getOwnerId()
+                );
+                if (nodeDup.getNodeType() == NodeType.FOLDER) {
+                  Node copiedFolder = copyFolder(
+                    nodeDup, optDestinationFolder.get(), requesterId, Optional.of(newName)
                   );
-                  if (nodeDup.getNodeType() == NodeType.FOLDER) {
-                    Node copiedFolder = copyFolder(
-                        nodeDup, optDestinationFolder.get(), requesterId, Optional.of(newName)
-                    );
+                  copiedNodesResult.add(
+                    convertNodeToDataFetcherResult(copiedFolder, requesterId, resultPath)
+                  );
+                  copyFolderCascade(nodeDup.getId(), copiedFolder, requesterId,
+                    Optional.of(newName));
+                  createIndirectShare(destinationFolderId, copiedFolder);
+                } else {
+                  Optional<Node> optCopiedFile = copyFile(
+                    nodeDup,
+                    optDestinationFolder.get(),
+                    requesterId,
+                    Optional.of(newName)
+                  );
+
+                  if (optCopiedFile.isPresent()) {
                     copiedNodesResult.add(
-                        convertNodeToDataFetcherResult(copiedFolder, requesterId, resultPath)
+                      convertNodeToDataFetcherResult(optCopiedFile.get(), requesterId, resultPath)
                     );
-                    copyFolderCascade(nodeDup.getId(), copiedFolder, requesterId,
-                        Optional.of(newName));
-                    createIndirectShare(destinationFolderId, copiedFolder);
+                    createIndirectShare(destinationFolderId, optCopiedFile.get());
                   } else {
-                    Optional<Node> optCopiedFile = copyFile(
-                        nodeDup,
-                        optDestinationFolder.get(),
-                        requesterId,
-                        Optional.of(newName)
+                    List<DataFetcherResult<Map<String, Object>>> errors =
+                      errorsOfNodesWithoutPermission.get();
+
+                    errors.add(DataFetcherResult
+                      .<Map<String, Object>>newResult()
+                      .error(GraphQLResultErrors.nodeCopyError(
+                        nodeDup.getId(),
+                        nodeDup.getCurrentVersion(),
+                        resultPath
+                      ))
+                      .build()
                     );
 
-                    if (optCopiedFile.isPresent()) {
-                      copiedNodesResult.add(
-                          convertNodeToDataFetcherResult(optCopiedFile.get(), requesterId, resultPath)
-                      );
-                      createIndirectShare(destinationFolderId, optCopiedFile.get());
-                    } else {
-                      List<DataFetcherResult<Map<String, Object>>> errors =
-                          errorsOfNodesWithoutPermission.get();
-
-                      errors.add(DataFetcherResult
-                          .<Map<String, Object>>newResult()
-                          .error(GraphQLResultErrors.nodeCopyError(
-                              nodeDup.getId(),
-                              nodeDup.getCurrentVersion(),
-                              resultPath
-                          ))
-                          .build()
-                      );
-
-                      errorsOfNodesWithoutPermission.set(errors);
-                    }
+                    errorsOfNodesWithoutPermission.set(errors);
                   }
-                });
+                }
+              });
 
             nodesToCopy
-                .stream()
-                .filter(node -> !targetFolderChildrenFilesName.contains(node.getFullName()))
-                .forEach(node -> {
-                  if (node.getNodeType() == NodeType.FOLDER) {
-                    Node copiedFolder = copyFolder(node, optDestinationFolder.get(), requesterId,
-                        Optional.empty());
+              .stream()
+              .filter(node -> !targetFolderChildrenFilesName.contains(node.getFullName()))
+              .forEach(node -> {
+                if (node.getNodeType() == NodeType.FOLDER) {
+                  Node copiedFolder = copyFolder(node, optDestinationFolder.get(), requesterId,
+                    Optional.empty());
+                  copiedNodesResult.add(
+                    convertNodeToDataFetcherResult(copiedFolder, requesterId, resultPath));
+                  copyFolderCascade(node.getId(), copiedFolder, requesterId, Optional.empty());
+                  createIndirectShare(destinationFolderId, copiedFolder);
+                } else {
+                  Optional<Node> optCopiedFile = copyFile(
+                    node,
+                    optDestinationFolder.get(),
+                    requesterId,
+                    Optional.empty()
+                  );
+
+                  if (optCopiedFile.isPresent()) {
                     copiedNodesResult.add(
-                        convertNodeToDataFetcherResult(copiedFolder, requesterId, resultPath));
-                    copyFolderCascade(node.getId(), copiedFolder, requesterId, Optional.empty());
-                    createIndirectShare(destinationFolderId, copiedFolder);
+                      convertNodeToDataFetcherResult(optCopiedFile.get(), requesterId, resultPath)
+                    );
+                    createIndirectShare(destinationFolderId, optCopiedFile.get());
                   } else {
-                    Optional<Node> optCopiedFile = copyFile(
-                        node,
-                        optDestinationFolder.get(),
-                        requesterId,
-                        Optional.empty()
+                    List<DataFetcherResult<Map<String, Object>>> errors =
+                      errorsOfNodesWithoutPermission.get();
+
+                    errors.add(DataFetcherResult
+                      .<Map<String, Object>>newResult()
+                      .error(GraphQLResultErrors.nodeCopyError(
+                        node.getId(),
+                        node.getCurrentVersion(),
+                        resultPath
+                      ))
+                      .build()
                     );
 
-                    if (optCopiedFile.isPresent()) {
-                      copiedNodesResult.add(
-                          convertNodeToDataFetcherResult(optCopiedFile.get(), requesterId, resultPath)
-                      );
-                      createIndirectShare(destinationFolderId, optCopiedFile.get());
-                    } else {
-                      List<DataFetcherResult<Map<String, Object>>> errors =
-                          errorsOfNodesWithoutPermission.get();
-
-                      errors.add(DataFetcherResult
-                          .<Map<String, Object>>newResult()
-                          .error(GraphQLResultErrors.nodeCopyError(
-                              node.getId(),
-                              node.getCurrentVersion(),
-                              resultPath
-                          ))
-                          .build()
-                      );
-
-                      errorsOfNodesWithoutPermission.set(errors);
-                    }
+                    errorsOfNodesWithoutPermission.set(errors);
                   }
-                });
+                }
+              });
           }
           copiedNodesResult.addAll(errorsOfNodesWithoutPermission.get());
           return copiedNodesResult;
@@ -1849,126 +1853,126 @@ public class NodeDataFetcher {
       }
 
       return Collections.singletonList(new Builder<Map<String, Object>>()
-          .error(GraphQLResultErrors.nodeWriteError(destinationFolderId, resultPath))
-          .build());
+        .error(GraphQLResultErrors.nodeWriteError(destinationFolderId, resultPath))
+        .build());
     });
   }
 
   public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> getVersionsFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo()
-          .getPath();
+        .getPath();
       String requesterId = ((User) environment.getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       String nodeId = environment.getArgument(GetVersions.NODE_ID);
       Optional<List<Integer>> optVersions = Optional.ofNullable(
-          environment.getArgument(GetVersions.VERSIONS));
+        environment.getArgument(GetVersions.VERSIONS));
 
       if (permissionsChecker.getPermissions(nodeId, requesterId)
-          .has(SharePermission.READ_ONLY)) {
+        .has(SharePermission.READ_ONLY)) {
         List<DataFetcherResult<Map<String, Object>>> results = new ArrayList<>();
 
         optVersions
-            .orElseGet(() -> {
-              List<Integer> versions = new ArrayList<>();
-              fileVersionRepository
-                  .getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC))
-                  .forEach(fileVersion -> versions.add(fileVersion.getVersion()));
-              return versions;
-            })
-            .forEach(version -> results.add(
-                convertNodeToDataFetcherResult(
-                    nodeRepository.getNode(nodeId).get(),
-                    version,
-                    requesterId,
-                    path)
-            ));
+          .orElseGet(() -> {
+            List<Integer> versions = new ArrayList<>();
+            fileVersionRepository
+              .getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC))
+              .forEach(fileVersion -> versions.add(fileVersion.getVersion()));
+            return versions;
+          })
+          .forEach(version -> results.add(
+            convertNodeToDataFetcherResult(
+              nodeRepository.getNode(nodeId).get(),
+              version,
+              requesterId,
+              path)
+          ));
 
         return results;
       }
 
       return Collections.singletonList(new Builder<Map<String, Object>>()
-          .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
-          .build());
+        .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
+        .build());
     });
   }
 
   public DataFetcher<CompletableFuture<DataFetcherResult<List<Integer>>>> deleteVersionsFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo()
-          .getPath();
+        .getPath();
       String requesterId = ((User) environment.getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       String nodeId = environment.getArgument(GetVersions.NODE_ID);
       Optional<List<Integer>> optVersionsToDelete = Optional.ofNullable(
-          environment.getArgument(GetVersions.VERSIONS));
+        environment.getArgument(GetVersions.VERSIONS));
 
       if (permissionsChecker.getPermissions(nodeId, requesterId)
-          .has(SharePermission.READ_AND_WRITE)) {
+        .has(SharePermission.READ_AND_WRITE)) {
         Node node = nodeRepository.getNode(nodeId)
-            .get();
+          .get();
 
         List<FileVersion> fileVersionsToDelete = optVersionsToDelete
-            .map(versions -> fileVersionRepository.getFileVersions(nodeId, versions))
-            .orElseGet(() -> fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)))
-            .stream()
-            .filter(fileVersion -> !fileVersion.isKeptForever())
-            .collect(Collectors.toList());
+          .map(versions -> fileVersionRepository.getFileVersions(nodeId, versions))
+          .orElseGet(() -> fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)))
+          .stream()
+          .filter(fileVersion -> !fileVersion.isKeptForever())
+          .collect(Collectors.toList());
 
         List<Integer> versionsToDelete = fileVersionsToDelete
-            .stream()
-            .map(FileVersion::getVersion)
-            .filter(version -> !node.getCurrentVersion()
-                .equals(version))
-            .collect(Collectors.toList());
+          .stream()
+          .map(FileVersion::getVersion)
+          .filter(version -> !node.getCurrentVersion()
+            .equals(version))
+          .collect(Collectors.toList());
 
         fileVersionRepository.deleteFileVersions(nodeId, versionsToDelete);
         tombstoneRepository.createTombstonesBulk(fileVersionsToDelete, node.getOwnerId());
 
         List<GraphQLError> undeletedVersionErrors = optVersionsToDelete
-            .map(versions -> versions
-                .stream()
-                .filter(version -> !versionsToDelete.contains(version))
-                .map(version -> GraphQLResultErrors.fileVersionNotFound(nodeId, version, path))
-                .collect(Collectors.toList())
-            )
-            .orElse(Collections.emptyList());
+          .map(versions -> versions
+            .stream()
+            .filter(version -> !versionsToDelete.contains(version))
+            .map(version -> GraphQLResultErrors.fileVersionNotFound(nodeId, version, path))
+            .collect(Collectors.toList())
+          )
+          .orElse(Collections.emptyList());
 
         return new Builder<List<Integer>>()
-            .data(versionsToDelete)
-            .errors(undeletedVersionErrors)
-            .build();
+          .data(versionsToDelete)
+          .errors(undeletedVersionErrors)
+          .build();
       }
 
       return new Builder<List<Integer>>()
-          .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
-          .build();
+        .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
+        .build();
     });
   }
 
   public DataFetcher<CompletableFuture<DataFetcherResult<List<Integer>>>> keepVersionsFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo()
-          .getPath();
+        .getPath();
       String requesterId = ((User) environment.getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
       String nodeId = environment.getArgument(GetVersions.NODE_ID);
       List<Integer> versionsToKeepForever = environment.getArgument(GetVersions.VERSIONS);
       Boolean keepForever = environment.getArgument(KeepVersions.KEEP_FOREVER);
 
       if (permissionsChecker.getPermissions(nodeId, requesterId)
-          .has(SharePermission.READ_AND_WRITE)) {
+        .has(SharePermission.READ_AND_WRITE)) {
 
         List<FileVersion> listOfFileVersions = fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
         int keepForeverCounter = 0;
         for (FileVersion version : listOfFileVersions) {
           keepForeverCounter = version.isKeptForever()
-              ? keepForeverCounter + 1
-              : keepForeverCounter;
+            ? keepForeverCounter + 1
+            : keepForeverCounter;
         }
 
         List<FileVersion> fileVersions = fileVersionRepository.getFileVersions(nodeId,
-            versionsToKeepForever);
+          versionsToKeepForever);
         // Make update in batch
         List<FileVersion> fileVersionsNotUpdated = new Vector<>();
         for (FileVersion version : fileVersions) {
@@ -1976,49 +1980,49 @@ public class NodeDataFetcher {
             version.keepForever(keepForever);
             fileVersionRepository.updateFileVersion(version);
             keepForeverCounter = keepForever
-                ? keepForeverCounter + 1
-                : keepForeverCounter - 1;
+              ? keepForeverCounter + 1
+              : keepForeverCounter - 1;
           } else {
             fileVersionsNotUpdated.add(version);
           }
         }
 
         List<Integer> versionsUpdated = fileVersions
-            .stream()
-            .filter(version -> version.isKeptForever() == keepForever)
-            .map(FileVersion::getVersion)
-            .collect(Collectors.toList());
+          .stream()
+          .filter(version -> version.isKeptForever() == keepForever)
+          .map(FileVersion::getVersion)
+          .collect(Collectors.toList());
 
         List<GraphQLError> versionsNotUpdated = fileVersionsNotUpdated
-            .stream()
-            .map(version -> GraphQLResultErrors.tooManyVersionsError(nodeId, path))
-            .collect(Collectors.toList());
+          .stream()
+          .map(version -> GraphQLResultErrors.tooManyVersionsError(nodeId, path))
+          .collect(Collectors.toList());
 
         versionsNotUpdated.addAll(
-            fileVersions
-                .stream()
-                .filter(versionsNotUpdated::contains)
-                .filter(versionsUpdated::contains)
-                .map(version -> GraphQLResultErrors.fileVersionNotFound(nodeId, version.getVersion(),
-                    path))
-                .collect(Collectors.toList())
+          fileVersions
+            .stream()
+            .filter(versionsNotUpdated::contains)
+            .filter(versionsUpdated::contains)
+            .map(version -> GraphQLResultErrors.fileVersionNotFound(nodeId, version.getVersion(),
+              path))
+            .collect(Collectors.toList())
         );
 
         logger.debug(MessageFormat.format(
-            "Keep version operation completed with success on: {0} and failure on {1}",
-            versionsUpdated,
-            versionsNotUpdated
+          "Keep version operation completed with success on: {0} and failure on {1}",
+          versionsUpdated,
+          versionsNotUpdated
         ));
 
         return new Builder<List<Integer>>()
-            .data(versionsUpdated)
-            .errors(versionsNotUpdated)
-            .build();
+          .data(versionsUpdated)
+          .errors(versionsNotUpdated)
+          .build();
       }
 
       return new Builder<List<Integer>>()
-          .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
-          .build();
+        .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
+        .build();
     });
   }
 
@@ -2026,101 +2030,101 @@ public class NodeDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
       String requesterId = ((User) environment
-          .getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER))
-          .getId();
+        .getGraphQlContext()
+        .get(Files.GraphQL.Context.REQUESTER))
+        .getId();
       String nodeId = environment.getArgument(Files.GraphQL.InputParameters.CloneVersion.NODE_ID);
       Integer versionToClone = environment.getArgument(
-          Files.GraphQL.InputParameters.CloneVersion.VERSION
+        Files.GraphQL.InputParameters.CloneVersion.VERSION
       );
 
       if (permissionsChecker
-          .getPermissions(nodeId, requesterId)
-          .has(SharePermission.READ_AND_WRITE)
+        .getPermissions(nodeId, requesterId)
+        .has(SharePermission.READ_AND_WRITE)
       ) {
         Node node = nodeRepository.getNode(nodeId).get();
         if (fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)).size() >= maxNumberOfVersions) {
           logger.debug(MessageFormat.format(
-              "Node: {0} has reached max number of versions ({1}), cannot add more versions",
-              nodeId,
-              maxNumberOfVersions
+            "Node: {0} has reached max number of versions ({1}), cannot add more versions",
+            nodeId,
+            maxNumberOfVersions
           ));
           return new Builder<Map<String, Object>>()
-              .error(GraphQLResultErrors.tooManyVersionsError(nodeId, path))
-              .build();
+            .error(GraphQLResultErrors.tooManyVersionsError(nodeId, path))
+            .build();
         }
         logger.debug(MessageFormat.format(
-            "Version to clone {0}, id fetched to clone {1}, node current version {2}",
-            versionToClone,
-            fileVersionRepository.getFileVersion(nodeId, versionToClone).get().getNodeId(),
-            node.getCurrentVersion()
+          "Version to clone {0}, id fetched to clone {1}, node current version {2}",
+          versionToClone,
+          fileVersionRepository.getFileVersion(nodeId, versionToClone).get().getNodeId(),
+          node.getCurrentVersion()
         ));
 
         return fileVersionRepository
-            .getFileVersion(nodeId, versionToClone)
-            .map(fileVersion -> {
-              Integer newVersion = node.getCurrentVersion() + 1;
+          .getFileVersion(nodeId, versionToClone)
+          .map(fileVersion -> {
+            Integer newVersion = node.getCurrentVersion() + 1;
 
-              return Try
-                  .of(() -> filesConfig
-                      .getFileStoreClient()
-                      .copy(
-                          FilesIdentifier.of(node.getId(), node.getCurrentVersion(), requesterId),
-                          FilesIdentifier.of(node.getId(), newVersion, requesterId),
-                          false
-                      )
-                  )
-                  .onSuccess(copiedBlobResponse -> {
-                    Optional<FileVersion> newFileVersion = fileVersionRepository.createNewFileVersion(
-                        node.getId(),
-                        requesterId,
-                        newVersion,
-                        fileVersion.getMimeType(),
-                        copiedBlobResponse.getSize(),
-                        copiedBlobResponse.getDigest(),
-                        false
-                    );
+            return Try
+              .of(() -> filesConfig
+                .getFileStoreClient()
+                .copy(
+                  FilesIdentifier.of(node.getId(), node.getCurrentVersion(), requesterId),
+                  FilesIdentifier.of(node.getId(), newVersion, requesterId),
+                  false
+                )
+              )
+              .onSuccess(copiedBlobResponse -> {
+                Optional<FileVersion> newFileVersion = fileVersionRepository.createNewFileVersion(
+                  node.getId(),
+                  requesterId,
+                  newVersion,
+                  fileVersion.getMimeType(),
+                  copiedBlobResponse.getSize(),
+                  copiedBlobResponse.getDigest(),
+                  false
+                );
 
-                    node.setCurrentVersion(newVersion);
-                    nodeRepository.updateNode(node);
+                node.setCurrentVersion(newVersion);
+                nodeRepository.updateNode(node);
 
-                    newFileVersion.get().setClonedFromVersion(versionToClone);
-                    fileVersionRepository.updateFileVersion(newFileVersion.get());
+                newFileVersion.get().setClonedFromVersion(versionToClone);
+                fileVersionRepository.updateFileVersion(newFileVersion.get());
 
-                    logger.debug(MessageFormat.format(
-                        "Copy operation concluded successfully with file {1} and version {2}",
-                        nodeId,
-                        newVersion
-                    ));
-                  })
-                  .onFailure(failure -> {
-                    String error = MessageFormat.format(
-                        "Copy error with nodeId: {0} and version {1}",
-                        nodeId,
-                        versionToClone
-                    );
-                    logger.error(error);
-                    throw new AbortExecutionException(error);
-                  })
-                  .transform(copiedBlobResponse ->
-                      convertNodeToDataFetcherResult(
-                          nodeRepository.getNode(node.getId()).get(),
-                          newVersion,
-                          requesterId,
-                          path
-                      )
-                  );
-            })
-            .orElse(
-                new Builder<Map<String, Object>>()
-                    .error(GraphQLResultErrors.fileVersionNotFound(nodeId, versionToClone, path))
-                    .build()
-            );
+                logger.debug(MessageFormat.format(
+                  "Copy operation concluded successfully with file {1} and version {2}",
+                  nodeId,
+                  newVersion
+                ));
+              })
+              .onFailure(failure -> {
+                String error = MessageFormat.format(
+                  "Copy error with nodeId: {0} and version {1}",
+                  nodeId,
+                  versionToClone
+                );
+                logger.error(error);
+                throw new AbortExecutionException(error);
+              })
+              .transform(copiedBlobResponse ->
+                convertNodeToDataFetcherResult(
+                  nodeRepository.getNode(node.getId()).get(),
+                  newVersion,
+                  requesterId,
+                  path
+                )
+              );
+          })
+          .orElse(
+            new Builder<Map<String, Object>>()
+              .error(GraphQLResultErrors.fileVersionNotFound(nodeId, versionToClone, path))
+              .build()
+          );
       }
 
       return new Builder<Map<String, Object>>()
-          .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
-          .build();
+        .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
+        .build();
     });
   }
 }
