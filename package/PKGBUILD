@@ -41,8 +41,6 @@ depends=(
   "service-discover"
   "pending-setups"
   "carbonio-openjdk"
-  "python3"
-  "python3-pip"
 )
 source=(
   "carbonio-files"
