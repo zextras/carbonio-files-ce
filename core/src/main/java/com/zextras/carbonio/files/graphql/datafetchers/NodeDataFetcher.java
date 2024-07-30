@@ -886,34 +886,10 @@ public class NodeDataFetcher {
                   }
                 });
             }
-
-            // check if node needs an alternative name
-            List<String> targetFolderChildrenFilesName = nodeRepository.findNodes(
-                requesterId,
-                Optional.empty(),
-                Optional.empty(),
-                Optional.of(node.getParentId().get()),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                Collections.emptyList(),
-                Optional.empty()
-            )
-            .getLeft()
-            .stream()
-            .map(Node::getFullName)
-            .toList();
-
-            if(targetFolderChildrenFilesName.contains(node.getFullName())) {
-              String newName = searchAlternativeName(
-                  node.getFullName(), node.getParentId().get(), node.getOwnerId()
-              );
-              node.setFullName(newName);
-            }
+            String newName = searchAlternativeName(
+                node.getFullName(), node.getParentId().get(), node.getOwnerId()
+            );
+            node.setFullName(newName);
             nodeRepository.restoreNode(node.getId());
             nodeRepository.updateNode(node);
             cascadeUpdateAncestors(node);
@@ -1274,20 +1250,31 @@ public class NodeDataFetcher {
 
           List<DataFetcherResult<Map<String, Object>>> movedNodesResult = new ArrayList<>();
           if (!nodeIdsToMove.isEmpty()) {
+            nodeIdsToMove
+                .forEach(nodeId -> {
+                    Node node = nodeRepository.getNode(nodeId).get();
+
+                    String newName = searchAlternativeName(
+                        node.getFullName(), destinationFolderId, node.getOwnerId()
+                    );
+                    node.setFullName(newName);
+                    nodeRepository.updateNode(node);
+                });
             nodeRepository.moveNodes(nodeIdsToMove, optDestinationFolder.get());
 
-        /*
-          We must align ancestors of moved nodes
-          We must align shares of moved nodes and it can be done in two steps:
-          1. Remove every share of the node to move (and its child up to the leaves, if it is a folder)
-          2. Create all the shares of the destination folder (if it has at least one) for the node to move
-             (and for its child up to the leaves, if it is a folder)
-         */
+            /*
+              We must align ancestors of moved nodes
+              We must align shares of moved nodes and it can be done in two steps:
+              1. Remove every share of the node to move (and its child up to the leaves, if it is a folder)
+              2. Create all the shares of the destination folder (if it has at least one) for the node to move
+                 (and for its child up to the leaves, if it is a folder)
+             */
 
             nodeIdsToMove
               .forEach(nodeId -> {
-                cascadeUpdateAncestors(nodeRepository.getNode(nodeId)
-                  .get());
+                Node node = nodeRepository.getNode(nodeId).get();
+
+                cascadeUpdateAncestors(node);
                 // Remove inherited shares on source node
                 shareRepository
                   .getShares(nodeId, Collections.emptyList())
