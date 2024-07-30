@@ -30,6 +30,30 @@ pipeline {
                 checkout scm
             }
         }
+        stage('Check SNAPSHOT version') {
+            when {
+                allOf {
+                    expression { env.BRANCH_NAME != "release" }
+                    expression { env.BRANCH_NAME.contains("PR") }
+                    expression { !readFile('package/PKGBUILD').trim().contains('SNAPSHOT') }
+                }
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'tarsier-bot-pr-token-github', usernameVariable: 'GH_USERNAME', passwordVariable: 'GH_TOKEN')]) {
+                  sh(script: """
+                      curl https://api.github.com/repos/zextras/carbonio-files-ce/pulls/${env.CHANGE_ID}/reviews \
+                      -X POST \
+                      -H 'Accept: application/vnd.github.v3+json' \
+                      -H 'Authorization: token ${GH_TOKEN}' \
+                      -d '{
+                          \"body\": \"Please increase the micro version in the `pkgver` and add a **SNAPSHOT** label to the `pkgrel`.\\nMake sure to update the `PKGBUILD` and all `pom.xml` files accordingly.\",
+                          \"event\": \"REQUEST_CHANGES\"
+                      }'
+                  """)
+                }
+                error("The development package version is not marked as SNAPSHOT")
+            }
+        }
         stage('Setup') {
             steps {
                 withCredentials([file(credentialsId: 'jenkins-maven-settings.xml', variable: 'SETTINGS_PATH')]) {
