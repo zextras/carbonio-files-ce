@@ -130,10 +130,29 @@ pipeline {
                                 }
                             }
                         }
-                        stage('RHEL') {
+                        stage('RHEL8') {
                             agent {
                                 node {
                                     label 'yap-agent-rocky-8-v2'
+                                }
+                            }
+                            steps {
+                                dir('/tmp/staging'){
+                                    unstash 'binaries'
+                                }
+                                sh 'sudo yap build rocky /tmp/staging/'
+                                stash includes: 'artifacts/x86_64/*.rpm', name: 'artifacts-rpm'
+                            }
+                            post {
+                                always {
+                                    archiveArtifacts artifacts: 'artifacts/x86_64/*.rpm', fingerprint: true
+                                }
+                            }
+                        }
+                        stage('RHEL9') {
+                            agent {
+                                node {
+                                    label 'yap-agent-rocky-9-v2'
                                 }
                             }
                             steps {
