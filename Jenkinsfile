@@ -121,6 +121,7 @@ pipeline {
                                 dir('/tmp/staging'){
                                     unstash 'binaries'
                                 }
+                                sh 'cp ./package/watches/* package/'
                                 sh 'sudo yap build ubuntu /tmp/staging/'
                                 stash includes: 'artifacts/', name: 'artifacts-deb'
                             }
@@ -140,6 +141,7 @@ pipeline {
                                 dir('/tmp/staging'){
                                     unstash 'binaries'
                                 }
+                                sh 'cp ./package/watches/* package/'
                                 sh 'sudo yap build rocky /tmp/staging/'
                                 stash includes: 'artifacts/x86_64/*.rpm', name: 'artifacts-rpm'
                             }
