@@ -6,7 +6,7 @@ package com.zextras.carbonio.files;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.zextras.carbonio.files.config.FilesConfigImpl;
+import com.zextras.carbonio.files.config.impl.FilesConfigImpl;
 import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.tasks.PurgeService;

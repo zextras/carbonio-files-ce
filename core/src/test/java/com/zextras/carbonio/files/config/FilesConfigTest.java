@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.config;
 
-import com.zextras.carbonio.files.config.interfaces.FilesConfig;
+import com.zextras.carbonio.files.config.impl.FilesConfigImpl;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;

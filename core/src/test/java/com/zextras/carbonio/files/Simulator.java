@@ -12,7 +12,7 @@ import com.zextras.carbonio.files.Files.Config.Preview;
 import com.zextras.carbonio.files.Files.Config.Storages;
 import com.zextras.carbonio.files.Files.Config.UserManagement;
 import com.zextras.carbonio.files.Files.ServiceDiscover.Config.Db;
-import com.zextras.carbonio.files.config.interfaces.FilesConfig;
+import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;

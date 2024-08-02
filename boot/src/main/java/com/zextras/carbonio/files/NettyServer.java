@@ -6,7 +6,7 @@ package com.zextras.carbonio.files;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.zextras.carbonio.files.config.interfaces.FilesConfig;
+import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.netty.HttpRoutingHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;

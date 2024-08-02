@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.config;
+package com.zextras.carbonio.files.config.impl;
 
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
@@ -14,7 +14,7 @@ import com.zextras.carbonio.files.Files.Config.Storages;
 import com.zextras.carbonio.files.Files.Config.UserManagement;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
-import com.zextras.carbonio.files.config.interfaces.FilesConfig;
+import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.preview.PreviewClient;
 import com.zextras.carbonio.usermanagement.UserManagementClient;
 import com.zextras.filestore.api.Filestore;

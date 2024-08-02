@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.clients;
 
-import com.zextras.carbonio.files.config.interfaces.FilesConfig;
+import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.exceptions.RequestEntityTooLargeException;
 import com.zextras.carbonio.files.rest.types.UploadToRequest.TargetModule;

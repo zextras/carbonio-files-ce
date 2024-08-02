@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.utilities;
 
-import com.zextras.carbonio.files.config.FilesConfigImpl;
+import com.zextras.carbonio.files.config.impl.FilesConfigImpl;
 
 /**
  * Here one can override the standard behaviour of FilesConfigImpl to mock or otherwise differentiate

@@ -5,12 +5,10 @@
 package com.zextras.carbonio.files.config;
 
 import com.google.inject.AbstractModule;
-import com.google.inject.Inject;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.zextras.carbonio.files.cache.CacheHandlerFactory;
-import com.zextras.carbonio.files.config.interfaces.FilesConfig;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.CollaborationLinkRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.FileVersionRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.LinkRepositoryEbean;

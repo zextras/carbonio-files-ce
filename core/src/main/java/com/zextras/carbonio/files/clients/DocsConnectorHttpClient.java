@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.clients;
 
-import com.zextras.carbonio.files.config.interfaces.FilesConfig;
+import com.zextras.carbonio.files.config.FilesConfig;
 import javax.inject.Inject;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
