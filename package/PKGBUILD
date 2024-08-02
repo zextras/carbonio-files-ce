@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 pkgname="carbonio-files-ce"
-pkgver="0.12.2"
+pkgver="0.12.1"
 pkgrel="SNAPSHOT"
 pkgdesc="Carbonio Files"
 maintainer="Zextras <packages@zextras.com>"
