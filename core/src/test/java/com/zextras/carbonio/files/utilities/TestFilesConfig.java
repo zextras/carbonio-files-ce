@@ -5,14 +5,13 @@
 package com.zextras.carbonio.files.utilities;
 
 import com.zextras.carbonio.files.config.FilesConfigImpl;
-import com.zextras.filestore.api.Filestore;
-import com.zextras.storages.internal.client.StoragesClientImp;
-import okhttp3.OkHttpClient;
 
+/**
+ * Here one can override the standard behaviour of FilesConfigImpl to mock or otherwise differentiate
+ * the standard configuration from the test configuration.
+ * While here this class doesn't override anything and is basically useless, in the Advanced version
+ * it is used, so we should keep this here to have matching structure between the projects.
+ */
 public class TestFilesConfig extends FilesConfigImpl {
 
-  @Override
-  public Filestore getStorages() {
-    return StoragesClientImp.atUrl("http://127.78.0.2:20002/", new OkHttpClient.Builder().build().newBuilder());
-  }
 }
