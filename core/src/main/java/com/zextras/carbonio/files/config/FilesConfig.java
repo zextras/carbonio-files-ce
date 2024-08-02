@@ -14,7 +14,7 @@ public interface FilesConfig {
   Properties getProperties();
   UserManagementClient getUserManagementClient();
   PreviewClient getPreviewClient();
-  Filestore getStorages();
+  Filestore getStoragesClient();
   int getMaxNumberOfFileVersion();
   String getDatabaseUrl();
   String getMailboxUrl();

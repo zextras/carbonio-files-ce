@@ -9,8 +9,6 @@ import com.zextras.carbonio.files.config.impl.FilesConfigImpl;
 /**
  * Here one can override the standard behaviour of FilesConfigImpl to mock or otherwise differentiate
  * the standard configuration from the test configuration.
- * While here this class doesn't override anything and is basically useless, in the Advanced version
- * it is used, so we should keep this here to have matching structure between the projects.
  */
 public class TestFilesConfig extends FilesConfigImpl {
 

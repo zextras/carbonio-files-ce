@@ -78,7 +78,7 @@ public class FilesConfigImpl implements FilesConfig {
     return UserManagementClient.atURL(userManagementURL);
   }
 
-  public Filestore getStorages() {
+  public Filestore getStoragesClient() {
     return StoragesClient.atUrl(fileStoreURL);
   }
 

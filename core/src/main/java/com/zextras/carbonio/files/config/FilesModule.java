@@ -34,7 +34,6 @@ public class FilesModule extends AbstractModule {
 
   private final FilesConfig filesConfig;
 
-  // No neet to @Inject since this is the starting point and instance is passed explicitly inside Boot
   public FilesModule(FilesConfig filesConfig) {
     this.filesConfig = filesConfig;
   }
@@ -62,7 +61,7 @@ public class FilesModule extends AbstractModule {
 
   @Provides
   public Filestore getFileStore() {
-    return filesConfig.getStorages(); // We need to fix this
+    return filesConfig.getStoragesClient(); // We need to fix this
   }
 
   @Singleton
