@@ -6,7 +6,7 @@ package com.zextras.carbonio.files.rest.services;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.Config.Preview;
-import com.zextras.carbonio.files.config.FilesConfig;
+import com.zextras.carbonio.files.config.interfaces.FilesConfig;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;

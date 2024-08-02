@@ -13,7 +13,7 @@ import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
 import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
-import com.zextras.carbonio.files.config.FilesConfig;
+import com.zextras.carbonio.files.config.interfaces.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;

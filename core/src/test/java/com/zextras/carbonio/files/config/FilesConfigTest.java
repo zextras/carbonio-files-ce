@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.config;
 
+import com.zextras.carbonio.files.config.interfaces.FilesConfig;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -24,7 +25,7 @@ class FilesConfigTest {
     System.setProperty("carbonio.mailbox.url", "1.2.3.4");
     System.setProperty("carbonio.mailbox.port", "9999");
 
-    FilesConfig filesConfig = new FilesConfig();
+    FilesConfig filesConfig = new FilesConfigImpl();
 
     // When
     String mailboxUrl = filesConfig.getMailboxUrl();
@@ -36,7 +37,7 @@ class FilesConfigTest {
   @Test
   void givenEmptyPropertiesTheGetMailboxUrlShouldReturnTheDefaultFullMailboxUrlString() {
     // Given
-    FilesConfig filesConfig = new FilesConfig();
+    FilesConfig filesConfig = new FilesConfigImpl();
 
     // When
     String mailboxUrl = filesConfig.getMailboxUrl();

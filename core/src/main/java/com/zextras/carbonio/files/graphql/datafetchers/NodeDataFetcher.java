@@ -18,7 +18,7 @@ import com.zextras.carbonio.files.Files.GraphQL.NodePage;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
 import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
-import com.zextras.carbonio.files.config.FilesConfig;
+import com.zextras.carbonio.files.config.interfaces.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
@@ -1494,7 +1494,7 @@ public class NodeDataFetcher {
     // TODO: make the copy async
     Try
       .of(() -> filesConfig
-        .getFileStoreClient()
+        .getStorages()
         .copy(
           FilesIdentifier.of(sourceNode.getId(), sourceNode.getCurrentVersion(),
             sourceNode.getOwnerId()),
@@ -2066,7 +2066,7 @@ public class NodeDataFetcher {
 
             return Try
               .of(() -> filesConfig
-                .getFileStoreClient()
+                .getStorages()
                 .copy(
                   FilesIdentifier.of(node.getId(), node.getCurrentVersion(), requesterId),
                   FilesIdentifier.of(node.getId(), newVersion, requesterId),

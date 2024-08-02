@@ -4,8 +4,8 @@
 
 package com.zextras.carbonio.files.clients;
 
-import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
+import com.zextras.carbonio.files.utilities.TestFilesConfig;
 import io.vavr.control.Try;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -28,7 +28,7 @@ class MailboxHttpClientTest {
   @BeforeEach
   void setUp() {
     httpClientMock = Mockito.mock(CloseableHttpClient.class);
-    mailboxHttpClient = new MailboxHttpClient(httpClientMock, new FilesConfig());
+    mailboxHttpClient = new MailboxHttpClient(httpClientMock, new TestFilesConfig());
   }
 
   @Test

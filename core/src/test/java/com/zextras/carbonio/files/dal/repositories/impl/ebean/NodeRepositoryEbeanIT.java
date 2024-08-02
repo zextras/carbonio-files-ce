@@ -4,8 +4,8 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
-import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.FilesPostgreSQLContainer;
+import com.zextras.carbonio.files.utilities.TestFilesConfig;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +22,7 @@ class NodeRepositoryEbeanIT {
 
   @BeforeAll
   static void setup() {
-    database = new FilesPostgreSQLContainer(new FilesConfig());
+    database = new FilesPostgreSQLContainer(new TestFilesConfig());
   }
 
   @BeforeEach

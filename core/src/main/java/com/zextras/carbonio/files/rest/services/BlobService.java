@@ -7,7 +7,7 @@ package com.zextras.carbonio.files.rest.services;
 import com.google.common.net.MediaType;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.Db.RootId;
-import com.zextras.carbonio.files.config.FilesConfig;
+import com.zextras.carbonio.files.config.interfaces.FilesConfig;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;

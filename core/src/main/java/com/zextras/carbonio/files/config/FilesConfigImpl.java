@@ -14,6 +14,7 @@ import com.zextras.carbonio.files.Files.Config.Storages;
 import com.zextras.carbonio.files.Files.Config.UserManagement;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
+import com.zextras.carbonio.files.config.interfaces.FilesConfig;
 import com.zextras.carbonio.preview.PreviewClient;
 import com.zextras.carbonio.usermanagement.UserManagementClient;
 import com.zextras.filestore.api.Filestore;
@@ -28,15 +29,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Singleton
-public class FilesConfig {
+public class FilesConfigImpl implements FilesConfig {
 
-  private static final Logger logger = LoggerFactory.getLogger(FilesConfig.class);
+  private static final Logger logger = LoggerFactory.getLogger(FilesConfigImpl.class);
   private final Properties properties;
   private String userManagementURL;
   private String fileStoreURL;
   private String previewURL;
 
-  public FilesConfig() {
+  public FilesConfigImpl() {
     properties = new Properties();
     loadConfig();
   }
@@ -77,12 +78,8 @@ public class FilesConfig {
     return UserManagementClient.atURL(userManagementURL);
   }
 
-  public Filestore getFileStoreClient() {
+  public Filestore getStorages() {
     return StoragesClient.atUrl(fileStoreURL);
-  }
-
-  public String getFileStoreUrl() {
-    return fileStoreURL;
   }
 
   public PreviewClient getPreviewClient() {

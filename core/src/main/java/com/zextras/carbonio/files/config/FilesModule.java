@@ -10,6 +10,7 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.zextras.carbonio.files.cache.CacheHandlerFactory;
+import com.zextras.carbonio.files.config.interfaces.FilesConfig;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.CollaborationLinkRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.FileVersionRepositoryEbean;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.LinkRepositoryEbean;
@@ -26,7 +27,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepositor
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.validators.GenericControllerEvaluatorFactory;
 import com.zextras.filestore.api.Filestore;
-import com.zextras.storages.api.StoragesClient;
+
 import java.time.Clock;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -35,7 +36,6 @@ public class FilesModule extends AbstractModule {
 
   private final FilesConfig filesConfig;
 
-  @Inject
   public FilesModule(FilesConfig filesConfig) {
     this.filesConfig = filesConfig;
   }
@@ -57,8 +57,13 @@ public class FilesModule extends AbstractModule {
   }
 
   @Provides
+  public FilesConfig getFilesConfig(){
+    return filesConfig;
+  }
+
+  @Provides
   public Filestore getFileStore() {
-    return StoragesClient.atUrl(filesConfig.getFileStoreUrl());
+    return filesConfig.getStorages(); // We need to fix this
   }
 
   @Singleton
