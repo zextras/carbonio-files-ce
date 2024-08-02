@@ -47,7 +47,7 @@ public class HealthService {
    * @return true if the carbonio-storages service is reachable, false otherwise.
    */
   public boolean isStoragesLive() {
-    return filesConfig.getFileStoreClient().checkLiveness().equals(Liveness.OK);
+    return filesConfig.getStoragesClient().checkLiveness().equals(Liveness.OK);
   }
 
   /**
