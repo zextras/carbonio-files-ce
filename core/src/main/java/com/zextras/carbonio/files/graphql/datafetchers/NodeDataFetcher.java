@@ -2068,7 +2068,7 @@ public class NodeDataFetcher {
               .of(() -> filesConfig
                 .getStoragesClient()
                 .copy(
-                  FilesIdentifier.of(node.getId(), node.getCurrentVersion(), requesterId),
+                  FilesIdentifier.of(node.getId(), versionToClone, requesterId),
                   FilesIdentifier.of(node.getId(), newVersion, requesterId),
                   false
                 )
