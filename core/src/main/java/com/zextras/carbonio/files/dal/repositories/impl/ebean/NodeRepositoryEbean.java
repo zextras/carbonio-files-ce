@@ -599,4 +599,9 @@ public class NodeRepositoryEbean implements NodeRepository {
   public List<Node> findAllNodesFiles() {
     return mDB.getEbeanDatabase().find(Node.class).where().ne(Db.Node.TYPE, NodeType.FOLDER).and().ne(Db.Node.TYPE, NodeType.ROOT).findList();
   }
+
+  @Override
+  public int deleteNodesByOwner(String ownerId) {
+    return mDB.getEbeanDatabase().find(Node.class).where().eq(Db.Node.OWNER_ID, ownerId).delete();
+  }
 }

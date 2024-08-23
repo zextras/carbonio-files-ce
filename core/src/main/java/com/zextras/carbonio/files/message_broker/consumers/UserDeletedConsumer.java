@@ -33,7 +33,6 @@ public class UserDeletedConsumer extends BaseConsumer {
     UserDeleted userDeleted = (UserDeleted) baseMessageBrokerEvent;
     logger.info("Received UserDeleted({})", userDeleted.getUserId());
 
-    //TODO delete all user's nodes
-
+    nodeRepository.deleteNodesByOwner(userDeleted.getUserId());
   }
 }
