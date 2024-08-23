@@ -52,7 +52,7 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
   public void startAllConsumers() {
     allConsumers.add(userStatusChangedConsumer);
     allConsumers.add(keyValueChangedConsumer);
-    allConsumers.add(userStatusChangedConsumer);
+    allConsumers.add(userDeletedConsumer);
 
     allConsumers.forEach(messageBrokerClient::consume);
   }
