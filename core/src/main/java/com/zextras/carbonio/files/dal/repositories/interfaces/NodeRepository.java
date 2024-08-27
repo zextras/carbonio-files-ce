@@ -330,6 +330,4 @@ public interface NodeRepository {
    * <p>Returns a {@link List<Node>} with absolutely all the nodes ever saved.</p>
    */
   List<Node> findAllNodesFiles();
-
-  int deleteNodesByOwner(String ownerId);
 }
