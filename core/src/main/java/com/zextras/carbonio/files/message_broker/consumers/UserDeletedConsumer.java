@@ -54,9 +54,8 @@ public class UserDeletedConsumer extends BaseConsumer {
     UserDeleted userDeleted = (UserDeleted) baseMessageBrokerEvent;
     logger.info("Received UserDeleted({})", userDeleted.getUserId());
 
-    // I wish there was a prettier way to do this
-
     // Delete blobs of nodes from Storages
+    // I wish there was a prettier way to do this
     List<Node> listNodesToDelete = nodeRepository.findNodesByOwner(userDeleted.getUserId());
     List<BulkDeleteRequestItem> deleteRequests = new ArrayList<>();
 
