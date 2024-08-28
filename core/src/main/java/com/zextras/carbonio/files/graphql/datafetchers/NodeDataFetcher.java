@@ -1495,7 +1495,7 @@ public class NodeDataFetcher {
     // TODO: make the copy async
     Try
       .of(() -> filesConfig
-        .getFileStoreClient()
+        .getStoragesClient()
         .copy(
           FilesIdentifier.of(sourceNode.getId(), sourceNode.getCurrentVersion(),
             sourceNode.getOwnerId()),
@@ -2067,9 +2067,9 @@ public class NodeDataFetcher {
 
             return Try
               .of(() -> filesConfig
-                .getFileStoreClient()
+                .getStoragesClient()
                 .copy(
-                  FilesIdentifier.of(node.getId(), node.getCurrentVersion(), requesterId),
+                  FilesIdentifier.of(node.getId(), versionToClone, requesterId),
                   FilesIdentifier.of(node.getId(), newVersion, requesterId),
                   false
                 )

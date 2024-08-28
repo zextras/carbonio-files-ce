@@ -17,6 +17,7 @@ import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.netty.HttpRoutingHandler;
+import com.zextras.carbonio.files.utilities.TestFilesConfig;
 import com.zextras.carbonio.usermanagement.entities.UserId;
 import com.zextras.carbonio.usermanagement.entities.UserInfo;
 import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
@@ -61,7 +62,7 @@ public class Simulator implements AutoCloseable {
   //
 
   private Simulator createInjector() {
-    injector = Guice.createInjector(new FilesModule(new FilesConfig()));
+    injector = Guice.createInjector(new FilesModule(new TestFilesConfig()));
     return this;
   }
 

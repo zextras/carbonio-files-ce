@@ -90,7 +90,7 @@ paths:
             type: string
             format: byte
         - in: header
-          name: DestinationFolderId
+          name: ParentId
           description: The id of the folder where to upload the file, if omitted it will be uploaded on user Home
           required: false
           allowEmptyValue: false
