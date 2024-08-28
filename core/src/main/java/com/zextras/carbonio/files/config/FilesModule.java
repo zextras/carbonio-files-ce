@@ -24,6 +24,10 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.validators.GenericControllerEvaluatorFactory;
+import com.zextras.carbonio.files.message_broker.MessageBrokerManagerImpl;
+import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
+import com.zextras.carbonio.message_broker.MessageBrokerClient;
+import com.zextras.carbonio.message_broker.config.enums.Service;
 import com.zextras.filestore.api.Filestore;
 
 import java.time.Clock;
@@ -48,6 +52,7 @@ public class FilesModule extends AbstractModule {
     bind(LinkRepository.class).to(LinkRepositoryEbean.class);
     bind(CollaborationLinkRepository.class).to(CollaborationLinkRepositoryEbean.class);
     bind(UserRepository.class).to(UserRepositoryRest.class);
+    bind(MessageBrokerManager.class).to(MessageBrokerManagerImpl.class);
 
     install(new FactoryModuleBuilder().build(CacheHandlerFactory.class));
 
@@ -68,5 +73,16 @@ public class FilesModule extends AbstractModule {
   @Provides
   public CloseableHttpClient getGenericHttpClientPool() {
     return HttpClientBuilder.create().setMaxConnPerRoute(10).setMaxConnTotal(30).build();
+  }
+
+  @Singleton
+  @Provides
+  public MessageBrokerClient getMessageBrokerClient() {
+    return MessageBrokerClient.fromConfig(
+            filesConfig.getMessageBrokerUrl(),
+            filesConfig.getMessageBrokerPort(),
+            filesConfig.getMessageBrokerUsername(),
+            filesConfig.getMessageBrokerPassword())
+        .withCurrentService(Service.FILES);
   }
 }

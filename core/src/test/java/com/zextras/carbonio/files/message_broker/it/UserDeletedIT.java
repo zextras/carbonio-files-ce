@@ -4,31 +4,40 @@
 
 package com.zextras.carbonio.files.message_broker.it;
 
+import com.google.gson.Gson;
 import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
-import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.message_broker.consumers.UserDeletedConsumer;
-import com.zextras.carbonio.files.message_broker.consumers.UserStatusChangedConsumer;
+import com.zextras.filestore.api.Filestore;
 import com.zextras.carbonio.message_broker.events.services.mailbox.UserDeleted;
-import com.zextras.carbonio.message_broker.events.services.mailbox.UserStatusChanged;
-import com.zextras.carbonio.message_broker.events.services.mailbox.enums.UserStatus;
+import com.zextras.filestore.model.BulkDeleteResponseItem;
+import com.zextras.filestore.model.FilesIdentifier;
+import com.zextras.filestore.model.IdentifierType;
+import com.zextras.storages.api.exception.StoragesException;
+import com.zextras.storages.internal.pojo.Query;
+import com.zextras.storages.internal.pojo.StoragesBulkDeleteResponse;
+import io.netty.handler.codec.http.HttpMethod;
 import org.assertj.core.api.Assertions;
-import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.mockserver.model.HttpResponse;
+import org.mockserver.model.MediaType;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+
+import static org.mockito.ArgumentMatchers.any;
 
 /**
  * Here I mock an event emitted and received because if I was to emit a real event I could not know
@@ -38,9 +47,9 @@ class UserDeletedIT {
 
   static Simulator simulator;
   static NodeRepository nodeRepository;
-  static FilesConfig filesConfig;
   static FileVersionRepository fileVersionRepository;
   static TombstoneRepository tombstoneRepository;
+  static Filestore fileStore;
 
   @BeforeAll
   static void init() {
@@ -53,10 +62,14 @@ class UserDeletedIT {
             .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement(users)
+            .withStorages()
             .build()
             .start();
     final Injector injector = simulator.getInjector();
     nodeRepository = injector.getInstance(NodeRepository.class);
+    fileVersionRepository = injector.getInstance(FileVersionRepository.class);
+    tombstoneRepository = injector.getInstance(TombstoneRepository.class);
+    fileStore = injector.getInstance(Filestore.class);
   }
 
   @AfterEach
@@ -71,19 +84,38 @@ class UserDeletedIT {
 
   @Test
   void
-  givenAnUserWithSomeNodesAndAUserDeletedEventNodesShouldBeDeletedFromFilesStoragesAndTombstone() {
+  givenAnUserWithSomeNodesAndAUserDeletedEventNodesShouldBeDeletedFromFilesStoragesAndTombstone() throws Exception {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
             new SimplePopulatorTextFile(
                 "00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
 
+    StoragesBulkDeleteResponse storagesBulkDeleteResponse = new StoragesBulkDeleteResponse();
+    Query query = new Query();
+    query.setNode("00000000-0000-0000-0000-000000000000");
+    query.setType(IdentifierType.files.getValue());
+    query.setVersion(1L);
+    storagesBulkDeleteResponse.setIds(List.of(query));
+
+    simulator
+        .getStoragesMock()
+        .when(
+            org.mockserver.model.HttpRequest.request()
+                .withMethod(HttpMethod.POST.toString())
+                .withPath("/bulk-delete"))
+        .respond(
+            HttpResponse.response()
+                .withStatusCode(200)
+                .withContentType(MediaType.APPLICATION_JSON)
+                .withBody(new Gson().toJson(storagesBulkDeleteResponse))
+        );
+
     // When
-    UserDeletedConsumer userDeletedConsumer = new UserDeletedConsumer(filesConfig, nodeRepository, fileVersionRepository, tombstoneRepository);
+    UserDeletedConsumer userDeletedConsumer = new UserDeletedConsumer(fileStore, nodeRepository, fileVersionRepository, tombstoneRepository);
     userDeletedConsumer.doHandle(new UserDeleted("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
 
     // Then
-    Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
-
+    Assertions.assertThat(nodeRepository.getNode("00000000-0000-0000-0000-000000000000").isEmpty()).isTrue();
   }
 }

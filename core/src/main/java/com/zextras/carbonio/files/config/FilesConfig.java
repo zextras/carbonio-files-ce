@@ -19,4 +19,8 @@ public interface FilesConfig {
   String getDatabaseUrl();
   String getMailboxUrl();
   String getDocsConnectorUrl();
+  String getMessageBrokerUrl();
+  Integer getMessageBrokerPort();
+  String getMessageBrokerPassword();
+  String getMessageBrokerUsername();
 }

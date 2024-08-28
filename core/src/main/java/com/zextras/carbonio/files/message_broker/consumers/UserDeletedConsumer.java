@@ -4,13 +4,13 @@
 
 package com.zextras.carbonio.files.message_broker.consumers;
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.filestore.api.Filestore;
 import com.zextras.carbonio.message_broker.config.EventConfig;
 import com.zextras.carbonio.message_broker.consumer.BaseConsumer;
 import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
@@ -28,19 +28,19 @@ public class UserDeletedConsumer extends BaseConsumer {
   private static final Logger logger = LoggerFactory.getLogger(UserDeletedConsumer.class);
 
   private final NodeRepository nodeRepository;
-  private final FilesConfig filesConfig;
+  private final Filestore fileStore;
   private final FileVersionRepository fileVersionRepository;
   private final TombstoneRepository tombstoneRepository;
 
   @Inject
   public UserDeletedConsumer(
-      FilesConfig filesConfig,
+      Filestore fileStore,
       NodeRepository nodeRepository,
       FileVersionRepository fileVersionRepository,
       TombstoneRepository tombstoneRepository) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
-    this.filesConfig = filesConfig;
+    this.fileStore = fileStore;
     this.tombstoneRepository = tombstoneRepository;
   }
 
@@ -67,7 +67,7 @@ public class UserDeletedConsumer extends BaseConsumer {
     });
 
     try {
-      filesConfig.getFileStoreClient().bulkDelete(IdentifierType.files, userDeleted.getUserId(), deleteRequests);
+      fileStore.bulkDelete(IdentifierType.files, userDeleted.getUserId(), deleteRequests);
     } catch (Exception e) {
       logger.error("Can't perform bulk delete on storages: {}", e.getMessage());
     }
