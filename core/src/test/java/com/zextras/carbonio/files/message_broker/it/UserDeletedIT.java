@@ -16,10 +16,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepositor
 import com.zextras.carbonio.files.message_broker.consumers.UserDeletedConsumer;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.carbonio.message_broker.events.services.mailbox.UserDeleted;
-import com.zextras.filestore.model.BulkDeleteResponseItem;
-import com.zextras.filestore.model.FilesIdentifier;
 import com.zextras.filestore.model.IdentifierType;
-import com.zextras.storages.api.exception.StoragesException;
 import com.zextras.storages.internal.pojo.Query;
 import com.zextras.storages.internal.pojo.StoragesBulkDeleteResponse;
 import io.netty.handler.codec.http.HttpMethod;
@@ -28,16 +25,12 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.mockserver.model.HttpResponse;
 import org.mockserver.model.MediaType;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.mockito.ArgumentMatchers.any;
 
 /**
  * Here I mock an event emitted and received because if I was to emit a real event I could not know
