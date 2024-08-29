@@ -68,6 +68,8 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.zextras.carbonio.files.utilities.RenameNodeUtils.searchAlternativeName;
+
 /**
  * Contains all the implementations of the {@link DataFetcher}s for all the queries and mutations
  * related to the Node, File and Folder types defined in the GraphQL schema.
@@ -562,6 +564,7 @@ public class NodeDataFetcher {
                 : parent.getOwnerId();
 
               String folderName = searchAlternativeName(
+                nodeRepository,
                 ((String) environment.getArgument(InputParameters.CreateFolder.NAME)).trim(),
                 parent.getId(),
                 ownerId
@@ -706,9 +709,13 @@ public class NodeDataFetcher {
             .map(extension -> optName.get() + "." + extension)
             .orElse(optName.get());
 
-          if (searchAlternativeName(nodeFullName, parentFolderId, nodeToUpdate.getOwnerId()).equals(
-            nodeFullName)) {
-            nodeToUpdate.setName(optName.get());
+          if (searchAlternativeName(
+                nodeRepository,
+                nodeFullName,
+                parentFolderId,
+                nodeToUpdate.getOwnerId()
+              ).equals(nodeFullName)) {
+              nodeToUpdate.setName(optName.get());
           } else {
             return new DataFetcherResult.Builder<Map<String, Object>>()
               .error(GraphQLResultErrors.duplicateNode(nodeId, parentFolderId, path))
@@ -887,7 +894,7 @@ public class NodeDataFetcher {
                 });
             }
             String newName = searchAlternativeName(
-                node.getFullName(), node.getParentId().get(), node.getOwnerId()
+                nodeRepository, node.getFullName(), node.getParentId().get(), node.getOwnerId()
             );
             node.setFullName(newName);
             nodeRepository.restoreNode(node.getId());
@@ -1254,10 +1261,15 @@ public class NodeDataFetcher {
                 .forEach(nodeId -> {
                     Node node = nodeRepository.getNode(nodeId).get();
 
-                    String newName = searchAlternativeName(
-                        node.getFullName(), destinationFolderId, node.getOwnerId()
-                    );
-                    node.setFullName(newName);
+                    // Search for a new name only if not moving to same parent directory because obviously if so
+                    // there will always be a node with that name already present causing node to be wrongly renamed
+                    if(node.getParentId().isPresent() && !node.getParentId().get().equals(destinationFolderId)) {
+                      String newName = searchAlternativeName(
+                        nodeRepository, node.getFullName(), destinationFolderId, node.getOwnerId()
+                      );
+                      node.setFullName(newName);
+                    }
+
                     nodeRepository.updateNode(node);
                 });
             nodeRepository.moveNodes(nodeIdsToMove, optDestinationFolder.get());
@@ -1638,37 +1650,6 @@ public class NodeDataFetcher {
   }
 
   /**
-   * @param filename
-   * @param destinationFolderId the id of the destination folder
-   * @param nodeOwner
-   *
-   * @return the alternative name
-   */
-  private String searchAlternativeName(
-    String filename,
-    String destinationFolderId,
-    String nodeOwner
-  ) {
-    int level = 1;
-    String finalFilename = filename;
-
-    while (nodeRepository
-      .getNodeByName(finalFilename, destinationFolderId, nodeOwner)
-      .isPresent()
-    ) {
-      int dotPosition = filename.lastIndexOf('.');
-
-      finalFilename = (dotPosition != -1)
-        ? filename.substring(0, dotPosition) + " (" + level + ")" + filename.substring(dotPosition)
-        : filename + " (" + level + ")";
-
-      ++level;
-    }
-
-    return finalFilename;
-  }
-
-  /**
    * <p>This {@link DataFetcher} copy one or more nodes into a destination folder. This is bound to
    * the {@link Files.GraphQL.Mutations#COPY_NODES} mutation.</p>
    * <p>The requester must specify the following input parameters:</p>
@@ -1759,7 +1740,7 @@ public class NodeDataFetcher {
               .filter(node -> targetFolderChildrenFilesName.contains(node.getFullName()))
               .forEach(nodeDup -> {
                 String newName = searchAlternativeName(
-                  nodeDup.getFullName(), destinationFolderId, nodeDup.getOwnerId()
+                  nodeRepository, nodeDup.getFullName(), destinationFolderId, nodeDup.getOwnerId()
                 );
                 if (nodeDup.getNodeType() == NodeType.FOLDER) {
                   Node copiedFolder = copyFolder(

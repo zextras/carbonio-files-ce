@@ -121,4 +121,41 @@ class MoveNodesApiIT {
         .containsEntry("id", "00000000-0000-0000-0000-000000000002")
         .containsEntry("name", "name (1)");
   }
+
+  @Test
+  void givenANodeInAFolderMovingItInTheSameFolderShouldNotRenameTheNode() {
+    // Given
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new SimplePopulatorTextFile(
+                "00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "name.txt"));
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("moveNodes")
+            .withListOfStrings("node_ids", new String[]{"00000000-0000-0000-0000-000000000000"})
+            .withString("destination_id", "LOCAL_ROOT")
+            .withWantedResultFormat("{ id name }")
+            .build();
+
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final Map<String, Object> page =
+        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "moveNodes");
+
+    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("data");
+
+    Assertions.assertThat(nodes).hasSize(1);
+    // folders always on top
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", "00000000-0000-0000-0000-000000000000")
+        .containsEntry("name", "name");
+  }
 }
