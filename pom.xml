@@ -21,7 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <groupId>com.zextras.carbonio.files</groupId>
   <artifactId>carbonio-files-ce</artifactId>
-  <version>0.13.0-1</version>
+  <version>0.13.1-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>carbonio-files-ce</name>
@@ -33,36 +33,36 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <properties>
     <!-- Dependencies -->
-    <assertj.version>3.24.2</assertj.version>
-    <caffeine.version>3.1.6</caffeine.version>
+    <assertj.version>3.26.3</assertj.version>
+    <caffeine.version>3.1.8</caffeine.version>
     <carbonio-storages-common.version>0.0.15-SNAPSHOT</carbonio-storages-common.version>
     <carbonio-storages-ce.version>0.0.15-SNAPSHOT</carbonio-storages-ce.version>
     <carbonio-user-management-sdk.version>0.5.3</carbonio-user-management-sdk.version>
     <carbonio-preview-sdk.version>1.0.3</carbonio-preview-sdk.version>
-    <commons-lang3.version>3.12.0</commons-lang3.version>
-    <commons-validator.version>1.7</commons-validator.version>
-    <ebean.version>13.20.1</ebean.version>
-    <graphql-java.version>21.0</graphql-java.version>
+    <commons-lang3.version>3.17.0</commons-lang3.version>
+    <commons-validator.version>1.9.0</commons-validator.version>
+    <ebean.version>13.26.1</ebean.version>
+    <graphql-java.version>21.5</graphql-java.version>
     <guice.version>6.0.0</guice.version>
-    <hikaricp.version>5.0.1</hikaricp.version>
-    <hsqldb.version>2.7.2</hsqldb.version>
-    <jackson.version>2.15.2</jackson.version>
-    <junit5.version>5.9.3</junit5.version>
-    <logback-classic.version>1.4.8</logback-classic.version>
-    <micrometer.version>1.11.2</micrometer.version>
-    <mockito.version>5.4.0</mockito.version>
+    <hikaricp.version>5.1.0</hikaricp.version>
+    <hsqldb.version>2.7.3</hsqldb.version>
+    <jackson.version>2.17.2</jackson.version>
+    <junit5.version>5.11.0</junit5.version>
+    <logback-classic.version>1.5.7</logback-classic.version>
+    <micrometer.version>1.11.12</micrometer.version>
+    <mockito.version>5.13.0</mockito.version>
     <mock-server.version>5.15.0</mock-server.version>
-    <netty.version>4.1.94.Final</netty.version>
-    <postgresql.version>42.6.0</postgresql.version>
-    <testcontainers.version>1.18.3</testcontainers.version>
+    <netty.version>4.1.113.Final</netty.version>
+    <postgresql.version>42.7.4</postgresql.version>
+    <testcontainers.version>1.20.1</testcontainers.version>
 
     <!-- Plugins -->
     <maven-assembly.version>3.6.0</maven-assembly.version>
-    <maven-compiler.version>3.11.0</maven-compiler.version>
-    <maven-failsafe.version>3.1.2</maven-failsafe.version>
-    <maven-jacoco.version>0.8.10</maven-jacoco.version>
-    <maven-surfire.version>3.1.2</maven-surfire.version>
-    <tiles-maven.version>2.36</tiles-maven.version>
+    <maven-compiler.version>3.13.0</maven-compiler.version>
+    <maven-failsafe.version>3.5.0</maven-failsafe.version>
+    <maven-jacoco.version>0.8.12</maven-jacoco.version>
+    <maven-surfire.version>3.3.1</maven-surfire.version>
+    <tiles-maven.version>2.40</tiles-maven.version>
 
     <!-- Other properties -->
     <maven.compiler.source>17</maven.compiler.source>
