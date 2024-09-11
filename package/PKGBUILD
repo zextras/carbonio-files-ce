@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 pkgname="carbonio-files-ce"
-pkgver="0.13.1"
-pkgrel="1"
+pkgver="0.13.2"
+pkgrel="SNAPSHOT"
 pkgdesc="Carbonio Files"
 maintainer="Zextras <packages@zextras.com>"
 arch=('x86_64')
@@ -12,11 +12,13 @@ license=("AGPL-3.0-only")
 section="admin"
 priority="optional"
 url="https://www.zextras.com/"
+
 depends=(
   "service-discover"
   "pending-setups"
   "carbonio-openjdk"
 )
+
 source=(
   "carbonio-files"
   "carbonio-files.hcl"

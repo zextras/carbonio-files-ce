@@ -12,19 +12,18 @@ import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
-import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -89,7 +88,7 @@ class GetPublicLinksApiIT {
 
   @Test
   void
-      givenAnExistingFileWithTwoExistingLinksTheGetLinksShouldReturnAListOfAssociatedLinksOrderedByCreationDescending() {
+  givenAnExistingFileWithTwoExistingLinksTheGetLinksShouldReturnAListOfAssociatedLinksOrderedByCreationDescending() throws InterruptedException {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -98,7 +97,10 @@ class GetPublicLinksApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.of(5L),
-            Optional.of("super-description"))
+            Optional.of("super-description"));
+
+    Thread.sleep(500); // Ugly fix but it works
+    DatabasePopulator.aNodePopulator((simulator.getInjector()))
         .addLink(
             "0c04783b-bdfb-446f-870c-625f5ae02a0a",
             "00000000-0000-0000-0000-000000000000",
@@ -150,7 +152,7 @@ class GetPublicLinksApiIT {
 
   @Test
   void
-      givenAnExistingFolderWithOneExistingLinkTheGetLinksShouldReturnAListContainingTheAssociatedLink() {
+  givenAnExistingFolderWithOneExistingLinkTheGetLinksShouldReturnAListContainingTheAssociatedLink() {
     // Given
     createFolder("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -243,7 +245,7 @@ class GetPublicLinksApiIT {
   // TODO it should return an error message
   @Test
   void
-      givenAnExistingNodeALinkAssociatedAndAUserWithoutPermissionsTheGetLinksShouldReturn200StatusCodeAndNull() {
+  givenAnExistingNodeALinkAssociatedAndAUserWithoutPermissionsTheGetLinksShouldReturn200StatusCodeAndNull() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -278,7 +280,7 @@ class GetPublicLinksApiIT {
   // TODO it should return an error message
   @Test
   void
-      givenAnExistingNodeSharedToAUserWithoutShareRightsAndAnExistingLinkTheGetLinksShouldReturn200CodeAndNull() {
+  givenAnExistingNodeSharedToAUserWithoutShareRightsAndAnExistingLinkTheGetLinksShouldReturn200CodeAndNull() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -316,7 +318,7 @@ class GetPublicLinksApiIT {
 
   @Test
   void
-      givenAnExistingNodeSharedToAUserWithShareRightsAndAnExistingLinkTheGetLinksShouldReturnAListOfAssociatedLinks() {
+  givenAnExistingNodeSharedToAUserWithShareRightsAndAnExistingLinkTheGetLinksShouldReturnAListOfAssociatedLinks() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -357,7 +359,7 @@ class GetPublicLinksApiIT {
 
   @Test
   void
-      givenAnExistingFileAndAnAssociatedLegacyPublicLinkWithAn8CharsPublicIdentifierTheGetLinksShouldReturnItCorrectly() {
+  givenAnExistingFileAndAnAssociatedLegacyPublicLinkWithAn8CharsPublicIdentifierTheGetLinksShouldReturnItCorrectly() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     DatabasePopulator.aNodePopulator(simulator.getInjector())

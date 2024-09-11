@@ -17,9 +17,6 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 
 import java.util.*;
-import java.util.concurrent.TimeUnit;
-
-import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 public class DatabasePopulator {
   static NodeRepository nodeRepository;
@@ -66,17 +63,22 @@ public class DatabasePopulator {
     return this;
   }
 
-  public DatabasePopulator addVersion(String nodeId) {
+  public DatabasePopulator addVersion(String nodeId){
+    return addVersion(nodeId, false);
+  }
+
+  public DatabasePopulator addVersion(String nodeId, boolean keepForever) {
     Optional<Node> optionalNode = nodeRepository.getNode(nodeId);
     if (optionalNode.isEmpty()) throw new IllegalArgumentException("Node does not exist");
 
     List<FileVersion> versions = fileVersionRepository.getFileVersions(nodeId);
+    Collections.reverse(versions);
     if (versions.isEmpty())
       throw new IllegalArgumentException("No initial version found for this node");
     FileVersion lastVersion = versions.get(versions.size() - 1);
 
     Node node = optionalNode.get();
-    fileVersionRepository.createNewFileVersion(
+    Optional<FileVersion> version = fileVersionRepository.createNewFileVersion(
         node.getId(),
         node.getOwnerId(),
         lastVersion.getVersion() + 1,
@@ -84,6 +86,8 @@ public class DatabasePopulator {
         node.getSize(),
         "",
         false);
+
+    if(keepForever) fileVersionRepository.updateFileVersion(version.get().keepForever(true));
 
     delay();
     return this;
@@ -120,6 +124,10 @@ public class DatabasePopulator {
   }
 
   private void delay() {
-    await().atLeast(1, TimeUnit.MILLISECONDS);
+    try {
+      Thread.sleep(500);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

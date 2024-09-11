@@ -85,6 +85,14 @@ public final class Files {
       public static final String PORT = "carbonio.docs-connector.port";
     }
 
+    public static final class MessageBroker {
+
+      private MessageBroker() {}
+
+      public static final String URL  = "carbonio.message-broker.url";
+      public static final String PORT = "carbonio.message-broker.port";
+    }
+
     public static final class Pagination {
 
       private Pagination() {}
@@ -106,7 +114,7 @@ public final class Files {
 
     private Db() {}
 
-    public static final short DB_VERSION = 3;
+    public static final short DB_VERSION = 4;
 
     /**
      * Names of Files tables
@@ -148,6 +156,7 @@ public final class Files {
       public static final String CURRENT_VERSION = "current_version";
       public static final String INDEX_STATUS    = "index_status";
       public static final String SIZE            = "size";
+      public static final String HIDDEN            = "hidden";
     }
 
     public static final class Trashed {
@@ -810,6 +819,7 @@ public final class Files {
     private ServiceDiscover() {}
 
     public static final String SERVICE_NAME = "carbonio-files";
+    public static final String MESSAGE_BROKER_SERVICE_NAME = "carbonio-message-broker";
 
     public static final class Config {
 
@@ -834,6 +844,20 @@ public final class Files {
         public static final String HIKARI_MAX_POOL_SIZE        = "hikari-max-pool-size";
         public static final String HIKARI_MIN_IDLE_CONNECTIONS = "hikari-min-idle-connections";
       }
+    }
+  }
+
+  public static final class MessageBroker {
+    private MessageBroker() {}
+
+    public static final class Config {
+
+      private Config() {
+      }
+
+      public static final String DEFAULT_USERNAME            = "carbonio-message-broker";
+      public static final String DEFAULT_PASSWORD            = "";
+
     }
   }
 }

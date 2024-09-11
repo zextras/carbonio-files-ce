@@ -3,6 +3,9 @@
     {
       "carbonio-files/": {
         "policy": "read"
+      },
+      "carbonio-message-broker/": {
+        "policy": "read"
       }
     }
   ],

@@ -99,14 +99,14 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
 
   @Override
   public List<FileVersion> getFileVersions(String nodeId) {
-
-    List<FileVersion> fileVersions = mDB.getEbeanDatabase()
-      .find(FileVersion.class)
-      .where()
-      .eq(Files.Db.FileVersion.NODE_ID, nodeId)
-      .order()
-      .desc(Db.FileVersion.VERSION)
-      .findList();
+    List<FileVersion> fileVersions =
+        mDB.getEbeanDatabase()
+          .find(FileVersion.class)
+          .where()
+          .eq(Files.Db.FileVersion.NODE_ID, nodeId)
+          .orderBy()
+          .desc(Db.FileVersion.VERSION)
+          .findList();
 
     fileVersions.forEach(fileVersion ->
       fileVersionCache.add(

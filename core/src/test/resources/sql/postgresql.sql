@@ -111,3 +111,15 @@ CREATE TABLE IF NOT EXISTS collaboration_link (
 ALTER TABLE share ADD COLUMN IF NOT EXISTS created_via_link BOOLEAN DEFAULT FALSE NOT NULL;
 
 UPDATE db_info SET version = 2;
+
+-- postgresql_3
+
+ALTER TABLE link ALTER COLUMN public_id VARCHAR(32);
+
+UPDATE db_info SET version = 3;
+
+-- postgresql_4
+
+ALTER TABLE node ADD COLUMN hidden BOOLEAN DEFAULT FALSE NOT NULL;
+
+UPDATE db_info SET version = 4;
