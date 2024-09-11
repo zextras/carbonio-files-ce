@@ -200,7 +200,7 @@ pipeline {
                             {
                                 "pattern": "artifacts/*.deb",
                                 "target": "ubuntu-devel/pool/",
-                                "props": "deb.distribution=focal;deb.distribution=jammy;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
+                                "props": "deb.distribution=focal;deb.distribution=jammy;deb.distribution=noble;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
                             },
                             {
                                 "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).x86_64.rpm",
@@ -238,7 +238,7 @@ pipeline {
                             {
                                 "pattern": "artifacts/carbonio-files*.deb",
                                 "target": "ubuntu-playground/pool/",
-                                "props": "deb.distribution=focal;deb.distribution=jammy;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
+                                "props": "deb.distribution=focal;deb.distribution=jammy;deb.distribution=noble;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
                             }
                         ]
                     }"""
@@ -266,7 +266,7 @@ pipeline {
                             {
                                 "pattern": "artifacts/carbonio-files*.deb",
                                 "target": "ubuntu-''' + params.SUFFIX_CUSTOM_REPOS + '''/pool/",
-                                "props": "deb.distribution=bionic;deb.distribution=focal;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
+                                "props": "deb.distribution=bionic;deb.distribution=focal;deb.distribution=noble;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
                             },
                             {
                                 "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).x86_64.rpm",
