@@ -8,6 +8,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.13.1](https://github.com/zextras/carbonio-files-ce/compare/v0.13.0...v0.13.1) (2024-09-11)
+
+## [0.13.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.12.0...v0.13.0) (2024-08-27)
+
+
+### Features
+
+* refactor filesconfig to interface to facilitate server mocking for integration tests ([#116](https://github.com/Zextras/carbonio-files-ce/issues/116)) ([cbc7be0](https://github.com/Zextras/carbonio-files-ce/commit/cbc7be0a2fa1ba2e3ec43a60a308a3df56c349bd))
+
+
+### Bug Fixes
+
+* fixed clone as current coping only current version ([#117](https://github.com/Zextras/carbonio-files-ce/issues/117)) ([97844c3](https://github.com/Zextras/carbonio-files-ce/commit/97844c39f1e0adaa52c9d8616ab32fc5e7e1be70))
+* rename node if moved in dir with another node with same name ([#113](https://github.com/Zextras/carbonio-files-ce/issues/113)) ([199591e](https://github.com/Zextras/carbonio-files-ce/commit/199591e7a754b0837de93b820dd08433659443cd))
+* update rest.yaml openapi ([#118](https://github.com/Zextras/carbonio-files-ce/issues/118)) ([121bfac](https://github.com/Zextras/carbonio-files-ce/commit/121bfac780fd4e8d1dd9b3241dbc3f376cc711b5))
+
 ## [0.12.0](https://github.com/Zextras/carbonio-files-ce/compare/v0.11.1...v0.12.0) (2024-06-17)
 
 
