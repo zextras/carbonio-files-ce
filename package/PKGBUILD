@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 pkgname="carbonio-files-ce"
-pkgver="0.13.1"
+pkgver="0.13.2"
 pkgrel="SNAPSHOT"
 pkgdesc="Carbonio Files"
 maintainer="Zextras <packages@zextras.com>"
@@ -42,6 +42,7 @@ depends=(
   "pending-setups"
   "carbonio-openjdk"
 )
+
 source=(
   "carbonio-files"
   "carbonio-files.hcl"
