@@ -20,6 +20,7 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.PageQuer
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SearchBuilder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import io.ebean.Query;
+import io.ebean.Transaction;
 import io.ebean.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Collections;

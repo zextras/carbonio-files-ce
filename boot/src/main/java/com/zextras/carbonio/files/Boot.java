@@ -6,7 +6,7 @@ package com.zextras.carbonio.files;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.zextras.carbonio.files.config.FilesConfig;
+import com.zextras.carbonio.files.config.impl.FilesConfigImpl;
 import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
@@ -46,8 +46,8 @@ public class Boot {
       )
     );
 
-    Injector injector = Guice.createInjector(new FilesModule(new FilesConfig()));
-    injector.getInstance(FilesConfig.class);
+    Injector injector = Guice.createInjector(new FilesModule(new FilesConfigImpl()));
+    injector.getInstance(FilesConfigImpl.class);
 
     try {
       ebeanDatabaseManager = injector.getInstance(EbeanDatabaseManager.class);

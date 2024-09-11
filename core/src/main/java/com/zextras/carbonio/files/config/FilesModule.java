@@ -5,7 +5,6 @@
 package com.zextras.carbonio.files.config;
 
 import com.google.inject.AbstractModule;
-import com.google.inject.Inject;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
@@ -24,7 +23,7 @@ import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
 import com.zextras.carbonio.message_broker.config.enums.Service;
 import com.zextras.filestore.api.Filestore;
-import com.zextras.storages.api.StoragesClient;
+
 
 import java.time.Clock;
 
@@ -35,7 +34,6 @@ public class FilesModule extends AbstractModule {
 
   private final FilesConfig filesConfig;
 
-  @Inject
   public FilesModule(FilesConfig filesConfig) {
     this.filesConfig = filesConfig;
   }
@@ -58,8 +56,13 @@ public class FilesModule extends AbstractModule {
   }
 
   @Provides
+  public FilesConfig getFilesConfig(){
+    return filesConfig;
+  }
+
+  @Provides
   public Filestore getFileStore() {
-    return StoragesClient.atUrl(filesConfig.getFileStoreUrl());
+    return filesConfig.getStoragesClient(); // We need to fix this
   }
 
   @Singleton
