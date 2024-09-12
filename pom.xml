@@ -21,7 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <groupId>com.zextras.carbonio.files</groupId>
   <artifactId>carbonio-files-ce</artifactId>
-  <version>0.13.1-SNAPSHOT</version>
+  <version>0.13.2-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>carbonio-files-ce</name>
@@ -35,6 +35,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <!-- Dependencies -->
     <assertj.version>3.24.2</assertj.version>
     <caffeine.version>3.1.6</caffeine.version>
+    <carbonio-message-broker-sdk.version>0.0.4-SNAPSHOT</carbonio-message-broker-sdk.version>
     <carbonio-storages-common.version>0.0.15-SNAPSHOT</carbonio-storages-common.version>
     <carbonio-storages-ce.version>0.0.15-SNAPSHOT</carbonio-storages-ce.version>
     <carbonio-user-management-sdk.version>0.5.3</carbonio-user-management-sdk.version>
@@ -54,7 +55,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <mock-server.version>5.15.0</mock-server.version>
     <netty.version>4.1.94.Final</netty.version>
     <postgresql.version>42.6.0</postgresql.version>
-    <testcontainers.version>1.18.3</testcontainers.version>
+    <testcontainers.version>1.19.8</testcontainers.version>
 
     <!-- Plugins -->
     <maven-assembly.version>3.6.0</maven-assembly.version>
@@ -163,6 +164,12 @@ SPDX-License-Identifier: AGPL-3.0-only
         <version>${carbonio-preview-sdk.version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>com.zextras.carbonio.message-broker</groupId>
+        <artifactId>carbonio-message-broker-sdk</artifactId>
+        <version>${carbonio-message-broker-sdk.version}</version>
+      </dependency>
+
       <!-- Utilities: jackson, apache commons-lang and commons-validator -->
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
@@ -254,6 +261,13 @@ SPDX-License-Identifier: AGPL-3.0-only
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>postgresql</artifactId>
+        <version>${testcontainers.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>rabbitmq</artifactId>
         <version>${testcontainers.version}</version>
         <scope>test</scope>
       </dependency>

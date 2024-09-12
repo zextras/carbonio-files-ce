@@ -15,6 +15,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -324,7 +325,7 @@ public class BlobService {
       .getPermissions(nodeId, requester.getId())
       .has(SharePermission.READ_AND_WRITE)
     ) {
-      List<FileVersion> allFileVersion = fileVersionRepository.getFileVersions(nodeId);
+      List<FileVersion> allFileVersion = fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
       int maxNumberOfVersions = filesConfig.getMaxNumberOfFileVersion();
 
       // This check seems (at first) useless since there is a mechanism to remove the oldest version

@@ -25,7 +25,7 @@ SPDX-License-Identifier: AGPL-3.0-only
   <parent>
     <artifactId>carbonio-files-ce</artifactId>
     <groupId>com.zextras.carbonio.files</groupId>
-    <version>0.13.1-SNAPSHOT</version>
+    <version>0.13.2-SNAPSHOT</version>
   </parent>
 
   <dependencies>
@@ -87,6 +87,11 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <dependency>
+      <groupId>com.zextras.carbonio.message-broker</groupId>
+      <artifactId>carbonio-message-broker-sdk</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.zextras</groupId>
       <artifactId>storages-ce-sdk</artifactId>
     </dependency>
@@ -95,7 +100,6 @@ SPDX-License-Identifier: AGPL-3.0-only
       <artifactId>carbonio-preview-sdk</artifactId>
       <groupId>com.zextras.carbonio.preview</groupId>
     </dependency>
-
 
     <!-- Utilities: jackson, apache commons-lang and commons-validator -->
     <dependency>
@@ -169,6 +173,12 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>rabbitmq</artifactId>
       <scope>test</scope>
     </dependency>
 

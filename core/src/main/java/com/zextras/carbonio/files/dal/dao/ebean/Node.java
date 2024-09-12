@@ -86,6 +86,9 @@ public class Node {
   @Column(name = Files.Db.Node.SIZE, nullable = false)
   private Long mSize;
 
+  @Column(name = Files.Db.Node.HIDDEN, nullable = false)
+  private Boolean mHidden;
+
   @OneToMany(fetch = FetchType.EAGER)
   @JoinColumn(
       name = Files.Db.Node.ID,
@@ -133,6 +136,7 @@ public class Node {
     mNodeType = type;
     mIndexStatus = 1;
     mAncestorIds = ancestorIds;
+    mHidden = false;
     switch (mNodeType) {
       case ROOT:
         mNodeCategory = NodeCategory.ROOT.getValue();
@@ -306,5 +310,14 @@ public class Node {
       case Files.Db.Node.SIZE -> getSize();
       default -> throw new IllegalArgumentException("Column not supported");
     };
+  }
+
+  public boolean isHidden() {
+    return mHidden;
+  }
+
+  public Node setHidden(boolean mHidden) {
+    this.mHidden = mHidden;
+    return this;
   }
 }

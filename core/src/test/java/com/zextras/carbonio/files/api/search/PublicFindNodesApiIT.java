@@ -12,7 +12,6 @@ import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -40,7 +39,11 @@ public class PublicFindNodesApiIT {
   @BeforeAll
   static void init() {
     simulator =
-        SimulatorBuilder.aSimulator().init().withDatabase().withServiceDiscover().build().start();
+        SimulatorBuilder.aSimulator().init()
+            .withDatabase()
+            .withServiceDiscover()
+            .build()
+            .start();
 
     final Injector injector = simulator.getInjector();
     nodeRepository = injector.getInstance(NodeRepository.class);

@@ -28,6 +28,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -1450,7 +1451,7 @@ public class NodeDataFetcher {
           .equals(NodeType.FOLDER))
         .forEach(node ->
           tombstoneRepository.createTombstonesBulk(
-            fileVersionRepository.getFileVersions(node.getId()),
+            fileVersionRepository.getFileVersions(node.getId(), List.of(FileVersionSort.VERSION_DESC)),
             node.getOwnerId()
           )
         );
@@ -1856,7 +1857,7 @@ public class NodeDataFetcher {
           .orElseGet(() -> {
             List<Integer> versions = new ArrayList<>();
             fileVersionRepository
-              .getFileVersions(nodeId)
+              .getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC))
               .forEach(fileVersion -> versions.add(fileVersion.getVersion()));
             return versions;
           })
@@ -1894,7 +1895,7 @@ public class NodeDataFetcher {
 
         List<FileVersion> fileVersionsToDelete = optVersionsToDelete
           .map(versions -> fileVersionRepository.getFileVersions(nodeId, versions))
-          .orElseGet(() -> fileVersionRepository.getFileVersions(nodeId))
+          .orElseGet(() -> fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)))
           .stream()
           .filter(fileVersion -> !fileVersion.isKeptForever())
           .collect(Collectors.toList());
@@ -1943,7 +1944,7 @@ public class NodeDataFetcher {
       if (permissionsChecker.getPermissions(nodeId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {
 
-        List<FileVersion> listOfFileVersions = fileVersionRepository.getFileVersions(nodeId);
+        List<FileVersion> listOfFileVersions = fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
         int keepForeverCounter = 0;
         for (FileVersion version : listOfFileVersions) {
           keepForeverCounter = version.isKeptForever()
@@ -2023,7 +2024,7 @@ public class NodeDataFetcher {
         .has(SharePermission.READ_AND_WRITE)
       ) {
         Node node = nodeRepository.getNode(nodeId).get();
-        if (fileVersionRepository.getFileVersions(nodeId).size() >= maxNumberOfVersions) {
+        if (fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)).size() >= maxNumberOfVersions) {
           logger.debug(MessageFormat.format(
             "Node: {0} has reached max number of versions ({1}), cannot add more versions",
             nodeId,
