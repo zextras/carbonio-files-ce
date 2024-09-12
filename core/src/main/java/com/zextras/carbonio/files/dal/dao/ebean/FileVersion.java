@@ -122,12 +122,12 @@ public class FileVersion {
     return this;
   }
 
-  public FileVersion keepForever(Boolean keep) {
+  public FileVersion keepForever(boolean keep) {
     this.isKeptForever = keep;
     return this;
   }
 
-  public Boolean isKeptForever() {
+  public boolean isKeptForever() {
     return isKeptForever;
   }
 }

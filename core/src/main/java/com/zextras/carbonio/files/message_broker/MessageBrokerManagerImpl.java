@@ -6,7 +6,7 @@ package com.zextras.carbonio.files.message_broker;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.message_broker.consumers.KeyValueChangedConsumer;
 import com.zextras.carbonio.files.message_broker.consumers.UserStatusChangedConsumer;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
@@ -26,16 +26,19 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
 
   private final MessageBrokerClient messageBrokerClient;
   private final UserStatusChangedConsumer userStatusChangedConsumer;
+  private final KeyValueChangedConsumer keyValueChangedConsumer;
   private List<BaseConsumer> allConsumers;
 
   @Inject
   public MessageBrokerManagerImpl(
       MessageBrokerClient messageBrokerClient,
-      UserStatusChangedConsumer userStatusChangedConsumer)
+      UserStatusChangedConsumer userStatusChangedConsumer,
+      KeyValueChangedConsumer keyValueChangedConsumer)
   {
     this.allConsumers = new ArrayList<>();
     this.messageBrokerClient = messageBrokerClient;
     this.userStatusChangedConsumer = userStatusChangedConsumer;
+    this.keyValueChangedConsumer = keyValueChangedConsumer;
   }
 
   /**
@@ -44,6 +47,7 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
   @Override
   public void startAllConsumers() {
     allConsumers.add(userStatusChangedConsumer);
+    allConsumers.add(keyValueChangedConsumer);
 
     allConsumers.forEach(messageBrokerClient::consume);
   }

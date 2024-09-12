@@ -16,6 +16,7 @@ echo "Building for OS: $OS"
 
 cp ./boot/target/carbonio-files-ce-*-jar-with-dependencies.jar package/carbonio-files.jar
 cp ./core/src/main/resources/carbonio-files.properties package/config.properties
+cp ./package/watches/* package/
 
 if [[ $OS == "ubuntu-jammy" ]]
 then
@@ -37,3 +38,6 @@ fi
 
 rm package/config.properties
 rm package/carbonio-files.jar
+rm package/carbonio-files-handle-kv-changes.py
+rm package/carbonio-files-start-watches.sh
+rm package/carbonio-files-watches.service

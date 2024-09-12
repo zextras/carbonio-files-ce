@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.tasks;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
@@ -74,7 +75,7 @@ public class PurgeService implements Runnable {
     // Remove binaries associated with all the versions of trashed nodes
     trashedNodesToDelete.forEach(node -> {
       fileVersionRepository
-        .getFileVersions(node.getId())
+        .getFileVersions(node.getId(), List.of(FileVersionSort.VERSION_DESC))
         .forEach(fileVersion -> {
           try {
             StoragesClient

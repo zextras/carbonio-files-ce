@@ -7,8 +7,6 @@ package com.zextras.carbonio.files.message_broker.interfaces;
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
 import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
 
-import javax.sql.DataSource;
-
 /**
  * Classes extending this interface are basically a repository for MessageBroker (RabbitMQ).
  * They have the responsibility of starting consumers of events that need to be listened to.

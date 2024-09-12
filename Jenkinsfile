@@ -69,6 +69,7 @@ pipeline {
                 sh 'mvn -B --settings settings-jenkins.xml clean package'
                 sh 'cp boot/target/carbonio-files-ce-*-jar-with-dependencies.jar package/carbonio-files.jar'
                 sh 'cp core/src/main/resources/carbonio-files.properties package/config.properties'
+                sh 'cp package/watches/* package/'
             }
         }
         stage("Tests") {
@@ -158,7 +159,7 @@ pipeline {
                                 }
                             }
                         }
-                        stage('RHEL') {
+                        stage('RHEL8') {
                             agent {
                                 node {
                                     label 'yap-agent-rocky-8-v2'
@@ -168,7 +169,26 @@ pipeline {
                                 dir('/tmp/staging'){
                                     unstash 'binaries'
                                 }
-                                sh 'sudo yap build rocky /tmp/staging/'
+                                sh 'sudo yap build rocky-8 /tmp/staging/'
+                                stash includes: 'artifacts/x86_64/*.rpm', name: 'artifacts-rpm'
+                            }
+                            post {
+                                always {
+                                    archiveArtifacts artifacts: 'artifacts/x86_64/*.rpm', fingerprint: true
+                                }
+                            }
+                        }
+                        stage('RHEL9') {
+                            agent {
+                                node {
+                                    label 'yap-agent-rocky-9-v2'
+                                }
+                            }
+                            steps {
+                                dir('/tmp/staging'){
+                                    unstash 'binaries'
+                                }
+                                sh 'sudo yap build rocky-9 /tmp/staging/'
                                 stash includes: 'artifacts/x86_64/*.rpm', name: 'artifacts-rpm'
                             }
                             post {

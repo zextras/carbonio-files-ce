@@ -11,6 +11,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -71,7 +72,7 @@ public class DatabasePopulator {
     Optional<Node> optionalNode = nodeRepository.getNode(nodeId);
     if (optionalNode.isEmpty()) throw new IllegalArgumentException("Node does not exist");
 
-    List<FileVersion> versions = fileVersionRepository.getFileVersions(nodeId);
+    List<FileVersion> versions = fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
     Collections.reverse(versions);
     if (versions.isEmpty())
       throw new IllegalArgumentException("No initial version found for this node");
@@ -87,7 +88,12 @@ public class DatabasePopulator {
         "",
         false);
 
-    if(keepForever) fileVersionRepository.updateFileVersion(version.get().keepForever(true));
+    if(keepForever) {
+      fileVersionRepository.updateFileVersion(version.get().keepForever(true));
+    }
+
+    node.setCurrentVersion(lastVersion.getVersion() + 1);
+    nodeRepository.updateNode(node);
 
     delay();
     return this;
