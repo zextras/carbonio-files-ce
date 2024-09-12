@@ -22,10 +22,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
 import java.util.List;
 import java.util.Map;
@@ -38,8 +35,8 @@ class MoveNodesApiIT {
   static FileVersionRepository fileVersionRepository;
   static LinkRepository linkRepository;
 
-  @BeforeAll
-  static void init() {
+  @BeforeEach
+  void init() {
     simulator =
         SimulatorBuilder.aSimulator()
             .init()
@@ -61,6 +58,7 @@ class MoveNodesApiIT {
   @AfterEach
   void cleanUp() {
     simulator.resetDatabase();
+    simulator.stopAll();
   }
 
   @AfterAll
@@ -128,11 +126,11 @@ class MoveNodesApiIT {
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
             new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "name.txt"));
+                "00000000-0000-0000-0000-000000000003", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "second.txt"));
 
     String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("moveNodes")
-            .withListOfStrings("node_ids", new String[]{"00000000-0000-0000-0000-000000000000"})
+            .withListOfStrings("node_ids", new String[]{"00000000-0000-0000-0000-000000000003"})
             .withString("destination_id", "LOCAL_ROOT")
             .withWantedResultFormat("{ id name }")
             .build();
@@ -155,7 +153,7 @@ class MoveNodesApiIT {
     Assertions.assertThat(nodes).hasSize(1);
     // folders always on top
     Assertions.assertThat(nodes.get(0))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000000")
-        .containsEntry("name", "name");
+        .containsEntry("id", "00000000-0000-0000-0000-000000000003")
+        .containsEntry("name", "second");
   }
 }
