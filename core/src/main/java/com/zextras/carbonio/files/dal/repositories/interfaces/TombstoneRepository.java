@@ -54,4 +54,6 @@ public interface TombstoneRepository {
     List<FileVersion> fileVersions,
     String ownerId
   );
+
+  void deleteTombstonesFromOwner(String ownerId);
 }

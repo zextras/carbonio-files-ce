@@ -115,7 +115,7 @@ public class FilesConfigImpl implements FilesConfig {
 
   public String getMessageBrokerUrl() {
     return Optional.ofNullable(System.getProperty(Files.Config.MessageBroker.URL))
-            .orElse(properties.getProperty(Files.Config.MessageBroker.URL, "127.78.0.2"));
+        .orElse(properties.getProperty(Files.Config.MessageBroker.URL, "127.78.0.2"));
   }
 
   public Integer getMessageBrokerPort() {
