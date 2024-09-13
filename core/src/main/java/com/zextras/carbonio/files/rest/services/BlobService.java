@@ -42,6 +42,8 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.zextras.carbonio.files.utilities.RenameNodeUtils.searchAlternativeName;
+
 /**
  * Provides methods to handle blob operations like download (via node identifier and via public
  * link), upload of a new node and upload of a new version of a specific node.
@@ -204,7 +206,7 @@ public class BlobService {
         requester.getId(),
         nodeOwner,
         folderId,
-        searchAlternativeName(filename.trim(), folderId, nodeOwner),
+        searchAlternativeName(nodeRepository, filename.trim(), folderId, nodeOwner),
         description,
         nodeType,
         NodeType.ROOT.equals(destinationFolder.getNodeType())
@@ -520,35 +522,5 @@ public class BlobService {
 
       return result.map(FileVersion::getVersion);
     }
-  }
-
-  /**
-   * This method is used to search an alternative name if the filename is already present in the
-   * destination folder.
-   *
-   * @param filename            a {@link String} representing the filename of the node I have to
-   *                            upload.
-   * @param destinationFolderId is a {@link String } representing the id of the destination folder.
-   * @return a {@link String} of the alternative name if the filename is already taken or the chosen
-   * filename.
-   */
-  private String searchAlternativeName(
-    String filename,
-    String destinationFolderId,
-    String nodeOwner
-  ) {
-    int level = 1;
-    String finalFilename = filename;
-    while (nodeRepository
-      .getNodeByName(finalFilename, destinationFolderId, nodeOwner)
-      .isPresent()
-    ) {
-      int dotPosition = filename.lastIndexOf('.');
-      finalFilename = (dotPosition != -1)
-        ? filename.substring(0, dotPosition) + " (" + level + ")" + filename.substring(dotPosition)
-        : filename + " (" + level + ")";
-      ++level;
-    }
-    return finalFilename;
   }
 }
