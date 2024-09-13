@@ -90,4 +90,13 @@ public class TombstoneRepositoryEbean implements TombstoneRepository {
     }
 
   }
+
+  @Override
+  public void deleteTombstonesFromOwner(String ownerId) {
+    dbManager.getEbeanDatabase()
+        .find(Tombstone.class)
+        .where()
+        .eq(Files.Db.Tombstone.OWNER_ID, ownerId)
+        .delete();
+  }
 }

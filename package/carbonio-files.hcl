@@ -61,6 +61,11 @@ services {
             destination_name   = "carbonio-docs-connector"
             local_bind_address = "127.78.0.2"
             local_bind_port    = 20005
+          },
+          {
+            destination_name   = "carbonio-message-broker"
+            local_bind_address = "127.78.0.2"
+            local_bind_port    = 20006
           }
         ]
       }

@@ -4,10 +4,13 @@
 
 package com.zextras.carbonio.files.config;
 
+import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.preview.PreviewClient;
 import com.zextras.carbonio.usermanagement.UserManagementClient;
 import com.zextras.filestore.api.Filestore;
 
+import java.util.Optional;
 import java.util.Properties;
 
 public interface FilesConfig {
@@ -19,4 +22,8 @@ public interface FilesConfig {
   String getDatabaseUrl();
   String getMailboxUrl();
   String getDocsConnectorUrl();
+  String getMessageBrokerUrl();
+  Integer getMessageBrokerPort();
+  String getMessageBrokerPassword();
+  String getMessageBrokerUsername();
 }

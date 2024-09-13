@@ -112,4 +112,27 @@ public class FilesConfigImpl implements FilesConfig {
   public String getDocsConnectorUrl() {
     return buildUrlFromProperties(DocsConnector.URL, DocsConnector.PORT, "20005");
   }
+
+  public String getMessageBrokerUrl() {
+    return Optional.ofNullable(System.getProperty(Files.Config.MessageBroker.URL))
+        .orElse(properties.getProperty(Files.Config.MessageBroker.URL, "127.78.0.2"));
+  }
+
+  public Integer getMessageBrokerPort() {
+    String messageBrokerPort = Optional.ofNullable(System.getProperty(Files.Config.MessageBroker.PORT))
+        .orElse(properties.getProperty(Files.Config.MessageBroker.PORT, "20006"));
+    return Integer.valueOf(messageBrokerPort);
+  }
+
+  public String getMessageBrokerPassword() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
+        .getConfig("default/password")
+        .getOrElse(Files.MessageBroker.Config.DEFAULT_PASSWORD);
+  }
+
+  public String getMessageBrokerUsername() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
+        .getConfig("default/username")
+        .getOrElse(Files.MessageBroker.Config.DEFAULT_USERNAME);
+  }
 }

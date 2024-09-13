@@ -11,15 +11,13 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 
 import java.util.*;
-import java.util.concurrent.TimeUnit;
-
-import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 public class DatabasePopulator {
   static NodeRepository nodeRepository;
@@ -66,17 +64,22 @@ public class DatabasePopulator {
     return this;
   }
 
-  public DatabasePopulator addVersion(String nodeId) {
+  public DatabasePopulator addVersion(String nodeId){
+    return addVersion(nodeId, false);
+  }
+
+  public DatabasePopulator addVersion(String nodeId, boolean keepForever) {
     Optional<Node> optionalNode = nodeRepository.getNode(nodeId);
     if (optionalNode.isEmpty()) throw new IllegalArgumentException("Node does not exist");
 
-    List<FileVersion> versions = fileVersionRepository.getFileVersions(nodeId);
+    List<FileVersion> versions = fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
+    Collections.reverse(versions);
     if (versions.isEmpty())
       throw new IllegalArgumentException("No initial version found for this node");
     FileVersion lastVersion = versions.get(versions.size() - 1);
 
     Node node = optionalNode.get();
-    fileVersionRepository.createNewFileVersion(
+    Optional<FileVersion> version = fileVersionRepository.createNewFileVersion(
         node.getId(),
         node.getOwnerId(),
         lastVersion.getVersion() + 1,
@@ -84,6 +87,13 @@ public class DatabasePopulator {
         node.getSize(),
         "",
         false);
+
+    if(keepForever) {
+      fileVersionRepository.updateFileVersion(version.get().keepForever(true));
+    }
+
+    node.setCurrentVersion(lastVersion.getVersion() + 1);
+    nodeRepository.updateNode(node);
 
     delay();
     return this;
@@ -120,6 +130,10 @@ public class DatabasePopulator {
   }
 
   private void delay() {
-    await().atLeast(1, TimeUnit.MILLISECONDS);
+    try {
+      Thread.sleep(500);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

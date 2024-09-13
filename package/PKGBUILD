@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 pkgname="carbonio-files-ce"
-pkgver="0.13.1"
+pkgver="0.13.2"
 pkgrel="SNAPSHOT"
 pkgdesc="Carbonio Files"
 maintainer="Zextras <packages@zextras.com>"
@@ -12,11 +12,37 @@ license=("AGPL-3.0-only")
 section="admin"
 priority="optional"
 url="https://www.zextras.com/"
+depends__apt=(
+  "python3"
+)
+depends__rocky_8=(
+  "python38"
+)
+depends__rocky_9=(
+  "python3"
+)
+makedepends__apt=(
+  "python3-pip"
+)
+makedepends__rocky_8=(
+  "python38-pip"
+)
+makedepends__rocky_9=(
+  "python3-pip"
+)
+
+provides__rocky_8=(
+  "/bin/python3.8"
+)
+provides__rocky_9=(
+  "/bin/python3"
+)
 depends=(
   "service-discover"
   "pending-setups"
   "carbonio-openjdk"
 )
+
 source=(
   "carbonio-files"
   "carbonio-files.hcl"
@@ -30,8 +56,14 @@ source=(
   "policies.json"
   "service-protocol.json"
   "service-router.json"
+  "carbonio-files-watches.service"
+  "carbonio-files-start-watches.sh"
+  "carbonio-files-handle-kv-changes.py"
 )
 sha256sums=(
+  "SKIP"
+  "SKIP"
+  "SKIP"
   "SKIP"
   "SKIP"
   "SKIP"
@@ -50,6 +82,64 @@ backup=(
   "etc/zextras/service-discover/carbonio-files.hcl"
   "etc/carbonio/files/config.properties"
 )
+
+build__ubuntu_focal() {
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+      "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+
+  pip3 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+
+  # Replace python version and prefix according to distro
+  # without modify the start script in srcdir.
+  sed -i "s/PYTHON_VER/3.8/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+}
+
+build__ubuntu_jammy() {
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+      "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+
+  pip3 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+
+  sed -i "s/PYTHON_VER/3.10/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common\/local/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+}
+
+build__rocky_8() {
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+      "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+
+  pip3.8 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+
+  sed -i "s/PYTHON_VER/3.8/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+}
+
+build__rocky_9() {
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+      "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+
+  pip3 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+
+  sed -i "s/PYTHON_VER/3.9/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+}
 
 package() {
   cd "${srcdir}"
@@ -89,6 +179,12 @@ package() {
 
   install -Dm 644 service-router.json \
     "${pkgdir}/etc/carbonio/files/service-discover/service-router.json"
+
+  install -Dm 644 carbonio-files-watches.service \
+    "${pkgdir}/lib/systemd/system/carbonio-files-watches.service"
+
+  install -Dm 755 carbonio-files-handle-kv-changes.py \
+    "${pkgdir}/usr/bin/carbonio-files-handle-kv-changes.py"
 }
 
 postinst() {

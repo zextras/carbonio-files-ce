@@ -6,8 +6,11 @@ package com.zextras.carbonio.files.dal.repositories.interfaces;
 
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
+
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -70,7 +73,7 @@ public interface FileVersionRepository {
    * @return the {@link List} containing all {@link FileVersion}s associated with the {@link Node}
    * if it is present, or the empty list if it is not present.
    */
-  List<FileVersion> getFileVersions(String nodeId);
+  List<FileVersion> getFileVersions(String nodeId, List<FileVersionSort> sorts);
 
   List<FileVersion> getFileVersions(
     String nodeId,
@@ -111,4 +114,17 @@ public interface FileVersionRepository {
     String nodeId,
     Collection<Integer> versions
   );
+
+  /**
+   * Retrieves all @link FileVersion}s belonging to a {@link Node} representing a file having a
+   * number of version greater than a specific value.
+   *
+   * @param maxNumberOfVersions is a <code>int</code> representing the max number of version a
+   * {@link Node} should have
+   *
+   * @return a {@link Map} where the key is the node identifier and the value contains a
+   * {@link List} of {@link FileVersion}s linked to that node ordered by version ascending.
+   */
+  Map<String, List<FileVersion>> getFileVersionsRelatedToNodesHavingVersionsGreaterThan(
+      int maxNumberOfVersions);
 }

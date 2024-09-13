@@ -63,15 +63,19 @@ public class PermissionsChecker {
     return nodeRepository
       .getNode(nodeId)
       .map(node -> {
-        if (node.getNodeType().equals(NodeType.ROOT) || node.getOwnerId().equals(userId)) {
-          return maxPermissions.lesserACL(ACL.decode(ACL.OWNER));
+        if (!node.isHidden()) {
+          if (node.getNodeType().equals(NodeType.ROOT) || node.getOwnerId().equals(userId)) {
+            return maxPermissions.lesserACL(ACL.decode(ACL.OWNER));
+          } else {
+            return maxPermissions.lesserACL(
+                shareRepository
+                    .getShare(node.getId(), userId)
+                    .map(Share::getPermissions)
+                    .orElse(ACL.decode(ACL.SharePermission.NONE))
+            );
+          }
         } else {
-          return maxPermissions.lesserACL(
-            shareRepository
-              .getShare(node.getId(), userId)
-              .map(Share::getPermissions)
-              .orElse(ACL.decode(ACL.SharePermission.NONE))
-          );
+          return ACL.decode(ACL.NONE);
         }
       }).orElse(ACL.decode(ACL.NONE));
   }

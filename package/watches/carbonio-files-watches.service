@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2024 Zextras <https://www.zextras.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[Unit]
+Description=Carbonio Files Watches daemon
+Wants=network.target
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/carbonio-files-start-watches.sh
+User=carbonio-files
+Group=carbonio-files
+Restart=on-failure
+RestartSec=15
+TimeoutSec=60
+TimeoutStopSec=120
+
+
+[Install]
+WantedBy=multi-user.target
