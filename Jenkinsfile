@@ -30,31 +30,42 @@ pipeline {
                 checkout scm
                 script {
                     env.GIT_COMMIT = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
+                    env.GIT_HEAD_COMMIT_TITLE = sh(script: 'git log -1 --pretty=%s HEAD~1', returnStdout: true).trim()
                 }
             }
         }
         stage('Check SNAPSHOT version') {
             when {
                 allOf {
-                    expression { env.BRANCH_NAME != "release" }
                     expression { env.BRANCH_NAME.contains("PR") }
-                    expression { !readFile('package/PKGBUILD').trim().contains('SNAPSHOT') }
                 }
             }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'tarsier-bot-pr-token-github', usernameVariable: 'GH_USERNAME', passwordVariable: 'GH_TOKEN')]) {
-                  sh(script: """
-                      curl https://api.github.com/repos/zextras/carbonio-files-ce/pulls/${env.CHANGE_ID}/reviews \
-                      -X POST \
-                      -H 'Accept: application/vnd.github.v3+json' \
-                      -H 'Authorization: token ${GH_TOKEN}' \
-                      -d '{
-                          \"body\": \"Please increase the micro version in the `pkgver` and add a **SNAPSHOT** label to the `pkgrel`.\\nMake sure to update the `PKGBUILD` and all `pom.xml` files accordingly.\",
-                          \"event\": \"REQUEST_CHANGES\"
-                      }'
-                  """)
+                script {
+                    def commentMessage = ""
+                    if (!env.GIT_HEAD_COMMIT_TITLE.contains("chore(release)") && !readFile('package/PKGBUILD').trim().contains('SNAPSHOT')) {
+                        commentMessage = "Please increase the micro version in the `pkgver` and add a **SNAPSHOT** label to the `pkgrel`."
+                    }
+
+                    if (env.GIT_HEAD_COMMIT_TITLE.contains("chore(release)") && readFile('package/PKGBUILD').trim().contains('SNAPSHOT')) {
+                        commentMessage = "Please remove the **SNAPSHOT** label to the `pkgrel`."
+                    }
+
+                    if (commentMessage) {
+                        withCredentials([usernamePassword(credentialsId: 'tarsier-bot-pr-token-github', usernameVariable: 'GH_USERNAME', passwordVariable: 'GH_TOKEN')]) {
+                            sh(script: """
+                              curl https://api.github.com/repos/zextras/carbonio-files-ce/issues/${env.CHANGE_ID}/comments \
+                              -X POST \
+                              -H 'Accept: application/vnd.github.v3+json' \
+                              -H 'Authorization: token ${GH_TOKEN}' \
+                              -d '{
+                                  \"body\": \"${commentMessage}\\nMake sure to update the `PKGBUILD` and all `pom.xml` files accordingly.\"
+                              }'
+                          """)
+                        }
+                        error("The development package version is not marked as SNAPSHOT")
+                    }
                 }
-                error("The development package version is not marked as SNAPSHOT")
             }
         }
         stage('Setup') {
