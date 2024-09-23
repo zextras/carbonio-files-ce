@@ -4,6 +4,8 @@
 
 package com.zextras.carbonio.files.api.search;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Injector;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
@@ -12,7 +14,9 @@ import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSQLCondition;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SQLExpression;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SortOrder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -455,7 +459,7 @@ public class PublicFindNodesApiIT {
     not public and an hacked page token that is formed to try access a private node: the findNodes
     should return an empty page""")
   @Test
-  void givenAnHackedPageTokenTheFindNodesShouldReturnAnEmptyList() {
+  void givenAnHackedPageTokenTheFindNodesShouldReturnAnEmptyList() throws JsonProcessingException {
     // Given
     createFolderTree();
 
@@ -503,12 +507,26 @@ public class PublicFindNodesApiIT {
                 0L,
                 null));
 
-    String pageTokenHacked =
+    SQLExpression keySet = SQLExpression.or(List.of(
+      new NodeSQLCondition("node_category", SortOrder.ASCENDING, 1),
+      SQLExpression.and(List.of(
+        new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
+        new NodeSQLCondition("name", SortOrder.ASCENDING, "folder child")
+      )),
+        SQLExpression.and(List.of(
+          new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
+          new NodeSQLCondition("name", SortOrder.EQUAL, "folder child"),
+          new NodeSQLCondition("node_id", SortOrder.ASCENDING, "88888888-8888-8888-8888-888888888888")
+        ))
+      ));
+    String jsonKeySet = new ObjectMapper().writeValueAsString(keySet);
+
+      String pageTokenHacked = String.format(
         """
     {
       "limit": 1,
       "keywords": [],
-      "keySet": "(node_category > 1) OR (node_category = 1 AND LOWER(name)>'folder child') OR (node_category = 1 AND LOWER(name) = 'folder child' AND t0.node_id > '88888888-8888-8888-8888-888888888888')",
+      "keySet": %s,
       "sort": "NAME_ASC",
       "flagged": null,
       "folderId": "77777777-7777-7777-7777-777777777777",
@@ -518,7 +536,7 @@ public class PublicFindNodesApiIT {
       "directShare": null,
       "nodeType": null,
       "ownerId": null
-    }""";
+    }""", jsonKeySet);
 
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")

@@ -208,8 +208,8 @@ public class SearchBuilder {
     return this;
   }
 
-  public SearchBuilder setKeyset(String keyset) {
-    this.query.where().and().raw(keyset).endAnd();
+  public SearchBuilder setKeySet(String expression, Object[] parameters) {
+    this.query.where().and().raw(expression, parameters).endAnd();
     return this;
   }
 

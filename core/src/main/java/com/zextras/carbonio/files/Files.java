@@ -6,6 +6,7 @@ package com.zextras.carbonio.files;
 
 
 import com.zextras.carbonio.files.Files.Config.Pagination;
+import java.util.List;
 import java.util.regex.Pattern;
 
 /**
@@ -148,6 +149,10 @@ public final class Files {
       public static final String CURRENT_VERSION = "current_version";
       public static final String INDEX_STATUS    = "index_status";
       public static final String SIZE            = "size";
+
+      public static final List<String> ALLOWED_CONDITIONAL_COLUMN_NAMES = List.of(
+        ID, EDITOR_ID, NAME, OWNER_ID, CATEGORY, UPDATED_AT, CREATED_AT, SIZE
+      );
     }
 
     public static final class Trashed {

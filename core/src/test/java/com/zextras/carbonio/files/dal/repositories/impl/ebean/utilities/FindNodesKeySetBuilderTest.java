@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Zextras <https://www.zextras.com>
+// SPDX-FileCopyrightText: 2024 Zextras <https://www.zextras.com>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -16,96 +16,123 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 class FindNodesKeySetBuilderTest {
+
   @Test
-  void givenNodeAndOrderByNameGetKeyset() {
-    // Given & When
+  void givenNodeAndOrderByNameTheBuildShouldReturnAValidSqlExpression() {
+    // Given
     Node mockNode = Mockito.mock(Node.class);
     Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.CATEGORY))
-        .thenReturn(NodeCategory.FILE.getValue());
-    Mockito.when(mockNode.getId()).thenReturn("nodeId");
+      .thenReturn(NodeCategory.FILE.getValue());
+    Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.ID)).thenReturn("nodeId");
     Mockito.when(mockNode.getFullName()).thenReturn("NameFile.txt");
     List<NodeSort> realSortsToApply = getRealSortingsToApply(Optional.of(NodeSort.NAME_ASC));
 
-    // Then
-    String keyset =
-        FindNodeKeySetBuilder.aSearchKeySetBuilder()
-            .withNodeSorts(realSortsToApply)
-            .fromNode(mockNode)
-            .build();
+    // When
+    SQLExpression keySet =
+      FindNodeKeySetBuilder.aSearchKeySetBuilder()
+        .withNodeSorts(realSortsToApply)
+        .fromNode(mockNode)
+        .build();
 
-    Assertions.assertThat(keyset)
-        .isEqualTo(
-            "node_category > 2 OR (node_category = 2 AND LOWER(name) > 'namefile.txt') OR"
-                + " (node_category = 2 AND LOWER(name) = 'namefile.txt' AND t0.node_id >"
-                + " 'nodeId')");
+    // Then
+    Assertions.assertThat(keySet.toExpression())
+      .isEqualTo(
+        "((node_category > ?) OR (node_category = ? AND LOWER(name) > ?) OR"
+          + " (node_category = ? AND LOWER(name) = ? AND t0.node_id > ?))");
+    Assertions
+      .assertThat(keySet.getParameters())
+      .containsExactly((short) 2, (short) 2, "namefile.txt", (short) 2, "namefile.txt", "nodeId");
   }
 
   @Test
-  void givenNodeAndOrderBySizeGetKeyset() {
-    // Given & When
+  void givenNodeAndOrderBySizeTheBuildShouldReturnAValidSqlExpression() {
+    // Given
     Node mockNode = Mockito.mock(Node.class);
     Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.CATEGORY))
-        .thenReturn(NodeCategory.FILE.getValue());
-    Mockito.when(mockNode.getId()).thenReturn("nodeId");
+      .thenReturn(NodeCategory.FILE.getValue());
     Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.SIZE)).thenReturn(1L);
+    Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.ID)).thenReturn("nodeId");
     Mockito.when(mockNode.getFullName()).thenReturn("file.txt");
     List<NodeSort> realSortsToApply = getRealSortingsToApply(Optional.of(NodeSort.SIZE_ASC));
 
-    // Then
-    String keyset =
-        FindNodeKeySetBuilder.aSearchKeySetBuilder()
-            .withNodeSorts(realSortsToApply)
-            .fromNode(mockNode)
-            .build();
+    // When
+    SQLExpression keySet =
+      FindNodeKeySetBuilder.aSearchKeySetBuilder()
+        .withNodeSorts(realSortsToApply)
+        .fromNode(mockNode)
+        .build();
 
-    Assertions.assertThat(keyset)
-        .isEqualTo(
-            "node_category > 2 OR (node_category = 2 AND size > 1) OR (node_category = 2 AND size ="
-                + " 1 AND LOWER(name) > 'file.txt') OR (node_category = 2 AND size = 1 AND"
-                + " LOWER(name) = 'file.txt' AND t0.node_id > 'nodeId')");
+    // Then
+    Assertions
+      .assertThat(keySet.toExpression())
+      .isEqualTo(
+        "((node_category > ?) OR (node_category = ? AND size > ?) OR (node_category = ? AND size ="
+          + " ? AND LOWER(name) > ?) OR (node_category = ? AND size = ? AND LOWER(name) = ? AND"
+          + " t0.node_id > ?))");
+
+    Assertions
+      .assertThat(keySet.getParameters())
+      .containsExactly(
+        (short) 2,
+        (short) 2,
+        1L,
+        (short) 2,
+        1L,
+        "file.txt",
+        (short) 2,
+        1L,
+        "file.txt",
+        "nodeId");
   }
 
   @Test
-  void givenNodeAndOrderByCreatedAtGetKeyset() {
-    // Given & When
+  void givenNodeAndOrderByCreatedAtTheBuildShouldReturnAValidSqlExpression() {
+    // Given
     Node mockNode = Mockito.mock(Node.class);
     Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.CATEGORY))
-        .thenReturn(NodeCategory.FILE.getValue());
-    Mockito.when(mockNode.getId()).thenReturn("nodeId");
-    Mockito.when(mockNode.getSortingValueFromColumn(NodeSort.CREATED_AT_ASC.getName()))
-        .thenReturn(100L);
+      .thenReturn(NodeCategory.FILE.getValue());
+    Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.CREATED_AT)).thenReturn(100L);
+    Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.ID)).thenReturn("nodeId");
     List<NodeSort> realSortsToApply = getRealSortingsToApply(Optional.of(NodeSort.CREATED_AT_ASC));
 
-    // Then
-    String keyset =
-        FindNodeKeySetBuilder.aSearchKeySetBuilder()
-            .withNodeSorts(realSortsToApply)
-            .fromNode(mockNode)
-            .build();
+    // When
+    SQLExpression keySet =
+      FindNodeKeySetBuilder.aSearchKeySetBuilder()
+        .withNodeSorts(realSortsToApply)
+        .fromNode(mockNode)
+        .build();
 
-    Assertions.assertThat(keyset)
-        .isEqualTo(
-            "node_category > 2 OR (node_category = 2 AND creation_timestamp > 100) OR"
-                + " (node_category = 2 AND creation_timestamp = 100 AND t0.node_id > 'nodeId')");
+    // Then
+    Assertions.assertThat(keySet.toExpression())
+      .isEqualTo(
+        "((node_category > ?) OR (node_category = ? AND creation_timestamp > ?) OR"
+          + " (node_category = ? AND creation_timestamp = ? AND t0.node_id > ?))");
+
+    Assertions
+      .assertThat(keySet.getParameters())
+      .containsExactly((short) 2, (short) 2, 100L, (short) 2, 100L, "nodeId");
   }
 
   @Test
-  void givenNodeAndOrderEmptyAtGetKeyset() {
-    // Given & When
+  void givenNodeAndOrderEmptyAtTheBuildShouldReturnAValidSqlExpression() {
+    // Given
     Node mockNode = Mockito.mock(Node.class);
     Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.CATEGORY))
-        .thenReturn(NodeCategory.FILE.getValue());
-    Mockito.when(mockNode.getId()).thenReturn("nodeId");
+      .thenReturn(NodeCategory.FILE.getValue());
+    Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.ID)).thenReturn("nodeId");
     List<NodeSort> realSortsToApply = getRealSortingsToApply(Optional.empty());
 
-    // Then
-    String keyset =
-        FindNodeKeySetBuilder.aSearchKeySetBuilder()
-            .withNodeSorts(realSortsToApply)
-            .fromNode(mockNode)
-            .build();
+    // When
+    SQLExpression keySet =
+      FindNodeKeySetBuilder.aSearchKeySetBuilder()
+        .withNodeSorts(realSortsToApply)
+        .fromNode(mockNode)
+        .build();
 
-    Assertions.assertThat(keyset)
-        .isEqualTo("node_category > 2 OR (node_category = 2 AND t0.node_id > 'nodeId')");
+    // Then
+    Assertions.assertThat(keySet.toExpression())
+      .isEqualTo("((node_category > ?) OR (node_category = ? AND t0.node_id > ?))");
+
+    Assertions.assertThat(keySet.getParameters()).containsExactly((short) 2, (short) 2, "nodeId");
   }
 }

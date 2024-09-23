@@ -23,7 +23,7 @@ public class PageQuery {
 
   private Integer limit;
   private List<String> keywords;
-  private Optional<String> keySet;
+  private Optional<SQLExpression> keySet;
   private Optional<NodeSort> sort;
   private Optional<Boolean> flagged;
   private Optional<String> folderId;
@@ -50,7 +50,7 @@ public class PageQuery {
   }
 
   public PageQuery(
-      String keySet,
+      SQLExpression keySet,
       Integer limit,
       String sort,
       Boolean flagged,
@@ -72,11 +72,11 @@ public class PageQuery {
     setKeywords(keywords);
   }
 
-  public Optional<String> getKeySet() {
+  public Optional<SQLExpression> getKeySet() {
     return keySet;
   }
 
-  public PageQuery setKeySet(String keySet) {
+  public PageQuery setKeySet(SQLExpression keySet) {
     this.keySet = Optional.of(keySet);
     return this;
   }
