@@ -122,9 +122,8 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
     boolean databaseIsUp = healthService.isDatabaseLive();
     boolean userManagementIsUp = healthService.isUserManagementLive();
     boolean fileStoreIsUp = healthService.isStoragesLive();
-    boolean messageBrokerIsUp = healthService.isMessageBrokerLive();
 
-    HttpResponseStatus responseStatus = (databaseIsUp && userManagementIsUp && fileStoreIsUp && messageBrokerIsUp)
+    HttpResponseStatus responseStatus = (databaseIsUp && userManagementIsUp && fileStoreIsUp)
       ? HttpResponseStatus.NO_CONTENT
       : HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
@@ -185,7 +184,7 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
    *          "live" : true,
    *          "name" : "carbonio-message-broker",
    *          "ready" : true,
-   *          "type" : "REQUIRED"
+   *          "type" : "OPTIONAL"
    *       }
    *    ],
    *    "ready" : true
