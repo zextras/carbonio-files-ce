@@ -50,16 +50,24 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
    */
   @Override
   public void startAllConsumers() {
-    allConsumers.add(userStatusChangedConsumer);
-    allConsumers.add(keyValueChangedConsumer);
-    allConsumers.add(userDeletedConsumer);
+    if(messageBrokerClient.healthCheck()) {
+      allConsumers.add(userStatusChangedConsumer);
+      allConsumers.add(keyValueChangedConsumer);
+      allConsumers.add(userDeletedConsumer);
 
-    allConsumers.forEach(messageBrokerClient::consume);
+      allConsumers.forEach(messageBrokerClient::consume);
+    } else {
+      logger.warn("Message broker health check failed, not starting consumers");
+    }
   }
 
   @Override
   public void publishEvent(BaseEvent event) {
-    messageBrokerClient.publish(event);
+    if(messageBrokerClient.healthCheck()) {
+      messageBrokerClient.publish(event);
+    } else {
+      logger.warn("Message broker health check failed, not publishing event");
+    }
   }
 
   @Override
