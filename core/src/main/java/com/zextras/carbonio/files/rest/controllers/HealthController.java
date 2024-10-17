@@ -108,7 +108,6 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
    *   <li>Database</li>
    *   <li>UserManagement</li>
    *   <li>Storages</li>
-   *   <li>Message Broker</li>
    * </ul>
    * If one of the dependency are not reachable it responds with an InternalServerError (500).
    *
@@ -141,7 +140,6 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
    *   <li>Database</li>
    *   <li>UserManagement</li>
    *   <li>Storages</li>
-   *   <li>Message Broker</li>
    * </ul>
    * If one of the dependency are not reachable it responds with an InternalServerError (500).
    * <p>
