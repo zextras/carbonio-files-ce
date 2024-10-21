@@ -90,7 +90,8 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
       ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched) {
 
     final String nodeId = uriMatched.group(1);
-    final Optional<BlobResponse> blobResponse = blobService.downloadPublicFileById(nodeId);
+    final String nodeLinkId = uriMatched.group(2);
+    final Optional<BlobResponse> blobResponse = blobService.downloadPublicFileById(nodeId, nodeLinkId);
 
     if (blobResponse.isPresent()) {
       context.write(HttpResponseBuilder.createSuccessDownloadHttpResponse(blobResponse.get()));

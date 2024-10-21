@@ -131,4 +131,19 @@ public class LinkRepositoryEbean implements LinkRepository {
       .endOr()
       .exists();
   }
+
+  public boolean isLinkValidForNode(String linkId, Node node) {
+    Optional<Link> linkOptional = ebeanDatabaseManager
+        .getEbeanDatabase()
+        .find(Link.class)
+        .where()
+        .eq(Db.Link.ID, linkId)
+        .eq(Db.Link.NODE_ID, node.getId())
+        .or()
+        .isNull(Db.Link.EXPIRES_AT)
+        .gt(Db.Link.EXPIRES_AT, System.currentTimeMillis())
+        .endOr()
+        .findOneOrEmpty();
+    return linkOptional.isPresent();
+  }
 }

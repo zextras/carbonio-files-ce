@@ -23,6 +23,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - in: query
+          name: node_link_id
+          description: The id of the node link
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         200:
           $ref: '#/components/responses/200DownloadNode'
