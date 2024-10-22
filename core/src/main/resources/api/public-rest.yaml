@@ -29,7 +29,6 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
       responses:
         200:
           $ref: '#/components/responses/200DownloadNode'
