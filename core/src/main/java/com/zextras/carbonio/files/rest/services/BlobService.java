@@ -125,7 +125,7 @@ public class BlobService {
    * Downloads from the {@link Filestore} a blob related to an identifier of a public node.
    *
    * @param nodeId    is a {@link String} representing the node identifier
-   * @param nodeLinkId    is a {@link String} representing the link identifier
+   * @param nodeLinkId    is a {@link String} representing the link public id
    * @return an {@link Optional} of {@link BlobResponse} containing the stream of bytes (the blob
    * itself) and all its metadata if the {@link Node} exists, and it is contained on a public folder with a valid link.
    * Otherwise, it returns an {@link Optional#empty()}.

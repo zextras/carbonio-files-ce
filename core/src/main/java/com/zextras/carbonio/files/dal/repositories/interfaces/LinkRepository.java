@@ -54,9 +54,9 @@ public interface LinkRepository {
    * Checks whether a {@link Link} obtained from linkId is a valid link (node is the correct node
    * and link is not expired) for the provided node, which allows access to the node without requiring permissions.
   *
-   * @param linkId is the {@link Link} id to check for correctness of node and expiration.
+   * @param publicLinkId is the {@link Link} public id to check for correctness of node and expiration.
    * @param node is the {@link Node} to check the correctness of node id inside link.
    * @return true if the {@link Link} obtained by linkId has nodeId associated and is not expired, false otherwise.
    */
-  boolean isLinkValidForNode(String linkId, Node node);
+  boolean isLinkValidForNode(String publicLinkId, Node node);
 }
