@@ -93,7 +93,6 @@ public class PublicNodeDataFetchers {
   }
 
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, String>>>> findNodes() {
-    //TODO api to update
     return environment ->
         CompletableFuture.supplyAsync(
             () -> {
