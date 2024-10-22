@@ -448,6 +448,7 @@ public final class Files {
         public static final String KEYWORDS       = "keywords";
         public static final String NODE_TYPE      = "type";
         public static final String OWNER_ID       = "owner_id";
+        public static final String NODE_LINK_ID   = "node_link_id";
       }
 
       public static final class GetVersions {

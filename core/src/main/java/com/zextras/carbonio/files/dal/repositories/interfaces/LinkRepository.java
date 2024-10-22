@@ -42,15 +42,6 @@ public interface LinkRepository {
   void deleteLinksBulk(Collection<String> linkIds);
 
   /**
-   * Checks whether a given {@link Node} has at least one unexpired public link associated with it,
-   * which allows access to the node without requiring permissions.
-  *
-   * @param node is a given {@link Node} to check.
-   * @return true if the {@link Node} has at least one public link associated, false otherwise.
-   */
-  boolean hasNodeANotExpiredPublicLink(Node node);
-
-  /**
    * Checks whether a {@link Link} obtained from linkId is a valid link (node is the correct node
    * and link is not expired) for the provided node, which allows access to the node without requiring permissions.
   *
