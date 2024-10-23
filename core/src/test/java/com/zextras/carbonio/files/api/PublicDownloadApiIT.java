@@ -265,4 +265,46 @@ public class PublicDownloadApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(500);
     Assertions.assertThat(httpResponse.getBodyPayload()).isEqualTo("500 Internal Server Error");
   }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "fake-token",
+      })
+  void
+      givenAUserWithOrWithoutCookieAnExistingFileAndAValidPublicLinkAssociatedButNotPassedInUrlThePublicDownloadByNodeIdShouldReturnA404StatusCode(
+          String userToken) {
+    // Given
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "test.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT",
+                10L,
+                "text/plain"))
+        .addLink(
+            "94103c01-e701-4f3d-9dc9-54b79064ad76",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty());
+
+    simulator.getBlob("00000000-0000-0000-0000-000000000000", 1);
+
+    final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000";
+    final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, userToken, null);
+
+    // When
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
+  }
 }
