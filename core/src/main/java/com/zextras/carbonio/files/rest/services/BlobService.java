@@ -125,17 +125,21 @@ public class BlobService {
    * Downloads from the {@link Filestore} a blob related to an identifier of a public node.
    *
    * @param nodeId    is a {@link String} representing the node identifier
+   * @param nodeLinkId    is a {@link String} representing the link public id
    * @return an {@link Optional} of {@link BlobResponse} containing the stream of bytes (the blob
-   * itself) and all its metadata if the {@link Node} exists, and it is contained on a public folder.
+   * itself) and all its metadata if the {@link Node} exists, and it is contained on a public folder with a valid link.
    * Otherwise, it returns an {@link Optional#empty()}.
    *
    * @throws DependencyException if the {@link Filestore} failed to download the blob
    */
-  public Optional<BlobResponse> downloadPublicFileById(String nodeId) {
-    return nodeRepository
-      .getNode(nodeId)
-      .filter(linkRepository::hasNodeANotExpiredPublicLink)
-      .flatMap(node -> downloadFile(nodeId, null));
+  public Optional<BlobResponse> downloadPublicFileById(String nodeId, String nodeLinkId) {
+    Optional<Node> nodeOptional = nodeRepository.getNode(nodeId);
+
+    if (nodeOptional.isPresent() && linkRepository.isLinkValidForNode(nodeLinkId, nodeOptional.get())) {
+        return nodeOptional.flatMap(node -> downloadFile(nodeId, null));
+    }
+
+    return Optional.empty();
   }
 
   /**

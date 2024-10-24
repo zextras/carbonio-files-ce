@@ -448,6 +448,7 @@ public final class Files {
         public static final String KEYWORDS       = "keywords";
         public static final String NODE_TYPE      = "type";
         public static final String OWNER_ID       = "owner_id";
+        public static final String NODE_LINK_ID   = "node_link_id";
       }
 
       public static final class GetVersions {
@@ -765,8 +766,8 @@ public final class Files {
           Pattern.compile(SERVICE + "link/([\\w]{8}|[\\w]{32})/?$");
       public static final Pattern DOWNLOAD_VIA_PUBLIC_LINK =
         Pattern.compile(SERVICE + "public/link/download/([\\w]{8}|[\\w]{32})/?$");
-      public static final Pattern DOWNLOAD_PUBLIC_FILE  = Pattern.compile(
-        SERVICE + "public/download/([a-f\\d\\-]*)/?$");
+      public static final Pattern DOWNLOAD_PUBLIC_FILE =
+        Pattern.compile(SERVICE + "public/download/([a-f\\d\\-]*)/?\\?node_link_id=([a-f\\d\\-]*)/?");
       public static final Pattern COLLABORATION_LINK  = Pattern.compile(
         SERVICE + "invite/([\\w]{8})/?$");
 
