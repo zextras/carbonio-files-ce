@@ -117,12 +117,17 @@ public class LinkRepositoryEbean implements LinkRepository {
 
   public boolean isLinkValidForNode(String publicLinkId, Node node) {
     publicLinkId = publicLinkId == null ? "" : publicLinkId;
+
+    List<String> nodeIds = new ArrayList<>();
+    nodeIds.add(node.getId());
+    nodeIds.addAll(node.getAncestorsList());
+
     Optional<Link> linkOptional = ebeanDatabaseManager
         .getEbeanDatabase()
         .find(Link.class)
         .where()
         .eq(Db.Link.PUBLIC_ID, publicLinkId)
-        .eq(Db.Link.NODE_ID, node.getId())
+        .in(Db.Link.NODE_ID, nodeIds)
         .or()
         .isNull(Db.Link.EXPIRES_AT)
         .gt(Db.Link.EXPIRES_AT, System.currentTimeMillis())
