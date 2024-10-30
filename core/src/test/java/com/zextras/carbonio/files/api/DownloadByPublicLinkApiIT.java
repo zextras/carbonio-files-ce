@@ -97,6 +97,7 @@ public class DownloadByPublicLinkApiIT {
             "00000000-0000-0000-0000-000000000000",
             publicLinkId,
             Optional.empty(),
+            Optional.empty(),
             Optional.empty());
 
     simulator.getBlob("00000000-0000-0000-0000-000000000000", 1);
@@ -145,6 +146,7 @@ public class DownloadByPublicLinkApiIT {
             "00000000-0000-0000-0000-000000000000",
             "1234abcd1234abcd1234abcd1234abcd",
             Optional.of(1L),
+            Optional.empty(),
             Optional.empty());
 
     final String publicDownloadUrl = "/public/link/download/1234abcd1234abcd1234abcd1234abcd";
@@ -187,6 +189,7 @@ public class DownloadByPublicLinkApiIT {
             "94103c01-e701-4f3d-9dc9-54b79064ad76",
             "00000000-0000-0000-0000-000000000000",
             "000000",
+            Optional.empty(),
             Optional.empty(),
             Optional.empty());
 
@@ -254,6 +257,7 @@ public class DownloadByPublicLinkApiIT {
             "94103c01-e701-4f3d-9dc9-54b79064ad76",
             "00000000-0000-0000-0000-000000000000",
             "1234abcd1234abcd1234abcd1234abcd",
+            Optional.empty(),
             Optional.empty(),
             Optional.empty());
 

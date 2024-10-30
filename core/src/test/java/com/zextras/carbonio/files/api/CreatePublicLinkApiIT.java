@@ -89,7 +89,8 @@ class CreatePublicLinkApiIT {
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("expires_at", 5)
             .withString("description", "super-description")
-            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .withString("access_code", "fake-access-code")
+            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
             .build();
 
     final HttpRequest httpRequest =
@@ -111,7 +112,8 @@ class CreatePublicLinkApiIT {
 
     Assertions.assertThat(createdLink)
         .containsEntry("expires_at", 5)
-        .containsEntry("description", "super-description");
+        .containsEntry("description", "super-description")
+        .containsEntry("access_code", "fake-access-code");
 
     Assertions.assertThat((Map<String, Object>) createdLink.get("node"))
         .containsEntry("id", "00000000-0000-0000-0000-000000000000");

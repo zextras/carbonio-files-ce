@@ -97,7 +97,8 @@ class GetPublicLinksApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.of(5L),
-            Optional.of("super-description"));
+            Optional.of("super-description"),
+            Optional.empty());
 
     Thread.sleep(500); // Ugly fix but it works
     DatabasePopulator.aNodePopulator((simulator.getInjector()))
@@ -105,6 +106,7 @@ class GetPublicLinksApiIT {
             "0c04783b-bdfb-446f-870c-625f5ae02a0a",
             "00000000-0000-0000-0000-000000000000",
             "00001234abcd1234abcd1234abcd1234",
+            Optional.empty(),
             Optional.empty(),
             Optional.empty());
 
@@ -161,7 +163,8 @@ class GetPublicLinksApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.of(5L),
-            Optional.of("super-description"));
+            Optional.of("super-description"),
+            Optional.empty());
 
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("getLinks")
@@ -254,6 +257,7 @@ class GetPublicLinksApiIT {
             "00000000-0000-0000-0000-000000000000",
             "0000aaaa",
             Optional.empty(),
+            Optional.empty(),
             Optional.empty());
 
     String bodyPayload =
@@ -293,6 +297,7 @@ class GetPublicLinksApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.empty(),
+            Optional.empty(),
             Optional.empty());
 
     String bodyPayload =
@@ -330,6 +335,7 @@ class GetPublicLinksApiIT {
             "0c04783b-bdfb-446f-870c-625f5ae02a0a",
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
             Optional.empty(),
             Optional.empty());
 
@@ -371,6 +377,7 @@ class GetPublicLinksApiIT {
             "0c04783b-bdfb-446f-870c-625f5ae02a0a",
             "00000000-0000-0000-0000-000000000000",
             "abcd1234",
+            Optional.empty(),
             Optional.empty(),
             Optional.empty());
 

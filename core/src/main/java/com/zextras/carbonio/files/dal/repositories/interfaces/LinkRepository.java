@@ -23,7 +23,8 @@ public interface LinkRepository {
     String nodeId,
     String publicId,
     Optional<Long> optExpiresAt,
-    Optional<String> optDescription
+    Optional<String> optDescription,
+    Optional<String> optAccessCode
   );
 
   Optional<Link> getLinkById(String linkId);

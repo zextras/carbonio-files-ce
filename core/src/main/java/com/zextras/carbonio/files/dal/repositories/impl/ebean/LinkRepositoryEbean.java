@@ -33,7 +33,8 @@ public class LinkRepositoryEbean implements LinkRepository {
     String nodeId,
     String publicId,
     Optional<Long> optExpiresAt,
-    Optional<String> optDescription
+    Optional<String> optDescription,
+    Optional<String> optAccessCode
   ) {
 
     Link link = new Link(
@@ -45,6 +46,7 @@ public class LinkRepositoryEbean implements LinkRepository {
 
     optExpiresAt.ifPresent(link::setExpiresAt);
     optDescription.ifPresent(link::setDescription);
+    optAccessCode.ifPresent(link::setAccessCode);
 
     ebeanDatabaseManager.getEbeanDatabase().save(link);
 
