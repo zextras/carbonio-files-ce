@@ -142,7 +142,7 @@ class HealthApiIT {
           .isEqualTo("carbonio-message-broker");
       Assertions.assertThat(dependenciesHealth.get(5).isLive()).isTrue();
       Assertions.assertThat(dependenciesHealth.get(5).isReady()).isTrue();
-      Assertions.assertThat(dependenciesHealth.get(5).getType()).isEqualTo(DependencyType.REQUIRED);
+      Assertions.assertThat(dependenciesHealth.get(5).getType()).isEqualTo(DependencyType.OPTIONAL);
     }
   }
 
@@ -246,7 +246,7 @@ class HealthApiIT {
           .isEqualTo("carbonio-message-broker");
       Assertions.assertThat(dependenciesHealth.get(5).isLive()).isTrue();
       Assertions.assertThat(dependenciesHealth.get(5).isReady()).isTrue();
-      Assertions.assertThat(dependenciesHealth.get(5).getType()).isEqualTo(DependencyType.REQUIRED);
+      Assertions.assertThat(dependenciesHealth.get(5).getType()).isEqualTo(DependencyType.OPTIONAL);
     }
   }
 
@@ -383,7 +383,7 @@ class HealthApiIT {
 
   @Test
   void
-  givenMessageBrokerUnreachableAndOtherMandatoryDependenciesReachableTheHealthReadyShouldReturn500StatusCode() {
+  givenMessageBrokerUnreachableAndOtherMandatoryDependenciesReachableTheHealthReadyShouldReturn204StatusCode() {
     // Given
     SimulatorBuilder simulatorBuilder =
         SimulatorBuilder.aSimulator()
@@ -419,7 +419,7 @@ class HealthApiIT {
           TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
       // Then
-      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(500);
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(204);
       Assertions.assertThat(httpResponse.getBodyPayload()).isEmpty();
     }
   }

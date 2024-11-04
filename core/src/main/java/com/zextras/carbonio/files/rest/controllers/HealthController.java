@@ -108,7 +108,6 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
    *   <li>Database</li>
    *   <li>UserManagement</li>
    *   <li>Storages</li>
-   *   <li>Message Broker</li>
    * </ul>
    * If one of the dependency are not reachable it responds with an InternalServerError (500).
    *
@@ -122,9 +121,8 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
     boolean databaseIsUp = healthService.isDatabaseLive();
     boolean userManagementIsUp = healthService.isUserManagementLive();
     boolean fileStoreIsUp = healthService.isStoragesLive();
-    boolean messageBrokerIsUp = healthService.isMessageBrokerLive();
 
-    HttpResponseStatus responseStatus = (databaseIsUp && userManagementIsUp && fileStoreIsUp && messageBrokerIsUp)
+    HttpResponseStatus responseStatus = (databaseIsUp && userManagementIsUp && fileStoreIsUp)
       ? HttpResponseStatus.NO_CONTENT
       : HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
@@ -142,7 +140,6 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
    *   <li>Database</li>
    *   <li>UserManagement</li>
    *   <li>Storages</li>
-   *   <li>Message Broker</li>
    * </ul>
    * If one of the dependency are not reachable it responds with an InternalServerError (500).
    * <p>
@@ -185,7 +182,7 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
    *          "live" : true,
    *          "name" : "carbonio-message-broker",
    *          "ready" : true,
-   *          "type" : "REQUIRED"
+   *          "type" : "OPTIONAL"
    *       }
    *    ],
    *    "ready" : true

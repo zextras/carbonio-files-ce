@@ -141,7 +141,7 @@ public class HealthService {
     boolean messageBrokerIsUp = isMessageBrokerLive();
     return new ServiceHealth()
         .setName("carbonio-message-broker")
-        .setType(DependencyType.REQUIRED)
+        .setType(DependencyType.OPTIONAL)
         .setLive(messageBrokerIsUp)
         .setReady(messageBrokerIsUp);
   }
