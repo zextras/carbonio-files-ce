@@ -106,6 +106,8 @@ type Query {
         folder_id: ID!
         # If valued it limits the number of nodes to return per page
         limit: Int
+        # If valued it makes sure that the link obtained from this public id is valid (not expired and with correct node)
+        node_link_id: String
         # If valued it will return the next page of nodes based on the given page_token,
         # if this param is passed all other params will be ignored
         page_token: String

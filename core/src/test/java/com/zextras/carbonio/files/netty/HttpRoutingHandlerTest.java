@@ -224,8 +224,8 @@ class HttpRoutingHandlerTest {
         "/public/link/download/abcd1234/",
         "/public/link/download/abcd1234abcd1234abcd1234abcd1234",
         "/public/link/download/abcd1234abcd1234abcd1234abcd1234/",
-        "/public/download/00000000-0000-0000-0000-000000000000",
-        "/public/download/00000000-0000-0000-0000-000000000000/"
+        "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234",
+        "/public/download/00000000-0000-0000-0000-000000000000/?node_link_id=abcd1234abcd1234abcd1234abcd1234"
       })
   void givenAPublicLinkRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(
       String uri) {

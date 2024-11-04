@@ -100,11 +100,12 @@ public class PublicNodeDataFetchers {
               String folderId = environment.getArgument(FindNodes.FOLDER_ID);
               Integer limit = environment.getArgument(FindNodes.LIMIT);
               String pageToken = environment.getArgument(FindNodes.PAGE_TOKEN);
+              String nodeLinkId = environment.getArgument(FindNodes.NODE_LINK_ID);
 
               Optional<Node> optFolder = nodeRepository.getNode(folderId);
 
               if (optFolder.isPresent()
-                  && linkRepository.hasNodeANotExpiredPublicLink(optFolder.get())) {
+                  && linkRepository.isLinkValidForNode(nodeLinkId, optFolder.get())) {
                 ImmutablePair<List<Node>, String> findResult =
                     nodeRepository.publicFindNodes(folderId, limit, pageToken);
 

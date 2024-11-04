@@ -136,6 +136,7 @@ public class PublicFindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 3)
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
@@ -189,6 +190,7 @@ public class PublicFindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 3)
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
@@ -208,6 +210,7 @@ public class PublicFindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 3)
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
             .withString("page_token", pageToken)
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
@@ -256,6 +259,7 @@ public class PublicFindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 6)
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
@@ -323,6 +327,7 @@ public class PublicFindNodesApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
@@ -376,6 +381,7 @@ public class PublicFindNodesApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
@@ -408,6 +414,7 @@ public class PublicFindNodesApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
@@ -433,6 +440,7 @@ public class PublicFindNodesApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
@@ -527,6 +535,7 @@ public class PublicFindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 1)
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
             .withString(
                 "page_token", Base64.getEncoder().encodeToString(pageTokenHacked.getBytes()))
             .withWantedResultFormat("{ nodes { id name }, page_token }")
@@ -549,5 +558,40 @@ public class PublicFindNodesApiIT {
     final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
 
     Assertions.assertThat(nodes).isEmpty();
+  }
+
+  @Test
+  void givenAnExistingFolderAndAValidPublicLinkNotPassedInQueryTheFindNodesShouldReturn200AndAnErrorCode() {
+    // Given
+    createFolderTree();
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty());
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("limit", 3)
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
+
+    final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
+
+    // When
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Could not find node with id 00000000-0000-0000-0000-000000000000");
   }
 }
