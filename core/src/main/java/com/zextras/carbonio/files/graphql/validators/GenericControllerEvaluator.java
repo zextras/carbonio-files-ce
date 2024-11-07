@@ -308,7 +308,6 @@ public class GenericControllerEvaluator {
   }
 
   public GenericControllerEvaluator checkLinkAccessCode(String linkAccessCodeKey) {
-    System.err.println("W");
     inputsToCheckWithRelativeFunctions.add(Parameter.build(
       linkAccessCodeKey,
       (key) -> {
