@@ -97,7 +97,8 @@ class GetPublicLinksApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.of(5L),
-            Optional.of("super-description"));
+            Optional.of("super-description"),
+            Optional.empty());
 
     Thread.sleep(500); // Ugly fix but it works
     DatabasePopulator.aNodePopulator((simulator.getInjector()))
@@ -105,6 +106,7 @@ class GetPublicLinksApiIT {
             "0c04783b-bdfb-446f-870c-625f5ae02a0a",
             "00000000-0000-0000-0000-000000000000",
             "00001234abcd1234abcd1234abcd1234",
+            Optional.empty(),
             Optional.empty(),
             Optional.empty());
 
@@ -161,7 +163,8 @@ class GetPublicLinksApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.of(5L),
-            Optional.of("super-description"));
+            Optional.of("super-description"),
+            Optional.empty());
 
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("getLinks")
@@ -190,6 +193,52 @@ class GetPublicLinksApiIT {
             "url", "example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234")
         .containsEntry("expires_at", 5)
         .containsEntry("description", "super-description");
+    Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node"))
+        .containsEntry("id", "00000000-0000-0000-0000-000000000000");
+  }
+
+  @Test
+  void
+  givenAnExistingFolderWithOneExistingLinkWithAccessCodeTheGetLinksShouldReturnAListContainingTheAssociatedLink() {
+    // Given
+    createFolder("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "06e0f2ae-b128-4d25-9b3b-df84eb7948a9",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.of(5L),
+            Optional.of("super-description"),
+            Optional.of("fake-access-code"));
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
+            .build();
+
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final List<Map<String, Object>> publicLinks =
+        TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "getLinks");
+
+    Assertions.assertThat(publicLinks).hasSize(1);
+
+    Assertions.assertThat(publicLinks.get(0))
+        .containsEntry("id", "06e0f2ae-b128-4d25-9b3b-df84eb7948a9")
+        .containsEntry(
+            "url", "example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234")
+        .containsEntry("expires_at", 5)
+        .containsEntry("description", "super-description")
+        .containsEntry("access_code", "fake-access-code");
     Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node"))
         .containsEntry("id", "00000000-0000-0000-0000-000000000000");
   }
@@ -254,6 +303,7 @@ class GetPublicLinksApiIT {
             "00000000-0000-0000-0000-000000000000",
             "0000aaaa",
             Optional.empty(),
+            Optional.empty(),
             Optional.empty());
 
     String bodyPayload =
@@ -293,6 +343,7 @@ class GetPublicLinksApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.empty(),
+            Optional.empty(),
             Optional.empty());
 
     String bodyPayload =
@@ -330,6 +381,7 @@ class GetPublicLinksApiIT {
             "0c04783b-bdfb-446f-870c-625f5ae02a0a",
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
             Optional.empty(),
             Optional.empty());
 
@@ -371,6 +423,7 @@ class GetPublicLinksApiIT {
             "0c04783b-bdfb-446f-870c-625f5ae02a0a",
             "00000000-0000-0000-0000-000000000000",
             "abcd1234",
+            Optional.empty(),
             Optional.empty(),
             Optional.empty());
 

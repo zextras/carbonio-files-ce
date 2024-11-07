@@ -42,6 +42,8 @@ public class Link {
   @Column(name = Db.Link.DESCRIPTION, length = 300)
   private String mDescription;
 
+  @Column(name = Db.Link.ACCESS_CODE, length = 255)
+  private String mAccessCode;
 
   /**
    * <p>Creates a new {@link Link} entity that can be saved in the database.</p>
@@ -144,5 +146,17 @@ public class Link {
 
   public void setDescription(String description) {
     mDescription = description;
+  }
+
+  /**
+   * @return an {@link Optional} containing a {@link String} representing the link access code, if
+   * exists.
+   */
+  public Optional<String> getAccessCode() {
+    return Optional.ofNullable(mAccessCode);
+  }
+
+  public void setAccessCode(String accessCode) {
+    mAccessCode = accessCode;
   }
 }

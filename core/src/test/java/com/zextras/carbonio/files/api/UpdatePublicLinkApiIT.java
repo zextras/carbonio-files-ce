@@ -94,14 +94,15 @@ class UpdatePublicLinkApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.of(5L),
-            Optional.of("super-description"));
+            Optional.of("super-description"),
+            Optional.of("fake-access-code"));
 
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("updateLink")
             .withString("link_id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
             .withInteger("expires_at", 10)
             .withString("description", "another-description")
-            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
             .build();
 
     final HttpRequest httpRequest =
@@ -123,7 +124,8 @@ class UpdatePublicLinkApiIT {
     Assertions.assertThat(updatedLink)
         .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
         .containsEntry("expires_at", 10)
-        .containsEntry("description", "another-description");
+        .containsEntry("description", "another-description")
+        .containsEntry("access_code", "fake-access-code");
 
     Assertions.assertThat((Map<String, Object>) updatedLink.get("node"))
         .containsEntry("id", "00000000-0000-0000-0000-000000000000");
@@ -140,12 +142,13 @@ class UpdatePublicLinkApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.of(5L),
-            Optional.of("super-description"));
+            Optional.of("super-description"),
+            Optional.empty());
 
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("updateLink")
             .withString("link_id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
-            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
             .build();
 
     final HttpRequest httpRequest =
@@ -168,7 +171,8 @@ class UpdatePublicLinkApiIT {
     Assertions.assertThat(updatedLink)
         .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
         .containsEntry("expires_at", 5)
-        .containsEntry("description", "super-description");
+        .containsEntry("description", "super-description")
+        .containsEntry("access_code", null);
 
     Assertions.assertThat((Map<String, Object>) updatedLink.get("node"))
         .containsEntry("id", "00000000-0000-0000-0000-000000000000");
@@ -185,6 +189,7 @@ class UpdatePublicLinkApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.empty(),
+            Optional.empty(),
             Optional.empty());
 
     final String bodyPayload =
@@ -192,7 +197,7 @@ class UpdatePublicLinkApiIT {
             .withString("link_id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
             .withInteger("expires_at", 10)
             .withString("description", "another-description")
-            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
             .build();
 
     final HttpRequest httpRequest =
@@ -213,7 +218,8 @@ class UpdatePublicLinkApiIT {
     Assertions.assertThat(updatedLink)
         .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
         .containsEntry("expires_at", 10)
-        .containsEntry("description", "another-description");
+        .containsEntry("description", "another-description")
+        .containsEntry("access_code", null);
 
     Assertions.assertThat((Map<String, Object>) updatedLink.get("node"))
         .containsEntry("id", "00000000-0000-0000-0000-000000000000");
@@ -259,7 +265,8 @@ class UpdatePublicLinkApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.of(5L),
-            Optional.of("super-description"));
+            Optional.of("super-description"),
+            Optional.empty());
 
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("updateLink")
@@ -298,6 +305,7 @@ class UpdatePublicLinkApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.of(5L),
+            Optional.empty(),
             Optional.empty());
 
     final String bodyPayload =
@@ -340,7 +348,8 @@ class UpdatePublicLinkApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.of(5L),
-            Optional.of("super-description"));
+            Optional.of("super-description"),
+            Optional.empty());
 
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("updateLink")
@@ -377,7 +386,8 @@ class UpdatePublicLinkApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.of(5L),
-            Optional.of("super-description"));
+            Optional.of("super-description"),
+            Optional.empty());
 
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("updateLink")

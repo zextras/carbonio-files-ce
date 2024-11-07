@@ -76,6 +76,7 @@ public class GetPublicNodeApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.empty(),
+            Optional.empty(),
             Optional.empty());
 
     String bodyPayload =
@@ -123,6 +124,7 @@ public class GetPublicNodeApiIT {
             "8cac6df0-3ecb-451d-a953-10c3ac5e3ebc",
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
             Optional.empty(),
             Optional.empty());
 
@@ -216,6 +218,7 @@ public class GetPublicNodeApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.of(1L),
+            Optional.empty(),
             Optional.empty());
 
     String bodyPayload =

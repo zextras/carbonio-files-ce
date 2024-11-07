@@ -93,6 +93,7 @@ public class PublicDownloadApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.empty(),
+            Optional.empty(),
             Optional.empty());
 
     simulator.getBlob("00000000-0000-0000-0000-000000000000", 1);
@@ -141,6 +142,7 @@ public class PublicDownloadApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.of(1L),
+            Optional.empty(),
             Optional.empty());
 
     final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234";
@@ -243,6 +245,7 @@ public class PublicDownloadApiIT {
             "94103c01-e701-4f3d-9dc9-54b79064ad76",
             "00000000-0000-0000-0000-000000000000",
             "1234abcd1234abcd1234abcd1234abcd",
+            Optional.empty(),
             Optional.empty(),
             Optional.empty());
 

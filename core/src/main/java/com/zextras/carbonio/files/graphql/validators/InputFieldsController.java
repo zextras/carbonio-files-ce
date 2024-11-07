@@ -189,9 +189,10 @@ public class InputFieldsController {
 
   /**
    * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Mutations#CREATE_LINK} to
-   * check if the node id and/or the link description are valid.
+   * check if the node id and/or the link description and/or the access code are valid.
    * @see GenericControllerEvaluator#checkNodeId(String)
    * @see GenericControllerEvaluator#checkLinkDescription(String)
+   * @see GenericControllerEvaluator#checkLinkAccessCode(String)
    */
   public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> createLinkValidation() {
     return (fieldAndArguments, environment) ->
@@ -199,6 +200,7 @@ public class InputFieldsController {
       return mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
         .checkNodeId(Files.GraphQL.InputParameters.Link.NODE_ID)
         .checkLinkDescription(Files.GraphQL.InputParameters.Link.DESCRIPTION)
+        .checkLinkAccessCode(Files.GraphQL.InputParameters.Link.ACCESS_CODE)
         .evaluate();
     };
   }
@@ -219,9 +221,10 @@ public class InputFieldsController {
 
   /**
    * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Mutations#UPDATE_LINK} to
-   * check if the link id and/or the link description are valid.
+   * check if the link id and/or the link description and/or the access code are valid.
    * @see GenericControllerEvaluator#checkLinkId(String)
    * @see GenericControllerEvaluator#checkLinkDescription(String)
+   * @see GenericControllerEvaluator#checkLinkAccessCode(String)
    */
   public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> updateLinkValidation() {
     return (fieldAndArguments, environment) ->
@@ -229,6 +232,7 @@ public class InputFieldsController {
       return mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
         .checkLinkId(Files.GraphQL.InputParameters.Link.LINK_ID)
         .checkLinkDescription(Files.GraphQL.InputParameters.Link.DESCRIPTION)
+        .checkLinkAccessCode(Files.GraphQL.InputParameters.Link.ACCESS_CODE)
         .evaluate();
     };
   }

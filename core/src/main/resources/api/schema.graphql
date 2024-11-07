@@ -182,6 +182,9 @@ type Link {
 
     # Link description. It must be shorter than 300 characters.
     description: String
+
+    # The access code of the link (optional). It must be equal or longer than 10 and shorter than 255 characters.
+    access_code: String
 }
 
 # Definition of a collaboration link. It represents an internal link that allows a logged user to
@@ -651,6 +654,9 @@ type Mutation {
 
         # The description of the link (optional). It must be shorter than 300 characters.
         description: String
+
+        # The access code of the link (optional). It must be equal or longer than 10 and shorter than 255 characters.
+        access_code: String
     ): Link!
 
     # Allows to update the expiration timestamp and/or the description of an existing link.
@@ -666,6 +672,9 @@ type Mutation {
 
         # The description of the link (optional). It must be shorter than 300 characters.
         description: String
+
+        # The access code of the link (optional). It must be equal or longer than 10 and shorter than 255 characters.
+        access_code: String
     ): Link
 
     # Allows to delete a list of links in batch. It returns an array of IDs for each removed link and

@@ -114,7 +114,7 @@ public final class Files {
 
     private Db() {}
 
-    public static final short DB_VERSION = 4;
+    public static final short DB_VERSION = 5;
 
     /**
      * Names of Files tables
@@ -243,6 +243,7 @@ public final class Files {
       public static final String CREATED_AT  = "created_at";
       public static final String EXPIRES_AT  = "expire_at";
       public static final String DESCRIPTION = "description";
+      public static final String ACCESS_CODE = "access_code";
     }
 
     /**
@@ -518,6 +519,7 @@ public final class Files {
         public static final String EXPIRES_AT  = "expires_at";
         public static final String DESCRIPTION = "description";
         public static final String LINK_IDS    = "link_ids";
+        public static final String ACCESS_CODE = "access_code";
       }
 
       public static final class TrashNodes {
@@ -694,6 +696,7 @@ public final class Files {
       public static final String CREATED_AT  = "created_at";
       public static final String EXPIRES_AT  = "expires_at";
       public static final String DESCRIPTION = "description";
+      public static final String ACCESS_CODE = "access_code";
     }
 
     /**

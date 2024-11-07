@@ -95,6 +95,10 @@ public class LinkDataFetcher {
       .getDescription()
       .ifPresent(description -> result.put(Files.GraphQL.Link.DESCRIPTION, description));
 
+    link
+      .getAccessCode()
+      .ifPresent(accessCode -> result.put(GraphQL.Link.ACCESS_CODE, accessCode));
+
     linkContext.put(GraphQL.Link.NODE, link.getNodeId());
 
     return DataFetcherResult
@@ -141,7 +145,8 @@ public class LinkDataFetcher {
           nodeId,
           publicId,
           Optional.ofNullable(environment.getArgument(InputParameters.Link.EXPIRES_AT)),
-          Optional.ofNullable(environment.getArgument(InputParameters.Link.DESCRIPTION))
+          Optional.ofNullable(environment.getArgument(InputParameters.Link.DESCRIPTION)),
+          Optional.ofNullable(environment.getArgument(InputParameters.Link.ACCESS_CODE))
         );
 
         return convertLinkToGraphQLMap(

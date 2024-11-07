@@ -104,10 +104,11 @@ public class DatabasePopulator {
       String nodeId,
       String publicId,
       Optional<Long> expAt,
-      Optional<String> description) {
+      Optional<String> description,
+      Optional<String> accessCode) {
     Optional<Node> optionalNode = nodeRepository.getNode(nodeId);
     if (optionalNode.isEmpty()) throw new IllegalArgumentException("Node does not exist");
-    linkRepository.createLink(linkId, nodeId, publicId, expAt, description);
+    linkRepository.createLink(linkId, nodeId, publicId, expAt, description, accessCode);
     delay();
     return this;
   }

@@ -130,6 +130,7 @@ public class PublicFindNodesApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.empty(),
+            Optional.empty(),
             Optional.empty());
 
     String bodyPayload =
@@ -182,6 +183,7 @@ public class PublicFindNodesApiIT {
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
             Optional.empty(),
             Optional.empty());
 
@@ -253,6 +255,7 @@ public class PublicFindNodesApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.empty(),
+            Optional.empty(),
             Optional.empty());
 
     String bodyPayload =
@@ -322,6 +325,7 @@ public class PublicFindNodesApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.empty(),
+            Optional.empty(),
             Optional.empty());
 
     String bodyPayload =
@@ -376,6 +380,7 @@ public class PublicFindNodesApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.of(1L),
+            Optional.empty(),
             Optional.empty());
 
     String bodyPayload =
@@ -475,6 +480,7 @@ public class PublicFindNodesApiIT {
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
             Optional.empty(),
             Optional.empty())
         .addNode(

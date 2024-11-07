@@ -97,7 +97,67 @@ public class DownloadByPublicLinkApiIT {
             "00000000-0000-0000-0000-000000000000",
             publicLinkId,
             Optional.empty(),
+            Optional.empty(),
             Optional.empty());
+
+    simulator.getBlob("00000000-0000-0000-0000-000000000000", 1);
+
+    final String publicLinkUrl = publicLinkEndpoint + publicLinkId;
+    final HttpRequest httpRequest = HttpRequest.of("GET", publicLinkUrl, userToken, null);
+
+    // When
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    simulator
+        .getStoragesMock()
+        .verify(
+            org.mockserver.model.HttpRequest.request()
+                .withMethod(HttpMethod.GET.toString())
+                .withPath("/download")
+                .withQueryStringParameter(
+                    Parameter.param("node", "00000000-0000-0000-0000-000000000000"))
+                .withQueryStringParameter(Parameter.param("version", "1"))
+                .withQueryStringParameter(Parameter.param("type", "files")),
+            VerificationTimes.once());
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "abcd1234,/public/link/download/,",
+    "abcd1234abcd1234abcd1234abcd1234,/public/link/download/,",
+    "abcd1234,/link/,",
+    "abcd1234abcd1234abcd1234abcd1234,/link/,",
+    "abcd1234abcd1234abcd1234abcd1234,/public/link/download/,fake-token",
+    "abcd1234abcd1234abcd1234abcd1234,/link/,fake-token",
+  })
+  void
+      givenAUserWithOrWithoutCookieAnExistingFileAndAnExistingPublicLinkWithAccessCodeAssociatedTheDownloadByPublicLinkShouldReturnTheBlob(
+          String publicLinkId, String publicLinkEndpoint, String userToken) {
+    // Given
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "test.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT",
+                10L,
+                "text/plain"))
+        .addLink(
+            "94103c01-e701-4f3d-9dc9-54b79064ad76",
+            "00000000-0000-0000-0000-000000000000",
+            publicLinkId,
+            Optional.empty(),
+            Optional.empty(),
+            Optional.of("fake-access-code"));
 
     simulator.getBlob("00000000-0000-0000-0000-000000000000", 1);
 
@@ -145,6 +205,7 @@ public class DownloadByPublicLinkApiIT {
             "00000000-0000-0000-0000-000000000000",
             "1234abcd1234abcd1234abcd1234abcd",
             Optional.of(1L),
+            Optional.empty(),
             Optional.empty());
 
     final String publicDownloadUrl = "/public/link/download/1234abcd1234abcd1234abcd1234abcd";
@@ -187,6 +248,7 @@ public class DownloadByPublicLinkApiIT {
             "94103c01-e701-4f3d-9dc9-54b79064ad76",
             "00000000-0000-0000-0000-000000000000",
             "000000",
+            Optional.empty(),
             Optional.empty(),
             Optional.empty());
 
@@ -254,6 +316,7 @@ public class DownloadByPublicLinkApiIT {
             "94103c01-e701-4f3d-9dc9-54b79064ad76",
             "00000000-0000-0000-0000-000000000000",
             "1234abcd1234abcd1234abcd1234abcd",
+            Optional.empty(),
             Optional.empty(),
             Optional.empty());
 
