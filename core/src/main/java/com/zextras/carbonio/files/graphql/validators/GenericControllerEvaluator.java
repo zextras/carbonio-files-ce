@@ -307,6 +307,22 @@ public class GenericControllerEvaluator {
     return this;
   }
 
+  public GenericControllerEvaluator checkLinkAccessCode(String linkAccessCodeKey) {
+    System.err.println("W");
+    inputsToCheckWithRelativeFunctions.add(Parameter.build(
+      linkAccessCodeKey,
+      (key) -> {
+        String linkAccessCode = fieldAndArguments.getArgumentValue(linkAccessCodeKey);
+
+        return (linkAccessCode == null || (linkAccessCode.length() < 255 && linkAccessCode.length() >= 10))
+          ? Optional.empty()
+          : Optional.of(
+            "Invalid link access code. The access code must be between 10 and 255 characters long");
+      }
+    ));
+    return this;
+  }
+
   /**
    * <p>Evaluates all the {@link Parameter}s checking the validity of the values mapped by the
    * specified key.</p>

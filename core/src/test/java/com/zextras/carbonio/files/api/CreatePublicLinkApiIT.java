@@ -126,7 +126,7 @@ class CreatePublicLinkApiIT {
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("createLink")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
-            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
             .build();
 
     final HttpRequest httpRequest =
@@ -148,7 +148,8 @@ class CreatePublicLinkApiIT {
 
     Assertions.assertThat(createdLink)
         .containsEntry("expires_at", null)
-        .containsEntry("description", null);
+        .containsEntry("description", null)
+        .containsEntry("access_code", null);
 
     Assertions.assertThat((Map<String, Object>) createdLink.get("node"))
         .containsEntry("id", "00000000-0000-0000-0000-000000000000");
@@ -162,7 +163,7 @@ class CreatePublicLinkApiIT {
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("createLink")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
-            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
             .build();
 
     final HttpRequest httpRequest =
@@ -184,7 +185,8 @@ class CreatePublicLinkApiIT {
 
     Assertions.assertThat(createdLink)
         .containsEntry("expires_at", null)
-        .containsEntry("description", null);
+        .containsEntry("description", null)
+        .containsEntry("access_code", null);
 
     Assertions.assertThat((Map<String, Object>) createdLink.get("node"))
         .containsEntry("id", "00000000-0000-0000-0000-000000000000");

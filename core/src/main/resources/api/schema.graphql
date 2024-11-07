@@ -183,7 +183,7 @@ type Link {
     # Link description. It must be shorter than 300 characters.
     description: String
 
-    # The access code of the link (optional). It must be shorter than 255 characters.
+    # The access code of the link (optional). It must be equal or longer than 10 and shorter than 255 characters.
     access_code: String
 }
 
@@ -655,7 +655,7 @@ type Mutation {
         # The description of the link (optional). It must be shorter than 300 characters.
         description: String
 
-        # The access code of the link (optional). It must be shorter than 255 characters.
+        # The access code of the link (optional). It must be equal or longer than 10 and shorter than 255 characters.
         access_code: String
     ): Link!
 
@@ -673,7 +673,7 @@ type Mutation {
         # The description of the link (optional). It must be shorter than 300 characters.
         description: String
 
-        # The access code of the link (optional). It must be shorter than 255 characters.
+        # The access code of the link (optional). It must be equal or longer than 10 and shorter than 255 characters.
         access_code: String
     ): Link
 
