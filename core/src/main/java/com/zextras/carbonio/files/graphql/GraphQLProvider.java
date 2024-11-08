@@ -17,12 +17,11 @@ import com.zextras.carbonio.files.graphql.datafetchers.ShareDataFetcher;
 import com.zextras.carbonio.files.graphql.datafetchers.UserDataFetcher;
 import com.zextras.carbonio.files.graphql.validators.InputFieldsController;
 import graphql.GraphQL;
+import graphql.analysis.MaxQueryDepthInstrumentation;
 import graphql.execution.AsyncExecutionStrategy;
 import graphql.execution.ResultPath;
 import graphql.execution.instrumentation.ChainedInstrumentation;
 import graphql.execution.instrumentation.Instrumentation;
-import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentation;
-import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentationOptions;
 import graphql.execution.instrumentation.fieldvalidation.FieldValidation;
 import graphql.execution.instrumentation.fieldvalidation.FieldValidationInstrumentation;
 import graphql.execution.instrumentation.fieldvalidation.SimpleFieldValidation;
@@ -34,9 +33,7 @@ import graphql.schema.idl.SchemaParser;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.util.ArrayList;
 import java.util.List;
-import org.dataloader.BatchLoader;
 
 /**
  * <p>Setups the GraphQL instance with all the necessary properties. A GraphQL instance is
@@ -96,7 +93,7 @@ public class GraphQLProvider {
   private GraphQL setup() {
     List<Instrumentation> chainedInstrumentations = List.of(
       buildValidationInstrumentation(),
-      buildDataLoaderDispatcherInstrumentation()
+      new MaxQueryDepthInstrumentation(10)
     );
 
     return GraphQL.newGraphQL(buildSchema(buildWiring()))
@@ -201,18 +198,6 @@ public class GraphQLProvider {
       );
 
     return new FieldValidationInstrumentation(fieldValidation);
-  }
-
-  /**
-   * @return a {@link DataLoaderDispatcherInstrumentation} that allows to enable the registration of
-   * {@link BatchLoader}s. By default, the statistics are disabled.
-   */
-  private DataLoaderDispatcherInstrumentation buildDataLoaderDispatcherInstrumentation() {
-    return new DataLoaderDispatcherInstrumentation(
-      DataLoaderDispatcherInstrumentationOptions
-        .newOptions()
-        .includeStatistics(false)
-    );
   }
 
   /**
