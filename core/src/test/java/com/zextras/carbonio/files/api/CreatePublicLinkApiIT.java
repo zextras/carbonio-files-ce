@@ -21,11 +21,16 @@ import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
 
+import java.util.stream.Stream;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class CreatePublicLinkApiIT {
 
@@ -33,6 +38,14 @@ class CreatePublicLinkApiIT {
   static NodeRepository nodeRepository;
   static FileVersionRepository fileVersionRepository;
   static ShareRepository shareRepository;
+
+  // It is needed since strings cannot be generated as constants in the @ValueSource definition
+  static Stream<Arguments> invalidAccessCodesProvider() {
+    return Stream.of(
+      Arguments.of(RandomStringUtils.secure().nextAlphanumeric(9)),
+      Arguments.of(RandomStringUtils.secure().nextAlphanumeric(255))
+    );
+  }
 
   @BeforeAll
   static void init() {
@@ -218,6 +231,40 @@ class CreatePublicLinkApiIT {
     Assertions.assertThat((String) createdLink.get("id")).isNotNull().hasSize(36);
 
     Assertions.assertThat(createdLink).containsEntry("expires_at", null);
+  }
+
+  @ParameterizedTest
+  @MethodSource("invalidAccessCodesProvider")
+  void givenAFileIdAndAnInvalidAccessCodeLengthTheCreateLinkShouldReturn200CodeWithAnErrorMessage(
+    String invalidAccessCode
+  ) {
+    // Given
+    createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    final String bodyPayload =
+      GraphqlCommandBuilder.aMutationBuilder("createLink")
+        .withString("node_id", "00000000-0000-0000-0000-000000000000")
+        .withInteger("expires_at", 5)
+        .withString("description", "super-description")
+        .withString("access_code", invalidAccessCode)
+        .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
+        .build();
+
+    final HttpRequest httpRequest =
+      HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse =
+      TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final List<String> errorResponse =
+      TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(errorResponse)
+      .hasSize(1)
+      .containsExactly(
+        "Invalid link access code. The access code must be between 10 and 255 characters long");
   }
 
   @Test

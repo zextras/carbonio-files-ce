@@ -19,6 +19,8 @@ import com.zextras.carbonio.files.graphql.validators.InputFieldsController;
 import graphql.GraphQL;
 import graphql.execution.AsyncExecutionStrategy;
 import graphql.execution.ResultPath;
+import graphql.execution.instrumentation.ChainedInstrumentation;
+import graphql.execution.instrumentation.Instrumentation;
 import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentation;
 import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentationOptions;
 import graphql.execution.instrumentation.fieldvalidation.FieldValidation;
@@ -32,6 +34,8 @@ import graphql.schema.idl.SchemaParser;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.util.ArrayList;
+import java.util.List;
 import org.dataloader.BatchLoader;
 
 /**
@@ -83,16 +87,21 @@ public class GraphQLProvider {
    *   <li>{@link RuntimeWiring}: it links each interface, query and mutation with the related {@link DataFetcher}</li>
    *   <li>{@link GraphQLSchema}: the schema definition file is imported from the resources</li>
    *   <li>Execution strategy: how the execution of a request is performed (async or not)</li>
-   *   <li>Instrumentation: it is useful to check the input values of a request</li>
+   *   <li>Instrumentations: it is useful to check the input values of a request and to enable a
+   *   batching mechanism using {@link org.dataloader.DataLoader}s</li>
    * </ul>
    *
    * @return {@link GraphQL}
    */
   private GraphQL setup() {
+    List<Instrumentation> chainedInstrumentations = List.of(
+      buildValidationInstrumentation(),
+      buildDataLoaderDispatcherInstrumentation()
+    );
+
     return GraphQL.newGraphQL(buildSchema(buildWiring()))
       .queryExecutionStrategy(new AsyncExecutionStrategy())
-      .instrumentation(buildValidationInstrumentation())
-      .instrumentation(buildDataLoaderDispatcherInstrumentation())
+      .instrumentation(new ChainedInstrumentation(chainedInstrumentations))
       .build();
   }
 
