@@ -578,6 +578,7 @@ public final class Files {
         private GetPublicNode() {}
 
         public static final String NODE_LINK_ID = "node_link_id";
+        public static final String ACCESS_CODE = "access_code";
       }
     }
 

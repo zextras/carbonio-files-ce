@@ -296,6 +296,7 @@ public class PublicDownloadApiIT {
             "00000000-0000-0000-0000-000000000000",
             "abcd1234abcd1234abcd1234abcd1234",
             Optional.empty(),
+            Optional.empty(),
             Optional.empty());
 
     simulator.getBlob("00000000-0000-0000-0000-000000000000", 1);

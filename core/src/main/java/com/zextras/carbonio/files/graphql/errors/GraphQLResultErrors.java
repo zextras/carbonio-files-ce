@@ -324,4 +324,60 @@ public class GraphQLResultErrors {
       .build();
   }
 
+  /**
+   * This method generates an error when a requested node from its public link requires an access code that was
+   * not included in the request:
+   * * <ul>
+   * *   <li>the errorCode for easily discriminating</li>
+   * *   <li>the id of the link that requires an access code to be accessed</li>
+   * * </ul>
+   *
+   * @param publicLinkId the public link id of the used link
+   * @param path the graphQl resultPath extrapolated from the environment to insert into the error
+   * to know in which part of the tree the error happened
+   *
+   * @return
+   */
+  public static GraphQLError accessCodeRequired(
+    String publicLinkId,
+    ResultPath path
+  ) {
+    Map<String, Object> errorData = new HashMap<>();
+    errorData.put("errorCode", ErrorCodes.ACCESS_CODE_REQUIRED);
+    errorData.put("publicLinkId", publicLinkId);
+    return GraphqlErrorException.newErrorException()
+      .message("Access code is required for accessing the resource with public link id: " + publicLinkId)
+      .extensions(errorData)
+      .path(path.toList())
+      .build();
+  }
+
+  /**
+   * This method generates an error when a requested node from its public link requires an access code, and it was
+   * passed a wrong access code with the request:
+   * * <ul>
+   * *   <li>the errorCode for easily discriminating</li>
+   * *   <li>the id of the link that requires a correct access code to be accessed</li>
+   * * </ul>
+   *
+   * @param publicLinkId the public link id of the used link
+   * @param path the graphQl resultPath extrapolated from the environment to insert into the error
+   * to know in which part of the tree the error happened
+   *
+   * @return
+   */
+  public static GraphQLError wrongAccessCode(
+    String publicLinkId,
+    ResultPath path
+  ) {
+    Map<String, Object> errorData = new HashMap<>();
+    errorData.put("errorCode", ErrorCodes.WRONG_ACCESS_CODE);
+    errorData.put("publicLinkId", publicLinkId);
+    return GraphqlErrorException.newErrorException()
+      .message("The access code for link with public id " + publicLinkId + " is not correct")
+      .extensions(errorData)
+      .path(path.toList())
+      .build();
+  }
+
 }
