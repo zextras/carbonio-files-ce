@@ -242,4 +242,204 @@ public class GetPublicNodeApiIT {
         .hasSize(1)
         .containsExactly("Could not find link with id abcd1234abcd1234abcd1234abcd1234");
   }
+
+  @Test
+  void givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithCorrectCodeShouldReturnThePublicFolder() {
+    // Given
+    long now = System.currentTimeMillis();
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "folder",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT",
+                0L,
+                null))
+        .addLink(
+            "8cac6df0-3ecb-451d-a953-10c3ac5e3ebc",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty(),
+            Optional.of("fake-access-code"));
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .withString("access_code", "fake-access-code")
+            .withWantedResultFormat("{ id created_at updated_at name type }")
+            .build();
+
+    final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
+
+    // When
+    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final Map<String, Object> publicNode =
+        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "getPublicNode");
+
+    Assertions.assertThat(publicNode.get("id")).isEqualTo("00000000-0000-0000-0000-000000000000");
+    Assertions.assertThat((long) publicNode.get("created_at")).isGreaterThanOrEqualTo(now);
+    Assertions.assertThat((long) publicNode.get("updated_at")).isGreaterThanOrEqualTo(now);
+    Assertions.assertThat(publicNode.get("name")).isEqualTo("folder");
+    Assertions.assertThat(publicNode.get("type")).isEqualTo(NodeType.FOLDER.toString());
+  }
+
+  // This tests that a node that is not a folder gets returned by getPublicNode even if access code is not passed
+  // for its public link
+  @Test
+  void givenAPublicLinkIdWithAccessCodeAndAnExistingFileTheGetPublicNodeWithoutAccessCodeShouldReturnThePublicFile() {
+    // Given
+    long now = System.currentTimeMillis();
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "test.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT",
+                5L,
+                "text/plain"))
+        .addLink(
+            "8cac6df0-3ecb-451d-a953-10c3ac5e3ebc",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty(),
+            Optional.of("fake-access-code"));
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .withWantedResultFormat(
+                "{ id created_at updated_at name type ... on File { extension mime_type size } }")
+            .build();
+
+    final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
+
+    // When
+    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final Map<String, Object> publicNode =
+        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "getPublicNode");
+
+    Assertions.assertThat(publicNode.get("id")).isEqualTo("00000000-0000-0000-0000-000000000000");
+    Assertions.assertThat((long) publicNode.get("created_at")).isGreaterThanOrEqualTo(now);
+    Assertions.assertThat((long) publicNode.get("updated_at")).isGreaterThanOrEqualTo(now);
+    Assertions.assertThat(publicNode.get("name")).isEqualTo("test");
+    Assertions.assertThat(publicNode.get("extension")).isEqualTo("txt");
+    Assertions.assertThat(publicNode.get("type")).isEqualTo(NodeType.TEXT.toString());
+    Assertions.assertThat(publicNode.get("mime_type")).isEqualTo("text/plain");
+    Assertions.assertThat(publicNode.get("size")).isEqualTo(5.0);
+  }
+
+  @Test
+  void givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithWrongCodeShouldReturnAnErrorMessage() {
+    // Given
+    long now = System.currentTimeMillis();
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "folder",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT",
+                0L,
+                null))
+        .addLink(
+            "8cac6df0-3ecb-451d-a953-10c3ac5e3ebc",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty(),
+            Optional.of("fake-access-code"));
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .withString("access_code", "wrong-access-code")
+            .withWantedResultFormat("{ id created_at updated_at name type }")
+            .build();
+
+    final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
+
+    // When
+    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final List<String> errorMessages =
+        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+
+    Assertions.assertThat(errorMessages)
+        .hasSize(1)
+        .containsExactly("The access code for link with public id abcd1234abcd1234abcd1234abcd1234 is not correct");
+  }
+
+  @Test
+  void givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithNoCodeShouldReturnAnErrorMessage() {
+    // Given
+    long now = System.currentTimeMillis();
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "folder",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT",
+                0L,
+                null))
+        .addLink(
+            "8cac6df0-3ecb-451d-a953-10c3ac5e3ebc",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty(),
+            Optional.of("fake-access-code"));
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .withWantedResultFormat("{ id created_at updated_at name type }")
+            .build();
+
+    final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
+
+    // When
+    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final List<String> errorMessages =
+        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+
+    Assertions.assertThat(errorMessages)
+        .hasSize(1)
+        .containsExactly("Access code is required for accessing the resource with public link id: abcd1234abcd1234abcd1234abcd1234");
+  }
 }
