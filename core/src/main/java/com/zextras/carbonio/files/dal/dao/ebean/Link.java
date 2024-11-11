@@ -157,6 +157,6 @@ public class Link {
   }
 
   public void setAccessCode(String accessCode) {
-    mAccessCode = accessCode;
+    mAccessCode = accessCode.isEmpty() ? null : accessCode; // If accessCode is empty, set it to null since it is used as optional
   }
 }
