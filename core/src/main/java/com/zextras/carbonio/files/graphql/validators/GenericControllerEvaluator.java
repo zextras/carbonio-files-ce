@@ -313,7 +313,7 @@ public class GenericControllerEvaluator {
       (key) -> {
         String linkAccessCode = fieldAndArguments.getArgumentValue(linkAccessCodeKey);
 
-        return (linkAccessCode == null || (linkAccessCode.length() < 255 && linkAccessCode.length() >= 10))
+        return (linkAccessCode == null || linkAccessCode.isEmpty() || (linkAccessCode.length() < 255 && linkAccessCode.length() >= 10))
           ? Optional.empty()
           : Optional.of(
             "Invalid link access code. The access code must be between 10 and 255 characters long");
