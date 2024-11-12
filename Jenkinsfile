@@ -31,7 +31,7 @@ pipeline {
                 script {
                     env.GIT_COMMIT = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
                     env.GIT_HEAD_COMMIT_TITLE = sh(script: '''
-                      git fetch --unshallow > /dev/null 2>&1
+                      git fetch > /dev/null 2>&1
                       git log -1 --pretty=%s HEAD~1
                     ''', returnStdout: true).trim()
                 }
