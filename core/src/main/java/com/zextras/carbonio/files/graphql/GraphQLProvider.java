@@ -17,10 +17,11 @@ import com.zextras.carbonio.files.graphql.datafetchers.ShareDataFetcher;
 import com.zextras.carbonio.files.graphql.datafetchers.UserDataFetcher;
 import com.zextras.carbonio.files.graphql.validators.InputFieldsController;
 import graphql.GraphQL;
+import graphql.analysis.MaxQueryDepthInstrumentation;
 import graphql.execution.AsyncExecutionStrategy;
 import graphql.execution.ResultPath;
-import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentation;
-import graphql.execution.instrumentation.dataloader.DataLoaderDispatcherInstrumentationOptions;
+import graphql.execution.instrumentation.ChainedInstrumentation;
+import graphql.execution.instrumentation.Instrumentation;
 import graphql.execution.instrumentation.fieldvalidation.FieldValidation;
 import graphql.execution.instrumentation.fieldvalidation.FieldValidationInstrumentation;
 import graphql.execution.instrumentation.fieldvalidation.SimpleFieldValidation;
@@ -32,7 +33,7 @@ import graphql.schema.idl.SchemaParser;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import org.dataloader.BatchLoader;
+import java.util.List;
 
 /**
  * <p>Setups the GraphQL instance with all the necessary properties. A GraphQL instance is
@@ -83,16 +84,21 @@ public class GraphQLProvider {
    *   <li>{@link RuntimeWiring}: it links each interface, query and mutation with the related {@link DataFetcher}</li>
    *   <li>{@link GraphQLSchema}: the schema definition file is imported from the resources</li>
    *   <li>Execution strategy: how the execution of a request is performed (async or not)</li>
-   *   <li>Instrumentation: it is useful to check the input values of a request</li>
+   *   <li>Instrumentations: it is useful to check the input values of a request and to enable a
+   *   batching mechanism using {@link org.dataloader.DataLoader}s</li>
    * </ul>
    *
    * @return {@link GraphQL}
    */
   private GraphQL setup() {
+    List<Instrumentation> chainedInstrumentations = List.of(
+      buildValidationInstrumentation(),
+      new MaxQueryDepthInstrumentation(10)
+    );
+
     return GraphQL.newGraphQL(buildSchema(buildWiring()))
       .queryExecutionStrategy(new AsyncExecutionStrategy())
-      .instrumentation(buildValidationInstrumentation())
-      .instrumentation(buildDataLoaderDispatcherInstrumentation())
+      .instrumentation(new ChainedInstrumentation(chainedInstrumentations))
       .build();
   }
 
@@ -192,18 +198,6 @@ public class GraphQLProvider {
       );
 
     return new FieldValidationInstrumentation(fieldValidation);
-  }
-
-  /**
-   * @return a {@link DataLoaderDispatcherInstrumentation} that allows to enable the registration of
-   * {@link BatchLoader}s. By default, the statistics are disabled.
-   */
-  private DataLoaderDispatcherInstrumentation buildDataLoaderDispatcherInstrumentation() {
-    return new DataLoaderDispatcherInstrumentation(
-      DataLoaderDispatcherInstrumentationOptions
-        .newOptions()
-        .includeStatistics(false)
-    );
   }
 
   /**

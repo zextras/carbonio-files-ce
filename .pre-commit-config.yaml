@@ -46,7 +46,7 @@ repos:
     rev: v2.13.0
     hooks:
       - id: pretty-format-java
-        args: [--autofix]
+        args: []
 
   - repo: https://github.com/ejba/pre-commit-maven
     rev: v0.3.4
