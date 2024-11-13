@@ -30,7 +30,6 @@ pipeline {
                 checkout scm
                 script {
                     env.GIT_COMMIT = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
-                    env.GIT_HEAD_COMMIT_TITLE = sh(script: 'git log -1 --pretty=%s HEAD~1', returnStdout: true).trim()
                 }
             }
         }
@@ -43,11 +42,12 @@ pipeline {
             steps {
                 script {
                     def commentMessage = ""
-                    if (!env.GIT_HEAD_COMMIT_TITLE.contains("chore(release)") && !readFile('package/PKGBUILD').trim().contains('SNAPSHOT')) {
+                    def commitTitle = env.CHANGE_TITLE ? env.CHANGE_TITLE : ""
+                    if (!commitTitle.contains("chore(release)") && !readFile('package/PKGBUILD').trim().contains('SNAPSHOT')) {
                         commentMessage = "Please increase the micro version in the `pkgver` and add a **SNAPSHOT** label to the `pkgrel`."
                     }
 
-                    if (env.GIT_HEAD_COMMIT_TITLE.contains("chore(release)") && readFile('package/PKGBUILD').trim().contains('SNAPSHOT')) {
+                    if (commitTitle.contains("chore(release)") && readFile('package/PKGBUILD').trim().contains('SNAPSHOT')) {
                         commentMessage = "Please remove the **SNAPSHOT** label to the `pkgrel`."
                     }
 
