@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.tasks;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.zextras.carbonio.files.Files.Config;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
@@ -41,7 +42,7 @@ public class PurgeService implements Runnable {
     this.fileVersionRepository = fileVersionRepository;
   }
 
-  private void purgeTombstones() {
+  private void purgeTombstones(long tombstoneRetentionInMinutes) {
     tombstoneRepository.getTombstones().forEach(tombstone -> {
       try {
         StoragesClient
@@ -58,11 +59,11 @@ public class PurgeService implements Runnable {
       }
     });
 
-    tombstoneRepository.deleteTombstones();
+    tombstoneRepository.deleteTombstones(tombstoneRetentionInMinutes);
     logger.info("Deleted nodes");
   }
 
-  private void purgeTrashedNodes(Long retentionDays) {
+  private void purgeTrashedNodes(long retentionDays) {
 
     /*
      * Compute retentionTimestamp: everything older must be deleted
@@ -96,13 +97,18 @@ public class PurgeService implements Runnable {
 
   @Override
   public void run() {
-    purgeTombstones();
-    purgeTrashedNodes(30L);
+    purgeTombstones(Config.PurgeService.RETENTION_TOMBSTONE_ITEMS_IN_MINUTES);
+    purgeTrashedNodes(Config.PurgeService.RETENTION_TRASHED_ITEMS_IN_DAYS);
   }
 
   public void start() {
     scheduledExecutor = Executors.newScheduledThreadPool(1);
-    scheduledExecutor.scheduleAtFixedRate(this, 1, 120, TimeUnit.MINUTES);
+    scheduledExecutor.scheduleAtFixedRate(
+      this,
+      1,
+      Config.PurgeService.JOB_EXECUTION_INTERVAL_IN_MINUTES,
+      TimeUnit.MINUTES);
+
     logger.info("Purge Service started");
   }
 

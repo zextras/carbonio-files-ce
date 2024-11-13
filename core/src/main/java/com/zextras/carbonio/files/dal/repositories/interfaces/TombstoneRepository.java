@@ -19,7 +19,7 @@ public interface TombstoneRepository {
   /**
    * <p>Deletes all Tombstones from the database.</p>
    */
-  void deleteTombstones();
+  void deleteTombstones(long itemsRetentionInMinutes);
 
   /**
    * <p>Gets all Tombstones from the database.</p>
