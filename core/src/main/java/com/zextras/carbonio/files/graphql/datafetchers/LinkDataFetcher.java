@@ -220,9 +220,13 @@ public class LinkDataFetcher {
             Optional<String> optNewDescription = Optional.ofNullable(
               environment.getArgument(InputParameters.Link.DESCRIPTION)
             );
+            Optional<String> optNewAccessCode = Optional.ofNullable(
+              environment.getArgument(InputParameters.Link.ACCESS_CODE)
+            );
 
             optNewExpirationTimestamp.ifPresent(link::setExpiresAt);
             optNewDescription.ifPresent(link::setDescription);
+            optNewAccessCode.ifPresent(link::setAccessCode);
 
             Link updatedLink = linkRepository.updateLink(link);
             return convertLinkToGraphQLMap(

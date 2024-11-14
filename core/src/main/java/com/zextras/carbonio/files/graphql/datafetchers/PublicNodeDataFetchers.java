@@ -68,23 +68,38 @@ public class PublicNodeDataFetchers {
             () -> {
               ResultPath path = environment.getExecutionStepInfo().getPath();
               String publicLinkId = environment.getArgument(GetPublicNode.NODE_LINK_ID);
+              Optional<String> accessCode = Optional.ofNullable(environment.getArgument(GetPublicNode.ACCESS_CODE));
               return linkRepository
                   .getLinkByNotExpiredPublicId(publicLinkId)
                   .map(
-                      publicLink ->
-                          nodeRepository
-                              .getNode(publicLink.getNodeId())
-                              .map(
-                                  node ->
-                                      DataFetcherResult.<Map<String, Object>>newResult()
-                                          .data(PublicNode.createFromNode(node).convertToMap())
-                                          .build())
-                              .orElse(
-                                  DataFetcherResult.<Map<String, Object>>newResult()
-                                      .error(
-                                          GraphQLResultErrors.nodeNotFound(
-                                              publicLink.getNodeId(), path))
-                                      .build()))
+                      publicLink -> nodeRepository
+                            .getNode(publicLink.getNodeId())
+                            .map(
+                                node -> {
+                                    // Check access code for existence and correctness, but only if node is
+                                    // a folder
+                                    Optional<String> linkAccessCode = publicLink.getAccessCode();
+                                    if (linkAccessCode.isPresent() && node.getNodeType().equals(NodeType.FOLDER)) {
+                                      if (accessCode.isEmpty()) {
+                                        return DataFetcherResult.<Map<String, Object>>newResult()
+                                            .error(GraphQLResultErrors.accessCodeRequired(publicLinkId, path))
+                                            .build();
+                                      } else if (!linkAccessCode.get().equals(accessCode.get())) {
+                                        return DataFetcherResult.<Map<String, Object>>newResult()
+                                            .error(GraphQLResultErrors.wrongAccessCode(publicLinkId, path))
+                                            .build();
+                                      }
+                                    }
+                                    return DataFetcherResult.<Map<String, Object>>newResult()
+                                        .data(PublicNode.createFromNode(node).convertToMap())
+                                        .build();
+                                })
+                            .orElse(
+                                DataFetcherResult.<Map<String, Object>>newResult()
+                                    .error(
+                                        GraphQLResultErrors.nodeNotFound(
+                                            publicLink.getNodeId(), path))
+                                  .build()))
                   .orElse(
                       DataFetcherResult.<Map<String, Object>>newResult()
                           .error(GraphQLResultErrors.linkNotFound(publicLinkId, path))

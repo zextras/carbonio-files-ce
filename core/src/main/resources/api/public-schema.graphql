@@ -98,6 +98,7 @@ type Query {
     # <strong>Returns a Node associated to a given public link identifier</strong>
     getPublicNode(
         node_link_id: String!
+        access_code: String
     ) : Node
 
     # <strong>Returns a NodePage based on the given criteria</strong>
