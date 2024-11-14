@@ -1898,13 +1898,12 @@ public class NodeDataFetcher {
           .orElseGet(() -> fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)))
           .stream()
           .filter(fileVersion -> !fileVersion.isKeptForever())
+          .filter(fileVersion -> !node.getCurrentVersion().equals(fileVersion.getVersion()))
           .collect(Collectors.toList());
 
         List<Integer> versionsToDelete = fileVersionsToDelete
           .stream()
           .map(FileVersion::getVersion)
-          .filter(version -> !node.getCurrentVersion()
-            .equals(version))
           .collect(Collectors.toList());
 
         fileVersionRepository.deleteFileVersions(nodeId, versionsToDelete);

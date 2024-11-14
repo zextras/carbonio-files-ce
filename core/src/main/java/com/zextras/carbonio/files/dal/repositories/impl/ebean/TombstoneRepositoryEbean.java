@@ -6,11 +6,13 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import io.ebean.Transaction;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,10 +25,13 @@ public class TombstoneRepositoryEbean implements TombstoneRepository {
     dbManager = EbeanDatabaseManager;
   }
 
-  @Override
-  public void deleteTombstones() {
+  public void deleteTombstones(long itemsRetentionInMinutes) {
     dbManager.getEbeanDatabase()
       .find(Tombstone.class)
+      .where()
+      .lt(
+        Db.Tombstone.TIMESTAMP,
+        System.currentTimeMillis() - Duration.ofMinutes(itemsRetentionInMinutes).toMillis())
       .delete();
   }
 

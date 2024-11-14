@@ -108,6 +108,14 @@ public final class Files {
       private Hikari() {}
     }
 
+    public static final class PurgeService {
+
+      public static final long RETENTION_TRASHED_ITEMS_IN_DAYS = 30L;
+      public static final long RETENTION_TOMBSTONE_ITEMS_IN_MINUTES = 120L;
+      public static final long JOB_EXECUTION_INTERVAL_IN_MINUTES = 120L;
+
+      private PurgeService() {}
+    }
   }
 
   public static final class Db {
