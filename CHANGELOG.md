@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
+SPDX-FileCopyrightText: 2023 Zextras <https://www.zextras.com>
 
 SPDX-License-Identifier: AGPL-3.0-only
 -->
@@ -7,6 +7,29 @@ SPDX-License-Identifier: AGPL-3.0-only
 # Changelog
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+## [0.14.0](https://github.com/zextras/carbonio-files-ce/compare/v0.13.1...v0.14.0) (2024-11-18)
+
+
+### Features
+
+* add access code to link entity ([#131](https://github.com/zextras/carbonio-files-ce/issues/131)) ([aca2380](https://github.com/zextras/carbonio-files-ce/commit/aca2380b327032c5443b3674bac2a08c76cb6573))
+* changed health check to live ([#132](https://github.com/zextras/carbonio-files-ce/issues/132)) ([650eb0d](https://github.com/zextras/carbonio-files-ce/commit/650eb0d74317a5c154b41a88d75b2cb1bc8f62ae))
+* delete blobs from storages when user is deleted ([#120](https://github.com/zextras/carbonio-files-ce/issues/120)) ([c133328](https://github.com/zextras/carbonio-files-ce/commit/c133328cc2904b58a4760b30a3899f1a94e4d621))
+* implement a service to delete old versions and when the max number version is decreased ([#111](https://github.com/zextras/carbonio-files-ce/issues/111)) ([3720409](https://github.com/zextras/carbonio-files-ce/commit/37204095d29a8576b86ccf4c53ff9da2ee694e83))
+* let files manage account that have been closed using message broker ([#112](https://github.com/zextras/carbonio-files-ce/issues/112)) ([c071a76](https://github.com/zextras/carbonio-files-ce/commit/c071a762aeed18b1af64a4e6f96464f3196ebcfe))
+* let user access a public folder link protected by an access code ([#133](https://github.com/zextras/carbonio-files-ce/issues/133)) ([0a1773d](https://github.com/zextras/carbonio-files-ce/commit/0a1773dacb7fc1fe0ae1fcf4021aa49a8e759cd2))
+
+
+### Bug Fixes
+
+* block access to files after public link is revoked ([#130](https://github.com/zextras/carbonio-files-ce/issues/130)) ([721ffec](https://github.com/zextras/carbonio-files-ce/commit/721ffec8ee6e0d94fc1209d635460be05d08da27))
+* change how the key set of the page token is generated ([#137](https://github.com/zextras/carbonio-files-ce/issues/137)) ([8312e1a](https://github.com/zextras/carbonio-files-ce/commit/8312e1a663ad228a3c78b07190feddc2e302ee4e))
+* filter out current file version in the deleteVersions operation ([#136](https://github.com/zextras/carbonio-files-ce/issues/136)) ([8918f5a](https://github.com/zextras/carbonio-files-ce/commit/8918f5aa1633b19614bb31c225011fe71cab8c4d))
+* fixed rename node when moved to the folder where it already is ([#121](https://github.com/zextras/carbonio-files-ce/issues/121)) ([809bf63](https://github.com/zextras/carbonio-files-ce/commit/809bf630e8d5d0f40746c8f5501e056a7006b57b))
+* initialize GraphQL instrumentations in a ChainedInstrumentation ([#134](https://github.com/zextras/carbonio-files-ce/issues/134)) ([5f2b44f](https://github.com/zextras/carbonio-files-ce/commit/5f2b44f3d267e942d31f41d61c66a44ae737286e))
+* jenkins can now find pr title in checkout stage ([#135](https://github.com/zextras/carbonio-files-ce/issues/135)) ([bc87996](https://github.com/zextras/carbonio-files-ce/commit/bc879963f98e51418153d2fdf2519e08be60901a))
+* make message broker optional ([#129](https://github.com/zextras/carbonio-files-ce/issues/129)) ([9cf57df](https://github.com/zextras/carbonio-files-ce/commit/9cf57df20bfb259f69b2e93567f9381d827b1516))
 
 ### [0.13.1](https://github.com/zextras/carbonio-files-ce/compare/v0.13.0...v0.13.1) (2024-09-11)
 
