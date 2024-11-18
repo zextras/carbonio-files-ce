@@ -17,6 +17,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FindNodeKeySetBuilder;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.PageQuery;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SQLExpression;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SearchBuilder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import io.ebean.Query;
@@ -82,11 +83,10 @@ public class NodeRepositoryEbean implements NodeRepository {
 
     List<NodeSort> realSortsToApply = getRealSortingsToApply(sort);
     nextPage.setKeySet(
-        FindNodeKeySetBuilder.aSearchKeySetBuilder()
-            .withNodeSorts(realSortsToApply)
-            .fromNode(node)
-            .build());
-
+      FindNodeKeySetBuilder.aSearchKeySetBuilder()
+        .withNodeSorts(realSortsToApply)
+        .fromNode(node)
+        .build());
     return nextPage.toToken();
   }
 
@@ -128,7 +128,7 @@ public class NodeRepositoryEbean implements NodeRepository {
       Optional<Boolean> sharedByMe,
       Optional<Boolean> directShare,
       List<String> keywords,
-      Optional<String> keyset,
+      Optional<SQLExpression> keySet,
       Optional<NodeType> optNodeType,
       Optional<String> optOwnerId) {
 
@@ -148,7 +148,7 @@ public class NodeRepositoryEbean implements NodeRepository {
     optOwnerId.ifPresent(search::setOwner);
 
     search.setLimit(limit);
-    keyset.ifPresent(search::setKeyset);
+    keySet.ifPresent(ks -> search.setKeySet(ks.toExpression(), ks.getParameters().toArray()));
 
     sorts.forEach(search::setSort);
 
@@ -165,7 +165,7 @@ public class NodeRepositoryEbean implements NodeRepository {
   /**
    * This is the single method that decides what sortings to apply and in what order. This is
    * responsible for default sorting, additional sorting not explicitly requested by user, and
-   * keyset generation for pagination.
+   * keySet generation for pagination.
    */
   public static List<NodeSort> getRealSortingsToApply(Optional<NodeSort> inputSort) {
     List<NodeSort> result = new ArrayList<>();
@@ -320,7 +320,8 @@ public class NodeRepositoryEbean implements NodeRepository {
             .query();
 
     if (pageQuery.getKeySet().isPresent()) {
-      findNodeQuery.where().and().raw(pageQuery.getKeySet().get());
+      SQLExpression keySet = pageQuery.getKeySet().get();
+      findNodeQuery.where().and().raw(keySet.toExpression(), keySet.getParameters().toArray());
     }
 
     List<Node> nodes =
