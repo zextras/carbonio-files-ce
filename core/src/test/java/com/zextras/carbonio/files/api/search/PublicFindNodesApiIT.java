@@ -133,7 +133,7 @@ public class PublicFindNodesApiIT {
         .addLink(
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.empty(),
             Optional.empty(),
             Optional.empty());
@@ -142,7 +142,7 @@ public class PublicFindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 3)
-            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
@@ -187,7 +187,7 @@ public class PublicFindNodesApiIT {
         .addLink(
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.empty(),
             Optional.empty(),
             Optional.empty());
@@ -197,7 +197,7 @@ public class PublicFindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 3)
-            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
@@ -217,7 +217,7 @@ public class PublicFindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 3)
-            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
             .withString("page_token", pageToken)
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
@@ -258,7 +258,7 @@ public class PublicFindNodesApiIT {
         .addLink(
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.empty(),
             Optional.empty(),
             Optional.empty());
@@ -267,7 +267,7 @@ public class PublicFindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 6)
-            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
@@ -328,7 +328,7 @@ public class PublicFindNodesApiIT {
         .addLink(
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.empty(),
             Optional.empty(),
             Optional.empty());
@@ -336,7 +336,7 @@ public class PublicFindNodesApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
-            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
@@ -383,7 +383,7 @@ public class PublicFindNodesApiIT {
         .addLink(
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.of(1L),
             Optional.empty(),
             Optional.empty());
@@ -391,7 +391,7 @@ public class PublicFindNodesApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
-            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
@@ -424,7 +424,7 @@ public class PublicFindNodesApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
-            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
@@ -450,7 +450,7 @@ public class PublicFindNodesApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
-            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
@@ -484,7 +484,7 @@ public class PublicFindNodesApiIT {
         .addLink(
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.empty(),
             Optional.empty(),
             Optional.empty())
@@ -560,7 +560,7 @@ public class PublicFindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 1)
-            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
             .withString(
                 "page_token", Base64.getEncoder().encodeToString(pageTokenHacked.getBytes()))
             .withWantedResultFormat("{ nodes { id name }, page_token }")
@@ -593,7 +593,7 @@ public class PublicFindNodesApiIT {
         .addLink(
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.empty(),
             Optional.empty(),
             Optional.empty());
