@@ -4,7 +4,7 @@
 
 BEGIN;
 
-ALTER TABLE link ALTER COLUMN public_id TYPE VARCHAR(50);
+ALTER TABLE link ALTER COLUMN public_id TYPE VARCHAR(255);
 
 UPDATE db_info SET version = 6;
 

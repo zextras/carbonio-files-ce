@@ -132,6 +132,6 @@ UPDATE db_info SET version = 5;
 
 -- postgresql_6
 
-ALTER TABLE link ALTER COLUMN public_id VARCHAR(50);
+ALTER TABLE link ALTER COLUMN public_id VARCHAR(255);
 
 UPDATE db_info SET version = 6;
