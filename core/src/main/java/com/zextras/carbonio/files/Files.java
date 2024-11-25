@@ -103,8 +103,8 @@ public final class Files {
 
     public static final class Hikari {
 
-      public static final int MAX_POOL_SIZE        = 2;
-      public static final int MIN_IDLE_CONNECTIONS = 1;
+      public static final int MAX_POOL_SIZE        = 10;
+      public static final int MIN_IDLE_CONNECTIONS = 2;
 
       private Hikari() {}
     }
