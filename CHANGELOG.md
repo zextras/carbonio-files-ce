@@ -8,6 +8,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.14.2](https://github.com/zextras/carbonio-files-ce/compare/v0.14.1...v0.14.2) (2024-11-28)
+
+
+### Bug Fixes
+
+* set 3600s timeout on public download ([#142](https://github.com/zextras/carbonio-files-ce/issues/142)) ([6976e9d](https://github.com/zextras/carbonio-files-ce/commit/6976e9dccb6fc367b67e8a284bb3901593c86d7a))
+
 ### [0.14.1](https://github.com/zextras/carbonio-files-ce/compare/v0.14.0...v0.14.1) (2024-11-27)
 
 ## [0.14.0](https://github.com/zextras/carbonio-files-ce/compare/v0.13.1...v0.14.0) (2024-11-18)
