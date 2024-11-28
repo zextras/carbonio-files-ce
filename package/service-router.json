@@ -31,6 +31,26 @@
       "Destination": {
         "RequestTimeout": "3600s"
       }
+    },
+    {
+      "Match": {
+        "HTTP": {
+          "PathPrefix": "/public/link/download"
+        }
+      },
+      "Destination": {
+        "RequestTimeout": "3600s"
+      }
+    },
+    {
+      "Match": {
+        "HTTP": {
+          "PathPrefix": "/public/download"
+        }
+      },
+      "Destination": {
+        "RequestTimeout": "3600s"
+      }
     }
   ]
 }
