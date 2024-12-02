@@ -56,12 +56,12 @@ public class DeleteUserRequestConsumer extends BaseConsumer {
 
   @Override
   public void doHandle(BaseEvent baseMessageBrokerEvent) {
-    DeleteUserRequested userDeleted = (DeleteUserRequested) baseMessageBrokerEvent;
-    logger.info("Received UserDeleted({})", userDeleted.getUserId());
+    DeleteUserRequested deleteUserRequested = (DeleteUserRequested) baseMessageBrokerEvent;
+    logger.info("Received DeleteUserRequestConsumer({})", deleteUserRequested.getUserId());
 
     // Delete blobs of nodes from Storages
     // I wish there was a prettier way to do this
-    List<Node> listNodesToDelete = nodeRepository.findNodesByOwner(userDeleted.getUserId());
+    List<Node> listNodesToDelete = nodeRepository.findNodesByOwner(deleteUserRequested.getUserId());
     List<BulkDeleteRequestItem> deleteRequests = new ArrayList<>();
 
     listNodesToDelete.forEach(node -> {
@@ -72,7 +72,7 @@ public class DeleteUserRequestConsumer extends BaseConsumer {
     });
 
     try {
-      fileStore.bulkDelete(IdentifierType.files, userDeleted.getUserId(), deleteRequests);
+      fileStore.bulkDelete(IdentifierType.files, deleteUserRequested.getUserId(), deleteRequests);
     } catch (Exception e) {
       logger.error("Can't perform bulk delete on storages: {}", e.getMessage());
     }
@@ -81,9 +81,9 @@ public class DeleteUserRequestConsumer extends BaseConsumer {
     nodeRepository.deleteNodes(listNodesToDelete.stream().map(Node::getId).toList());
 
     // Delete tombstones if any (do not wait for job)
-    tombstoneRepository.deleteTombstonesFromOwner(userDeleted.getUserId());
+    tombstoneRepository.deleteTombstonesFromOwner(deleteUserRequested.getUserId());
 
     // Send event to notify that files and blobs have been deleted
-    messageBrokerClient.publish(new DeletedUserFiles(userDeleted.getUserId()));
+    messageBrokerClient.publish(new DeletedUserFiles(deleteUserRequested.getUserId()));
   }
 }
