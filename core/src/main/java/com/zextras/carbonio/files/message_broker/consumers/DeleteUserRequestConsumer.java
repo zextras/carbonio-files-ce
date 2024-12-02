@@ -10,11 +10,13 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVers
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.message_broker.MessageBrokerClient;
+import com.zextras.carbonio.message_broker.events.services.files.DeletedUserFiles;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.carbonio.message_broker.config.EventConfig;
 import com.zextras.carbonio.message_broker.consumer.BaseConsumer;
 import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
-import com.zextras.carbonio.message_broker.events.services.mailbox.UserDeleted;
+import com.zextras.carbonio.message_broker.events.services.mailbox.DeleteUserRequested;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.IdentifierType;
 import org.slf4j.Logger;
@@ -23,21 +25,24 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 
-public class UserDeletedConsumer extends BaseConsumer {
+public class DeleteUserRequestConsumer extends BaseConsumer {
 
-  private static final Logger logger = LoggerFactory.getLogger(UserDeletedConsumer.class);
+  private static final Logger logger = LoggerFactory.getLogger(DeleteUserRequestConsumer.class);
 
+  private final MessageBrokerClient messageBrokerClient;
   private final NodeRepository nodeRepository;
   private final Filestore fileStore;
   private final FileVersionRepository fileVersionRepository;
   private final TombstoneRepository tombstoneRepository;
 
   @Inject
-  public UserDeletedConsumer(
+  public DeleteUserRequestConsumer(
+      MessageBrokerClient messageBrokerClient,
       Filestore fileStore,
       NodeRepository nodeRepository,
       FileVersionRepository fileVersionRepository,
       TombstoneRepository tombstoneRepository) {
+    this.messageBrokerClient = messageBrokerClient;
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
     this.fileStore = fileStore;
@@ -46,12 +51,12 @@ public class UserDeletedConsumer extends BaseConsumer {
 
   @Override
   protected EventConfig getEventConfig() {
-    return EventConfig.USER_DELETED;
+    return EventConfig.DELETE_USER_REQUESTED;
   }
 
   @Override
   public void doHandle(BaseEvent baseMessageBrokerEvent) {
-    UserDeleted userDeleted = (UserDeleted) baseMessageBrokerEvent;
+    DeleteUserRequested userDeleted = (DeleteUserRequested) baseMessageBrokerEvent;
     logger.info("Received UserDeleted({})", userDeleted.getUserId());
 
     // Delete blobs of nodes from Storages
@@ -77,5 +82,8 @@ public class UserDeletedConsumer extends BaseConsumer {
 
     // Delete tombstones if any (do not wait for job)
     tombstoneRepository.deleteTombstonesFromOwner(userDeleted.getUserId());
+
+    // Send event to notify that files and blobs have been deleted
+    messageBrokerClient.publish(new DeletedUserFiles(userDeleted.getUserId()));
   }
 }
