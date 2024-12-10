@@ -13,9 +13,10 @@ import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
-import com.zextras.carbonio.files.message_broker.consumers.UserDeletedConsumer;
+import com.zextras.carbonio.files.message_broker.consumers.DeleteUserRequestConsumer;
+import com.zextras.carbonio.message_broker.MessageBrokerClient;
+import com.zextras.carbonio.message_broker.events.services.mailbox.DeleteUserRequested;
 import com.zextras.filestore.api.Filestore;
-import com.zextras.carbonio.message_broker.events.services.mailbox.UserDeleted;
 import com.zextras.filestore.model.IdentifierType;
 import com.zextras.storages.internal.pojo.Query;
 import com.zextras.storages.internal.pojo.StoragesBulkDeleteResponse;
@@ -105,8 +106,8 @@ class UserDeletedIT {
         );
 
     // When
-    UserDeletedConsumer userDeletedConsumer = new UserDeletedConsumer(fileStore, nodeRepository, fileVersionRepository, tombstoneRepository);
-    userDeletedConsumer.doHandle(new UserDeleted("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+    DeleteUserRequestConsumer deleteUserRequestConsumer = new DeleteUserRequestConsumer(simulator.getInjector().getInstance(MessageBrokerClient.class), fileStore, nodeRepository, fileVersionRepository, tombstoneRepository);
+    deleteUserRequestConsumer.doHandle(new DeleteUserRequested("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
 
     // Then
     Assertions.assertThat(nodeRepository.getNode("00000000-0000-0000-0000-000000000000").isEmpty()).isTrue();
