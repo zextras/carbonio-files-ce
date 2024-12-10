@@ -8,6 +8,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.14.3](https://github.com/zextras/carbonio-files-ce/compare/v0.14.2...v0.14.3) (2024-12-10)
+
+
+### Features
+
+* emit confirmation event after deleting blobs on delete account requested ([#144](https://github.com/zextras/carbonio-files-ce/issues/144)) ([9895c46](https://github.com/zextras/carbonio-files-ce/commit/9895c462b7955ab18cd1b0e874ddb4299fdf0f54))
+
 ### [0.14.2](https://github.com/zextras/carbonio-files-ce/compare/v0.14.1...v0.14.2) (2024-11-28)
 
 
