@@ -8,6 +8,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.14.4](https://github.com/zextras/carbonio-files-ce/compare/v0.14.3...v0.14.4) (2024-12-12)
+
+
+### Bug Fixes
+
+* throw if storages fails on delete user event consumer ([#146](https://github.com/zextras/carbonio-files-ce/issues/146)) ([4c26e86](https://github.com/zextras/carbonio-files-ce/commit/4c26e861a8db780ec0808db598e868757be2d37f))
+
 ### [0.14.3](https://github.com/zextras/carbonio-files-ce/compare/v0.14.2...v0.14.3) (2024-12-10)
 
 
