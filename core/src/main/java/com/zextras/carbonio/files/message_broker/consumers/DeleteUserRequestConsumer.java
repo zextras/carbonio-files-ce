@@ -11,6 +11,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionReposit
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
+import com.zextras.carbonio.message_broker.consumer.exceptions.FailedToConsumeEventException;
 import com.zextras.carbonio.message_broker.events.services.files.DeletedUserFiles;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.carbonio.message_broker.config.EventConfig;
@@ -55,7 +56,7 @@ public class DeleteUserRequestConsumer extends BaseConsumer {
   }
 
   @Override
-  public void doHandle(BaseEvent baseMessageBrokerEvent) {
+  public void doHandle(BaseEvent baseMessageBrokerEvent) throws FailedToConsumeEventException {
     DeleteUserRequested deleteUserRequested = (DeleteUserRequested) baseMessageBrokerEvent;
     logger.info("Received DeleteUserRequestConsumer({})", deleteUserRequested.getUserId());
 
@@ -72,9 +73,13 @@ public class DeleteUserRequestConsumer extends BaseConsumer {
     });
 
     try {
+      logger.info("Deleting {} nodes from storages", listNodesToDelete.size());
       fileStore.bulkDelete(IdentifierType.files, deleteUserRequested.getUserId(), deleteRequests);
     } catch (Exception e) {
+      // If storages call fails we don't delete the nodes, and we return a nack to the message broker
+      // so the event will be reprocessed in the future.
       logger.error("Can't perform bulk delete on storages: {}", e.getMessage());
+      throw new FailedToConsumeEventException("Can't perform bulk delete on storages", e);
     }
 
     // Delete nodes from Files
