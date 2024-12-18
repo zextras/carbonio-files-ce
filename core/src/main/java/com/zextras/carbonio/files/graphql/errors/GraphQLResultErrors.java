@@ -380,4 +380,28 @@ public class GraphQLResultErrors {
       .build();
   }
 
+  /**
+   * This method generates an error when creating a Link with a nodeId that has already reached the maximum
+   * number of links.
+   *
+   * @param nodeId the nodeId of the node
+   * @param path the graphQl resultPath extrapolated from the environment to insert into the error
+   * to know in which part of the tree the error happened
+   *
+   * @return
+   */
+  public static GraphQLError linkLimitExceeded(
+    String nodeId,
+    ResultPath path
+  ) {
+    Map<String, Object> errorData = new HashMap<>();
+    errorData.put("errorCode", ErrorCodes.LINK_LIMIT_EXCEEDED);
+    errorData.put("nodeId", nodeId);
+    return GraphqlErrorException.newErrorException()
+      .message("The limit for links has been reached for this node: " + nodeId)
+      .extensions(errorData)
+      .path(path.toList())
+      .build();
+  }
+
 }

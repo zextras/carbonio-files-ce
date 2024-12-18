@@ -137,4 +137,13 @@ public class LinkRepositoryEbean implements LinkRepository {
         .findOneOrEmpty();
     return linkOptional.isPresent();
   }
+
+  public Integer getLinkCountByNode(Node node) {
+    return ebeanDatabaseManager
+      .getEbeanDatabase()
+      .find(Link.class)
+      .where()
+      .eq(Db.Link.NODE_ID, node.getId())
+      .findCount();
+  }
 }
