@@ -101,7 +101,7 @@ class CreatePublicLinkApiIT {
         .addLink(
             UUID.randomUUID().toString(),
             nodeId,
-            RandomStringUtils.randomAlphanumeric(32),
+            RandomStringUtils.secure().nextAlphanumeric(32),
             Optional.of(5L),
             Optional.of("super-description"),
             Optional.empty());
