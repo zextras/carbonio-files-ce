@@ -181,11 +181,11 @@ pipeline {
                                     unstash 'binaries'
                                 }
                                 sh 'sudo yap build rocky-8 /tmp/staging/'
-                                stash includes: 'artifacts/x86_64/*.rpm', name: 'artifacts-rpm'
+                                stash includes: 'artifacts/x86_64/*el8*.rpm', name: 'artifacts-rocky-8'
                             }
                             post {
                                 always {
-                                    archiveArtifacts artifacts: 'artifacts/x86_64/*.rpm', fingerprint: true
+                                    archiveArtifacts artifacts: 'artifacts/x86_64/*el8*.rpm', fingerprint: true
                                 }
                             }
                         }
@@ -200,11 +200,11 @@ pipeline {
                                     unstash 'binaries'
                                 }
                                 sh 'sudo yap build rocky-9 /tmp/staging/'
-                                stash includes: 'artifacts/x86_64/*.rpm', name: 'artifacts-rpm'
+                                stash includes: 'artifacts/x86_64/*el9*.rpm', name: 'artifacts-rocky-9'
                             }
                             post {
                                 always {
-                                    archiveArtifacts artifacts: 'artifacts/x86_64/*.rpm', fingerprint: true
+                                    archiveArtifacts artifacts: 'artifacts/x86_64/*el9*.rpm', fingerprint: true
                                 }
                             }
                         }
@@ -218,7 +218,9 @@ pipeline {
             }
             steps {
                 unstash 'artifacts-deb'
-                unstash 'artifacts-rpm'
+                unstash 'artifacts-rocky-8'
+                unstash 'artifacts-rocky-9'
+
                 script {
                     // ubuntu
                     def server = Artifactory.server 'zextras-artifactory'
@@ -234,13 +236,13 @@ pipeline {
                                 "props": "deb.distribution=focal;deb.distribution=jammy;deb.distribution=noble;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
                             },
                             {
-                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).x86_64.rpm",
-                                "target": "centos8-devel/zextras/{1}/{1}-{2}.x86_64.rpm",
+                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).el8.x86_64.rpm",
+                                "target": "centos8-devel/zextras/{1}/{1}-{2}.el8.x86_64.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras;vcs.revision=${env.GIT_COMMIT}"
                             },
                             {
-                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).x86_64.rpm",
-                                "target": "rhel9-devel/zextras/{1}/{1}-{2}.x86_64.rpm",
+                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).el9.x86_64.rpm",
+                                "target": "rhel9-devel/zextras/{1}/{1}-{2}.el9.x86_64.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras;vcs.revision=${env.GIT_COMMIT}"
                             }
                         ]
@@ -285,7 +287,9 @@ pipeline {
             }
             steps {
                 unstash 'artifacts-deb'
-                unstash 'artifacts-rpm'
+                unstash 'artifacts-rocky-8'
+                unstash 'artifacts-rocky-9'
+
                 script {
                     def server = Artifactory.server 'zextras-artifactory'
                     def buildInfo
@@ -300,13 +304,13 @@ pipeline {
                                 "props": "deb.distribution=bionic;deb.distribution=focal;deb.distribution=noble;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
                             },
                             {
-                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).x86_64.rpm",
-                                "target": "centos8-''' + params.SUFFIX_CUSTOM_REPOS + '''/zextras/{1}/{1}-{2}.x86_64.rpm",
+                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).el8.x86_64.rpm",
+                                "target": "centos8-''' + params.SUFFIX_CUSTOM_REPOS + '''/zextras/{1}/{1}-{2}.el8.x86_64.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras;vcs.revision=${env.GIT_COMMIT}"
                             },
                             {
-                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).x86_64.rpm",
-                                "target": "rhel9-''' + params.SUFFIX_CUSTOM_REPOS + '''/zextras/{1}/{1}-{2}.x86_64.rpm",
+                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).el9.x86_64.rpm",
+                                "target": "rhel9-''' + params.SUFFIX_CUSTOM_REPOS + '''/zextras/{1}/{1}-{2}.el9.x86_64.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras;vcs.revision=${env.GIT_COMMIT}"
                             }
                         ]
@@ -324,7 +328,9 @@ pipeline {
             }
             steps {
                 unstash 'artifacts-deb'
-                unstash 'artifacts-rpm'
+                unstash 'artifacts-rocky-8'
+                unstash 'artifacts-rocky-9'
+
                 script {
                     def server = Artifactory.server 'zextras-artifactory'
                     def buildInfo
@@ -364,8 +370,8 @@ pipeline {
                     uploadSpec= """{
                         "files": [
                             {
-                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).x86_64.rpm",
-                                "target": "centos8-rc/zextras/{1}/{1}-{2}.x86_64.rpm",
+                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).el8.x86_64.rpm",
+                                "target": "centos8-rc/zextras/{1}/{1}-{2}.el8.x86_64.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras;vcs.revision=${env.GIT_COMMIT}"
                             }
                         ]
@@ -391,8 +397,8 @@ pipeline {
                     uploadSpec= """{
                         "files": [
                             {
-                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).x86_64.rpm",
-                                "target": "rhel9-rc/zextras/{1}/{1}-{2}.x86_64.rpm",
+                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).el9.x86_64.rpm",
+                                "target": "rhel9-rc/zextras/{1}/{1}-{2}.el9.x86_64.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras;vcs.revision=${env.GIT_COMMIT}"
                             }
                         ]
