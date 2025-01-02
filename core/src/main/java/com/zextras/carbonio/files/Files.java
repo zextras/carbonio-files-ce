@@ -101,6 +101,13 @@ public final class Files {
       public static final int LIMIT = 50;
     }
 
+    public static final class Link {
+
+      private Link() {}
+
+      public static final int MAX_LINKS_PER_NODE = 50;
+    }
+
     public static final class Hikari {
 
       public static final int MAX_POOL_SIZE        = 10;

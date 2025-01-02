@@ -51,4 +51,6 @@ public interface LinkRepository {
    * @return true if the {@link Link} obtained by linkId has nodeId associated and is not expired, false otherwise.
    */
   boolean isLinkValidForNode(String publicLinkId, Node node);
+
+  Integer getLinkCountByNode(Node node);
 }

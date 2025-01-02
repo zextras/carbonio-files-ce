@@ -33,6 +33,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.RandomStringUtils;
 
+import static com.zextras.carbonio.files.Files.Config.Link.MAX_LINKS_PER_NODE;
+
 /**
  * <p>Contains all the implementations of {@link DataFetcher}s for all the queries and mutations
  * defined in the GraphQL schema that are related to the {@link Files.GraphQL.Link} type.</p>
@@ -138,6 +140,13 @@ public class LinkDataFetcher {
         .has(SharePermission.READ_AND_SHARE)
         && optNode.isPresent() && optNode.get().getNodeType() != NodeType.ROOT
       ) {
+
+        if (linkRepository.getLinkCountByNode(optNode.get()) >= MAX_LINKS_PER_NODE) {
+          return DataFetcherResult.<Map<String, Object>>newResult()
+            .error(GraphQLResultErrors.linkLimitExceeded(nodeId, path))
+            .build();
+        }
+
         String publicId = RandomStringUtils.secure().nextAlphanumeric(50);
 
         Link createdLink = linkRepository.createLink(
