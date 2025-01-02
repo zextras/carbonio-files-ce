@@ -123,7 +123,7 @@ public final class Files {
 
     private Db() {}
 
-    public static final short DB_VERSION = 5;
+    public static final short DB_VERSION = 6;
 
     /**
      * Names of Files tables
@@ -780,9 +780,9 @@ public final class Files {
       public static final Pattern DOWNLOAD_FILE       = Pattern.compile(
         SERVICE + "download/([a-f\\d\\-]*)/?([\\d]+)?/?$");
       public static final Pattern PUBLIC_LINK =
-          Pattern.compile(SERVICE + "link/([\\w]{8}|[\\w]{32})/?$");
+          Pattern.compile(SERVICE + "link/([\\w]{8}|[\\w]{32}|[\\w]{50})/?$");
       public static final Pattern DOWNLOAD_VIA_PUBLIC_LINK =
-        Pattern.compile(SERVICE + "public/link/download/([\\w]{8}|[\\w]{32})/?$");
+        Pattern.compile(SERVICE + "public/link/download/([\\w]{8}|[\\w]{32}|[\\w]{50})/?$");
       public static final Pattern DOWNLOAD_PUBLIC_FILE = Pattern.compile(
           SERVICE + "public/download/([a-f\\d\\-]*)/?\\?node_link_id=([a-zA-Z\\d\\-]*)/?");
       public static final Pattern COLLABORATION_LINK  = Pattern.compile(

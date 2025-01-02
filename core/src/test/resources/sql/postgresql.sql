@@ -123,3 +123,15 @@ UPDATE db_info SET version = 3;
 ALTER TABLE node ADD COLUMN hidden BOOLEAN DEFAULT FALSE NOT NULL;
 
 UPDATE db_info SET version = 4;
+
+-- postgresql_5
+
+ALTER TABLE link ADD COLUMN access_code VARCHAR(255) DEFAULT NULL;
+
+UPDATE db_info SET version = 5;
+
+-- postgresql_6
+
+ALTER TABLE link ALTER COLUMN public_id VARCHAR(255);
+
+UPDATE db_info SET version = 6;

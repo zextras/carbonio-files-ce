@@ -95,7 +95,7 @@ class GetPublicLinksApiIT {
         .addLink(
             "06e0f2ae-b128-4d25-9b3b-df84eb7948a9",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.of(5L),
             Optional.of("super-description"),
             Optional.empty());
@@ -145,7 +145,7 @@ class GetPublicLinksApiIT {
         .containsEntry("id", "06e0f2ae-b128-4d25-9b3b-df84eb7948a9")
         .containsEntry(
             "url",
-            "example.com/services/files/public/link/download/abcd1234abcd1234abcd1234abcd1234")
+            "example.com/services/files/public/link/download/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
         .containsEntry("expires_at", 5)
         .containsEntry("description", "super-description");
     Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node"))
@@ -161,7 +161,7 @@ class GetPublicLinksApiIT {
         .addLink(
             "06e0f2ae-b128-4d25-9b3b-df84eb7948a9",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.of(5L),
             Optional.of("super-description"),
             Optional.empty());
@@ -190,7 +190,7 @@ class GetPublicLinksApiIT {
     Assertions.assertThat(publicLinks.get(0))
         .containsEntry("id", "06e0f2ae-b128-4d25-9b3b-df84eb7948a9")
         .containsEntry(
-            "url", "example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234")
+            "url", "example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
         .containsEntry("expires_at", 5)
         .containsEntry("description", "super-description");
     Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node"))
@@ -206,7 +206,7 @@ class GetPublicLinksApiIT {
         .addLink(
             "06e0f2ae-b128-4d25-9b3b-df84eb7948a9",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.of(5L),
             Optional.of("super-description"),
             Optional.of("fake-access-code"));
@@ -235,7 +235,7 @@ class GetPublicLinksApiIT {
     Assertions.assertThat(publicLinks.get(0))
         .containsEntry("id", "06e0f2ae-b128-4d25-9b3b-df84eb7948a9")
         .containsEntry(
-            "url", "example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234")
+            "url", "example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
         .containsEntry("expires_at", 5)
         .containsEntry("description", "super-description")
         .containsEntry("access_code", "fake-access-code");
@@ -341,7 +341,7 @@ class GetPublicLinksApiIT {
         .addLink(
             "0c04783b-bdfb-446f-870c-625f5ae02a0a",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.empty(),
             Optional.empty(),
             Optional.empty());
@@ -380,7 +380,7 @@ class GetPublicLinksApiIT {
         .addLink(
             "0c04783b-bdfb-446f-870c-625f5ae02a0a",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.empty(),
             Optional.empty(),
             Optional.empty());

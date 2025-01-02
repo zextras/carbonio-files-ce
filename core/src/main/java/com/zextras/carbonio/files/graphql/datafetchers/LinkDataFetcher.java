@@ -138,7 +138,7 @@ public class LinkDataFetcher {
         .has(SharePermission.READ_AND_SHARE)
         && optNode.isPresent() && optNode.get().getNodeType() != NodeType.ROOT
       ) {
-        String publicId = RandomStringUtils.randomAlphanumeric(32);
+        String publicId = RandomStringUtils.secure().nextAlphanumeric(50);
 
         Link createdLink = linkRepository.createLink(
           UUID.randomUUID().toString(),

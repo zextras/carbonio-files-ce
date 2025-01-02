@@ -92,7 +92,7 @@ class UpdatePublicLinkApiIT {
         .addLink(
             "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.of(5L),
             Optional.of("super-description"),
             Optional.of("fake-access-code"));
@@ -120,7 +120,7 @@ class UpdatePublicLinkApiIT {
 
     Assertions.assertThat((String) updatedLink.get("url"))
         .isEqualTo(
-            "example.com/services/files/public/link/download/abcd1234abcd1234abcd1234abcd1234");
+            "example.com/services/files/public/link/download/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab");
 
     Assertions.assertThat(updatedLink)
         .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
@@ -141,7 +141,7 @@ class UpdatePublicLinkApiIT {
         .addLink(
             "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.of(5L),
             Optional.of("super-description"),
             Optional.of("fake-access-code"));
@@ -169,7 +169,7 @@ class UpdatePublicLinkApiIT {
 
     Assertions.assertThat((String) updatedLink.get("url"))
         .isEqualTo(
-            "example.com/services/files/public/link/download/abcd1234abcd1234abcd1234abcd1234");
+            "example.com/services/files/public/link/download/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab");
 
     Assertions.assertThat(updatedLink)
         .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
@@ -190,7 +190,7 @@ class UpdatePublicLinkApiIT {
         .addLink(
             "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.of(5L),
             Optional.of("super-description"),
             Optional.empty());
@@ -216,7 +216,7 @@ class UpdatePublicLinkApiIT {
     Assertions.assertThat((String) updatedLink.get("id")).isNotNull().hasSize(36);
     Assertions.assertThat((String) updatedLink.get("url"))
         .isEqualTo(
-            "example.com/services/files/public/link/download/abcd1234abcd1234abcd1234abcd1234");
+            "example.com/services/files/public/link/download/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab");
 
     Assertions.assertThat(updatedLink)
         .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
@@ -237,7 +237,7 @@ class UpdatePublicLinkApiIT {
         .addLink(
             "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.empty(),
             Optional.empty(),
             Optional.empty());
@@ -263,7 +263,7 @@ class UpdatePublicLinkApiIT {
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "updateLink");
 
     Assertions.assertThat((String) updatedLink.get("url"))
-        .isEqualTo("example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234");
+        .isEqualTo("example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab");
 
     Assertions.assertThat(updatedLink)
         .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
@@ -313,7 +313,7 @@ class UpdatePublicLinkApiIT {
         .addLink(
             "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.of(5L),
             Optional.of("super-description"),
             Optional.empty());
@@ -353,7 +353,7 @@ class UpdatePublicLinkApiIT {
         .addLink(
             "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.of(5L),
             Optional.empty(),
             Optional.empty());
@@ -396,7 +396,7 @@ class UpdatePublicLinkApiIT {
         .addLink(
             "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.of(5L),
             Optional.of("super-description"),
             Optional.empty());
@@ -434,7 +434,7 @@ class UpdatePublicLinkApiIT {
         .addLink(
             "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b",
             "00000000-0000-0000-0000-000000000000",
-            "abcd1234abcd1234abcd1234abcd1234",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
             Optional.of(5L),
             Optional.of("super-description"),
             Optional.empty());
