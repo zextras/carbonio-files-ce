@@ -739,20 +739,34 @@ public class NodeDataFetcher {
     }));
   }
 
-  public DataFetcher<CompletableFuture<List<String>>> flagNodes() {
+  public DataFetcher<CompletableFuture<DataFetcherResult<List<String>>>> flagNodes() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       String requesterId = ((User) environment.getGraphQlContext()
         .get(Files.GraphQL.Context.REQUESTER)).getId();
       List<String> nodesIds = environment.getArgument(FlagNodes.NODE_IDS);
       boolean starNodes = environment.getArgument(FlagNodes.FLAG);
 
-      return nodesIds
-        .stream()
-        .map(nodeId -> {
-          nodeRepository.flagForUser(nodeId, requesterId, starNodes);
-          return nodeId;
+      List<String> flaggableNodes = nodesIds.stream()
+        .filter(nodeId -> {
+          Optional<Node> rNode = nodeRepository.getNode(nodeId);
+          return rNode.isPresent() && rNode.get().getNodeType() != NodeType.ROOT;
         })
+        .filter(nodeId -> permissionsChecker.getPermissions(nodeId, requesterId).has(SharePermission.READ_AND_WRITE))
         .collect(Collectors.toList());
+
+      List<String> nodesInError = nodesIds.stream()
+        .filter(nodeId -> !flaggableNodes.contains(nodeId))
+        .toList();
+
+      flaggableNodes.forEach(nodeId -> nodeRepository.flagForUser(nodeId, requesterId, starNodes));
+
+      return new DataFetcherResult.Builder<List<String>>()
+        .data(flaggableNodes)
+        .errors(nodesInError.stream()
+          .map(nodeId -> GraphQLResultErrors.nodeWriteError(nodeId,
+            environment.getExecutionStepInfo().getPath()))
+          .collect(Collectors.toList()))
+        .build();
     });
   }
 
