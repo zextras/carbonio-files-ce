@@ -81,6 +81,19 @@ public enum NodeType {
             nodeType = NodeType.OTHER;
         }
         break;
+      case "message":
+        switch (mimeType.subtype()) {
+          case "global":
+          case "global-delivery-status":
+          case "global-disposition-notification":
+          case "global-headers":
+          case "rfc822":
+            nodeType = NodeType.MESSAGE;
+            break;
+          default:
+            nodeType = NodeType.OTHER;
+        }
+        break;
       default:
         nodeType = NodeType.OTHER;
     }
