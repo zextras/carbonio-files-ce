@@ -765,7 +765,7 @@ public class NodeDataFetcher {
         .errors(nodesInError.stream()
           .map(nodeId -> GraphQLResultErrors.nodeWriteError(nodeId,
             environment.getExecutionStepInfo().getPath()))
-          .collect(Collectors.toList()))
+          .toList())
         .build();
     });
   }
