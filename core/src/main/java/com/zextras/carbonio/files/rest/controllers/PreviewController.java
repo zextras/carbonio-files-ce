@@ -100,8 +100,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       /*
        get the user with updated locale for every preview request.
        if this was cached so would be the locale resulting in incorrect preview if user changes
-       language and then
-       requests a preview. all cookie checks here are already passed so we know there is one and
+       language and then requests a preview. All cookie checks here are already passed so we know there is one and
        if user management is not down an usermyself should always be returned given the cookie.
       */
       HttpHeaders headersRequest = httpRequest.headers();
