@@ -30,13 +30,9 @@ public class PreviewQueryParameters {
   @JsonProperty("locale")
   private String locale;
 
-  public Optional<String> getLocale() {
-    return Optional.ofNullable(locale);
-  }
+  @JsonProperty("version")
+  private Integer nodeVersion;
 
-  public void setLocale(String locale) {
-    this.locale = locale;
-  }
 
   public Optional<String> getQuality() {
     return Optional.ofNullable(quality == null ? null : quality.name());
@@ -60,6 +56,22 @@ public class PreviewQueryParameters {
 
   public Optional<Integer> getLastPage() {
     return Optional.ofNullable(lastPage);
+  }
+
+  public Optional<String> getLocale() {
+    return Optional.ofNullable(locale);
+  }
+
+  public void setLocale(String locale) {
+    this.locale = locale;
+  }
+
+  public Optional<Integer> getNodeVersion() {
+    return Optional.ofNullable(nodeVersion);
+  }
+
+  public void setNodeVersion(Integer nodeVersion) {
+    this.nodeVersion = nodeVersion;
   }
 
   private enum Quality {

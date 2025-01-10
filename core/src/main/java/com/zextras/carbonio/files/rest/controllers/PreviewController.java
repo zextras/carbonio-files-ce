@@ -176,16 +176,15 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, User requester) {
 
     String nodeId = uriMatched.group(1);
-    String nodeVersion = uriMatched.group(2);
-    String previewArea = uriMatched.group(3);
+    String previewArea = uriMatched.group(2);
 
-    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(5));
+    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
             requester.getId(),
             nodeId,
-            Integer.parseInt(nodeVersion),
+            queryParameters.getNodeVersion().orElse(null),
             Collections.singleton("image/"));
 
     if (tryCheckNode.isSuccess()) {
@@ -220,16 +219,15 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
   private void thumbnailImage(
       ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, User requester) {
     String nodeId = uriMatched.group(1);
-    String nodeVersion = uriMatched.group(2);
-    String previewArea = uriMatched.group(3);
+    String previewArea = uriMatched.group(2);
 
-    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
+    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(3));
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
             requester.getId(),
             nodeId,
-            Integer.parseInt(nodeVersion),
+            queryParameters.getNodeVersion().orElse(null),
             Collections.singleton("image/"));
 
     if (tryCheckNode.isSuccess()) {
@@ -265,15 +263,14 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, User requester) {
 
     String nodeId = uriMatched.group(1);
-    String nodeVersion = uriMatched.group(2);
 
-    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
+    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(3));
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
             requester.getId(),
             nodeId,
-            Integer.parseInt(nodeVersion),
+            queryParameters.getNodeVersion().orElse(null),
             Collections.singleton("application/pdf"));
 
     if (tryCheckNode.isSuccess()) {
@@ -308,16 +305,15 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, User requester) {
 
     String nodeId = uriMatched.group(1);
-    String nodeVersion = uriMatched.group(2);
-    String area = uriMatched.group(3);
+    String area = uriMatched.group(2);
 
-    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
+    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(3));
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
             requester.getId(),
             nodeId,
-            Integer.parseInt(nodeVersion),
+            queryParameters.getNodeVersion().orElse(null),
             Collections.singleton("application/pdf"));
 
     if (tryCheckNode.isSuccess()) {
@@ -356,14 +352,16 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       UserMyself requester) {
 
     String nodeId = uriMatched.group(1);
-    String nodeVersion = uriMatched.group(2);
 
-    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
+    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(3));
     queryParameters.setLocale(requester.getLocale().toLanguageTag());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
-            requester.getId(), nodeId, Integer.parseInt(nodeVersion), documentAllowedTypes);
+            requester.getId(),
+            nodeId,
+            queryParameters.getNodeVersion().orElse(null),
+            documentAllowedTypes);
 
     if (tryCheckNode.isSuccess()) {
       String fileDigestWithLanguage = tryCheckNode.get().getRight().getDigest() + requester.getLocale().toLanguageTag();
@@ -400,15 +398,17 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       UserMyself requester) {
 
     String nodeId = uriMatched.group(1);
-    String nodeVersion = uriMatched.group(2);
-    String area = uriMatched.group(3);
+    String area = uriMatched.group(2);
 
-    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(4));
+    PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(3));
     queryParameters.setLocale(requester.getLocale().toLanguageTag());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
-            requester.getId(), nodeId, Integer.parseInt(nodeVersion), documentAllowedTypes);
+            requester.getId(),
+            nodeId,
+            queryParameters.getNodeVersion().orElse(null),
+            documentAllowedTypes);
 
     if (tryCheckNode.isSuccess()) {
       String fileDigestWithLanguage = tryCheckNode.get().getRight().getDigest() + requester.getLocale().toLanguageTag();
@@ -571,8 +571,11 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    * {@link FileVersion} or, a {@link Try#failure} containing the specific error.
    */
   private Try<Pair<Node, FileVersion>> checkNodePermissionAndExistence(
-      String requesterId, String nodeId, int version, Set<String> supportedMimeTypeList) {
-    Optional<FileVersion> optFileVersion = fileVersionRepository.getFileVersion(nodeId, version);
+      String requesterId, String nodeId, Integer version, Set<String> supportedMimeTypeList) {
+    Optional<FileVersion> optFileVersion = (version == null)
+        ? fileVersionRepository.getLastFileVersion(nodeId)
+        : fileVersionRepository.getFileVersion(nodeId, version);
+
     if (permissionsChecker.getPermissions(nodeId, requesterId).has(SharePermission.READ_ONLY)
         && optFileVersion.isPresent()) {
       return (mimeTypeUtils.isMimeTypeAllowed(

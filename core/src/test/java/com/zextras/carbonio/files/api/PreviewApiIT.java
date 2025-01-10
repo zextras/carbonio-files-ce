@@ -112,7 +112,7 @@ class PreviewApiIT {
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/document/00000000-0000-0000-0000-000000000000/1",
+            "/preview/document/00000000-0000-0000-0000-000000000000",
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -130,7 +130,7 @@ class PreviewApiIT {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"2", "?version=2"})
+  @ValueSource(strings = {"", "?version=2"})
   void givenTwoVersionsOfAnExistingDocumentTheGetPreviewApiShouldReturnThePdfOfTheLatestVersion(
       String versionQueryParam
   ) {
@@ -157,7 +157,7 @@ class PreviewApiIT {
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/document/00000000-0000-0000-0000-000000000000/2",// + versionQueryParam,
+            "/preview/document/00000000-0000-0000-0000-000000000000" + versionQueryParam,
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -194,7 +194,7 @@ class PreviewApiIT {
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/document/00000000-0000-0000-0000-000000000000/1",//?version=1",
+            "/preview/document/00000000-0000-0000-0000-000000000000?version=1",
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -207,7 +207,7 @@ class PreviewApiIT {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"3", "?version=3"})
+  @ValueSource(strings = {"", "?version=3"})
   void givenThreeVersionsOfAnExistingPdfTheGetPreviewApiShouldReturnThePdfOfTheLatestVersion(
       String versionQueryParam
   ) {
@@ -235,7 +235,7 @@ class PreviewApiIT {
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/pdf/00000000-0000-0000-0000-000000000000/3",// + versionQueryParam,
+            "/preview/pdf/00000000-0000-0000-0000-000000000000/" + versionQueryParam,
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -273,7 +273,7 @@ class PreviewApiIT {
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/pdf/00000000-0000-0000-0000-000000000000/2/",//?version=2",
+            "/preview/pdf/00000000-0000-0000-0000-000000000000?version=2",
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -286,7 +286,7 @@ class PreviewApiIT {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"2", "?version=2"})
+  @ValueSource(strings = {"", "?version=2"})
   void givenTwoVersionsOfAnExistingPngImageTheGetPreviewApiShouldReturnThePngOfTheLatestVersion(
       String versionQueryParam
   ) {
@@ -313,7 +313,7 @@ class PreviewApiIT {
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/image/00000000-0000-0000-0000-000000000000/2/0x0/",// + versionQueryParam,
+            "/preview/image/00000000-0000-0000-0000-000000000000/0x0" + versionQueryParam,
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -350,7 +350,7 @@ class PreviewApiIT {
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/image/00000000-0000-0000-0000-000000000000/2/0x0",//?version=2",
+            "/preview/image/00000000-0000-0000-0000-000000000000/0x0?version=2",
             "ZM_AUTH_TOKEN=fake-token",
             null);
 

@@ -112,7 +112,7 @@ class ThumbnailApiIT {
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/document/00000000-0000-0000-0000-000000000000/1/5x5/thumbnail",
+            "/preview/document/00000000-0000-0000-0000-000000000000/5x5/thumbnail",
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -129,7 +129,7 @@ class ThumbnailApiIT {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"2", "?version=2"})
+  @ValueSource(strings = {"", "?version=2"})
   void givenTwoVersionsOfAnExistingDocumentTheGetThumbnailApiShouldReturnTheJpegOfTheLatestVersion(
       String versionQueryParam
   ) {
@@ -155,7 +155,7 @@ class ThumbnailApiIT {
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/document/00000000-0000-0000-0000-000000000000/2/5x5/thumbnail",// + versionQueryParam,
+            "/preview/document/00000000-0000-0000-0000-000000000000/5x5/thumbnail" + versionQueryParam,
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -191,7 +191,7 @@ class ThumbnailApiIT {
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/document/00000000-0000-0000-0000-000000000000/1/5x5/thumbnail",//?version=1",
+            "/preview/document/00000000-0000-0000-0000-000000000000/5x5/thumbnail?version=1",
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -204,7 +204,7 @@ class ThumbnailApiIT {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"3", "?version=3"})
+  @ValueSource(strings = {"", "?version=3"})
   void givenThreeVersionsOfAnExistingPdfTheGetPreviewApiShouldReturnTheJpegOfTheLatestVersion(
       String versionQueryParam
   ) {
@@ -231,7 +231,7 @@ class ThumbnailApiIT {
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/pdf/00000000-0000-0000-0000-000000000000/3/5x5/thumbnail",// + versionQueryParam,
+            "/preview/pdf/00000000-0000-0000-0000-000000000000/5x5/thumbnail/" + versionQueryParam,
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -268,7 +268,7 @@ class ThumbnailApiIT {
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/pdf/00000000-0000-0000-0000-000000000000/2/5x5/thumbnail",//?version=2",
+            "/preview/pdf/00000000-0000-0000-0000-000000000000/5x5/thumbnail?version=2",
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -281,7 +281,7 @@ class ThumbnailApiIT {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"2", "?version=2"})
+  @ValueSource(strings = {"", "?version=2"})
   void givenTwoVersionsOfAnExistingPngImageTheGetThumbnailApiShouldReturnTheJpegOfTheLatestVersion(
       String versionQueryParam
   ) {
@@ -307,7 +307,7 @@ class ThumbnailApiIT {
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/image/00000000-0000-0000-0000-000000000000/2/5x5/thumbnail", //+ versionQueryParam,
+            "/preview/image/00000000-0000-0000-0000-000000000000/5x5/thumbnail" + versionQueryParam,
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -343,7 +343,7 @@ class ThumbnailApiIT {
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/image/00000000-0000-0000-0000-000000000000/1/5x5/thumbnail", //?version=1",
+            "/preview/image/00000000-0000-0000-0000-000000000000/5x5/thumbnail/?version=1",
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
