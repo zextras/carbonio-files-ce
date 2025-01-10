@@ -196,7 +196,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
             .getPreviewOfImage(
                 tryCheckNode.get().getLeft().getOwnerId(),
                 nodeId,
-                Integer.parseInt(nodeVersion),
+                tryCheckNode.get().getRight().getVersion(),
                 previewArea,
                 queryParameters)
             .onSuccess(blob -> successResponse(context, httpRequest, fileDigest, blob))
@@ -240,7 +240,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
             .getThumbnailOfImage(
                 tryCheckNode.get().getLeft().getOwnerId(),
                 nodeId,
-                Integer.parseInt(nodeVersion),
+                tryCheckNode.get().getRight().getVersion(),
                 previewArea,
                 queryParameters)
             .onSuccess(blob -> successResponse(context, httpRequest, fileDigest, blob))
@@ -284,7 +284,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
             .getPreviewOfPdf(
                 tryCheckNode.get().getLeft().getOwnerId(),
                 nodeId,
-                Integer.parseInt(nodeVersion),
+                tryCheckNode.get().getRight().getVersion(),
                 queryParameters)
             .onSuccess(blob -> successResponse(context, httpRequest, fileDigest, blob))
             .onFailure(failure -> failureResponse(context, httpRequest, failure));
@@ -328,7 +328,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
             .getThumbnailOfPdf(
                 tryCheckNode.get().getLeft().getOwnerId(),
                 nodeId,
-                Integer.parseInt(nodeVersion),
+                tryCheckNode.get().getRight().getVersion(),
                 area,
                 queryParameters)
             .onSuccess(blob -> successResponse(context, httpRequest, fileDigest, blob))
@@ -373,7 +373,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
             .getPreviewOfDocument(
                 tryCheckNode.get().getLeft().getOwnerId(),
                 nodeId,
-                Integer.parseInt(nodeVersion),
+                tryCheckNode.get().getRight().getVersion(),
                 queryParameters)
             .onSuccess(blob -> successResponse(context, httpRequest, fileDigestWithLanguage, blob))
             .onFailure(failure -> failureResponse(context, httpRequest, failure));
@@ -418,7 +418,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
             .getThumbnailOfDocument(
                 tryCheckNode.get().getLeft().getOwnerId(),
                 nodeId,
-                Integer.parseInt(nodeVersion),
+                tryCheckNode.get().getRight().getVersion(),
                 area,
                 queryParameters)
             .onSuccess(blob -> successResponse(context, httpRequest, fileDigestWithLanguage, blob))
