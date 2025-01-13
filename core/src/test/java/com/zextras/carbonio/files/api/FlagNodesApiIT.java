@@ -158,4 +158,38 @@ class FlagNodesApiIT {
       .containsExactly(
         "There was a problem while executing requested operation on node: 00000000-0000-0000-0000-000000000002");
   }
+
+  @Test
+  void givenTwoNodesWithOneNotExistingNodeFlagNodesShouldReturn200WithAnErrorMessage() {
+    // Given
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new SimplePopulatorTextFile(
+                "00000000-0000-0000-0000-000000000003", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("flagNodes")
+            .withListOfStrings("node_ids", new String[]{"00000000-0000-0000-0000-000000000003", "00000000-0000-0000-0000-000000000004"})
+            .withBoolean("flag", true)
+            .withWantedResultFormat("")
+            .build();
+
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final List<String> errorResponse =
+      TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+
+    Assertions.assertThat(errorResponse)
+      .hasSize(1)
+      .containsExactly(
+        "There was a problem while executing requested operation on node: 00000000-0000-0000-0000-000000000004");
+  }
 }
