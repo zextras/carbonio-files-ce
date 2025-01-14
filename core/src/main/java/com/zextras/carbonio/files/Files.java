@@ -130,7 +130,7 @@ public final class Files {
 
     private Db() {}
 
-    public static final short DB_VERSION = 6;
+    public static final short DB_VERSION = 7;
 
     /**
      * Names of Files tables

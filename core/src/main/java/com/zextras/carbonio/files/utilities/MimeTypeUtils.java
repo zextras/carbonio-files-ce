@@ -1103,6 +1103,7 @@ public class MimeTypeUtils {
     mimeTypes.put("stw", "application/vnd.sun.xml.writer.template");
     mimeTypes.put("sis", "application/vnd.symbian.install");
     mimeTypes.put("mms", "application/vnd.wap.mms-message");
+    mimeTypes.put("msg", "application/vnd.ms-outlook");
     mimeTypes.put("anx", "application/x-annodex");
     mimeTypes.put("bcpio", "application/x-bcpio");
     mimeTypes.put("torrent", "application/x-bittorrent");
