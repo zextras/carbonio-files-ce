@@ -415,7 +415,7 @@ public class Simulator implements AutoCloseable {
   }
 
   public void clearFileVersionCache() {
-    injector.getInstance(CacheHandler.class).getFileVersionCache().flushAll();;
+    injector.getInstance(CacheHandler.class).getFileVersionCache().flushAll();
   }
 
   public void getBlob(String nodeId, int version) {
