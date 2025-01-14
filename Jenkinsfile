@@ -151,7 +151,7 @@ pipeline {
                 }
                 stage('yap') {
                     parallel {
-                        stage('Ubuntu') {
+                        stage('Ubuntu 20.04') {
                             agent {
                                 node {
                                     label 'yap-agent-ubuntu-20.04-v2'
@@ -161,12 +161,50 @@ pipeline {
                                 dir('/tmp/staging'){
                                     unstash 'binaries'
                                 }
-                                sh 'sudo yap build ubuntu /tmp/staging/'
-                                stash includes: 'artifacts/', name: 'artifacts-deb'
+                                sh 'sudo yap build ubuntu-focal /tmp/staging/'
+                                stash includes: 'artifacts/*focal*.deb', name: 'artifacts-ubuntu-focal'
                             }
                             post {
                                 always {
-                                    archiveArtifacts artifacts: 'artifacts/*.deb', fingerprint: true
+                                    archiveArtifacts artifacts: 'artifacts/*focal*.deb', fingerprint: true
+                                }
+                            }
+                        }
+                        stage('Ubuntu 22.04') {
+                            agent {
+                                node {
+                                    label 'yap-agent-ubuntu-22.04-v2'
+                                }
+                            }
+                            steps {
+                                dir('/tmp/staging'){
+                                    unstash 'binaries'
+                                }
+                                sh 'sudo yap build ubuntu-jammy /tmp/staging/'
+                                stash includes: 'artifacts/*jammy*.deb', name: 'artifacts-ubuntu-jammy'
+                            }
+                            post {
+                                always {
+                                    archiveArtifacts artifacts: 'artifacts/*jammy*.deb', fingerprint: true
+                                }
+                            }
+                        }
+                        stage('Ubuntu 24.04') {
+                            agent {
+                                node {
+                                    label 'yap-agent-ubuntu-24.04-v2'
+                                }
+                            }
+                            steps {
+                                dir('/tmp/staging'){
+                                    unstash 'binaries'
+                                }
+                                sh 'sudo yap build ubuntu-noble /tmp/staging/'
+                                stash includes: 'artifacts/*noble*.deb', name: 'artifacts-ubuntu-noble'
+                            }
+                            post {
+                                always {
+                                    archiveArtifacts artifacts: 'artifacts/*noble*.deb', fingerprint: true
                                 }
                             }
                         }
@@ -217,7 +255,9 @@ pipeline {
                 branch 'develop'
             }
             steps {
-                unstash 'artifacts-deb'
+                unstash 'artifacts-ubuntu-focal'
+                unstash 'artifacts-ubuntu-jammy'
+                unstash 'artifacts-ubuntu-noble'
                 unstash 'artifacts-rocky-8'
                 unstash 'artifacts-rocky-9'
 
@@ -231,9 +271,19 @@ pipeline {
                     uploadSpec = """{
                         "files": [
                             {
-                                "pattern": "artifacts/*.deb",
+                                "pattern": "artifacts/*focal*.deb",
                                 "target": "ubuntu-devel/pool/",
-                                "props": "deb.distribution=focal;deb.distribution=jammy;deb.distribution=noble;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
+                                "props": "deb.distribution=focal;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
+                            },
+                            {
+                                "pattern": "artifacts/*jammy*.deb",
+                                "target": "ubuntu-devel/pool/",
+                                "props": "deb.distribution=jammy;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
+                            },
+                            {
+                                "pattern": "artifacts/*noble*.deb",
+                                "target": "ubuntu-devel/pool/",
+                                "props": "deb.distribution=noble;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
                             },
                             {
                                 "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).el8.x86_64.rpm",
@@ -259,7 +309,9 @@ pipeline {
                 }
             }
             steps {
-                unstash 'artifacts-deb'
+                unstash 'artifacts-ubuntu-focal'
+                unstash 'artifacts-ubuntu-jammy'
+                unstash 'artifacts-ubuntu-noble'
                 script {
                     def server = Artifactory.server 'zextras-artifactory'
                     def buildInfo
@@ -269,9 +321,19 @@ pipeline {
                     uploadSpec = """{
                         "files": [
                             {
-                                "pattern": "artifacts/carbonio-files*.deb",
+                                "pattern": "artifacts/*focal*.deb",
                                 "target": "ubuntu-playground/pool/",
-                                "props": "deb.distribution=focal;deb.distribution=jammy;deb.distribution=noble;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
+                                "props": "deb.distribution=focal;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
+                            },
+                            {
+                                "pattern": "artifacts/*jammy*.deb",
+                                "target": "ubuntu-playground/pool/",
+                                "props": "deb.distribution=jammy;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
+                            },
+                            {
+                                "pattern": "artifacts/*noble*.deb",
+                                "target": "ubuntu-playground/pool/",
+                                "props": "deb.distribution=noble;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
                             }
                         ]
                     }"""
@@ -286,7 +348,9 @@ pipeline {
                 }
             }
             steps {
-                unstash 'artifacts-deb'
+                unstash 'artifacts-ubuntu-focal'
+                unstash 'artifacts-ubuntu-jammy'
+                unstash 'artifacts-ubuntu-noble'
                 unstash 'artifacts-rocky-8'
                 unstash 'artifacts-rocky-9'
 
@@ -299,10 +363,20 @@ pipeline {
                     uploadSpec = """{
                         "files": [
                             {
-                                "pattern": "artifacts/carbonio-files*.deb",
+                                "pattern": "artifacts/*focal*.deb",
                                 "target": "ubuntu-''' + params.SUFFIX_CUSTOM_REPOS + '''/pool/",
-                                "props": "deb.distribution=bionic;deb.distribution=focal;deb.distribution=noble;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
+                                "props": "deb.distribution=focal;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
                             },
+                            {
+                                "pattern": "artifacts/*jammy*.deb",
+                                "target": "ubuntu-''' + params.SUFFIX_CUSTOM_REPOS + '''/pool/",
+                                "props": "deb.distribution=jammy;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
+                            },
+                            {
+                                "pattern": "artifacts/*noble*.deb",
+                                "target": "ubuntu-''' + params.SUFFIX_CUSTOM_REPOS + '''/pool/",
+                                "props": "deb.distribution=noble;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
+                            }
                             {
                                 "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).el8.x86_64.rpm",
                                 "target": "centos8-''' + params.SUFFIX_CUSTOM_REPOS + '''/zextras/{1}/{1}-{2}.el8.x86_64.rpm",
@@ -327,7 +401,9 @@ pipeline {
                 }
             }
             steps {
-                unstash 'artifacts-deb'
+                unstash 'artifacts-ubuntu-focal'
+                unstash 'artifacts-ubuntu-jammy'
+                unstash 'artifacts-ubuntu-noble'
                 unstash 'artifacts-rocky-8'
                 unstash 'artifacts-rocky-9'
 
@@ -343,9 +419,19 @@ pipeline {
                     uploadSpec= """{
                         "files": [
                             {
-                                "pattern": "artifacts/carbonio-files*.deb",
+                                "pattern": "artifacts/*focal*.deb",
                                 "target": "ubuntu-rc/pool/",
-                                "props": "deb.distribution=focal;deb.distribution=jammy;deb.distribution=noble;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
+                                "props": "deb.distribution=focal;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
+                            },
+                            {
+                                "pattern": "artifacts/*jammy*.deb",
+                                "target": "ubuntu-rc/pool/",
+                                "props": "deb.distribution=jammy;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
+                            },
+                            {
+                                "pattern": "artifacts/*noble*.deb",
+                                "target": "ubuntu-rc/pool/",
+                                "props": "deb.distribution=noble;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
                             }
                         ]
                     }"""
