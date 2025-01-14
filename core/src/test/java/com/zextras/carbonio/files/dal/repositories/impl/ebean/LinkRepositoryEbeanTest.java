@@ -47,7 +47,8 @@ class LinkRepositoryEbeanTest {
             "11111111-1111-1111-1111-111111111111",
             "1234abcd",
             Optional.of(expirationTimestamp),
-            Optional.of("fake description"));
+            Optional.of("fake description"),
+            Optional.of("fake-access-code"));
 
     // Then
     ArgumentCaptor<Link> savedLinkCaptor = ArgumentCaptor.forClass(Link.class);
@@ -61,6 +62,7 @@ class LinkRepositoryEbeanTest {
     Assertions.assertThat(createdLink.getPublicId()).isEqualTo("1234abcd");
     Assertions.assertThat(createdLink.getExpiresAt()).isPresent().contains(expirationTimestamp);
     Assertions.assertThat(createdLink.getDescription()).isPresent().contains("fake description");
+    Assertions.assertThat(createdLink.getAccessCode()).isPresent().contains("fake-access-code");
   }
 
   @Test
@@ -71,6 +73,7 @@ class LinkRepositoryEbeanTest {
             "00000000-0000-0000-0000-000000000000",
             "11111111-1111-1111-1111-111111111111",
             "1234abcd",
+            Optional.empty(),
             Optional.empty(),
             Optional.empty());
 
@@ -86,6 +89,7 @@ class LinkRepositoryEbeanTest {
     Assertions.assertThat(createdLink.getPublicId()).isEqualTo("1234abcd");
     Assertions.assertThat(createdLink.getExpiresAt()).isEmpty();
     Assertions.assertThat(createdLink.getDescription()).isEmpty();
+    Assertions.assertThat(createdLink.getAccessCode()).isEmpty();
   }
 
   @Test
