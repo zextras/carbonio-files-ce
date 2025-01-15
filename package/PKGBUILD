@@ -113,6 +113,20 @@ build__ubuntu_jammy() {
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 }
 
+build__ubuntu_noble() {
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+      "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+
+  pip3 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+
+  sed -i "s/PYTHON_VER/3.12/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common\/local/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+}
+
 build__rocky_8() {
   install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
       "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
