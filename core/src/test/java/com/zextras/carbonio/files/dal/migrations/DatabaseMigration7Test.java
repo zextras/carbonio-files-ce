@@ -30,7 +30,7 @@ import java.util.stream.IntStream;
 /**
  * Test the database migration #7 using a real PostgreSQL instance initialized up to version 6 of the scripts
  */
-public class DatabaseMigration7 {
+class DatabaseMigration7Test {
   static PostgreSQLContainer<?> postgreSQLContainer;
 
   @BeforeAll
@@ -85,7 +85,7 @@ public class DatabaseMigration7 {
     try (Statement statement = getDatabaseConnection().createStatement()) {
       try (ResultSet dbInfo = statement.executeQuery("SELECT * FROM DB_INFO;")) {
         dbInfo.next();
-        Assertions.assertThat(dbInfo.getInt("version")).isNotNull().isEqualTo(databaseVersion);
+        Assertions.assertThat(dbInfo.getInt("version")).isEqualTo(databaseVersion);
       }
     }
   }
