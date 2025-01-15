@@ -68,7 +68,7 @@ public class Simulator implements AutoCloseable {
 
   private Simulator startDatabase() {
     if (postgreSQLContainer == null) {
-      postgreSQLContainer = new PostgreSQLContainer<>("postgres:12.14");
+      postgreSQLContainer = new PostgreSQLContainer<>("postgres:16.6");
     }
 
     postgreSQLContainer.start();
