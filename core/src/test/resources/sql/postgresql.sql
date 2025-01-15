@@ -138,19 +138,24 @@ UPDATE db_info SET version = 6;
 
 -- postgresql_7
 
+-- This script is used by the EbeanWithInMemoryDatabase class that uses an HSQLDb instance. Unfortunately, HSQLDb does
+-- not support the "split_part" function causing the database initialization to fail.
+-- Since the EbeanWithInMemoryDatabase is used only by one UT and the test does not involve this migration, we decided
+-- to keep the sql statements commented.
+
 -- Replace all node_types from OTHER to MESSAGE for all nodes with extensions related to messages
-UPDATE node
-SET node_type = 'MESSAGE'
-WHERE node_type = 'OTHER'
-  AND split_part(name, '.', -1) IN ('u8msg', 'u8dsn', 'u8mdn', 'u8hdr', 'eml', 'mail', 'art', 'msg');
+-- UPDATE node
+-- SET node_type = 'MESSAGE'
+-- WHERE node_type = 'OTHER'
+--   AND split_part(name, '.', -1) IN ('u8msg', 'u8dsn', 'u8mdn', 'u8hdr', 'eml', 'mail', 'art', 'msg');
 
 -- Replace mimetypes on revision table from application/octet-stream to application/vnd.ms-outlook for
 -- files with .msg extension
-UPDATE revision
-SET mime_type = 'application/vnd.ms-outlook'
-    FROM node
-WHERE revision.node_id = node.node_id
-  AND revision.mime_type = 'application/octet-stream'
-  AND split_part(node.name, '.', -1) = 'msg';
+-- UPDATE revision
+-- SET mime_type = 'application/vnd.ms-outlook'
+--     FROM node
+-- WHERE revision.node_id = node.node_id
+--   AND revision.mime_type = 'application/octet-stream'
+--   AND split_part(node.name, '.', -1) = 'msg';
 
 UPDATE db_info SET version = 7;
