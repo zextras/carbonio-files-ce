@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Zextras <https://www.zextras.com>
+// SPDX-FileCopyrightText: 2025 Zextras <https://www.zextras.com>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -29,7 +29,7 @@ import org.mockserver.model.Parameter;
 
 import java.util.Map;
 
-class PreviewApiIT {
+class ThumbnailApiIT {
 
   static Simulator simulator;
   static NodeRepository nodeRepository;
@@ -42,7 +42,7 @@ class PreviewApiIT {
             .withDatabase()
             .withServiceDiscover()
             .withPreview()
-            .withUserManagement( // create a fake token to use in cookie for auth
+            .withUserManagement(
                 Map.of(
                     "fake-token",
                     "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
@@ -64,14 +64,15 @@ class PreviewApiIT {
     simulator.stopAll();
   }
 
-  static String mockSuccessPreviewResponse(String previewPathEndpoint, MediaType previewTypeResponse) {
+  static String mockSuccessThumbnailResponse(String thumbnailPathEndpoint) {
+
     org.mockserver.model.HttpRequest request = org.mockserver.model.HttpRequest.request()
         .withMethod(HttpMethod.GET.toString())
-        .withPath(previewPathEndpoint)
+        .withPath(thumbnailPathEndpoint)
         .withQueryStringParameter(new Parameter("service_type", "files"))
         .withHeader("FileOwnerId", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
-    if (previewPathEndpoint.contains("document")) {
+    if (thumbnailPathEndpoint.contains("document")) {
       request.withQueryStringParameter(new Parameter("locale", "en"));
     }
 
@@ -79,16 +80,16 @@ class PreviewApiIT {
         .when(request)
         .respond(org.mockserver.model.HttpResponse.response()
             .withStatusCode(200)
-            .withBody(new BinaryBody("0".getBytes())).withContentType(previewTypeResponse))[0].getId();
+            .withBody(new BinaryBody("0".getBytes())).withContentType(MediaType.JPEG))[0].getId();
   }
 
-  static void verifyAndClearExpectationInPreviewMockService(String expectationId) {
+  static void verifyAndClearExpectationInThumbnailMockService(String expectationId) {
     MockServerClient previewServiceMock = simulator.getPreviewServiceMock();
     previewServiceMock.verify(expectationId).clear(expectationId);
   }
 
   @Test
-  void givenAnExistingDocumentTheGetPreviewApiShouldGetAndReturnThePreviewWithLocale() {
+  void givenAnExistingDocumentTheGetThumbnailApiShouldGetAndReturnTheThumbnailWithLocale() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -105,33 +106,31 @@ class PreviewApiIT {
                 "application/vnd.ms-excel")
         );
 
-    String callPreviewExpectationId = mockSuccessPreviewResponse(
-        "/preview/document/00000000-0000-0000-0000-000000000000/1/",
-        MediaType.PDF
+    String callThumbnailExpectationId = mockSuccessThumbnailResponse(
+        "/preview/document/00000000-0000-0000-0000-000000000000/1/5x5/thumbnail/"
     );
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/document/00000000-0000-0000-0000-000000000000",
+            "/preview/document/00000000-0000-0000-0000-000000000000/5x5/thumbnail",
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
     Assertions.assertThat(httpResponse.getHeaders())
         .extracting(header -> header.getKey().equals("content-type") ? header.getValue() : null)
-        .contains("application/pdf");
+        .contains("image/jpeg");
 
-    verifyAndClearExpectationInPreviewMockService(callPreviewExpectationId);
+    verifyAndClearExpectationInThumbnailMockService(callThumbnailExpectationId);
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"", "?version=2"})
-  void givenTwoVersionsOfAnExistingDocumentTheGetPreviewApiShouldReturnThePdfOfTheLatestVersion(
+  void givenTwoVersionsOfAnExistingDocumentTheGetThumbnailApiShouldReturnTheJpegOfTheLatestVersion(
       String versionQueryParam
   ) {
     // Given
@@ -150,14 +149,13 @@ class PreviewApiIT {
                 "application/vnd.oasis.opendocument.presentation")
         ).addVersion("00000000-0000-0000-0000-000000000000");
 
-    String callPreviewExpectationId = mockSuccessPreviewResponse(
-        "/preview/document/00000000-0000-0000-0000-000000000000/2/",
-        MediaType.PDF
+    String callThumbnailExpectationId = mockSuccessThumbnailResponse(
+        "/preview/document/00000000-0000-0000-0000-000000000000/2/5x5/thumbnail/"
     );
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/document/00000000-0000-0000-0000-000000000000" + versionQueryParam,
+            "/preview/document/00000000-0000-0000-0000-000000000000/5x5/thumbnail" + versionQueryParam,
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -166,11 +164,11 @@ class PreviewApiIT {
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    verifyAndClearExpectationInPreviewMockService(callPreviewExpectationId);
+    verifyAndClearExpectationInThumbnailMockService(callThumbnailExpectationId);
   }
 
   @Test
-  void givenTwoVersionsOfAnExistingDocumentTheGetPreviewApiShouldReturnThePdfOfTheFirstVersion() {
+  void givenTwoVersionsOfAnExistingDocumentTheGetThumbnailApiShouldReturnTheJpegOfTheFirstVersion() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -187,14 +185,13 @@ class PreviewApiIT {
                 "application/vnd.oasis.opendocument.presentation")
         ).addVersion("00000000-0000-0000-0000-000000000000");
 
-    String callPreviewExpectationId = mockSuccessPreviewResponse(
-        "/preview/document/00000000-0000-0000-0000-000000000000/1/",
-        MediaType.PDF
+    String callThumbnailExpectationId = mockSuccessThumbnailResponse(
+        "/preview/document/00000000-0000-0000-0000-000000000000/1/5x5/thumbnail/"
     );
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/document/00000000-0000-0000-0000-000000000000?version=1",
+            "/preview/document/00000000-0000-0000-0000-000000000000/5x5/thumbnail?version=1",
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -203,12 +200,12 @@ class PreviewApiIT {
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    verifyAndClearExpectationInPreviewMockService(callPreviewExpectationId);
+    verifyAndClearExpectationInThumbnailMockService(callThumbnailExpectationId);
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"", "?version=3"})
-  void givenThreeVersionsOfAnExistingPdfTheGetPreviewApiShouldReturnThePdfOfTheLatestVersion(
+  void givenThreeVersionsOfAnExistingPdfTheGetPreviewApiShouldReturnTheJpegOfTheLatestVersion(
       String versionQueryParam
   ) {
     // Given
@@ -228,14 +225,13 @@ class PreviewApiIT {
         ).addVersion("00000000-0000-0000-0000-000000000000")
         .addVersion("00000000-0000-0000-0000-000000000000");
 
-    String callPreviewExpectationId = mockSuccessPreviewResponse(
-        "/preview/pdf/00000000-0000-0000-0000-000000000000/3/",
-        MediaType.PDF
+    String callThumbnailExpectationId = mockSuccessThumbnailResponse(
+        "/preview/pdf/00000000-0000-0000-0000-000000000000/3/5x5/thumbnail/"
     );
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/pdf/00000000-0000-0000-0000-000000000000/" + versionQueryParam,
+            "/preview/pdf/00000000-0000-0000-0000-000000000000/5x5/thumbnail/" + versionQueryParam,
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -244,11 +240,11 @@ class PreviewApiIT {
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    verifyAndClearExpectationInPreviewMockService(callPreviewExpectationId);
+    verifyAndClearExpectationInThumbnailMockService(callThumbnailExpectationId);
   }
 
   @Test
-  void givenThreeVersionsOfAnExistingPdfTheGetPreviewApiShouldReturnThePdfOfTheSecondVersion() {
+  void givenThreeVersionsOfAnExistingPdfTheGetThumbnailApiShouldReturnTheJpegOfTheSecondVersion() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -266,14 +262,13 @@ class PreviewApiIT {
         ).addVersion("00000000-0000-0000-0000-000000000000")
         .addVersion("00000000-0000-0000-0000-000000000000");
 
-    String callPreviewExpectationId = mockSuccessPreviewResponse(
-        "/preview/pdf/00000000-0000-0000-0000-000000000000/2/",
-        MediaType.PDF
+    String callThumbnailExpectationId = mockSuccessThumbnailResponse(
+        "/preview/pdf/00000000-0000-0000-0000-000000000000/2/5x5/thumbnail/"
     );
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/pdf/00000000-0000-0000-0000-000000000000?version=2",
+            "/preview/pdf/00000000-0000-0000-0000-000000000000/5x5/thumbnail?version=2",
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -282,12 +277,12 @@ class PreviewApiIT {
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    verifyAndClearExpectationInPreviewMockService(callPreviewExpectationId);
+    verifyAndClearExpectationInThumbnailMockService(callThumbnailExpectationId);
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"", "?version=2"})
-  void givenTwoVersionsOfAnExistingPngImageTheGetPreviewApiShouldReturnThePngOfTheLatestVersion(
+  void givenTwoVersionsOfAnExistingPngImageTheGetThumbnailApiShouldReturnTheJpegOfTheLatestVersion(
       String versionQueryParam
   ) {
     // Given
@@ -306,14 +301,13 @@ class PreviewApiIT {
                 "image/png")
         ).addVersion("00000000-0000-0000-0000-000000000000");
 
-    String callPreviewExpectationId = mockSuccessPreviewResponse(
-        "/preview/image/00000000-0000-0000-0000-000000000000/2/0x0/",
-        MediaType.PNG
+    String callThumbnailExpectationId = mockSuccessThumbnailResponse(
+        "/preview/image/00000000-0000-0000-0000-000000000000/2/5x5/thumbnail/"
     );
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/image/00000000-0000-0000-0000-000000000000/0x0" + versionQueryParam,
+            "/preview/image/00000000-0000-0000-0000-000000000000/5x5/thumbnail" + versionQueryParam,
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
@@ -322,11 +316,11 @@ class PreviewApiIT {
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    verifyAndClearExpectationInPreviewMockService(callPreviewExpectationId);
+    verifyAndClearExpectationInThumbnailMockService(callThumbnailExpectationId);
   }
 
   @Test
-  void givenTwoVersionsOfAnExistingJpegImageTheGetPreviewApiShouldReturnTheJpegOfTheSecondVersion() {
+  void givenTwoVersionsOfAnExistingJpegImageTheGetThumbnailApiShouldReturnTheJpegOfTheFirstVersion() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -343,22 +337,22 @@ class PreviewApiIT {
                 "image/jpeg")
         ).addVersion("00000000-0000-0000-0000-000000000000");
 
-    String callPreviewExpectationId = mockSuccessPreviewResponse(
-        "/preview/image/00000000-0000-0000-0000-000000000000/2/0x0/",
-        MediaType.JPEG
+    String callThumbnailExpectationId = mockSuccessThumbnailResponse(
+        "/preview/image/00000000-0000-0000-0000-000000000000/1/5x5/thumbnail/"
     );
 
     final HttpRequest httpRequest =
         HttpRequest.of("GET",
-            "/preview/image/00000000-0000-0000-0000-000000000000/0x0?version=2",
+            "/preview/image/00000000-0000-0000-0000-000000000000/5x5/thumbnail/?version=1",
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
     // When
-    final HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    verifyAndClearExpectationInPreviewMockService(callPreviewExpectationId);
+    verifyAndClearExpectationInThumbnailMockService(callThumbnailExpectationId);
   }
 }

@@ -12,6 +12,7 @@ import com.zextras.carbonio.files.Files.Config.Preview;
 import com.zextras.carbonio.files.Files.Config.Storages;
 import com.zextras.carbonio.files.Files.Config.UserManagement;
 import com.zextras.carbonio.files.Files.ServiceDiscover.Config.Db;
+import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
@@ -411,6 +412,10 @@ public class Simulator implements AutoCloseable {
 
   public void resetDatabase() {
     ebeanDatabaseManager.getEbeanDatabase().find(Node.class).delete();
+  }
+
+  public void clearFileVersionCache() {
+    injector.getInstance(CacheHandler.class).getFileVersionCache().flushAll();
   }
 
   public void getBlob(String nodeId, int version) {

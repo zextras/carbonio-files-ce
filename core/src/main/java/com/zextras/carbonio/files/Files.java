@@ -798,22 +798,22 @@ public final class Files {
       public static final Pattern PREVIEW            = Pattern.compile(SERVICE + "preview/(.*)");
       public static final Pattern PREVIEW_IMAGE      = Pattern.compile(
         SERVICE
-          + "preview/image/([a-f\\d\\-]*)/([\\d]+)/([\\d]*x[\\d]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
+          + "preview/image/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
       public static final Pattern THUMBNAIL_IMAGE    = Pattern.compile(
-        SERVICE + "preview/image/([a-f\\d\\-]*)/([\\d]+)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
+        SERVICE + "preview/image/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
       );
       public static final Pattern PREVIEW_PDF        = Pattern.compile(
-        SERVICE + "preview/pdf/([a-f\\d\\-]*)/([\\d]+)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
+        SERVICE + "preview/pdf/([a-f\\d\\-]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
       public static final Pattern THUMBNAIL_PDF      = Pattern.compile(
-        SERVICE + "preview/pdf/([a-f\\d\\-]*)/([\\d]+)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
+        SERVICE + "preview/pdf/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
       );
       public static final Pattern PREVIEW_DOCUMENT   = Pattern.compile(
-        SERVICE + "preview/document/([a-f\\d\\-]*)/([\\d]+)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
+        SERVICE + "preview/document/([a-f\\d\\-]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
       public static final Pattern THUMBNAIL_DOCUMENT = Pattern.compile(
-        SERVICE + "preview/document/([a-f\\d\\-]*)/([\\d]+)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
+        SERVICE + "preview/document/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
       );
       public static final Pattern PUBLIC_GRAPHQL             = Pattern.compile(SERVICE + "public/graphql/?$");
     }

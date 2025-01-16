@@ -268,18 +268,18 @@ class HttpRoutingHandlerTest {
   // However I listed all the acceptable url even if the pattern accepts everything
   @ValueSource(
       strings = {
-        "/preview/image/8caeef71-6f72-439c-847a-38e90efd0965/1/10x10",
-        "/preview/image/8caeef71-6f72-439c-847a-38e90efd0965/1/10x10/",
-        "/preview/image/8caeef71-6f72-439c-847a-38e90efd0965/1/10x10/thumbnail",
-        "/preview/image/8caeef71-6f72-439c-847a-38e90efd0965/1/10x10/thumbnail/",
-        "/preview/pdf/8caeef71-6f72-439c-847a-38e90efd0965/1",
-        "/preview/pdf/8caeef71-6f72-439c-847a-38e90efd0965/1/",
-        "/preview/pdf/8caeef71-6f72-439c-847a-38e90efd0965/1/10x10/thumbnail",
-        "/preview/pdf/8caeef71-6f72-439c-847a-38e90efd0965/1/10x10/thumbnail/",
-        "/preview/document/8caeef71-6f72-439c-847a-38e90efd0965/1",
-        "/preview/document/8caeef71-6f72-439c-847a-38e90efd0965/1/",
-        "/preview/document/8caeef71-6f72-439c-847a-38e90efd0965/1/10x10/thumbnail",
-        "/preview/document/8caeef71-6f72-439c-847a-38e90efd0965/1/10x10/thumbnail/"
+        "/preview/image/8caeef71-6f72-439c-847a-38e90efd0965/10x10",
+        "/preview/image/8caeef71-6f72-439c-847a-38e90efd0965/10x10/",
+        "/preview/image/8caeef71-6f72-439c-847a-38e90efd0965/10x10/thumbnail",
+        "/preview/image/8caeef71-6f72-439c-847a-38e90efd0965/10x10/thumbnail/",
+        "/preview/pdf/8caeef71-6f72-439c-847a-38e90efd0965",
+        "/preview/pdf/8caeef71-6f72-439c-847a-38e90efd0965/",
+        "/preview/pdf/8caeef71-6f72-439c-847a-38e90efd0965/10x10/thumbnail",
+        "/preview/pdf/8caeef71-6f72-439c-847a-38e90efd0965/10x10/thumbnail/",
+        "/preview/document/8caeef71-6f72-439c-847a-38e90efd0965",
+        "/preview/document/8caeef71-6f72-439c-847a-38e90efd0965/",
+        "/preview/document/8caeef71-6f72-439c-847a-38e90efd0965/10x10/thumbnail",
+        "/preview/document/8caeef71-6f72-439c-847a-38e90efd0965/10x10/thumbnail/"
       })
   void givenAPreviewRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(
       String uri) {
