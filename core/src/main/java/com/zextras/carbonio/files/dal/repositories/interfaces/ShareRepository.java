@@ -11,25 +11,27 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * This is the only class allowed to execute CRUD operations on a {@link Share} element.
- *
- * <p>In particular it can create a new {@link Share}, access to and delete an existing one.
+ * This is the only class allowed to execute CRUD operations on a {@link Share} element. In
+ * particular, it can create a new {@link Share}, access to and delete an existing one.
  */
 public interface ShareRepository {
 
   /**
-   * Retrieves a {@link Share} from the database or from the cache if it was recently requested.
+   * Given a node identifier and a user identifier, it allows to retrieves a {@link Share} from the
+   * database if it exists.
    *
-   * @param nodeId is a {@link String} of the id of shared node.
-   * @param userId is a {@link String} of the target user id which the node is shared to.
+   * @param nodeId is a {@link String} representing the unique identifier of the shared node.
+   * @param userId is a {@link String} representing the target user identifier which the node is
+   *               shared to.
    *
-   * @return an {@link Optional) containing the {@link Share} requested if exists.
+   * @return an {@link Optional) containing the requested {@link Share} if exists, otherwise it
+   * returns an {@link Optional#empty()}.
    */
   Optional<Share> getShare(String nodeId, String userId);
 
   /**
-   * Creates a new {@link Share} saving it in the database, then returns an {@link Optional} of the
-   * {@link Share} just created.
+   * Creates a new {@link Share} or updates an existing one, saves it in the database, then returns an {@link Optional} of the
+   * {@link Share} just created or updated.
    *
    * <p>This method returns an optional because creation can fail when it tries to create a share
    * that already exists for a user on a particular node.

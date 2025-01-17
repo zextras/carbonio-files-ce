@@ -14,19 +14,21 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 
 /**
- * <p>Represents an Ebean {@link Link} entity that matches a record of the {@link Files.Db.Link}
- * table.</p>
- * <p>The public link has properties mapped to the corresponding table columns:</p>
+ * Represents an Ebean {@link Link} entity that matches a record of the {@link Files.Db.Link} table.
+ *
+ * <p>The public link has properties mapped to the corresponding table columns:
+ *
  * <ul>
- *   <li>{@code id}: The unique identifier of the link.</li>
- *   <li>{@code nodeId}: The identifier of the associated node.</li>
- *   <li>{@code publicId}: The public identifier of the URL link.</li>
- *   <li>{@code createdAt}: The timestamp indicating when the link was created.</li>
- *   <li>{@code expiresAt}: The timestamp indicating when the link should expire.</li>
- *   <li>{@code description}: A small description of the link (maximum 300 characters).</li>
+ *   <li>{@code id}: The unique identifier of the link.
+ *   <li>{@code nodeId}: The identifier of the associated node.
+ *   <li>{@code publicId}: The public identifier of the URL link.
+ *   <li>{@code createdAt}: The timestamp indicating when the link was created.
+ *   <li>{@code expiresAt}: The timestamp indicating when the link should expire.
+ *   <li>{@code description}: A small description of the link (maximum 300 characters).
  * </ul>
+ *
  * <p>The constructor and setters should not care to check if the values in input are valid or not
- * because, when these methods are called, these controls <strong>must</strong> be already done.</p>
+ * because, when these methods are called, these controls <strong>must</strong> be already done.
  */
 @Entity
 @Table(name = Files.Db.Tables.LINK)
@@ -57,22 +59,22 @@ public class Link {
   /**
    * Creates a new {@link Link} entity that can be saved in the database.
    *
-   * @param linkId      is a {@link String} representing the unique identifier of the link.
-   * @param nodeId      is a {@link String} representing the {@link Node} identifier associated to
-   *                    the public link.
-   * @param publicId    is a {@link String} representing the public identifier of the URL link.
-   * @param createdAt   is a {@link Long} of the link creation timestamp.
-   * @param expiresAt   is a {@link Long} of the link expiration timestamp. It can be nullable.
-   * @param description is a {@link String} of the link description. It can be nullable.
+   * @param linkId is a {@link String} representing the unique identifier of the link.
+   * @param nodeId is a {@link String} representing the {@link Node} identifier associated to the
+   *     public link.
+   * @param publicId is a {@link String} representing the public identifier of the URL link.
+   * @param createdAt is a {@link Long} of the link creation timestamp.
+   * @param expiresAt is a {@link Long} of the link expiration timestamp. It can be nullable.
+   * @param description is a {@link String} of the link description (maximum 300 characters). It can
+   *     be nullable.
    */
   public Link(
-    String linkId,
-    String nodeId,
-    String publicId,
-    Long createdAt,
-    @Nullable Long expiresAt,
-    @Nullable String description
-  ) {
+      String linkId,
+      String nodeId,
+      String publicId,
+      Long createdAt,
+      @Nullable Long expiresAt,
+      @Nullable String description) {
     id = linkId;
     this.nodeId = nodeId;
     this.publicId = publicId;
@@ -96,8 +98,7 @@ public class Link {
   }
 
   /**
-   * @return a {@link String} of <code>8</code> alphanumeric characters representing the public
-   * identifier used to build the complete URL.
+   * @return a {@link String} representing the public identifier used to build the complete URL.
    */
   public String getPublicId() {
     return publicId;
@@ -112,7 +113,7 @@ public class Link {
 
   /**
    * @return an {@link Optional} containing a {@link Long} representing the expiration timestamp of
-   * the link, if exists.
+   *     the link, if exists.
    */
   public Optional<Long> getExpiresAt() {
     return Optional.ofNullable(expiresAt);
@@ -137,7 +138,7 @@ public class Link {
 
   /**
    * @return an {@link Optional} containing a {@link String} representing the link description, if
-   * exists.
+   *     exists.
    */
   public Optional<String> getDescription() {
     return Optional.ofNullable(description);
@@ -146,7 +147,7 @@ public class Link {
   /**
    * Allows to add/change the description of the existing public link.
    *
-   * @param description is a {@link String} of the link description.
+   * @param description is a {@link String} of the link description (maximum 300 characters).
    * @return the current {@link Link}.
    */
   public Link setDescription(String description) {

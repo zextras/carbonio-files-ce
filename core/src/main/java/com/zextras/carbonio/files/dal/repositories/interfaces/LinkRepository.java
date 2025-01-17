@@ -21,6 +21,9 @@ public interface LinkRepository {
    * Creates a new {@link Link} and, after saving it in the database, it returns the {@link Link}
    * just created.
    *
+   * <p>This method considers the parameters in input already valid so it does not do any kind of
+   * control on them.
+   *
    * @param linkId is a {@link String} representing the internal unique identifier (UUID) of the
    *     link to create
    * @param nodeId is a {@link String} representing the unique identifier of the node which the link
@@ -45,7 +48,7 @@ public interface LinkRepository {
    * Given an internal link identifier, it allows to retrieve a {@link Link} from the database if it
    * exists.
    *
-   * @param linkId is a {@link String} representing the unique identifier (UUDI) of the link to
+   * @param linkId is a {@link String} representing the unique identifier (UUID) of the link to
    *     retrieve
    * @return an {@link Optional} containing the requested {@link Link} if it exists, otherwise it
    *     returns an {@link Optional#empty()}.
