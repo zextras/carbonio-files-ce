@@ -28,7 +28,7 @@ import javax.persistence.Table;
  *   <li>{@code createdAt}: The timestamp indicating when the share was created.
  *   <li>{@code expiresAt}: The timestamp indicating when the share should expire.
  *   <li>{@code direct}: A boolean indicating if the share is created directly or it is indirect.
- *   <li>{@code direct}: A boolean indicating if the share is created via a {@link
+ *   <li>{@code createdViaLink}: A boolean indicating if the share is created via a {@link
  *       CollaborationLink} or not.
  * </ul>
  *
@@ -173,7 +173,7 @@ public class Share {
   }
 
   /**
-   * @return a {@link Boolean} to indicate if the share is created via a * {@link CollaborationLink}
+   * @return a {@link Boolean} to indicate if the share is created via a {@link CollaborationLink}
    *     or not.
    */
   public Boolean isCreatedViaLink() {

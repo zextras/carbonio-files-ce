@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Zextras <https://www.zextras.com>
+// SPDX-FileCopyrightText: 2025 Zextras <https://www.zextras.com>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -351,7 +351,6 @@ class ShareRepositoryEbeanTest {
     Mockito.verify(transactionMock, Mockito.times(1)).setBatchMode(true);
     Mockito.verify(transactionMock, Mockito.times(1)).setBatchSize(50);
     Mockito.verify(transactionMock, Mockito.times(1)).commit();
-    // SKIPMockito.verifyNoMoreInteractions(ebeanDatabaseMock);
   }
 
   @Test
