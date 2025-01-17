@@ -50,8 +50,13 @@ public class GraphqlCommandBuilder {
   }
 
   public GraphqlCommandBuilder withWantedResultFormat(String wantedResultFormat) {
-    query.setLength(query.length() - 2);
-    query.append(") ").append(wantedResultFormat).append(" }");
+    if (wantedResultFormat.isEmpty()){
+      query.setLength(query.length() - 1);
+      query.append(" }");
+    } else {
+      query.setLength(query.length() - 2);
+      query.append(") ").append(wantedResultFormat).append(" }");
+    }
     return this;
   }
 

@@ -409,6 +409,7 @@ public final class Files {
       public static final String CREATE_COLLABORATION_LINK  = "createCollaborationLink";
       public static final String DELETE_COLLABORATION_LINKS = "deleteCollaborationLinks";
       public static final String COPY_NODES                 = "copyNodes";
+      public static final String DELETE_ALL_NODES_AND_BLOBS = "deleteAllNodesAndBlobs";
     }
 
     /**

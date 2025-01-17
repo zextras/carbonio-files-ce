@@ -703,6 +703,9 @@ type Mutation {
         # An array of collaboration link identifiers (mandatory).
         collaboration_link_ids: [ID!]!
     ): [ID]!
+
+    # Deletes all nodes for the requester user, including blobs on Storages.
+    deleteAllNodesAndBlobs: Boolean!
 }
 
 schema {

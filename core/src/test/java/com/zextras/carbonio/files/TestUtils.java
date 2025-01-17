@@ -77,14 +77,14 @@ public class TestUtils {
     }
   }
 
-  public static Optional<String> jsonResponseToString(String json, String operation) {
+  public static Optional<Object> jsonResponseToValue(String json, String operation) {
     try {
       final Map<String, Object> result = new ObjectMapper().readValue(json, Map.class);
 
       if (result.get("data") != null) {
         final Map<String, Object> data = (Map<String, Object>) result.get("data");
 
-        return Optional.ofNullable((String) data.get(operation));
+        return Optional.ofNullable(data.get(operation));
       }
       return Optional.empty();
 

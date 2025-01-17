@@ -332,4 +332,13 @@ public class InputFieldsController {
         .checkLinkIds(DeleteCollaborationLinks.COLLABORATION_LINK_IDS)
         .evaluate();
   }
+
+  /**
+   * @return a {@link BiFunction} rule bound with the
+   * {@link Files.GraphQL.Mutations#DELETE_ALL_NODES_AND_BLOBS} that always validates the mutation
+   * since it has no inputs.
+   */
+  public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> deleteAllNodesAndBlobsValidation() {
+    return (fieldAndArguments, environment) -> Optional.empty();
+  }
 }

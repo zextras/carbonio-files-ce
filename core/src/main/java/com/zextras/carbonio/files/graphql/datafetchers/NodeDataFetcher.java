@@ -38,7 +38,10 @@ import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.graphql.types.Permissions;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.filestore.api.Filestore;
+import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.FilesIdentifier;
+import com.zextras.filestore.model.IdentifierType;
 import graphql.GraphQLError;
 import graphql.execution.AbortExecutionException;
 import graphql.execution.DataFetcherResult;
@@ -107,6 +110,7 @@ public class NodeDataFetcher {
   private final TombstoneRepository   tombstoneRepository;
   private final ShareDataFetcher      shareDataFetcher;
   private final FilesConfig           filesConfig;
+  private final Filestore             fileStore;
   private final int                   maxNumberOfVersions;
   private final int                   maxNumberOfKeepVersions;
 
@@ -118,7 +122,8 @@ public class NodeDataFetcher {
     ShareRepository shareRepository,
     TombstoneRepository tombstoneRepository,
     ShareDataFetcher shareDataFetcher,
-    FilesConfig filesConfig
+    FilesConfig filesConfig,
+    Filestore fileStore
   ) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -127,6 +132,7 @@ public class NodeDataFetcher {
     this.tombstoneRepository = tombstoneRepository;
     this.shareDataFetcher = shareDataFetcher;
     this.filesConfig = filesConfig;
+    this.fileStore = fileStore;
 
     this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
       .defaultURL(ServiceDiscover.SERVICE_NAME)
@@ -739,34 +745,20 @@ public class NodeDataFetcher {
     }));
   }
 
-  public DataFetcher<CompletableFuture<DataFetcherResult<List<String>>>> flagNodes() {
+  public DataFetcher<CompletableFuture<List<String>>> flagNodes() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       String requesterId = ((User) environment.getGraphQlContext()
         .get(Files.GraphQL.Context.REQUESTER)).getId();
       List<String> nodesIds = environment.getArgument(FlagNodes.NODE_IDS);
       boolean starNodes = environment.getArgument(FlagNodes.FLAG);
 
-      List<String> flaggableNodes = nodesIds.stream()
-        .filter(nodeId -> {
-          Optional<Node> rNode = nodeRepository.getNode(nodeId);
-          return rNode.isPresent() && rNode.get().getNodeType() != NodeType.ROOT;
+      return nodesIds
+        .stream()
+        .map(nodeId -> {
+          nodeRepository.flagForUser(nodeId, requesterId, starNodes);
+          return nodeId;
         })
-        .filter(nodeId -> permissionsChecker.getPermissions(nodeId, requesterId).has(SharePermission.READ_AND_WRITE))
         .collect(Collectors.toList());
-
-      List<String> nodesInError = nodesIds.stream()
-        .filter(nodeId -> !flaggableNodes.contains(nodeId))
-        .toList();
-
-      flaggableNodes.forEach(nodeId -> nodeRepository.flagForUser(nodeId, requesterId, starNodes));
-
-      return new DataFetcherResult.Builder<List<String>>()
-        .data(flaggableNodes)
-        .errors(nodesInError.stream()
-          .map(nodeId -> GraphQLResultErrors.nodeWriteError(nodeId,
-            environment.getExecutionStepInfo().getPath()))
-          .toList())
-        .build();
     });
   }
 
@@ -2118,6 +2110,61 @@ public class NodeDataFetcher {
 
       return new Builder<Map<String, Object>>()
         .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
+        .build();
+    });
+  }
+
+  public DataFetcher<CompletableFuture<DataFetcherResult<Boolean>>> deleteAllNodesAndBlobs() {
+
+    return environment -> CompletableFuture.supplyAsync(() -> {
+      ResultPath resultPath = environment.getExecutionStepInfo()
+        .getPath();
+      String requesterId = ((User) environment.getGraphQlContext()
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
+
+      // Get all nodes owned by the requester and delete them (excluding root). Permission check probably not needed.
+      List<Node> nodesToDelete = nodeRepository.findNodesByOwner(requesterId).stream()
+        .filter(Objects::nonNull)
+        .filter(node -> !node.getNodeType()
+          .equals(NodeType.ROOT))
+        .filter(node -> permissionsChecker
+          .getPermissions(node.getId(), requesterId)
+          .has(SharePermission.READ_AND_WRITE)
+        )
+        .collect(Collectors.toList());
+
+      List<BulkDeleteRequestItem> deleteRequests = new ArrayList<>();
+
+      nodesToDelete.forEach(node -> {
+        List<FileVersion> fileVersionsToDelete = fileVersionRepository.getFileVersions(node.getId(), List.of(FileVersionSort.VERSION_ASC));
+        fileVersionsToDelete.forEach(fileVersion ->
+            deleteRequests.add(BulkDeleteRequestItem.filesItem(node.getId(), fileVersion.getVersion()))
+        );
+      });
+
+      try {
+        logger.info("Deleting {} nodes from storages", nodesToDelete.size());
+        this.fileStore.bulkDelete(IdentifierType.files, requesterId, deleteRequests);
+      } catch (Exception e) {
+        // If storages call fails we don't delete the nodes, we block the delete nodes operation
+        logger.error("Can't perform bulk delete on storages: {}", e.getMessage());
+
+        return new Builder<Boolean>()
+        .error(GraphQLResultErrors.deleteAllNodesAndBlobsError(resultPath))
+        .build();
+      }
+
+      deleteNodes(nodesToDelete);
+
+      List<String> nodeIdsToDelete = nodesToDelete
+        .stream()
+        .map(Node::getId)
+        .toList();
+
+      nodeIdsToDelete.forEach(this::cascadeDeleteNode);
+
+      return new Builder<Boolean>()
+        .data(true)
         .build();
     });
   }
