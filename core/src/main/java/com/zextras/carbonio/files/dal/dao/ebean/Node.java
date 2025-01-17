@@ -28,7 +28,7 @@ import javax.persistence.Table;
  * Represents an Ebean {@link Node} entity that matches a record of the {@link Files.Db.Tables#NODE}
  * table.
  *
- * <p>The implementation of constructors and setters should not care to check if the values in input
+ * <p>The implementation of the constructor and setters should not care to check if the values in input
  * are valid or not because, when these methods are called, these controls <strong>must</strong> be
  * already done.
  */

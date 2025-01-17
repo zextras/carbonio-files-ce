@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.dal.dao.ebean;
 import com.zextras.carbonio.files.Files;
 import io.ebean.annotation.Cache;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import javax.persistence.Column;
 import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
@@ -15,135 +16,178 @@ import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
 /**
- * <p>Represents an Ebean {@link Share} entity that matches a record of the {@link
- * Files.Db.Tables#SHARE} table.</p>
- * <p>The implementation of constructors and setters should not care to check if the values in
+ * Represents an Ebean {@link Share} entity that matches a record of the {@link
+ * Files.Db.Tables#SHARE} table.
+ *
+ * <p>The share has properties mapped to the corresponding table columns:
+ *
+ * <ul>
+ *   <li>{@code compositeId}: The unique identifier is represented by the {@link SharePK} class.
+ *   <li>{@code permissions}: The permission of the share needed to apply which rights a user has on
+ *       the related node.
+ *   <li>{@code createdAt}: The timestamp indicating when the share was created.
+ *   <li>{@code expiresAt}: The timestamp indicating when the share should expire.
+ *   <li>{@code direct}: A boolean indicating if the share is created directly or it is indirect.
+ *   <li>{@code createdViaLink}: A boolean indicating if the share is created via a {@link
+ *       CollaborationLink} or not.
+ * </ul>
+ *
+ * <p>The implementation of the constructor and setters should not care to check if the values in
  * input are valid or not because, when these methods are called, these controls
- * <strong>must</strong> be already done.</p>
+ * <strong>must</strong> be already done.
  */
 @Cache
 @Entity
 @Table(name = Files.Db.Tables.SHARE)
 public class Share {
 
-  @EmbeddedId
-  private SharePK mComposedPrimaryKey;
-
-  @Column(name = Files.Db.NodeCustomAttributes.NODE_ID, nullable = false)
-  private String mNodeId;
+  @EmbeddedId private final SharePK composedPrimaryKey;
 
   @Column(name = Files.Db.Share.PERMISSIONS)
-  private Short mPermissions;
+  private Short permissions;
 
   @Column(name = Files.Db.Share.CREATED_AT, nullable = false)
-  private long mCreatedAt;
+  private final Long createdAt;
 
   @Column(name = Files.Db.Share.EXPIRED_AT)
-  private Long mExpiredAt;
+  private Long expiredAt;
 
   @ManyToOne
-  @JoinColumn(name = Files.Db.Share.NODE_ID, referencedColumnName = Files.Db.Node.ID, insertable = false, updatable = false)
+  @JoinColumn(
+      name = Files.Db.Share.NODE_ID,
+      referencedColumnName = Files.Db.Node.ID,
+      insertable = false,
+      updatable = false)
   private Node node;
 
   @Column(name = Files.Db.Share.DIRECT, nullable = false)
-  private Boolean mDirect;
+  private Boolean direct;
 
   @Column(name = Files.Db.Share.CREATED_VIA_LINK, nullable = false)
   private Boolean createdViaLink;
 
   /**
-   * <p>Creates a new {@link Share} entity.</p>
-   * <p>This constructor does not set the expiration timestamp of the share.</p>
+   * Creates a new {@link Share} entity that can be saved in the database.
    *
-   * @param nodeId is a {@link String} of the node id.
-   * @param targetUserId is a {@link String} of the target user id which the node will be shared
-   * to.
-   * @param permissions is a {@link ACL} representing the permissions of this share.
-   * @param createdAt is a <code>long</code> of the creation timestamp.
-   * @param direct is a {@link Boolean} used for setting if the share is direct or inherited.
+   * @param nodeId is a {@link String} representing the {@link Node} identifier associated to the
+   *     share.
+   * @param targetUserId is a {@link String} of the target user id which the node will be shared to.
+   * @param permissions is an {@link ACL} representing the permissions of the share.
+   * @param createdAt is a {@link Long} of the creation timestamp.
+   * @param direct is a {@link Boolean} used to set if the share is direct or inherited.
+   * @param createdViaLink is a {@link Boolean} used to indicate if the share is created via a
+   *     {@link CollaborationLink} or not.
+   * @param expiredAt is a {@link Long} of the expiration timestamp. It could be nullable.
    */
   public Share(
-    String nodeId,
-    String targetUserId,
-    ACL permissions,
-    long createdAt,
-    Boolean direct,
-    Boolean createdViaLink
-  ) {
-    this(nodeId, targetUserId, permissions, createdAt, direct, createdViaLink, null);
+      String nodeId,
+      String targetUserId,
+      ACL permissions,
+      Long createdAt,
+      Boolean direct,
+      Boolean createdViaLink,
+      @Nullable Long expiredAt) {
+    this.composedPrimaryKey = new SharePK(nodeId, targetUserId);
+    this.permissions = permissions.encode();
+    this.createdAt = createdAt;
+    this.direct = direct;
+    this.createdViaLink = createdViaLink;
+    this.expiredAt = expiredAt;
   }
 
   /**
-   * <p>Creates a new {@link Share} entity. </p>
-   *
-   * @param nodeId is a {@link String} of the node id.
-   * @param targetUserId is a {@link String} of the target user id which the node will be shared
-   * to.
-   * @param permissions is a {@link ACL} representing the permissions of this share.
-   * @param createdAt is a <code>long</code> of the creation timestamp.
-   * @param direct is a {@link Boolean} used for setting if the share is direct or inherited.
-   * @param expiredAt is a {@link Long} of the expiration timestamp.
+   * @return a {@link String} representing the identifier of the associated node.
    */
-  public Share(
-    String nodeId,
-    String targetUserId,
-    ACL permissions,
-    long createdAt,
-    Boolean direct,
-    Boolean createdViaLink,
-    Long expiredAt
-  ) {
-    mComposedPrimaryKey = new SharePK(nodeId, targetUserId);
-    mPermissions = permissions.encode();
-    mCreatedAt = createdAt;
-    mDirect = direct;
-    this.createdViaLink = createdViaLink;
-    mExpiredAt = expiredAt;
-  }
-
   public String getNodeId() {
-    return mComposedPrimaryKey.getNodeId();
+    return composedPrimaryKey.getNodeId();
   }
 
+  /**
+   * @return a {@link String} of the target user id which the node will be shared to.
+   */
   public String getTargetUserId() {
-    return mComposedPrimaryKey.getTargetUserId();
+    return composedPrimaryKey.getTargetUserId();
   }
 
+  /**
+   * @return an {@link ACL} representing the permissions of the share.
+   */
   public ACL getPermissions() {
-    return ACL.decode(mPermissions);
+    return ACL.decode(permissions);
   }
 
+  /**
+   * Allows to change the permission of the existing share.
+   *
+   * @param permissions is an {@link ACL} representing the permissions of the share.
+   * @return the current {@link Share}.
+   */
   public Share setPermissions(ACL permissions) {
-    mPermissions = permissions.encode();
+    this.permissions = permissions.encode();
     return this;
   }
 
-  public long getCreationAt() {
-    return mCreatedAt;
+  /**
+   * @return a <code>long</code> representing the creation timestamp of the share.
+   */
+  public long getCreatedAt() {
+    return createdAt;
   }
 
+  /**
+   * @return an {@link Optional} containing a {@link Long} representing the expiration timestamp of
+   *     the share, if exists.
+   */
   public Optional<Long> getExpiredAt() {
-    return Optional.ofNullable(mExpiredAt);
+    return Optional.ofNullable(expiredAt);
   }
 
+  /**
+   * Allows to set/unset the expiration timestamp of the existing share. If the timestamp is equal
+   * to zero than the expiration is disabled and the share will not expire.
+   *
+   * @param expiredAt is a {@link Long} representing the expiration timestamp.
+   * @return the current {@link Share}.
+   */
   public Share setExpiredAt(long expiredAt) {
-    mExpiredAt = expiredAt;
+    this.expiredAt = expiredAt;
     return this;
   }
 
+  /**
+   * @return a {@link Boolean} used to indicate if the share is direct or inherited.
+   */
   public Boolean isDirect() {
-    return mDirect;
+    return direct;
   }
 
-  public void setDirect(Boolean mDirect) {
-    this.mDirect = mDirect;
+  /**
+   * Allows to change if the share is become direct or indirect.
+   *
+   * @param direct is a {@link Boolean} to indicate if the share is direct or inherited.
+   * @return the current {@link Share}.
+   */
+  public Share setDirect(Boolean direct) {
+    this.direct = direct;
+    return this;
   }
 
-  public Boolean getCreatedViaLink() {
+  /**
+   * @return a {@link Boolean} to indicate if the share is created via a {@link CollaborationLink}
+   *     or not.
+   */
+  public Boolean isCreatedViaLink() {
     return createdViaLink;
   }
 
-  public void setCreatedViaLink(Boolean createdViaLink) {
+  /**
+   * Allows to indicate that a share is created via a {@link CollaborationLink}.
+   *
+   * @param createdViaLink is a {@link Boolean} representing a creation via link flag.
+   * @return the current {@link Share}.
+   */
+  public Share setCreatedViaLink(Boolean createdViaLink) {
     this.createdViaLink = createdViaLink;
+    return this;
   }
 }

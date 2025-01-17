@@ -23,7 +23,6 @@ core/.classpath
 core/.project
 core/.settings/
 
-
 # JetBrains IDE
 .idea/
 *.iml

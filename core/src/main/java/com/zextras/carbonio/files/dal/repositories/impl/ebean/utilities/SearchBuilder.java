@@ -32,7 +32,7 @@ public class SearchBuilder {
             .fetchLazy("mCustomAttributes")
             .where()
             .or()
-            .eq("mShares.mComposedPrimaryKey.mTargetUserId", userId)
+            .eq("mShares.composedPrimaryKey.mTargetUserId", userId)
             .eq("mOwnerId", userId)
             .endOr()
             .not()
@@ -127,7 +127,7 @@ public class SearchBuilder {
    */
   public SearchBuilder setSharedWithMe(String userId, Boolean sharedWithMe) {
     if (sharedWithMe) {
-      this.query.where().eq("mShares.mComposedPrimaryKey.mTargetUserId", userId);
+      this.query.where().eq("mShares.composedPrimaryKey.mTargetUserId", userId);
     } else {
       setOwner(userId);
     }
@@ -147,15 +147,15 @@ public class SearchBuilder {
   public SearchBuilder setSharedByMe(Boolean sharedByMe) {
     setOwner(userId);
     if (sharedByMe) {
-      this.query.where().isNotNull("mShares.mPermissions");
+      this.query.where().isNotNull("mShares.permissions");
     } else {
-      this.query.where().isNull("mShares.mPermissions");
+      this.query.where().isNull("mShares.permissions");
     }
     return this;
   }
 
   public SearchBuilder setDirectShare(Boolean directShare) {
-    this.query.where().eq("mShares.mDirect", directShare);
+    this.query.where().eq("mShares.direct", directShare);
 
     return this;
   }

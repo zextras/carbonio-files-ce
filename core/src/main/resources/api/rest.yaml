@@ -147,14 +147,14 @@ paths:
           $ref: '#/components/responses/403Forbidden'
         404:
           $ref: '#/components/responses/404NotFound'
-  /preview/image/{nodeId}/{version}/{area}/:
+  /preview/image/{nodeId}/{area}/:
     get:
       tags:
         - Preview
       summary: Get image preview
       description: |
-        Creates and returns a preview of the image fetched by id and version
-        with the given size, quality and format
+        Creates and returns a preview of the image fetched by id and optionally
+        by version with the given size, quality and format
         - **nodeId**: UUID of the image
         - **version**: version of the image
         - **quality**: quality of the output image
@@ -169,8 +169,8 @@ paths:
       operationId: getImagePreview
       parameters:
         - $ref: '#/components/parameters/pathNodeId'
-        - $ref: '#/components/parameters/pathNodeVersion'
         - $ref: '#/components/parameters/pathPreviewArea'
+        - $ref: '#/components/parameters/queryNodeVersion'
         - $ref: '#/components/parameters/queryImageQuality'
         - $ref: '#/components/parameters/queryImageType'
         - $ref: '#/components/parameters/queryImageCrop'
@@ -186,14 +186,14 @@ paths:
         502:
           $ref: '#/components/responses/502BadGateway'
 
-  /preview/image/{nodeId}/{version}/{area}/thumbnail:
+  /preview/image/{nodeId}/{area}/thumbnail:
     get:
       tags:
         - Preview
       summary: Get image thumbnail
       description: |
-        Creates and returns a preview of the image fetched by id and version
-        with the given size, quality and format
+        Creates and returns a preview of the image fetched by id and optionally
+        by version with the given size, quality and format
         - **nodeId**: UUID of the image
         - **version**: version of the image
         - **quality**: quality of the output image
@@ -206,8 +206,8 @@ paths:
       operationId: getImageThumbnail
       parameters:
         - $ref: '#/components/parameters/pathNodeId'
-        - $ref: '#/components/parameters/pathNodeVersion'
         - $ref: '#/components/parameters/pathPreviewArea'
+        - $ref: '#/components/parameters/queryNodeVersion'
         - $ref: '#/components/parameters/queryImageQuality'
         - $ref: '#/components/parameters/queryImageType'
         - $ref: '#/components/parameters/queryImageShape'
@@ -224,13 +224,13 @@ paths:
           $ref: '#/components/responses/502BadGateway'
 
 
-  /preview/pdf/{nodeId}/{version}/:
+  /preview/pdf/{nodeId}/:
     get:
       tags:
         - Preview
       summary: Get pdf preview
       description: |
-        Creates and returns a preview of the pdf fetched by id and version,
+        Creates and returns a preview of the pdf fetched by id and optionally by version,
         the pdf file will contain the first and last page given. With default values
         it will return a pdf with all the pages.
         - **nodeId**: UUID of the pdf
@@ -240,7 +240,7 @@ paths:
       operationId: getPdfPreview
       parameters:
         - $ref: '#/components/parameters/pathNodeId'
-        - $ref: '#/components/parameters/pathNodeVersion'
+        - $ref: '#/components/parameters/queryNodeVersion'
         - $ref: '#/components/parameters/queryFirstPage'
         - $ref: '#/components/parameters/queryLastPage'
       responses:
@@ -255,14 +255,14 @@ paths:
         502:
           $ref: '#/components/responses/502BadGateway'
 
-  /preview/pdf/{nodeId}/{version}/{area}/thumbnail:
+  /preview/pdf/{nodeId}/{area}/thumbnail:
     get:
       tags:
         - Preview
-      summary: Get image thumbnail
+      summary: Get pdf thumbnail
       description: |
-        Creates and returns a preview of the image fetched by id and version
-        with the given size, quality and format
+        Creates and returns a preview of the image fetched by id and optionally
+        by version with the given size, quality and format
         - **nodeId**: UUID of the pdf
         - **version**: version of the pdf
         - **quality**: quality of the output image
@@ -275,8 +275,8 @@ paths:
       operationId: getPdfThumbnail
       parameters:
         - $ref: '#/components/parameters/pathNodeId'
-        - $ref: '#/components/parameters/pathNodeVersion'
         - $ref: '#/components/parameters/pathPreviewArea'
+        - $ref: '#/components/parameters/queryNodeVersion'
         - $ref: '#/components/parameters/queryImageQuality'
         - $ref: '#/components/parameters/queryImageType'
         - $ref: '#/components/parameters/queryImageShape'
@@ -291,6 +291,38 @@ paths:
           $ref: '#/components/responses/422ValidationError'
         502:
           $ref: '#/components/responses/502BadGateway'
+
+  /preview/document/{nodeId}/:
+    get:
+      tags:
+        - Preview
+      summary: Get document preview
+      description: |
+        Creates and returns a preview of the document fetched by id and optionally by version,
+        the pdf file will contain the first and last page given. With default values
+        it will return a pdf with all the pages.
+        - **nodeId**: UUID of the pdf
+        - **version**: version of the pdf
+        - **first_page**: integer value of first page to preview (n>=1)
+        - **last_page**: integer value of last page to preview (0 = last of the original pdf)
+      operationId: getPdfPreview
+      parameters:
+        - $ref: '#/components/parameters/pathNodeId'
+        - $ref: '#/components/parameters/queryNodeVersion'
+        - $ref: '#/components/parameters/queryFirstPage'
+        - $ref: '#/components/parameters/queryLastPage'
+      responses:
+        200:
+          $ref: '#/components/responses/200PreviewNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        404:
+          $ref: '#/components/responses/404NotFound'
+        422:
+          $ref: '#/components/responses/422ValidationError'
+        502:
+          $ref: '#/components/responses/502BadGateway'
+
   /collaboration/{collaborationLinkId}:
     get:
       description: Allows to auto-share a specific node with a specific permission to the logged
@@ -333,13 +365,6 @@ components:
         title: Id
         type: string
       required: true
-    pathNodeVersion:
-      in: path
-      name: version
-      schema:
-        title: Version
-        type: integer
-      required: true
     pathPreviewArea:
       in: path
       name: area
@@ -347,6 +372,13 @@ components:
         title: Area
         type: string
       required: true
+    queryNodeVersion:
+      in: query
+      name: version
+      schema:
+        title: Version
+        type: integer
+      required: false
     queryImageQuality:
       in: query
       name: quality
