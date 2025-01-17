@@ -31,6 +31,7 @@ class LinkTest {
         .isPresent()
         .get()
         .isEqualTo("fake description");
+    Assertions.assertThat(publicLink.getAccessCode()).isEmpty();
   }
 
   @Test
@@ -46,7 +47,7 @@ class LinkTest {
             null);
 
     // When
-    publicLink.setExpiresAt(10L).setDescription("fake description");
+    publicLink.setExpiresAt(10L).setDescription("fake description").setAccessCode("fake-code");
 
     // Then
     Assertions.assertThat(publicLink.getLinkId()).isEqualTo("a7fd1b7c-9f2c-40e4-83d7-463d4d7ab9c5");
@@ -58,6 +59,7 @@ class LinkTest {
         .isPresent()
         .get()
         .isEqualTo("fake description");
+    Assertions.assertThat(publicLink.getAccessCode()).isPresent().get().isEqualTo("fake-code");
   }
 
   @Test

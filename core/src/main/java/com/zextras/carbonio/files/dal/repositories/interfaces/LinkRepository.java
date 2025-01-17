@@ -34,6 +34,8 @@ public interface LinkRepository {
    *     timestamp of the link to create if the value is present
    * @param optDescription is an {@link Optional} of {@link String} representing the description of
    *     the link to create if the value is present
+   * @param optAccessCode is an {@link Optional} of {@link String} representing a code that the user
+   *     must have in order to access the resource
    * @return the {@link Link} just created and saved in the database.
    */
   Link createLink(

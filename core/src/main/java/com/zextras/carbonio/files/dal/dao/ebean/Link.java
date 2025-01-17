@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.dal.dao.ebean;
 
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Db;
+
 import java.util.Optional;
 import javax.annotation.Nullable;
 import javax.persistence.Column;
@@ -25,6 +26,7 @@ import javax.persistence.Table;
  *   <li>{@code createdAt}: The timestamp indicating when the link was created.
  *   <li>{@code expiresAt}: The timestamp indicating when the link should expire.
  *   <li>{@code description}: A small description of the link (maximum 300 characters).
+ *   <li>{@code access code}: A string to have in order to access the resource.
  * </ul>
  *
  * <p>The constructor and setters should not care to check if the values in input are valid or not
@@ -163,6 +165,12 @@ public class Link {
     return Optional.ofNullable(accessCode);
   }
 
+  /**
+   * Allows to add/change the access code of the existing public link.
+   *
+   * @param accessCode is a {@link String} of the link code that the user must have in order to
+   *    access the resource.
+   */
   public void setAccessCode(String accessCode) {
     this.accessCode = accessCode.isEmpty() ? null : accessCode; // If accessCode is empty, set it to null since it is used as optional
   }
