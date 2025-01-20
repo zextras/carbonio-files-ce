@@ -83,6 +83,7 @@ class DeleteAllNodesAndBlobsApiIT {
 
     String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("deleteAllNodesAndBlobs")
+            .withString("user_id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
             .withWantedResultFormat("")
             .build();
 
@@ -118,6 +119,7 @@ class DeleteAllNodesAndBlobsApiIT {
 
     String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("deleteAllNodesAndBlobs")
+            .withString("user_id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
             .withWantedResultFormat("")
             .build();
 

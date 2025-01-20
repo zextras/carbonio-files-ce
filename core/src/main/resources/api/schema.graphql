@@ -705,7 +705,10 @@ type Mutation {
     ): [ID]!
 
     # Deletes all nodes for the requester user, including blobs on Storages.
-    deleteAllNodesAndBlobs: Boolean!
+    deleteAllNodesAndBlobs(
+        # The unique identifier of the user to delete all nodes and blobs (mandatory)
+        user_id: ID!
+    ): Boolean!
 }
 
 schema {

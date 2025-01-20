@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.api.utilities;
 
 public class GraphqlCommandBuilder {
   private StringBuilder query;
+  private boolean hasArguments = false;
 
   public GraphqlCommandBuilder(String queryType, String queryMethod) { // findNodes for searching
     query = new StringBuilder(queryType + " { ");
@@ -22,21 +23,25 @@ public class GraphqlCommandBuilder {
 
   public GraphqlCommandBuilder withBoolean(String key, boolean value) {
     query.append(key).append(": ").append(value).append(", ");
+    this.hasArguments = true;
     return this;
   }
 
   public GraphqlCommandBuilder withString(String key, String value) {
     query.append(key).append(": \\\"").append(value).append("\\\", ");
+    this.hasArguments = true;
     return this;
   }
 
   public GraphqlCommandBuilder withInteger(String key, Integer value) {
     query.append(key).append(": ").append(value).append(", ");
+    this.hasArguments = true;
     return this;
   }
 
   public GraphqlCommandBuilder withEnum(String key, Enum<?> value) {
     query.append(key).append(": ").append(value.toString()).append(", ");
+    this.hasArguments = true;
     return this;
   }
 
@@ -46,13 +51,19 @@ public class GraphqlCommandBuilder {
       query.append("\\\"").append(value).append("\\\", ");
     }
     query.append("], ");
+    this.hasArguments = true;
     return this;
   }
 
   public GraphqlCommandBuilder withWantedResultFormat(String wantedResultFormat) {
     if (wantedResultFormat.isEmpty()){
-      query.setLength(query.length() - 1);
-      query.append(" }");
+      if (hasArguments) {
+        query.setLength(query.length() - 2);
+        query.append(") }");
+      } else {
+        query.setLength(query.length() - 1);
+        query.append(" }");
+      }
     } else {
       query.setLength(query.length() - 2);
       query.append(") ").append(wantedResultFormat).append(" }");

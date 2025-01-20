@@ -601,6 +601,13 @@ public final class Files {
         public static final String NODE_LINK_ID = "node_link_id";
         public static final String ACCESS_CODE = "access_code";
       }
+
+      public static final class DeleteAllNodesAndBlobs {
+
+        private DeleteAllNodesAndBlobs() {}
+
+        public static final String USER_ID = "user_id";
+      }
     }
 
     /**

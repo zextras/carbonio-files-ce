@@ -2121,16 +2121,12 @@ public class NodeDataFetcher {
         .getPath();
       String requesterId = ((User) environment.getGraphQlContext()
         .get(Files.GraphQL.Context.REQUESTER)).getId();
+      String userId = (String) environment.getArgument(InputParameters.DeleteAllNodesAndBlobs.USER_ID);
 
-      // Get all nodes owned by the requester and delete them (excluding root). Permission check probably not needed.
-      List<Node> nodesToDelete = nodeRepository.findNodesByOwner(requesterId).stream()
+      List<Node> nodesToDelete = nodeRepository.findNodesByOwner(userId).stream()
         .filter(Objects::nonNull)
         .filter(node -> !node.getNodeType()
           .equals(NodeType.ROOT))
-        .filter(node -> permissionsChecker
-          .getPermissions(node.getId(), requesterId)
-          .has(SharePermission.READ_AND_WRITE)
-        )
         .collect(Collectors.toList());
 
       List<BulkDeleteRequestItem> deleteRequests = new ArrayList<>();
@@ -2144,7 +2140,7 @@ public class NodeDataFetcher {
 
       try {
         logger.info("Deleting {} nodes from storages", nodesToDelete.size());
-        this.fileStore.bulkDelete(IdentifierType.files, requesterId, deleteRequests);
+        this.fileStore.bulkDelete(IdentifierType.files, userId, deleteRequests);
       } catch (Exception e) {
         // If storages call fails we don't delete the nodes, we block the delete nodes operation
         logger.error("Can't perform bulk delete on storages: {}", e.getMessage());
