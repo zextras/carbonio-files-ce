@@ -87,8 +87,10 @@ class DeleteAllNodesAndBlobsApiIT {
             .withWantedResultFormat("")
             .build();
 
+
+    List<Map.Entry<String, String>> headers = List.of(Map.entry("Internal", ""));
     final HttpRequest httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", headers, bodyPayload);
 
     // When
     final HttpResponse httpResponse =
@@ -125,8 +127,9 @@ class DeleteAllNodesAndBlobsApiIT {
 
     simulator.bulkDelete(List.of(new String[]{"00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-000000000003"}));
 
+    List<Map.Entry<String, String>> headers = List.of(Map.entry("Internal", ""));
     final HttpRequest httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", headers, bodyPayload);
 
     // When
     final HttpResponse httpResponse =

@@ -2117,6 +2117,12 @@ public class NodeDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Boolean>>> deleteAllNodesAndBlobs() {
 
     return environment -> CompletableFuture.supplyAsync(() -> {
+      String internalHeader = environment.getGraphQlContext().get(Files.GraphQL.Context.INTERNAL);
+
+      if (internalHeader == null) {
+          throw new AbortExecutionException("This operation is internal and thus requires the 'Internal' header set");
+      }
+
       ResultPath resultPath = environment.getExecutionStepInfo()
         .getPath();
       String requesterId = ((User) environment.getGraphQlContext()

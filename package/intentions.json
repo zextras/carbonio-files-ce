@@ -4,7 +4,27 @@
   "Sources": [
     {
       "Name": "carbonio-proxy",
-      "Action": "allow"
+      "Permissions": [
+        {
+          "Action": "deny",
+          "HTTP": {
+            "PathPrefix": "/graphql",
+            "Methods": [
+              "POST"
+            ],
+            "Header": {
+              "Name": "Internal",
+              "Present": true
+            }
+          }
+        },
+        {
+          "Action": "allow",
+          "HTTP": {
+            "PathPrefix": "/"
+          }
+        }
+      ]
     },
     {
       "Name": "carbonio-docs-connector",

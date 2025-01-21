@@ -129,6 +129,13 @@ public class GraphQLController extends SimpleChannelInboundHandler<FullHttpReque
       context.channel().attr(AttributeKey.valueOf("cookies")).get()
     );
 
+    if(httpRequest.headers().contains("Internal")) {
+      graphQLContext.put(
+          Files.GraphQL.Context.INTERNAL,
+          httpRequest.headers().get("Internal")
+      );
+    }
+
     try {
       GraphQLRequest request = parseRequest(contentRequest);
       /*

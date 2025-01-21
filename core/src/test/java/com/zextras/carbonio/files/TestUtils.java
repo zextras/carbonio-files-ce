@@ -118,6 +118,10 @@ public class TestUtils {
 
     DefaultHttpHeaders httpHeaders = new DefaultHttpHeaders();
 
+    if (request.getHeaders().isPresent()) {
+      request.getHeaders().get().forEach(header -> httpHeaders.add(header.getKey(), header.getValue()));
+    }
+
     if (request.getCookie().isPresent()) {
       httpHeaders.add(HttpHeaderNames.COOKIE, request.getCookie().get());
     }

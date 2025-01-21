@@ -324,6 +324,7 @@ public final class Files {
 
       public static final String REQUESTER = "requester";
       public static final String COOKIES   = "cookies";
+      public static final String INTERNAL   = "internal";
     }
 
     /**
