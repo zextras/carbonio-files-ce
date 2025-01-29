@@ -10,10 +10,8 @@ import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
-import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -141,7 +139,7 @@ class DeleteAllNodesAndBlobsApiIT {
     Optional<Object> result = TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteAllNodesAndBlobs");
 
     Assertions.assertThat(result).isNotEmpty();
-    Assertions.assertThat(result.get()).isEqualTo(true);
+    Assertions.assertThat(result).contains(true);
 
   }
 

@@ -2147,7 +2147,7 @@ public class NodeDataFetcher {
         .filter(Objects::nonNull)
         .filter(node -> !node.getNodeType()
           .equals(NodeType.ROOT))
-        .collect(Collectors.toList());
+        .toList();
 
       List<BulkDeleteRequestItem> deleteRequests = new ArrayList<>();
 

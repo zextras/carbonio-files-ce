@@ -11,7 +11,6 @@ import com.zextras.carbonio.files.Files.GraphQL.InputParameters.RestoreNodes;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import graphql.GraphQL;
 import graphql.GraphQLError;
-import graphql.execution.AbortExecutionException;
 import graphql.execution.instrumentation.fieldvalidation.FieldAndArguments;
 import graphql.execution.instrumentation.fieldvalidation.FieldValidationEnvironment;
 import java.util.Optional;
