@@ -859,6 +859,8 @@ public final class Files {
 
       private Config() {}
 
+      public static final String COLLATION                             = "collation";
+      public static final String DEFAULT_COLLATION                     = "en_US.utf8";
       public static final String MAX_VERSIONS                          = "max-number-of-versions";
       public static final int    DEFAULT_MAX_VERSIONS                  = 30;
       public static final String MAX_KEEP_VERSIONS                     = "max-number-of-keep-versions";

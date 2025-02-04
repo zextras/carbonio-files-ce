@@ -9,13 +9,7 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.zextras.carbonio.files.cache.CacheHandlerFactory;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.CollaborationLinkRepositoryEbean;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.FileVersionRepositoryEbean;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.LinkRepositoryEbean;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.NodeRepositoryEbean;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.ShareRepositoryEbean;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.TombstoneRepositoryEbean;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.UserRepositoryRest;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.*;
 import com.zextras.carbonio.files.dal.repositories.interfaces.*;
 import com.zextras.carbonio.files.graphql.validators.GenericControllerEvaluatorFactory;
 import com.zextras.carbonio.files.message_broker.MessageBrokerManagerImpl;
@@ -49,6 +43,7 @@ public class FilesModule extends AbstractModule {
     bind(CollaborationLinkRepository.class).to(CollaborationLinkRepositoryEbean.class);
     bind(UserRepository.class).to(UserRepositoryRest.class);
     bind(MessageBrokerManager.class).to(MessageBrokerManagerImpl.class);
+    bind(CollationRepository.class).to(CollationRepositoryEbean.class);
 
     install(new FactoryModuleBuilder().build(CacheHandlerFactory.class));
 
