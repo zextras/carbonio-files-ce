@@ -77,14 +77,14 @@ public class TestUtils {
     }
   }
 
-  public static Optional<String> jsonResponseToString(String json, String operation) {
+  public static Optional<Object> jsonResponseToValue(String json, String operation) {
     try {
       final Map<String, Object> result = new ObjectMapper().readValue(json, Map.class);
 
       if (result.get("data") != null) {
         final Map<String, Object> data = (Map<String, Object>) result.get("data");
 
-        return Optional.ofNullable((String) data.get(operation));
+        return Optional.ofNullable(data.get(operation));
       }
       return Optional.empty();
 
@@ -117,6 +117,10 @@ public class TestUtils {
             queryPayload(request.getBodyPayload().orElse("")).getBytes(StandardCharsets.UTF_8));
 
     DefaultHttpHeaders httpHeaders = new DefaultHttpHeaders();
+
+    if (request.getHeaders().isPresent()) {
+      request.getHeaders().get().forEach(header -> httpHeaders.add(header.getKey(), header.getValue()));
+    }
 
     if (request.getCookie().isPresent()) {
       httpHeaders.add(HttpHeaderNames.COOKIE, request.getCookie().get());

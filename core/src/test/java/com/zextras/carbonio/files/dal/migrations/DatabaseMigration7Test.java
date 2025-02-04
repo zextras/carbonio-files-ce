@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.dal.migrations;
 
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,18 +32,17 @@ import java.util.stream.IntStream;
  */
 class DatabaseMigration7Test {
   static PostgreSQLContainer<?> postgreSQLContainer;
-  static Connection databaseConnection;
+  static Connection connection;
 
   @BeforeAll
   static void init() throws SQLException {
     postgreSQLContainer = new PostgreSQLContainer<>("postgres:16.6");
     postgreSQLContainer.start();
-
     PGSimpleDataSource dataSource = new PGSimpleDataSource();
     dataSource.setUrl(postgreSQLContainer.getJdbcUrl());
     dataSource.setUser(postgreSQLContainer.getUsername());
     dataSource.setPassword(postgreSQLContainer.getPassword());
-    databaseConnection = dataSource.getConnection();
+    connection = dataSource.getConnection();
   }
 
   @BeforeEach
@@ -56,16 +54,10 @@ class DatabaseMigration7Test {
   void cleanUp() throws SQLException {
     String dropSchemaStatement = "DROP SCHEMA public CASCADE;";
     String createEmptySchemaStatement = "CREATE SCHEMA public;";
-    try (Statement statement = databaseConnection.createStatement()) {
+    try (Statement statement = connection.createStatement()) {
       statement.execute(dropSchemaStatement);
       statement.execute(createEmptySchemaStatement);
     }
-  }
-
-  @AfterAll
-  static void cleanUpAll() throws SQLException {
-    databaseConnection.close();
-    postgreSQLContainer.stop();
   }
 
   void migrateDatabase(int dbVersion) {
@@ -80,7 +72,7 @@ class DatabaseMigration7Test {
         .lines()
         .collect(Collectors.joining("\n"));
 
-    try (Statement statement = databaseConnection.createStatement()) {
+    try (Statement statement = connection.createStatement()) {
       statement.execute(data);
     } catch (Exception exception) {
       throw new RuntimeException(exception);
@@ -88,7 +80,7 @@ class DatabaseMigration7Test {
   }
 
   void checkDatabaseVersion(int databaseVersion) throws SQLException {
-    try (Statement statement = databaseConnection.createStatement()) {
+    try (Statement statement = connection.createStatement()) {
       try (ResultSet dbInfo = statement.executeQuery("SELECT * FROM DB_INFO;")) {
         dbInfo.next();
         Assertions.assertThat(dbInfo.getInt("version")).isEqualTo(databaseVersion);
@@ -99,7 +91,7 @@ class DatabaseMigration7Test {
   void insertNode(String nodeId, String nodeName, NodeType nodeType) throws SQLException {
     String insertNodeStatementTemplate = "INSERT INTO node VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);";
 
-    try (PreparedStatement ps = databaseConnection.prepareStatement(insertNodeStatementTemplate)) {
+    try (PreparedStatement ps = connection.prepareStatement(insertNodeStatementTemplate)) {
       ps.setString(1, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
       ps.setString(2, nodeId);
       ps.setString(3, "LOCAL_ROOT");
@@ -117,14 +109,13 @@ class DatabaseMigration7Test {
       ps.setLong(15, 1L);
 
       ps.execute();
-      ps.closeOnCompletion();
     }
   }
 
   void insertNodeVersion(String nodeId, String mimeType, int version) throws SQLException {
     String insertNodeStatementTemplate = "INSERT INTO revision VALUES (?,?,?,?,?,?,?);";
 
-    try (PreparedStatement ps = databaseConnection.prepareStatement(insertNodeStatementTemplate)) {
+    try (PreparedStatement ps = connection.prepareStatement(insertNodeStatementTemplate)) {
       ps.setString(1, nodeId);
       ps.setInt(2, version);
       ps.setString(3, mimeType);
@@ -134,7 +125,6 @@ class DatabaseMigration7Test {
       ps.setLong(7, 1L);
 
       ps.execute();
-      ps.closeOnCompletion();
     }
   }
 
@@ -166,7 +156,7 @@ class DatabaseMigration7Test {
     // Then
     checkDatabaseVersion(7);
 
-    try (Statement statement = databaseConnection.createStatement()) {
+    try (Statement statement = connection.createStatement()) {
       String selectNodeStatement = "SELECT * FROM node WHERE node_type = 'MESSAGE' ORDER BY node_id";
       try (ResultSet node = statement.executeQuery(selectNodeStatement)) {
         // test0.msg
@@ -192,7 +182,7 @@ class DatabaseMigration7Test {
       }
     }
 
-    try (Statement statement = databaseConnection.createStatement()) {
+    try (Statement statement = connection.createStatement()) {
       String selectNodeStatement =
           "SELECT * FROM revision WHERE mime_type = 'application/vnd.ms-outlook' ORDER BY version;";
 
@@ -242,7 +232,7 @@ class DatabaseMigration7Test {
     // Then
     checkDatabaseVersion(7);
 
-    try (Statement statement = databaseConnection.createStatement()) {
+    try (Statement statement = connection.createStatement()) {
       try (ResultSet node = statement.executeQuery("SELECT * FROM NODE WHERE node_type = 'MESSAGE';")) {
         node.next();
 

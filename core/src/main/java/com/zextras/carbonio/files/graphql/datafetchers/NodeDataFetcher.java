@@ -38,7 +38,10 @@ import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.graphql.types.Permissions;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.filestore.api.Filestore;
+import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.FilesIdentifier;
+import com.zextras.filestore.model.IdentifierType;
 import graphql.GraphQLError;
 import graphql.execution.AbortExecutionException;
 import graphql.execution.DataFetcherResult;
@@ -107,6 +110,7 @@ public class NodeDataFetcher {
   private final TombstoneRepository   tombstoneRepository;
   private final ShareDataFetcher      shareDataFetcher;
   private final FilesConfig           filesConfig;
+  private final Filestore             fileStore;
   private final int                   maxNumberOfVersions;
   private final int                   maxNumberOfKeepVersions;
 
@@ -118,7 +122,8 @@ public class NodeDataFetcher {
     ShareRepository shareRepository,
     TombstoneRepository tombstoneRepository,
     ShareDataFetcher shareDataFetcher,
-    FilesConfig filesConfig
+    FilesConfig filesConfig,
+    Filestore fileStore
   ) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -127,6 +132,7 @@ public class NodeDataFetcher {
     this.tombstoneRepository = tombstoneRepository;
     this.shareDataFetcher = shareDataFetcher;
     this.filesConfig = filesConfig;
+    this.fileStore = fileStore;
 
     this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
       .defaultURL(ServiceDiscover.SERVICE_NAME)
@@ -2118,6 +2124,63 @@ public class NodeDataFetcher {
 
       return new Builder<Map<String, Object>>()
         .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
+        .build();
+    });
+  }
+
+  public DataFetcher<CompletableFuture<DataFetcherResult<Boolean>>> deleteAllNodesAndBlobs() {
+
+    return environment -> CompletableFuture.supplyAsync(() -> {
+      String internalHeader = environment.getGraphQlContext().get(Files.GraphQL.Context.INTERNAL);
+
+      if (internalHeader == null) {
+          throw new AbortExecutionException("This operation is internal and thus requires the 'Internal' header set");
+      }
+
+      ResultPath resultPath = environment.getExecutionStepInfo()
+        .getPath();
+      String requesterId = ((User) environment.getGraphQlContext()
+        .get(Files.GraphQL.Context.REQUESTER)).getId();
+      String userId = (String) environment.getArgument(InputParameters.DeleteAllNodesAndBlobs.USER_ID);
+
+      List<Node> nodesToDelete = nodeRepository.findNodesByOwner(userId).stream()
+        .filter(Objects::nonNull)
+        .filter(node -> !node.getNodeType()
+          .equals(NodeType.ROOT))
+        .toList();
+
+      List<BulkDeleteRequestItem> deleteRequests = new ArrayList<>();
+
+      nodesToDelete.forEach(node -> {
+        List<FileVersion> fileVersionsToDelete = fileVersionRepository.getFileVersions(node.getId(), List.of(FileVersionSort.VERSION_ASC));
+        fileVersionsToDelete.forEach(fileVersion ->
+            deleteRequests.add(BulkDeleteRequestItem.filesItem(node.getId(), fileVersion.getVersion()))
+        );
+      });
+
+      try {
+        logger.info("Deleting {} nodes from storages", nodesToDelete.size());
+        this.fileStore.bulkDelete(IdentifierType.files, userId, deleteRequests);
+      } catch (Exception e) {
+        // If storages call fails we don't delete the nodes, we block the delete nodes operation
+        logger.error("Can't perform bulk delete on storages: {}", e.getMessage());
+
+        return new Builder<Boolean>()
+        .error(GraphQLResultErrors.deleteAllNodesAndBlobsError(resultPath))
+        .build();
+      }
+
+      deleteNodes(nodesToDelete);
+
+      List<String> nodeIdsToDelete = nodesToDelete
+        .stream()
+        .map(Node::getId)
+        .toList();
+
+      nodeIdsToDelete.forEach(this::cascadeDeleteNode);
+
+      return new Builder<Boolean>()
+        .data(true)
         .build();
     });
   }

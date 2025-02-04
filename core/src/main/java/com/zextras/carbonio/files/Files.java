@@ -324,6 +324,7 @@ public final class Files {
 
       public static final String REQUESTER = "requester";
       public static final String COOKIES   = "cookies";
+      public static final String INTERNAL   = "internal";
     }
 
     /**
@@ -409,6 +410,7 @@ public final class Files {
       public static final String CREATE_COLLABORATION_LINK  = "createCollaborationLink";
       public static final String DELETE_COLLABORATION_LINKS = "deleteCollaborationLinks";
       public static final String COPY_NODES                 = "copyNodes";
+      public static final String DELETE_ALL_NODES_AND_BLOBS = "deleteAllNodesAndBlobs";
     }
 
     /**
@@ -599,6 +601,13 @@ public final class Files {
 
         public static final String NODE_LINK_ID = "node_link_id";
         public static final String ACCESS_CODE = "access_code";
+      }
+
+      public static final class DeleteAllNodesAndBlobs {
+
+        private DeleteAllNodesAndBlobs() {}
+
+        public static final String USER_ID = "user_id";
       }
     }
 

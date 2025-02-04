@@ -23,9 +23,12 @@ import com.zextras.carbonio.usermanagement.entities.UserId;
 import com.zextras.carbonio.usermanagement.entities.UserInfo;
 import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
 import com.zextras.carbonio.usermanagement.enumerations.UserType;
+import com.zextras.storages.internal.pojo.Query;
+import com.zextras.storages.internal.pojo.StoragesBulkDeleteResponse;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.HttpMethod;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import org.mockserver.client.MockServerClient;
@@ -431,6 +434,25 @@ public class Simulator implements AutoCloseable {
             HttpResponse.response()
                 .withStatusCode(200)
                 .withBody((nodeId + version).getBytes(StandardCharsets.UTF_8)));
+  }
+
+  public void bulkDelete(List<String> ids) {
+    final StoragesBulkDeleteResponse response = new StoragesBulkDeleteResponse();
+    Query queryList = new Query();
+    for (String id : ids) {
+      queryList.setNode(id);
+      queryList.setType("files");
+    }
+    response.setIds(List.of(queryList));
+    storagesMock
+        .when(
+            HttpRequest.request()
+                .withMethod(HttpMethod.POST.toString())
+                .withPath("/bulk-delete"))
+        .respond(
+            HttpResponse.response()
+                .withStatusCode(200)
+                .withBody(JsonBody.json(response)));
   }
 
   public static class SimulatorBuilder {
