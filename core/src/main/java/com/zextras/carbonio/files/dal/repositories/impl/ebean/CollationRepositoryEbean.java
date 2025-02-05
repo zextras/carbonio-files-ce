@@ -32,13 +32,13 @@ public class CollationRepositoryEbean implements CollationRepository {
     String validCollation;
     if (isCollationValid(adminDefinedCollation)) {
       validCollation = adminDefinedCollation;
-    } else if (isCollationValid(Files.ServiceDiscover.Config.DEFAULT_COLLATION)) {
-      validCollation = Files.ServiceDiscover.Config.DEFAULT_COLLATION;
+    } else if (isCollationValid(Files.ServiceDiscover.Config.FALLBACK_COLLATION)) {
+      validCollation = Files.ServiceDiscover.Config.FALLBACK_COLLATION;
     } else {
-      validCollation = "default";
+      validCollation = Files.ServiceDiscover.Config.DEFAULT_COLLATION;
     }
     logger.info("Using collation: {}", validCollation);
-    return validCollation;
+    return "\"" + validCollation + "\"";
   }
 
   private boolean isCollationValid(String collation) {

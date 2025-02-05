@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.LinkSort;
+import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import io.ebean.Query;
 import io.ebean.Transaction;
@@ -22,10 +23,12 @@ import java.util.stream.Stream;
 public class LinkRepositoryEbean implements LinkRepository {
 
   private final EbeanDatabaseManager ebeanDatabaseManager;
+  private final CollationRepository collationRepository;
 
   @Inject
-  public LinkRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager) {
+  public LinkRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager, CollationRepository collationRepository) {
     this.ebeanDatabaseManager = ebeanDatabaseManager;
+    this.collationRepository = collationRepository;
   }
 
   public Link createLink(
@@ -79,7 +82,7 @@ public class LinkRepositoryEbean implements LinkRepository {
             .eq(Db.Link.NODE_ID, nodeId)
             .query();
 
-    return sort.getOrderEbeanQuery(query).findList().stream();
+    return sort.getOrderEbeanQuery(query, collationRepository.getValidCollation()).findList().stream();
   }
 
   public Link updateLink(Link link) {

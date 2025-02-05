@@ -10,21 +10,21 @@ import io.ebean.Query;
 
 /**
  * Represents all applicable sort types of a list of {@link Link}s. Each of them implements the
- * {@link SortingEntityEbean#getOrderEbeanQuery(Query)} method that returns a query with the related
+ * {@link SortingEntityEbean#getOrderEbeanQuery(Query, String)} method that returns a query with the related
  * sort applied. These implementations can be useful to concatenate multiple sorts to a single
  * {@link Query}.
  */
 public enum LinkSort implements SortingEntityEbean<Link> {
   CREATED_AT_ASC {
     @Override
-    public Query<Link> getOrderEbeanQuery(Query<Link> query) {
+    public Query<Link> getOrderEbeanQuery(Query<Link> query, String collate) {
       return query.order().asc(Db.Link.CREATED_AT);
     }
   },
 
   CREATED_AT_DESC {
     @Override
-    public Query<Link> getOrderEbeanQuery(Query<Link> query) {
+    public Query<Link> getOrderEbeanQuery(Query<Link> query, String collate) {
       return query.order().desc(Db.Link.CREATED_AT);
     }
   };

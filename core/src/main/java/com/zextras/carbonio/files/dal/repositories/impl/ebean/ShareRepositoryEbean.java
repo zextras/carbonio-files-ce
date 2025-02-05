@@ -11,6 +11,7 @@ import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.ShareSort;
+import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import io.ebean.ExpressionList;
 import io.ebean.Query;
@@ -21,10 +22,12 @@ import java.util.Optional;
 public class ShareRepositoryEbean implements ShareRepository {
 
   private final EbeanDatabaseManager ebeanDatabaseManager;
+  private CollationRepository collationRepository;
 
   @Inject
-  public ShareRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager) {
+  public ShareRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager, CollationRepository collationRepository) {
     this.ebeanDatabaseManager = ebeanDatabaseManager;
+    this.collationRepository = collationRepository;
   }
 
   /**
@@ -196,7 +199,7 @@ public class ShareRepositoryEbean implements ShareRepository {
             .eq(Files.Db.Share.NODE_ID, nodeId)
             .query();
 
-    sorts.forEach(sort -> sort.getOrderEbeanQuery(query));
+    sorts.forEach(sort -> sort.getOrderEbeanQuery(query, collationRepository.getValidCollation()));
     return query.findList().stream().map(Share::getTargetUserId).toList();
   }
 }

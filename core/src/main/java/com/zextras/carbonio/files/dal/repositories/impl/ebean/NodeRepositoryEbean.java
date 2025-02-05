@@ -19,6 +19,7 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.PageQuery;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SQLExpression;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SearchBuilder;
+import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import io.ebean.Query;
 import io.ebean.Transaction;
@@ -39,10 +40,12 @@ public class NodeRepositoryEbean implements NodeRepository {
   private static final Logger logger = LoggerFactory.getLogger(NodeRepositoryEbean.class);
 
   private EbeanDatabaseManager mDB;
+  private CollationRepository collationRepository;
 
   @Inject
-  public NodeRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager) {
+  public NodeRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager, CollationRepository collationRepository) {
     mDB = ebeanDatabaseManager;
+    this.collationRepository = collationRepository;
   }
 
   /**
@@ -132,7 +135,7 @@ public class NodeRepositoryEbean implements NodeRepository {
       Optional<NodeType> optNodeType,
       Optional<String> optOwnerId) {
 
-    SearchBuilder search = new SearchBuilder(mDB.getEbeanDatabase(), userId);
+    SearchBuilder search = new SearchBuilder(mDB.getEbeanDatabase(), userId, collationRepository.getValidCollation());
 
     long startTime = java.lang.System.nanoTime();
 
@@ -324,12 +327,13 @@ public class NodeRepositoryEbean implements NodeRepository {
       findNodeQuery.where().and().raw(keySet.toExpression(), keySet.getParameters().toArray());
     }
 
+    String collation = collationRepository.getValidCollation();
     List<Node> nodes =
         findNodeQuery
             .orderBy()
             .asc(Db.Node.CATEGORY)
             .orderBy()
-            .asc(Db.Node.NAME)
+            .asc(Db.Node.NAME, collation)
             .setMaxRows(pageQuery.getLimit())
             .findList()
             .stream()
@@ -376,7 +380,7 @@ public class NodeRepositoryEbean implements NodeRepository {
     Query<Node> query =
         mDB.getEbeanDatabase().createQuery(Node.class).where().idIn(nodeIds).query();
 
-    sort.map(s -> s.getOrderEbeanQuery(query));
+    sort.map(s -> s.getOrderEbeanQuery(query, collationRepository.getValidCollation()));
     return query.findList();
   }
 
@@ -403,19 +407,19 @@ public class NodeRepositoryEbean implements NodeRepository {
     sort.ifPresentOrElse(
         s -> {
           if (s.equals(NodeSort.SIZE_ASC)) {
-            NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
-            s.getOrderEbeanQuery(query);
-            NodeSort.NAME_ASC.getOrderEbeanQuery(query);
+            NodeSort.TYPE_ASC.getOrderEbeanQuery(query, collationRepository.getValidCollation());
+            s.getOrderEbeanQuery(query, collationRepository.getValidCollation());
+            NodeSort.NAME_ASC.getOrderEbeanQuery(query, collationRepository.getValidCollation());
           } else if (s.equals(NodeSort.SIZE_DESC)) {
-            NodeSort.TYPE_DESC.getOrderEbeanQuery(query);
-            s.getOrderEbeanQuery(query);
-            NodeSort.NAME_ASC.getOrderEbeanQuery(query);
+            NodeSort.TYPE_DESC.getOrderEbeanQuery(query, collationRepository.getValidCollation());
+            s.getOrderEbeanQuery(query, collationRepository.getValidCollation());
+            NodeSort.NAME_ASC.getOrderEbeanQuery(query, collationRepository.getValidCollation());
           } else {
-            NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
-            s.getOrderEbeanQuery(query);
+            NodeSort.TYPE_ASC.getOrderEbeanQuery(query, collationRepository.getValidCollation());
+            s.getOrderEbeanQuery(query, collationRepository.getValidCollation());
           }
         },
-        () -> NodeSort.TYPE_ASC.getOrderEbeanQuery(query));
+        () -> NodeSort.TYPE_ASC.getOrderEbeanQuery(query, collationRepository.getValidCollation()));
 
     return query.findIds();
   }

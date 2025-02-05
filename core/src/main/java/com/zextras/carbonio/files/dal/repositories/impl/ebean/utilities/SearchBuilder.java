@@ -21,10 +21,12 @@ public class SearchBuilder {
   Query<Node> query;
   Database db;
   String userId;
+  String collation;
 
-  public SearchBuilder(Database db, String userId) {
+  public SearchBuilder(Database db, String userId, String collation) {
     this.db = db;
     this.userId = userId;
+    this.collation = collation;
     this.query =
         this.db
             .find(Node.class)
@@ -203,7 +205,7 @@ public class SearchBuilder {
     if (order.equals(NodeSort.TYPE_ASC)) {
       this.query.orderBy().asc("mNodeCategory");
     } else {
-      order.getOrderEbeanQuery(this.query);
+      order.getOrderEbeanQuery(this.query, collation);
     }
 
     return this;
