@@ -8,6 +8,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.15.0](https://github.com/zextras/carbonio-files-ce/compare/v0.14.4...v0.15.0) (2025-02-06)
+
+
+### Features
+
+* add new message mimetypes on nodetype enum ([#150](https://github.com/zextras/carbonio-files-ce/issues/150)) ([02eeac2](https://github.com/zextras/carbonio-files-ce/commit/02eeac23bb75275d3c60bf4cc3efdb5e15e69538))
+* implement delete all api for account deletion ([#154](https://github.com/zextras/carbonio-files-ce/issues/154)) ([8dd1a71](https://github.com/zextras/carbonio-files-ce/commit/8dd1a71ff745e19c6352cd736ceb622c564eb323))
+* links public id from 32 to 50 characters ([#139](https://github.com/zextras/carbonio-files-ce/issues/139)) ([0646d26](https://github.com/zextras/carbonio-files-ce/commit/0646d26af1e87c6964c57ce2a9243dd4ee621b2e))
+* make node version as a query param in Preview APIs ([#151](https://github.com/zextras/carbonio-files-ce/issues/151)) ([51bce0b](https://github.com/zextras/carbonio-files-ce/commit/51bce0bd9978e772f4059df08e7763a6159230c3))
+
+
+### Bug Fixes
+
+* **ci:** restore distinct packages for distinct distros. ([48d211c](https://github.com/zextras/carbonio-files-ce/commit/48d211c5041972bbab92959ba01cc8a6dd6770d5))
+* **ci:** separate ubuntu builds for each flavour ([#152](https://github.com/zextras/carbonio-files-ce/issues/152)) ([5ad71be](https://github.com/zextras/carbonio-files-ce/commit/5ad71be80edb51ab16caeb591d1f52db46f8ac6e))
+* create link api does now checks the maximum number of links that can be created ([#148](https://github.com/zextras/carbonio-files-ce/issues/148)) ([54ca9bf](https://github.com/zextras/carbonio-files-ce/commit/54ca9bf5f9fab700083e8075f495f28be025366c))
+* handle errors on flagnodes ([#149](https://github.com/zextras/carbonio-files-ce/issues/149)) ([02b06f1](https://github.com/zextras/carbonio-files-ce/commit/02b06f17fc74acdb64a7e8468a1bcf3f60767955))
+
 ### [0.14.4](https://github.com/zextras/carbonio-files-ce/compare/v0.14.3...v0.14.4) (2024-12-12)
 
 
