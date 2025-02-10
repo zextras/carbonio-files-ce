@@ -16,7 +16,6 @@ public interface FilesConfig {
   PreviewClient getPreviewClient();
   Filestore getStoragesClient();
   int getMaxNumberOfFileVersion();
-  String getCollation();
   String getDatabaseUrl();
   String getMailboxUrl();
   String getDocsConnectorUrl();

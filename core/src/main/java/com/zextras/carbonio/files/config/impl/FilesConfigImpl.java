@@ -93,12 +93,6 @@ public class FilesConfigImpl implements FilesConfig {
             .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
   }
 
-  public String getCollation() {
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
-            .getConfig(ServiceDiscover.Config.COLLATION)
-            .getOrElse(ServiceDiscover.Config.DEFAULT_COLLATION);
-  }
-
   public String getDatabaseUrl() {
     final String databaseHost =
         Optional.ofNullable(System.getProperty(Database.URL))

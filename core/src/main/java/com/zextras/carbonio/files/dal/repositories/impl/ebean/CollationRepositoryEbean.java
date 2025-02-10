@@ -14,11 +14,14 @@ import io.ebean.SqlRow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
+
 public class CollationRepositoryEbean implements CollationRepository {
 
   private static final Logger logger = LoggerFactory.getLogger(CollationRepositoryEbean.class);
   private final EbeanDatabaseManager mDB;
   private final FilesConfig filesConfig;
+  private static Optional<String> cachedCollate = null;
 
   @Inject
   public CollationRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager, FilesConfig filesConfig) {
@@ -26,19 +29,60 @@ public class CollationRepositoryEbean implements CollationRepository {
     this.filesConfig = filesConfig;
   }
 
+  /**
+   * Get the valid collation to use in the queries.
+   * If default collate is C then use the fallback collation if installed.
+   * If default collate is not C or if the fallback collation is not installed then return empty.
+   * May be expanded to use the collation defined by the admin in the future.
+   *
+   * @return the valid collation
+   */
   @Override
-  public String getValidCollation() {
-    String adminDefinedCollation = filesConfig.getCollation();
-    String validCollation;
+  public Optional<String> getValidCollate() {
+    // Keep this commented because now we want to use the fallback collate if the machine uses C by default
+    // but in the future we may want to use the collation defined by the admin
+    /*String adminDefinedCollation = filesConfig.getCollation();
     if (isCollationValid(adminDefinedCollation)) {
       validCollation = adminDefinedCollation;
-    } else if (isCollationValid(Files.ServiceDiscover.Config.FALLBACK_COLLATION)) {
-      validCollation = Files.ServiceDiscover.Config.FALLBACK_COLLATION;
-    } else {
-      validCollation = Files.ServiceDiscover.Config.DEFAULT_COLLATION;
+    } else */
+
+    // No need to call every time the database since the default database collation is not going to change,
+    // so we can cache the result
+    if (cachedCollate != null) {
+      logger.info("Using cached collation: {}", cachedCollate.orElse("System default"));
+      return cachedCollate;
     }
-    logger.info("Using collation: {}", validCollation);
-    return "\"" + validCollation + "\"";
+
+    Optional<String> defaultCollate = getDefaultCollate();
+    // Set collate to the fallback collation if the default collate is C or C.utf8.
+    // If the fallback collation is not valid, or we can't get the default one set collate to empty
+    if (
+        defaultCollate.isPresent() &&
+        (defaultCollate.get().equals("C") || defaultCollate.get().equals("C.utf8")) &&
+        isCollationValid(Files.ServiceDiscover.Config.FALLBACK_COLLATE)
+    ) {
+      cachedCollate = Optional.of(Files.ServiceDiscover.Config.FALLBACK_COLLATE);
+      logger.info("Setting the fallback collation {}", Files.ServiceDiscover.Config.FALLBACK_COLLATE);
+      return cachedCollate;
+    }
+
+    cachedCollate = Optional.empty();
+    logger.info("Using default collation");
+    return cachedCollate;
+  }
+
+  private Optional<String> getDefaultCollate() {
+    String datname = Files.ServiceDiscover.Config.Db.DEFAULT_NAME;
+    String sql = "SELECT datcollate FROM pg_database WHERE datname = :datname";
+    SqlQuery query = mDB.getEbeanDatabase().sqlQuery(sql);
+    query.setParameter("datname", datname);
+    SqlRow row = query.findOne();
+    if (row == null){
+      logger.error("Failed to get the default collation for the database {}", datname);
+      return Optional.empty();
+    } else {
+      return Optional.ofNullable(row.getString("datcollate"));
+    }
   }
 
   private boolean isCollationValid(String collation) {

@@ -82,7 +82,7 @@ public class LinkRepositoryEbean implements LinkRepository {
             .eq(Db.Link.NODE_ID, nodeId)
             .query();
 
-    return sort.getOrderEbeanQuery(query, collationRepository.getValidCollation()).findList().stream();
+    return sort.getOrderEbeanQuery(query, collationRepository.getValidCollate()).findList().stream();
   }
 
   public Link updateLink(Link link) {
