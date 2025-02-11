@@ -63,12 +63,12 @@ public class CollationRepositoryEbean implements CollationRepository {
         isCollationValid(Files.ServiceDiscover.Config.FALLBACK_COLLATE)
     ) {
       cachedCollate = Optional.of(Files.ServiceDiscover.Config.FALLBACK_COLLATE);
-      logger.info("Setting the fallback collation {}", Files.ServiceDiscover.Config.FALLBACK_COLLATE);
+      logger.info("Setting collation to {}", Files.ServiceDiscover.Config.FALLBACK_COLLATE);
       return cachedCollate;
     }
 
     cachedCollate = Optional.empty();
-    logger.info("Using default collation");
+    logger.info("Setting collation to System default");
     return cachedCollate;
   }
 
