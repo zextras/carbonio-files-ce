@@ -59,7 +59,7 @@ public class CollationRepositoryEbean implements CollationRepository {
     logger.info("Default collation: {}", defaultCollate.orElse("Not found"));
     if (
         defaultCollate.isPresent() &&
-        (defaultCollate.get().equals("C") || defaultCollate.get().equals("C.utf8")) &&
+        (defaultCollate.get().equals("C") || defaultCollate.get().equals("C.UTF-8")) &&
         isCollationValid(Files.ServiceDiscover.Config.FALLBACK_COLLATE)
     ) {
       cachedCollate = Optional.of(Files.ServiceDiscover.Config.FALLBACK_COLLATE);
@@ -72,6 +72,14 @@ public class CollationRepositoryEbean implements CollationRepository {
     return cachedCollate;
   }
 
+  /*
+    * Get the default collation for the database.
+    * Mind that the format that is returned is not the same as the one found in pg_collation.
+    * For example, default collation obtained by this method can be en_US.UTF-8, but it would not be possible
+    * to use it as-is in a query, it would have to be en_US.utf8 as it is the corresponding valid collate.
+    * This means that isCollationValid("en_US.UTF-8") would return false even if it is the default collate for
+    * the Files database.
+   */
   private Optional<String> getDefaultCollate() {
     String datname = Files.ServiceDiscover.Config.Db.DEFAULT_NAME;
     String sql = "SELECT datcollate FROM pg_database WHERE datname = :datname";
