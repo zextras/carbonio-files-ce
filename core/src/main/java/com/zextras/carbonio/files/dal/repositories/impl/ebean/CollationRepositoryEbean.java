@@ -30,7 +30,7 @@ public class CollationRepositoryEbean implements CollationRepository {
   }
 
   /**
-   * Get the valid collation to use in the queries.
+   * Get the valid collation ready to use in the queries (between double quotes).
    * If default collate is C then use the fallback collation if installed.
    * If default collate is not C or if the fallback collation is not installed then return empty.
    * May be expanded to use the collation defined by the admin in the future.
@@ -38,7 +38,7 @@ public class CollationRepositoryEbean implements CollationRepository {
    * @return the valid collation
    */
   @Override
-  public Optional<String> getValidCollate() {
+  public Optional<String> getValidCollateForQuery() {
     // Keep this commented because now we want to use the fallback collate if the machine uses C by default
     // but in the future we may want to use the collation defined by the admin
     /*String adminDefinedCollation = filesConfig.getCollation();
@@ -62,8 +62,8 @@ public class CollationRepositoryEbean implements CollationRepository {
         (defaultCollate.get().equals("C") || defaultCollate.get().equals("C.UTF-8")) &&
         isCollationValid(Files.ServiceDiscover.Config.FALLBACK_COLLATE)
     ) {
-      cachedCollate = Optional.of(Files.ServiceDiscover.Config.FALLBACK_COLLATE);
-      logger.info("Setting collation to {}", Files.ServiceDiscover.Config.FALLBACK_COLLATE);
+      cachedCollate = Optional.of("\"" + Files.ServiceDiscover.Config.FALLBACK_COLLATE + "\"");
+      logger.info("C collation detected, setting collation to {}", Files.ServiceDiscover.Config.FALLBACK_COLLATE);
       return cachedCollate;
     }
 

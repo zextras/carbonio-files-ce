@@ -111,7 +111,7 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
             .eq(Files.Db.FileVersion.NODE_ID, nodeId)
             .query();
 
-    sorts.forEach(sort -> sort.getOrderEbeanQuery(query, collationRepository.getValidCollate()));
+    sorts.forEach(sort -> sort.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery()));
 
     List<FileVersion> fileVersions = query.findList();
     fileVersions.forEach(fileVersion ->

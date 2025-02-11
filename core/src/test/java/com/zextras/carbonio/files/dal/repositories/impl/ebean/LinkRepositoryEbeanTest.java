@@ -33,7 +33,7 @@ class LinkRepositoryEbeanTest {
     EbeanDatabaseManager ebeanDatabaseManagerMock = Mockito.mock(EbeanDatabaseManager.class);
     CollationRepository collationRepositoryMock = Mockito.mock(CollationRepository.class);
     Mockito.when(ebeanDatabaseManagerMock.getEbeanDatabase()).thenReturn(ebeanDatabaseMock);
-    Mockito.when(collationRepositoryMock.getValidCollate()).thenReturn(Optional.empty());
+    Mockito.when(collationRepositoryMock.getValidCollateForQuery()).thenReturn(Optional.empty());
 
     linkRepository = new LinkRepositoryEbean(ebeanDatabaseManagerMock, collationRepositoryMock);
   }

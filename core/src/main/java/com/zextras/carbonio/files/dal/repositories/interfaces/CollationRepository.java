@@ -7,5 +7,5 @@ package com.zextras.carbonio.files.dal.repositories.interfaces;
 import java.util.Optional;
 
 public interface CollationRepository {
-  Optional<String> getValidCollate();
+  Optional<String> getValidCollateForQuery();
 }

@@ -199,7 +199,7 @@ public class ShareRepositoryEbean implements ShareRepository {
             .eq(Files.Db.Share.NODE_ID, nodeId)
             .query();
 
-    sorts.forEach(sort -> sort.getOrderEbeanQuery(query, collationRepository.getValidCollate()));
+    sorts.forEach(sort -> sort.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery()));
     return query.findList().stream().map(Share::getTargetUserId).toList();
   }
 }
