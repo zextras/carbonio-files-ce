@@ -56,6 +56,7 @@ public class CollationRepositoryEbean implements CollationRepository {
     Optional<String> defaultCollate = getDefaultCollate();
     // Set collate to the fallback collation if the default collate is C or C.utf8.
     // If the fallback collation is not valid, or we can't get the default one set collate to empty
+    logger.info("Default collation: {}", defaultCollate.orElse("Not found"));
     if (
         defaultCollate.isPresent() &&
         (defaultCollate.get().equals("C") || defaultCollate.get().equals("C.utf8")) &&
