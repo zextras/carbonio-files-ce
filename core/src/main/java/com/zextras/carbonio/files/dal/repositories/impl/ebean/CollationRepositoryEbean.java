@@ -21,7 +21,7 @@ public class CollationRepositoryEbean implements CollationRepository {
   private static final Logger logger = LoggerFactory.getLogger(CollationRepositoryEbean.class);
   private final EbeanDatabaseManager mDB;
   private final FilesConfig filesConfig;
-  private static Optional<String> cachedCollate = null;
+  private Optional<String> cachedCollate = null;
 
   @Inject
   public CollationRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager, FilesConfig filesConfig) {
