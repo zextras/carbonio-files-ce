@@ -19,9 +19,9 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.PageQuery;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SQLExpression;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SearchBuilder;
+import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import io.ebean.Query;
-import io.ebean.Transaction;
 import io.ebean.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,10 +39,12 @@ public class NodeRepositoryEbean implements NodeRepository {
   private static final Logger logger = LoggerFactory.getLogger(NodeRepositoryEbean.class);
 
   private EbeanDatabaseManager mDB;
+  private CollationRepository collationRepository;
 
   @Inject
-  public NodeRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager) {
+  public NodeRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager, CollationRepository collationRepository) {
     mDB = ebeanDatabaseManager;
+    this.collationRepository = collationRepository;
   }
 
   /**
@@ -132,7 +134,7 @@ public class NodeRepositoryEbean implements NodeRepository {
       Optional<NodeType> optNodeType,
       Optional<String> optOwnerId) {
 
-    SearchBuilder search = new SearchBuilder(mDB.getEbeanDatabase(), userId);
+    SearchBuilder search = new SearchBuilder(mDB.getEbeanDatabase(), userId, collationRepository.getValidCollateForQuery());
 
     long startTime = java.lang.System.nanoTime();
 
@@ -324,7 +326,25 @@ public class NodeRepositoryEbean implements NodeRepository {
       findNodeQuery.where().and().raw(keySet.toExpression(), keySet.getParameters().toArray());
     }
 
-    List<Node> nodes =
+    List<Node> nodes;
+    Optional<String> collation = collationRepository.getValidCollateForQuery();
+    if (collation.isPresent()) {
+      nodes =
+        findNodeQuery
+            .orderBy()
+            .asc(Db.Node.CATEGORY)
+            .orderBy()
+            .asc(Db.Node.NAME, collation.get())
+            .setMaxRows(pageQuery.getLimit())
+            .findList()
+            .stream()
+            // This filter is tricky because it denies the access of nodes that are not children of
+            // the
+            // requested public folder
+            .filter(node -> node.getAncestorsList().contains(folderId))
+            .toList();
+    } else {
+      nodes =
         findNodeQuery
             .orderBy()
             .asc(Db.Node.CATEGORY)
@@ -338,6 +358,7 @@ public class NodeRepositoryEbean implements NodeRepository {
             // requested public folder
             .filter(node -> node.getAncestorsList().contains(folderId))
             .toList();
+    }
 
     if (nodes.size() == realLimit) {
       return new ImmutablePair<>(
@@ -376,7 +397,7 @@ public class NodeRepositoryEbean implements NodeRepository {
     Query<Node> query =
         mDB.getEbeanDatabase().createQuery(Node.class).where().idIn(nodeIds).query();
 
-    sort.map(s -> s.getOrderEbeanQuery(query));
+    sort.map(s -> s.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery()));
     return query.findList();
   }
 
@@ -403,19 +424,19 @@ public class NodeRepositoryEbean implements NodeRepository {
     sort.ifPresentOrElse(
         s -> {
           if (s.equals(NodeSort.SIZE_ASC)) {
-            NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
-            s.getOrderEbeanQuery(query);
-            NodeSort.NAME_ASC.getOrderEbeanQuery(query);
+            NodeSort.TYPE_ASC.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
+            s.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
+            NodeSort.NAME_ASC.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
           } else if (s.equals(NodeSort.SIZE_DESC)) {
-            NodeSort.TYPE_DESC.getOrderEbeanQuery(query);
-            s.getOrderEbeanQuery(query);
-            NodeSort.NAME_ASC.getOrderEbeanQuery(query);
+            NodeSort.TYPE_DESC.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
+            s.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
+            NodeSort.NAME_ASC.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
           } else {
-            NodeSort.TYPE_ASC.getOrderEbeanQuery(query);
-            s.getOrderEbeanQuery(query);
+            NodeSort.TYPE_ASC.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
+            s.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
           }
         },
-        () -> NodeSort.TYPE_ASC.getOrderEbeanQuery(query));
+        () -> NodeSort.TYPE_ASC.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery()));
 
     return query.findIds();
   }

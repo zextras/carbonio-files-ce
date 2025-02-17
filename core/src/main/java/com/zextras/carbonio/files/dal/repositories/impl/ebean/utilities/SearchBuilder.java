@@ -11,6 +11,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import io.ebean.Database;
 import io.ebean.Query;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * This class is used to create and add parameters to a search query with ebean. All methods must
@@ -21,10 +22,12 @@ public class SearchBuilder {
   Query<Node> query;
   Database db;
   String userId;
+  Optional<String> collation;
 
-  public SearchBuilder(Database db, String userId) {
+  public SearchBuilder(Database db, String userId, Optional<String> collation) {
     this.db = db;
     this.userId = userId;
+    this.collation = collation;
     this.query =
         this.db
             .find(Node.class)
@@ -203,7 +206,7 @@ public class SearchBuilder {
     if (order.equals(NodeSort.TYPE_ASC)) {
       this.query.orderBy().asc("mNodeCategory");
     } else {
-      order.getOrderEbeanQuery(this.query);
+      order.getOrderEbeanQuery(this.query, collation);
     }
 
     return this;

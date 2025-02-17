@@ -8,23 +8,25 @@ import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import io.ebean.Query;
 
+import java.util.Optional;
+
 /**
  * Represents all the applicable sort types in a list of {@link Share}s. Each of them implements the
- * {@link SortingEntityEbean#getOrderEbeanQuery(Query)} method that returns a query with the related
+  * {@link SortingEntityEbean#getOrderEbeanQuery(Query, Optional<String>)} method that returns a query with the related
  * sort applied. These implementations can be useful to concatenate multiple sorts to a single
  * {@link Query}.
  */
 public enum ShareSort implements SortingEntityEbean<Share> {
   CREATION_ASC {
     @Override
-    public Query<Share> getOrderEbeanQuery(Query<Share> query) {
+     public Query<Share> getOrderEbeanQuery(Query<Share> query, Optional<String> collate) {
       return query.order().asc(Files.Db.Share.CREATED_AT);
     }
   },
 
   CREATION_DESC {
     @Override
-    public Query<Share> getOrderEbeanQuery(Query<Share> query) {
+     public Query<Share> getOrderEbeanQuery(Query<Share> query, Optional<String> collate) {
       return query.order().desc(Files.Db.Share.CREATED_AT);
     }
   },
@@ -34,8 +36,11 @@ public enum ShareSort implements SortingEntityEbean<Share> {
    */
   TARGET_USER_ASC {
     @Override
-    public Query<Share> getOrderEbeanQuery(Query<Share> query) {
-      return query.order().asc(Files.Db.Share.SHARE_TARGET_UUID);
+     public Query<Share> getOrderEbeanQuery(Query<Share> query, Optional<String> collate) {
+       if (collate.isEmpty()) {
+        return query.order().asc(Files.Db.Share.SHARE_TARGET_UUID);
+      }
+       return query.order().asc(Files.Db.Share.SHARE_TARGET_UUID, collate.get());
     }
   },
 
@@ -44,8 +49,11 @@ public enum ShareSort implements SortingEntityEbean<Share> {
    */
   TARGET_USER_DESC {
     @Override
-    public Query<Share> getOrderEbeanQuery(Query<Share> query) {
-      return query.order().desc(Files.Db.Share.SHARE_TARGET_UUID);
+     public Query<Share> getOrderEbeanQuery(Query<Share> query, Optional<String> collate) {
+       if (collate.isEmpty()) {
+        return query.order().desc(Files.Db.Share.SHARE_TARGET_UUID);
+      }
+       return query.order().desc(Files.Db.Share.SHARE_TARGET_UUID, collate.get());
     }
   },
 
@@ -54,7 +62,7 @@ public enum ShareSort implements SortingEntityEbean<Share> {
    */
   SHARE_PERMISSIONS_ASC {
     @Override
-    public Query<Share> getOrderEbeanQuery(Query<Share> query) {
+     public Query<Share> getOrderEbeanQuery(Query<Share> query, Optional<String> collate) {
       return query.order().asc(Files.Db.Share.PERMISSIONS);
     }
   },
@@ -64,21 +72,21 @@ public enum ShareSort implements SortingEntityEbean<Share> {
    */
   SHARE_PERMISSIONS_DESC {
     @Override
-    public Query<Share> getOrderEbeanQuery(Query<Share> query) {
+     public Query<Share> getOrderEbeanQuery(Query<Share> query, Optional<String> collate) {
       return query.order().desc(Files.Db.Share.PERMISSIONS);
     }
   },
 
   EXPIRATION_ASC {
     @Override
-    public Query<Share> getOrderEbeanQuery(Query<Share> query) {
+     public Query<Share> getOrderEbeanQuery(Query<Share> query, Optional<String> collate) {
       return query.order().asc(Files.Db.Share.EXPIRED_AT);
     }
   },
 
   EXPIRATION_DESC {
     @Override
-    public Query<Share> getOrderEbeanQuery(Query<Share> query) {
+     public Query<Share> getOrderEbeanQuery(Query<Share> query, Optional<String> collate) {
       return query.order().desc(Files.Db.Share.EXPIRED_AT);
     }
   },

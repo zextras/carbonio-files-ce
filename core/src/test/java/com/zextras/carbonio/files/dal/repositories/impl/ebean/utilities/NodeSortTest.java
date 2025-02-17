@@ -4,12 +4,15 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
+import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import io.ebean.OrderBy;
 import io.ebean.Query;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+
+import java.util.Optional;
 
 class NodeSortTest {
 
@@ -28,7 +31,7 @@ class NodeSortTest {
   @Test
   void givenALastEditorAscNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
     // Given & When
-    NodeSort.LAST_EDITOR_ASC.getOrderEbeanQuery(queryNodeMock);
+    NodeSort.LAST_EDITOR_ASC.getOrderEbeanQuery(queryNodeMock, Optional.empty());
 
     // Then
     Mockito.verify(queryNodeMock, Mockito.times(1)).order();
@@ -41,7 +44,7 @@ class NodeSortTest {
   @Test
   void givenALastEditorDescNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
     // Given & When
-    NodeSort.LAST_EDITOR_DESC.getOrderEbeanQuery(queryNodeMock);
+    NodeSort.LAST_EDITOR_DESC.getOrderEbeanQuery(queryNodeMock, Optional.empty());
 
     // Then
     Mockito.verify(queryNodeMock, Mockito.times(1)).order();
@@ -54,7 +57,7 @@ class NodeSortTest {
   @Test
   void givenANameAscNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
     // Given & When
-    NodeSort.NAME_ASC.getOrderEbeanQuery(queryNodeMock);
+    NodeSort.NAME_ASC.getOrderEbeanQuery(queryNodeMock, Optional.empty());
 
     // Then
     Mockito.verify(queryNodeMock, Mockito.times(1)).order();
@@ -67,7 +70,7 @@ class NodeSortTest {
   @Test
   void givenANameDescNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
     // Given & When
-    NodeSort.NAME_DESC.getOrderEbeanQuery(queryNodeMock);
+    NodeSort.NAME_DESC.getOrderEbeanQuery(queryNodeMock, Optional.empty());
 
     // Then
     Mockito.verify(queryNodeMock, Mockito.times(1)).order();
@@ -80,7 +83,7 @@ class NodeSortTest {
   @Test
   void givenAnOwnerAscNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
     // Given & When
-    NodeSort.OWNER_ASC.getOrderEbeanQuery(queryNodeMock);
+    NodeSort.OWNER_ASC.getOrderEbeanQuery(queryNodeMock, Optional.empty());
 
     // Then
     Mockito.verify(queryNodeMock, Mockito.times(1)).order();
@@ -93,7 +96,7 @@ class NodeSortTest {
   @Test
   void givenAnOwnerDescNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
     // Given & When
-    NodeSort.OWNER_DESC.getOrderEbeanQuery(queryNodeMock);
+    NodeSort.OWNER_DESC.getOrderEbeanQuery(queryNodeMock, Optional.empty());
 
     // Then
     Mockito.verify(queryNodeMock, Mockito.times(1)).order();
@@ -106,7 +109,7 @@ class NodeSortTest {
   @Test
   void givenATypeAscNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
     // Given & When
-    NodeSort.TYPE_ASC.getOrderEbeanQuery(queryNodeMock);
+    NodeSort.TYPE_ASC.getOrderEbeanQuery(queryNodeMock, Optional.empty());
 
     // Then
     Mockito.verify(queryNodeMock, Mockito.times(1)).order();
@@ -119,7 +122,7 @@ class NodeSortTest {
   @Test
   void givenATypeDescNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
     // Given & When
-    NodeSort.TYPE_DESC.getOrderEbeanQuery(queryNodeMock);
+    NodeSort.TYPE_DESC.getOrderEbeanQuery(queryNodeMock, Optional.empty());
 
     // Then
     Mockito.verify(queryNodeMock, Mockito.times(1)).order();
@@ -132,7 +135,7 @@ class NodeSortTest {
   @Test
   void givenAnUpdatedAtAscNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
     // Given & When
-    NodeSort.UPDATED_AT_ASC.getOrderEbeanQuery(queryNodeMock);
+    NodeSort.UPDATED_AT_ASC.getOrderEbeanQuery(queryNodeMock, Optional.empty());
 
     // Then
     Mockito.verify(queryNodeMock, Mockito.times(1)).order();
@@ -145,7 +148,7 @@ class NodeSortTest {
   @Test
   void givenAnUpdatedAtDescNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
     // Given & When
-    NodeSort.UPDATED_AT_DESC.getOrderEbeanQuery(queryNodeMock);
+    NodeSort.UPDATED_AT_DESC.getOrderEbeanQuery(queryNodeMock, Optional.empty());
 
     // Then
     Mockito.verify(queryNodeMock, Mockito.times(1)).order();
@@ -158,7 +161,7 @@ class NodeSortTest {
   @Test
   void givenACreatedAtAscNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
     // Given & When
-    NodeSort.CREATED_AT_ASC.getOrderEbeanQuery(queryNodeMock);
+    NodeSort.CREATED_AT_ASC.getOrderEbeanQuery(queryNodeMock, Optional.empty());
 
     // Then
     Mockito.verify(queryNodeMock, Mockito.times(1)).order();
@@ -171,7 +174,7 @@ class NodeSortTest {
   @Test
   void givenACreatedAtDescNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
     // Given & When
-    NodeSort.CREATED_AT_DESC.getOrderEbeanQuery(queryNodeMock);
+    NodeSort.CREATED_AT_DESC.getOrderEbeanQuery(queryNodeMock, Optional.empty());
 
     // Then
     Mockito.verify(queryNodeMock, Mockito.times(1)).order();
@@ -184,7 +187,7 @@ class NodeSortTest {
   @Test
   void givenASizeAscNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
     // Given & When
-    NodeSort.SIZE_ASC.getOrderEbeanQuery(queryNodeMock);
+    NodeSort.SIZE_ASC.getOrderEbeanQuery(queryNodeMock, Optional.empty());
 
     // Then
     Mockito.verify(queryNodeMock, Mockito.times(1)).order();
@@ -197,7 +200,7 @@ class NodeSortTest {
   @Test
   void givenASizeDescNodeSortTheGetOrderEbeanQueryShouldApplyTheOrderByCorrectly() {
     // Given & When
-    NodeSort.SIZE_DESC.getOrderEbeanQuery(queryNodeMock);
+    NodeSort.SIZE_DESC.getOrderEbeanQuery(queryNodeMock, Optional.empty());
 
     // Then
     Mockito.verify(queryNodeMock, Mockito.times(1)).order();

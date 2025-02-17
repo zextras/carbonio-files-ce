@@ -13,6 +13,7 @@ import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
+import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import io.ebean.Database;
 import io.ebean.Query;
@@ -24,14 +25,17 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
 
   private EbeanDatabaseManager mDB;
   private Cache<FileVersion>   fileVersionCache;
+  private CollationRepository collationRepository;
 
   @Inject
   public FileVersionRepositoryEbean(
     EbeanDatabaseManager ebeanDatabaseManager,
-    CacheHandler cacheHandler
+    CacheHandler cacheHandler,
+    CollationRepository collationRepository
   ) {
     mDB = ebeanDatabaseManager;
     fileVersionCache = cacheHandler.getFileVersionCache();
+    this.collationRepository = collationRepository;
   }
 
   private String getFileVersionId(
@@ -107,7 +111,7 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
             .eq(Files.Db.FileVersion.NODE_ID, nodeId)
             .query();
 
-    sorts.forEach(sort -> sort.getOrderEbeanQuery(query));
+    sorts.forEach(sort -> sort.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery()));
 
     List<FileVersion> fileVersions = query.findList();
     fileVersions.forEach(fileVersion ->

@@ -9,9 +9,11 @@ import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import io.ebean.Query;
 
+import java.util.Optional;
+
 /**
  * Represents all applicable sort types of a list of {@link Node}s. Each of them implements the
- * {@link SortingEntityEbean#getOrderEbeanQuery(Query)} method that returns a query with the related
+ * {@link SortingEntityEbean#getOrderEbeanQuery(Query, Optional<String>)} method that returns a query with the related
  * sort applied. These implementations can be useful to concatenate multiple sorts to a single
  * {@link Query}.
  */
@@ -29,10 +31,11 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
       return SortOrder.ASCENDING;
     }
 
-    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
+    public Query<Node> getOrderEbeanQuery(Query<Node> query, Optional<String> collate) {
       return query.order().asc("t0." + Files.Db.Node.ID);
     }
   },
+
   LAST_EDITOR_ASC {
     @Override
     public String getName() {
@@ -44,8 +47,11 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
       return SortOrder.ASCENDING;
     }
 
-    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().asc("t0." + Files.Db.Node.EDITOR_ID);
+    public Query<Node> getOrderEbeanQuery(Query<Node> query, Optional<String> collate) {
+      if (collate.isEmpty()) {
+        return query.order().asc("t0." + Files.Db.Node.EDITOR_ID);
+      }
+      return query.order().asc("t0." + Files.Db.Node.EDITOR_ID, collate.get());
     }
   },
 
@@ -60,8 +66,11 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
       return SortOrder.DESCENDING;
     }
 
-    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().desc("t0." + Files.Db.Node.EDITOR_ID);
+    public Query<Node> getOrderEbeanQuery(Query<Node> query, Optional<String> collate) {
+      if (collate.isEmpty()) {
+        return query.order().desc("t0." + Files.Db.Node.EDITOR_ID);
+      }
+      return query.order().desc("t0." + Files.Db.Node.EDITOR_ID, collate.get());
     }
   },
 
@@ -77,8 +86,11 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
     }
 
     @Override
-    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().asc("t0." + Files.Db.Node.NAME);
+    public Query<Node> getOrderEbeanQuery(Query<Node> query, Optional<String> collate) {
+      if (collate.isEmpty()) {
+        return query.order().asc("t0." + Files.Db.Node.NAME);
+      }
+      return query.order().asc("t0." + Files.Db.Node.NAME, collate.get());
     }
   },
 
@@ -93,8 +105,11 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
       return SortOrder.DESCENDING;
     }
 
-    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().desc("t0." + Files.Db.Node.NAME);
+    public Query<Node> getOrderEbeanQuery(Query<Node> query, Optional<String> collate) {
+      if (collate.isEmpty()) {
+        return query.order().desc("t0." + Files.Db.Node.NAME);
+      }
+      return query.order().desc("t0." + Files.Db.Node.NAME, collate.get());
     }
   },
 
@@ -109,8 +124,11 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
       return SortOrder.ASCENDING;
     }
 
-    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().asc("t0." + Files.Db.Node.OWNER_ID);
+    public Query<Node> getOrderEbeanQuery(Query<Node> query, Optional<String> collate) {
+      if (collate.isEmpty()) {
+        return query.order().asc("t0." + Files.Db.Node.OWNER_ID);
+      }
+      return query.order().asc("t0." + Files.Db.Node.OWNER_ID, collate.get());
     }
   },
 
@@ -125,8 +143,11 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
       return SortOrder.DESCENDING;
     }
 
-    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
-      return query.order().desc("t0." + Files.Db.Node.OWNER_ID);
+    public Query<Node> getOrderEbeanQuery(Query<Node> query, Optional<String> collate) {
+      if (collate.isEmpty()) {
+        return query.order().desc("t0." + Files.Db.Node.OWNER_ID);
+      }
+      return query.order().desc("t0." + Files.Db.Node.OWNER_ID, collate.get());
     }
   },
 
@@ -142,7 +163,7 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
       return SortOrder.ASCENDING;
     }
 
-    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
+    public Query<Node> getOrderEbeanQuery(Query<Node> query, Optional<String> collate) {
       return query.order().asc("t0." + Files.Db.Node.CATEGORY);
     }
   },
@@ -159,7 +180,7 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
       return SortOrder.DESCENDING;
     }
 
-    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
+    public Query<Node> getOrderEbeanQuery(Query<Node> query, Optional<String> collate) {
       return query.order().desc("t0." + Files.Db.Node.CATEGORY);
     }
   },
@@ -175,7 +196,7 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
       return SortOrder.ASCENDING;
     }
 
-    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
+    public Query<Node> getOrderEbeanQuery(Query<Node> query, Optional<String> collate) {
       return query.order().asc("t0." + Files.Db.Node.UPDATED_AT);
     }
   },
@@ -191,7 +212,7 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
       return SortOrder.DESCENDING;
     }
 
-    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
+    public Query<Node> getOrderEbeanQuery(Query<Node> query, Optional<String> collate) {
       return query.order().desc("t0." + Files.Db.Node.UPDATED_AT);
     }
   },
@@ -207,7 +228,7 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
       return SortOrder.ASCENDING;
     }
 
-    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
+    public Query<Node> getOrderEbeanQuery(Query<Node> query, Optional<String> collate) {
       return query.order().asc("t0." + Files.Db.Node.CREATED_AT);
     }
   },
@@ -223,7 +244,7 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
       return SortOrder.DESCENDING;
     }
 
-    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
+    public Query<Node> getOrderEbeanQuery(Query<Node> query, Optional<String> collate) {
       return query.order().desc("t0." + Files.Db.Node.CREATED_AT);
     }
   },
@@ -239,7 +260,7 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
       return SortOrder.ASCENDING;
     }
 
-    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
+    public Query<Node> getOrderEbeanQuery(Query<Node> query, Optional<String> collate) {
       return query.order().asc("t0." + Files.Db.Node.SIZE);
     }
   },
@@ -255,7 +276,7 @@ public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
       return SortOrder.DESCENDING;
     }
 
-    public Query<Node> getOrderEbeanQuery(Query<Node> query) {
+    public Query<Node> getOrderEbeanQuery(Query<Node> query, Optional<String> collate) {
       return query.order().desc("t0." + Files.Db.Node.SIZE);
     }
   }

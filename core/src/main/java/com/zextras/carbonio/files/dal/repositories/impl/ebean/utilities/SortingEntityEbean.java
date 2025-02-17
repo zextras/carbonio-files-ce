@@ -6,7 +6,9 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
 import io.ebean.Query;
 
-interface SortingEntityEbean<T> {
+import java.util.Optional;
 
-  Query<T> getOrderEbeanQuery(Query<T> query);
+interface SortingEntityEbean<T> {
+    // "collate" is ignored for ordered queries that do not use a String field as sorting criteria
+    Query<T> getOrderEbeanQuery(Query<T> query, Optional<String> collate);
 }
