@@ -135,11 +135,11 @@ public class DownloadByPublicLinkApiIT {
     "abcd1234,/link/,",
     "abcd1234abcd1234abcd1234abcd1234,/link/,",
     "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab,/link/,",
-    "abcd1234abcd1234abcd1234abcd1234,/public/link/download/,fake-token",
-    "abcd1234abcd1234abcd1234abcd1234,/link/,fake-token",
+    "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab,/public/link/download/,fake-token",
+    "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab,/link/,fake-token",
   })
   void
-      givenAUserWithOrWithoutCookieAnExistingFileAndAnExistingPublicLinkWithAccessCodeAssociatedTheDownloadByPublicLinkShouldReturnTheBlob(
+      givenAUserWithOrWithoutCookieAnExistingFileAndAnExistingPublicLinkAssociatedWithAccessCodeTheDownloadByPublicLinkShouldRedirect(
           String publicLinkId, String publicLinkEndpoint, String userToken) {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -161,7 +161,7 @@ public class DownloadByPublicLinkApiIT {
             publicLinkId,
             Optional.empty(),
             Optional.empty(),
-            Optional.of("fake-access-code"));
+            Optional.of("test"));
 
     simulator.getBlob("00000000-0000-0000-0000-000000000000", 1);
 
@@ -173,19 +173,10 @@ public class DownloadByPublicLinkApiIT {
         TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-
-    simulator
-        .getStoragesMock()
-        .verify(
-            org.mockserver.model.HttpRequest.request()
-                .withMethod(HttpMethod.GET.toString())
-                .withPath("/download")
-                .withQueryStringParameter(
-                    Parameter.param("node", "00000000-0000-0000-0000-000000000000"))
-                .withQueryStringParameter(Parameter.param("version", "1"))
-                .withQueryStringParameter(Parameter.param("type", "files")),
-            VerificationTimes.once());
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(307);
+    Assertions.assertThat(httpResponse.getHeaders())
+        .extracting(header -> header.getKey().equals("location") ? header.getValue() : null)
+        .contains("/files/public/link/access/" + publicLinkId);
   }
 
   @Test

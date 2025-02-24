@@ -54,4 +54,21 @@ public class HttpResponseBuilder {
 
     return new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, headers);
   }
+
+  /**
+   * Allows to create a {@link DefaultHttpResponse} with a redirect status and location header.
+   *
+   * <ul>
+   *   <li>{@link HttpHeaderNames#LOCATION} with the URL to redirect to
+   * </ul>
+   *
+   * @param redirectUrl is the URL to which the response should redirect.
+   * @return a {@link HttpResponse} with a redirect status and location header.
+   */
+  public static HttpResponse createRedirectHttpResponse(String redirectUrl) {
+    DefaultHttpHeaders headers = new DefaultHttpHeaders(true);
+    headers.add(HttpHeaderNames.LOCATION, redirectUrl);
+
+    return new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.TEMPORARY_REDIRECT, headers);
+  }
 }

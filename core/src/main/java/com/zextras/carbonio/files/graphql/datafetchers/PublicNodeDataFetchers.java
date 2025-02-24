@@ -79,7 +79,7 @@ public class PublicNodeDataFetchers {
                                     // Check access code for existence and correctness, but only if node is
                                     // a folder
                                     Optional<String> linkAccessCode = publicLink.getAccessCode();
-                                    if (linkAccessCode.isPresent() && node.getNodeType().equals(NodeType.FOLDER)) {
+                                    if (linkAccessCode.isPresent()) {
                                       if (accessCode.isEmpty()) {
                                         return DataFetcherResult.<Map<String, Object>>newResult()
                                             .error(GraphQLResultErrors.accessCodeRequired(publicLinkId, path))
