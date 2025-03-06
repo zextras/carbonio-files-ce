@@ -8,6 +8,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.15.1](https://github.com/zextras/carbonio-files-ce/compare/v0.15.0...v0.15.1) (2025-03-06)
+
+
+### Bug Fixes
+
+* removed duplication of nodes from public dir on infras with C type collate ([#156](https://github.com/zextras/carbonio-files-ce/issues/156)) ([c735a50](https://github.com/zextras/carbonio-files-ce/commit/c735a5050215bb2d3cd185feddb78648ec5ce49e))
+
 ## [0.15.0](https://github.com/zextras/carbonio-files-ce/compare/v0.14.4...v0.15.0) (2025-02-06)
 
 
