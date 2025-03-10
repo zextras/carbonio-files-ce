@@ -26,10 +26,14 @@ import graphql.execution.instrumentation.fieldvalidation.FieldValidation;
 import graphql.execution.instrumentation.fieldvalidation.FieldValidationInstrumentation;
 import graphql.execution.instrumentation.fieldvalidation.SimpleFieldValidation;
 import graphql.schema.DataFetcher;
+import graphql.schema.GraphQLCodeRegistry;
 import graphql.schema.GraphQLSchema;
 import graphql.schema.idl.RuntimeWiring;
 import graphql.schema.idl.SchemaGenerator;
 import graphql.schema.idl.SchemaParser;
+import graphql.schema.visibility.BlockedFields;
+import graphql.schema.visibility.GraphqlFieldVisibility;
+
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -355,8 +359,21 @@ public class GraphQLProvider {
     InputStream inputStream = getClass().getResourceAsStream(SCHEMA_URL);
     Reader schema = new InputStreamReader(inputStream);
 
-    // Create the GraphQLSchema object
-    return new SchemaGenerator().makeExecutableSchema(new SchemaParser().parse(schema), wiring);
+    // Generate the schema first
+    GraphQLSchema graphQLSchema = new SchemaGenerator().makeExecutableSchema(new SchemaParser().parse(schema), wiring);
+
+    // Modify the existing code registry to add the blocked fields
+    GraphQLCodeRegistry existingCodeRegistry = graphQLSchema.getCodeRegistry();
+    GraphqlFieldVisibility blockedFields = BlockedFields.newBlock().addPattern("__.*").build();
+
+    GraphQLCodeRegistry updatedCodeRegistry = existingCodeRegistry.transform(builder ->
+        builder.fieldVisibility(blockedFields)
+    );
+
+    // Apply the updated code registry to the schema
+    return graphQLSchema.transform(builder ->
+        builder.codeRegistry(updatedCodeRegistry)
+    );
   }
 
   public GraphQL getGraphQL() {
