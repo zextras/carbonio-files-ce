@@ -359,10 +359,10 @@ public class GraphQLProvider {
     InputStream inputStream = getClass().getResourceAsStream(SCHEMA_URL);
     Reader schema = new InputStreamReader(inputStream);
 
-    // Generate the schema first
+    // Generate the schema
     GraphQLSchema graphQLSchema = new SchemaGenerator().makeExecutableSchema(new SchemaParser().parse(schema), wiring);
 
-    // Modify the existing code registry to add the blocked fields
+    // Add blocked fields to disable introspection
     GraphQLCodeRegistry existingCodeRegistry = graphQLSchema.getCodeRegistry();
     GraphqlFieldVisibility blockedFields = BlockedFields.newBlock().addPattern("__.*").build();
 
@@ -370,7 +370,7 @@ public class GraphQLProvider {
         builder.fieldVisibility(blockedFields)
     );
 
-    // Apply the updated code registry to the schema
+    // Apply code registry to schema
     return graphQLSchema.transform(builder ->
         builder.codeRegistry(updatedCodeRegistry)
     );
