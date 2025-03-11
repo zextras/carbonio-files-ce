@@ -68,16 +68,17 @@ class IntrospectionApiIT {
 
   @Test
   void givenIntrospectionIsDisabledWhenIntrospectionQueryIsSentThenItShouldFail() {
+    // Given
     String introspectionQuery = "query introspectionQuery { __schema { types { name } } }";
 
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", introspectionQuery);
 
-    // When: Send the introspection query
+    // When
     final HttpResponse httpResponse =
         TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
-    // Then: Verify that the query fails
+    // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     final List<String> responseBody =
