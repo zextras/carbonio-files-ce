@@ -135,7 +135,10 @@ public class BlobService {
   public Optional<BlobResponse> downloadPublicFileById(String nodeId, String nodeLinkId) {
     Optional<Node> nodeOptional = nodeRepository.getNode(nodeId);
 
-    if (nodeOptional.isPresent() && linkRepository.isLinkValidForNode(nodeLinkId, nodeOptional.get())) {
+    if (nodeOptional.isPresent() &&
+        linkRepository.isLinkValidForNode(nodeLinkId, nodeOptional.get()) &&
+        nodeRepository.getTrashedNode(nodeId).isEmpty() // Should not be trashed, if it is download will fail
+    ) {
         return nodeOptional.flatMap(node -> downloadFile(nodeId, null));
     }
 
