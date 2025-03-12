@@ -136,7 +136,7 @@ public class BlobService {
     Optional<Node> nodeOptional = nodeRepository.getNode(nodeId);
 
     if (nodeOptional.isPresent() && linkRepository.isLinkValidForNode(nodeLinkId, nodeOptional.get())) {
-        Link link = linkRepository.getLinkById(nodeLinkId).get();
+        Link link = linkRepository.getLinkByNotExpiredPublicId(nodeLinkId).get();
         // If file is protected by access code, check if the access code is correct and return empty if not
         if (link.getAccessCode().isPresent() && !link.getAccessCode().get().equals(accessCode)) {
           return Optional.empty();
