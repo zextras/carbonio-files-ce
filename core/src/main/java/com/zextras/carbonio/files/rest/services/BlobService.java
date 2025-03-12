@@ -155,7 +155,13 @@ public class BlobService {
   public Optional<BlobResponse> downloadFileByLink(String linkId) {
     return linkRepository
       .getLinkByNotExpiredPublicId(linkId)
-      .flatMap(link -> downloadFile(link.getNodeId(), null));
+      .flatMap(link -> {
+        if (nodeRepository.getTrashedNode(link.getNodeId()).isPresent()) {
+          logger.error("Unable to download node {}: the node is trashed", link.getNodeId());
+          return Optional.empty(); // Return empty if the node is trashed exactly as if the node didn't exist
+        }
+        return downloadFile(link.getNodeId(), null);
+      });
   }
 
   /**
