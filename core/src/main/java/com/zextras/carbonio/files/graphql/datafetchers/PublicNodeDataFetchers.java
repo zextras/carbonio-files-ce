@@ -9,6 +9,7 @@ import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.GraphQL.InputParameters.FindNodes;
 import com.zextras.carbonio.files.Files.GraphQL.InputParameters.GetPublicNode;
 import com.zextras.carbonio.files.Files.GraphQL.NodePage;
+import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
@@ -116,11 +117,21 @@ public class PublicNodeDataFetchers {
               Integer limit = environment.getArgument(FindNodes.LIMIT);
               String pageToken = environment.getArgument(FindNodes.PAGE_TOKEN);
               String nodeLinkId = environment.getArgument(FindNodes.NODE_LINK_ID);
+              String accessCode = environment.getArgument(FindNodes.ACCESS_CODE);
 
               Optional<Node> optFolder = nodeRepository.getNode(folderId);
 
               if (optFolder.isPresent()
                   && linkRepository.isLinkValidForNode(nodeLinkId, optFolder.get())) {
+
+                // If present check access code
+                Link link = linkRepository.getLinkByNotExpiredPublicId(nodeLinkId).get();
+                if (link.getAccessCode().isPresent() && !link.getAccessCode().get().equals(accessCode)) {
+                  return DataFetcherResult.<Map<String, String>>newResult()
+                      .error(GraphQLResultErrors.accessCodeRequired(nodeLinkId, path))
+                      .build();
+                }
+
                 ImmutablePair<List<Node>, String> findResult =
                     nodeRepository.publicFindNodes(folderId, limit, pageToken);
 

@@ -109,6 +109,8 @@ type Query {
         limit: Int
         # If valued it makes sure that the link obtained from this public id is valid (not expired and with correct node)
         node_link_id: String
+        # If node_link_id is valued and if correspondent link is protected by access code, this param is required to match link's access code
+        access_code: String
         # If valued it will return the next page of nodes based on the given page_token,
         # if this param is passed all other params will be ignored
         page_token: String
