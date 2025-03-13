@@ -8,6 +8,7 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
+import com.zextras.carbonio.files.exceptions.AccessCodeRequiredException;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.netty.utilities.HttpResponseBuilder;
 import com.zextras.carbonio.files.netty.utilities.NettyBufferWriter;
@@ -30,12 +31,10 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
   private static final Logger logger = LoggerFactory.getLogger(PublicBlobController.class);
 
   private final BlobService blobService;
-  private final LinkRepository linkRepository;
 
   @Inject
-  public PublicBlobController(BlobService blobService, LinkRepository linkRepository) {
+  public PublicBlobController(BlobService blobService) {
     this.blobService = blobService;
-    this.linkRepository = linkRepository;
   }
 
   @Override
@@ -76,17 +75,14 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
     final String publicLinkId = uriMatched.group(1);
 
     // Redirect to access link if link is protected by access code
-    Optional<Link> link = linkRepository.getLinkByNotExpiredPublicId(publicLinkId);
-    if (link.isPresent()) {
-      Optional<String> accessCode = link.get().getAccessCode();
-      if (accessCode.isPresent()) {
-        String newRedirectUrl =  "/files/public/link/access/" + publicLinkId;
-        context.writeAndFlush(HttpResponseBuilder.createRedirectHttpResponse(newRedirectUrl)).addListener(ChannelFutureListener.CLOSE);
-        return;
-      }
+    final Optional<BlobResponse> blobResponse;
+    try {
+      blobResponse = blobService.downloadFileByLink(publicLinkId);
+    } catch (AccessCodeRequiredException e) {
+      String newRedirectUrl =  "/files/public/link/access/" + publicLinkId;
+      context.writeAndFlush(HttpResponseBuilder.createRedirectHttpResponse(newRedirectUrl)).addListener(ChannelFutureListener.CLOSE);
+      return;
     }
-
-    final Optional<BlobResponse> blobResponse = blobService.downloadFileByLink(publicLinkId);
 
     if (blobResponse.isPresent()) {
       context.write(HttpResponseBuilder.createSuccessDownloadHttpResponse(blobResponse.get()));

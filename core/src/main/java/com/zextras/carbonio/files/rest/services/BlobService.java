@@ -21,6 +21,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.files.exceptions.AccessCodeRequiredException;
 import com.zextras.carbonio.files.exceptions.DependencyException;
 import com.zextras.carbonio.files.exceptions.FileTypeMismatchException;
 import com.zextras.carbonio.files.exceptions.MaxNumberOfFileVersionsException;
@@ -156,11 +157,14 @@ public class BlobService {
    * itself) and all its metadata if the {@link Link} and the related {@link Node} exist. Otherwise,
    * it returns an {@link Optional#empty()}.
    * @throws DependencyException if the {@link Filestore} failed to download the blob
+   * @throws AccessCodeRequiredException if the link is protected by an access code (no direct download allowed)
    */
-  public Optional<BlobResponse> downloadFileByLink(String linkId) {
-    return linkRepository
-      .getLinkByNotExpiredPublicId(linkId)
-      .flatMap(link -> downloadFile(link.getNodeId(), null));
+  public Optional<BlobResponse> downloadFileByLink(String linkId) throws AccessCodeRequiredException{
+    Optional<Link> linkOptional = linkRepository.getLinkByNotExpiredPublicId(linkId);
+    if (linkOptional.isPresent() && linkOptional.get().getAccessCode().isPresent()) {
+      throw new AccessCodeRequiredException("Access code is required to download the file");
+    }
+    return linkOptional.flatMap(link -> downloadFile(link.getNodeId(), null));
   }
 
   /**
