@@ -76,6 +76,15 @@ public class PublicNodeDataFetchers {
                             .getNode(publicLink.getNodeId())
                             .map(
                                 node -> {
+                                    // If node has been trashed, return not found as if it didn't exist
+                                    if (nodeRepository.getTrashedNode(node.getId()).isPresent()) {
+                                      return DataFetcherResult.<Map<String, Object>>newResult()
+                                        .error(
+                                            GraphQLResultErrors.nodeNotFound(
+                                                publicLink.getNodeId(), path))
+                                        .build();
+                                    }
+
                                     // Check access code for existence and correctness, but only if node is
                                     // a folder
                                     Optional<String> linkAccessCode = publicLink.getAccessCode();

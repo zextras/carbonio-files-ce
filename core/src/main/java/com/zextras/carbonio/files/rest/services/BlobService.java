@@ -135,7 +135,10 @@ public class BlobService {
   public Optional<BlobResponse> downloadPublicFileById(String nodeId, String nodeLinkId) {
     Optional<Node> nodeOptional = nodeRepository.getNode(nodeId);
 
-    if (nodeOptional.isPresent() && linkRepository.isLinkValidForNode(nodeLinkId, nodeOptional.get())) {
+    if (nodeOptional.isPresent() &&
+        linkRepository.isLinkValidForNode(nodeLinkId, nodeOptional.get()) &&
+        nodeRepository.getTrashedNode(nodeId).isEmpty() // Should not be trashed, if it is download will fail
+    ) {
         return nodeOptional.flatMap(node -> downloadFile(nodeId, null));
     }
 
@@ -155,7 +158,13 @@ public class BlobService {
   public Optional<BlobResponse> downloadFileByLink(String linkId) {
     return linkRepository
       .getLinkByNotExpiredPublicId(linkId)
-      .flatMap(link -> downloadFile(link.getNodeId(), null));
+      .flatMap(link -> {
+        if (nodeRepository.getTrashedNode(link.getNodeId()).isPresent()) {
+          logger.error("Unable to download node {}: the node is trashed", link.getNodeId());
+          return Optional.empty(); // Return empty if the node is trashed exactly as if the node didn't exist
+        }
+        return downloadFile(link.getNodeId(), null);
+      });
   }
 
   /**
