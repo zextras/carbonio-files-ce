@@ -23,4 +23,5 @@ public interface FilesConfig {
   Integer getMessageBrokerPort();
   String getMessageBrokerPassword();
   String getMessageBrokerUsername();
+  String getPageTokenSecretKey();
 }

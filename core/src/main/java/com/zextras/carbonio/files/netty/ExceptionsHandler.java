@@ -5,13 +5,7 @@
 package com.zextras.carbonio.files.netty;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.zextras.carbonio.files.exceptions.AuthenticationException;
-import com.zextras.carbonio.files.exceptions.BadRequestException;
-import com.zextras.carbonio.files.exceptions.FileTypeMismatchException;
-import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
-import com.zextras.carbonio.files.exceptions.MaxNumberOfFileVersionsException;
-import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
-import com.zextras.carbonio.files.exceptions.RequestEntityTooLargeException;
+import com.zextras.carbonio.files.exceptions.*;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler.Sharable;
@@ -79,6 +73,10 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
     }
     else if (cause instanceof MaxNumberOfFileVersionsException) {
       responseStatus = HttpResponseStatus.METHOD_NOT_ALLOWED;
+      payload = cause.getMessage();
+    }
+    else if (cause instanceof InvalidTokenSignatureException) {
+      responseStatus = HttpResponseStatus.UNAUTHORIZED;
       payload = cause.getMessage();
     }
     else {

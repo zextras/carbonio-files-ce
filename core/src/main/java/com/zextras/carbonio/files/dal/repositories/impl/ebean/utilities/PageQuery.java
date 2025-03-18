@@ -4,12 +4,21 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.exceptions.InvalidTokenSignatureException;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
@@ -20,6 +29,12 @@ import java.util.Optional;
  * pageToken for key-set pagination on findNodes api.
  */
 public class PageQuery {
+
+  private static final String HMAC_ALGORITHM = "HmacSHA256";
+
+  // Since this is a later implementation, instead of signing the whole token and changing its representation,
+  // we sign every parameter and add a signature parameter to the token itself to verify.
+  private String signature;
 
   private Integer limit;
   private List<String> keywords;
@@ -70,6 +85,14 @@ public class PageQuery {
     setSharedByMe(sharedByMe);
     setDirectShare(directShare);
     setKeywords(keywords);
+  }
+
+  public String getSignature() {
+    return signature;
+  }
+
+  public void setSignature(String signature) {
+    this.signature = signature;
   }
 
   public Optional<SQLExpression> getKeySet() {
@@ -170,23 +193,71 @@ public class PageQuery {
     this.ownerId = Optional.ofNullable(ownerId);
   }
 
-  public static PageQuery fromToken(String token) {
-    ObjectMapper mapper = new ObjectMapper();
+  private static String computeHmac(String data, String secretKey) {
     try {
-      return mapper.readValue(new String(Base64.getDecoder().decode(token)), PageQuery.class);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
+      Mac mac = Mac.getInstance(HMAC_ALGORITHM);
+      SecretKeySpec secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM);
+      mac.init(secretKeySpec);
+      byte[] hmacBytes = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+      return Base64.getEncoder().encodeToString(hmacBytes);
+    } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+      throw new InvalidTokenSignatureException("Error computing HMAC");
     }
   }
 
-  public String toToken() {
+  private static String getDataToSign(PageQuery pageQuery) throws JsonProcessingException {
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+    mapper.registerModule(new Jdk8Module());
+    mapper.addMixIn(PageQuery.class, PageQuerySignatureMixIn.class);
+    return mapper.writeValueAsString(pageQuery);
+  }
+
+  // Jackson mix-in to ignore the signature field during serialization for signing
+  private abstract static class PageQuerySignatureMixIn {
+    @JsonIgnore
+    public abstract String getSignature();
+  }
+
+  public static PageQuery fromToken(String token, String secretKey) {
+    ObjectMapper mapper = new ObjectMapper();
+    try {
+      String decodedToken = new String(Base64.getDecoder().decode(token), StandardCharsets.UTF_8);
+      PageQuery pageQuery = mapper.readValue(decodedToken, PageQuery.class);
+      String receivedSignature = pageQuery.getSignature();
+
+      // Verify the signature
+      String dataToVerify = getDataToSign(pageQuery);
+      String computedSignature = computeHmac(dataToVerify, secretKey);
+      if (!computedSignature.equals(receivedSignature)) {
+          throw new InvalidTokenSignatureException("Invalid token signature");
+      }
+
+      return pageQuery;
+    } catch (IOException e) {
+      throw new InvalidTokenSignatureException("Error deserializing token");
+    }
+  }
+
+  public String toToken(String secretKey) {
+    // Compute the signature before serializing the token
+    try {
+      String dataToSign = getDataToSign(this);
+      String computedSignature = computeHmac(dataToSign, secretKey);
+      this.setSignature(computedSignature);
+    } catch (JsonProcessingException e) {
+      throw new InvalidTokenSignatureException("Error generating signature");
+    }
+
+    // Proceed to serialize the object with the signature
     ObjectMapper mapper = new ObjectMapper();
     mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
     mapper.registerModule(new Jdk8Module());
     try {
-      return Base64.getEncoder().encodeToString(mapper.writeValueAsString(this).getBytes());
+      String json = mapper.writeValueAsString(this);
+      return Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
     } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
+      throw new InvalidTokenSignatureException("Error serializing token");
     }
   }
 }

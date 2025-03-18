@@ -135,4 +135,8 @@ public class FilesConfigImpl implements FilesConfig {
         .getConfig("default/username")
         .getOrElse(Files.MessageBroker.Config.DEFAULT_USERNAME);
   }
+
+  public String getPageTokenSecretKey() {
+    return "secretKey"; // TODO Obv change
+  }
 }
