@@ -75,7 +75,7 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
       responseStatus = HttpResponseStatus.METHOD_NOT_ALLOWED;
       payload = cause.getMessage();
     }
-    else if (cause instanceof InvalidTokenSignatureException) {
+    else if (cause instanceof InvalidTokenSignException) {
       responseStatus = HttpResponseStatus.UNAUTHORIZED;
       payload = cause.getMessage();
     }

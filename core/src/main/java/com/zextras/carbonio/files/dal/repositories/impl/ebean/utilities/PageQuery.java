@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.exceptions.InvalidTokenSignatureException;
+import com.zextras.carbonio.files.exceptions.InvalidTokenSignException;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -201,7 +201,7 @@ public class PageQuery {
       byte[] hmacBytes = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
       return Base64.getEncoder().encodeToString(hmacBytes);
     } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-      throw new InvalidTokenSignatureException("Error computing HMAC");
+      throw new InvalidTokenSignException("Error computing HMAC");
     }
   }
 
@@ -230,12 +230,12 @@ public class PageQuery {
       String dataToVerify = getDataToSign(pageQuery);
       String computedSignature = computeHmac(dataToVerify, secretKey);
       if (!computedSignature.equals(receivedSignature)) {
-          throw new InvalidTokenSignatureException("Invalid token signature");
+          throw new InvalidTokenSignException("Invalid token signature");
       }
 
       return pageQuery;
     } catch (IOException e) {
-      throw new InvalidTokenSignatureException("Error deserializing token");
+      throw new InvalidTokenSignException("Error deserializing token");
     }
   }
 
@@ -246,7 +246,7 @@ public class PageQuery {
       String computedSignature = computeHmac(dataToSign, secretKey);
       this.setSignature(computedSignature);
     } catch (JsonProcessingException e) {
-      throw new InvalidTokenSignatureException("Error generating signature");
+      throw new InvalidTokenSignException("Error generating signature");
     }
 
     // Proceed to serialize the object with the signature
@@ -257,7 +257,7 @@ public class PageQuery {
       String json = mapper.writeValueAsString(this);
       return Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
     } catch (JsonProcessingException e) {
-      throw new InvalidTokenSignatureException("Error serializing token");
+      throw new InvalidTokenSignException("Error serializing token");
     }
   }
 }
