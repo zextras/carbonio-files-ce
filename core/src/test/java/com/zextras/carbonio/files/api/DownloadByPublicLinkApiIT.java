@@ -334,4 +334,54 @@ public class DownloadByPublicLinkApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(500);
     Assertions.assertThat(httpResponse.getBodyPayload()).isEqualTo("500 Internal Server Error");
   }
+
+  @ParameterizedTest
+  @CsvSource({
+    "abcd1234,/public/link/download/,",
+    "abcd1234abcd1234abcd1234abcd1234,/public/link/download/,",
+    "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab,/public/link/download/,",
+    "abcd1234,/link/,",
+    "abcd1234abcd1234abcd1234abcd1234,/link/,",
+    "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab,/link/,",
+    "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab,/public/link/download/,fake-token",
+    "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab,/link/,fake-token",
+  })
+  void
+      givenAUserWithOrWithoutCookieAnExistingTrashedFileAndAnExistingPublicLinkAssociatedTheDownloadByPublicLinkShouldReturn404(
+          String publicLinkId, String publicLinkEndpoint, String userToken) {
+    // Given
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "test.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT",
+                10L,
+                "text/plain"))
+        .addLink(
+            "94103c01-e701-4f3d-9dc9-54b79064ad76",
+            "00000000-0000-0000-0000-000000000000",
+            publicLinkId,
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty())
+        .addNodeToTrash("00000000-0000-0000-0000-000000000000", "LOCAL_ROOT");
+
+    simulator.getBlob("00000000-0000-0000-0000-000000000000", 1);
+
+    final String publicLinkUrl = publicLinkEndpoint + publicLinkId;
+    final HttpRequest httpRequest = HttpRequest.of("GET", publicLinkUrl, userToken, null);
+
+    // When
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
+  }
 }

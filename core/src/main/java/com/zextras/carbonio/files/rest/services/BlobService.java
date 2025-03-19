@@ -136,7 +136,10 @@ public class BlobService {
   public Optional<BlobResponse> downloadPublicFileById(String nodeId, String nodeLinkId, String accessCode) {
     Optional<Node> nodeOptional = nodeRepository.getNode(nodeId);
 
-    if (nodeOptional.isPresent() && linkRepository.isLinkValidForNode(nodeLinkId, nodeOptional.get())) {
+    if (nodeOptional.isPresent() &&
+        linkRepository.isLinkValidForNode(nodeLinkId, nodeOptional.get()) &&
+        nodeRepository.getTrashedNode(nodeId).isEmpty() // Should not be trashed, if it is download will fail
+    ) {
         Link link = linkRepository.getLinkByNotExpiredPublicId(nodeLinkId).get();
         // If file is protected by access code, check if the access code is correct and return empty if not
         if (link.getAccessCode().isPresent() && !link.getAccessCode().get().equals(accessCode)) {
@@ -164,7 +167,14 @@ public class BlobService {
     if (linkOptional.isPresent() && linkOptional.get().getAccessCode().isPresent()) {
       throw new AccessCodeRequiredException("Access code is required to download the file");
     }
-    return linkOptional.flatMap(link -> downloadFile(link.getNodeId(), null));
+    return linkOptional
+      .flatMap(link -> {
+        if (nodeRepository.getTrashedNode(link.getNodeId()).isPresent()) {
+          logger.error("Unable to download node {}: the node is trashed", link.getNodeId());
+          return Optional.empty(); // Return empty if the node is trashed exactly as if the node didn't exist
+        }
+        return downloadFile(link.getNodeId(), null);
+      });
   }
 
   /**
