@@ -476,7 +476,7 @@ public class PublicFindNodesApiIT {
     not public and an hacked page token that is formed to try access a private node: the findNodes
     should return an empty page""")
   @Test
-  void givenAnHackedPageTokenTheFindNodesShouldReturnAnEmptyList() throws JsonProcessingException {
+  void givenAnHackedPageTokenWithoutSignatureTheFindNodesShouldReturnAnError() throws JsonProcessingException {
     // Given
     createFolderTree();
 
@@ -575,14 +575,119 @@ public class PublicFindNodesApiIT {
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
-    final Map<String, Object> page =
-        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+    final List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
 
-    Assertions.assertThat(page.get("page_token")).isNull();
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Exception while fetching data (/findNodes) : Invalid token signature");
+  }
 
-    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+  @Test
+  void givenAnHackedPageTokenWithWrongSignatureTheFindNodesShouldReturnAnError() throws JsonProcessingException {
+    // Given
+    createFolderTree();
 
-    Assertions.assertThat(nodes).isEmpty();
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty())
+        .addNode(
+            new PopulatorNode(
+                "77777777-7777-7777-7777-777777777777",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "not public folder",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT",
+                0L,
+                null))
+        .addNode(
+            new PopulatorNode(
+                "88888888-8888-8888-8888-888888888888",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "77777777-7777-7777-7777-777777777777",
+                "folder child",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT,77777777-7777-7777-7777-777777777777",
+                0L,
+                null))
+        .addNode(
+            new PopulatorNode(
+                "99999999-9999-9999-9999-999999999999",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "77777777-7777-7777-7777-777777777777",
+                "folder child 2",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT,77777777-7777-7777-7777-777777777777",
+                0L,
+                null));
+
+    SQLExpression keySet = SQLExpression.or(List.of(
+      new NodeSQLCondition("node_category", SortOrder.ASCENDING, 1),
+      SQLExpression.and(List.of(
+        new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
+        new NodeSQLCondition("name", SortOrder.ASCENDING, "folder child")
+      )),
+        SQLExpression.and(List.of(
+          new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
+          new NodeSQLCondition("name", SortOrder.EQUAL, "folder child"),
+          new NodeSQLCondition("node_id", SortOrder.ASCENDING, "88888888-8888-8888-8888-888888888888")
+        ))
+      ));
+    String jsonKeySet = new ObjectMapper().writeValueAsString(keySet);
+
+      String pageTokenHacked = String.format(
+        """
+    {
+      "signature": "wrong_signature",
+      "limit": 1,
+      "keywords": [],
+      "keySet": %s,
+      "sort": "NAME_ASC",
+      "flagged": null,
+      "folderId": "77777777-7777-7777-7777-777777777777",
+      "cascade": null,
+      "sharedWithMe": null,
+      "sharedByMe": null,
+      "directShare": null,
+      "nodeType": null,
+      "ownerId": null
+    }""", jsonKeySet);
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("limit", 1)
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
+            .withString(
+                "page_token", Base64.getEncoder().encodeToString(pageTokenHacked.getBytes()))
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
+
+    final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
+
+    // When
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Exception while fetching data (/findNodes) : Invalid token signature");
   }
 
   @Test

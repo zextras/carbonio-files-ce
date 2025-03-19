@@ -15,6 +15,9 @@ import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 
@@ -55,6 +58,25 @@ public class ServiceDiscoverHttpClient {
         return Try.success(valueDecoded);
       }
       return Try.failure(new UnAuthorized());
+    } catch (IOException exception) {
+      return Try.failure(new InternalServerError(exception));
+    }
+  }
+
+  // This method creates a config if not existing, but returns false if the config already exists
+  public Try<Boolean> createConfig(String configKey, String value) {
+    try (CloseableHttpClient httpClient = HttpClients.createMinimal()) {
+      HttpPut request = new HttpPut(serviceDiscoverURL + configKey + "?cas=0");
+      request.setHeader("X-Consul-Token", System.getenv("CONSUL_HTTP_TOKEN"));
+      request.setEntity(new StringEntity(value, ContentType.TEXT_PLAIN.withCharset(StandardCharsets.UTF_8)));
+
+      try (CloseableHttpResponse response = httpClient.execute(request)) {
+        if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+          String body = IOUtils.toString(response.getEntity().getContent(), StandardCharsets.UTF_8);
+          return Try.success(Boolean.parseBoolean(body));
+        }
+        return Try.failure(new UnAuthorized());
+      }
     } catch (IOException exception) {
       return Try.failure(new InternalServerError(exception));
     }

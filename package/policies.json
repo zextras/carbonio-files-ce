@@ -9,6 +9,13 @@
       }
     }
   ],
+  "key": [
+    {
+      "carbonio-files/page-token-secret-key": {
+        "policy": "write"
+      }
+    }
+  ],
   "node_prefix": [
     {
       "": {

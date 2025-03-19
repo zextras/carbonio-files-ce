@@ -11,5 +11,8 @@ import com.zextras.carbonio.files.config.impl.FilesConfigImpl;
  * the standard configuration from the test configuration.
  */
 public class TestFilesConfig extends FilesConfigImpl {
-
+    @Override
+    public String getPageTokenSecretKey() {
+      return "testSecretKey";
+    }
 }

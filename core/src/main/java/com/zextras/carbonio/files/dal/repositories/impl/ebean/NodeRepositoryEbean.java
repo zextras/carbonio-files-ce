@@ -9,6 +9,7 @@ import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.Config.Pagination;
 import com.zextras.carbonio.files.Files.Db;
 import com.zextras.carbonio.files.Files.Db.RootId;
+import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
@@ -39,11 +40,13 @@ public class NodeRepositoryEbean implements NodeRepository {
   private static final Logger logger = LoggerFactory.getLogger(NodeRepositoryEbean.class);
 
   private EbeanDatabaseManager mDB;
+  private FilesConfig filesConfig;
   private CollationRepository collationRepository;
 
   @Inject
-  public NodeRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager, CollationRepository collationRepository) {
+  public NodeRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager, FilesConfig filesConfig, CollationRepository collationRepository) {
     mDB = ebeanDatabaseManager;
+    this.filesConfig = filesConfig;
     this.collationRepository = collationRepository;
   }
 
@@ -89,7 +92,7 @@ public class NodeRepositoryEbean implements NodeRepository {
         .withNodeSorts(realSortsToApply)
         .fromNode(node)
         .build());
-    return nextPage.toToken();
+    return nextPage.toToken(filesConfig.getPageTokenSecretKey());
   }
 
   /**
@@ -210,7 +213,7 @@ public class NodeRepositoryEbean implements NodeRepository {
     return pageToken
         .map(
             token -> {
-              PageQuery params = PageQuery.fromToken(token);
+              PageQuery params = PageQuery.fromToken(token, filesConfig.getPageTokenSecretKey());
               List<NodeSort> realSortsToApply =
                   getRealSortingsToApply(params.getSort().map(NodeSort::valueOf));
               List<Node> nodes =
@@ -305,7 +308,7 @@ public class NodeRepositoryEbean implements NodeRepository {
 
     PageQuery pageQuery =
         Optional.ofNullable(pageToken)
-            .map(PageQuery::fromToken)
+            .map(token -> PageQuery.fromToken(token, filesConfig.getPageTokenSecretKey()))
             .orElseGet(
                 () -> {
                   PageQuery firstPageQuery = new PageQuery();
