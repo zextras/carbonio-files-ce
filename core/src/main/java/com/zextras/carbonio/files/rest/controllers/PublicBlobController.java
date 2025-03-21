@@ -6,11 +6,15 @@ package com.zextras.carbonio.files.rest.controllers;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files.API.Endpoints;
+import com.zextras.carbonio.files.dal.dao.ebean.Link;
+import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
+import com.zextras.carbonio.files.exceptions.AccessCodeRequiredException;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.netty.utilities.HttpResponseBuilder;
 import com.zextras.carbonio.files.netty.utilities.NettyBufferWriter;
 import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -69,7 +73,16 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
       ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched) {
 
     final String publicLinkId = uriMatched.group(1);
-    final Optional<BlobResponse> blobResponse = blobService.downloadFileByLink(publicLinkId);
+
+    // Redirect to access link if link is protected by access code
+    final Optional<BlobResponse> blobResponse;
+    try {
+      blobResponse = blobService.downloadFileByLink(publicLinkId);
+    } catch (AccessCodeRequiredException e) {
+      String newRedirectUrl =  "/files/public/link/access/" + publicLinkId;
+      context.writeAndFlush(HttpResponseBuilder.createRedirectHttpResponse(newRedirectUrl)).addListener(ChannelFutureListener.CLOSE);
+      return;
+    }
 
     if (blobResponse.isPresent()) {
       context.write(HttpResponseBuilder.createSuccessDownloadHttpResponse(blobResponse.get()));
@@ -91,7 +104,9 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
 
     final String nodeId = uriMatched.group(1);
     final String nodeLinkId = uriMatched.group(2);
-    final Optional<BlobResponse> blobResponse = blobService.downloadPublicFileById(nodeId, nodeLinkId);
+    final String accessCode = uriMatched.group(3);
+
+    final Optional<BlobResponse> blobResponse = blobService.downloadPublicFileById(nodeId, nodeLinkId, accessCode);
 
     if (blobResponse.isPresent()) {
       context.write(HttpResponseBuilder.createSuccessDownloadHttpResponse(blobResponse.get()));

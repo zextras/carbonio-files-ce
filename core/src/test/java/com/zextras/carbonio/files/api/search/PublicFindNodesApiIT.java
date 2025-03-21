@@ -725,4 +725,103 @@ public class PublicFindNodesApiIT {
         .hasSize(1)
         .containsExactly("Could not find node with id 00000000-0000-0000-0000-000000000000");
   }
+
+  @Test
+  void
+      givenAnExistingFolderAndAValidPublicLinkWithAccessCodeTheFindNodesWithoutAccessCodeShouldReturn200CodeAndAnErrorMessage() {
+    // Given
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "public folder",
+                "",
+                NodeType.FOLDER,
+                "LOCAL_ROOT",
+                0L,
+                null))
+        .addLink(
+            "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
+            Optional.empty(),
+            Optional.empty(),
+            Optional.of("fakecode"));
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
+
+    final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
+
+    // When
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Access code is required for accessing the resource with public link id: abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab");
+  }
+
+  @Test
+  void
+      givenAnExistingFolderAndAValidPublicLinkWithAccessCodeTheFindNodesWithAccessCodeShouldReturnTheCorrectPage() {
+    // Given
+    createFolderTree();
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLink(
+            "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
+            Optional.empty(),
+            Optional.empty(),
+            Optional.of("fakecode"));
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("limit", 3)
+            .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
+            .withString("access_code", "fakecode")
+            .withWantedResultFormat("{ nodes { id name }, page_token }")
+            .build();
+
+    final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
+
+    // When
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final Map<String, Object> page =
+        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+
+    Assertions.assertThat(page.get("page_token")).isNotNull();
+
+    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+
+    Assertions.assertThat(nodes).hasSize(3);
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", "11111111-1111-1111-1111-111111111111")
+        .containsEntry("name", "folder child");
+    Assertions.assertThat(nodes.get(1))
+        .containsEntry("id", "22222222-2222-2222-2222-222222222222")
+        .containsEntry("name", "file child id 2");
+    Assertions.assertThat(nodes.get(2))
+        .containsEntry("id", "33333333-3333-3333-3333-333333333333")
+        .containsEntry("name", "file child id 3");
+  }
 }

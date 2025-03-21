@@ -311,4 +311,76 @@ public class PublicDownloadApiIT {
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
   }
+
+  @Test
+  void givenAnExistingFileWithAccessCodeAndAValidLinkThePublicDownloadByNodeIdWithoutAccessCodeShouldReturnA404StatusCode() {
+    // Given
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "file.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT",
+                1L,
+                "text/plain"))
+        .addLink(
+            "94103c01-e701-4f3d-9dc9-54b79064ad76",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
+            Optional.empty(),
+            Optional.empty(),
+            Optional.of("accesscode"));
+
+    final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
+    final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
+
+    // When
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
+  }
+
+  @Test
+  void givenAnExistingFileWithAccessCodeAndAValidLinkThePublicDownloadByNodeIdWithAccessCodeShouldReturnTheBlob() {
+    // Given
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "LOCAL_ROOT",
+                "file.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT",
+                1L,
+                "text/plain"))
+        .addLink(
+            "94103c01-e701-4f3d-9dc9-54b79064ad76",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
+            Optional.empty(),
+            Optional.empty(),
+            Optional.of("accesscode"));
+
+    simulator.getBlob("00000000-0000-0000-0000-000000000000", 1);
+
+    final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab&access_code=accesscode";
+    final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
+
+    // When
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+  }
 }

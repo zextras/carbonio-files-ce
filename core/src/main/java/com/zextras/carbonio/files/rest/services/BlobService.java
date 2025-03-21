@@ -21,6 +21,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.files.exceptions.AccessCodeRequiredException;
 import com.zextras.carbonio.files.exceptions.DependencyException;
 import com.zextras.carbonio.files.exceptions.FileTypeMismatchException;
 import com.zextras.carbonio.files.exceptions.MaxNumberOfFileVersionsException;
@@ -124,21 +125,26 @@ public class BlobService {
   /**
    * Downloads from the {@link Filestore} a blob related to an identifier of a public node.
    *
-   * @param nodeId    is a {@link String} representing the node identifier
-   * @param nodeLinkId    is a {@link String} representing the link public id
+   * @param nodeId     is a {@link String} representing the node identifier
+   * @param nodeLinkId is a {@link String} representing the link public id
+   * @param accessCode
    * @return an {@link Optional} of {@link BlobResponse} containing the stream of bytes (the blob
    * itself) and all its metadata if the {@link Node} exists, and it is contained on a public folder with a valid link.
    * Otherwise, it returns an {@link Optional#empty()}.
-   *
    * @throws DependencyException if the {@link Filestore} failed to download the blob
    */
-  public Optional<BlobResponse> downloadPublicFileById(String nodeId, String nodeLinkId) {
+  public Optional<BlobResponse> downloadPublicFileById(String nodeId, String nodeLinkId, String accessCode) {
     Optional<Node> nodeOptional = nodeRepository.getNode(nodeId);
 
     if (nodeOptional.isPresent() &&
         linkRepository.isLinkValidForNode(nodeLinkId, nodeOptional.get()) &&
         nodeRepository.getTrashedNode(nodeId).isEmpty() // Should not be trashed, if it is download will fail
     ) {
+        Link link = linkRepository.getLinkByNotExpiredPublicId(nodeLinkId).get();
+        // If file is protected by access code, check if the access code is correct and return empty if not
+        if (link.getAccessCode().isPresent() && !link.getAccessCode().get().equals(accessCode)) {
+          return Optional.empty();
+        }
         return nodeOptional.flatMap(node -> downloadFile(nodeId, null));
     }
 
@@ -154,10 +160,14 @@ public class BlobService {
    * itself) and all its metadata if the {@link Link} and the related {@link Node} exist. Otherwise,
    * it returns an {@link Optional#empty()}.
    * @throws DependencyException if the {@link Filestore} failed to download the blob
+   * @throws AccessCodeRequiredException if the link is protected by an access code (no direct download allowed)
    */
-  public Optional<BlobResponse> downloadFileByLink(String linkId) {
-    return linkRepository
-      .getLinkByNotExpiredPublicId(linkId)
+  public Optional<BlobResponse> downloadFileByLink(String linkId) throws AccessCodeRequiredException{
+    Optional<Link> linkOptional = linkRepository.getLinkByNotExpiredPublicId(linkId);
+    if (linkOptional.isPresent() && linkOptional.get().getAccessCode().isPresent()) {
+      throw new AccessCodeRequiredException("Access code is required to download the file");
+    }
+    return linkOptional
       .flatMap(link -> {
         if (nodeRepository.getTrashedNode(link.getNodeId()).isPresent()) {
           logger.error("Unable to download node {}: the node is trashed", link.getNodeId());
