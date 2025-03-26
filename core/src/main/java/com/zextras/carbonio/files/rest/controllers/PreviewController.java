@@ -105,9 +105,12 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       HttpHeaders headersRequest = httpRequest.headers();
       String cookiesString = headersRequest.get(HttpHeaderNames.COOKIE);
 
-      Optional<UserMyself> optRequester = userRepository
-          .getUserMyselfByCookieNotCached(cookiesString);
-      UserMyself requester = optRequester.get();
+      UserMyself requester = userRepository
+          .getUserMyselfByCookieNotCached(cookiesString)
+          .orElse(UserMyself.mapFromUser((User) context
+              .channel()
+              .attr(AttributeKey.valueOf(Files.API.ContextAttribute.REQUESTER))
+              .get()));
 
       logger.debug("Requester locale: {}", requester.getLocale());
 
