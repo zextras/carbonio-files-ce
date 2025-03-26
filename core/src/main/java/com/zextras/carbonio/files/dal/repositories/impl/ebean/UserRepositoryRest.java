@@ -47,7 +47,7 @@ public class UserRepositoryRest implements UserRepository {
         .onFailure(failure -> logger.error(failure.getMessage()))
         .map(
             userInfo -> {
-              logger.debug("UserMyself received from user management: {}", userInfo);
+              logger.debug("UserMyself received from user management with lang tag: {}", userInfo.getLocale().toLanguageTag());
               return new UserMyself(
                   userInfo.getId().getUserId(),
                   userInfo.getFullName(),
