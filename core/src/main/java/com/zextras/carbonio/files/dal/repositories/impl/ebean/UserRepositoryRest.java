@@ -46,16 +46,14 @@ public class UserRepositoryRest implements UserRepository {
         .getUserMyself(cookies, true)
         .onFailure(failure -> logger.error(failure.getMessage()))
         .map(
-            userInfo -> {
-              logger.debug("UserMyself received from user management with lang tag: {}", userInfo.getLocale().toLanguageTag());
-              return new UserMyself(
-                  userInfo.getId().getUserId(),
-                  userInfo.getFullName(),
-                  userInfo.getEmail(),
-                  userInfo.getDomain(),
-                  userInfo.getLocale(),
-                  userInfo.getType());
-            })
+            userInfo ->
+                new UserMyself(
+                    userInfo.getId().getUserId(),
+                    userInfo.getFullName(),
+                    userInfo.getEmail(),
+                    userInfo.getDomain(),
+                    userInfo.getLocale(),
+                    userInfo.getType()))
         .toJavaOptional();
   }
 

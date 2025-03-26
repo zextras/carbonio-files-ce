@@ -44,7 +44,7 @@ class UserRepositoryRestTest {
       UserManagementClient userManagementClientMock = Mockito.mock(UserManagementClient.class);
 
       mockedStatic.when(() -> UserManagementClient.atURL(anyString())).thenReturn(userManagementClientMock);
-      Mockito.when(userManagementClientMock.getUserMyself("cookie")).thenReturn(userMyselfTry);
+      Mockito.when(userManagementClientMock.getUserMyself("cookie", true)).thenReturn(userMyselfTry);
 
       // When
       Optional<com.zextras.carbonio.files.dal.dao.UserMyself> returnedUserMyselfOpt = userRepositoryRest.getUserMyselfByCookieNotCached("cookie");
