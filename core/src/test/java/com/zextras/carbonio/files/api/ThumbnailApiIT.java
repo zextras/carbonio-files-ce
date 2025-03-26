@@ -73,7 +73,7 @@ class ThumbnailApiIT {
         .withHeader("FileOwnerId", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     if (thumbnailPathEndpoint.contains("document")) {
-      request.withQueryStringParameter(new Parameter("locale", "en"));
+      request.withQueryStringParameter(new Parameter("lang_tag", "en"));
     }
 
     return simulator.getPreviewServiceMock()
@@ -89,7 +89,7 @@ class ThumbnailApiIT {
   }
 
   @Test
-  void givenAnExistingDocumentTheGetThumbnailApiShouldGetAndReturnTheThumbnailWithLocale() {
+  void givenAnExistingDocumentTheGetThumbnailApiShouldGetAndReturnTheThumbnailWithLangTag() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(

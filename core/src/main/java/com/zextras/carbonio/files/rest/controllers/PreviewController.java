@@ -98,8 +98,8 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       Matcher thumbnailDocumentMatcher = Endpoints.THUMBNAIL_DOCUMENT.matcher((uriRequest));
 
       /*
-       get the user with updated locale for every preview request.
-       if this was cached so would be the locale resulting in incorrect preview if user changes
+       get the user with updated lang tag for every preview request.
+       if this was cached so would be the lang tag resulting in incorrect preview if user changes
        language and then requests a preview. All cookie checks here are already passed so we know there is one and
        if user management is not down an usermyself should always be returned given the cookie.
       */
@@ -354,7 +354,9 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     String nodeId = uriMatched.group(1);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(3));
-    queryParameters.setLocale(requester.getLocale().toLanguageTag());
+    queryParameters.setLangTag(requester.getLocale().toLanguageTag());
+
+    logger.debug("Set language tag for preview to {}", queryParameters.getLangTag());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
@@ -401,7 +403,9 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
     String area = uriMatched.group(2);
 
     PreviewQueryParameters queryParameters = parseQueryParameters(uriMatched.group(3));
-    queryParameters.setLocale(requester.getLocale().toLanguageTag());
+    queryParameters.setLangTag(requester.getLocale().toLanguageTag());
+
+    logger.debug("Set language tag for preview to {}", queryParameters.getLangTag());
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
