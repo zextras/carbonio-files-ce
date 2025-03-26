@@ -100,18 +100,16 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       /*
        get the user with updated lang tag for every preview request.
        if this was cached so would be the lang tag resulting in incorrect preview if user changes
-       language and then requests a preview. All cookie checks here are already passed so we know there is one and
-       if user management is not down an usermyself should always be returned given the cookie.
+       language and then requests a preview
       */
       HttpHeaders headersRequest = httpRequest.headers();
       String cookiesString = headersRequest.get(HttpHeaderNames.COOKIE);
 
-      UserMyself requester = userRepository
-          .getUserMyselfByCookieNotCached(cookiesString)
-          .orElse(UserMyself.mapFromUser((User) context
-              .channel()
-              .attr(AttributeKey.valueOf(Files.API.ContextAttribute.REQUESTER))
-              .get()));
+      Optional<UserMyself> optRequester = userRepository
+          .getUserMyselfByCookieNotCached(cookiesString);
+      UserMyself requester = optRequester.get();
+
+      logger.debug("Requester locale: {}", requester.getLocale());
 
       if (thumbnailImageMatcher.find() && httpRequest.method().equals(HttpMethod.GET)) {
         thumbnailImage(context, httpRequest, thumbnailImageMatcher, requester);
