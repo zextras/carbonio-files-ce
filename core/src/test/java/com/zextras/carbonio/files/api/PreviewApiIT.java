@@ -72,7 +72,7 @@ class PreviewApiIT {
         .withHeader("FileOwnerId", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     if (previewPathEndpoint.contains("document")) {
-      request.withQueryStringParameter(new Parameter("locale", "en"));
+      request.withQueryStringParameter(new Parameter("lang_tag", "en"));
     }
 
     return simulator.getPreviewServiceMock()
@@ -88,7 +88,7 @@ class PreviewApiIT {
   }
 
   @Test
-  void givenAnExistingDocumentTheGetPreviewApiShouldGetAndReturnThePreviewWithLocale() {
+  void givenAnExistingDocumentTheGetPreviewApiShouldGetAndReturnThePreviewWithLangTag() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(

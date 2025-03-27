@@ -27,8 +27,8 @@ public class PreviewQueryParameters {
   @JsonProperty("last_page")
   private Integer lastPage;
 
-  @JsonProperty("locale")
-  private String locale;
+  @JsonProperty("lang_tag")
+  private String langTag;
 
   @JsonProperty("version")
   private Integer nodeVersion;
@@ -58,12 +58,12 @@ public class PreviewQueryParameters {
     return Optional.ofNullable(lastPage);
   }
 
-  public Optional<String> getLocale() {
-    return Optional.ofNullable(locale);
+  public Optional<String> getLangTag() {
+    return Optional.ofNullable(langTag);
   }
 
-  public void setLocale(String locale) {
-    this.locale = locale;
+  public void setLangTag(String langTag) {
+    this.langTag = langTag;
   }
 
   public Optional<Integer> getNodeVersion() {

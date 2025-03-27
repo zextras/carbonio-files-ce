@@ -43,7 +43,7 @@ public class UserRepositoryRest implements UserRepository {
   @Override
   public Optional<UserMyself> getUserMyselfByCookieNotCached(String cookies) {
     return UserManagementClient.atURL(usermanagementUrl)
-        .getUserMyself(cookies)
+        .getUserMyself(cookies, true)
         .onFailure(failure -> logger.error(failure.getMessage()))
         .map(
             userInfo ->

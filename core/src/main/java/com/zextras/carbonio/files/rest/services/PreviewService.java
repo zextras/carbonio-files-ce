@@ -216,7 +216,7 @@ public class PreviewService {
     queryParameters.getShape().ifPresent(parameterBuilder::setShape);
     queryParameters.getFirstPage().ifPresent(parameterBuilder::setFirstPage);
     queryParameters.getLastPage().ifPresent(parameterBuilder::setLastPage);
-    queryParameters.getLocale().ifPresent(parameterBuilder::setLocale);
+    queryParameters.getLangTag().ifPresent(parameterBuilder::setLangTag);
 
     return parameterBuilder.build();
   }
