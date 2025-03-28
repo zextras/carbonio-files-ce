@@ -102,7 +102,7 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
         .validateToken(zmAuthToken)
         .onSuccess(
             userId -> userRepository
-                .getUserById(cookies, userId.getUserId())
+                .getUserById(cookies, userId.getUserId(), true) // ignore cache here, get fresh copy
                 .ifPresentOrElse(
                     user -> {
                       // If user is not active we block interaction with Files

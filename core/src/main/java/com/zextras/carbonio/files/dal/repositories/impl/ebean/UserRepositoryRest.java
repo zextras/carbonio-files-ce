@@ -20,6 +20,14 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/*
+  * This class is responsible for fetching user data from the user management service.
+  * Brief explanation of the caches because there is a cachenception here:
+  * we cache users in Files, and User Management also caches users; we can tell user management to ignore its cache
+  * and retrieve the user fresh, but when we do so we want to also ignore the Files cache otherwise it would be useless;
+  * we do not have a cache on Files for the getUserMyself method because it is not requested often and we always want the updated version.
+  * So, aside from getUserMyself, if ignoreCache is true we ignore both Files and UM cache.
+ */
 public class UserRepositoryRest implements UserRepository {
 
   private static final Logger logger = LoggerFactory.getLogger(UserRepositoryRest.class);
@@ -58,58 +66,51 @@ public class UserRepositoryRest implements UserRepository {
   }
 
   @Override
-  public Optional<User> getUserById(String cookies, String userId) {
-    return userCache
-        .get(userId)
+  public Optional<User> getUserById(String cookies, String userId, boolean ignoreCache) {
+    return (ignoreCache ? Optional.<User>empty() : userCache.get(userId))
         .or(
             () ->
                 UserManagementClient.atURL(usermanagementUrl)
-                    .getUserById(cookies, userId)
-                    .onFailure(failure -> logger.error(failure.getMessage()))
-                    .map(
-                        userInfo -> {
-                          User user =
-                              new User(
-                                  userInfo.getId().getUserId(),
-                                  userInfo.getFullName(),
-                                  userInfo.getEmail(),
-                                  userInfo.getDomain(),
-                                  userInfo.getStatus(),
-                                  userInfo.getType());
+                  .getUserById(cookies, userId, ignoreCache)
+                  .onFailure(failure -> logger.error(failure.getMessage()))
+                  .map(
+                      userInfo -> {
+                          User user = new User(
+                            userInfo.getId().getUserId(),
+                            userInfo.getFullName(),
+                            userInfo.getEmail(),
+                            userInfo.getDomain(),
+                            userInfo.getStatus(),
+                            userInfo.getType());
                           userCache.add(user.getId(), user);
                           userCache.add(user.getEmail(), user);
-
                           return user;
-                        })
-                    .toJavaOptional());
+                      })
+                  .toJavaOptional());
   }
 
   @Override
-  public Optional<User> getUserByEmail(String cookies, String userEmail) {
-
-    return userCache
-        .get(userEmail)
+  public Optional<User> getUserByEmail(String cookies, String userEmail, boolean ignoreCache) {
+    return (ignoreCache ? Optional.<User>empty() : userCache.get(userEmail))
         .or(
             () ->
                 UserManagementClient.atURL(usermanagementUrl)
-                    .getUserByEmail(cookies, userEmail)
-                    .onFailure(failure -> logger.error(failure.getMessage()))
-                    .map(
-                        userInfo -> {
-                          User user =
-                              new User(
-                                  userInfo.getId().getUserId(),
-                                  userInfo.getFullName(),
-                                  userInfo.getEmail(),
-                                  userInfo.getDomain(),
-                                  userInfo.getStatus(),
-                                  userInfo.getType());
+                  .getUserByEmail(cookies, userEmail, ignoreCache)
+                  .onFailure(failure -> logger.error(failure.getMessage()))
+                  .map(
+                      userInfo -> {
+                          User user = new User(
+                            userInfo.getId().getUserId(),
+                            userInfo.getFullName(),
+                            userInfo.getEmail(),
+                            userInfo.getDomain(),
+                            userInfo.getStatus(),
+                            userInfo.getType());
                           userCache.add(user.getId(), user);
                           userCache.add(user.getEmail(), user);
-
                           return user;
-                        })
-                    .toJavaOptional());
+                      })
+                  .toJavaOptional());
   }
 
   @Override

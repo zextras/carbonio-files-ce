@@ -66,7 +66,7 @@ public class UserDataFetcher {
     ResultPath path
   ) {
     return userRepository
-      .getUserById(cookies, userId)
+      .getUserById(cookies, userId, false)
       .map(this::convertUserToDataFetcherResult)
       .orElse(
         new DataFetcherResult.Builder<Map<String, Object>>()
@@ -80,7 +80,7 @@ public class UserDataFetcher {
     ResultPath path
   ) {
     return userRepository
-      .getUserByEmail(cookies, email)
+      .getUserByEmail(cookies, email, false)
       .map(this::convertUserToDataFetcherResult)
       .orElse(new DataFetcherResult
         .Builder<Map<String, Object>>()
