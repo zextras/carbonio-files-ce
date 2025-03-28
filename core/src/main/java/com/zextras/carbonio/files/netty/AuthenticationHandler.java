@@ -8,6 +8,7 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.exceptions.AuthenticationException;
+import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -104,6 +105,16 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
                 .getUserById(cookies, userId.getUserId())
                 .ifPresentOrElse(
                     user -> {
+                      // If user is not active we block interaction with Files
+                      if (!user.getStatus().equals(UserStatus.ACTIVE)) {
+                          context.fireExceptionCaught(
+                              new AuthenticationException(
+                                  String.format(
+                                      UNAUTHORIZED_ERROR_MESSAGE,
+                                      httpRequest.uri(),
+                                      "User is not active")));
+                          return;
+                      }
                       context
                           .channel()
                           .attr(AttributeKey.valueOf(Files.API.ContextAttribute.REQUESTER))
