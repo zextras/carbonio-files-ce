@@ -79,6 +79,10 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
       responseStatus = HttpResponseStatus.UNAUTHORIZED;
       payload = cause.getMessage();
     }
+    else if (cause instanceof FileSizeException) {
+      responseStatus = HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE;
+      payload = HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE.toString();
+    }
     else {
       responseStatus = HttpResponseStatus.INTERNAL_SERVER_ERROR;
       payload = HttpResponseStatus.INTERNAL_SERVER_ERROR.toString();

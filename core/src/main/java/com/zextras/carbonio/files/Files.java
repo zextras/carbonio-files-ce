@@ -861,6 +861,7 @@ public final class Files {
       private Config() {}
 
       public static final String COLLATION                             = "collation";
+      public static final String MAX_UPLOADABLE_SIZE_IN_MB             = "max-uploadable-size-in-mb";
       public static final String PAGE_TOKEN_SECRET_KEY                 = "page-token-secret-key";
       public static final String DEFAULT_PAGE_TOKEN_SECRET_KEY         = "carbonio-files-page-token-sign";
       public static final String FALLBACK_COLLATE                      = "en_US.utf8";

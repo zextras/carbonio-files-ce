@@ -126,10 +126,14 @@ public class FilesConfigImpl implements FilesConfig {
   }
 
   public int getMaxNumberOfFileVersion() {
-    return Integer.parseInt(
-        ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
-            .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
-            .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
+    try {
+      return Integer.parseInt(
+          ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+              .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
+              .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
+    } catch (NumberFormatException e) {
+      return ServiceDiscover.Config.DEFAULT_MAX_VERSIONS;
+    }
   }
 
   public String getDatabaseUrl() {
@@ -181,6 +185,22 @@ public class FilesConfigImpl implements FilesConfig {
     return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
         .getConfig(ServiceDiscover.Config.PAGE_TOKEN_SECRET_KEY)
         .getOrElse(ServiceDiscover.Config.DEFAULT_PAGE_TOKEN_SECRET_KEY);
+  }
+
+  // Returns the maximum uploadable file size in MB or optional.empty if not found or malformed
+  public Optional<Integer> getMaxUploadableFileSizeInMb() {
+    return Optional.ofNullable(
+        ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+            .getConfig(ServiceDiscover.Config.MAX_UPLOADABLE_SIZE_IN_MB)
+            .getOrElse((String) null)
+    )
+    .flatMap(s -> {
+      try {
+        return Optional.of(Integer.parseInt(s));
+      } catch (NumberFormatException e) {
+        return Optional.empty();
+      }
+    });
   }
 
   private String generateHmacSha256Key() {

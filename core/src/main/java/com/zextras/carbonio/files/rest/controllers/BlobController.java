@@ -11,7 +11,9 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.API.Endpoints;
 import com.zextras.carbonio.files.Files.API.Headers;
+import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
+import com.zextras.carbonio.files.exceptions.FileSizeException;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
 import com.zextras.carbonio.files.netty.utilities.HttpResponseBuilder;
 import com.zextras.carbonio.files.netty.utilities.NettyBufferWriter;
@@ -51,12 +53,14 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   private static final AttributeKey<BufferInputStream> fileStreamReader =
       AttributeKey.valueOf("FileStreamReader");
 
+  private final FilesConfig filesConfig;
   private final BlobService blobService;
   private final PrometheusService prometheusService;
 
   @Inject
-  public BlobController(BlobService blobService, PrometheusService prometheusService) {
+  public BlobController(FilesConfig filesConfig, BlobService blobService, PrometheusService prometheusService) {
     super(true);
+    this.filesConfig = filesConfig;
     this.blobService = blobService;
     this.prometheusService = prometheusService;
   }
@@ -143,6 +147,17 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         Optional.ofNullable(httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_DESCRIPTION))
             .orElse("");
     long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
+
+    // Check if the file size is within the limit (empty optional limit means no limit)
+    double blobLengthInMB = blobLength / (1024.0 * 1024.0);
+    Optional<Integer> maxFileSize = filesConfig.getMaxUploadableFileSizeInMb();
+    logger.warn("File size: {}", blobLengthInMB);
+    logger.warn("Max file size: {}", maxFileSize);
+    if (maxFileSize.isPresent() && blobLengthInMB > maxFileSize.get()) {
+      context.fireExceptionCaught(new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB"));
+      return;
+    }
+
     String encodedFilename = httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_FILENAME);
     String decodedFilename =
         encodedFilename == null || !Base64.isBase64(encodedFilename)
@@ -204,6 +219,14 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     boolean overwrite =
         Boolean.parseBoolean(httpRequest.headers().getAsString(Headers.UPLOAD_OVERWRITE_VERSION));
     long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
+
+    // Check if the file size is within the limit (empty optional limit means no limit)
+    double blobLengthInMB = blobLength / (1024.0 * 1024.0);
+    Optional<Integer> maxFileSize = filesConfig.getMaxUploadableFileSizeInMb();
+    if (maxFileSize.isPresent() && blobLengthInMB > maxFileSize.get()) {
+      context.fireExceptionCaught(new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB"));
+      return;
+    }
 
     logger.debug("Uploading new version of node with id: {}, overwrite: {}", nodeId, overwrite);
 

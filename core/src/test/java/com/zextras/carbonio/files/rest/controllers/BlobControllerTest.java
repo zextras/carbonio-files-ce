@@ -8,6 +8,7 @@ import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.tasks.PrometheusService;
+import com.zextras.carbonio.files.utilities.TestFilesConfig;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -87,7 +88,7 @@ public class BlobControllerTest {
       ))
       .thenReturn(Optional.of(blobResponseMock));
 
-    BlobController blobController = new BlobController(blobServiceMock, prometheusServiceMock);
+    BlobController blobController = new BlobController(new TestFilesConfig(), blobServiceMock, prometheusServiceMock);
 
     // When
     blobController.channelRead0(contextMock, httpRequestMock);

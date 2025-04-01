@@ -8,6 +8,7 @@ import com.zextras.carbonio.preview.PreviewClient;
 import com.zextras.carbonio.usermanagement.UserManagementClient;
 import com.zextras.filestore.api.Filestore;
 
+import java.util.Optional;
 import java.util.Properties;
 
 public interface FilesConfig {
@@ -24,4 +25,5 @@ public interface FilesConfig {
   String getMessageBrokerPassword();
   String getMessageBrokerUsername();
   String getPageTokenSecretKey();
+  Optional<Integer> getMaxUploadableFileSizeInMb();
 }
