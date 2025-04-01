@@ -151,8 +151,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     // Check if the file size is within the limit (empty optional limit means no limit)
     double blobLengthInMB = blobLength / (1024.0 * 1024.0);
     Optional<Integer> maxFileSize = filesConfig.getMaxUploadableFileSizeInMb();
-    logger.warn("File size: {}", blobLengthInMB);
-    logger.warn("Max file size: {}", maxFileSize);
+    logger.info("File size: {}", blobLengthInMB);
+    logger.info("Max file size: {}", maxFileSize);
     if (maxFileSize.isPresent() && blobLengthInMB > maxFileSize.get()) {
       context.fireExceptionCaught(new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB"));
       return;
@@ -223,6 +223,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     // Check if the file size is within the limit (empty optional limit means no limit)
     double blobLengthInMB = blobLength / (1024.0 * 1024.0);
     Optional<Integer> maxFileSize = filesConfig.getMaxUploadableFileSizeInMb();
+    logger.info("File size: {}", blobLengthInMB);
+    logger.info("Max file size: {}", maxFileSize);
     if (maxFileSize.isPresent() && blobLengthInMB > maxFileSize.get()) {
       context.fireExceptionCaught(new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB"));
       return;
