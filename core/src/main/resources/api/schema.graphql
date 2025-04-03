@@ -452,13 +452,122 @@ type Root {
     name: String!
 }
 
-type NodePage {
+# Separated snapshot entities logic from real ones
+type SnapshotNode {
+    snapshot_node_id: ID!
+    node_id: ID!
+    owner_id: ID!
+    folder_id: ID
+    name: String!
+    type: NodeType!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
 
+type SnapshotUser {
+    snapshot_user_id: ID!
+    user_id: ID!
+    full_name: String!
+    email: String!
+}
+
+type NewShare {
+    # Unique identifier of the notification
+	id: ID!
+
+	# Notification creation timestamp
+	created_at: DateTime!
+
+    notification_type: NotificationType!
+
+	# Node shared
+	node: SnapshotNode!
+
+	# User who share the node
+	triggering_user: SnapshotUser!
+}
+
+type AddedNode {
+    # Unique identifier of the notification
+	id: ID!
+
+	# Notification creation timestamp
+	created_at: DateTime!
+
+    notification_type: NotificationType!
+
+	# Node added
+	added_node: SnapshotNode!
+
+	destination_folder: SnapshotNode!
+
+	# User who added the node
+	triggering_user: SnapshotUser!
+
+	added_node_type: AddedNodeType!
+}
+
+type RemovedNode {
+    # Unique identifier of the notification
+	id: ID!
+
+	# Notification creation timestamp
+	created_at: DateTime!
+
+    notification_type: NotificationType!
+
+	# Node removed
+	removed_node: SnapshotNode!
+
+	# Folder where the node was removed
+	origin_folder: SnapshotNode!
+
+	# User who removed the node
+	triggering_user: SnapshotUser!
+
+	removed_node_type: RemovedNodeType!
+}
+
+enum NotificationType {
+    NEW_SHARE
+    ADDED_NODE
+    REMOVED_NODE
+}
+
+enum AddedNodeType {
+	UPLOAD
+    CREATE
+	COPY
+	MOVE
+}
+
+enum RemovedNodeType {
+	DELETE
+	MOVE
+}
+
+type NodePage {
     #The list of nodes of the requested page
     nodes: [Node]!
 
     # The token to use as a cursor for requesting the next page of nodes
     page_token: String
+}
+
+union Notification = NewShare | AddedNode | RemovedNode
+
+type NotificationPage {
+    # The list of notifications of the requested page
+	notifications: [Notification]!
+
+    # Number of unread notifications used for Badge
+	unread: Int!
+
+    # Last seen timestamp used for unread inside list
+	last_seen: DateTime!
+
+    # Returned only if there are more pages
+	page_token: String
 }
 
 type Query {
@@ -552,6 +661,12 @@ type Query {
     getRootsList: [Root]!
 
     getConfigs: [Config]!
+
+    getNotifications(
+		update_last_seen: Boolean!
+		limit: Int
+		page_token: String
+	): NotificationPage
 }
 
 type Mutation {

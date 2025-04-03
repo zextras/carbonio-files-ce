@@ -7,12 +7,14 @@ package com.zextras.carbonio.files.graphql.datafetchers;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.Files.GraphQL.DataLoaders;
+import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
@@ -52,19 +54,24 @@ import java.util.stream.Collectors;
  */
 public class ShareDataFetcher {
 
+  private final FilesConfig filesConfig;
   private final ShareRepository    shareRepository;
   private final NodeRepository     nodeRepository;
   private final PermissionsChecker permissionsChecker;
+  private final NotificationRepository notificationRepository;
 
   @Inject
   public ShareDataFetcher(
-    NodeRepository nodeRepository,
-    ShareRepository shareRepository,
-    PermissionsChecker permissionsChecker
+      FilesConfig filesConfig,
+      NodeRepository nodeRepository,
+      ShareRepository shareRepository,
+      PermissionsChecker permissionsChecker, NotificationRepository notificationRepository
   ) {
+    this.filesConfig = filesConfig;
     this.shareRepository = shareRepository;
     this.nodeRepository = nodeRepository;
     this.permissionsChecker = permissionsChecker;
+    this.notificationRepository = notificationRepository;
   }
 
   private DataFetcherResult<Map<String, Object>> convertShareToDataFetcherResult(Share share) {
@@ -78,7 +85,7 @@ public class ShareDataFetcher {
 
     shareContext.put(Files.GraphQL.Share.NODE, share.getNodeId());
     shareContext.put(Files.GraphQL.Share.SHARE_TARGET, share.getTargetUserId());
-    return new DataFetcherResult.Builder<Map<String, Object>>()
+    return new Builder<Map<String, Object>>()
       .data(result)
       .localContext(shareContext)
       .build();
@@ -113,8 +120,8 @@ public class ShareDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> createShareFetcher() {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
-      String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
+      User requesterUser = (User) environment.getGraphQlContext().get(Files.GraphQL.Context.REQUESTER);
+      String requesterId = requesterUser.getId();
       String sharedNodeId = environment.getArgument(Files.GraphQL.InputParameters.Share.NODE_ID);
       String targetUserId = environment.getArgument(
         Files.GraphQL.InputParameters.Share.SHARE_TARGET_ID
@@ -130,10 +137,11 @@ public class ShareDataFetcher {
         .getPermissions(sharedNodeId, requesterId)
         .has(ACL.SharePermission.READ_AND_SHARE)
       ) {
-        String ownerId = nodeRepository.getNode(sharedNodeId).get().getOwnerId();
+        Node sharedNode = nodeRepository.getNode(sharedNodeId).get();
+        String ownerId = sharedNode.getOwnerId();
 
         if (targetUserId.equals(ownerId)) {
-          return new DataFetcherResult.Builder<Map<String, Object>>()
+          return new Builder<Map<String, Object>>()
             .error(GraphQLResultErrors.shareCreationError(
               sharedNodeId,
               targetUserId,
@@ -151,9 +159,19 @@ public class ShareDataFetcher {
           )
           .map(share -> {
             cascadeUpsertShare(sharedNodeId, targetUserId, ACL.decode(permissions), optExpiresAt);
-            return convertShareToDataFetcherResult(share);
+            DataFetcherResult<Map<String, Object>> result = convertShareToDataFetcherResult(share);
+
+            // Create notification after share is created
+            List<String> usersToNotify = List.of(targetUserId);
+            if (filesConfig.areNotificationsEnabled()) {
+              notificationRepository.createNewShareNotification(
+                  sharedNode, requesterUser, usersToNotify
+              );
+            }
+
+            return result;
           })
-          .orElse(new DataFetcherResult.Builder<Map<String, Object>>()
+          .orElse(new Builder<Map<String, Object>>()
             .error(GraphQLResultErrors.shareCreationError(
               sharedNodeId,
               targetUserId,
@@ -161,7 +179,7 @@ public class ShareDataFetcher {
             .build()
           );
       } else {
-        return new DataFetcherResult.Builder<Map<String, Object>>()
+        return new Builder<Map<String, Object>>()
           .error(GraphQLResultErrors.shareCreationError(
             sharedNodeId,
             targetUserId,
@@ -225,7 +243,7 @@ public class ShareDataFetcher {
         .has(ACL.SharePermission.READ_ONLY)
         ? shareRepository.getShare(sharedNodeId, targetUserId)
         .map(this::convertShareToDataFetcherResult)
-        .orElse(new DataFetcherResult.Builder<Map<String, Object>>()
+        .orElse(new Builder<Map<String, Object>>()
           .error(GraphQLResultErrors.shareNotfound(
             sharedNodeId,
             targetUserId,
@@ -233,7 +251,7 @@ public class ShareDataFetcher {
               .getPath()))
           .build()
         )
-        : new DataFetcherResult.Builder<Map<String, Object>>()
+        : new Builder<Map<String, Object>>()
           .error(GraphQLResultErrors.shareNotfound(
             sharedNodeId,
             targetUserId,
@@ -337,14 +355,14 @@ public class ShareDataFetcher {
 
           return convertShareToDataFetcherResult(updatedShare);
         })
-        .orElse(new DataFetcherResult.Builder<Map<String, Object>>()
+        .orElse(new Builder<Map<String, Object>>()
           .error(GraphQLResultErrors.shareNotfound(
             sharedNodeId,
             targetUserId,
             environment.getExecutionStepInfo()
               .getPath()))
           .build())
-        : new DataFetcherResult.Builder<Map<String, Object>>()
+        : new Builder<Map<String, Object>>()
           .error(GraphQLResultErrors.shareNotfound(
             sharedNodeId,
             targetUserId,
@@ -396,18 +414,18 @@ public class ShareDataFetcher {
             cascadeDeleteShare(sharedNodeId, targetUserId);
           }
 
-          return new DataFetcherResult.Builder<Boolean>()
+          return new Builder<Boolean>()
             .data(shareDeleted)
             .build();
         })
-        .orElse(new DataFetcherResult.Builder<Boolean>()
+        .orElse(new Builder<Boolean>()
           .error(GraphQLResultErrors.shareNotfound(
             sharedNodeId,
             targetUserId,
             environment.getExecutionStepInfo()
               .getPath()))
           .build())
-        : new DataFetcherResult.Builder<Boolean>()
+        : new Builder<Boolean>()
           .error(GraphQLResultErrors.shareNotfound(
             sharedNodeId,
             targetUserId,

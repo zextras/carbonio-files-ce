@@ -28,12 +28,11 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.RemovedNodeType;
+import com.zextras.carbonio.files.dal.repositories.interfaces.*;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.graphql.types.Permissions;
@@ -104,6 +103,7 @@ public class NodeDataFetcher {
     LoggerFactory.getLogger(NodeDataFetcher.class);
 
   private final NodeRepository        nodeRepository;
+  private final NotificationRepository notificationRepository;
   private final FileVersionRepository fileVersionRepository;
   private final PermissionsChecker    permissionsChecker;
   private final ShareRepository       shareRepository;
@@ -117,6 +117,7 @@ public class NodeDataFetcher {
   @Inject
   NodeDataFetcher(
     NodeRepository nodeRepository,
+    NotificationRepository notificationRepository,
     FileVersionRepository fileVersionRepository,
     PermissionsChecker permissionsChecker,
     ShareRepository shareRepository,
@@ -126,6 +127,7 @@ public class NodeDataFetcher {
     Filestore fileStore
   ) {
     this.nodeRepository = nodeRepository;
+    this.notificationRepository = notificationRepository;
     this.fileVersionRepository = fileVersionRepository;
     this.shareRepository = shareRepository;
     this.permissionsChecker = permissionsChecker;
@@ -548,10 +550,10 @@ public class NodeDataFetcher {
     return (environment) -> CompletableFuture.supplyAsync(() -> {
         ResultPath resultPath = environment.getExecutionStepInfo().getPath();
         String parentId = environment.getArgument(InputParameters.CreateFolder.PARENT_ID);
-        String requesterId = ((User) environment
+        User requester = (User) environment
           .getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER)
-        ).getId();
+          .get(Files.GraphQL.Context.REQUESTER);
+        String requesterId = requester.getId();
 
         if (permissionsChecker
           .getPermissions(parentId, requesterId)
@@ -593,7 +595,25 @@ public class NodeDataFetcher {
 
               // Add new inherited shares for the new folder.
               // Create share also for the requester if it is not the owner of the parent folder
-              createIndirectShare(parentId, createdFolder);
+              List<String> usersToNotify = createIndirectShare(parentId, createdFolder);
+              usersToNotify.remove(requesterId); // Remove requesterId from the list if present
+
+              // If the requester is the owner of the parent folder, do not notify him since he did the upload himself
+              // Also exclude uploads on root, since root can't be shared and does not have an owner
+              if (!parent.getNodeType().equals(NodeType.ROOT) &&
+                  !requesterId.equals(parent.getOwnerId()) &&
+                  !usersToNotify.contains(parent.getOwnerId())) {
+                usersToNotify.add(parent.getOwnerId());
+              }
+
+              if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled())
+                notificationRepository.createAddedNodeNotification(
+                  createdFolder,
+                  parent,
+                  requester,
+                  AddedNodeType.CREATE,
+                  usersToNotify
+                );
 
               return convertNodeToDataFetcherResult(
                 createdFolder,
@@ -786,8 +806,9 @@ public class NodeDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<List<String>>>> trashNodes() {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
-      String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
+      User requester = (User) environment.getGraphQlContext()
+        .get(Files.GraphQL.Context.REQUESTER);
+      String requesterId = requester.getId();
       List<String> nodesIds = environment.getArgument(
         Files.GraphQL.InputParameters.TrashNodes.NODE_IDS);
 
@@ -812,6 +833,30 @@ public class NodeDataFetcher {
           .forEach(trashedNode -> {
             String nodeParentId = trashedNode.getParentId()
               .get();
+
+            List<String> usersToNotify = new ArrayList<>(
+                shareRepository.getSharesUsersIds(trashedNode.getId(), List.of())
+            );
+            usersToNotify.remove(requesterId);
+
+            // If the requester is the owner of the parent folder, do not notify him since he did the upload himself
+            // Also exclude uploads on root, since root can't be shared and does not have an owner
+            Node parent = nodeRepository.getNode(trashedNode.getParentId().get()).get();
+            if (!parent.getNodeType().equals(NodeType.ROOT) &&
+                !requesterId.equals(parent.getOwnerId()) &&
+                !usersToNotify.contains(parent.getOwnerId())) {
+              usersToNotify.add(parent.getOwnerId());
+            }
+
+            if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled())
+              notificationRepository.createRemovedNodeNotification(
+                trashedNode,
+                parent,
+                requester,
+                RemovedNodeType.DELETE,
+                usersToNotify
+              );
+
             trashedNode.setAncestorIds(Files.Db.RootId.TRASH_ROOT);
             trashedNode.setParentId(RootId.TRASH_ROOT);
             nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
@@ -1241,8 +1286,9 @@ public class NodeDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath resultPath = environment.getExecutionStepInfo()
         .getPath();
-      String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
+      User requester = (User) environment.getGraphQlContext()
+        .get(Files.GraphQL.Context.REQUESTER);
+      String requesterId = (requester).getId();
       List<String> nodeIds = environment.getArgument(
         Files.GraphQL.InputParameters.MoveNodes.NODE_IDS);
       String destinationFolderId = environment.getArgument(
@@ -1292,7 +1338,29 @@ public class NodeDataFetcher {
                     }
 
                     nodeRepository.updateNode(node);
+
+                    // Remove node notification snapshot & creation
+                    List<String> usersToNotifyRemoveNode = new ArrayList<>(shareRepository.getSharesUsersIds(node.getId(), List.of()));
+                    usersToNotifyRemoveNode.remove(requesterId);
+
+                    Node parent = nodeRepository.getNode(node.getParentId().get()).get();
+                    if (!parent.getNodeType().equals(NodeType.ROOT) &&
+                        !requesterId.equals(parent.getOwnerId()) &&
+                        !usersToNotifyRemoveNode.contains(parent.getOwnerId())) {
+                      usersToNotifyRemoveNode.add(parent.getOwnerId());
+                    }
+
+                    if (!usersToNotifyRemoveNode.isEmpty() && filesConfig.areNotificationsEnabled())
+                      notificationRepository.createRemovedNodeNotification(
+                        node,
+                        parent,
+                        requester,
+                        RemovedNodeType.MOVE,
+                        usersToNotifyRemoveNode
+                      );
+
                 });
+
             nodeRepository.moveNodes(nodeIdsToMove, optDestinationFolder.get());
 
             /*
@@ -1318,11 +1386,13 @@ public class NodeDataFetcher {
                     shareDataFetcher.cascadeDeleteShare(nodeId, share.getTargetUserId());
                   });
                 // Add new inherited shares from destination node
+                List<String> usersToNotifyAddNode = new ArrayList<>();
                 shareRepository
                   .getShares(destinationFolderId, Collections.emptyList())
                   .forEach(share -> {
                     Optional<Share> sourceShare = shareRepository.getShare(nodeId,
                       share.getTargetUserId());
+                    usersToNotifyAddNode.add(share.getTargetUserId());
                     // If there's a share on source node is one of the direct shares i did not delete on previous step
                     // I still added the second condition because of safety reasons and to be sure i only operate on
                     // inherited share if other operations in future make it so shares are still present
@@ -1343,6 +1413,24 @@ public class NodeDataFetcher {
                         share.getExpiredAt());
                     }
                   });
+
+                usersToNotifyAddNode.remove(requesterId); //remove requester if present
+
+                // If the requester is the owner of the parent folder, do not notify him since he did the upload himself
+                // Also exclude uploads on root, since root can't be shared and does not have an owner
+                if (!optDestinationFolder.get().getNodeType().equals(NodeType.ROOT) &&
+                    !requesterId.equals(optDestinationFolder.get().getOwnerId())) {
+                  usersToNotifyAddNode.add(optDestinationFolder.get().getOwnerId());
+                }
+
+                if (!usersToNotifyAddNode.isEmpty() && filesConfig.areNotificationsEnabled())
+                  notificationRepository.createAddedNodeNotification(
+                    node,
+                    optDestinationFolder.get(),
+                    requester,
+                    AddedNodeType.MOVE,
+                    usersToNotifyAddNode
+                  );
               });
 
             movedNodesResult.addAll(nodeRepository
@@ -1644,12 +1732,15 @@ public class NodeDataFetcher {
     );
   }
 
-  private void createIndirectShare(
+  // Returns the list of users ids that have an indirect share on node
+  private List<String> createIndirectShare(
     String sharedParentId,
     Node nodeToShare
   ) {
+    List<String> targetUserIds = new ArrayList<>();
     shareRepository.getShares(sharedParentId, Collections.emptyList())
       .forEach(share -> {
+        targetUserIds.add(share.getTargetUserId());
         shareRepository.upsertShare(
           nodeToShare.getId(),
           share.getTargetUserId(),
@@ -1668,6 +1759,7 @@ public class NodeDataFetcher {
             share.getExpiredAt());
         }
       });
+    return targetUserIds;
   }
 
   /**
@@ -1686,9 +1778,10 @@ public class NodeDataFetcher {
   public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> copyNodesFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath resultPath = environment.getExecutionStepInfo().getPath();
-      String requesterId = ((User) environment
+      User requester = (User) environment
         .getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Files.GraphQL.Context.REQUESTER);
+      String requesterId = requester.getId();
       List<String> nodeIds = environment.getArgument(InputParameters.MoveNodes.NODE_IDS);
       String destinationFolderId = environment.getArgument(
         InputParameters.MoveNodes.DESTINATION_ID);
@@ -1772,7 +1865,27 @@ public class NodeDataFetcher {
                   );
                   copyFolderCascade(nodeDup.getId(), copiedFolder, requesterId,
                     Optional.of(newName));
-                  createIndirectShare(destinationFolderId, copiedFolder);
+
+                  List<String> usersToNotify = createIndirectShare(destinationFolderId, copiedFolder);
+                  usersToNotify.remove(requesterId); // remove requester if present
+
+                  // If the requester is the owner of the parent folder, do not notify him since he did the upload himself
+                  // Also exclude uploads on root, since root can't be shared and does not have an owner
+                  if (!optDestinationFolder.get().getNodeType().equals(NodeType.ROOT) &&
+                      !requesterId.equals(optDestinationFolder.get().getOwnerId()) &&
+                      !usersToNotify.contains(optDestinationFolder.get().getOwnerId())) {
+                    usersToNotify.add(optDestinationFolder.get().getOwnerId());
+                  }
+
+                  if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled())
+                    notificationRepository.createAddedNodeNotification(
+                      copiedFolder,
+                      optDestinationFolder.get(),
+                      requester,
+                      AddedNodeType.COPY,
+                      usersToNotify
+                    );
+
                 } else {
                   Optional<Node> optCopiedFile = copyFile(
                     nodeDup,
@@ -1785,7 +1898,26 @@ public class NodeDataFetcher {
                     copiedNodesResult.add(
                       convertNodeToDataFetcherResult(optCopiedFile.get(), requesterId, resultPath)
                     );
-                    createIndirectShare(destinationFolderId, optCopiedFile.get());
+                    List<String> usersToNotify = createIndirectShare(destinationFolderId, optCopiedFile.get());
+                    usersToNotify.remove(requesterId); // remove requester if present
+
+                    // If the requester is the owner of the parent folder, do not notify him since he did the upload himself
+                    // Also exclude uploads on root, since root can't be shared and does not have an owner
+                    if (!optDestinationFolder.get().getNodeType().equals(NodeType.ROOT) &&
+                        !requesterId.equals(optDestinationFolder.get().getOwnerId()) &&
+                        !usersToNotify.contains(optDestinationFolder.get().getOwnerId())) {
+                      usersToNotify.add(optDestinationFolder.get().getOwnerId());
+                    }
+
+                    if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled())
+                      notificationRepository.createAddedNodeNotification(
+                        optCopiedFile.get(),
+                        optDestinationFolder.get(),
+                        requester,
+                        AddedNodeType.COPY,
+                        usersToNotify
+                      );
+
                   } else {
                     List<DataFetcherResult<Map<String, Object>>> errors =
                       errorsOfNodesWithoutPermission.get();
@@ -1815,7 +1947,27 @@ public class NodeDataFetcher {
                   copiedNodesResult.add(
                     convertNodeToDataFetcherResult(copiedFolder, requesterId, resultPath));
                   copyFolderCascade(node.getId(), copiedFolder, requesterId, Optional.empty());
-                  createIndirectShare(destinationFolderId, copiedFolder);
+
+                  List<String> usersToNotify = createIndirectShare(destinationFolderId, copiedFolder);
+                  usersToNotify.remove(requesterId); // remove requester if present
+
+                  // If the requester is the owner of the parent folder, do not notify him since he did the upload himself
+                  // Also exclude uploads on root, since root can't be shared and does not have an owner
+                  if (!optDestinationFolder.get().getNodeType().equals(NodeType.ROOT) &&
+                      !requesterId.equals(optDestinationFolder.get().getOwnerId()) &&
+                      !usersToNotify.contains(optDestinationFolder.get().getOwnerId())) {
+                    usersToNotify.add(optDestinationFolder.get().getOwnerId());
+                  }
+
+                  if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled())
+                    notificationRepository.createAddedNodeNotification(
+                      copiedFolder,
+                      optDestinationFolder.get(),
+                      requester,
+                      AddedNodeType.COPY,
+                      usersToNotify
+                    );
+
                 } else {
                   Optional<Node> optCopiedFile = copyFile(
                     node,
@@ -1828,7 +1980,25 @@ public class NodeDataFetcher {
                     copiedNodesResult.add(
                       convertNodeToDataFetcherResult(optCopiedFile.get(), requesterId, resultPath)
                     );
-                    createIndirectShare(destinationFolderId, optCopiedFile.get());
+                    List<String> usersToNotify = createIndirectShare(destinationFolderId, optCopiedFile.get());
+                    usersToNotify.remove(requesterId); // remove requester if present
+
+                    // If the requester is the owner of the parent folder, do not notify him since he did the upload himself
+                    // Also exclude uploads on root, since root can't be shared and does not have an owner
+                    if (!optDestinationFolder.get().getNodeType().equals(NodeType.ROOT) &&
+                        !requesterId.equals(optDestinationFolder.get().getOwnerId()) &&
+                        !usersToNotify.contains(optDestinationFolder.get().getOwnerId())) {
+                      usersToNotify.add(optDestinationFolder.get().getOwnerId());
+                    }
+
+                    if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled())
+                      notificationRepository.createAddedNodeNotification(
+                        optCopiedFile.get(),
+                        optDestinationFolder.get(),
+                        requester,
+                        AddedNodeType.COPY,
+                        usersToNotify
+                      );
                   } else {
                     List<DataFetcherResult<Map<String, Object>>> errors =
                       errorsOfNodesWithoutPermission.get();

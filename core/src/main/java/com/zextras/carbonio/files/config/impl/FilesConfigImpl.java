@@ -212,4 +212,16 @@ public class FilesConfigImpl implements FilesConfig {
       throw new InvalidTokenSignException("Failed to generate HMAC key");
     }
   }
+
+  // Returns true as default since the notifications are a required feature, but opens the way to disable them if
+  // needed in the future
+  public boolean areNotificationsEnabled() {
+    String systemValue = System.getProperty(Files.Config.Service.ENABLE_NOTIFICATIONS, "true");
+    boolean systemEnabled = !systemValue.equalsIgnoreCase("false");
+
+    String propValue = properties.getProperty(Files.Config.Service.ENABLE_NOTIFICATIONS, "true");
+    boolean propEnabled = !propValue.equalsIgnoreCase("false");
+
+    return systemEnabled && propEnabled;
+  }
 }

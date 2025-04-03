@@ -4,17 +4,10 @@
 
 package com.zextras.carbonio.files.graphql;
 
-import static graphql.schema.idl.TypeRuntimeWiring.newTypeWiring;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.graphql.datafetchers.ConfigDataFetcher;
-import com.zextras.carbonio.files.graphql.datafetchers.DateTimeScalar;
-import com.zextras.carbonio.files.graphql.datafetchers.CollaborationLinkDataFetcher;
-import com.zextras.carbonio.files.graphql.datafetchers.LinkDataFetcher;
-import com.zextras.carbonio.files.graphql.datafetchers.NodeDataFetcher;
-import com.zextras.carbonio.files.graphql.datafetchers.ShareDataFetcher;
-import com.zextras.carbonio.files.graphql.datafetchers.UserDataFetcher;
+import com.zextras.carbonio.files.graphql.datafetchers.*;
 import com.zextras.carbonio.files.graphql.validators.InputFieldsController;
 import graphql.GraphQL;
 import graphql.analysis.MaxQueryDepthInstrumentation;
@@ -38,6 +31,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.List;
+import java.util.Map;
+
+import static graphql.schema.idl.TypeRuntimeWiring.newTypeWiring;
 
 /**
  * <p>Setups the GraphQL instance with all the necessary properties. A GraphQL instance is
@@ -53,24 +49,26 @@ public class GraphQLProvider {
 
   private static final String SCHEMA_URL = "/api/schema.graphql";
 
-  private final GraphQL                      graphQL;
-  private final InputFieldsController        inputFieldsController;
-  private final NodeDataFetcher              nodeDataFetcher;
-  private final UserDataFetcher              userDataFetcher;
-  private final ShareDataFetcher             shareDataFetcher;
-  private final LinkDataFetcher              linkDataFetcher;
+  private final GraphQL graphQL;
+  private final InputFieldsController inputFieldsController;
+  private final NodeDataFetcher nodeDataFetcher;
+  private final UserDataFetcher userDataFetcher;
+  private final ShareDataFetcher shareDataFetcher;
+  private final LinkDataFetcher linkDataFetcher;
   private final CollaborationLinkDataFetcher collaborationLinkDataFetcher;
-  private final ConfigDataFetcher            configDataFetcher;
+  private final ConfigDataFetcher configDataFetcher;
+  private final NotificationDataFetcher notificationDataFetcher;
 
   @Inject
   public GraphQLProvider(
-    InputFieldsController inputFieldsController,
-    NodeDataFetcher nodeDataFetcher,
-    UserDataFetcher userDataFetcher,
-    ShareDataFetcher shareDataFetcher,
-    LinkDataFetcher linkDataFetcher,
-    CollaborationLinkDataFetcher collaborationLinkDataFetcher,
-    ConfigDataFetcher configDataFetcher
+      InputFieldsController inputFieldsController,
+      NodeDataFetcher nodeDataFetcher,
+      UserDataFetcher userDataFetcher,
+      ShareDataFetcher shareDataFetcher,
+      LinkDataFetcher linkDataFetcher,
+      CollaborationLinkDataFetcher collaborationLinkDataFetcher,
+      ConfigDataFetcher configDataFetcher,
+      NotificationDataFetcher notificationDataFetcher
   ) {
     this.inputFieldsController = inputFieldsController;
     this.nodeDataFetcher = nodeDataFetcher;
@@ -79,6 +77,7 @@ public class GraphQLProvider {
     this.linkDataFetcher = linkDataFetcher;
     this.collaborationLinkDataFetcher = collaborationLinkDataFetcher;
     this.configDataFetcher = configDataFetcher;
+    this.notificationDataFetcher = notificationDataFetcher;
     graphQL = this.setup();
   }
 
@@ -96,114 +95,114 @@ public class GraphQLProvider {
    */
   private GraphQL setup() {
     List<Instrumentation> chainedInstrumentations = List.of(
-      buildValidationInstrumentation(),
-      new MaxQueryDepthInstrumentation(10)
+        buildValidationInstrumentation(),
+        new MaxQueryDepthInstrumentation(10)
     );
 
     return GraphQL.newGraphQL(buildSchema(buildWiring()))
-      .queryExecutionStrategy(new AsyncExecutionStrategy())
-      .instrumentation(new ChainedInstrumentation(chainedInstrumentations))
-      .build();
+        .queryExecutionStrategy(new AsyncExecutionStrategy())
+        .instrumentation(new ChainedInstrumentation(chainedInstrumentations))
+        .build();
   }
 
   private FieldValidationInstrumentation buildValidationInstrumentation() {
     FieldValidation fieldValidation = new SimpleFieldValidation()
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Queries.GET_NODE),
-        inputFieldsController.getNodeValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Queries.GET_NODE + "/children"),
-        inputFieldsController.childrenArgumentValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.CREATE_FOLDER),
-        inputFieldsController.createFolderValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.UPDATE_NODE),
-        inputFieldsController.updateNodeValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.MOVE_NODES),
-        inputFieldsController.moveNodesValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.DELETE_NODES),
-        inputFieldsController.deleteNodesValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.TRASH_NODES),
-        inputFieldsController.trashNodesValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.RESTORE_NODES),
-        inputFieldsController.restoreNodesValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.COPY_NODES),
-        inputFieldsController.copyNodesValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.CREATE_SHARE),
-        inputFieldsController.shareQueriesValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Queries.GET_SHARE),
-        inputFieldsController.shareQueriesValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.UPDATE_SHARE),
-        inputFieldsController.shareQueriesValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.DELETE_SHARE),
-        inputFieldsController.shareQueriesValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.CREATE_LINK),
-        inputFieldsController.createLinkValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Queries.GET_LINKS),
-        inputFieldsController.getLinksValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.UPDATE_LINK),
-        inputFieldsController.updateLinkValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.DELETE_LINKS),
-        inputFieldsController.deleteLinksValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Queries.GET_PATH),
-        inputFieldsController.getPathValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Queries.GET_ACCOUNT_BY_EMAIL),
-        inputFieldsController.getAccountByEmailValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Queries.GET_ACCOUNTS_BY_EMAIL),
-        inputFieldsController.getAccountsByEmailValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.CREATE_COLLABORATION_LINK),
-        inputFieldsController.createCollaborationLinkValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Queries.GET_COLLABORATION_LINKS),
-        inputFieldsController.getCollaborationLinksValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.DELETE_COLLABORATION_LINKS),
-        inputFieldsController.deleteCollaborationLinksValidation()
-      )
-      .addRule(
-        ResultPath.parse("/" + Files.GraphQL.Mutations.DELETE_ALL_NODES_AND_BLOBS),
-        inputFieldsController.deleteAllNodesAndBlobsValidation()
-      );
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Queries.GET_NODE),
+            inputFieldsController.getNodeValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Queries.GET_NODE + "/children"),
+            inputFieldsController.childrenArgumentValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.CREATE_FOLDER),
+            inputFieldsController.createFolderValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.UPDATE_NODE),
+            inputFieldsController.updateNodeValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.MOVE_NODES),
+            inputFieldsController.moveNodesValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.DELETE_NODES),
+            inputFieldsController.deleteNodesValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.TRASH_NODES),
+            inputFieldsController.trashNodesValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.RESTORE_NODES),
+            inputFieldsController.restoreNodesValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.COPY_NODES),
+            inputFieldsController.copyNodesValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.CREATE_SHARE),
+            inputFieldsController.shareQueriesValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Queries.GET_SHARE),
+            inputFieldsController.shareQueriesValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.UPDATE_SHARE),
+            inputFieldsController.shareQueriesValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.DELETE_SHARE),
+            inputFieldsController.shareQueriesValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.CREATE_LINK),
+            inputFieldsController.createLinkValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Queries.GET_LINKS),
+            inputFieldsController.getLinksValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.UPDATE_LINK),
+            inputFieldsController.updateLinkValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.DELETE_LINKS),
+            inputFieldsController.deleteLinksValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Queries.GET_PATH),
+            inputFieldsController.getPathValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Queries.GET_ACCOUNT_BY_EMAIL),
+            inputFieldsController.getAccountByEmailValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Queries.GET_ACCOUNTS_BY_EMAIL),
+            inputFieldsController.getAccountsByEmailValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.CREATE_COLLABORATION_LINK),
+            inputFieldsController.createCollaborationLinkValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Queries.GET_COLLABORATION_LINKS),
+            inputFieldsController.getCollaborationLinksValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.DELETE_COLLABORATION_LINKS),
+            inputFieldsController.deleteCollaborationLinksValidation()
+        )
+        .addRule(
+            ResultPath.parse("/" + Files.GraphQL.Mutations.DELETE_ALL_NODES_AND_BLOBS),
+            inputFieldsController.deleteAllNodesAndBlobsValidation()
+        );
 
     return new FieldValidationInstrumentation(fieldValidation);
   }
@@ -222,127 +221,181 @@ public class GraphQLProvider {
    */
   private RuntimeWiring buildWiring() {
     return RuntimeWiring.newRuntimeWiring()
-      .scalar(new DateTimeScalar().graphQLScalarType())
-      .type(newTypeWiring(Files.GraphQL.Types.NODE_SORT)
-        .enumValues(nodeDataFetcher.getNodeSortResolver())
-      )
-      .type(newTypeWiring(Files.GraphQL.Types.SHARE_PERMISSION)
-        .enumValues(shareDataFetcher.getSharePermissionsResolver())
-      )
-      .type(newTypeWiring(Files.GraphQL.Types.NODE_TYPE)
-        .enumValues(nodeDataFetcher.getNodeTypeResolver())
-      )
-      .type(newTypeWiring("Query")
-        .dataFetcher(Files.GraphQL.Queries.GET_NODE, nodeDataFetcher.getNodeFetcher())
-        .dataFetcher(Files.GraphQL.Queries.GET_USER, userDataFetcher.getUserFetcher())
-        .dataFetcher(Files.GraphQL.Queries.GET_SHARE, shareDataFetcher.getShareFetcher())
-        .dataFetcher(Files.GraphQL.Queries.GET_ROOTS_LIST, nodeDataFetcher.getRootsListFetcher())
-        .dataFetcher(Files.GraphQL.Queries.GET_PATH, nodeDataFetcher.getPathFetcher())
-        .dataFetcher(Files.GraphQL.Queries.FIND_NODES, nodeDataFetcher.findNodesFetcher())
-        .dataFetcher(Files.GraphQL.Queries.GET_VERSIONS, nodeDataFetcher.getVersionsFetcher())
-        .dataFetcher(
-          Files.GraphQL.Queries.GET_ACCOUNT_BY_EMAIL,
-          userDataFetcher.getAccountByEmailFetcher()
+        .scalar(new DateTimeScalar().graphQLScalarType())
+        .type(newTypeWiring(Files.GraphQL.Types.NODE_SORT)
+            .enumValues(nodeDataFetcher.getNodeSortResolver())
         )
-        .dataFetcher(
-          Files.GraphQL.Queries.GET_ACCOUNTS_BY_EMAIL,
-          userDataFetcher.getAccountsByEmailFetcher()
+        .type(newTypeWiring(Files.GraphQL.Types.SHARE_PERMISSION)
+            .enumValues(shareDataFetcher.getSharePermissionsResolver())
         )
-        .dataFetcher(Files.GraphQL.Queries.GET_LINKS, linkDataFetcher.getLinks())
-        .dataFetcher(
-          Files.GraphQL.Queries.GET_COLLABORATION_LINKS,
-          collaborationLinkDataFetcher.getCollaborationLinksByNodeId()
+        .type(newTypeWiring(Files.GraphQL.Types.NODE_TYPE)
+            .enumValues(nodeDataFetcher.getNodeTypeResolver())
         )
-        .dataFetcher(Files.GraphQL.Queries.GET_CONFIGS, configDataFetcher.getConfigs())
-      )
-      .type(newTypeWiring("Mutation")
-        .dataFetcher(Files.GraphQL.Mutations.CREATE_FOLDER, nodeDataFetcher.createFolderFetcher())
-        .dataFetcher(Files.GraphQL.Mutations.UPDATE_NODE, nodeDataFetcher.updateNodeFetcher())
-        .dataFetcher(Files.GraphQL.Mutations.FLAG_NODES, nodeDataFetcher.flagNodes())
-        .dataFetcher(Files.GraphQL.Mutations.TRASH_NODES, nodeDataFetcher.trashNodes())
-        .dataFetcher(Files.GraphQL.Mutations.RESTORE_NODES, nodeDataFetcher.restoreNodes())
-        .dataFetcher(Files.GraphQL.Mutations.MOVE_NODES, nodeDataFetcher.moveNodesFetcher())
-        .dataFetcher(Files.GraphQL.Mutations.DELETE_NODES, nodeDataFetcher.deleteNodesFetcher())
-        .dataFetcher(Files.GraphQL.Mutations.DELETE_ALL_NODES_AND_BLOBS, nodeDataFetcher.deleteAllNodesAndBlobs())
-        .dataFetcher(
-          Files.GraphQL.Mutations.DELETE_VERSIONS,
-          nodeDataFetcher.deleteVersionsFetcher()
+        .type(newTypeWiring(Files.GraphQL.Types.ADDED_NODE_TYPE)
+            .enumValues(notificationDataFetcher.getAddedNodeTypeResolver())
         )
-        .dataFetcher(Files.GraphQL.Mutations.KEEP_VERSIONS, nodeDataFetcher.keepVersionsFetcher())
-        .dataFetcher(Files.GraphQL.Mutations.CLONE_VERSION, nodeDataFetcher.cloneVersionFetcher())
-        .dataFetcher(Files.GraphQL.Mutations.COPY_NODES, nodeDataFetcher.copyNodesFetcher())
-        .dataFetcher(Files.GraphQL.Mutations.CREATE_SHARE, shareDataFetcher.createShareFetcher())
-        .dataFetcher(Files.GraphQL.Mutations.UPDATE_SHARE, shareDataFetcher.updateShareFetcher())
-        .dataFetcher(Files.GraphQL.Mutations.DELETE_SHARE, shareDataFetcher.deleteShareFetcher())
-        .dataFetcher(Files.GraphQL.Mutations.CREATE_LINK, linkDataFetcher.createLink())
-        .dataFetcher(Files.GraphQL.Mutations.UPDATE_LINK, linkDataFetcher.updateLink())
-        .dataFetcher(Files.GraphQL.Mutations.DELETE_LINKS, linkDataFetcher.deleteLinks())
-        .dataFetcher(
-          Files.GraphQL.Mutations.CREATE_COLLABORATION_LINK,
-          collaborationLinkDataFetcher.createCollaborationLink()
+        .type(newTypeWiring(Files.GraphQL.Types.REMOVED_NODE_TYPE)
+            .enumValues(notificationDataFetcher.getRemovedNodeTypeResolver())
         )
-        .dataFetcher(
-          Files.GraphQL.Mutations.DELETE_COLLABORATION_LINKS,
-          collaborationLinkDataFetcher.deleteCollaborationLinks()
+        .type(newTypeWiring("Query")
+            .dataFetcher(Files.GraphQL.Queries.GET_NODE, nodeDataFetcher.getNodeFetcher())
+            .dataFetcher(Files.GraphQL.Queries.GET_USER, userDataFetcher.getUserFetcher())
+            .dataFetcher(Files.GraphQL.Queries.GET_SHARE, shareDataFetcher.getShareFetcher())
+            .dataFetcher(Files.GraphQL.Queries.GET_ROOTS_LIST, nodeDataFetcher.getRootsListFetcher())
+            .dataFetcher(Files.GraphQL.Queries.GET_PATH, nodeDataFetcher.getPathFetcher())
+            .dataFetcher(Files.GraphQL.Queries.FIND_NODES, nodeDataFetcher.findNodesFetcher())
+            .dataFetcher(Files.GraphQL.Queries.GET_VERSIONS, nodeDataFetcher.getVersionsFetcher())
+            .dataFetcher(
+                Files.GraphQL.Queries.GET_ACCOUNT_BY_EMAIL,
+                userDataFetcher.getAccountByEmailFetcher()
+            )
+            .dataFetcher(
+                Files.GraphQL.Queries.GET_ACCOUNTS_BY_EMAIL,
+                userDataFetcher.getAccountsByEmailFetcher()
+            )
+            .dataFetcher(Files.GraphQL.Queries.GET_LINKS, linkDataFetcher.getLinks())
+            .dataFetcher(
+                Files.GraphQL.Queries.GET_COLLABORATION_LINKS,
+                collaborationLinkDataFetcher.getCollaborationLinksByNodeId()
+            )
+            .dataFetcher(Files.GraphQL.Queries.GET_CONFIGS, configDataFetcher.getConfigs())
+            .dataFetcher(Files.GraphQL.Queries.GET_NOTIFICATIONS,
+                notificationDataFetcher.getNotificationsFetcher()
+            )
         )
-      )
-      .type(newTypeWiring(Files.GraphQL.Types.NODE_INTERFACE)
-        .typeResolver(nodeDataFetcher.getNodeInterfaceResolver())
-      )
-      .type(newTypeWiring(Files.GraphQL.Types.FILE)
-        .dataFetcher(Files.GraphQL.FileVersion.CREATOR, userDataFetcher.getUserFetcher())
-        .dataFetcher(Files.GraphQL.FileVersion.OWNER, userDataFetcher.getUserFetcher())
-        .dataFetcher(Files.GraphQL.FileVersion.LAST_EDITOR, userDataFetcher.getUserFetcher())
-        .dataFetcher(Files.GraphQL.FileVersion.PARENT, nodeDataFetcher.getNodeFetcher())
-        .dataFetcher(
-          Files.GraphQL.FileVersion.PERMISSIONS,
-          nodeDataFetcher.getPermissionsNodeFetcher()
+        .type(newTypeWiring("Mutation")
+            .dataFetcher(Files.GraphQL.Mutations.CREATE_FOLDER, nodeDataFetcher.createFolderFetcher())
+            .dataFetcher(Files.GraphQL.Mutations.UPDATE_NODE, nodeDataFetcher.updateNodeFetcher())
+            .dataFetcher(Files.GraphQL.Mutations.FLAG_NODES, nodeDataFetcher.flagNodes())
+            .dataFetcher(Files.GraphQL.Mutations.TRASH_NODES, nodeDataFetcher.trashNodes())
+            .dataFetcher(Files.GraphQL.Mutations.RESTORE_NODES, nodeDataFetcher.restoreNodes())
+            .dataFetcher(Files.GraphQL.Mutations.MOVE_NODES, nodeDataFetcher.moveNodesFetcher())
+            .dataFetcher(Files.GraphQL.Mutations.DELETE_NODES, nodeDataFetcher.deleteNodesFetcher())
+            .dataFetcher(Files.GraphQL.Mutations.DELETE_ALL_NODES_AND_BLOBS, nodeDataFetcher.deleteAllNodesAndBlobs())
+            .dataFetcher(
+                Files.GraphQL.Mutations.DELETE_VERSIONS,
+                nodeDataFetcher.deleteVersionsFetcher()
+            )
+            .dataFetcher(Files.GraphQL.Mutations.KEEP_VERSIONS, nodeDataFetcher.keepVersionsFetcher())
+            .dataFetcher(Files.GraphQL.Mutations.CLONE_VERSION, nodeDataFetcher.cloneVersionFetcher())
+            .dataFetcher(Files.GraphQL.Mutations.COPY_NODES, nodeDataFetcher.copyNodesFetcher())
+            .dataFetcher(Files.GraphQL.Mutations.CREATE_SHARE, shareDataFetcher.createShareFetcher())
+            .dataFetcher(Files.GraphQL.Mutations.UPDATE_SHARE, shareDataFetcher.updateShareFetcher())
+            .dataFetcher(Files.GraphQL.Mutations.DELETE_SHARE, shareDataFetcher.deleteShareFetcher())
+            .dataFetcher(Files.GraphQL.Mutations.CREATE_LINK, linkDataFetcher.createLink())
+            .dataFetcher(Files.GraphQL.Mutations.UPDATE_LINK, linkDataFetcher.updateLink())
+            .dataFetcher(Files.GraphQL.Mutations.DELETE_LINKS, linkDataFetcher.deleteLinks())
+            .dataFetcher(
+                Files.GraphQL.Mutations.CREATE_COLLABORATION_LINK,
+                collaborationLinkDataFetcher.createCollaborationLink()
+            )
+            .dataFetcher(
+                Files.GraphQL.Mutations.DELETE_COLLABORATION_LINKS,
+                collaborationLinkDataFetcher.deleteCollaborationLinks()
+            )
         )
-        .dataFetcher(Files.GraphQL.FileVersion.SHARES, shareDataFetcher.getSharesFetcher())
-        .dataFetcher(Files.GraphQL.FileVersion.LINKS, linkDataFetcher.getLinks())
-        .dataFetcher(
-          Files.GraphQL.FileVersion.COLLABORATION_LINKS,
-          collaborationLinkDataFetcher.getCollaborationLinksByNodeId()
+        .type(newTypeWiring(Files.GraphQL.Types.NODE_INTERFACE)
+            .typeResolver(nodeDataFetcher.getNodeInterfaceResolver())
         )
-      )
-      .type(newTypeWiring(Files.GraphQL.Types.FOLDER)
-        .dataFetcher(Files.GraphQL.Folder.CREATOR, userDataFetcher.getUserFetcher())
-        .dataFetcher(Files.GraphQL.Folder.OWNER, userDataFetcher.getUserFetcher())
-        .dataFetcher(Files.GraphQL.Folder.LAST_EDITOR, userDataFetcher.getUserFetcher())
-        .dataFetcher(Files.GraphQL.Folder.PARENT, nodeDataFetcher.getNodeFetcher())
-        .dataFetcher(Files.GraphQL.Folder.CHILDREN, nodeDataFetcher.getChildNodesFetcherFast())
-        .dataFetcher(Files.GraphQL.Folder.PERMISSIONS, nodeDataFetcher.getPermissionsNodeFetcher())
-        .dataFetcher(Files.GraphQL.Folder.SHARES, shareDataFetcher.getSharesFetcher())
-        .dataFetcher(Files.GraphQL.Folder.LINKS, linkDataFetcher.getLinks())
-        .dataFetcher(
-          Files.GraphQL.Folder.COLLABORATION_LINKS,
-          collaborationLinkDataFetcher.getCollaborationLinksByNodeId()
+        .type(newTypeWiring(Files.GraphQL.Types.FILE)
+            .dataFetcher(Files.GraphQL.FileVersion.CREATOR, userDataFetcher.getUserFetcher())
+            .dataFetcher(Files.GraphQL.FileVersion.OWNER, userDataFetcher.getUserFetcher())
+            .dataFetcher(Files.GraphQL.FileVersion.LAST_EDITOR, userDataFetcher.getUserFetcher())
+            .dataFetcher(Files.GraphQL.FileVersion.PARENT, nodeDataFetcher.getNodeFetcher())
+            .dataFetcher(
+                Files.GraphQL.FileVersion.PERMISSIONS,
+                nodeDataFetcher.getPermissionsNodeFetcher()
+            )
+            .dataFetcher(Files.GraphQL.FileVersion.SHARES, shareDataFetcher.getSharesFetcher())
+            .dataFetcher(Files.GraphQL.FileVersion.LINKS, linkDataFetcher.getLinks())
+            .dataFetcher(
+                Files.GraphQL.FileVersion.COLLABORATION_LINKS,
+                collaborationLinkDataFetcher.getCollaborationLinksByNodeId()
+            )
         )
-      )
-      .type(newTypeWiring(Files.GraphQL.Types.NODE_PAGE)
-        .dataFetcher(Files.GraphQL.NodePage.NODES, nodeDataFetcher.nodePageFetcher())
-      )
-      .type(newTypeWiring(Files.GraphQL.Types.SHARED_TARGET)
-        .typeResolver(userDataFetcher.getAccountTypeResolver())
-      )
-      .type(newTypeWiring(Files.GraphQL.Types.ACCOUNT)
-        .typeResolver(userDataFetcher.getAccountTypeResolver())
-      )
+        .type(newTypeWiring(Files.GraphQL.Types.FOLDER)
+            .dataFetcher(Files.GraphQL.Folder.CREATOR, userDataFetcher.getUserFetcher())
+            .dataFetcher(Files.GraphQL.Folder.OWNER, userDataFetcher.getUserFetcher())
+            .dataFetcher(Files.GraphQL.Folder.LAST_EDITOR, userDataFetcher.getUserFetcher())
+            .dataFetcher(Files.GraphQL.Folder.PARENT, nodeDataFetcher.getNodeFetcher())
+            .dataFetcher(Files.GraphQL.Folder.CHILDREN, nodeDataFetcher.getChildNodesFetcherFast())
+            .dataFetcher(Files.GraphQL.Folder.PERMISSIONS, nodeDataFetcher.getPermissionsNodeFetcher())
+            .dataFetcher(Files.GraphQL.Folder.SHARES, shareDataFetcher.getSharesFetcher())
+            .dataFetcher(Files.GraphQL.Folder.LINKS, linkDataFetcher.getLinks())
+            .dataFetcher(
+                Files.GraphQL.Folder.COLLABORATION_LINKS,
+                collaborationLinkDataFetcher.getCollaborationLinksByNodeId()
+            )
+        )
+        .type(newTypeWiring(Files.GraphQL.Types.NODE_PAGE)
+            .dataFetcher(Files.GraphQL.NodePage.NODES, nodeDataFetcher.nodePageFetcher())
+        )
+        .type(newTypeWiring(Files.GraphQL.Types.SHARED_TARGET)
+            .typeResolver(userDataFetcher.getAccountTypeResolver())
+        )
+        .type(newTypeWiring(Files.GraphQL.Types.ACCOUNT)
+            .typeResolver(userDataFetcher.getAccountTypeResolver())
+        )
 
-      .type(newTypeWiring(Files.GraphQL.Types.SHARE)
-        .dataFetcher(Files.GraphQL.Share.NODE, nodeDataFetcher.sharedNodeFetcher())
-        .dataFetcher(Files.GraphQL.Share.SHARE_TARGET, userDataFetcher.shareTargetUserFetcher())
-      )
-      .type(newTypeWiring(Files.GraphQL.Types.DISTRIBUTION_LIST)
-        .dataFetcher(Files.GraphQL.DistributionList.USERS, userDataFetcher.getDLUsersFetcher())
-      )
-      .type(newTypeWiring(Files.GraphQL.Types.LINK)
-        .dataFetcher(Files.GraphQL.Link.NODE, nodeDataFetcher.sharedNodeFetcher())
-      )
-      .type(newTypeWiring(Files.GraphQL.Types.COLLABORATION_LINK)
-        .dataFetcher(Files.GraphQL.Link.NODE, nodeDataFetcher.sharedNodeFetcher())
-      )
-      .build();
+        .type(newTypeWiring(Files.GraphQL.Types.SHARE)
+            .dataFetcher(Files.GraphQL.Share.NODE, nodeDataFetcher.sharedNodeFetcher())
+            .dataFetcher(Files.GraphQL.Share.SHARE_TARGET, userDataFetcher.shareTargetUserFetcher())
+        )
+        .type(newTypeWiring(Files.GraphQL.Types.DISTRIBUTION_LIST)
+            .dataFetcher(Files.GraphQL.DistributionList.USERS, userDataFetcher.getDLUsersFetcher())
+        )
+        .type(newTypeWiring(Files.GraphQL.Types.LINK)
+            .dataFetcher(Files.GraphQL.Link.NODE, nodeDataFetcher.sharedNodeFetcher())
+        )
+        .type(newTypeWiring(Files.GraphQL.Types.COLLABORATION_LINK)
+            .dataFetcher(Files.GraphQL.Link.NODE, nodeDataFetcher.sharedNodeFetcher())
+        )
+        .type(newTypeWiring(Files.GraphQL.Types.NOTIFICATION_PAGE)
+            .dataFetcher(Files.GraphQL.NotificationPage.NOTIFICATIONS, notificationDataFetcher.notificationPageFetcher())
+        )
+        .type(newTypeWiring(Files.GraphQL.Types.NOTIFICATION)
+            .typeResolver(notificationDataFetcher.getNotificationInterfaceResolver())
+        )
+        // Since we always return the nested objects with the notification call, no need to fetch them again (return as is)
+        .type(Files.GraphQL.Types.NEW_SHARE, typeWiring -> typeWiring
+            .dataFetcher(Files.GraphQL.NewShareNotification.NODE_SNAPSHOT, env -> {
+              Map<String, Object> source = (Map<String, Object>) env.getSource();
+              return source.get(Files.GraphQL.NewShareNotification.NODE_SNAPSHOT);
+            })
+            .dataFetcher(Files.GraphQL.NewShareNotification.USER_SNAPSHOT, env -> {
+              Map<String, Object> source = (Map<String, Object>) env.getSource();
+              return source.get(Files.GraphQL.NewShareNotification.USER_SNAPSHOT);
+            })
+        )
+        .type(newTypeWiring(Files.GraphQL.Types.ADDED_NODE)
+            .dataFetcher(Files.GraphQL.AddedNodeNotification.ADDED_NODE_SNAPSHOT, env -> {
+              Map<String, Object> source = (Map<String, Object>) env.getSource();
+              return source.get(Files.GraphQL.AddedNodeNotification.ADDED_NODE_SNAPSHOT);
+            })
+            .dataFetcher(Files.GraphQL.AddedNodeNotification.DESTINATION_FOLDER, env -> {
+              Map<String, Object> source = (Map<String, Object>) env.getSource();
+              return source.get(Files.GraphQL.AddedNodeNotification.DESTINATION_FOLDER);
+            })
+            .dataFetcher(Files.GraphQL.AddedNodeNotification.TRIGGERING_USER, env -> {
+              Map<String, Object> source = (Map<String, Object>) env.getSource();
+              return source.get(Files.GraphQL.AddedNodeNotification.TRIGGERING_USER);
+            })
+        )
+        .type(newTypeWiring(Files.GraphQL.Types.REMOVED_NODE)
+            .dataFetcher(Files.GraphQL.RemovedNodeNotification.REMOVED_NODE, env -> {
+              Map<String, Object> source = (Map<String, Object>) env.getSource();
+              return source.get(Files.GraphQL.RemovedNodeNotification.REMOVED_NODE);
+            })
+            .dataFetcher(Files.GraphQL.RemovedNodeNotification.ORIGIN_FOLDER, env -> {
+              Map<String, Object> source = (Map<String, Object>) env.getSource();
+              return source.get(Files.GraphQL.RemovedNodeNotification.ORIGIN_FOLDER);
+            })
+            .dataFetcher(Files.GraphQL.RemovedNodeNotification.TRIGGERING_USER, env -> {
+              Map<String, Object> source = (Map<String, Object>) env.getSource();
+              return source.get(Files.GraphQL.RemovedNodeNotification.TRIGGERING_USER);
+            })
+        )
+        .build();
   }
 
   /**
@@ -350,8 +403,7 @@ public class GraphQLProvider {
    * associating the schema file with the RuntimeWiring object.
    *
    * @param wiring is a {@link RuntimeWiring} that contains the association between the GraphQL
-   * components and their specific {@link DataFetcher}s.
-   *
+   *               components and their specific {@link DataFetcher}s.
    * @return the {@link GraphQLSchema}.
    */
   private GraphQLSchema buildSchema(RuntimeWiring wiring) {
