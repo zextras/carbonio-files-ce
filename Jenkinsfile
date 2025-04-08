@@ -5,7 +5,7 @@
 pipeline {
     agent {
         node {
-            label 'openjdk17-agent-v1'
+            label 'zextras-v1'
         }
     }
     environment {
@@ -71,44 +71,44 @@ pipeline {
         stage('Setup') {
             steps {
                 withCredentials([file(credentialsId: 'jenkins-maven-settings.xml', variable: 'SETTINGS_PATH')]) {
-                    sh "cp ${SETTINGS_PATH} settings-jenkins.xml"
+                    sh 'cp $SETTINGS_PATH settings-jenkins.xml'
                 }
             }
         }
         stage('Build jar') {
             steps {
-                sh 'mvn -B --settings settings-jenkins.xml clean package'
-                sh 'cp boot/target/carbonio-files-ce-*-jar-with-dependencies.jar package/carbonio-files.jar'
-                sh 'cp core/src/main/resources/carbonio-files.properties package/config.properties'
-                sh 'cp package/watches/* package/'
+                container('jdk-17') {
+                   sh 'mvn -B --settings settings-jenkins.xml clean package'
+                   sh 'cp boot/target/carbonio-files-*-jar-with-dependencies.jar package/carbonio-files.jar'
+                   sh 'cp core/src/main/resources/carbonio-files.properties package/config.properties'
+                   sh 'cp package/watches/* package/'
+                }
             }
         }
         stage("Tests") {
             parallel {
                 stage("UTs") {
                     steps {
-                        sh 'mvn -B --settings settings-jenkins.xml verify -P run-unit-tests'
+                        container('jdk-17') {
+                            sh 'mvn -B --settings settings-jenkins.xml verify -P run-unit-tests'
+                        }
                     }
                 }
                 stage("ITs") {
                     steps {
-                        sh 'mvn -B --settings settings-jenkins.xml verify -P run-integration-tests'
+                        container('jdk-17') {
+                            sh 'mvn -B --settings settings-jenkins.xml verify -P run-integration-tests'
+                        }
                     }
                 }
             }
         }
         stage('Coverage') {
             steps {
-                sh 'mvn -B --settings settings-jenkins.xml verify -P generate-jacoco-full-report'
-                recordCoverage(tools: [[parser: 'JACOCO']],sourceCodeRetention: 'MODIFIED')
-            }
-        }
-        stage('Dependency check'){
-            when {
-                expression { params.RUN_DEPENDENCY_CHECK == true }
-            }
-            steps {
-                dependencyCheck additionalArguments: '''-f "HTML" --prettyPrint''', odcInstallation: 'dependency-check'
+                container('jdk-17') {
+                    sh 'mvn -B --settings settings-jenkins.xml verify -P generate-jacoco-full-report'
+                    recordCoverage(tools: [[parser: 'JACOCO']],sourceCodeRetention: 'MODIFIED')
+                }
             }
         }
         stage('SonarQube analysis') {
@@ -119,8 +119,10 @@ pipeline {
                 }
             }
             steps {
-                withSonarQubeEnv(credentialsId: 'sonarqube-user-token', installationName: 'SonarQube instance') {
-                    sh 'mvn -B --settings settings-jenkins.xml sonar:sonar'
+                container('jdk-17') {
+                    withSonarQubeEnv(credentialsId: 'sonarqube-user-token', installationName: 'SonarQube instance') {
+                        sh 'mvn -B --settings settings-jenkins.xml sonar:sonar'
+                    }
                 }
             }
         }
@@ -154,15 +156,15 @@ pipeline {
                         stage('Ubuntu 20.04') {
                             agent {
                                 node {
-                                    label 'yap-agent-ubuntu-20.04-v2'
+                                    label 'yap-ubuntu-20-v1'
                                 }
                             }
                             steps {
-                                dir('/tmp/staging'){
+                                container('yap') {
                                     unstash 'binaries'
+                                    sh 'sudo yap build ubuntu-focal .'
+                                    stash includes: 'artifacts/*focal*.deb', name: 'artifacts-ubuntu-focal'
                                 }
-                                sh 'sudo yap build ubuntu-focal /tmp/staging/'
-                                stash includes: 'artifacts/*focal*.deb', name: 'artifacts-ubuntu-focal'
                             }
                             post {
                                 always {
@@ -173,15 +175,15 @@ pipeline {
                         stage('Ubuntu 22.04') {
                             agent {
                                 node {
-                                    label 'yap-agent-ubuntu-22.04-v2'
+                                    label 'yap-ubuntu-22-v1'
                                 }
                             }
                             steps {
-                                dir('/tmp/staging'){
+                                container('yap') {
                                     unstash 'binaries'
+                                    sh 'sudo yap build ubuntu-jammy .'
+                                    stash includes: 'artifacts/*jammy*.deb', name: 'artifacts-ubuntu-jammy'
                                 }
-                                sh 'sudo yap build ubuntu-jammy /tmp/staging/'
-                                stash includes: 'artifacts/*jammy*.deb', name: 'artifacts-ubuntu-jammy'
                             }
                             post {
                                 always {
@@ -192,15 +194,15 @@ pipeline {
                         stage('Ubuntu 24.04') {
                             agent {
                                 node {
-                                    label 'yap-agent-ubuntu-24.04-v2'
+                                    label 'yap-ubuntu-24-v1'
                                 }
                             }
                             steps {
-                                dir('/tmp/staging'){
+                                container('yap') {
                                     unstash 'binaries'
+                                    sh 'sudo yap build ubuntu-noble .'
+                                    stash includes: 'artifacts/*noble*.deb', name: 'artifacts-ubuntu-noble'
                                 }
-                                sh 'sudo yap build ubuntu-noble /tmp/staging/'
-                                stash includes: 'artifacts/*noble*.deb', name: 'artifacts-ubuntu-noble'
                             }
                             post {
                                 always {
@@ -211,38 +213,38 @@ pipeline {
                         stage('RHEL8') {
                             agent {
                                 node {
-                                    label 'yap-agent-rocky-8-v2'
+                                    label 'yap-rocky-8-v1'
                                 }
                             }
                             steps {
-                                dir('/tmp/staging'){
+                                container('yap') {
                                     unstash 'binaries'
+                                    sh 'sudo yap build rocky-8 .'
+                                    stash includes: 'artifacts/*el8*.rpm', name: 'artifacts-rocky-8'
                                 }
-                                sh 'sudo yap build rocky-8 /tmp/staging/'
-                                stash includes: 'artifacts/x86_64/*el8*.rpm', name: 'artifacts-rocky-8'
                             }
                             post {
                                 always {
-                                    archiveArtifacts artifacts: 'artifacts/x86_64/*el8*.rpm', fingerprint: true
+                                    archiveArtifacts artifacts: 'artifacts/*el8*.rpm', fingerprint: true
                                 }
                             }
                         }
                         stage('RHEL9') {
                             agent {
                                 node {
-                                    label 'yap-agent-rocky-9-v2'
+                                    label 'yap-rocky-9-v1'
                                 }
                             }
                             steps {
-                                dir('/tmp/staging'){
+                                container('yap') {
                                     unstash 'binaries'
+                                    sh 'sudo yap build rocky-9 .'
+                                    stash includes: 'artifacts/*el9*.rpm', name: 'artifacts-rocky-9'
                                 }
-                                sh 'sudo yap build rocky-9 /tmp/staging/'
-                                stash includes: 'artifacts/x86_64/*el9*.rpm', name: 'artifacts-rocky-9'
                             }
                             post {
                                 always {
-                                    archiveArtifacts artifacts: 'artifacts/x86_64/*el9*.rpm', fingerprint: true
+                                    archiveArtifacts artifacts: 'artifacts/*el9*.rpm', fingerprint: true
                                 }
                             }
                         }
@@ -286,12 +288,12 @@ pipeline {
                                 "props": "deb.distribution=noble;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
                             },
                             {
-                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).el8.x86_64.rpm",
+                                "pattern": "artifacts/(carbonio-files-ce)-(*).el8.x86_64.rpm",
                                 "target": "centos8-devel/zextras/{1}/{1}-{2}.el8.x86_64.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras;vcs.revision=${env.GIT_COMMIT}"
                             },
                             {
-                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).el9.x86_64.rpm",
+                                "pattern": "artifacts/(carbonio-files-ce)-(*).el9.x86_64.rpm",
                                 "target": "rhel9-devel/zextras/{1}/{1}-{2}.el9.x86_64.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras;vcs.revision=${env.GIT_COMMIT}"
                             }
@@ -378,12 +380,12 @@ pipeline {
                                 "props": "deb.distribution=noble;deb.component=main;deb.architecture=amd64;vcs.revision=${env.GIT_COMMIT}"
                             }
                             {
-                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).el8.x86_64.rpm",
+                                "pattern": "artifacts/(carbonio-files-ce)-(*).el8.x86_64.rpm",
                                 "target": "centos8-''' + params.SUFFIX_CUSTOM_REPOS + '''/zextras/{1}/{1}-{2}.el8.x86_64.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras;vcs.revision=${env.GIT_COMMIT}"
                             },
                             {
-                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).el9.x86_64.rpm",
+                                "pattern": "artifacts/(carbonio-files-ce)-(*).el9.x86_64.rpm",
                                 "target": "rhel9-''' + params.SUFFIX_CUSTOM_REPOS + '''/zextras/{1}/{1}-{2}.el9.x86_64.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras;vcs.revision=${env.GIT_COMMIT}"
                             }
@@ -456,7 +458,7 @@ pipeline {
                     uploadSpec= """{
                         "files": [
                             {
-                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).el8.x86_64.rpm",
+                                "pattern": "artifacts/(carbonio-files-ce)-(*).el8.x86_64.rpm",
                                 "target": "centos8-rc/zextras/{1}/{1}-{2}.el8.x86_64.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras;vcs.revision=${env.GIT_COMMIT}"
                             }
@@ -483,7 +485,7 @@ pipeline {
                     uploadSpec= """{
                         "files": [
                             {
-                                "pattern": "artifacts/x86_64/(carbonio-files-ce)-(*).el9.x86_64.rpm",
+                                "pattern": "artifacts/(carbonio-files-ce)-(*).el9.x86_64.rpm",
                                 "target": "rhel9-rc/zextras/{1}/{1}-{2}.el9.x86_64.rpm",
                                 "props": "rpm.metadata.arch=x86_64;rpm.metadata.vendor=zextras;vcs.revision=${env.GIT_COMMIT}"
                             }
