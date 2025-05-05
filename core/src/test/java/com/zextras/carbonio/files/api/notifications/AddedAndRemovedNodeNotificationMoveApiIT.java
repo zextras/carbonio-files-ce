@@ -11,10 +11,12 @@ import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
+import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.utilities.TestFilesConfig;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import org.assertj.core.api.Assertions;
@@ -164,5 +166,47 @@ class AddedAndRemovedNodeNotificationMoveApiIT {
     // Two newShare for the two directories, one AddedNode for the node creation, and two (AddedNode + RemovedNode = MOVE)
     // for the move operation from the first shared dir to the second one
     Assertions.assertThat(notifications).hasSize(5);
+  }
+
+  @Test
+  void givenANodeMovedFromOneSharedDirectoryToAnotherSharedDirectoryAndDisabledNotificationsNoNotificationShouldBeSavedOrReturned() {
+    // Given
+    ((TestFilesConfig)
+        simulator
+            .getInjector()
+            .getInstance(FilesConfig.class))
+        .setAreNotificationsEnabled(false);
+
+    createBaseScenario();
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getNotifications")
+            .withBoolean("update_last_seen", true)
+            .withWantedResultFormat("{ notifications { ... on RemovedNode { created_at }, ... on AddedNode { created_at }, ... on NewShare { created_at } } }")
+            .build();
+
+    HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-2", bodyPayload);
+
+    // When
+    HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "getNotifications");
+
+    final List<Map<String, Object>> notifications = (List<Map<String, Object>>) page.get("notifications");
+
+    Assertions.assertThat(notifications).hasSize(0);
+
+    // reset
+    ((TestFilesConfig)
+        simulator
+            .getInjector()
+            .getInstance(FilesConfig.class))
+        .setAreNotificationsEnabled(true);
   }
 }
