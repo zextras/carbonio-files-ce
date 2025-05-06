@@ -19,6 +19,12 @@
           }
         },
         {
+          "Action": "deny",
+          "HTTP": {
+            "PathPrefix": "/internal"
+          }
+        },
+        {
           "Action": "allow",
           "HTTP": {
             "PathPrefix": "/"

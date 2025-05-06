@@ -74,13 +74,16 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
         Matcher downloadMatcher = Endpoints.DOWNLOAD_FILE.matcher(uriRequest);
         Matcher uploadMatcher = Endpoints.UPLOAD_FILE.matcher(uriRequest);
+        Matcher uploadInternalMatcher = Endpoints.UPLOAD_FILE_INTERNAL.matcher(uriRequest);
         Matcher uploadVersionMatcher = Endpoints.UPLOAD_FILE_VERSION.matcher(uriRequest);
 
         if (downloadMatcher.find()) {
           download(context, httpRequest, downloadMatcher);
         }
 
-        if (uploadMatcher.find()) {
+        if (uploadInternalMatcher.find()) {
+          uploadFileInternal(context, httpRequest);
+        } else if (uploadMatcher.find()) {
           uploadFile(context, httpRequest);
         }
 
@@ -137,9 +140,17 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     context.channel().attr(fileStreamReader).set(new BufferInputStream(context.channel().config()));
   }
 
+  private void uploadFileInternal(ChannelHandlerContext context, HttpRequest httpRequest) {
+    String accountId = httpRequest.headers().get(Files.API.Headers.UPLOAD_ACCOUNT_ID);
+    doUploadFile(context, httpRequest, accountId);
+  }
+
   private void uploadFile(ChannelHandlerContext context, HttpRequest httpRequest) {
     User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
+    doUploadFile(context, httpRequest, requester.getId());
+  }
 
+  private void doUploadFile(ChannelHandlerContext context, HttpRequest httpRequest, String requestedId) {
     String parentId =
         Optional.ofNullable(httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_PARENT_ID))
             .orElse(Files.Db.RootId.LOCAL_ROOT);
@@ -178,7 +189,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
               String nodeId =
                   blobService
                       .uploadFile(
-                          requester,
+                          requestedId,
                           context.channel().attr(fileStreamReader).get(),
                           blobLength,
                           parentId,
