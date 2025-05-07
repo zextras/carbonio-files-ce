@@ -82,7 +82,7 @@ public class NotificationRepositoryEbean implements NotificationRepository {
               .eq(Files.Db.UserNotificationInterest.USER_ID, userId)
               .eq(Files.Db.UserNotificationInterest.NOTIFICATION_ID, lastNotificationId)
               .findOneOrEmpty()
-              .ifPresent(userNotification -> {
+              .ifPresentOrElse(userNotification -> {
                 Long lastNotificationCreatedAt = userNotification.getCreatedAt();
                 notificationIdsAtomic.set(mDB.getEbeanDatabase()
                     .find(UserNotificationInterest.class)
@@ -98,7 +98,8 @@ public class NotificationRepositoryEbean implements NotificationRepository {
                     .stream()
                     .map(UserNotificationInterest::getNotificationId)
                     .toList());
-              });
+              },
+              () -> notificationIdsAtomic.set(Collections.emptyList()));
         },
         () -> // Limit and order before joining, so from here we have max N rows from pagination and we can write
             // more readable code with Ebean without caring too much about performance.
