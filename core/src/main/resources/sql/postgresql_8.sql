@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS user_notification_interest (
 );
 
 -- Let's index the hell out of it
-CREATE INDEX idx_user_notification_interest_user_created_at
+CREATE INDEX IF NOT EXISTS idx_user_notification_interest_user_created_at
   ON user_notification_interest (user_id, created_at DESC, notification_id DESC);
 
 CREATE INDEX IF NOT EXISTS idx_new_share_node_snapshot
