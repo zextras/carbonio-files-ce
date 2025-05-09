@@ -63,16 +63,16 @@ public class NotificationDataFetcher {
 
   private Map<String, Object> mapSnapshotNode(SnapshotNode node) {
     if (node == null) return null;
-    return Map.of(
-        Files.GraphQL.SnapshotNode.SNAPSHOT_NODE_ID, node.getSnapshotNodeId(),
-        Files.GraphQL.SnapshotNode.NODE_ID, node.getNodeId(),
-        Files.GraphQL.SnapshotNode.OWNER_ID, node.getOwnerId(),
-        Files.GraphQL.SnapshotNode.FOLDER_ID, node.getFolderId(),
-        Files.GraphQL.SnapshotNode.NAME, node.getName(),
-        Files.GraphQL.SnapshotNode.TYPE, node.getNodeType(),
-        Files.GraphQL.SnapshotNode.CREATED_AT, node.getCreatedAt(),
-        Files.GraphQL.SnapshotNode.UPDATED_AT, node.getUpdatedAt()
-    );
+    Map<String, Object> map = new HashMap<>();
+    map.put(Files.GraphQL.SnapshotNode.SNAPSHOT_NODE_ID, node.getSnapshotNodeId());
+    map.put(Files.GraphQL.SnapshotNode.NODE_ID, node.getNodeId());
+    map.put(Files.GraphQL.SnapshotNode.OWNER_ID, node.getOwnerId()); // Can be null
+    map.put(Files.GraphQL.SnapshotNode.FOLDER_ID, node.getFolderId()); // Can be null
+    map.put(Files.GraphQL.SnapshotNode.NAME, node.getName());
+    map.put(Files.GraphQL.SnapshotNode.TYPE, node.getNodeType());
+    map.put(Files.GraphQL.SnapshotNode.CREATED_AT, node.getCreatedAt());
+    map.put(Files.GraphQL.SnapshotNode.UPDATED_AT, node.getUpdatedAt());
+    return map;
   }
 
   private Map<String, Object> mapSnapshotUser(SnapshotUser user) {

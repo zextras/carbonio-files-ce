@@ -456,7 +456,7 @@ type Root {
 type SnapshotNode {
     snapshot_node_id: ID!
     node_id: ID!
-    owner_id: ID!
+    owner_id: ID
     folder_id: ID
     name: String!
     type: NodeType!

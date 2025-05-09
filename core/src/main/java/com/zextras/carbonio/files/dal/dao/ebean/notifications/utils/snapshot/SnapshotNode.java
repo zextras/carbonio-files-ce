@@ -28,7 +28,7 @@ public class SnapshotNode {
   @Column(name = Files.Db.SnapshotNode.NODE_ID, length = 36, nullable = false)
   private String nodeId;
 
-  @Column(name = Files.Db.SnapshotNode.OWNER_ID, length = 36, nullable = false)
+  @Column(name = Files.Db.SnapshotNode.OWNER_ID, length = 36)
   private String ownerId;
 
   @Column(name = Files.Db.SnapshotNode.CREATION_TIMESTAMP, nullable = false)
