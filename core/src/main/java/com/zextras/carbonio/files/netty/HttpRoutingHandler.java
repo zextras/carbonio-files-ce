@@ -118,6 +118,15 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
       return;
     }
 
+    // No auth for internal calls
+    if (Endpoints.UPLOAD_FILE_INTERNAL.matcher(request.uri()).matches()) {
+      context.pipeline()
+        .addLast("rest-handler", blobController)
+        .addLast("exceptions-handler", exceptionsHandler);
+      context.fireChannelRead(request);
+      return;
+    }
+
     if (Endpoints.DOWNLOAD_VIA_PUBLIC_LINK.matcher(request.uri()).matches()
       || Endpoints.PUBLIC_LINK.matcher(request.uri()).matches()
       || Endpoints.DOWNLOAD_PUBLIC_FILE.matcher(request.uri()).matches()) {

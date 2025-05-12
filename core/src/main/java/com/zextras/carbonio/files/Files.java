@@ -791,6 +791,7 @@ public final class Files {
         SERVICE + "health/ready/?$");
       public static final Pattern GRAPHQL             = Pattern.compile(SERVICE + "graphql/?$");
       public static final Pattern UPLOAD_FILE         = Pattern.compile(SERVICE + "upload/?$");
+      public static final Pattern UPLOAD_FILE_INTERNAL= Pattern.compile(SERVICE + "internal/upload/?$");
       public static final Pattern UPLOAD_FILE_VERSION = Pattern.compile(
         SERVICE + "upload-version/?$");
       public static final Pattern UPLOAD_FILE_TO      = Pattern.compile(SERVICE + "upload-to/?$");
@@ -835,6 +836,7 @@ public final class Files {
       public static final String UPLOAD_FILENAME          = "Filename";
       public static final String UPLOAD_DESCRIPTION       = "Description";
       public static final String UPLOAD_PARENT_ID         = "ParentId";
+      public static final String UPLOAD_ACCOUNT_ID        = "AccountId";
       public static final String UPLOAD_NODE_ID           = "NodeId";
       public static final String UPLOAD_OVERWRITE_VERSION = "OverwriteVersion";
       public static final String COOKIE_ZM_AUTH_TOKEN     = "ZM_AUTH_TOKEN";
