@@ -238,8 +238,6 @@ public class NotificationRepositoryEbean implements NotificationRepository {
         node.getId(),
         node.getOwnerId(),
         node.getCreatedAt(),
-        node.getUpdatedAt(),
-        node.getParentId().isPresent() ? node.getParentId().get() : null,
         node.getNodeType(),
         node.getName()
     );

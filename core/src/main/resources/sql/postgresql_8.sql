@@ -10,11 +10,9 @@ CREATE TABLE IF NOT EXISTS snapshot_node (
     snapshot_timestamp BIGINT NOT NULL,
     owner_id VARCHAR(256),
     node_id CHARACTER(36) NOT NULL,
-    folder_id CHARACTER(36),
     name VARCHAR(1024) NOT NULL,
     node_type VARCHAR(50) NOT NULL,
-    creation_timestamp BIGINT NOT NULL,
-    updated_timestamp BIGINT NOT NULL
+    creation_timestamp BIGINT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS snapshot_user (

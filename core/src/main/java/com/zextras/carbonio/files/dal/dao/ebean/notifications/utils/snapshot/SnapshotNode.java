@@ -34,12 +34,6 @@ public class SnapshotNode {
   @Column(name = Files.Db.SnapshotNode.CREATION_TIMESTAMP, nullable = false)
   private Long createdAt;
 
-  @Column(name = Files.Db.SnapshotNode.UPDATED_TIMESTAMP, nullable = false)
-  private Long updatedAt;
-
-  @Column(name = Files.Db.SnapshotNode.FOLDER_ID, length = 36)
-  private String folderId;
-
   @Column(name = Files.Db.SnapshotNode.NODE_TYPE, length = 50, nullable = false)
   @Enumerated(EnumType.STRING)
   private NodeType nodeType;
@@ -47,14 +41,12 @@ public class SnapshotNode {
   @Column(name = Files.Db.SnapshotNode.NAME, length = 1024, nullable = false)
   private String name;
 
-  public SnapshotNode(String snapshotNodeId, Long snapshotTimestamp, String nodeId, String ownerId, Long createdAt, Long updatedAt, String folderId, NodeType nodeType, String name) {
+  public SnapshotNode(String snapshotNodeId, Long snapshotTimestamp, String nodeId, String ownerId, Long createdAt, NodeType nodeType, String name) {
     this.snapshotNodeId = snapshotNodeId;
     this.snapshotTimestamp = snapshotTimestamp;
     this.nodeId = nodeId;
     this.ownerId = ownerId;
     this.createdAt = createdAt;
-    this.updatedAt = updatedAt;
-    this.folderId = folderId;
     this.nodeType = nodeType;
     this.name = name;
   }
@@ -64,8 +56,6 @@ public class SnapshotNode {
       return Objects.equals(this.nodeId, node.getId())
           && Objects.equals(this.ownerId, node.getOwnerId())
           && Objects.equals(this.createdAt, node.getCreatedAt())
-          && Objects.equals(this.updatedAt, node.getUpdatedAt())
-          && Objects.equals(this.folderId.trim(), node.getParentId().get())
           && this.nodeType == node.getNodeType()
           && Objects.equals(this.name, node.getName());
     } catch (Exception e) {
@@ -104,22 +94,6 @@ public class SnapshotNode {
 
   public void setCreatedAt(Long createdAt) {
     this.createdAt = createdAt;
-  }
-
-  public Long getUpdatedAt() {
-    return updatedAt;
-  }
-
-  public void setUpdatedAt(Long updatedAt) {
-    this.updatedAt = updatedAt;
-  }
-
-  public String getFolderId() {
-    return folderId;
-  }
-
-  public void setFolderId(String folderId) {
-    this.folderId = folderId;
   }
 
   public NodeType getNodeType() {

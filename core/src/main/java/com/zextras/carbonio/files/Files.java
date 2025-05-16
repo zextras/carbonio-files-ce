@@ -844,11 +844,9 @@ public final class Files {
       public static final String SNAPSHOT_NODE_ID = "snapshot_node_id";
       public static final String NODE_ID = "node_id";
       public static final String OWNER_ID = "owner_id";
-      public static final String FOLDER_ID = "folder_id";
       public static final String NAME = "name";
       public static final String TYPE = "type";
       public static final String CREATED_AT = "created_at";
-      public static final String UPDATED_AT = "updated_at";
     }
 
     public static final class SnapshotUser {

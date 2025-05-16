@@ -67,11 +67,9 @@ public class NotificationDataFetcher {
     map.put(Files.GraphQL.SnapshotNode.SNAPSHOT_NODE_ID, node.getSnapshotNodeId());
     map.put(Files.GraphQL.SnapshotNode.NODE_ID, node.getNodeId());
     map.put(Files.GraphQL.SnapshotNode.OWNER_ID, node.getOwnerId()); // Can be null
-    map.put(Files.GraphQL.SnapshotNode.FOLDER_ID, node.getFolderId()); // Can be null
     map.put(Files.GraphQL.SnapshotNode.NAME, node.getName());
     map.put(Files.GraphQL.SnapshotNode.TYPE, node.getNodeType());
     map.put(Files.GraphQL.SnapshotNode.CREATED_AT, node.getCreatedAt());
-    map.put(Files.GraphQL.SnapshotNode.UPDATED_AT, node.getUpdatedAt());
     return map;
   }
 
