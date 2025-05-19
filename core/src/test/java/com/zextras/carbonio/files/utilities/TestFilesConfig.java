@@ -11,8 +11,20 @@ import com.zextras.carbonio.files.config.impl.FilesConfigImpl;
  * the standard configuration from the test configuration.
  */
 public class TestFilesConfig extends FilesConfigImpl {
+    boolean areNotificationsEnabled = true;
+
     @Override
     public String getPageTokenSecretKey() {
       return "testSecretKey";
+    }
+
+    @Override
+    public boolean areNotificationsEnabled() {
+        return areNotificationsEnabled;
+    }
+
+    // Useful for testing
+    public void setAreNotificationsEnabled(boolean areNotificationsEnabled) {
+        this.areNotificationsEnabled = areNotificationsEnabled;
     }
 }

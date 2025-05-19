@@ -44,6 +44,7 @@ public class FilesModule extends AbstractModule {
     bind(UserRepository.class).to(UserRepositoryRest.class);
     bind(MessageBrokerManager.class).to(MessageBrokerManagerImpl.class);
     bind(CollationRepository.class).to(CollationRepositoryEbean.class);
+    bind(NotificationRepository.class).to(NotificationRepositoryEbean.class);
 
     install(new FactoryModuleBuilder().build(CacheHandlerFactory.class));
 

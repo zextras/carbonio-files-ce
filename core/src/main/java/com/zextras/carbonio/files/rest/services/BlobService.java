@@ -15,12 +15,9 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.*;
 import com.zextras.carbonio.files.exceptions.AccessCodeRequiredException;
 import com.zextras.carbonio.files.exceptions.DependencyException;
 import com.zextras.carbonio.files.exceptions.FileTypeMismatchException;
@@ -34,10 +31,8 @@ import com.zextras.filestore.api.UploadResponse;
 import com.zextras.filestore.model.FilesIdentifier;
 import io.ebean.Transaction;
 import io.vavr.control.Try;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+
+import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -54,6 +49,7 @@ public class BlobService {
   private static final Logger logger = LoggerFactory.getLogger(BlobService.class);
 
   private final NodeRepository nodeRepository;
+  private final NotificationRepository notificationRepository;
   private final FileVersionRepository fileVersionRepository;
   private final ShareRepository shareRepository;
   private final LinkRepository linkRepository;
@@ -67,6 +63,7 @@ public class BlobService {
   @Inject
   public BlobService(
     NodeRepository nodeRepository,
+    NotificationRepository notificationRepository,
     FileVersionRepository fileVersionRepository,
     ShareRepository shareRepository,
     LinkRepository linkRepository,
@@ -78,6 +75,7 @@ public class BlobService {
     EbeanDatabaseManager ebeanDatabaseManager
   ) {
     this.nodeRepository = nodeRepository;
+    this.notificationRepository = notificationRepository;
     this.fileVersionRepository = fileVersionRepository;
     this.shareRepository = shareRepository;
     this.linkRepository = linkRepository;
@@ -200,6 +198,7 @@ public class BlobService {
    */
   public Optional<String> uploadFile(
     String requesterId,
+    Optional<User> requesterEntity,
     BufferInputStream bufferInputStream,
     long blobLength,
     String folderId,
@@ -274,20 +273,39 @@ public class BlobService {
         newNode.setSize(uploadResponse.getSize());
         nodeRepository.updateNode(newNode);
 
+        List<String> usersToNotify = new ArrayList<>();
+
         // Add new shares for the new file
         // Create share also for the requester if it is not the owner of the parent folder
         shareRepository
           .getShares(folderId, Collections.emptyList())
-          .forEach(share -> shareRepository.upsertShare(
-              nodeId,
-              share.getTargetUserId(),
-              share.getPermissions(),
-              false,
-              false,
-              share.getExpiredAt()
-            )
+          .forEach(share -> {
+                // Don't notify the requester since it's dumb
+                if (!share.getTargetUserId().equals(requesterId)) {
+                  usersToNotify.add(share.getTargetUserId());
+                }
+                shareRepository.upsertShare(
+                    nodeId,
+                    share.getTargetUserId(),
+                    share.getPermissions(),
+                    false,
+                    false,
+                    share.getExpiredAt()
+                );
+              }
           );
         t.commit();
+
+        // If the requester is the owner of the parent folder, do not notify him since he did the upload himself
+        // Also exclude uploads on root, since root can't be shared and does not have an owner
+        if (!destinationFolder.getNodeType().equals(NodeType.ROOT) &&
+            !requesterId.equals(destinationFolder.getOwnerId()) &&
+            !usersToNotify.contains(requesterId)) {
+          usersToNotify.add(destinationFolder.getOwnerId());
+        }
+
+        if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled() && requesterEntity.isPresent())
+          notificationRepository.createAddedNodeNotification(newNode, destinationFolder, requesterEntity.get(), AddedNodeType.UPLOAD, usersToNotify);
       }
 
       return Optional.of(nodeId);

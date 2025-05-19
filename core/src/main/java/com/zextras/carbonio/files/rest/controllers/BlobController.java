@@ -142,15 +142,15 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
   private void uploadFileInternal(ChannelHandlerContext context, HttpRequest httpRequest) {
     String accountId = httpRequest.headers().get(Files.API.Headers.UPLOAD_ACCOUNT_ID);
-    doUploadFile(context, httpRequest, accountId);
+    doUploadFile(context, httpRequest, accountId, Optional.empty());
   }
 
   private void uploadFile(ChannelHandlerContext context, HttpRequest httpRequest) {
     User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
-    doUploadFile(context, httpRequest, requester.getId());
+    doUploadFile(context, httpRequest, requester.getId(), Optional.of(requester));
   }
 
-  private void doUploadFile(ChannelHandlerContext context, HttpRequest httpRequest, String requestedId) {
+  private void doUploadFile(ChannelHandlerContext context, HttpRequest httpRequest, String requestedId, Optional<User> requesterEntity) {
     String parentId =
         Optional.ofNullable(httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_PARENT_ID))
             .orElse(Files.Db.RootId.LOCAL_ROOT);
@@ -190,6 +190,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
                   blobService
                       .uploadFile(
                           requestedId,
+                          requesterEntity,
                           context.channel().attr(fileStreamReader).get(),
                           blobLength,
                           parentId,

@@ -6,6 +6,7 @@ package com.zextras.carbonio.files;
 
 
 import com.zextras.carbonio.files.Files.Config.Pagination;
+
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -16,11 +17,13 @@ import java.util.regex.Pattern;
  */
 public final class Files {
 
-  private Files() {}
+  private Files() {
+  }
 
   public static final class Service {
 
-    private Service() {}
+    private Service() {
+    }
 
     public static final String IP = "127.78.0.2";
     public static final int PORT = 10_000;
@@ -28,92 +31,105 @@ public final class Files {
 
   public static final class Config {
 
-    private Config() {}
+    private Config() {
+    }
 
     public static final class Service {
 
-      private Service() {}
+      private Service() {
+      }
 
-      public static final String URL  = "service.url";
+      public static final String URL = "service.url";
       public static final String PORT = "service.port";
+      public static final String ENABLE_NOTIFICATIONS = "service.enable_notifications";
     }
 
     public static final class Database {
 
-      private Database() {}
+      private Database() {
+      }
 
-      public static final String URL  = "db.postgresql.url";
+      public static final String URL = "db.postgresql.url";
       public static final String PORT = "db.postgresql.port";
     }
 
     public static final class UserManagement {
 
-      private UserManagement() {}
+      private UserManagement() {
+      }
 
-      public static final String URL  = "carbonio.user-management.url";
+      public static final String URL = "carbonio.user-management.url";
       public static final String PORT = "carbonio.user-management.port";
     }
 
     public static final class Storages {
 
-      private Storages() {}
+      private Storages() {
+      }
 
-      public static final String URL  = "carbonio.storages.url";
+      public static final String URL = "carbonio.storages.url";
       public static final String PORT = "carbonio.storages.port";
     }
 
     public static final class Preview {
 
-      private Preview() {}
+      private Preview() {
+      }
 
-      public static final String URL  = "carbonio.preview.url";
+      public static final String URL = "carbonio.preview.url";
       public static final String PORT = "carbonio.preview.port";
     }
 
     public static final class Mailbox {
 
-      private Mailbox() {}
+      private Mailbox() {
+      }
 
-      public static final String URL  = "carbonio.mailbox.url";
+      public static final String URL = "carbonio.mailbox.url";
       public static final String PORT = "carbonio.mailbox.port";
     }
 
     public static final class DocsConnector {
 
-      private DocsConnector() {}
+      private DocsConnector() {
+      }
 
-      public static final String URL  = "carbonio.docs-connector.url";
+      public static final String URL = "carbonio.docs-connector.url";
       public static final String PORT = "carbonio.docs-connector.port";
     }
 
     public static final class MessageBroker {
 
-      private MessageBroker() {}
+      private MessageBroker() {
+      }
 
-      public static final String URL  = "carbonio.message-broker.url";
+      public static final String URL = "carbonio.message-broker.url";
       public static final String PORT = "carbonio.message-broker.port";
     }
 
     public static final class Pagination {
 
-      private Pagination() {}
+      private Pagination() {
+      }
 
       public static final int LIMIT = 50;
     }
 
     public static final class Link {
 
-      private Link() {}
+      private Link() {
+      }
 
       public static final int MAX_LINKS_PER_NODE = 50;
     }
 
     public static final class Hikari {
 
-      public static final int MAX_POOL_SIZE        = 10;
+      public static final int MAX_POOL_SIZE = 10;
       public static final int MIN_IDLE_CONNECTIONS = 2;
 
-      private Hikari() {}
+      private Hikari() {
+      }
     }
 
     public static final class PurgeService {
@@ -122,32 +138,43 @@ public final class Files {
       public static final long RETENTION_TOMBSTONE_ITEMS_IN_MINUTES = 120L;
       public static final long JOB_EXECUTION_INTERVAL_IN_MINUTES = 120L;
 
-      private PurgeService() {}
+      private PurgeService() {
+      }
     }
   }
 
   public static final class Db {
 
-    private Db() {}
+    private Db() {
+    }
 
-    public static final short DB_VERSION = 7;
+    public static final short DB_VERSION = 8;
 
     /**
      * Names of Files tables
      */
     public static final class Tables {
 
-      private Tables() {}
+      private Tables() {
+      }
 
-      public static final String DB_INFO                = "DB_INFO";
-      public static final String NODE                   = "NODE";
-      public static final String TRASHED_NODE           = "TRASHED";
+      public static final String DB_INFO = "DB_INFO";
+      public static final String NODE = "NODE";
+      public static final String SNAPSHOT_NODE = "SNAPSHOT_NODE";
+      public static final String SNAPSHOT_USER = "SNAPSHOT_USER";
+      public static final String TRASHED_NODE = "TRASHED";
       public static final String NODE_CUSTOM_ATTRIBUTES = "CUSTOM";
-      public static final String FILE_VERSION           = "REVISION";
-      public static final String SHARE                  = "SHARE";
-      public static final String LINK                   = "LINK";
-      public static final String COLLABORATION_LINK     = "COLLABORATION_LINK";
-      public static final String TOMBSTONE              = "TOMBSTONE";
+      public static final String FILE_VERSION = "REVISION";
+      public static final String SHARE = "SHARE";
+      public static final String LINK = "LINK";
+      public static final String COLLABORATION_LINK = "COLLABORATION_LINK";
+      public static final String TOMBSTONE = "TOMBSTONE";
+      public static final String NOTIFICATION = "NOTIFICATION";
+      public static final String NEW_SHARE_NOTIFICATION = "NEW_SHARE_NOTIFICATION";
+      public static final String ADDED_NODE_NOTIFICATION = "ADDED_NODE_NOTIFICATION";
+      public static final String REMOVED_NODE_NOTIFICATION = "REMOVED_NODE_NOTIFICATION";
+      public static final String USER_NOTIFICATION_INTEREST = "USER_NOTIFICATION_INTEREST";
+      public static final String USER_NOTIFICATIONS_INFO = "USER_NOTIFICATIONS_INFO";
     }
 
     /**
@@ -155,35 +182,123 @@ public final class Files {
      */
     public static final class Node {
 
-      private Node() {}
+      private Node() {
+      }
 
-      public static final String ID              = "node_id";
-      public static final String OWNER_ID        = "owner_id";
-      public static final String CREATOR_ID      = "creator_id";
-      public static final String EDITOR_ID       = "editor_id";
-      public static final String PARENT_ID       = "folder_id";
-      public static final String ANCESTOR_IDS    = "ancestor_ids";
-      public static final String CREATED_AT      = "creation_timestamp";
-      public static final String UPDATED_AT      = "updated_timestamp";
-      public static final String TYPE            = "node_type";
-      public static final String CATEGORY        = "node_category";
-      public static final String NAME            = "name";
-      public static final String DESCRIPTION     = "description";
+      public static final String ID = "node_id";
+      public static final String OWNER_ID = "owner_id";
+      public static final String CREATOR_ID = "creator_id";
+      public static final String EDITOR_ID = "editor_id";
+      public static final String PARENT_ID = "folder_id";
+      public static final String ANCESTOR_IDS = "ancestor_ids";
+      public static final String CREATED_AT = "creation_timestamp";
+      public static final String UPDATED_AT = "updated_timestamp";
+      public static final String TYPE = "node_type";
+      public static final String CATEGORY = "node_category";
+      public static final String NAME = "name";
+      public static final String DESCRIPTION = "description";
       public static final String CURRENT_VERSION = "current_version";
-      public static final String INDEX_STATUS    = "index_status";
-      public static final String SIZE            = "size";
-      public static final String HIDDEN            = "hidden";
+      public static final String INDEX_STATUS = "index_status";
+      public static final String SIZE = "size";
+      public static final String HIDDEN = "hidden";
 
       public static final List<String> ALLOWED_CONDITIONAL_COLUMN_NAMES = List.of(
-        ID, EDITOR_ID, NAME, OWNER_ID, CATEGORY, UPDATED_AT, CREATED_AT, SIZE
+          ID, EDITOR_ID, NAME, OWNER_ID, CATEGORY, UPDATED_AT, CREATED_AT, SIZE
       );
+    }
+
+    public static final class SnapshotNode {
+      private SnapshotNode() {
+      }
+
+      public static final String SNAPSHOT_NODE_ID = "snapshot_node_id";
+      public static final String OWNER_ID = "owner_id";
+      public static final String NODE_ID = "node_id";
+      public static final String FOLDER_ID = "folder_id";
+      public static final String NAME = "name";
+      public static final String NODE_TYPE = "node_type";
+      public static final String NODE_CATEGORY = "node_category";
+      public static final String CREATION_TIMESTAMP = "creation_timestamp";
+      public static final String UPDATED_TIMESTAMP = "updated_timestamp";
+      public static final String SNAPSHOT_TIMESTAMP = "snapshot_timestamp";
+    }
+
+    public static final class SnapshotUser {
+      private SnapshotUser() {
+      }
+
+      public static final String SNAPSHOT_USER_ID = "snapshot_user_id";
+      public static final String USER_ID = "user_id";
+      public static final String FULL_NAME = "full_name";
+      public static final String EMAIL = "email";
+      public static final String SNAPSHOT_TIMESTAMP = "snapshot_timestamp";
+    }
+
+    public static final class Notification {
+      private Notification() {
+      }
+
+      public static final String NOTIFICATION_ID = "notification_id";
+      public static final String CREATED_AT = "created_at";
+      public static final String NOTIFICATION_TYPE = "notification_type";
+    }
+
+    public static final class NewShareNotification {
+      private NewShareNotification() {
+      }
+
+      public static final String NOTIFICATION_ID = "notification_id";
+      public static final String NODE_SNAPSHOT_ID = "node_snapshot_id";
+      public static final String TRIGGERING_USER_SNAPSHOT_ID = "triggering_user_snapshot_id";
+    }
+
+    public static final class AddedNodeNotification {
+      private AddedNodeNotification() {
+      }
+
+      public static final String NOTIFICATION_ID = "notification_id";
+      public static final String ADDED_NODE_SNAPSHOT_ID = "added_node_snapshot_id";
+      public static final String DESTINATION_FOLDER_SNAPSHOT_ID = "destination_folder_snapshot_id";
+      public static final String TRIGGERING_USER_SNAPSHOT_ID = "triggering_user_snapshot_id";
+      public static final String ADDED_NODE_TYPE = "added_node_type";
+    }
+
+    public static final class RemovedNodeNotification {
+      private RemovedNodeNotification() {
+      }
+
+      public static final String NOTIFICATION_ID = "notification_id";
+      public static final String REMOVED_NODE_SNAPSHOT_ID = "removed_node_snapshot_id";
+      public static final String ORIGIN_FOLDER_SNAPSHOT_ID = "origin_folder_snapshot_id";
+      public static final String TRIGGERING_USER_SNAPSHOT_ID = "triggering_user_snapshot_id";
+      public static final String REMOVED_NODE_TYPE = "removed_node_type";
+    }
+
+    public static final class UserNotificationsInfo {
+      private UserNotificationsInfo() {
+      }
+
+      public static final String USER_ID = "user_id";
+      public static final String LAST_SEEN = "last_seen";
+      public static final String UNREAD = "unread";
+    }
+
+    public static final class UserNotificationInterest {
+      private UserNotificationInterest() {
+      }
+
+      public static final String INTEREST_ID = "interest_id";
+      public static final String USER_ID = "user_id";
+      public static final String NOTIFICATION_ID = "notification_id";
+      public static final String CREATED_AT = "created_at";
     }
 
     public static final class Trashed {
 
-      private Trashed() {}
+      private Trashed() {
+      }
 
-      public static final String NODE_ID   = "node_id";
+      public static final String NODE_ID = "node_id";
       public static final String PARENT_ID = "parent_id";
     }
 
@@ -192,7 +307,8 @@ public final class Files {
      */
     public static final class NodeCustomAttributes {
 
-      private NodeCustomAttributes() {}
+      private NodeCustomAttributes() {
+      }
 
       public static final String NODE_ID = "node_id";
       public static final String USER_ID = "user_id";
@@ -209,18 +325,19 @@ public final class Files {
      */
     public static final class FileVersion {
 
-      private FileVersion() {}
+      private FileVersion() {
+      }
 
-      public static final String NODE_ID             = "node_id";
-      public static final String LAST_EDITOR_ID      = "editor_id";
-      public static final String UPDATED_AT          = "timestamp";
-      public static final String VERSION             = "version";
-      public static final String MIME_TYPE           = "mime_type";
-      public static final String SIZE                = "size";
-      public static final String DIGEST              = "digest";
-      public static final String IS_KEPT_FOREVER     = "keep_forever";
+      public static final String NODE_ID = "node_id";
+      public static final String LAST_EDITOR_ID = "editor_id";
+      public static final String UPDATED_AT = "timestamp";
+      public static final String VERSION = "version";
+      public static final String MIME_TYPE = "mime_type";
+      public static final String SIZE = "size";
+      public static final String DIGEST = "digest";
+      public static final String IS_KEPT_FOREVER = "keep_forever";
       public static final String CLONED_FROM_VERSION = "cloned_from_version";
-      public static final String AUTOSAVE            = "is_autosave";
+      public static final String AUTOSAVE = "is_autosave";
     }
 
     /**
@@ -228,7 +345,8 @@ public final class Files {
      */
     public static final class RootId {
 
-      private RootId() {}
+      private RootId() {
+      }
 
       public static final String LOCAL_ROOT = "LOCAL_ROOT";
       public static final String TRASH_ROOT = "TRASH_ROOT";
@@ -239,15 +357,16 @@ public final class Files {
      */
     public static final class Share {
 
-      private Share() {}
+      private Share() {
+      }
 
-      public static final String NODE_ID           = "node_id";
+      public static final String NODE_ID = "node_id";
       public static final String SHARE_TARGET_UUID = "target_uuid";
-      public static final String CREATED_AT        = "timestamp";
-      public static final String EXPIRED_AT        = "expire_date";
-      public static final String PERMISSIONS       = "rights";
-      public static final String DIRECT            = "direct";
-      public static final String CREATED_VIA_LINK  = "created_via_link";
+      public static final String CREATED_AT = "timestamp";
+      public static final String EXPIRED_AT = "expire_date";
+      public static final String PERMISSIONS = "rights";
+      public static final String DIRECT = "direct";
+      public static final String CREATED_VIA_LINK = "created_via_link";
     }
 
     /**
@@ -255,13 +374,14 @@ public final class Files {
      */
     public static final class Link {
 
-      private Link() {}
+      private Link() {
+      }
 
-      public static final String ID          = "id";
-      public static final String NODE_ID     = "node_id";
-      public static final String PUBLIC_ID   = "public_id";
-      public static final String CREATED_AT  = "created_at";
-      public static final String EXPIRES_AT  = "expire_at";
+      public static final String ID = "id";
+      public static final String NODE_ID = "node_id";
+      public static final String PUBLIC_ID = "public_id";
+      public static final String CREATED_AT = "created_at";
+      public static final String EXPIRES_AT = "expire_at";
       public static final String DESCRIPTION = "description";
       public static final String ACCESS_CODE = "access_code";
     }
@@ -271,12 +391,13 @@ public final class Files {
      */
     public static final class Tombstone {
 
-      private Tombstone() {}
+      private Tombstone() {
+      }
 
-      public static final String NODE_ID   = "node_id";
-      public static final String OWNER_ID  = "owner_id";
+      public static final String NODE_ID = "node_id";
+      public static final String OWNER_ID = "owner_id";
       public static final String TIMESTAMP = "timestamp";
-      public static final String VERSION   = "version";
+      public static final String VERSION = "version";
     }
 
     /**
@@ -284,47 +405,51 @@ public final class Files {
      */
     public static final class CollaborationLink {
 
-      private CollaborationLink() {}
+      private CollaborationLink() {
+      }
 
-      public static final String ID            = "id";
-      public static final String NODE_ID       = "node_id";
+      public static final String ID = "id";
+      public static final String NODE_ID = "node_id";
       public static final String INVITATION_ID = "invitation_id";
-      public static final String CREATED_AT    = "created_at";
-      public static final String PERMISSIONS   = "permissions";
+      public static final String CREATED_AT = "created_at";
+      public static final String PERMISSIONS = "permissions";
     }
   }
 
   public static final class Cache {
 
-    private Cache() {}
+    private Cache() {
+    }
 
     public static final long DEFAULT_ITEM_LIFETIME_IN_MILLIS = 60_000;
-    public static final long DEFAULT_SIZE                    = 1000;
+    public static final long DEFAULT_SIZE = 1000;
 
     /**
      * Names of Files caches
      */
-    public static final String NODE         = "Node";
+    public static final String NODE = "Node";
     public static final String FILE_VERSION = "FileVersion";
-    public static final String SHARE        = "Share";
-    public static final String LINK         = "Link";
-    public static final String USER         = "User";
+    public static final String SHARE = "Share";
+    public static final String LINK = "Link";
+    public static final String USER = "User";
   }
 
   public static final class GraphQL {
 
-    private GraphQL() {}
+    private GraphQL() {
+    }
 
-    public static final int    LIMIT_ELEMENTS_FOR_PAGE = Pagination.LIMIT;
-    public static final String ENTITY_TYPE             = "type";
+    public static final int LIMIT_ELEMENTS_FOR_PAGE = Pagination.LIMIT;
+    public static final String ENTITY_TYPE = "type";
 
     public static final class Context {
 
-      private Context() {}
+      private Context() {
+      }
 
       public static final String REQUESTER = "requester";
-      public static final String COOKIES   = "cookies";
-      public static final String INTERNAL   = "internal";
+      public static final String COOKIES = "cookies";
+      public static final String INTERNAL = "internal";
     }
 
     /**
@@ -332,23 +457,33 @@ public final class Files {
      */
     public static final class Types {
 
-      private Types() {}
+      private Types() {
+      }
 
-      public static final String NODE_INTERFACE     = "Node";
-      public static final String FILE               = "File";
-      public static final String FOLDER             = "Folder";
-      public static final String NODE_SORT          = "NodeSort";
-      public static final String NODE_PAGE          = "NodePage";
-      public static final String PERMISSIONS        = "Permissions";
-      public static final String USER               = "User";
-      public static final String DISTRIBUTION_LIST  = "DistributionList";
-      public static final String SHARED_TARGET      = "SharedTarget";
-      public static final String ACCOUNT            = "Account";
-      public static final String SHARE_PERMISSION   = "SharePermission";
-      public static final String SHARE              = "Share";
-      public static final String LINK               = "Link";
+      public static final String NODE_INTERFACE = "Node";
+      public static final String FILE = "File";
+      public static final String FOLDER = "Folder";
+      public static final String NODE_SORT = "NodeSort";
+      public static final String NODE_PAGE = "NodePage";
+      public static final String PERMISSIONS = "Permissions";
+      public static final String USER = "User";
+      public static final String DISTRIBUTION_LIST = "DistributionList";
+      public static final String SHARED_TARGET = "SharedTarget";
+      public static final String ACCOUNT = "Account";
+      public static final String SHARE_PERMISSION = "SharePermission";
+      public static final String SHARE = "Share";
+      public static final String LINK = "Link";
       public static final String COLLABORATION_LINK = "CollaborationLink";
-      public static final String NODE_TYPE          = "NodeType";
+      public static final String NODE_TYPE = "NodeType";
+      public static final String ADDED_NODE_TYPE = "AddedNodeType";
+      public static final String REMOVED_NODE_TYPE = "RemovedNodeType";
+      public static final String NOTIFICATION = "Notification";
+      public static final String SNAPSHOT_USER = "SnapshotUser";
+      public static final String SNAPSHOT_NODE = "SnapshotNode";
+      public static final String NOTIFICATION_PAGE = "NotificationPage";
+      public static final String NEW_SHARE = "NewShare";
+      public static final String ADDED_NODE = "AddedNode";
+      public static final String REMOVED_NODE = "RemovedNode";
     }
 
     /**
@@ -356,9 +491,10 @@ public final class Files {
      */
     public static final class DataLoaders {
 
-      private DataLoaders() {}
+      private DataLoaders() {
+      }
 
-      public static final String NODE_BATCH_LOADER  = "NodeBatchLoader";
+      public static final String NODE_BATCH_LOADER = "NodeBatchLoader";
       public static final String SHARE_BATCH_LOADER = "ShareBatchLoader";
     }
 
@@ -367,21 +503,23 @@ public final class Files {
      */
     public static final class Queries {
 
-      private Queries() {}
+      private Queries() {
+      }
 
-      public static final String GET_NODE                = "getNode";
-      public static final String GET_USER                = "getUser";
-      public static final String GET_SHARE               = "getShare";
-      public static final String GET_ROOTS_LIST          = "getRootsList";
-      public static final String GET_PATH                = "getPath";
-      public static final String FIND_NODES              = "findNodes";
-      public static final String GET_VERSIONS            = "getVersions";
-      public static final String GET_LINKS               = "getLinks";
+      public static final String GET_NODE = "getNode";
+      public static final String GET_USER = "getUser";
+      public static final String GET_SHARE = "getShare";
+      public static final String GET_ROOTS_LIST = "getRootsList";
+      public static final String GET_PATH = "getPath";
+      public static final String FIND_NODES = "findNodes";
+      public static final String GET_VERSIONS = "getVersions";
+      public static final String GET_LINKS = "getLinks";
       public static final String GET_COLLABORATION_LINKS = "getCollaborationLinks";
-      public static final String GET_ACCOUNT_BY_EMAIL    = "getAccountByEmail";
-      public static final String GET_ACCOUNTS_BY_EMAIL   = "getAccountsByEmail";
-      public static final String GET_CONFIGS             = "getConfigs";
-      public static final String GET_PUBLIC_NODE         = "getPublicNode";
+      public static final String GET_ACCOUNT_BY_EMAIL = "getAccountByEmail";
+      public static final String GET_ACCOUNTS_BY_EMAIL = "getAccountsByEmail";
+      public static final String GET_CONFIGS = "getConfigs";
+      public static final String GET_PUBLIC_NODE = "getPublicNode";
+      public static final String GET_NOTIFICATIONS = "getNotifications";
     }
 
     /**
@@ -389,27 +527,28 @@ public final class Files {
      */
     public static final class Mutations {
 
-      private Mutations() {}
+      private Mutations() {
+      }
 
-      public static final String CREATE_FOLDER              = "createFolder";
-      public static final String UPDATE_NODE                = "updateNode";
-      public static final String FLAG_NODES                 = "flagNodes";
-      public static final String TRASH_NODES                = "trashNodes";
-      public static final String RESTORE_NODES              = "restoreNodes";
-      public static final String MOVE_NODES                 = "moveNodes";
-      public static final String DELETE_NODES               = "deleteNodes";
-      public static final String DELETE_VERSIONS            = "deleteVersions";
-      public static final String KEEP_VERSIONS              = "keepVersions";
-      public static final String CLONE_VERSION              = "cloneVersion";
-      public static final String CREATE_SHARE               = "createShare";
-      public static final String UPDATE_SHARE               = "updateShare";
-      public static final String DELETE_SHARE               = "deleteShare";
-      public static final String CREATE_LINK                = "createLink";
-      public static final String UPDATE_LINK                = "updateLink";
-      public static final String DELETE_LINKS               = "deleteLinks";
-      public static final String CREATE_COLLABORATION_LINK  = "createCollaborationLink";
+      public static final String CREATE_FOLDER = "createFolder";
+      public static final String UPDATE_NODE = "updateNode";
+      public static final String FLAG_NODES = "flagNodes";
+      public static final String TRASH_NODES = "trashNodes";
+      public static final String RESTORE_NODES = "restoreNodes";
+      public static final String MOVE_NODES = "moveNodes";
+      public static final String DELETE_NODES = "deleteNodes";
+      public static final String DELETE_VERSIONS = "deleteVersions";
+      public static final String KEEP_VERSIONS = "keepVersions";
+      public static final String CLONE_VERSION = "cloneVersion";
+      public static final String CREATE_SHARE = "createShare";
+      public static final String UPDATE_SHARE = "updateShare";
+      public static final String DELETE_SHARE = "deleteShare";
+      public static final String CREATE_LINK = "createLink";
+      public static final String UPDATE_LINK = "updateLink";
+      public static final String DELETE_LINKS = "deleteLinks";
+      public static final String CREATE_COLLABORATION_LINK = "createCollaborationLink";
       public static final String DELETE_COLLABORATION_LINKS = "deleteCollaborationLinks";
-      public static final String COPY_NODES                 = "copyNodes";
+      public static final String COPY_NODES = "copyNodes";
       public static final String DELETE_ALL_NODES_AND_BLOBS = "deleteAllNodesAndBlobs";
     }
 
@@ -418,97 +557,108 @@ public final class Files {
      */
     public static final class InputParameters {
 
-      private InputParameters() {}
+      private InputParameters() {
+      }
 
-      public static final String NODE_ID    = "node_id";
-      public static final String LIMIT      = "limit";
-      public static final String CURSOR     = "cursor";
-      public static final String SORT       = "sort";
-      public static final String EMAIL      = "email";
+      public static final String NODE_ID = "node_id";
+      public static final String LIMIT = "limit";
+      public static final String CURSOR = "cursor";
+      public static final String SORT = "sort";
+      public static final String EMAIL = "email";
       public static final String PAGE_TOKEN = "page_token";
+      public static final String UPDATE_LAST_SEEN = "update_last_seen";
 
       public static final class CreateFolder {
 
-        private CreateFolder() {}
+        private CreateFolder() {
+        }
 
         public static final String PARENT_ID = "destination_id";
-        public static final String NAME      = "name";
+        public static final String NAME = "name";
       }
 
       public static final class UpdateNode {
 
-        private UpdateNode() {}
+        private UpdateNode() {
+        }
 
-        public static final String NODE_ID             = InputParameters.NODE_ID;
-        public static final String NAME                = "name";
-        public static final String DESCRIPTION         = "description";
-        public static final String FLAGGED             = "flagged";
+        public static final String NODE_ID = InputParameters.NODE_ID;
+        public static final String NAME = "name";
+        public static final String DESCRIPTION = "description";
+        public static final String FLAGGED = "flagged";
         public static final String MARKED_FOR_DELETION = "marked_for_deletion";
       }
 
       public static final class FlagNodes {
 
-        private FlagNodes() {}
+        private FlagNodes() {
+        }
 
         public static final String NODE_IDS = "node_ids";
-        public static final String FLAG     = "flag";
+        public static final String FLAG = "flag";
       }
 
       public static final class FindNodes {
 
-        private FindNodes() {}
+        private FindNodes() {
+        }
 
-        public static final String FLAGGED        = "flagged";
-        public static final String SHARED_BY_ME   = "shared_by_me";
+        public static final String FLAGGED = "flagged";
+        public static final String SHARED_BY_ME = "shared_by_me";
         public static final String SHARED_WITH_ME = "shared_with_me";
-        public static final String DIRECT_SHARE   = "direct_share";
-        public static final String FOLDER_ID      = "folder_id";
-        public static final String CASCADE        = "cascade";
-        public static final String SKIP           = "skip";
-        public static final String LIMIT          = "limit";
-        public static final String SORT           = "sort";
-        public static final String PAGE_TOKEN     = "page_token";
-        public static final String KEYWORDS       = "keywords";
-        public static final String NODE_TYPE      = "type";
-        public static final String OWNER_ID       = "owner_id";
-        public static final String NODE_LINK_ID   = "node_link_id";
-        public static final String ACCESS_CODE    = "access_code";
+        public static final String DIRECT_SHARE = "direct_share";
+        public static final String FOLDER_ID = "folder_id";
+        public static final String CASCADE = "cascade";
+        public static final String SKIP = "skip";
+        public static final String LIMIT = "limit";
+        public static final String SORT = "sort";
+        public static final String PAGE_TOKEN = "page_token";
+        public static final String KEYWORDS = "keywords";
+        public static final String NODE_TYPE = "type";
+        public static final String OWNER_ID = "owner_id";
+        public static final String NODE_LINK_ID = "node_link_id";
+        public static final String ACCESS_CODE = "access_code";
       }
 
       public static final class GetVersions {
 
-        private GetVersions() {}
+        private GetVersions() {
+        }
 
-        public static final String NODE_ID  = "node_id";
+        public static final String NODE_ID = "node_id";
         public static final String VERSIONS = "versions";
       }
 
       public static final class CopyNodes {
 
-        private CopyNodes() {}
+        private CopyNodes() {
+        }
 
-        public static final String NODE_IDS       = "node_ids";
+        public static final String NODE_IDS = "node_ids";
         public static final String DESTINATION_ID = "destination_id";
       }
 
       public static final class MoveNodes {
 
-        private MoveNodes() {}
+        private MoveNodes() {
+        }
 
-        public static final String NODE_IDS       = "node_ids";
+        public static final String NODE_IDS = "node_ids";
         public static final String DESTINATION_ID = "destination_id";
       }
 
       public static final class DeleteNodes {
 
-        private DeleteNodes() {}
+        private DeleteNodes() {
+        }
 
         public static final String NODE_IDS = "node_ids";
       }
 
       public static final class KeepVersions {
 
-        private KeepVersions() {}
+        private KeepVersions() {
+        }
 
         public static final String KEEP_FOREVER = "keep_forever";
 
@@ -516,7 +666,8 @@ public final class Files {
 
       public static final class CloneVersion {
 
-        private CloneVersion() {}
+        private CloneVersion() {
+        }
 
         public static final String NODE_ID = "node_id";
         public static final String VERSION = "version";
@@ -524,81 +675,91 @@ public final class Files {
 
       public static final class Share {
 
-        private Share() {}
+        private Share() {
+        }
 
-        public static final String NODE_ID         = "node_id";
+        public static final String NODE_ID = "node_id";
         public static final String SHARE_TARGET_ID = "share_target_id";
-        public static final String PERMISSION      = "permission";
-        public static final String EXPIRES_AT      = "expires_at";
-        public static final String CUSTOM_MESSAGE  = "custom_message";
+        public static final String PERMISSION = "permission";
+        public static final String EXPIRES_AT = "expires_at";
+        public static final String CUSTOM_MESSAGE = "custom_message";
       }
 
       public static final class Link {
 
-        private Link() {}
+        private Link() {
+        }
 
-        public static final String LINK_ID     = "link_id";
-        public static final String NODE_ID     = "node_id";
-        public static final String EXPIRES_AT  = "expires_at";
+        public static final String LINK_ID = "link_id";
+        public static final String NODE_ID = "node_id";
+        public static final String EXPIRES_AT = "expires_at";
         public static final String DESCRIPTION = "description";
-        public static final String LINK_IDS    = "link_ids";
+        public static final String LINK_IDS = "link_ids";
         public static final String ACCESS_CODE = "access_code";
       }
 
       public static final class TrashNodes {
 
-        private TrashNodes() {}
+        private TrashNodes() {
+        }
 
         public static final String NODE_IDS = "node_ids";
       }
 
       public static final class RestoreNodes {
 
-        private RestoreNodes() {}
+        private RestoreNodes() {
+        }
 
         public static final String NODE_IDS = "node_ids";
       }
 
       public static final class GetUser {
 
-        private GetUser() {}
+        private GetUser() {
+        }
 
         public static final String USER_ID = "user_id";
-        public static final String EMAIL   = "email";
+        public static final String EMAIL = "email";
       }
 
       public static final class GetAccountsByEmail {
 
-        private GetAccountsByEmail() {}
+        private GetAccountsByEmail() {
+        }
 
         public static final String EMAILS = "emails";
       }
 
       public static final class CreateCollaborationLink {
 
-        private CreateCollaborationLink() {}
+        private CreateCollaborationLink() {
+        }
 
-        public static final String NODE_ID    = InputParameters.NODE_ID;
+        public static final String NODE_ID = InputParameters.NODE_ID;
         public static final String PERMISSION = "permission";
       }
 
       public static final class GetCollaborationLink {
 
-        private GetCollaborationLink() {}
+        private GetCollaborationLink() {
+        }
 
         public static final String NODE_ID = InputParameters.NODE_ID;
       }
 
       public static final class DeleteCollaborationLinks {
 
-        private DeleteCollaborationLinks() {}
+        private DeleteCollaborationLinks() {
+        }
 
         public static final String COLLABORATION_LINK_IDS = "collaboration_link_ids";
       }
 
       public static final class GetPublicNode {
 
-        private GetPublicNode() {}
+        private GetPublicNode() {
+        }
 
         public static final String NODE_LINK_ID = "node_link_id";
         public static final String ACCESS_CODE = "access_code";
@@ -606,7 +767,8 @@ public final class Files {
 
       public static final class DeleteAllNodesAndBlobs {
 
-        private DeleteAllNodesAndBlobs() {}
+        private DeleteAllNodesAndBlobs() {
+        }
 
         public static final String USER_ID = "user_id";
       }
@@ -617,10 +779,11 @@ public final class Files {
      */
     public static final class User {
 
-      private User() {}
+      private User() {
+      }
 
-      public static final String ID        = "id";
-      public static final String EMAIL     = "email";
+      public static final String ID = "id";
+      public static final String EMAIL = "email";
       public static final String FULL_NAME = "full_name";
     }
 
@@ -629,11 +792,71 @@ public final class Files {
      */
     public static final class DistributionList {
 
-      private DistributionList() {}
+      private DistributionList() {
+      }
 
-      public static final String ID    = "id";
-      public static final String NAME  = "name";
+      public static final String ID = "id";
+      public static final String NAME = "name";
       public static final String USERS = "users";
+    }
+
+    public static class Notification {
+      private Notification() {
+      }
+
+      public static final String ID = "id";
+      public static final String NOTIFICATION_TYPE = "notification_type";
+      public static final String CREATED_AT = "created_at";
+    }
+
+    public static class NewShareNotification {
+      private NewShareNotification() {
+      }
+
+      public static final String NODE_SNAPSHOT = "node";
+      public static final String USER_SNAPSHOT = "triggering_user";
+    }
+
+    public static final class AddedNodeNotification {
+      private AddedNodeNotification() {
+      }
+
+      public static final String ADDED_NODE_SNAPSHOT = "added_node";
+      public static final String DESTINATION_FOLDER = "destination_folder";
+      public static final String TRIGGERING_USER = "triggering_user";
+      public static final String ADDED_NODE_TYPE = "added_node_type";
+    }
+
+    public static final class RemovedNodeNotification {
+      private RemovedNodeNotification() {
+      }
+
+      public static final String REMOVED_NODE = "removed_node";
+      public static final String ORIGIN_FOLDER = "origin_folder";
+      public static final String TRIGGERING_USER = "triggering_user";
+      public static final String REMOVED_NODE_TYPE = "removed_node_type";
+    }
+
+    public static final class SnapshotNode {
+      private SnapshotNode() {
+      }
+
+      public static final String SNAPSHOT_NODE_ID = "snapshot_node_id";
+      public static final String NODE_ID = "node_id";
+      public static final String OWNER_ID = "owner_id";
+      public static final String NAME = "name";
+      public static final String TYPE = "type";
+      public static final String CREATED_AT = "created_at";
+    }
+
+    public static final class SnapshotUser {
+      private SnapshotUser() {
+      }
+
+      public static final String SNAPSHOT_USER_ID = "snapshot_user_id";
+      public static final String USER_ID = "user_id";
+      public static final String FULL_NAME = "full_name";
+      public static final String EMAIL = "email";
     }
 
     /**
@@ -641,24 +864,25 @@ public final class Files {
      */
     public static class Node {
 
-      private Node() {}
+      private Node() {
+      }
 
-      public static final String ID                  = "id";
-      public static final String CREATED_AT          = "created_at";
-      public static final String CREATOR             = "creator";
-      public static final String OWNER               = "owner";
-      public static final String LAST_EDITOR         = "last_editor";
-      public static final String UPDATED_AT          = "updated_at";
-      public static final String PERMISSIONS         = "permissions";
-      public static final String NAME                = "name";
-      public static final String EXTENSION           = "extension";
-      public static final String DESCRIPTION         = "description";
-      public static final String TYPE                = "type";
-      public static final String FLAGGED             = "flagged";
-      public static final String PARENT              = "parent";
-      public static final String ROOT_ID             = "rootId";
-      public static final String SHARES              = "shares";
-      public static final String LINKS               = "links";
+      public static final String ID = "id";
+      public static final String CREATED_AT = "created_at";
+      public static final String CREATOR = "creator";
+      public static final String OWNER = "owner";
+      public static final String LAST_EDITOR = "last_editor";
+      public static final String UPDATED_AT = "updated_at";
+      public static final String PERMISSIONS = "permissions";
+      public static final String NAME = "name";
+      public static final String EXTENSION = "extension";
+      public static final String DESCRIPTION = "description";
+      public static final String TYPE = "type";
+      public static final String FLAGGED = "flagged";
+      public static final String PARENT = "parent";
+      public static final String ROOT_ID = "rootId";
+      public static final String SHARES = "shares";
+      public static final String LINKS = "links";
       public static final String COLLABORATION_LINKS = "collaboration_links";
     }
 
@@ -667,16 +891,17 @@ public final class Files {
      */
     public static final class FileVersion extends Node {
 
-      private FileVersion() {}
+      private FileVersion() {
+      }
 
-      public static final String LAST_EDITOR         = "last_editor";
-      public static final String UPDATED_AT          = "updated_at";
-      public static final String VERSION             = "version";
-      public static final String MIME_TYPE           = "mime_type";
-      public static final String SIZE                = "size";
-      public static final String KEEP_FOREVER        = "keep_forever";
+      public static final String LAST_EDITOR = "last_editor";
+      public static final String UPDATED_AT = "updated_at";
+      public static final String VERSION = "version";
+      public static final String MIME_TYPE = "mime_type";
+      public static final String SIZE = "size";
+      public static final String KEEP_FOREVER = "keep_forever";
       public static final String CLONED_FROM_VERSION = "cloned_from_version";
-      public static final String DIGEST              = "digest";
+      public static final String DIGEST = "digest";
     }
 
     /**
@@ -684,7 +909,8 @@ public final class Files {
      */
     public static final class Folder extends Node {
 
-      private Folder() {}
+      private Folder() {
+      }
 
       public static final String CHILDREN = "children";
     }
@@ -694,10 +920,25 @@ public final class Files {
      */
     public static final class NodePage {
 
-      private NodePage() {}
+      private NodePage() {
+      }
 
-      public static final String NODES      = "nodes";
+      public static final String NODES = "nodes";
       public static final String PAGE_TOKEN = "page_token";
+    }
+
+    /**
+     * Attributes name specific for the type NotificationPage
+     */
+    public static final class NotificationPage {
+
+      private NotificationPage() {
+      }
+
+      public static final String NOTIFICATIONS = "notifications";
+      public static final String PAGE_TOKEN = "page_token";
+      public static final String UNREAD = "unread";
+      public static final String LAST_SEEN = "last_seen";
     }
 
     /**
@@ -705,13 +946,14 @@ public final class Files {
      */
     public static final class Share {
 
-      private Share() {}
+      private Share() {
+      }
 
-      public static final String CREATED_AT   = "created_at";
-      public static final String NODE         = "node";
+      public static final String CREATED_AT = "created_at";
+      public static final String NODE = "node";
       public static final String SHARE_TARGET = "share_target";
-      public static final String PERMISSION   = "permission";
-      public static final String EXPIRES_AT   = "expires_at";
+      public static final String PERMISSION = "permission";
+      public static final String EXPIRES_AT = "expires_at";
     }
 
     /**
@@ -719,13 +961,14 @@ public final class Files {
      */
     public static final class Link {
 
-      private Link() {}
+      private Link() {
+      }
 
-      public static final String ID          = "id";
-      public static final String URL         = "url";
-      public static final String NODE        = "node";
-      public static final String CREATED_AT  = "created_at";
-      public static final String EXPIRES_AT  = "expires_at";
+      public static final String ID = "id";
+      public static final String URL = "url";
+      public static final String NODE = "node";
+      public static final String CREATED_AT = "created_at";
+      public static final String EXPIRES_AT = "expires_at";
       public static final String DESCRIPTION = "description";
       public static final String ACCESS_CODE = "access_code";
     }
@@ -735,20 +978,22 @@ public final class Files {
      */
     public static final class CollaborationLink {
 
-      private CollaborationLink() {}
+      private CollaborationLink() {
+      }
 
-      public static final String ID         = "id";
-      public static final String FULL_URL   = "url";
-      public static final String NODE       = "node";
+      public static final String ID = "id";
+      public static final String FULL_URL = "url";
+      public static final String NODE = "node";
       public static final String CREATED_AT = "created_at";
       public static final String PERMISSION = "permission";
     }
 
     public static final class Config {
 
-      private Config() {}
+      private Config() {
+      }
 
-      public static final String NAME  = "name";
+      public static final String NAME = "name";
       public static final String VALUE = "value";
     }
 
@@ -757,31 +1002,34 @@ public final class Files {
      */
     public static final class PublicNode {
 
-      private PublicNode() {}
+      private PublicNode() {
+      }
 
-      public static final String ID         = "id";
+      public static final String ID = "id";
       public static final String CREATED_AT = "created_at";
       public static final String UPDATED_AT = "updated_at";
-      public static final String NAME       = "name";
-      public static final String EXTENSION  = "extension";
-      public static final String TYPE       = "type";
-      public static final String MIME_TYPE  = "mime_type";
-      public static final String SIZE       = "size";
+      public static final String NAME = "name";
+      public static final String EXTENSION = "extension";
+      public static final String TYPE = "type";
+      public static final String MIME_TYPE = "mime_type";
+      public static final String SIZE = "size";
     }
   }
 
   public static final class API {
 
-    private API() {}
+    private API() {
+    }
 
     public static final class Endpoints {
 
-      private Endpoints() {}
+      private Endpoints() {
+      }
 
-      public static final String SERVICE                  = "/";
-      public static final String PUBLIC_LINK_ACCESS_URL   = "/files/public/link/access/";
+      public static final String SERVICE = "/";
+      public static final String PUBLIC_LINK_ACCESS_URL = "/files/public/link/access/";
       public static final String PUBLIC_LINK_DOWNLOAD_URL = "/services/files/public/link/download/";
-      public static final String COLLABORATION_LINK_URL   = "/services/files/invite/";
+      public static final String COLLABORATION_LINK_URL = "/services/files/invite/";
 
       public static final Pattern METRICS             = Pattern.compile(SERVICE + "metrics/?$");
       public static final Pattern HEALTH              = Pattern.compile(
@@ -793,45 +1041,46 @@ public final class Files {
       public static final Pattern UPLOAD_FILE         = Pattern.compile(SERVICE + "upload/?$");
       public static final Pattern UPLOAD_FILE_INTERNAL= Pattern.compile(SERVICE + "internal/upload/?$");
       public static final Pattern UPLOAD_FILE_VERSION = Pattern.compile(
-        SERVICE + "upload-version/?$");
-      public static final Pattern UPLOAD_FILE_TO      = Pattern.compile(SERVICE + "upload-to/?$");
-      public static final Pattern DOWNLOAD_FILE       = Pattern.compile(
-        SERVICE + "download/([a-f\\d\\-]*)/?([\\d]+)?/?$");
+          SERVICE + "upload-version/?$");
+      public static final Pattern UPLOAD_FILE_TO = Pattern.compile(SERVICE + "upload-to/?$");
+      public static final Pattern DOWNLOAD_FILE = Pattern.compile(
+          SERVICE + "download/([a-f\\d\\-]*)/?([\\d]+)?/?$");
       public static final Pattern PUBLIC_LINK =
           Pattern.compile(SERVICE + "link/([\\w]{8}|[\\w]{32}|[\\w]{50})/?$");
       public static final Pattern DOWNLOAD_VIA_PUBLIC_LINK =
-        Pattern.compile(SERVICE + "public/link/download/([\\w]{8}|[\\w]{32}|[\\w]{50})/?$");
+          Pattern.compile(SERVICE + "public/link/download/([\\w]{8}|[\\w]{32}|[\\w]{50})/?$");
       public static final Pattern DOWNLOAD_PUBLIC_FILE = Pattern.compile(
-        SERVICE + "public/download/([a-f\\d\\-]*)/?\\?node_link_id=([a-zA-Z\\d\\-]*)(?:&access_code=([a-zA-Z\\d]*))?/?");
-      public static final Pattern COLLABORATION_LINK  = Pattern.compile(
-        SERVICE + "invite/([\\w]{8})/?$");
+          SERVICE + "public/download/([a-f\\d\\-]*)/?\\?node_link_id=([a-zA-Z\\d\\-]*)(?:&access_code=([a-zA-Z\\d]*))?/?");
+      public static final Pattern COLLABORATION_LINK = Pattern.compile(
+          SERVICE + "invite/([\\w]{8})/?$");
 
-      public static final Pattern PREVIEW            = Pattern.compile(SERVICE + "preview/(.*)");
-      public static final Pattern PREVIEW_IMAGE      = Pattern.compile(
-        SERVICE
-          + "preview/image/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
+      public static final Pattern PREVIEW = Pattern.compile(SERVICE + "preview/(.*)");
+      public static final Pattern PREVIEW_IMAGE = Pattern.compile(
+          SERVICE
+              + "preview/image/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
-      public static final Pattern THUMBNAIL_IMAGE    = Pattern.compile(
-        SERVICE + "preview/image/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
+      public static final Pattern THUMBNAIL_IMAGE = Pattern.compile(
+          SERVICE + "preview/image/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
       );
-      public static final Pattern PREVIEW_PDF        = Pattern.compile(
-        SERVICE + "preview/pdf/([a-f\\d\\-]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
+      public static final Pattern PREVIEW_PDF = Pattern.compile(
+          SERVICE + "preview/pdf/([a-f\\d\\-]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
-      public static final Pattern THUMBNAIL_PDF      = Pattern.compile(
-        SERVICE + "preview/pdf/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
+      public static final Pattern THUMBNAIL_PDF = Pattern.compile(
+          SERVICE + "preview/pdf/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
       );
-      public static final Pattern PREVIEW_DOCUMENT   = Pattern.compile(
-        SERVICE + "preview/document/([a-f\\d\\-]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
+      public static final Pattern PREVIEW_DOCUMENT = Pattern.compile(
+          SERVICE + "preview/document/([a-f\\d\\-]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
       );
       public static final Pattern THUMBNAIL_DOCUMENT = Pattern.compile(
-        SERVICE + "preview/document/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
+          SERVICE + "preview/document/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
       );
-      public static final Pattern PUBLIC_GRAPHQL             = Pattern.compile(SERVICE + "public/graphql/?$");
+      public static final Pattern PUBLIC_GRAPHQL = Pattern.compile(SERVICE + "public/graphql/?$");
     }
 
     public static final class Headers {
 
-      private Headers() {}
+      private Headers() {
+      }
 
       public static final String UPLOAD_FILENAME          = "Filename";
       public static final String UPLOAD_DESCRIPTION       = "Description";
@@ -839,66 +1088,71 @@ public final class Files {
       public static final String UPLOAD_ACCOUNT_ID        = "AccountId";
       public static final String UPLOAD_NODE_ID           = "NodeId";
       public static final String UPLOAD_OVERWRITE_VERSION = "OverwriteVersion";
-      public static final String COOKIE_ZM_AUTH_TOKEN     = "ZM_AUTH_TOKEN";
+      public static final String COOKIE_ZM_AUTH_TOKEN = "ZM_AUTH_TOKEN";
     }
 
     public static final class ContextAttribute {
 
-      private ContextAttribute() {}
+      private ContextAttribute() {
+      }
 
       public static final String REQUESTER = "requester";
-      public static final String COOKIES   = "cookies";
+      public static final String COOKIES = "cookies";
     }
   }
 
   public static final class ServiceDiscover {
 
-    private ServiceDiscover() {}
+    private ServiceDiscover() {
+    }
 
     public static final String SERVICE_NAME = "carbonio-files";
     public static final String MESSAGE_BROKER_SERVICE_NAME = "carbonio-message-broker";
 
     public static final class Config {
 
-      private Config() {}
+      private Config() {
+      }
 
-      public static final String COLLATION                             = "collation";
-      public static final String MAX_UPLOADABLE_SIZE_IN_MB             = "max-uploadable-size-in-mb";
-      public static final String PAGE_TOKEN_SECRET_KEY                 = "page-token-secret-key";
-      public static final String DEFAULT_PAGE_TOKEN_SECRET_KEY         = "carbonio-files-page-token-sign";
-      public static final String FALLBACK_COLLATE                      = "en_US.utf8";
-      public static final String MAX_VERSIONS                          = "max-number-of-versions";
-      public static final int    DEFAULT_MAX_VERSIONS                  = 30;
-      public static final String MAX_KEEP_VERSIONS                     = "max-number-of-keep-versions";
-      public static final int    DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION = 2;
-      public static final int    DEFAULT_MAX_KEEP_VERSIONS             =
-        DEFAULT_MAX_VERSIONS - DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
+      public static final String COLLATION = "collation";
+      public static final String MAX_UPLOADABLE_SIZE_IN_MB = "max-uploadable-size-in-mb";
+      public static final String PAGE_TOKEN_SECRET_KEY = "page-token-secret-key";
+      public static final String DEFAULT_PAGE_TOKEN_SECRET_KEY = "carbonio-files-page-token-sign";
+      public static final String FALLBACK_COLLATE = "en_US.utf8";
+      public static final String MAX_VERSIONS = "max-number-of-versions";
+      public static final int DEFAULT_MAX_VERSIONS = 30;
+      public static final String MAX_KEEP_VERSIONS = "max-number-of-keep-versions";
+      public static final int DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION = 2;
+      public static final int DEFAULT_MAX_KEEP_VERSIONS =
+          DEFAULT_MAX_VERSIONS - DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
 
       public static final class Db {
 
-        private Db() {}
+        private Db() {
+        }
 
-        public static final String NAME                        = "db-name";
-        public static final String DEFAULT_NAME                = "carbonio-files-db";
-        public static final String USERNAME                    = "db-username";
-        public static final String DEFAULT_USERNAME            = "carbonio-files-db";
-        public static final String PASSWORD                    = "db-password";
-        public static final String HIKARI_MAX_POOL_SIZE        = "hikari-max-pool-size";
+        public static final String NAME = "db-name";
+        public static final String DEFAULT_NAME = "carbonio-files-db";
+        public static final String USERNAME = "db-username";
+        public static final String DEFAULT_USERNAME = "carbonio-files-db";
+        public static final String PASSWORD = "db-password";
+        public static final String HIKARI_MAX_POOL_SIZE = "hikari-max-pool-size";
         public static final String HIKARI_MIN_IDLE_CONNECTIONS = "hikari-min-idle-connections";
       }
     }
   }
 
   public static final class MessageBroker {
-    private MessageBroker() {}
+    private MessageBroker() {
+    }
 
     public static final class Config {
 
       private Config() {
       }
 
-      public static final String DEFAULT_USERNAME            = "carbonio-message-broker";
-      public static final String DEFAULT_PASSWORD            = "";
+      public static final String DEFAULT_USERNAME = "carbonio-message-broker";
+      public static final String DEFAULT_PASSWORD = "";
 
     }
   }

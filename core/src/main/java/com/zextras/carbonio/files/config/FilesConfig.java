@@ -26,4 +26,5 @@ public interface FilesConfig {
   String getMessageBrokerUsername();
   String getPageTokenSecretKey();
   Optional<Integer> getMaxUploadableFileSizeInMb();
+  boolean areNotificationsEnabled();
 }

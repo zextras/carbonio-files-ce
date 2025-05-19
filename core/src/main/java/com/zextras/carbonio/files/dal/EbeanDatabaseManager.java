@@ -27,6 +27,11 @@ import com.zextras.carbonio.files.dal.dao.ebean.SharePK;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
 import com.zextras.carbonio.files.dal.dao.ebean.TombstonePK;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.*;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.UserNotificationsInfo;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.UserNotificationInterest;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotNode;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotUser;
 import io.ebean.Database;
 import io.ebean.DatabaseFactory;
 import io.ebean.config.DatabaseConfig;
@@ -119,6 +124,14 @@ public class EbeanDatabaseManager {
     entityList.add(TombstonePK.class);
     entityList.add(Tombstone.class);
     entityList.add(TrashedNode.class);
+    entityList.add(Notification.class);
+    entityList.add(NewShareNotification.class);
+    entityList.add(AddedNodeNotification.class);
+    entityList.add(RemovedNodeNotification.class);
+    entityList.add(UserNotificationsInfo.class);
+    entityList.add(UserNotificationInterest.class);
+    entityList.add(SnapshotUser.class);
+    entityList.add(SnapshotNode.class);
   }
 
   private void checkDatabaseExistence() {
