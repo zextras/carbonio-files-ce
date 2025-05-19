@@ -8,6 +8,25 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.16.0](https://github.com/zextras/carbonio-files-ce/compare/v0.15.1...v0.16.0) (2025-05-19)
+
+
+### Features
+
+* add redirect on public link download if link has access code ([#157](https://github.com/zextras/carbonio-files-ce/issues/157)) ([afa833a](https://github.com/zextras/carbonio-files-ce/commit/afa833a6f4b37bb7af8ff629b61974ff7a34f98b))
+* allow domain admin to define the maximum size of uploadable items in files ([#165](https://github.com/zextras/carbonio-files-ce/issues/165)) ([3f6630d](https://github.com/zextras/carbonio-files-ce/commit/3f6630d23207528c4fa258e438f97761c0843c92))
+* create internal upload file endpoint ([#168](https://github.com/zextras/carbonio-files-ce/issues/168)) ([35c6660](https://github.com/zextras/carbonio-files-ce/commit/35c66608a13cf8bc48bb4a14145d3a9b212f9efc))
+* implement notifications for Added, Removed and Shared nodes ([#167](https://github.com/zextras/carbonio-files-ce/issues/167)) ([a10d0bd](https://github.com/zextras/carbonio-files-ce/commit/a10d0bdd56f706ca4560bd02b67275a5ae83b4fa))
+* manage different account status over files ([#164](https://github.com/zextras/carbonio-files-ce/issues/164)) ([3700428](https://github.com/zextras/carbonio-files-ce/commit/370042846dd7e0888e11b08268c5eb41eda6dd09))
+
+
+### Bug Fixes
+
+* add lang tag to preview requests to display correct dates ([#163](https://github.com/zextras/carbonio-files-ce/issues/163)) ([15c8a17](https://github.com/zextras/carbonio-files-ce/commit/15c8a17537728e17a984c588eec97cd0a8671a86))
+* disable introspection on graphql queries ([#159](https://github.com/zextras/carbonio-files-ce/issues/159)) ([cfeba77](https://github.com/zextras/carbonio-files-ce/commit/cfeba7784e28098e7a2720ac21c5b064048747ba))
+* implemented signed page token ([#162](https://github.com/zextras/carbonio-files-ce/issues/162)) ([b90bb4b](https://github.com/zextras/carbonio-files-ce/commit/b90bb4b848e6acc897d5025a7d9dd659d0fac953))
+* public links now blocked if resource is trashed ([#161](https://github.com/zextras/carbonio-files-ce/issues/161)) ([f87e4f1](https://github.com/zextras/carbonio-files-ce/commit/f87e4f129be358526c2038ba9a3313a5b219edf7))
+
 ### [0.15.1](https://github.com/zextras/carbonio-files-ce/compare/v0.15.0...v0.15.1) (2025-03-06)
 
 
