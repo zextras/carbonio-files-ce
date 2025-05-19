@@ -198,6 +198,7 @@ public class BlobService {
    */
   public Optional<String> uploadFile(
     String requesterId,
+    Optional<User> requesterEntity,
     BufferInputStream bufferInputStream,
     long blobLength,
     String folderId,
@@ -280,7 +281,7 @@ public class BlobService {
           .getShares(folderId, Collections.emptyList())
           .forEach(share -> {
                 // Don't notify the requester since it's dumb
-                if (!share.getTargetUserId().equals(requester.getId())) {
+                if (!share.getTargetUserId().equals(requesterId)) {
                   usersToNotify.add(share.getTargetUserId());
                 }
                 shareRepository.upsertShare(
@@ -298,13 +299,13 @@ public class BlobService {
         // If the requester is the owner of the parent folder, do not notify him since he did the upload himself
         // Also exclude uploads on root, since root can't be shared and does not have an owner
         if (!destinationFolder.getNodeType().equals(NodeType.ROOT) &&
-            !requester.getId().equals(destinationFolder.getOwnerId()) &&
-            !usersToNotify.contains(requester.getId())) {
+            !requesterId.equals(destinationFolder.getOwnerId()) &&
+            !usersToNotify.contains(requesterId)) {
           usersToNotify.add(destinationFolder.getOwnerId());
         }
 
-        if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled())
-          notificationRepository.createAddedNodeNotification(newNode, destinationFolder, requester, AddedNodeType.UPLOAD, usersToNotify);
+        if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled() && requesterEntity.isPresent())
+          notificationRepository.createAddedNodeNotification(newNode, destinationFolder, requesterEntity.get(), AddedNodeType.UPLOAD, usersToNotify);
       }
 
       return Optional.of(nodeId);
