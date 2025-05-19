@@ -1031,14 +1031,15 @@ public final class Files {
       public static final String PUBLIC_LINK_DOWNLOAD_URL = "/services/files/public/link/download/";
       public static final String COLLABORATION_LINK_URL = "/services/files/invite/";
 
-      public static final Pattern METRICS = Pattern.compile(SERVICE + "metrics/?$");
-      public static final Pattern HEALTH = Pattern.compile(
-          SERVICE + "health/?(live|ready)?/?$");
-      public static final Pattern HEALTH_LIVE = Pattern.compile(SERVICE + "health/live/?$");
-      public static final Pattern HEALTH_READY = Pattern.compile(
-          SERVICE + "health/ready/?$");
-      public static final Pattern GRAPHQL = Pattern.compile(SERVICE + "graphql/?$");
-      public static final Pattern UPLOAD_FILE = Pattern.compile(SERVICE + "upload/?$");
+      public static final Pattern METRICS             = Pattern.compile(SERVICE + "metrics/?$");
+      public static final Pattern HEALTH              = Pattern.compile(
+        SERVICE + "health/?(live|ready)?/?$");
+      public static final Pattern HEALTH_LIVE         = Pattern.compile(SERVICE + "health/live/?$");
+      public static final Pattern HEALTH_READY        = Pattern.compile(
+        SERVICE + "health/ready/?$");
+      public static final Pattern GRAPHQL             = Pattern.compile(SERVICE + "graphql/?$");
+      public static final Pattern UPLOAD_FILE         = Pattern.compile(SERVICE + "upload/?$");
+      public static final Pattern UPLOAD_FILE_INTERNAL= Pattern.compile(SERVICE + "internal/upload/?$");
       public static final Pattern UPLOAD_FILE_VERSION = Pattern.compile(
           SERVICE + "upload-version/?$");
       public static final Pattern UPLOAD_FILE_TO = Pattern.compile(SERVICE + "upload-to/?$");
@@ -1081,10 +1082,11 @@ public final class Files {
       private Headers() {
       }
 
-      public static final String UPLOAD_FILENAME = "Filename";
-      public static final String UPLOAD_DESCRIPTION = "Description";
-      public static final String UPLOAD_PARENT_ID = "ParentId";
-      public static final String UPLOAD_NODE_ID = "NodeId";
+      public static final String UPLOAD_FILENAME          = "Filename";
+      public static final String UPLOAD_DESCRIPTION       = "Description";
+      public static final String UPLOAD_PARENT_ID         = "ParentId";
+      public static final String UPLOAD_ACCOUNT_ID        = "AccountId";
+      public static final String UPLOAD_NODE_ID           = "NodeId";
       public static final String UPLOAD_OVERWRITE_VERSION = "OverwriteVersion";
       public static final String COOKIE_ZM_AUTH_TOKEN = "ZM_AUTH_TOKEN";
     }

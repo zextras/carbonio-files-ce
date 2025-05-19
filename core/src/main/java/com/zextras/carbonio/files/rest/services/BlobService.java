@@ -182,7 +182,7 @@ public class BlobService {
    *   <li>creates the shares for the new node if the destination folder has shares associated</li>
    * </ul>
    *
-   * @param requester         is a {@link User} making the upload request
+   * @param requesterId         is a {@link String} id of user making the upload request
    * @param bufferInputStream is a {@link BufferInputStream} of the blob to upload
    * @param blobLength        is a <code>long</code> representing the length of the blob
    * @param folderId          is a {@link String} representing the folder identifier where the node
@@ -197,7 +197,7 @@ public class BlobService {
    * @throws DependencyException if the {@link Filestore} failed to upload the blob
    */
   public Optional<String> uploadFile(
-    User requester,
+    String requesterId,
     BufferInputStream bufferInputStream,
     long blobLength,
     String folderId,
@@ -205,14 +205,14 @@ public class BlobService {
     String description
   ) {
     if (permissionsChecker
-      .getPermissions(folderId, requester.getId())
+      .getPermissions(folderId, requesterId)
       .has(SharePermission.READ_AND_WRITE)
     ) {
       // Here we are sure that the node exists otherwise the permission checker would be failed
       Node destinationFolder = nodeRepository.getNode(folderId).get();
       String nodeId = UUID.randomUUID().toString();
       String nodeOwner = folderId.equals(RootId.LOCAL_ROOT)
-        ? requester.getId()
+        ? requesterId
         : destinationFolder.getOwnerId();
 
       MediaType mediaType = mimeTypeUtils.detectMimeTypeFromFilename(
@@ -224,7 +224,7 @@ public class BlobService {
 
       Node newNode = nodeRepository.createNewNode(
         nodeId,
-        requester.getId(),
+        requesterId,
         nodeOwner,
         folderId,
         searchAlternativeName(nodeRepository, filename.trim(), folderId, nodeOwner),
@@ -239,7 +239,7 @@ public class BlobService {
       UploadResponse uploadResponse = Try.of(() ->
         fileStore
           .uploadPost(
-            FilesIdentifier.of(nodeId, 1, requester.getId()),
+            FilesIdentifier.of(nodeId, 1, requesterId),
             bufferInputStream,
             blobLength
           )
@@ -261,7 +261,7 @@ public class BlobService {
       try (Transaction t = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
         fileVersionRepository.createNewFileVersion(
           nodeId,
-          requester.getId(),
+          requesterId,
           1,
           mediaType.toString(),
           uploadResponse.getSize(),
@@ -312,7 +312,7 @@ public class BlobService {
 
     logger.warn(
       "User {} does not have the necessary permission to upload the node {} on the folder {}",
-      requester.getId(),
+      requesterId,
       filename,
       folderId
     );

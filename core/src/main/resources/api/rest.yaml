@@ -108,6 +108,52 @@ paths:
           $ref: '#/components/responses/403Forbidden'
         404:
           $ref: '#/components/responses/404NotFound'
+  /internal/upload:
+    post:
+      description: Uploads a new node (internal call without token verification)
+      operationId: uploadNodeInternal
+      parameters:
+        - in: header
+          name: Filename
+          description: The fullname of the file to upload encoded in Base64
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+        - in: header
+          name: Description
+          description: The description of the file to upload
+          required: false
+          allowEmptyValue: false
+          schema:
+            type: string
+            format: byte
+        - in: header
+          name: ParentId
+          description: The id of the folder where to upload the file, if omitted it will be uploaded on user Home
+          required: false
+          allowEmptyValue: false
+          schema:
+            type: string
+            format: UUID
+        - in: header
+          name: AccountId
+          description: The id of the account where to upload the file
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: string
+      requestBody:
+        $ref: '#/components/requestBodies/UploadNodeBody'
+      responses:
+        200:
+          $ref: '#/components/responses/200UploadNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        403:
+          $ref: '#/components/responses/403Forbidden'
+        404:
+          $ref: '#/components/responses/404NotFound'
   /upload-version:
     post:
       description: Uploads a new version of an existing node
