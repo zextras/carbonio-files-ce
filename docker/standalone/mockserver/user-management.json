@@ -1,0 +1,113 @@
+[
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/auth/token/MOCK_AUTH_TOKEN"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "headers": {
+        "Content-Type": ["application/json"]
+      },
+      "body": {
+        "userId": "00000000-0000-0000-0000-000000000000"
+      }
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/users/",
+      "queryStringParameters": {
+        "userIds": ["00000000-0000-0000-0000-000000000000"]
+      }
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "headers": {
+        "Content-Type": ["application/json"]
+      },
+      "body": [
+        {
+          "id": {
+            "userId": "00000000-0000-0000-0000-000000000000"
+          },
+          "email": "test@demo.zextras.io",
+          "fullName": "test",
+          "domain": "demo.zextras.io",
+          "status": "ACTIVE",
+          "type": "INTERNAL"
+        }
+      ]
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/users/id/00000000-0000-0000-0000-000000000000"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "headers": {
+        "Content-Type": ["application/json"]
+      },
+      "body": {
+        "id": {
+          "userId": "00000000-0000-0000-0000-000000000000"
+        },
+        "email": "test@demo.zextras.io",
+        "fullName": "test",
+        "domain": "demo.zextras.io",
+        "status": "ACTIVE",
+        "type": "INTERNAL"
+      }
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/users/email/test@demo.zextras.io"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "headers": {
+        "Content-Type": ["application/json"]
+      },
+      "body": {
+        "id": {
+          "userId": "00000000-0000-0000-0000-000000000000"
+        },
+        "email": "test@demo.zextras.io",
+        "fullName": "test",
+        "domain": "demo.zextras.io",
+        "status": "ACTIVE",
+        "type": "INTERNAL"
+      }
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/users/myself/",
+      "headers": {
+        "Cookie": ["MOCK_AUTH_TOKEN"]
+      }
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "headers": {
+        "Content-Type": ["application/json"]
+      },
+      "body": {
+        "id": {
+          "userId": "00000000-0000-0000-0000-000000000000"
+        },
+        "email": "test@demo.zextras.io",
+        "fullName": "test",
+        "domain": "demo.zextras.io",
+        "status": "ACTIVE",
+        "type": "INTERNAL"
+      }
+    }
+  }
+]
