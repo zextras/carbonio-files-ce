@@ -1,4 +1,4 @@
-FROM ubuntu/nginx:1.18-20.04_beta
+FROM nginx:1.26.3
 
 USER root
 RUN apt update && apt install -y gnupg2 ca-certificates && apt clean
