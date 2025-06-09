@@ -1,0 +1,44 @@
+[
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/v1/kv/carbonio-files/db-username"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "body": [
+        {
+          "Value": "YWRtaW4="
+        }
+      ]
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/v1/kv/carbonio-files/db-password"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "body": [
+        {
+          "Value": "YWRtaW4="
+        }
+      ]
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/v1/kv/carbonio-files/db-name"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "body": [
+        {
+          "Value": "Y2FyYm9uaW8tZmlsZXMtZGI="
+        }
+      ]
+    }
+  }
+]
