@@ -18,7 +18,7 @@ import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.netty.HttpRoutingHandler;
-import com.zextras.carbonio.files.utilities.TestFilesConfig;
+import com.zextras.carbonio.files.utilities.MockFilesConfig;
 import com.zextras.carbonio.usermanagement.entities.UserId;
 import com.zextras.carbonio.usermanagement.entities.UserInfo;
 import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
@@ -44,7 +44,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.shaded.com.trilead.ssh2.crypto.Base64;
 import org.testcontainers.containers.RabbitMQContainer;
-import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
 public class Simulator implements AutoCloseable {
@@ -66,7 +65,7 @@ public class Simulator implements AutoCloseable {
   //
 
   private Simulator createInjector() {
-    injector = Guice.createInjector(new FilesModule(new TestFilesConfig()));
+    injector = Guice.createInjector(new FilesModule(new MockFilesConfig()));
     return this;
   }
 

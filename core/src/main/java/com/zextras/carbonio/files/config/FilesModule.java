@@ -16,6 +16,8 @@ import com.zextras.carbonio.files.message_broker.MessageBrokerManagerImpl;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
 import com.zextras.carbonio.message_broker.config.enums.Service;
+import com.zextras.carbonio.preview.PreviewClient;
+import com.zextras.carbonio.usermanagement.UserManagementClient;
 import com.zextras.filestore.api.Filestore;
 
 
@@ -26,15 +28,12 @@ import org.apache.http.impl.client.HttpClientBuilder;
 
 public class FilesModule extends AbstractModule {
 
-  private final FilesConfig filesConfig;
-
-  public FilesModule(FilesConfig filesConfig) {
-    this.filesConfig = filesConfig;
-  }
+  private static final Logger logger = LoggerFactory.getLogger(FilesModule.class);
 
   @Override
   public void configure() {
     bind(Clock.class).toInstance(Clock.systemUTC());
+
     bind(NodeRepository.class).to(NodeRepositoryEbean.class);
     bind(ShareRepository.class).to(ShareRepositoryEbean.class);
     bind(TombstoneRepository.class).to(TombstoneRepositoryEbean.class);
@@ -42,39 +41,58 @@ public class FilesModule extends AbstractModule {
     bind(LinkRepository.class).to(LinkRepositoryEbean.class);
     bind(CollaborationLinkRepository.class).to(CollaborationLinkRepositoryEbean.class);
     bind(UserRepository.class).to(UserRepositoryRest.class);
-    bind(MessageBrokerManager.class).to(MessageBrokerManagerImpl.class);
     bind(CollationRepository.class).to(CollationRepositoryEbean.class);
     bind(NotificationRepository.class).to(NotificationRepositoryEbean.class);
 
-    install(new FactoryModuleBuilder().build(CacheHandlerFactory.class));
+    bind(MessageBrokerManager.class).to(MessageBrokerManagerImpl.class);
 
+    install(new FactoryModuleBuilder().build(CacheHandlerFactory.class));
     install(new FactoryModuleBuilder().build(GenericControllerEvaluatorFactory.class));
   }
 
   @Provides
-  public FilesConfig getFilesConfig(){
-    return filesConfig;
-  }
-
-  @Provides
-  public Filestore getFileStore() {
-    return filesConfig.getStoragesClient(); // We need to fix this
-  }
-
   @Singleton
-  @Provides
-  public CloseableHttpClient getGenericHttpClientPool() {
-    return HttpClientBuilder.create().setMaxConnPerRoute(10).setMaxConnTotal(30).build();
+  public FilesConfig provideFilesConfig() throws Exception {
+    final FilesConfig config = new FilesConfig();
+    config.loadConfig();
+    return config;
   }
 
-  @Singleton
   @Provides
-  public MessageBrokerClient getMessageBrokerClient() {
+  @Singleton
+  public Filestore provideFileStore(FilesConfig filesConfig) {
+    return filesConfig.getStoragesClient();
+  }
+
+  @Provides
+  @Singleton
+  public CloseableHttpClient provideGenericHttpClientPool() {
+    return HttpClientBuilder.create()
+        .setMaxConnPerRoute(10)
+        .setMaxConnTotal(30)
+        .build();
+  }
+
+  @Provides
+  @Singleton
+  public MessageBrokerClient provideMessageBrokerClient(FilesConfig filesConfig) {
     return MessageBrokerClient.fromConfig(
             filesConfig.getMessageBrokerUrl(),
             filesConfig.getMessageBrokerPort(),
             filesConfig.getMessageBrokerUsername(),
             filesConfig.getMessageBrokerPassword())
         .withCurrentService(Service.FILES);
+  }
+
+  @Provides
+  @Singleton
+  public UserManagementClient provideUserManagementClient(FilesConfig filesConfig) {
+    return filesConfig.getUserManagementClient();
+  }
+
+  @Provides
+  @Singleton
+  public PreviewClient providePreviewClient(FilesConfig filesConfig) {
+    return filesConfig.getPreviewClient();
   }
 }
