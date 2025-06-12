@@ -9,6 +9,7 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.zextras.carbonio.files.cache.CacheHandlerFactory;
+import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.*;
 import com.zextras.carbonio.files.dal.repositories.interfaces.*;
 import com.zextras.carbonio.files.graphql.validators.GenericControllerEvaluatorFactory;
@@ -23,8 +24,11 @@ import com.zextras.filestore.api.Filestore;
 
 import java.time.Clock;
 
+import com.zextras.storages.api.StoragesClient;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FilesModule extends AbstractModule {
 
@@ -45,6 +49,7 @@ public class FilesModule extends AbstractModule {
     bind(NotificationRepository.class).to(NotificationRepositoryEbean.class);
 
     bind(MessageBrokerManager.class).to(MessageBrokerManagerImpl.class);
+    bind(EbeanDatabaseManager.class);
 
     install(new FactoryModuleBuilder().build(CacheHandlerFactory.class));
     install(new FactoryModuleBuilder().build(GenericControllerEvaluatorFactory.class));
@@ -61,7 +66,7 @@ public class FilesModule extends AbstractModule {
   @Provides
   @Singleton
   public Filestore provideFileStore(FilesConfig filesConfig) {
-    return filesConfig.getStoragesClient();
+    return StoragesClient.atUrl(filesConfig.getStoragesUrl());
   }
 
   @Provides
@@ -87,12 +92,12 @@ public class FilesModule extends AbstractModule {
   @Provides
   @Singleton
   public UserManagementClient provideUserManagementClient(FilesConfig filesConfig) {
-    return filesConfig.getUserManagementClient();
+    return UserManagementClient.atURL(filesConfig.getUserManagementUrl());
   }
 
   @Provides
   @Singleton
   public PreviewClient providePreviewClient(FilesConfig filesConfig) {
-    return filesConfig.getPreviewClient();
+    return PreviewClient.atURL(filesConfig.getPreviewUrl());
   }
 }

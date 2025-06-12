@@ -6,19 +6,9 @@ package com.zextras.carbonio.files.config;
 
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Config.Database;
-import com.zextras.carbonio.files.Files.Config.DocsConnector;
-import com.zextras.carbonio.files.Files.Config.Mailbox;
-import com.zextras.carbonio.files.Files.Config.Preview;
-import com.zextras.carbonio.files.Files.Config.Storages;
-import com.zextras.carbonio.files.Files.Config.UserManagement;
 import com.zextras.carbonio.files.Files.ServiceDiscover;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.exceptions.InvalidTokenSignException;
-import com.zextras.carbonio.preview.PreviewClient;
-import com.zextras.carbonio.usermanagement.UserManagementClient;
-import com.zextras.filestore.api.Filestore;
-import com.zextras.storages.api.StoragesClient;
 
 import java.io.*;
 import java.security.NoSuchAlgorithmException;
@@ -113,40 +103,102 @@ public class FilesConfig {
   private String buildUrlFromProperties(String urlPropertyName, String portPropertyName, String defaultPort) {
     return String.format(
         "http://%s:%s",
-        properties.getProperty(urlPropertyName, Files.Service.IP),
+        properties.getProperty(urlPropertyName, Constants.Config.Default.IP),
         properties.getProperty(portPropertyName, defaultPort));
   }
 
-  // Service Client Methods
-  public UserManagementClient getUserManagementClient() {
-    String userManagementURL = buildUrlFromProperties(UserManagement.URL, UserManagement.PORT, "20001");
-    return UserManagementClient.atURL(userManagementURL);
-  }
-
-  public Filestore getStoragesClient() {
-    String fileStoreURL = buildUrlFromProperties(Storages.URL, Storages.PORT, "20002") + "/";
-    return StoragesClient.atUrl(fileStoreURL);
-  }
-
-  public PreviewClient getPreviewClient() {
-    String previewURL = buildUrlFromProperties(Preview.URL, Preview.PORT, "20003");
-    return PreviewClient.atURL(previewURL);
-  }
-
-  // Database Configuration Methods
   public String getDatabaseUrl() {
-    final String databaseHost =
-        Optional.ofNullable(System.getProperty(Database.URL))
-            .orElse(getProperties().getProperty(Database.URL, Files.Service.IP));
-
-    final String databasePort =
-        Optional.ofNullable(System.getProperty(Database.PORT))
-            .orElse(getProperties().getProperty(Database.PORT, "20000"));
-
-    return String.format("%s:%s", databaseHost, databasePort);
+    return properties.getProperty(
+        Constants.Config.Properties.DATABASE_URL,
+        Constants.Config.Default.DATABASE_URL);
   }
 
-  // Service Configuration Methods
+  public String getDatabasePort() {
+    return properties.getProperty(
+        Constants.Config.Properties.DATABASE_PORT,
+        Constants.Config.Default.DATABASE_PORT);
+  }
+
+  public String getDatabaseName() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+        .getConfig(ServiceDiscover.Config.DB_NAME)
+        .getOrElse(Constants.Config.Default.DATABASE_NAME);
+  }
+
+  public String getDatabaseUsername() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+        .getConfig(ServiceDiscover.Config.DB_USERNAME)
+        .getOrElse(Constants.Config.Default.DATABASE_USERNAME);
+  }
+
+  public String getDatabasePassword() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+        .getConfig(ServiceDiscover.Config.DB_PASSWORD)
+        .getOrElse("");
+  }
+
+  public String getUserManagementUrl() {
+    return buildUrlFromProperties(
+        Constants.Config.Properties.USER_MANAGEMENT_URL,
+        Constants.Config.Properties.USER_MANAGEMENT_PORT,
+        Constants.Config.Default.USER_MANAGEMENT_PORT);
+  }
+
+  public String getStoragesUrl() {
+    return buildUrlFromProperties(
+        Constants.Config.Properties.STORAGES_URL,
+        Constants.Config.Properties.STORAGES_PORT,
+        Constants.Config.Default.STORAGES_PORT) + "/";
+  }
+
+  public String getPreviewUrl() {
+    return buildUrlFromProperties(
+        Constants.Config.Properties.PREVIEW_URL,
+        Constants.Config.Properties.PREVIEW_PORT,
+        Constants.Config.Default.PREVIEW_PORT);
+  }
+
+  public String getMailboxUrl() {
+    return buildUrlFromProperties(
+        Constants.Config.Properties.MAILBOX_URL,
+        Constants.Config.Properties.MAILBOX_PORT,
+        Constants.Config.Default.MAILBOX_PORT) + "/";
+  }
+
+  public String getDocsConnectorUrl() {
+    return buildUrlFromProperties(
+        Constants.Config.Properties.DOCS_CONNECTOR_URL,
+        Constants.Config.Properties.DOCS_CONNECTOR_PORT,
+        Constants.Config.Default.DOCS_CONNECTOR_PORT);
+  }
+
+  public String getMessageBrokerUrl() {
+    return Optional.ofNullable(System.getProperty(Constants.Config.Properties.MESSAGE_BROKER_URL))
+        .orElse(properties.getProperty(Constants.Config.Properties.MESSAGE_BROKER_URL, Constants.Config.Default.MESSAGE_BROKER_URL));
+  }
+
+  public Integer getMessageBrokerPort() {
+    String messageBrokerPort = Optional.ofNullable(System.getProperty(Constants.Config.Properties.MESSAGE_BROKER_PORT))
+        .orElse(properties.getProperty(Constants.Config.Properties.MESSAGE_BROKER_PORT, Constants.Config.Default.MESSAGE_BROKER_PORT));
+    return Integer.valueOf(messageBrokerPort);
+  }
+
+  public String getMessageBrokerPassword() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
+        .getConfig("default/password")
+        .getOrElse(Constants.Config.Default.MESSAGE_BROKER_PASSWORD);
+  }
+
+  public String getMessageBrokerUsername() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
+        .getConfig("default/username")
+        .getOrElse(Constants.Config.Default.MESSAGE_BROKER_USERNAME);
+  }
+
+  // ================================================================================
+  // Application Configuration Methods (non-connectivity related)
+  // ================================================================================
+
   public int getMaxNumberOfFileVersion() {
     try {
       return Integer.parseInt(
@@ -158,39 +210,6 @@ public class FilesConfig {
     }
   }
 
-  public String getMailboxUrl() {
-    return buildUrlFromProperties(Mailbox.URL, Mailbox.PORT, "20004") + "/";
-  }
-
-  public String getDocsConnectorUrl() {
-    return buildUrlFromProperties(DocsConnector.URL, DocsConnector.PORT, "20005");
-  }
-
-  // Message Broker Configuration Methods
-  public String getMessageBrokerUrl() {
-    return Optional.ofNullable(System.getProperty(Files.Config.MessageBroker.URL))
-        .orElse(properties.getProperty(Files.Config.MessageBroker.URL, "127.78.0.2"));
-  }
-
-  public Integer getMessageBrokerPort() {
-    String messageBrokerPort = Optional.ofNullable(System.getProperty(Files.Config.MessageBroker.PORT))
-        .orElse(properties.getProperty(Files.Config.MessageBroker.PORT, "20006"));
-    return Integer.valueOf(messageBrokerPort);
-  }
-
-  public String getMessageBrokerPassword() {
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
-        .getConfig("default/password")
-        .getOrElse(Files.MessageBroker.Config.DEFAULT_PASSWORD);
-  }
-
-  public String getMessageBrokerUsername() {
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
-        .getConfig("default/username")
-        .getOrElse(Files.MessageBroker.Config.DEFAULT_USERNAME);
-  }
-
-  // Security Configuration Methods
   public String getPageTokenSecretKey() {
     // The default secret key is obviously useless since it's public, but since the security implications are minimal
     // (only used for page token and already protected against attacks) I prefer to let the application run.
@@ -209,7 +228,6 @@ public class FilesConfig {
     }
   }
 
-  // File Upload Configuration Methods
   // Returns the maximum uploadable file size in MB or optional.empty if not found or malformed
   public Optional<Integer> getMaxUploadableFileSizeInMb() {
     return Optional.ofNullable(
@@ -226,7 +244,6 @@ public class FilesConfig {
     });
   }
 
-  // Feature Toggle Methods
   // Returns true as default since the notifications are a required feature, but opens the way to disable them if
   // needed in the future
   public boolean areNotificationsEnabled() {
