@@ -80,7 +80,6 @@ pipeline {
                 container('jdk-17') {
                    sh 'mvn -B --settings settings-jenkins.xml clean package'
                    sh 'cp boot/target/carbonio-files-*-jar-with-dependencies.jar package/carbonio-files.jar'
-                   sh 'cp core/src/main/resources/carbonio-files.properties package/config.properties'
                    sh 'cp package/watches/* package/'
                 }
             }

@@ -51,7 +51,6 @@ source=(
   "carbonio-files-setup"
   "carbonio-files-sidecar.service"
   "carbonio-files.jar"
-  "config.properties"
   "intentions.json"
   "policies.json"
   "service-protocol.json"
@@ -75,12 +74,10 @@ sha256sums=(
   "SKIP"
   "SKIP"
   "SKIP"
-  "SKIP"
 )
 
 backup=(
   "etc/zextras/service-discover/carbonio-files.hcl"
-  "etc/carbonio/files/config.properties"
 )
 
 build__ubuntu_focal() {
@@ -178,9 +175,6 @@ package() {
 
   install -Dm 644 carbonio-files-pending-setup \
     "${pkgdir}/etc/zextras/pending-setups.d/carbonio-files.sh"
-
-  install -Dm 644 config.properties \
-    "${pkgdir}/etc/carbonio/files/config.properties"
 
   install -Dm 644 intentions.json \
     "${pkgdir}/etc/carbonio/files/service-discover/intentions.json"

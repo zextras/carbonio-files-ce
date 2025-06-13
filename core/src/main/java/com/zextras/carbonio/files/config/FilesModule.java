@@ -8,6 +8,7 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.cache.CacheHandlerFactory;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.*;
@@ -49,7 +50,6 @@ public class FilesModule extends AbstractModule {
     bind(NotificationRepository.class).to(NotificationRepositoryEbean.class);
 
     bind(MessageBrokerManager.class).to(MessageBrokerManagerImpl.class);
-    bind(EbeanDatabaseManager.class);
 
     install(new FactoryModuleBuilder().build(CacheHandlerFactory.class));
     install(new FactoryModuleBuilder().build(GenericControllerEvaluatorFactory.class));
@@ -61,12 +61,6 @@ public class FilesModule extends AbstractModule {
     final FilesConfig config = new FilesConfig();
     config.loadConfig();
     return config;
-  }
-
-  @Provides
-  @Singleton
-  public Filestore provideFileStore(FilesConfig filesConfig) {
-    return StoragesClient.atUrl(filesConfig.getStoragesHost());
   }
 
   @Provides
@@ -91,13 +85,37 @@ public class FilesModule extends AbstractModule {
 
   @Provides
   @Singleton
-  public UserManagementClient provideUserManagementClient(FilesConfig filesConfig) {
-    return UserManagementClient.atURL(filesConfig.getUserManagementHost());
+  public UserManagementClient provideUserManagementClient(FilesConfig config) {
+    final String carbonioUserManagementUrl = String.format(
+        "%s://%s:%s",
+        Constants.Config.UserManagement.DEFAULT_PROTOCOL,
+        config.getUserManagementHost(),
+        config.getUserManagementPort());
+
+    return UserManagementClient.atURL(carbonioUserManagementUrl);
   }
 
   @Provides
   @Singleton
-  public PreviewClient providePreviewClient(FilesConfig filesConfig) {
-    return PreviewClient.atURL(filesConfig.getPreviewHost());
+  public PreviewClient providePreviewClient(FilesConfig config) {
+    final String carbonioPreviewUrl = String.format(
+        "%s://%s:%s",
+        Constants.Config.Preview.DEFAULT_PROTOCOL,
+        config.getPreviewHost(),
+        config.getPreviewPort());
+
+    return PreviewClient.atURL(carbonioPreviewUrl);
+  }
+
+  @Provides
+  @Singleton
+  public Filestore provideFileStore(FilesConfig config) {
+    final String carbonioStoragesUrl = String.format(
+        "%s://%s:%s",
+        Constants.Config.Storages.DEFAULT_PROTOCOL,
+        config.getStoragesHost(),
+        config.getStoragesPort());
+
+    return StoragesClient.atUrl(carbonioStoragesUrl);
   }
 }

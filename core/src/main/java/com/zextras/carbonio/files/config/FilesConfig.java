@@ -95,10 +95,6 @@ public class FilesConfig {
     }
   }
 
-  public Properties getProperties() {
-    return properties;
-  }
-
   public String getDatabaseHost() {
     return properties.getProperty(
         Constants.Config.Database.HOST_PROPERTY,
@@ -210,6 +206,22 @@ public class FilesConfig {
     return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
         .getConfig("default/username")
         .getOrElse(Constants.MessageBroker.Config.DEFAULT_USERNAME);
+  }
+
+  public int getHikariMaxPoolSize() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+        .getConfig(ServiceDiscover.Config.Key.HIKARI_MAX_POOL_SIZE)
+        .map(Integer::parseInt)
+        .getOrElse(Constants.Config.Hikari.MAX_POOL_SIZE);
+  }
+
+  public int getHikariMinIdleConnections() {
+    int maxPoolSize = getHikariMaxPoolSize();
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+        .getConfig(ServiceDiscover.Config.Key.HIKARI_MIN_IDLE_CONNECTIONS)
+        .map(minIdleConnections ->
+            Math.min(Integer.parseInt(minIdleConnections), maxPoolSize))
+        .getOrElse(Constants.Config.Hikari.MIN_IDLE_CONNECTIONS);
   }
 
   // ================================================================================

@@ -76,39 +76,19 @@ public class EbeanDatabaseManager {
 
   @Inject
   public EbeanDatabaseManager(FilesConfig filesConfig) {
-    postgresDatabase = ServiceDiscoverHttpClient
-      .defaultURL(ServiceDiscover.SERVICE_NAME)
-      .getConfig(Config.Key.DB_NAME)
-      .getOrElse(Config.Key.DEFAULT_NAME);
-
-    postgresUser = ServiceDiscoverHttpClient
-      .defaultURL(ServiceDiscover.SERVICE_NAME)
-      .getConfig(Config.Key.DB_USERNAME)
-      .getOrElse(Config.Key.DEFAULT_USERNAME);
-
-    postgresPassword = ServiceDiscoverHttpClient
-      .defaultURL(ServiceDiscover.SERVICE_NAME)
-      .getConfig(Config.Key.DB_PASSWORD)
-      .getOrElse("");
+    postgresDatabase = filesConfig.getDatabaseName();
+    postgresUser = filesConfig.getDatabaseUsername();
+    postgresPassword = filesConfig.getDatabasePassword();
 
     jdbcPostgresUrl = String.format(
-      "jdbc:postgresql://%s/%s",
+      "jdbc:postgresql://%s:%s/%s",
       filesConfig.getDatabaseHost(),
+      filesConfig.getDatabasePort(),
       postgresDatabase
     );
 
-    hikariMaximumPoolSize = ServiceDiscoverHttpClient
-      .defaultURL(ServiceDiscover.SERVICE_NAME)
-      .getConfig(Config.Key.HIKARI_MAX_POOL_SIZE)
-      .map(Integer::parseInt)
-      .getOrElse(Hikari.MAX_POOL_SIZE);
-
-    hikariMinimumIdleConnections = ServiceDiscoverHttpClient
-      .defaultURL(ServiceDiscover.SERVICE_NAME)
-      .getConfig(Config.Key.HIKARI_MIN_IDLE_CONNECTIONS)
-      .map(minIdleConnections ->
-        Math.min(Integer.parseInt(minIdleConnections), hikariMaximumPoolSize))
-      .getOrElse(Hikari.MIN_IDLE_CONNECTIONS);
+    hikariMaximumPoolSize = filesConfig.getHikariMaxPoolSize();
+    hikariMinimumIdleConnections = filesConfig.getHikariMinIdleConnections();
 
     entityList = new ArrayList<>();
     entityList.add(DbInfo.class);
