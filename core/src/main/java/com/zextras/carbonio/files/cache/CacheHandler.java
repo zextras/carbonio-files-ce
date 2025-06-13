@@ -6,7 +6,7 @@ package com.zextras.carbonio.files.cache;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import java.util.Map;
@@ -36,21 +36,21 @@ public class CacheHandler {
 
     /* Creation of the cache that will contain file version elements */
     caches.put(
-      Files.Cache.FILE_VERSION,
+      Constants.Cache.FILE_VERSION,
       this.cacheHandlerFactory.createFileVersionCache(
-        Files.Cache.FILE_VERSION,
-        Files.Cache.DEFAULT_SIZE,
-        Files.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
+        Constants.Cache.FILE_VERSION,
+        Constants.Cache.DEFAULT_SIZE,
+        Constants.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
       )
     );
 
     /* Creation of the cache that will contain user elements */
     caches.put(
-      Files.Cache.USER,
+      Constants.Cache.USER,
       this.cacheHandlerFactory.createUserCache(
-        Files.Cache.USER,
-        Files.Cache.DEFAULT_SIZE,
-        Files.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
+        Constants.Cache.USER,
+        Constants.Cache.DEFAULT_SIZE,
+        Constants.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
       )
     );
   }
@@ -59,13 +59,13 @@ public class CacheHandler {
    * @return the instance of the {@link Cache<User>}
    */
   public Cache<User> getUserCache() {
-    return caches.get(Files.Cache.USER);
+    return caches.get(Constants.Cache.USER);
   }
 
   /**
    * @return the instance of the {@link Cache<FileVersion>}
    */
   public Cache<FileVersion> getFileVersionCache() {
-    return caches.get(Files.Cache.FILE_VERSION);
+    return caches.get(Constants.Cache.FILE_VERSION);
   }
 }

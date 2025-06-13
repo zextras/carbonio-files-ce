@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import io.ebean.Model;
 import javax.persistence.Column;
 import javax.persistence.EmbeddedId;
@@ -15,36 +15,36 @@ import javax.persistence.Table;
 
 /**
  * <p>Represents an Ebean {@link NodeCustomAttributes} entity that matches a record of the
- * {@link Files.Db.Tables#NODE_CUSTOM_ATTRIBUTES} table.</p>
+ * {@link Constants.Db.Tables#NODE_CUSTOM_ATTRIBUTES} table.</p>
  * <p>The implementation of constructors and setters should not care to check if the values in
  * input
  * are valid or not because, when these methods are called, these controls <strong>must</strong> be
  * already done.</p>
  */
 @Entity
-@Table(name = Files.Db.Tables.NODE_CUSTOM_ATTRIBUTES)
+@Table(name = Constants.Db.Tables.NODE_CUSTOM_ATTRIBUTES)
 public class NodeCustomAttributes extends Model {
 
   @EmbeddedId
   private NodeCustomAttributesPK mCompositeId;
 
-  @Column(name = Files.Db.NodeCustomAttributes.USER_ID, nullable = false)
+  @Column(name = Constants.Db.NodeCustomAttributes.USER_ID, nullable = false)
   private String mUserId;
 
-  @Column(name = Files.Db.NodeCustomAttributes.NODE_ID, nullable = false)
+  @Column(name = Constants.Db.NodeCustomAttributes.NODE_ID, nullable = false)
   private String mNodeId;
 
-  @Column(name = Files.Db.NodeCustomAttributes.FLAG, nullable = false)
+  @Column(name = Constants.Db.NodeCustomAttributes.FLAG, nullable = false)
   private Boolean mFlag;
 
-  @Column(name = Files.Db.NodeCustomAttributes.COLOR)
+  @Column(name = Constants.Db.NodeCustomAttributes.COLOR)
   private Short mColor;
 
-  @Column(name = Files.Db.NodeCustomAttributes.EXTRA, nullable = false)
+  @Column(name = Constants.Db.NodeCustomAttributes.EXTRA, nullable = false)
   private String mExtra;
 
   @ManyToOne
-  @JoinColumn(name = Files.Db.NodeCustomAttributes.NODE_ID, referencedColumnName = Files.Db.Node.ID, insertable = false, updatable = false)
+  @JoinColumn(name = Constants.Db.NodeCustomAttributes.NODE_ID, referencedColumnName = Constants.Db.Node.ID, insertable = false, updatable = false)
   private Node node;
 
   public NodeCustomAttributes(

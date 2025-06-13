@@ -6,8 +6,8 @@ package com.zextras.carbonio.files.rest.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.API.Endpoints;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
@@ -109,7 +109,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
           .getUserMyselfByCookieNotCached(cookiesString)
           .orElse(UserMyself.mapFromUser((User) context
               .channel()
-              .attr(AttributeKey.valueOf(Files.API.ContextAttribute.REQUESTER))
+              .attr(AttributeKey.valueOf(Constants.API.ContextAttribute.REQUESTER))
               .get()));
 
       logger.debug("Requester locale: {}", requester.getLocale());

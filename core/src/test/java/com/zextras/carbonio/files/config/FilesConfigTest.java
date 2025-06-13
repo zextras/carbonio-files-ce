@@ -27,7 +27,7 @@ class FilesConfigTest {
     FilesConfig filesConfig = new FilesConfig();
 
     // When
-    String mailboxUrl = filesConfig.getMailboxUrl();
+    String mailboxUrl = filesConfig.getMailboxHost();
 
     // Then
     Assertions.assertThat(mailboxUrl).isEqualTo("http://1.2.3.4:9999/");
@@ -39,7 +39,7 @@ class FilesConfigTest {
     FilesConfig filesConfig = new FilesConfig();
 
     // When
-    String mailboxUrl = filesConfig.getMailboxUrl();
+    String mailboxUrl = filesConfig.getMailboxHost();
 
     // Then
     Assertions.assertThat(mailboxUrl).isEqualTo("http://127.78.0.2:20004/");

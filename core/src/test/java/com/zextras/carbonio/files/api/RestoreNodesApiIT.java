@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files.api;
 
 import com.google.inject.Injector;
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Simulator;
 import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
@@ -69,8 +69,8 @@ class RestoreNodesApiIT {
     Optional<Node> trashedNodeOpt = nodeRepository.getNode(nodeId);
     trashedNodeOpt.ifPresent(trashedNode -> {
       String nodeParentId = trashedNode.getParentId().get();
-      trashedNode.setAncestorIds(Files.Db.RootId.TRASH_ROOT);
-      trashedNode.setParentId(Files.Db.RootId.TRASH_ROOT);
+      trashedNode.setAncestorIds(Constants.Db.RootId.TRASH_ROOT);
+      trashedNode.setParentId(Constants.Db.RootId.TRASH_ROOT);
       nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
       nodeRepository.updateNode(trashedNode);
     });

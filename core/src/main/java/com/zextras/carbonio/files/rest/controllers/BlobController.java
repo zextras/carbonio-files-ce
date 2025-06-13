@@ -8,9 +8,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.API.Endpoints;
-import com.zextras.carbonio.files.Files.API.Headers;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.API.Endpoints;
+import com.zextras.carbonio.files.Constants.API.Headers;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.exceptions.FileSizeException;
@@ -141,7 +141,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   }
 
   private void uploadFileInternal(ChannelHandlerContext context, HttpRequest httpRequest) {
-    String accountId = httpRequest.headers().get(Files.API.Headers.UPLOAD_ACCOUNT_ID);
+    String accountId = httpRequest.headers().get(Constants.API.Headers.UPLOAD_ACCOUNT_ID);
     doUploadFile(context, httpRequest, accountId, Optional.empty());
   }
 
@@ -152,10 +152,10 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
   private void doUploadFile(ChannelHandlerContext context, HttpRequest httpRequest, String requestedId, Optional<User> requesterEntity) {
     String parentId =
-        Optional.ofNullable(httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_PARENT_ID))
-            .orElse(Files.Db.RootId.LOCAL_ROOT);
+        Optional.ofNullable(httpRequest.headers().getAsString(Constants.API.Headers.UPLOAD_PARENT_ID))
+            .orElse(Constants.Db.RootId.LOCAL_ROOT);
     String description =
-        Optional.ofNullable(httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_DESCRIPTION))
+        Optional.ofNullable(httpRequest.headers().getAsString(Constants.API.Headers.UPLOAD_DESCRIPTION))
             .orElse("");
     long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
 
@@ -169,7 +169,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       return;
     }
 
-    String encodedFilename = httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_FILENAME);
+    String encodedFilename = httpRequest.headers().getAsString(Constants.API.Headers.UPLOAD_FILENAME);
     String decodedFilename =
         encodedFilename == null || !Base64.isBase64(encodedFilename)
             ? null
@@ -213,7 +213,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   public void uploadFileVersion(ChannelHandlerContext context, HttpRequest httpRequest) {
 
     String nodeId = httpRequest.headers().getAsString(Headers.UPLOAD_NODE_ID);
-    String encodedFilename = httpRequest.headers().getAsString(Files.API.Headers.UPLOAD_FILENAME);
+    String encodedFilename = httpRequest.headers().getAsString(Constants.API.Headers.UPLOAD_FILENAME);
     String decodedFilename =
         encodedFilename == null || !Base64.isBase64(encodedFilename)
             ? null

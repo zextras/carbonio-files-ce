@@ -6,12 +6,12 @@ package com.zextras.carbonio.files;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.zextras.carbonio.files.Files.Config.Database;
-import com.zextras.carbonio.files.Files.Config.DocsConnector;
-import com.zextras.carbonio.files.Files.Config.Preview;
-import com.zextras.carbonio.files.Files.Config.Storages;
-import com.zextras.carbonio.files.Files.Config.UserManagement;
-import com.zextras.carbonio.files.Files.ServiceDiscover.Config.Db;
+import com.zextras.carbonio.files.Constants.Config.Database;
+import com.zextras.carbonio.files.Constants.Config.DocsConnector;
+import com.zextras.carbonio.files.Constants.Config.Preview;
+import com.zextras.carbonio.files.Constants.Config.Storages;
+import com.zextras.carbonio.files.Constants.Config.UserManagement;
+import com.zextras.carbonio.files.Constants.ServiceDiscover.Config.Key;
 import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.FilesModule;
@@ -77,8 +77,8 @@ public class Simulator implements AutoCloseable {
     postgreSQLContainer.start();
 
     // Set the System.properties for the dynamic database url and port
-    System.setProperty(Database.URL, postgreSQLContainer.getHost());
-    System.setProperty(Database.PORT, String.valueOf(postgreSQLContainer.getFirstMappedPort()));
+    System.setProperty(Database.HOST_PROPERTY, postgreSQLContainer.getHost());
+    System.setProperty(Database.PORT_PROPERTY, String.valueOf(postgreSQLContainer.getFirstMappedPort()));
 
     return this;
   }
@@ -90,8 +90,8 @@ public class Simulator implements AutoCloseable {
     messageBrokerContainer.start();
 
     // Set the System.properties for the dynamic rabbit url and port
-    System.setProperty(Files.Config.MessageBroker.URL, messageBrokerContainer.getHost());
-    System.setProperty(Files.Config.MessageBroker.PORT, String.valueOf(messageBrokerContainer.getFirstMappedPort()));
+    System.setProperty(Constants.Config.MessageBroker.HOST_PROPERTY, messageBrokerContainer.getHost());
+    System.setProperty(Constants.Config.MessageBroker.PORT_PROPERTY, String.valueOf(messageBrokerContainer.getFirstMappedPort()));
 
     return this;
   }
@@ -125,9 +125,9 @@ public class Simulator implements AutoCloseable {
           "The ServiceDiscover will be mocked without a database container. The database "
               + "credentials are the default one specified in the Constants class");
 
-      dbName = Db.NAME;
-      dbUsername = Db.USERNAME;
-      dbPassword = Db.PASSWORD;
+      dbName = Key.DB_NAME;
+      dbUsername = Key.DB_USERNAME;
+      dbPassword = Key.DB_PASSWORD;
     }
 
     if (messageBrokerContainer != null && messageBrokerContainer.isRunning()) {
@@ -136,8 +136,8 @@ public class Simulator implements AutoCloseable {
     } else {
       logger.warn("The ServiceDiscover will be mocked without a rabbitMQ container");
 
-      adminUsername = Files.MessageBroker.Config.DEFAULT_USERNAME;
-      adminPassword = Files.MessageBroker.Config.DEFAULT_PASSWORD;
+      adminUsername = Constants.MessageBroker.Config.DEFAULT_USERNAME;
+      adminPassword = Constants.MessageBroker.Config.DEFAULT_PASSWORD;
     }
 
     final String encodedDbName = new String(Base64.encode(dbName.getBytes()));
@@ -220,8 +220,8 @@ public class Simulator implements AutoCloseable {
     final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
     userManagementMock =
         new MockServerClient(
-            filesConfig.getProperties().getProperty(UserManagement.URL),
-            Integer.parseInt(filesConfig.getProperties().getProperty(UserManagement.PORT)));
+            filesConfig.getProperties().getProperty(UserManagement.HOST_PROPERTY),
+            Integer.parseInt(filesConfig.getProperties().getProperty(UserManagement.PORT_PROPERTY)));
 
     return this;
   }
@@ -263,8 +263,8 @@ public class Simulator implements AutoCloseable {
     final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
     storagesMock =
         new MockServerClient(
-            filesConfig.getProperties().getProperty(Storages.URL),
-            Integer.parseInt(filesConfig.getProperties().getProperty(Storages.PORT)));
+            filesConfig.getProperties().getProperty(Storages.HOST_PROPERTY),
+            Integer.parseInt(filesConfig.getProperties().getProperty(Storages.PORT_PROPERTY)));
 
     return this;
   }
@@ -274,8 +274,8 @@ public class Simulator implements AutoCloseable {
 
     final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
     previewServiceMock = new MockServerClient(
-      filesConfig.getProperties().getProperty(Preview.URL),
-      Integer.parseInt(filesConfig.getProperties().getProperty(Preview.PORT))
+      filesConfig.getProperties().getProperty(Preview.DEFAULT_HOST),
+      Integer.parseInt(filesConfig.getProperties().getProperty(Preview.PORT_PROPERTY))
     );
 
     return this;
@@ -286,8 +286,8 @@ public class Simulator implements AutoCloseable {
 
     final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
     docsConnectorServiceMock = new MockServerClient(
-      filesConfig.getProperties().getProperty(DocsConnector.URL),
-      Integer.parseInt(filesConfig.getProperties().getProperty(DocsConnector.PORT))
+      filesConfig.getProperties().getProperty(DocsConnector.HOST_PROPERTY),
+      Integer.parseInt(filesConfig.getProperties().getProperty(DocsConnector.PORT_PROPERTY))
     );
 
     return this;
@@ -296,10 +296,10 @@ public class Simulator implements AutoCloseable {
   private void startMockServer() {
     if (clientAndServer == null) {
       final Properties properties = injector.getInstance(FilesConfig.class).getProperties();
-      final int userManagementPort = Integer.parseInt(properties.getProperty(UserManagement.PORT));
-      final int storagesPort = Integer.parseInt(properties.getProperty(Storages.PORT));
-      final int previewServicePort = Integer.parseInt(properties.getProperty(Preview.PORT));
-      final int docsConnectorServicePort = Integer.parseInt(properties.getProperty(DocsConnector.PORT));
+      final int userManagementPort = Integer.parseInt(properties.getProperty(UserManagement.PORT_PROPERTY));
+      final int storagesPort = Integer.parseInt(properties.getProperty(Storages.PORT_PROPERTY));
+      final int previewServicePort = Integer.parseInt(properties.getProperty(Preview.PORT_PROPERTY));
+      final int docsConnectorServicePort = Integer.parseInt(properties.getProperty(DocsConnector.PORT_PROPERTY));
 
       clientAndServer =
           ClientAndServer.startClientAndServer(8500, userManagementPort, storagesPort, previewServicePort, docsConnectorServicePort);

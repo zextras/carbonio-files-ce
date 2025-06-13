@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files;
 
 
-import com.zextras.carbonio.files.Files.Config.Pagination;
+import com.zextras.carbonio.files.Constants.Config.Pagination;
 
 import java.util.List;
 import java.util.regex.Pattern;
@@ -15,18 +15,22 @@ import java.util.regex.Pattern;
  * all the Files classes. This interface is divided in other sub interfaces for a better
  * categorization.
  */
-public final class Files {
+public final class Constants {
 
-  private Files() {
+  private Constants() {
   }
 
-  public static final class Service {
+  public static final class Files {
 
-    private Service() {
+    private Files() {
     }
 
-    public static final String IP = "127.78.0.2";
-    public static final int PORT = 10_000;
+    public static final String DEFAULT_HOST = "127.78.0.2";
+    public static final int DEFAULT_PORT = 10_000;
+    public static final String HOST_PROPERTY = "carbonio.files.host";
+    public static final String PORT_PROPERTY = "carbonio.files.port";
+    public static final String ENABLE_NOTIFICATIONS_PROPERTY = "carbonio.files.enable-notifications";
+    public static final Boolean DEFAULT_ENABLE_NOTIFICATIONS = true;
   }
 
   public static final class Config {
@@ -34,23 +38,17 @@ public final class Files {
     private Config() {
     }
 
-    public static final class Service {
-
-      private Service() {
-      }
-
-      public static final String URL = "service.url";
-      public static final String PORT = "service.port";
-      public static final String ENABLE_NOTIFICATIONS = "service.enable_notifications";
-    }
-
     public static final class Database {
 
       private Database() {
       }
 
-      public static final String URL = "db.postgresql.url";
-      public static final String PORT = "db.postgresql.port";
+      public static final String HOST_PROPERTY = "carbonio.postgresql.host";
+      public static final String PORT_PROPERTY = "carbonio.postgresql.port";
+      public static final String DEFAULT_HOST = "127.78.0.2";
+      public static final String DEFAULT_PORT = "20000";
+      public static final String DEFAULT_NAME = "carbonio-files-db";
+      public static final String DEFAULT_USERNAME = "carbonio-files-db";
     }
 
     public static final class UserManagement {
@@ -58,8 +56,11 @@ public final class Files {
       private UserManagement() {
       }
 
-      public static final String URL = "carbonio.user-management.url";
-      public static final String PORT = "carbonio.user-management.port";
+      public static final String HOST_PROPERTY = "carbonio.user-management.host";
+      public static final String PORT_PROPERTY = "carbonio.user-management.port";
+      public static final String DEFAULT_HOST = "127.78.0.2";
+      public static final String DEFAULT_PROTOCOL = "http";
+      public static final Integer DEFAULT_PORT = 20001;
     }
 
     public static final class Storages {
@@ -67,8 +68,12 @@ public final class Files {
       private Storages() {
       }
 
-      public static final String URL = "carbonio.storages.url";
-      public static final String PORT = "carbonio.storages.port";
+      public static final String HOST_PROPERTY = "carbonio.storages.host";
+      public static final String PORT_PROPERTY = "carbonio.storages.port";
+      public static final String DEFAULT_HOST = "127.78.0.2";
+      public static final String DEFAULT_PROTOCOL = "http";
+      public static final Integer DEFAULT_PORT = 20002;
+
     }
 
     public static final class Preview {
@@ -76,8 +81,11 @@ public final class Files {
       private Preview() {
       }
 
-      public static final String URL = "carbonio.preview.url";
-      public static final String PORT = "carbonio.preview.port";
+      public static final String HOST_PROPERTY = "carbonio.preview.host";
+      public static final String PORT_PROPERTY = "carbonio.preview.port";
+      public static final String DEFAULT_HOST = "127.78.0.2";
+      public static final String DEFAULT_PROTOCOL = "http";
+      public static final Integer DEFAULT_PORT = 20003;
     }
 
     public static final class Mailbox {
@@ -85,8 +93,11 @@ public final class Files {
       private Mailbox() {
       }
 
-      public static final String URL = "carbonio.mailbox.url";
-      public static final String PORT = "carbonio.mailbox.port";
+      public static final String HOST_PROPERTY = "carbonio.mailbox.host";
+      public static final String PORT_PROPERTY = "carbonio.mailbox.port";
+      public static final String DEFAULT_HOST = "127.78.0.2";
+      public static final String DEFAULT_PROTOCOL = "http";
+      public static final Integer DEFAULT_PORT = 20004;
     }
 
     public static final class DocsConnector {
@@ -94,8 +105,11 @@ public final class Files {
       private DocsConnector() {
       }
 
-      public static final String URL = "carbonio.docs-connector.url";
-      public static final String PORT = "carbonio.docs-connector.port";
+      public static final String HOST_PROPERTY = "carbonio.docs-connector.host";
+      public static final String PORT_PROPERTY = "carbonio.docs-connector.port";
+      public static final String DEFAULT_HOST = "127.78.0.2";
+      public static final String DEFAULT_PROTOCOL = "http";
+      public static final Integer DEFAULT_PORT = 20005;
     }
 
     public static final class MessageBroker {
@@ -103,8 +117,11 @@ public final class Files {
       private MessageBroker() {
       }
 
-      public static final String URL = "carbonio.message-broker.url";
-      public static final String PORT = "carbonio.message-broker.port";
+      public static final String HOST_PROPERTY = "carbonio.message-broker.host";
+      public static final String PORT_PROPERTY = "carbonio.message-broker.port";
+      public static final String DEFAULT_HOST = "127.78.0.2";
+      public static final String DEFAULT_PROTOCOL = "http";
+      public static final Integer DEFAULT_PORT = 20006;
     }
 
     public static final class Pagination {
@@ -1126,16 +1143,14 @@ public final class Files {
       public static final int DEFAULT_MAX_KEEP_VERSIONS =
           DEFAULT_MAX_VERSIONS - DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
 
-      public static final class Db {
+      public static final class Key {
 
-        private Db() {
+        private Key() {
         }
 
-        public static final String NAME = "db-name";
-        public static final String DEFAULT_NAME = "carbonio-files-db";
-        public static final String USERNAME = "db-username";
-        public static final String DEFAULT_USERNAME = "carbonio-files-db";
-        public static final String PASSWORD = "db-password";
+        public static final String DB_NAME = "db-name";
+        public static final String DB_USERNAME = "db-username";
+        public static final String DB_PASSWORD = "db-password";
         public static final String HIKARI_MAX_POOL_SIZE = "hikari-max-pool-size";
         public static final String HIKARI_MIN_IDLE_CONNECTIONS = "hikari-min-idle-connections";
       }

@@ -5,18 +5,18 @@
 package com.zextras.carbonio.files.graphql.datafetchers;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Db.RootId;
-import com.zextras.carbonio.files.Files.GraphQL;
-import com.zextras.carbonio.files.Files.GraphQL.Context;
-import com.zextras.carbonio.files.Files.GraphQL.InputParameters;
-import com.zextras.carbonio.files.Files.GraphQL.InputParameters.FlagNodes;
-import com.zextras.carbonio.files.Files.GraphQL.InputParameters.GetVersions;
-import com.zextras.carbonio.files.Files.GraphQL.InputParameters.KeepVersions;
-import com.zextras.carbonio.files.Files.GraphQL.InputParameters.RestoreNodes;
-import com.zextras.carbonio.files.Files.GraphQL.NodePage;
-import com.zextras.carbonio.files.Files.ServiceDiscover;
-import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.Db.RootId;
+import com.zextras.carbonio.files.Constants.GraphQL;
+import com.zextras.carbonio.files.Constants.GraphQL.Context;
+import com.zextras.carbonio.files.Constants.GraphQL.InputParameters;
+import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.FlagNodes;
+import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.GetVersions;
+import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.KeepVersions;
+import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.RestoreNodes;
+import com.zextras.carbonio.files.Constants.GraphQL.NodePage;
+import com.zextras.carbonio.files.Constants.ServiceDiscover;
+import com.zextras.carbonio.files.Constants.ServiceDiscover.Config;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
@@ -165,14 +165,14 @@ public class NodeDataFetcher {
     Map<String, String> nodeContext = new HashMap<>();
     Optional<GraphQLError> versionError = Optional.empty();
 
-    result.put(Files.GraphQL.Node.ID, node.getId());
-    result.put(Files.GraphQL.Node.CREATED_AT, node.getCreatedAt());
-    result.put(Files.GraphQL.Node.UPDATED_AT, node.getUpdatedAt());
-    result.put(Files.GraphQL.Node.NAME, node.getName());
-    result.put(Files.GraphQL.Node.TYPE, node.getNodeType().name());
+    result.put(Constants.GraphQL.Node.ID, node.getId());
+    result.put(Constants.GraphQL.Node.CREATED_AT, node.getCreatedAt());
+    result.put(Constants.GraphQL.Node.UPDATED_AT, node.getUpdatedAt());
+    result.put(Constants.GraphQL.Node.NAME, node.getName());
+    result.put(Constants.GraphQL.Node.TYPE, node.getNodeType().name());
 
     result.put(
-      Files.GraphQL.Node.ROOT_ID,
+      Constants.GraphQL.Node.ROOT_ID,
       node.getNodeType().equals(NodeType.ROOT)
         ? node.getId()
         : node.getAncestorsList().get(0)
@@ -191,16 +191,16 @@ public class NodeDataFetcher {
 
     node
       .getDescription()
-      .ifPresent(description -> result.put(Files.GraphQL.Node.DESCRIPTION, description));
+      .ifPresent(description -> result.put(Constants.GraphQL.Node.DESCRIPTION, description));
 
     node
       .getParentId()
-      .ifPresent(parentId -> nodeContext.put(Files.GraphQL.Node.PARENT, parentId));
+      .ifPresent(parentId -> nodeContext.put(Constants.GraphQL.Node.PARENT, parentId));
 
     if (!node.getNodeType().equals(NodeType.FOLDER) && !node.getNodeType().equals(NodeType.ROOT)) {
       node
         .getExtension()
-        .ifPresent(extension -> result.put(Files.GraphQL.Node.EXTENSION, extension));
+        .ifPresent(extension -> result.put(Constants.GraphQL.Node.EXTENSION, extension));
 
       Optional<FileVersion> optFileVersion = node
         .getFileVersions()
@@ -216,14 +216,14 @@ public class NodeDataFetcher {
       }
     }
 
-    nodeContext.put(Files.GraphQL.Node.OWNER, node.getOwnerId());
-    nodeContext.put(Files.GraphQL.Node.CREATOR, node.getCreatorId());
-    nodeContext.put(Files.GraphQL.Node.ID, node.getId());
+    nodeContext.put(Constants.GraphQL.Node.OWNER, node.getOwnerId());
+    nodeContext.put(Constants.GraphQL.Node.CREATOR, node.getCreatorId());
+    nodeContext.put(Constants.GraphQL.Node.ID, node.getId());
 
     // TODO Move up when the last_editor coherent between node and file version will be coherent
     Optional
       .ofNullable((String) result.get(GraphQL.Node.LAST_EDITOR))
-      .ifPresent(lastEditorId -> nodeContext.put(Files.GraphQL.Node.LAST_EDITOR, lastEditorId));
+      .ifPresent(lastEditorId -> nodeContext.put(Constants.GraphQL.Node.LAST_EDITOR, lastEditorId));
 
     DataFetcherResult.Builder<Map<String, Object>> resultBuilder = new DataFetcherResult
       .Builder<Map<String, Object>>()
@@ -238,13 +238,13 @@ public class NodeDataFetcher {
   private Map<String, Object> convertFileVersionToGraphQLMap(FileVersion fileVersion) {
 
     Map<String, Object> fileVersionMap = new HashMap<>();
-    fileVersionMap.put(Files.GraphQL.FileVersion.UPDATED_AT, fileVersion.getUpdatedAt());
+    fileVersionMap.put(Constants.GraphQL.FileVersion.UPDATED_AT, fileVersion.getUpdatedAt());
     fileVersionMap.put(GraphQL.FileVersion.LAST_EDITOR, fileVersion.getLastEditorId());
-    fileVersionMap.put(Files.GraphQL.FileVersion.VERSION, fileVersion.getVersion());
-    fileVersionMap.put(Files.GraphQL.FileVersion.MIME_TYPE, fileVersion.getMimeType());
-    fileVersionMap.put(Files.GraphQL.FileVersion.SIZE, fileVersion.getSize());
-    fileVersionMap.put(Files.GraphQL.FileVersion.KEEP_FOREVER, fileVersion.isKeptForever());
-    fileVersionMap.put(Files.GraphQL.FileVersion.DIGEST, fileVersion.getDigest());
+    fileVersionMap.put(Constants.GraphQL.FileVersion.VERSION, fileVersion.getVersion());
+    fileVersionMap.put(Constants.GraphQL.FileVersion.MIME_TYPE, fileVersion.getMimeType());
+    fileVersionMap.put(Constants.GraphQL.FileVersion.SIZE, fileVersion.getSize());
+    fileVersionMap.put(Constants.GraphQL.FileVersion.KEEP_FOREVER, fileVersion.isKeptForever());
+    fileVersionMap.put(Constants.GraphQL.FileVersion.DIGEST, fileVersion.getDigest());
     fileVersion
       .getClonedFromVersion()
       .ifPresent(clonedFromVersion -> fileVersionMap.put(
@@ -281,7 +281,7 @@ public class NodeDataFetcher {
           .ofNullable(environment.getLocalContext())
           .map(context -> {
             String fieldName = environment.getField().getName();
-            if (fieldName.equals(Files.GraphQL.Node.PARENT)) {
+            if (fieldName.equals(Constants.GraphQL.Node.PARENT)) {
               isParent.set(true);
             }
             return ((Map<String, String>) context).get(fieldName);
@@ -299,7 +299,7 @@ public class NodeDataFetcher {
                 ((User) environment.getGraphQlContext().get(Context.REQUESTER)).getId();
 
               Integer version = Optional
-                .ofNullable((Integer) environment.getArgument(Files.GraphQL.FileVersion.VERSION))
+                .ofNullable((Integer) environment.getArgument(Constants.GraphQL.FileVersion.VERSION))
                 .orElse(((Node) node).getCurrentVersion());
 
               return permissionsChecker
@@ -336,11 +336,11 @@ public class NodeDataFetcher {
     return environment ->
     {
       Map<String, Object> result = environment.getObject();
-      return (result.get(Files.GraphQL.Node.TYPE).equals(NodeType.FOLDER.toString())
-        || result.get(Files.GraphQL.Node.TYPE).equals(NodeType.ROOT.toString())
+      return (result.get(Constants.GraphQL.Node.TYPE).equals(NodeType.FOLDER.toString())
+        || result.get(Constants.GraphQL.Node.TYPE).equals(NodeType.ROOT.toString())
       )
-        ? (GraphQLObjectType) environment.getSchema().getType(Files.GraphQL.Types.FOLDER)
-        : (GraphQLObjectType) environment.getSchema().getType(Files.GraphQL.Types.FILE);
+        ? (GraphQLObjectType) environment.getSchema().getType(Constants.GraphQL.Types.FOLDER)
+        : (GraphQLObjectType) environment.getSchema().getType(Constants.GraphQL.Types.FILE);
     };
   }
 
@@ -357,14 +357,14 @@ public class NodeDataFetcher {
    * works only if it is used to resolve attributes that accepts the following parameters in input:
    * <ul>
    *   <li>
-   *     {@link Files.GraphQL.InputParameters#LIMIT}: an {@link Integer} of how many elements you want to fetch
+   *     {@link Constants.GraphQL.InputParameters#LIMIT}: an {@link Integer} of how many elements you want to fetch
    *   </li>
    *   <li>
-   *     {@link Files.GraphQL.InputParameters#CURSOR}: a {@link String} of the last element fetched (this is optional,
+   *     {@link Constants.GraphQL.InputParameters#CURSOR}: a {@link String} of the last element fetched (this is optional,
    *     and it is useful for pagination)
    *   </li>
    *   <li>
-   *     {@link Files.GraphQL.InputParameters#SORT}: a {@link NodeSort} representing a specific sort
+   *     {@link Constants.GraphQL.InputParameters#SORT}: a {@link NodeSort} representing a specific sort
    *     (optional). If it is not specified a {@link NodeSort#NAME_ASC} is applied by default.
    *   </li>
    * </ul>
@@ -373,8 +373,8 @@ public class NodeDataFetcher {
    * <ul>
    *  <li>It fetches all the children ids of the folder with the specified sort order</li>
    *  <li>
-   *    It filters only the interested children applying the {@link Files.GraphQL.InputParameters#LIMIT} and the
-   *    {@link Files.GraphQL.InputParameters#CURSOR} parameters
+   *    It filters only the interested children applying the {@link Constants.GraphQL.InputParameters#LIMIT} and the
+   *    {@link Constants.GraphQL.InputParameters#CURSOR} parameters
    *  </li>
    *  <li>
    *    It fetches all the interested nodes, and it converts each of them into a {@link HashMap} containing all the
@@ -392,8 +392,8 @@ public class NodeDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() -> {
         Map<String, Object> partialResult = environment.getSource();
         String requesterId = ((User) environment.getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER)).getId();
-        String folderNodeId = (String) partialResult.get(Files.GraphQL.Node.ID);
+          .get(Constants.GraphQL.Context.REQUESTER)).getId();
+        String folderNodeId = (String) partialResult.get(Constants.GraphQL.Node.ID);
         /*
          * If the execution is arrived in this data fetcher then the partialResult contains the folderId
          * otherwise the execution would have stopped in the previous data fetcher.
@@ -406,12 +406,12 @@ public class NodeDataFetcher {
 
         return nodeRepository.getNode(folderNodeId)
           .map(node -> {
-            int limit = environment.getArgument(Files.GraphQL.InputParameters.LIMIT);
+            int limit = environment.getArgument(Constants.GraphQL.InputParameters.LIMIT);
             Optional<String> optCursor = Optional.ofNullable(
-              environment.getArgument(Files.GraphQL.InputParameters.CURSOR)
+              environment.getArgument(Constants.GraphQL.InputParameters.CURSOR)
             );
             Optional<NodeSort> optSort = Optional.ofNullable(
-              environment.getArgument(Files.GraphQL.InputParameters.SORT)
+              environment.getArgument(Constants.GraphQL.InputParameters.SORT)
             );
 
             List<String> childrenIds = nodeRepository
@@ -455,8 +455,8 @@ public class NodeDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() -> {
         Map<String, Object> partialResult = environment.getSource();
         String requesterId = ((User) environment.getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER)).getId();
-        String folderNodeId = (String) partialResult.get(Files.GraphQL.Node.ID);
+          .get(Constants.GraphQL.Context.REQUESTER)).getId();
+        String folderNodeId = (String) partialResult.get(Constants.GraphQL.Node.ID);
         /*
          * If the execution is arrived in this data fetcher then the partialResult contains the folderId
          * otherwise the execution would have stopped in the previous data fetcher.
@@ -474,7 +474,7 @@ public class NodeDataFetcher {
         );
 
         Optional<String> optPageToken = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.PAGE_TOKEN)
+          environment.getArgument(Constants.GraphQL.InputParameters.PAGE_TOKEN)
         );
 
         // The LOCAL_ROOT is shared to all the users so in the root potentially can be nodes owned
@@ -518,16 +518,16 @@ public class NodeDataFetcher {
   }
 
   /**
-   * <p>This {@link DataFetcher} must be used for the {@link Files.GraphQL.Mutations#CREATE_FOLDER}
+   * <p>This {@link DataFetcher} must be used for the {@link Constants.GraphQL.Mutations#CREATE_FOLDER}
    * mutation.</p>
    * <p>The request must have the following parameters in input:</p>
    * <ul>
    *   <li>
-   *     {@link Files.GraphQL.InputParameters.CreateFolder#PARENT_ID}: a {@link String} representing the id of the
+   *     {@link Constants.GraphQL.InputParameters.CreateFolder#PARENT_ID}: a {@link String} representing the id of the
    *     parent folder for the new folder that needs to be created
    *   </li>
    *   <li>
-   *     {@link Files.GraphQL.InputParameters.CreateFolder#NAME}: a {@link String} representing the name of the
+   *     {@link Constants.GraphQL.InputParameters.CreateFolder#NAME}: a {@link String} representing the name of the
    *     new folder
    *   </li>
    * </ul>
@@ -552,7 +552,7 @@ public class NodeDataFetcher {
         String parentId = environment.getArgument(InputParameters.CreateFolder.PARENT_ID);
         User requester = (User) environment
           .getGraphQlContext()
-          .get(Files.GraphQL.Context.REQUESTER);
+          .get(Constants.GraphQL.Context.REQUESTER);
         String requesterId = requester.getId();
 
         if (permissionsChecker
@@ -638,8 +638,8 @@ public class NodeDataFetcher {
   /**
    * <p>This {@link DataFetcher} must be used to fetch the permissions of the requester {@link } on
    * the specified node. It works only if the previous data fetcher creates a
-   * {@link Files.GraphQL.Types#NODE_INTERFACE} and if it is bound to resolve attributes that have
-   * type {@link Files.GraphQL.Types#PERMISSIONS}.</p>
+   * {@link Constants.GraphQL.Types#NODE_INTERFACE} and if it is bound to resolve attributes that have
+   * type {@link Constants.GraphQL.Types#PERMISSIONS}.</p>
    * <p>In particular:
    * <ul>
    *  <li>
@@ -657,8 +657,8 @@ public class NodeDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() -> {
       Map<String, Object> partialResult = environment.getSource();
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
-      String nodeId = (String) partialResult.get(Files.GraphQL.Node.ID);
+        .get(Constants.GraphQL.Context.REQUESTER)).getId();
+      String nodeId = (String) partialResult.get(Constants.GraphQL.Node.ID);
 
       /*
        * If the execution has arrived to this data fetcher then the partialResult contains the nodeId
@@ -674,26 +674,26 @@ public class NodeDataFetcher {
   }
 
   /**
-   * <p>This {@link DataFetcher} must be used for the {@link Files.GraphQL.Mutations#UPDATE_NODE}
+   * <p>This {@link DataFetcher} must be used for the {@link Constants.GraphQL.Mutations#UPDATE_NODE}
    * mutation or when it is necessary to update an existing node.</p>
    * <p>The request must have the following parameters in input:</p>
    * <ul>
    *  <li>
-   *    {@link Files.GraphQL.InputParameters.UpdateNode#NODE_ID}: a {@link String} representing the id of the node to
+   *    {@link Constants.GraphQL.InputParameters.UpdateNode#NODE_ID}: a {@link String} representing the id of the node to
    *    update (this is mandatory).
    *  </li>
    *  <li>
-   *    {@link Files.GraphQL.InputParameters.UpdateNode#NAME}: a {@link String} representing the new name of the node
+   *    {@link Constants.GraphQL.InputParameters.UpdateNode#NAME}: a {@link String} representing the new name of the node
    *  </li>
    *  <li>
-   *    {@link Files.GraphQL.InputParameters.UpdateNode#DESCRIPTION}: a {@link String} representing the new description
+   *    {@link Constants.GraphQL.InputParameters.UpdateNode#DESCRIPTION}: a {@link String} representing the new description
    *    of the node
    *  </li>
    *  <li>
-   *    {@link Files.GraphQL.InputParameters.UpdateNode#FLAGGED}: a {@link boolean} to flag or un-flag the node
+   *    {@link Constants.GraphQL.InputParameters.UpdateNode#FLAGGED}: a {@link boolean} to flag or un-flag the node
    *  </li>
    *  <li>
-   *    {@link Files.GraphQL.InputParameters.UpdateNode#MARKED_FOR_DELETION}: a {@link boolean} to marked or un-mark for
+   *    {@link Constants.GraphQL.InputParameters.UpdateNode#MARKED_FOR_DELETION}: a {@link boolean} to marked or un-mark for
    *    deletion the node
    *  </li>
    * </ul>
@@ -709,8 +709,8 @@ public class NodeDataFetcher {
       ResultPath path = environment.getExecutionStepInfo()
         .getPath();
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
-      String nodeId = environment.getArgument(Files.GraphQL.InputParameters.UpdateNode.NODE_ID);
+        .get(Constants.GraphQL.Context.REQUESTER)).getId();
+      String nodeId = environment.getArgument(Constants.GraphQL.InputParameters.UpdateNode.NODE_ID);
 
       if (permissionsChecker.getPermissions(nodeId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {
@@ -719,13 +719,13 @@ public class NodeDataFetcher {
         String parentFolderId = nodeToUpdate.getParentId()
           .orElse(RootId.LOCAL_ROOT);
         Optional<String> optName = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.UpdateNode.NAME)
+          environment.getArgument(Constants.GraphQL.InputParameters.UpdateNode.NAME)
         );
         Optional<String> optDescription = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.UpdateNode.DESCRIPTION)
+          environment.getArgument(Constants.GraphQL.InputParameters.UpdateNode.DESCRIPTION)
         );
         Optional<Boolean> optFlagged = Optional.ofNullable(
-          environment.getArgument(Files.GraphQL.InputParameters.UpdateNode.FLAGGED)
+          environment.getArgument(Constants.GraphQL.InputParameters.UpdateNode.FLAGGED)
         );
 
         if (optName.isPresent()) {
@@ -768,7 +768,7 @@ public class NodeDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<List<String>>>> flagNodes() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Constants.GraphQL.Context.REQUESTER)).getId();
       List<String> nodesIds = environment.getArgument(FlagNodes.NODE_IDS);
       boolean starNodes = environment.getArgument(FlagNodes.FLAG);
 
@@ -807,10 +807,10 @@ public class NodeDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
       User requester = (User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER);
+        .get(Constants.GraphQL.Context.REQUESTER);
       String requesterId = requester.getId();
       List<String> nodesIds = environment.getArgument(
-        Files.GraphQL.InputParameters.TrashNodes.NODE_IDS);
+        Constants.GraphQL.InputParameters.TrashNodes.NODE_IDS);
 
       List<String> trashableNodes = nodesIds.stream()
         .filter(nodeId -> {
@@ -857,7 +857,7 @@ public class NodeDataFetcher {
                 usersToNotify
               );
 
-            trashedNode.setAncestorIds(Files.Db.RootId.TRASH_ROOT);
+            trashedNode.setAncestorIds(Constants.Db.RootId.TRASH_ROOT);
             trashedNode.setParentId(RootId.TRASH_ROOT);
             nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
             nodeRepository.updateNode(trashedNode);
@@ -887,7 +887,7 @@ public class NodeDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Constants.GraphQL.Context.REQUESTER)).getId();
       List<String> nodesIds = environment.getArgument(RestoreNodes.NODE_IDS);
 
       List<String> restorableNodeIds = nodesIds.stream()
@@ -994,9 +994,9 @@ public class NodeDataFetcher {
    * <p>This {@link DataFetcher} retrieves a shared {@link Node} and it creates the related {@link
    * Map}.</p>
    * <p>It <strong>must</strong> be bound to a Share query and used only to retrieve a node that
-   * represents the attribute {@link Files.GraphQL.Share#NODE} in a GraphQL Share object. It works
+   * represents the attribute {@link Constants.GraphQL.Share#NODE} in a GraphQL Share object. It works
    * only if the localContext exists and if the previous data fetcher saves the
-   * {@link Files.GraphQL.InputParameters#NODE_ID} in the context: if one of these pre-conditions
+   * {@link Constants.GraphQL.InputParameters#NODE_ID} in the context: if one of these pre-conditions
    * are not satisfied then the execution will be aborted with an {@link AbortExecutionException}.
    * </p>
    *
@@ -1041,7 +1041,7 @@ public class NodeDataFetcher {
       ResultPath path = environment.getExecutionStepInfo().getPath();
       String requesterId = ((User) environment
         .getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER))
+        .get(Constants.GraphQL.Context.REQUESTER))
         .getId();
       String nodeId = environment.getArgument(InputParameters.NODE_ID);
 
@@ -1115,8 +1115,8 @@ public class NodeDataFetcher {
       rootList.forEach(root -> {
 
         Map<String, Object> mappedRoot = new HashMap<>();
-        mappedRoot.put(Files.GraphQL.Node.ID, root.getId());
-        mappedRoot.put(Files.GraphQL.Node.NAME, root.getName());
+        mappedRoot.put(Constants.GraphQL.Node.ID, root.getId());
+        mappedRoot.put(Constants.GraphQL.Node.NAME, root.getName());
 
         result.add(mappedRoot);
 
@@ -1129,36 +1129,36 @@ public class NodeDataFetcher {
   }
 
   /**
-   * <p>This {@link DataFetcher} must be used for the {@link Files.GraphQL.Queries#FIND_NODES}
+   * <p>This {@link DataFetcher} must be used for the {@link Constants.GraphQL.Queries#FIND_NODES}
    * query.</p>
    * <p>The request could have the following optional parameters in input:</p>
    * <ul>
    *  <li>
-   *    {@link Files.GraphQL.InputParameters.FindNodes#SORT}: a {@link NodeSort} representing the chosen sort method
+   *    {@link Constants.GraphQL.InputParameters.FindNodes#SORT}: a {@link NodeSort} representing the chosen sort method
    *    for ordering the found nodes.
    *  </li>
    *  <li>
-   *    {@link Files.GraphQL.InputParameters.FindNodes#FLAGGED}: a {@link Boolean} representing the value of the flag
+   *    {@link Constants.GraphQL.InputParameters.FindNodes#FLAGGED}: a {@link Boolean} representing the value of the flag
    *    to search.
    *  </li>
    *  <li>
-   *    {@link Files.GraphQL.InputParameters.FindNodes#SHARED_BY_ME}: a {@link Boolean} for searching only nodes
+   *    {@link Constants.GraphQL.InputParameters.FindNodes#SHARED_BY_ME}: a {@link Boolean} for searching only nodes
    *    i shared or not shared by me.
    *  </li>
    *  <li>
-   *    {@link Files.GraphQL.InputParameters.FindNodes#SHARED_WITH_ME}: a {@link Boolean} for searching only in nodes
+   *    {@link Constants.GraphQL.InputParameters.FindNodes#SHARED_WITH_ME}: a {@link Boolean} for searching only in nodes
    *    shared with me or not.
    *  </li>
    *  <li>
-   *    {@link Files.GraphQL.InputParameters.FindNodes#SKIP}: an {@link Integer} used for starting search from an
+   *    {@link Constants.GraphQL.InputParameters.FindNodes#SKIP}: an {@link Integer} used for starting search from an
    *    offset rather than from the start of the list.
    *  </li>
    *  <li>
-   *    {@link Files.GraphQL.InputParameters.FindNodes#LIMIT}: a {@link Integer} to limit the number of returned
+   *    {@link Constants.GraphQL.InputParameters.FindNodes#LIMIT}: a {@link Integer} to limit the number of returned
    *    results.
    *  </li>
    *  <li>
-   *    {@link Files.GraphQL.InputParameters.FindNodes#CURSOR}: a {@link String} containing the page token given
+   *    {@link Constants.GraphQL.InputParameters.FindNodes#CURSOR}: a {@link String} containing the page token given
    *    by a previous findNodes call, it's used to keep on the pagination of the dataset, if this is used all other
    *    params will be ignored since all necessary params needed for pagination are saved with the cursor.
    *  </li>
@@ -1170,44 +1170,44 @@ public class NodeDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, String>>>> findNodesFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Constants.GraphQL.Context.REQUESTER)).getId();
       Optional<Boolean> optFlagged = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.FLAGGED)
+        environment.getArgument(Constants.GraphQL.InputParameters.FindNodes.FLAGGED)
       );
       Optional<Boolean> optSharedByMe = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.SHARED_BY_ME)
+        environment.getArgument(Constants.GraphQL.InputParameters.FindNodes.SHARED_BY_ME)
       );
       Optional<Boolean> optSharedWithMe = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.SHARED_WITH_ME)
+        environment.getArgument(Constants.GraphQL.InputParameters.FindNodes.SHARED_WITH_ME)
       );
       Optional<Boolean> optDirectShare = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.DIRECT_SHARE)
+        environment.getArgument(Constants.GraphQL.InputParameters.FindNodes.DIRECT_SHARE)
       );
       Optional<String> optFolderId = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.FOLDER_ID)
+        environment.getArgument(Constants.GraphQL.InputParameters.FindNodes.FOLDER_ID)
       );
       Optional<Boolean> optCascade = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.CASCADE)
+        environment.getArgument(Constants.GraphQL.InputParameters.FindNodes.CASCADE)
       );
       Optional<Integer> optLimit = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.LIMIT)
+        environment.getArgument(Constants.GraphQL.InputParameters.FindNodes.LIMIT)
       );
       Optional<NodeSort> optSort = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.SORT)
+        environment.getArgument(Constants.GraphQL.InputParameters.FindNodes.SORT)
       );
       Optional<String> optPageToken = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.PAGE_TOKEN)
+        environment.getArgument(Constants.GraphQL.InputParameters.FindNodes.PAGE_TOKEN)
       );
       Optional<List<String>> optKeywords = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.KEYWORDS)
+        environment.getArgument(Constants.GraphQL.InputParameters.FindNodes.KEYWORDS)
       );
 
       Optional<NodeType> optNodeType = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.NODE_TYPE)
+        environment.getArgument(Constants.GraphQL.InputParameters.FindNodes.NODE_TYPE)
       );
 
       Optional<String> optOwnerId = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.FindNodes.OWNER_ID)
+        environment.getArgument(Constants.GraphQL.InputParameters.FindNodes.OWNER_ID)
       );
 
       Map<String, List<Node>> nodeContext = new HashMap<>();
@@ -1226,9 +1226,9 @@ public class NodeDataFetcher {
         optOwnerId,
         optKeywords.orElse(Collections.emptyList()),
         optPageToken);
-      result.put(Files.GraphQL.NodePage.PAGE_TOKEN, findResult.getRight());
+      result.put(Constants.GraphQL.NodePage.PAGE_TOKEN, findResult.getRight());
 
-      nodeContext.put(Files.GraphQL.NodePage.NODES, findResult.getLeft());
+      nodeContext.put(Constants.GraphQL.NodePage.NODES, findResult.getLeft());
       return new DataFetcherResult.Builder<Map<String, String>>()
         .data(result)
         .localContext(nodeContext)
@@ -1239,7 +1239,7 @@ public class NodeDataFetcher {
 
   /**
    * <p>This {@link DataFetcher} must be used for the retrieving the nodes attribute of the
-   * {@link Files.GraphQL.Queries#FIND_NODES} query.</p>
+   * {@link Constants.GraphQL.Queries#FIND_NODES} query.</p>
    * <p>The necessary condition for this datafetcher to work is that the localContext of graphql
    * already contains the list of nodes i have to return, calculated in the previous
    * findNodesFetcher, this is necessary since we do elaborate together the nodes to return and the
@@ -1253,7 +1253,7 @@ public class NodeDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() -> {
       return Optional.ofNullable(environment.getLocalContext())
         .map(context -> {
-          return ((Map<String, List<Node>>) context).get(Files.GraphQL.NodePage.NODES)
+          return ((Map<String, List<Node>>) context).get(Constants.GraphQL.NodePage.NODES)
             .stream()
             .map(node ->
               convertNodeToDataFetcherResult(
@@ -1270,11 +1270,11 @@ public class NodeDataFetcher {
 
   /**
    * <p>This {@link DataFetcher} moves one or more nodes into a destination folder. This is bound
-   * to the {@link Files.GraphQL.Mutations#MOVE_NODES} mutation.</p>
+   * to the {@link Constants.GraphQL.Mutations#MOVE_NODES} mutation.</p>
    * <p>The requester must specify the following input parameters:</p>
    * <ul>
-   *   <li>{@link Files.GraphQL.InputParameters.MoveNodes#NODE_IDS}</li> containing a list of nodes id to move.</li
-   *   <li>{@link Files.GraphQL.InputParameters.MoveNodes#DESTINATION_ID}</li> containing the folder id where every node
+   *   <li>{@link Constants.GraphQL.InputParameters.MoveNodes#NODE_IDS}</li> containing a list of nodes id to move.</li
+   *   <li>{@link Constants.GraphQL.InputParameters.MoveNodes#DESTINATION_ID}</li> containing the folder id where every node
    *   is moved.</li>
    * </ul>
    * <p>The requester must have the {@link SharePermission#READ_AND_WRITE} permission on every nodes that should be
@@ -1287,12 +1287,12 @@ public class NodeDataFetcher {
       ResultPath resultPath = environment.getExecutionStepInfo()
         .getPath();
       User requester = (User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER);
+        .get(Constants.GraphQL.Context.REQUESTER);
       String requesterId = (requester).getId();
       List<String> nodeIds = environment.getArgument(
-        Files.GraphQL.InputParameters.MoveNodes.NODE_IDS);
+        Constants.GraphQL.InputParameters.MoveNodes.NODE_IDS);
       String destinationFolderId = environment.getArgument(
-        Files.GraphQL.InputParameters.MoveNodes.DESTINATION_ID);
+        Constants.GraphQL.InputParameters.MoveNodes.DESTINATION_ID);
 
       if (permissionsChecker.getPermissions(destinationFolderId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {
@@ -1492,9 +1492,9 @@ public class NodeDataFetcher {
       ResultPath resultPath = environment.getExecutionStepInfo()
         .getPath();
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Constants.GraphQL.Context.REQUESTER)).getId();
       List<String> nodeIds = environment.getArgument(
-        Files.GraphQL.InputParameters.DeleteNodes.NODE_IDS);
+        Constants.GraphQL.InputParameters.DeleteNodes.NODE_IDS);
 
       List<Node> nodesToDelete = nodeRepository.getNodes(nodeIds, Optional.empty())
         .filter(Objects::nonNull)
@@ -1764,11 +1764,11 @@ public class NodeDataFetcher {
 
   /**
    * <p>This {@link DataFetcher} copy one or more nodes into a destination folder. This is bound to
-   * the {@link Files.GraphQL.Mutations#COPY_NODES} mutation.</p>
+   * the {@link Constants.GraphQL.Mutations#COPY_NODES} mutation.</p>
    * <p>The requester must specify the following input parameters:</p>
    * <ul>
-   *   <li>{@link Files.GraphQL.InputParameters.CopyNodes#NODE_IDS}</li> containing a list of nodes id to copy.</li
-   *   <li>{@link Files.GraphQL.InputParameters.CopyNodes#DESTINATION_ID}</li> containing the folder id where every node
+   *   <li>{@link Constants.GraphQL.InputParameters.CopyNodes#NODE_IDS}</li> containing a list of nodes id to copy.</li
+   *   <li>{@link Constants.GraphQL.InputParameters.CopyNodes#DESTINATION_ID}</li> containing the folder id where every node
    *   is copied.</li>
    * </ul>
    * <p>The requester must have the {@link SharePermission#READ_AND_WRITE} permission on the destination folder.</p>
@@ -1780,7 +1780,7 @@ public class NodeDataFetcher {
       ResultPath resultPath = environment.getExecutionStepInfo().getPath();
       User requester = (User) environment
         .getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER);
+        .get(Constants.GraphQL.Context.REQUESTER);
       String requesterId = requester.getId();
       List<String> nodeIds = environment.getArgument(InputParameters.MoveNodes.NODE_IDS);
       String destinationFolderId = environment.getArgument(
@@ -2034,7 +2034,7 @@ public class NodeDataFetcher {
       ResultPath path = environment.getExecutionStepInfo()
         .getPath();
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Constants.GraphQL.Context.REQUESTER)).getId();
       String nodeId = environment.getArgument(GetVersions.NODE_ID);
       Optional<List<Integer>> optVersions = Optional.ofNullable(
         environment.getArgument(GetVersions.VERSIONS));
@@ -2073,7 +2073,7 @@ public class NodeDataFetcher {
       ResultPath path = environment.getExecutionStepInfo()
         .getPath();
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Constants.GraphQL.Context.REQUESTER)).getId();
       String nodeId = environment.getArgument(GetVersions.NODE_ID);
       Optional<List<Integer>> optVersionsToDelete = Optional.ofNullable(
         environment.getArgument(GetVersions.VERSIONS));
@@ -2125,7 +2125,7 @@ public class NodeDataFetcher {
       ResultPath path = environment.getExecutionStepInfo()
         .getPath();
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Constants.GraphQL.Context.REQUESTER)).getId();
       String nodeId = environment.getArgument(GetVersions.NODE_ID);
       List<Integer> versionsToKeepForever = environment.getArgument(GetVersions.VERSIONS);
       Boolean keepForever = environment.getArgument(KeepVersions.KEEP_FOREVER);
@@ -2201,11 +2201,11 @@ public class NodeDataFetcher {
       ResultPath path = environment.getExecutionStepInfo().getPath();
       String requesterId = ((User) environment
         .getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER))
+        .get(Constants.GraphQL.Context.REQUESTER))
         .getId();
-      String nodeId = environment.getArgument(Files.GraphQL.InputParameters.CloneVersion.NODE_ID);
+      String nodeId = environment.getArgument(Constants.GraphQL.InputParameters.CloneVersion.NODE_ID);
       Integer versionToClone = environment.getArgument(
-        Files.GraphQL.InputParameters.CloneVersion.VERSION
+        Constants.GraphQL.InputParameters.CloneVersion.VERSION
       );
 
       if (permissionsChecker
@@ -2301,7 +2301,7 @@ public class NodeDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Boolean>>> deleteAllNodesAndBlobs() {
 
     return environment -> CompletableFuture.supplyAsync(() -> {
-      String internalHeader = environment.getGraphQlContext().get(Files.GraphQL.Context.INTERNAL);
+      String internalHeader = environment.getGraphQlContext().get(Constants.GraphQL.Context.INTERNAL);
 
       if (internalHeader == null) {
           throw new AbortExecutionException("This operation is internal and thus requires the 'Internal' header set");
@@ -2310,7 +2310,7 @@ public class NodeDataFetcher {
       ResultPath resultPath = environment.getExecutionStepInfo()
         .getPath();
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Constants.GraphQL.Context.REQUESTER)).getId();
       String userId = (String) environment.getArgument(InputParameters.DeleteAllNodesAndBlobs.USER_ID);
 
       List<Node> nodesToDelete = nodeRepository.findNodesByOwner(userId).stream()

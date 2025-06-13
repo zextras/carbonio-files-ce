@@ -7,7 +7,7 @@ package com.zextras.carbonio.files.dal.dao.ebean;
 import static com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER;
 import static com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import io.ebean.annotation.Cache;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,7 +25,7 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 
 /**
- * Represents an Ebean {@link Node} entity that matches a record of the {@link Files.Db.Tables#NODE}
+ * Represents an Ebean {@link Node} entity that matches a record of the {@link Constants.Db.Tables#NODE}
  * table.
  *
  * <p>The implementation of the constructor and setters should not care to check if the values in input
@@ -34,81 +34,81 @@ import javax.persistence.Table;
  */
 @Cache
 @Entity
-@Table(name = Files.Db.Tables.NODE)
+@Table(name = Constants.Db.Tables.NODE)
 public class Node {
 
   public static final String ANCESTORS_SEPARATOR = ",";
 
   @Id
-  @Column(name = Files.Db.Node.ID, length = 36, nullable = false)
+  @Column(name = Constants.Db.Node.ID, length = 36, nullable = false)
   private String mId;
 
-  @Column(name = Files.Db.Node.OWNER_ID, length = 36)
+  @Column(name = Constants.Db.Node.OWNER_ID, length = 36)
   private String mOwnerId;
 
-  @Column(name = Files.Db.Node.CREATOR_ID, length = 36)
+  @Column(name = Constants.Db.Node.CREATOR_ID, length = 36)
   private String mCreatorId;
 
-  @Column(name = Files.Db.Node.EDITOR_ID, length = 256)
+  @Column(name = Constants.Db.Node.EDITOR_ID, length = 256)
   private String mLastEditorId;
 
-  @Column(name = Files.Db.Node.PARENT_ID, length = 36)
+  @Column(name = Constants.Db.Node.PARENT_ID, length = 36)
   private String mParentId;
 
-  @Column(name = Files.Db.Node.ANCESTOR_IDS, length = 4096)
+  @Column(name = Constants.Db.Node.ANCESTOR_IDS, length = 4096)
   private String mAncestorIds;
 
-  @Column(name = Files.Db.Node.CREATED_AT, nullable = false)
+  @Column(name = Constants.Db.Node.CREATED_AT, nullable = false)
   private Long mCreatedAt;
 
-  @Column(name = Files.Db.Node.UPDATED_AT, nullable = false)
+  @Column(name = Constants.Db.Node.UPDATED_AT, nullable = false)
   private Long mUpdatedAt;
 
-  @Column(name = Files.Db.Node.CATEGORY, nullable = false)
+  @Column(name = Constants.Db.Node.CATEGORY, nullable = false)
   private Short mNodeCategory;
 
-  @Column(name = Files.Db.Node.TYPE, length = 50, nullable = false)
+  @Column(name = Constants.Db.Node.TYPE, length = 50, nullable = false)
   @Enumerated(EnumType.STRING)
   private NodeType mNodeType;
 
-  @Column(name = Files.Db.Node.NAME, length = 1024, nullable = false)
+  @Column(name = Constants.Db.Node.NAME, length = 1024, nullable = false)
   private String mName;
 
-  @Column(name = Files.Db.Node.DESCRIPTION, nullable = false)
+  @Column(name = Constants.Db.Node.DESCRIPTION, nullable = false)
   private String mDescription;
 
-  @Column(name = Files.Db.Node.CURRENT_VERSION, nullable = true)
+  @Column(name = Constants.Db.Node.CURRENT_VERSION, nullable = true)
   private Integer mCurrentVersion;
 
-  @Column(name = Files.Db.Node.INDEX_STATUS, nullable = false)
+  @Column(name = Constants.Db.Node.INDEX_STATUS, nullable = false)
   private Integer mIndexStatus;
 
-  @Column(name = Files.Db.Node.SIZE, nullable = false)
+  @Column(name = Constants.Db.Node.SIZE, nullable = false)
   private Long mSize;
 
-  @Column(name = Files.Db.Node.HIDDEN, nullable = false)
+  @Column(name = Constants.Db.Node.HIDDEN, nullable = false)
   private Boolean mHidden;
 
   @OneToMany(fetch = FetchType.EAGER)
   @JoinColumn(
-      name = Files.Db.Node.ID,
-      referencedColumnName = Files.Db.NodeCustomAttributes.NODE_ID,
+      name = Constants.Db.Node.ID,
+      referencedColumnName = Constants.Db.NodeCustomAttributes.NODE_ID,
       insertable = false,
       updatable = false)
   private List<NodeCustomAttributes> mCustomAttributes;
 
   @OneToMany(fetch = FetchType.LAZY)
   @JoinColumn(
-      name = Files.Db.Node.ID,
-      referencedColumnName = Files.Db.Share.NODE_ID,
+      name = Constants.Db.Node.ID,
+      referencedColumnName = Constants.Db.Share.NODE_ID,
       insertable = false,
       updatable = false)
   private List<Share> mShares;
 
   @OneToMany(fetch = FetchType.LAZY)
   @JoinColumn(
-      name = Files.Db.Node.ID,
-      referencedColumnName = Files.Db.FileVersion.NODE_ID,
+      name = Constants.Db.Node.ID,
+      referencedColumnName = Constants.Db.FileVersion.NODE_ID,
       insertable = false,
       updatable = false)
   private List<FileVersion> fileVersions;
@@ -302,12 +302,12 @@ public class Node {
 
   public Object getSortingValueFromColumn(String columnName) {
     return switch (columnName) {
-      case Files.Db.Node.ID -> getId();
-      case Files.Db.Node.CATEGORY -> getNodeCategory().getValue();
-      case Files.Db.Node.CREATED_AT -> getCreatedAt();
-      case Files.Db.Node.UPDATED_AT -> getUpdatedAt();
-      case Files.Db.Node.NAME -> getName();
-      case Files.Db.Node.SIZE -> getSize();
+      case Constants.Db.Node.ID -> getId();
+      case Constants.Db.Node.CATEGORY -> getNodeCategory().getValue();
+      case Constants.Db.Node.CREATED_AT -> getCreatedAt();
+      case Constants.Db.Node.UPDATED_AT -> getUpdatedAt();
+      case Constants.Db.Node.NAME -> getName();
+      case Constants.Db.Node.SIZE -> getSize();
       default -> throw new IllegalArgumentException("Column not supported");
     };
   }

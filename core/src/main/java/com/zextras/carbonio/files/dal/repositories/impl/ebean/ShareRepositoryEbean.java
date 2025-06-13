@@ -5,8 +5,8 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Db;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
@@ -43,8 +43,8 @@ public class ShareRepositoryEbean implements ShareRepository {
         .getEbeanDatabase()
         .find(Share.class)
         .where()
-        .eq(Files.Db.Share.NODE_ID, nodeId)
-        .eq(Files.Db.Share.SHARE_TARGET_UUID, userId)
+        .eq(Constants.Db.Share.NODE_ID, nodeId)
+        .eq(Constants.Db.Share.SHARE_TARGET_UUID, userId)
         .findOneOrEmpty();
   }
 
@@ -150,7 +150,7 @@ public class ShareRepositoryEbean implements ShareRepository {
         .getEbeanDatabase()
         .find(Share.class)
         .where()
-        .in(Files.Db.Share.NODE_ID, nodeIds)
+        .in(Constants.Db.Share.NODE_ID, nodeIds)
         .delete();
 
     // TODO Uniform the delete behaviour with other delete method when we implement unique shareId
@@ -161,8 +161,8 @@ public class ShareRepositoryEbean implements ShareRepository {
         .getEbeanDatabase()
         .find(Share.class)
         .where()
-        .in(Files.Db.Share.NODE_ID, nodeIds)
-        .eq(Files.Db.Share.SHARE_TARGET_UUID, targetUserId)
+        .in(Constants.Db.Share.NODE_ID, nodeIds)
+        .eq(Constants.Db.Share.SHARE_TARGET_UUID, targetUserId)
         .findList();
   }
 
@@ -172,10 +172,10 @@ public class ShareRepositoryEbean implements ShareRepository {
             .getEbeanDatabase()
             .find(Share.class)
             .where()
-            .eq(Files.Db.Share.NODE_ID, nodeId);
+            .eq(Constants.Db.Share.NODE_ID, nodeId);
 
     if (!targetUserIds.isEmpty()) {
-      query.in(Files.Db.Share.SHARE_TARGET_UUID, targetUserIds);
+      query.in(Constants.Db.Share.SHARE_TARGET_UUID, targetUserIds);
     }
 
     return query.findList();
@@ -196,7 +196,7 @@ public class ShareRepositoryEbean implements ShareRepository {
             .getEbeanDatabase()
             .createQuery(Share.class)
             .where()
-            .eq(Files.Db.Share.NODE_ID, nodeId)
+            .eq(Constants.Db.Share.NODE_ID, nodeId)
             .query();
 
     sorts.forEach(sort -> sort.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery()));

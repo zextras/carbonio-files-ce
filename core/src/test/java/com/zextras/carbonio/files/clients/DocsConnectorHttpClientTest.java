@@ -26,7 +26,7 @@ class DocsConnectorHttpClientTest {
   void setup() {
     httpClientMock = Mockito.mock(CloseableHttpClient.class);
     FilesConfig filesConfigMock = Mockito.mock(FilesConfig.class);
-    Mockito.when(filesConfigMock.getDocsConnectorUrl()).thenReturn("http://127.78.0.2:20005");
+    Mockito.when(filesConfigMock.getDocsConnectorHost()).thenReturn("http://127.78.0.2:20005");
 
     docsConnectorHttpClient = new DocsConnectorHttpClient(httpClientMock, filesConfigMock);
   }

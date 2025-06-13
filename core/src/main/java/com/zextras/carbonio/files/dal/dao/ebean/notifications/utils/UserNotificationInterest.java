@@ -1,6 +1,6 @@
 package com.zextras.carbonio.files.dal.dao.ebean.notifications.utils;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.Notification;
 import io.ebean.annotation.Cache;
 
@@ -11,28 +11,28 @@ import javax.persistence.*;
 * */
 @Cache
 @Entity
-@Table(name = Files.Db.Tables.USER_NOTIFICATION_INTEREST)
+@Table(name = Constants.Db.Tables.USER_NOTIFICATION_INTEREST)
 public class UserNotificationInterest {
 
   @Id
-  @Column(name = Files.Db.UserNotificationInterest.INTEREST_ID, length = 255, nullable = false)
+  @Column(name = Constants.Db.UserNotificationInterest.INTEREST_ID, length = 255, nullable = false)
   private String interestId;
 
-  @Column(name = Files.Db.UserNotificationInterest.USER_ID, length = 36, nullable = false)
+  @Column(name = Constants.Db.UserNotificationInterest.USER_ID, length = 36, nullable = false)
   private String userId;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = Files.Db.UserNotificationInterest.USER_ID, insertable = false, updatable = false)
+  @JoinColumn(name = Constants.Db.UserNotificationInterest.USER_ID, insertable = false, updatable = false)
   private UserNotificationsInfo userInfo;
 
-  @Column(name = Files.Db.UserNotificationInterest.NOTIFICATION_ID, length = 36, nullable = false)
+  @Column(name = Constants.Db.UserNotificationInterest.NOTIFICATION_ID, length = 36, nullable = false)
   private String notificationId;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = Files.Db.UserNotificationInterest.NOTIFICATION_ID, insertable = false, updatable = false)
+  @JoinColumn(name = Constants.Db.UserNotificationInterest.NOTIFICATION_ID, insertable = false, updatable = false)
   private Notification notification;
 
-  @Column(name = Files.Db.UserNotificationInterest.CREATED_AT, nullable = false)
+  @Column(name = Constants.Db.UserNotificationInterest.CREATED_AT, nullable = false)
   private Long createdAt;
 
   public UserNotificationInterest(String interestId, String userId, String notificationId, Long createdAt) {

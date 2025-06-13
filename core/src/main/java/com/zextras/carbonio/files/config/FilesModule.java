@@ -66,7 +66,7 @@ public class FilesModule extends AbstractModule {
   @Provides
   @Singleton
   public Filestore provideFileStore(FilesConfig filesConfig) {
-    return StoragesClient.atUrl(filesConfig.getStoragesUrl());
+    return StoragesClient.atUrl(filesConfig.getStoragesHost());
   }
 
   @Provides
@@ -82,7 +82,7 @@ public class FilesModule extends AbstractModule {
   @Singleton
   public MessageBrokerClient provideMessageBrokerClient(FilesConfig filesConfig) {
     return MessageBrokerClient.fromConfig(
-            filesConfig.getMessageBrokerUrl(),
+            filesConfig.getMessageBrokerHost(),
             filesConfig.getMessageBrokerPort(),
             filesConfig.getMessageBrokerUsername(),
             filesConfig.getMessageBrokerPassword())
@@ -92,12 +92,12 @@ public class FilesModule extends AbstractModule {
   @Provides
   @Singleton
   public UserManagementClient provideUserManagementClient(FilesConfig filesConfig) {
-    return UserManagementClient.atURL(filesConfig.getUserManagementUrl());
+    return UserManagementClient.atURL(filesConfig.getUserManagementHost());
   }
 
   @Provides
   @Singleton
   public PreviewClient providePreviewClient(FilesConfig filesConfig) {
-    return PreviewClient.atURL(filesConfig.getPreviewUrl());
+    return PreviewClient.atURL(filesConfig.getPreviewHost());
   }
 }

@@ -4,32 +4,32 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import java.io.Serializable;
 import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
 
 /**
- * <p>This class represents the primary key of the {@link Files.Db.Tables#FILE_VERSION}. It is
+ * <p>This class represents the primary key of the {@link Constants.Db.Tables#FILE_VERSION}. It is
  * composed by two fields:
  *  <ul>
- *    <li>{@link Files.Db.FileVersion#NODE_ID}: the foreign key of the node identifier</li>
- *    <li>{@link Files.Db.FileVersion#VERSION}: an integer representing the version of the file</li>
+ *    <li>{@link Constants.Db.FileVersion#NODE_ID}: the foreign key of the node identifier</li>
+ *    <li>{@link Constants.Db.FileVersion#VERSION}: an integer representing the version of the file</li>
  *  </ul>
  * </p>
  * <p>
  *   This class is necessary to specify the primary key for the {@link FileVersion} and it is useful to performs
- *   queries containing joins between {@link Files.Db.Tables#FILE_VERSION} and {@link Files.Db.Tables#NODE} tables.
+ *   queries containing joins between {@link Constants.Db.Tables#FILE_VERSION} and {@link Constants.Db.Tables#NODE} tables.
  * </p>
  */
 @Embeddable
 public class FileVersionPK implements Serializable {
 
-  @Column(name = Files.Db.FileVersion.NODE_ID, nullable = false)
+  @Column(name = Constants.Db.FileVersion.NODE_ID, nullable = false)
   private String mNodeId;
 
-  @Column(name = Files.Db.FileVersion.VERSION, nullable = false)
+  @Column(name = Constants.Db.FileVersion.VERSION, nullable = false)
   private Integer mVersion;
 
   public FileVersionPK(

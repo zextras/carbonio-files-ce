@@ -6,8 +6,8 @@ package com.zextras.carbonio.files.graphql.validators;
 
 import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Db.RootId;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.Db.RootId;
 import graphql.GraphQLError;
 import graphql.execution.instrumentation.fieldvalidation.FieldAndArguments;
 import graphql.execution.instrumentation.fieldvalidation.FieldValidationEnvironment;
@@ -238,11 +238,11 @@ public class GenericControllerEvaluator {
       (key) ->
       {
         int limit = fieldAndArguments.getArgumentValue(key);
-        return (limit >= 0 && limit <= Files.GraphQL.LIMIT_ELEMENTS_FOR_PAGE)
+        return (limit >= 0 && limit <= Constants.GraphQL.LIMIT_ELEMENTS_FOR_PAGE)
           ? Optional.empty()
           : Optional.of(
             "Invalid limit value. The allowed range is between 0 and "
-              + Files.GraphQL.LIMIT_ELEMENTS_FOR_PAGE + "."
+              + Constants.GraphQL.LIMIT_ELEMENTS_FOR_PAGE + "."
           );
       }
     ));

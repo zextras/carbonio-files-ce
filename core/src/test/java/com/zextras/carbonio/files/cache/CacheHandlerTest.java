@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.cache;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import org.assertj.core.api.Assertions;
@@ -25,15 +25,15 @@ class CacheHandlerTest {
     cacheHandlerFactory = Mockito.mock(CacheHandlerFactory.class);
 
     Mockito.when(cacheHandlerFactory.createFileVersionCache(
-      Files.Cache.FILE_VERSION,
-      Files.Cache.DEFAULT_SIZE,
-      Files.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
+      Constants.Cache.FILE_VERSION,
+      Constants.Cache.DEFAULT_SIZE,
+      Constants.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
     )).thenReturn(fileVersionCache);
 
     Mockito.when(cacheHandlerFactory.createUserCache(
-      Files.Cache.USER,
-      Files.Cache.DEFAULT_SIZE,
-      Files.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
+      Constants.Cache.USER,
+      Constants.Cache.DEFAULT_SIZE,
+      Constants.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
     )).thenReturn(userCache);
   }
 

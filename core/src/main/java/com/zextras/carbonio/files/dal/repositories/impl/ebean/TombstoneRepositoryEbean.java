@@ -5,8 +5,8 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Db;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
@@ -56,8 +56,8 @@ public class TombstoneRepositoryEbean implements TombstoneRepository {
         .getEbeanDatabase()
         .find(Tombstone.class)
         .where()
-        .eq(Files.Db.Tombstone.NODE_ID, nodeId)
-        .eq(Files.Db.Tombstone.VERSION, version)
+        .eq(Constants.Db.Tombstone.NODE_ID, nodeId)
+        .eq(Constants.Db.Tombstone.VERSION, version)
         .exists()
     ) {
       return Optional.empty();
@@ -101,7 +101,7 @@ public class TombstoneRepositoryEbean implements TombstoneRepository {
     dbManager.getEbeanDatabase()
         .find(Tombstone.class)
         .where()
-        .eq(Files.Db.Tombstone.OWNER_ID, ownerId)
+        .eq(Constants.Db.Tombstone.OWNER_ID, ownerId)
         .delete();
   }
 }

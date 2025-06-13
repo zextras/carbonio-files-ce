@@ -5,8 +5,8 @@
 package com.zextras.carbonio.files.config;
 
 import com.google.inject.Singleton;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.ServiceDiscover;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.ServiceDiscover;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.exceptions.InvalidTokenSignException;
 
@@ -99,100 +99,117 @@ public class FilesConfig {
     return properties;
   }
 
-  // URL Building Methods
-  private String buildUrlFromProperties(String urlPropertyName, String portPropertyName, String defaultPort) {
-    return String.format(
-        "http://%s:%s",
-        properties.getProperty(urlPropertyName, Constants.Config.Default.IP),
-        properties.getProperty(portPropertyName, defaultPort));
-  }
-
-  public String getDatabaseUrl() {
+  public String getDatabaseHost() {
     return properties.getProperty(
-        Constants.Config.Properties.DATABASE_URL,
-        Constants.Config.Default.DATABASE_URL);
+        Constants.Config.Database.HOST_PROPERTY,
+        Constants.Config.Database.DEFAULT_HOST);
   }
 
   public String getDatabasePort() {
     return properties.getProperty(
-        Constants.Config.Properties.DATABASE_PORT,
-        Constants.Config.Default.DATABASE_PORT);
+        Constants.Config.Database.PORT_PROPERTY,
+        Constants.Config.Database.DEFAULT_PORT);
   }
 
   public String getDatabaseName() {
     return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
-        .getConfig(ServiceDiscover.Config.DB_NAME)
-        .getOrElse(Constants.Config.Default.DATABASE_NAME);
+        .getConfig(ServiceDiscover.Config.Key.DB_NAME)
+        .getOrElse(Constants.Config.Database.DEFAULT_NAME);
   }
 
   public String getDatabaseUsername() {
     return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
-        .getConfig(ServiceDiscover.Config.DB_USERNAME)
-        .getOrElse(Constants.Config.Default.DATABASE_USERNAME);
+        .getConfig(ServiceDiscover.Config.Key.DB_USERNAME)
+        .getOrElse(Constants.Config.Database.DEFAULT_USERNAME);
   }
 
   public String getDatabasePassword() {
     return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
-        .getConfig(ServiceDiscover.Config.DB_PASSWORD)
+        .getConfig(ServiceDiscover.Config.Key.DB_PASSWORD)
         .getOrElse("");
   }
 
-  public String getUserManagementUrl() {
-    return buildUrlFromProperties(
-        Constants.Config.Properties.USER_MANAGEMENT_URL,
-        Constants.Config.Properties.USER_MANAGEMENT_PORT,
-        Constants.Config.Default.USER_MANAGEMENT_PORT);
+  public String getUserManagementHost() {
+    return properties.getProperty(
+        Constants.Config.UserManagement.HOST_PROPERTY,
+        Constants.Config.UserManagement.DEFAULT_HOST);
   }
 
-  public String getStoragesUrl() {
-    return buildUrlFromProperties(
-        Constants.Config.Properties.STORAGES_URL,
-        Constants.Config.Properties.STORAGES_PORT,
-        Constants.Config.Default.STORAGES_PORT) + "/";
+  public String getUserManagementPort() {
+    return properties.getProperty(
+        Constants.Config.UserManagement.PORT_PROPERTY,
+        String.valueOf(Constants.Config.UserManagement.DEFAULT_PORT));
   }
 
-  public String getPreviewUrl() {
-    return buildUrlFromProperties(
-        Constants.Config.Properties.PREVIEW_URL,
-        Constants.Config.Properties.PREVIEW_PORT,
-        Constants.Config.Default.PREVIEW_PORT);
+  public String getStoragesHost() {
+    return properties.getProperty(
+        Constants.Config.Storages.HOST_PROPERTY,
+        Constants.Config.Storages.DEFAULT_HOST);
   }
 
-  public String getMailboxUrl() {
-    return buildUrlFromProperties(
-        Constants.Config.Properties.MAILBOX_URL,
-        Constants.Config.Properties.MAILBOX_PORT,
-        Constants.Config.Default.MAILBOX_PORT) + "/";
+  public String getStoragesPort() {
+    return properties.getProperty(
+        Constants.Config.Storages.PORT_PROPERTY,
+        String.valueOf(Constants.Config.Storages.DEFAULT_PORT));
   }
 
-  public String getDocsConnectorUrl() {
-    return buildUrlFromProperties(
-        Constants.Config.Properties.DOCS_CONNECTOR_URL,
-        Constants.Config.Properties.DOCS_CONNECTOR_PORT,
-        Constants.Config.Default.DOCS_CONNECTOR_PORT);
+  public String getPreviewHost() {
+    return properties.getProperty(
+        Constants.Config.Preview.HOST_PROPERTY,
+        Constants.Config.Preview.DEFAULT_HOST);
   }
 
-  public String getMessageBrokerUrl() {
-    return Optional.ofNullable(System.getProperty(Constants.Config.Properties.MESSAGE_BROKER_URL))
-        .orElse(properties.getProperty(Constants.Config.Properties.MESSAGE_BROKER_URL, Constants.Config.Default.MESSAGE_BROKER_URL));
+  public String getPreviewPort() {
+    return properties.getProperty(
+        Constants.Config.Preview.PORT_PROPERTY,
+        String.valueOf(Constants.Config.Preview.DEFAULT_PORT));
+  }
+
+  public String getMailboxHost() {
+    return properties.getProperty(
+        Constants.Config.Mailbox.HOST_PROPERTY,
+        Constants.Config.Mailbox.DEFAULT_HOST);
+  }
+
+  public String getMailboxPort() {
+    return properties.getProperty(
+        Constants.Config.Mailbox.PORT_PROPERTY,
+        String.valueOf(Constants.Config.Mailbox.DEFAULT_PORT));
+  }
+
+  public String getDocsConnectorHost() {
+    return properties.getProperty(
+        Constants.Config.DocsConnector.HOST_PROPERTY,
+        Constants.Config.DocsConnector.DEFAULT_HOST);
+  }
+
+  public String getDocsConnectorPort() {
+    return properties.getProperty(
+        Constants.Config.DocsConnector.PORT_PROPERTY,
+        String.valueOf(Constants.Config.DocsConnector.DEFAULT_PORT));
+  }
+
+  public String getMessageBrokerHost() {
+    return Optional.ofNullable(System.getProperty(Constants.Config.MessageBroker.HOST_PROPERTY))
+        .orElse(properties.getProperty(Constants.Config.MessageBroker.HOST_PROPERTY, Constants.Config.MessageBroker.DEFAULT_HOST));
   }
 
   public Integer getMessageBrokerPort() {
-    String messageBrokerPort = Optional.ofNullable(System.getProperty(Constants.Config.Properties.MESSAGE_BROKER_PORT))
-        .orElse(properties.getProperty(Constants.Config.Properties.MESSAGE_BROKER_PORT, Constants.Config.Default.MESSAGE_BROKER_PORT));
+    String messageBrokerPort = Optional.ofNullable(System.getProperty(Constants.Config.MessageBroker.PORT_PROPERTY))
+        .orElse(properties.getProperty(Constants.Config.MessageBroker.PORT_PROPERTY, String.valueOf(Constants.Config.MessageBroker.DEFAULT_PORT)));
     return Integer.valueOf(messageBrokerPort);
   }
 
   public String getMessageBrokerPassword() {
     return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
         .getConfig("default/password")
-        .getOrElse(Constants.Config.Default.MESSAGE_BROKER_PASSWORD);
+        .getOrElse(Constants.MessageBroker.Config.DEFAULT_PASSWORD);
   }
 
   public String getMessageBrokerUsername() {
     return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
         .getConfig("default/username")
-        .getOrElse(Constants.Config.Default.MESSAGE_BROKER_USERNAME);
+        .getOrElse(Constants.MessageBroker.Config.DEFAULT_USERNAME);
   }
 
   // ================================================================================
@@ -247,12 +264,8 @@ public class FilesConfig {
   // Returns true as default since the notifications are a required feature, but opens the way to disable them if
   // needed in the future
   public boolean areNotificationsEnabled() {
-    String systemValue = System.getProperty(Files.Config.Service.ENABLE_NOTIFICATIONS, "true");
-    boolean systemEnabled = !systemValue.equalsIgnoreCase("false");
-
-    String propValue = properties.getProperty(Files.Config.Service.ENABLE_NOTIFICATIONS, "true");
-    boolean propEnabled = !propValue.equalsIgnoreCase("false");
-
-    return systemEnabled && propEnabled;
+    return Boolean.parseBoolean(
+        properties.getProperty(
+            Constants.Files.ENABLE_NOTIFICATIONS_PROPERTY, String.valueOf(Constants.Files.DEFAULT_ENABLE_NOTIFICATIONS)));
   }
 }

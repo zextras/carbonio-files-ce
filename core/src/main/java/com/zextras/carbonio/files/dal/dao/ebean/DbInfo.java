@@ -4,15 +4,15 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean;
 
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Db.Tables;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.Db.Tables;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Table;
 
 /**
  * Represents an Ebean {@link DbInfo} entity that matches a record of the {@link
- * Files.Db.Tables#DB_INFO} table.
+ * Constants.Db.Tables#DB_INFO} table.
  */
 @Entity
 @Table(name = Tables.DB_INFO)

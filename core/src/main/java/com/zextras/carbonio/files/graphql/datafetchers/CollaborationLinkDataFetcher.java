@@ -5,14 +5,14 @@
 package com.zextras.carbonio.files.graphql.datafetchers;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.API.Endpoints;
-import com.zextras.carbonio.files.Files.GraphQL;
-import com.zextras.carbonio.files.Files.GraphQL.Context;
-import com.zextras.carbonio.files.Files.GraphQL.InputParameters.CreateCollaborationLink;
-import com.zextras.carbonio.files.Files.GraphQL.InputParameters.DeleteCollaborationLinks;
-import com.zextras.carbonio.files.Files.GraphQL.InputParameters.GetCollaborationLink;
-import com.zextras.carbonio.files.Files.GraphQL.Node;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.API.Endpoints;
+import com.zextras.carbonio.files.Constants.GraphQL;
+import com.zextras.carbonio.files.Constants.GraphQL.Context;
+import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.CreateCollaborationLink;
+import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.DeleteCollaborationLinks;
+import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.GetCollaborationLink;
+import com.zextras.carbonio.files.Constants.GraphQL.Node;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
@@ -84,7 +84,7 @@ public class CollaborationLinkDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> createCollaborationLink() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
-      User requester = environment.getGraphQlContext().get(Files.GraphQL.Context.REQUESTER);
+      User requester = environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
       String nodeId = environment.getArgument(CreateCollaborationLink.NODE_ID);
       SharePermission permissions = environment.getArgument(CreateCollaborationLink.PERMISSION);
 

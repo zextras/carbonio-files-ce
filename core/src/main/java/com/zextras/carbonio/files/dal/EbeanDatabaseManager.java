@@ -7,11 +7,11 @@ package com.zextras.carbonio.files.dal;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zaxxer.hikari.HikariDataSource;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Config.Hikari;
-import com.zextras.carbonio.files.Files.Db;
-import com.zextras.carbonio.files.Files.ServiceDiscover;
-import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.Config.Hikari;
+import com.zextras.carbonio.files.Constants.Db;
+import com.zextras.carbonio.files.Constants.ServiceDiscover;
+import com.zextras.carbonio.files.Constants.ServiceDiscover.Config;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
@@ -78,34 +78,34 @@ public class EbeanDatabaseManager {
   public EbeanDatabaseManager(FilesConfig filesConfig) {
     postgresDatabase = ServiceDiscoverHttpClient
       .defaultURL(ServiceDiscover.SERVICE_NAME)
-      .getConfig(ServiceDiscover.Config.Db.NAME)
-      .getOrElse(ServiceDiscover.Config.Db.DEFAULT_NAME);
+      .getConfig(Config.Key.DB_NAME)
+      .getOrElse(Config.Key.DEFAULT_NAME);
 
     postgresUser = ServiceDiscoverHttpClient
       .defaultURL(ServiceDiscover.SERVICE_NAME)
-      .getConfig(ServiceDiscover.Config.Db.USERNAME)
-      .getOrElse(ServiceDiscover.Config.Db.DEFAULT_USERNAME);
+      .getConfig(Config.Key.DB_USERNAME)
+      .getOrElse(Config.Key.DEFAULT_USERNAME);
 
     postgresPassword = ServiceDiscoverHttpClient
       .defaultURL(ServiceDiscover.SERVICE_NAME)
-      .getConfig(ServiceDiscover.Config.Db.PASSWORD)
+      .getConfig(Config.Key.DB_PASSWORD)
       .getOrElse("");
 
     jdbcPostgresUrl = String.format(
       "jdbc:postgresql://%s/%s",
-      filesConfig.getDatabaseUrl(),
+      filesConfig.getDatabaseHost(),
       postgresDatabase
     );
 
     hikariMaximumPoolSize = ServiceDiscoverHttpClient
       .defaultURL(ServiceDiscover.SERVICE_NAME)
-      .getConfig(Config.Db.HIKARI_MAX_POOL_SIZE)
+      .getConfig(Config.Key.HIKARI_MAX_POOL_SIZE)
       .map(Integer::parseInt)
       .getOrElse(Hikari.MAX_POOL_SIZE);
 
     hikariMinimumIdleConnections = ServiceDiscoverHttpClient
       .defaultURL(ServiceDiscover.SERVICE_NAME)
-      .getConfig(Config.Db.HIKARI_MIN_IDLE_CONNECTIONS)
+      .getConfig(Config.Key.HIKARI_MIN_IDLE_CONNECTIONS)
       .map(minIdleConnections ->
         Math.min(Integer.parseInt(minIdleConnections), hikariMaximumPoolSize))
       .getOrElse(Hikari.MIN_IDLE_CONNECTIONS);
@@ -163,7 +163,7 @@ public class EbeanDatabaseManager {
       .sqlQuery(MessageFormat.format(
           "SELECT 1 FROM information_schema.tables where table_name = {0}{1}{0};",
           "'",
-          Files.Db.Tables.DB_INFO.toLowerCase()
+          Constants.Db.Tables.DB_INFO.toLowerCase()
         )
       )
       .findOneOrEmpty()

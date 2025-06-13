@@ -5,8 +5,8 @@
 package com.zextras.carbonio.files.graphql.datafetchers;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.GraphQL.DataLoaders;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.GraphQL.DataLoaders;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 
 /**
  * <p>Contains all the implementations of {@link DataFetcher}s for all the queries and mutations
- * defined in the GraphQL schema that are related to the {@link Files.GraphQL.Share} type.</p>
+ * defined in the GraphQL schema that are related to the {@link Constants.GraphQL.Share} type.</p>
  * <p>Each {@link DataFetcher} implementation is asynchronous and returns an {@link HashMap}
  * containing the data fetched from the database. Each key of the resulting map must match the name
  * of the related Share attribute defined in the GraphQL schema.</p>
@@ -77,14 +77,14 @@ public class ShareDataFetcher {
   private DataFetcherResult<Map<String, Object>> convertShareToDataFetcherResult(Share share) {
     Map<String, String> shareContext = new HashMap<>();
     Map<String, Object> result = new HashMap<>();
-    result.put(Files.GraphQL.Share.CREATED_AT, share.getCreatedAt());
-    result.put(Files.GraphQL.Share.PERMISSION, share.getPermissions().getSharePermission());
+    result.put(Constants.GraphQL.Share.CREATED_AT, share.getCreatedAt());
+    result.put(Constants.GraphQL.Share.PERMISSION, share.getPermissions().getSharePermission());
     share
       .getExpiredAt()
-      .ifPresent(expiration -> result.put(Files.GraphQL.Share.EXPIRES_AT, expiration));
+      .ifPresent(expiration -> result.put(Constants.GraphQL.Share.EXPIRES_AT, expiration));
 
-    shareContext.put(Files.GraphQL.Share.NODE, share.getNodeId());
-    shareContext.put(Files.GraphQL.Share.SHARE_TARGET, share.getTargetUserId());
+    shareContext.put(Constants.GraphQL.Share.NODE, share.getNodeId());
+    shareContext.put(Constants.GraphQL.Share.SHARE_TARGET, share.getTargetUserId());
     return new Builder<Map<String, Object>>()
       .data(result)
       .localContext(shareContext)
@@ -96,21 +96,21 @@ public class ShareDataFetcher {
   }
 
   /**
-   * <p>This {@link DataFetcher} must be used for the {@link Files.GraphQL.Mutations#CREATE_SHARE}
+   * <p>This {@link DataFetcher} must be used for the {@link Constants.GraphQL.Mutations#CREATE_SHARE}
    * mutation.</p>
    * <p>The request must have the following parameters in input:</p>
    * <ul>
-   * <li>{@link Files.GraphQL.InputParameters.Share#NODE_ID}: a {@link String} representing the id of the node to share
+   * <li>{@link Constants.GraphQL.InputParameters.Share#NODE_ID}: a {@link String} representing the id of the node to share
    * (this is mandatory).</li>
-   * <li>{@link Files.GraphQL.InputParameters.Share#SHARE_TARGET_ID}: a {@link String} representing the user to whom the
+   * <li>{@link Constants.GraphQL.InputParameters.Share#SHARE_TARGET_ID}: a {@link String} representing the user to whom the
    * node is shared with (this is mandatory).</li>
-   * <li>{@link Files.GraphQL.InputParameters.Share#PERMISSION}: an {@link ACL.SharePermission} representing the
+   * <li>{@link Constants.GraphQL.InputParameters.Share#PERMISSION}: an {@link ACL.SharePermission} representing the
    * permissions that the user will have on the node.</li>>
-   * <li>{@link Files.GraphQL.InputParameters.Share#EXPIRES_AT}: a long representing the expiration timestamp.</li>
+   * <li>{@link Constants.GraphQL.InputParameters.Share#EXPIRES_AT}: a long representing the expiration timestamp.</li>
    * </ul>
    * <h2>Behaviour:</h2>
    * <p>It creates the share with the values specified in input, it saves the mandatory parameters necessary to fetch
-   * the related {@link Files.GraphQL.Node} object and the related {@link Files.GraphQL.User} object, it propagates
+   * the related {@link Constants.GraphQL.Node} object and the related {@link Constants.GraphQL.User} object, it propagates
    * the share on all sub nodes recursively, then ii creates the GraphQL map of the new share created.</p>
    *
    * @return an asynchronous {@link DataFetcher} containing a {@link Map} of all the attributes
@@ -120,17 +120,17 @@ public class ShareDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> createShareFetcher() {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
-      User requesterUser = (User) environment.getGraphQlContext().get(Files.GraphQL.Context.REQUESTER);
+      User requesterUser = (User) environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
       String requesterId = requesterUser.getId();
-      String sharedNodeId = environment.getArgument(Files.GraphQL.InputParameters.Share.NODE_ID);
+      String sharedNodeId = environment.getArgument(Constants.GraphQL.InputParameters.Share.NODE_ID);
       String targetUserId = environment.getArgument(
-        Files.GraphQL.InputParameters.Share.SHARE_TARGET_ID
+        Constants.GraphQL.InputParameters.Share.SHARE_TARGET_ID
       );
       ACL.SharePermission permissions = environment.getArgument(
-        Files.GraphQL.InputParameters.Share.PERMISSION
+        Constants.GraphQL.InputParameters.Share.PERMISSION
       );
       Optional<Long> optExpiresAt = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.Share.EXPIRES_AT)
+        environment.getArgument(Constants.GraphQL.InputParameters.Share.EXPIRES_AT)
       );
 
       if (permissionsChecker
@@ -213,18 +213,18 @@ public class ShareDataFetcher {
   }
 
   /**
-   * <p>This {@link DataFetcher} must be used for the {@link Files.GraphQL.Queries#GET_SHARE}
+   * <p>This {@link DataFetcher} must be used for the {@link Constants.GraphQL.Queries#GET_SHARE}
    * query.</p>
    * <p>The request must have the following parameters in input:</p>
    * <ul>
-   * <li>{@link Files.GraphQL.InputParameters.Share#NODE_ID}: a {@link String} representing the id of the shared node
+   * <li>{@link Constants.GraphQL.InputParameters.Share#NODE_ID}: a {@link String} representing the id of the shared node
    * (this is mandatory).</li>
-   * <li>{@link Files.GraphQL.InputParameters.Share#SHARE_TARGET_ID}: a {@link String} representing the user to whom the
+   * <li>{@link Constants.GraphQL.InputParameters.Share#SHARE_TARGET_ID}: a {@link String} representing the user to whom the
    * node is shared with (this is mandatory).</li>
    * </ul>
    * <h2>Behaviour:</h2>
-   * <p>If the share exists it saves the mandatory parameters necessary to fetch the related {@link Files.GraphQL.Node}
-   * object and the related {@link Files.GraphQL.User} object, then it creates the GraphQL map of the requested share.
+   * <p>If the share exists it saves the mandatory parameters necessary to fetch the related {@link Constants.GraphQL.Node}
+   * object and the related {@link Constants.GraphQL.User} object, then it creates the GraphQL map of the requested share.
    * </p>
    *
    * @return an asynchronous {@link DataFetcher} containing a {@link Map} of all the attributes
@@ -234,10 +234,10 @@ public class ShareDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
-      String sharedNodeId = environment.getArgument(Files.GraphQL.InputParameters.Share.NODE_ID);
+        .get(Constants.GraphQL.Context.REQUESTER)).getId();
+      String sharedNodeId = environment.getArgument(Constants.GraphQL.InputParameters.Share.NODE_ID);
       String targetUserId = environment.getArgument(
-        Files.GraphQL.InputParameters.Share.SHARE_TARGET_ID);
+        Constants.GraphQL.InputParameters.Share.SHARE_TARGET_ID);
 
       return permissionsChecker.getPermissions(sharedNodeId, requesterId)
         .has(ACL.SharePermission.READ_ONLY)
@@ -265,12 +265,12 @@ public class ShareDataFetcher {
     return environment -> {
 
       String sharedNodeId =
-        ((Map<String, String>) environment.getLocalContext()).get(Files.GraphQL.Node.ID);
+        ((Map<String, String>) environment.getLocalContext()).get(Constants.GraphQL.Node.ID);
 
-      int limit = environment.getArgument(Files.GraphQL.InputParameters.LIMIT);
+      int limit = environment.getArgument(Constants.GraphQL.InputParameters.LIMIT);
 
       Optional<String> optCursor = Optional.ofNullable(
-        environment.getArgument(Files.GraphQL.InputParameters.CURSOR)
+        environment.getArgument(Constants.GraphQL.InputParameters.CURSOR)
       );
 
       //TODO: At the moment the sorting is not supported
@@ -303,22 +303,22 @@ public class ShareDataFetcher {
   }
 
   /**
-   * <p>This {@link DataFetcher} must be used for the {@link Files.GraphQL.Mutations#UPDATE_SHARE}
+   * <p>This {@link DataFetcher} must be used for the {@link Constants.GraphQL.Mutations#UPDATE_SHARE}
    * mutation.</p>
    * <p>The request must have the following parameters in input:</p>
    * <ul>
-   * <li>{@link Files.GraphQL.InputParameters.Share#NODE_ID}: a {@link String} representing the id of the shared node
+   * <li>{@link Constants.GraphQL.InputParameters.Share#NODE_ID}: a {@link String} representing the id of the shared node
    * (this is mandatory).</li>
-   * <li>{@link Files.GraphQL.InputParameters.Share#SHARE_TARGET_ID}: a {@link String} representing the user to whom the
+   * <li>{@link Constants.GraphQL.InputParameters.Share#SHARE_TARGET_ID}: a {@link String} representing the user to whom the
    * node is shared with (this is mandatory).</li>
-   * <li>{@link Files.GraphQL.InputParameters.Share#PERMISSION}: an {@link ACL.SharePermission} representing the new
+   * <li>{@link Constants.GraphQL.InputParameters.Share#PERMISSION}: an {@link ACL.SharePermission} representing the new
    * permissions that the user will have on the node.</li>>
-   * <li>{@link Files.GraphQL.InputParameters.Share#EXPIRES_AT}: a long representing the expiration timestamp.</li>
+   * <li>{@link Constants.GraphQL.InputParameters.Share#EXPIRES_AT}: a long representing the expiration timestamp.</li>
    * </ul>
    * <h2>Behaviour:</h2>
    * <p>It retrieves the share, it updates that with the new values specified in input, it saves the mandatory
-   * parameters necessary to fetch the related {@link Files.GraphQL.Node} object and the related
-   * {@link Files.GraphQL.User} object, it propagates the updates on all sub nodes recursively, then it creates the
+   * parameters necessary to fetch the related {@link Constants.GraphQL.Node} object and the related
+   * {@link Constants.GraphQL.User} object, it propagates the updates on all sub nodes recursively, then it creates the
    * GraphQL map of the updated share.</p>
    *
    * @return an asynchronous {@link DataFetcher} containing a {@link Map} of all the attributes
@@ -328,20 +328,20 @@ public class ShareDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
-      String sharedNodeId = environment.getArgument(Files.GraphQL.InputParameters.Share.NODE_ID);
+        .get(Constants.GraphQL.Context.REQUESTER)).getId();
+      String sharedNodeId = environment.getArgument(Constants.GraphQL.InputParameters.Share.NODE_ID);
       String targetUserId = environment.getArgument(
-        Files.GraphQL.InputParameters.Share.SHARE_TARGET_ID);
+        Constants.GraphQL.InputParameters.Share.SHARE_TARGET_ID);
 
       return permissionsChecker.getPermissions(sharedNodeId, requesterId)
         .has(ACL.SharePermission.READ_AND_SHARE)
         ? shareRepository.getShare(sharedNodeId, targetUserId)
         .map(share -> {
           Optional<ACL.SharePermission> optNewPermissions = Optional.ofNullable(
-            environment.getArgument(Files.GraphQL.InputParameters.Share.PERMISSION)
+            environment.getArgument(Constants.GraphQL.InputParameters.Share.PERMISSION)
           );
           Optional<Long> optNewExpiresAt = Optional.ofNullable(
-            environment.getArgument(Files.GraphQL.InputParameters.Share.EXPIRES_AT)
+            environment.getArgument(Constants.GraphQL.InputParameters.Share.EXPIRES_AT)
           );
 
           optNewPermissions.ifPresent(permissions -> {
@@ -373,13 +373,13 @@ public class ShareDataFetcher {
   }
 
   /**
-   * <p>This {@link DataFetcher} must be used for the {@link Files.GraphQL.Mutations#DELETE_SHARE}
+   * <p>This {@link DataFetcher} must be used for the {@link Constants.GraphQL.Mutations#DELETE_SHARE}
    * mutation.</p>
    * <p>The request must have the following parameters in input:</p>
    * <ul>
-   * <li>{@link Files.GraphQL.InputParameters.Share#NODE_ID}: a {@link String} representing the id of the shared node
+   * <li>{@link Constants.GraphQL.InputParameters.Share#NODE_ID}: a {@link String} representing the id of the shared node
    * (this is mandatory).</li>
-   * <li>{@link Files.GraphQL.InputParameters.Share#SHARE_TARGET_ID}: a {@link String} representing the user to whom the
+   * <li>{@link Constants.GraphQL.InputParameters.Share#SHARE_TARGET_ID}: a {@link String} representing the user to whom the
    * node is shared with (this is mandatory).</li>
    * </ul>
    * <h2>Behaviour:</h2>
@@ -392,11 +392,11 @@ public class ShareDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
       String requesterId = ((User) environment.getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Constants.GraphQL.Context.REQUESTER)).getId();
       final String sharedNodeId = environment.getArgument(
-        Files.GraphQL.InputParameters.Share.NODE_ID);
+        Constants.GraphQL.InputParameters.Share.NODE_ID);
       final String targetUserId = environment.getArgument(
-        Files.GraphQL.InputParameters.Share.SHARE_TARGET_ID);
+        Constants.GraphQL.InputParameters.Share.SHARE_TARGET_ID);
 
       return permissionsChecker.getPermissions(sharedNodeId, requesterId)
         .has(ACL.SharePermission.READ_AND_SHARE)

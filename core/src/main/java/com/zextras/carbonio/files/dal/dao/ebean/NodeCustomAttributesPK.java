@@ -4,33 +4,33 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import java.io.Serializable;
 import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
 
 /**
- * <p>This class represents the primary key of the {@link Files.Db.Tables#NODE_CUSTOM_ATTRIBUTES}.
+ * <p>This class represents the primary key of the {@link Constants.Db.Tables#NODE_CUSTOM_ATTRIBUTES}.
  * It is composed by two fields:
  *  <ul>
- *    <li>{@link Files.Db.NodeCustomAttributes#NODE_ID}: the foreign key of the node identifier</li>
- *    <li>{@link Files.Db.NodeCustomAttributes#USER_ID}: an {@link String} representing the user identifier</li>
+ *    <li>{@link Constants.Db.NodeCustomAttributes#NODE_ID}: the foreign key of the node identifier</li>
+ *    <li>{@link Constants.Db.NodeCustomAttributes#USER_ID}: an {@link String} representing the user identifier</li>
  *  </ul>
  * </p>
  * <p>
  *   This class is necessary to specify the primary key for the {@link NodeCustomAttributes} and it is useful to performs
- *   queries containing joins between {@link Files.Db.Tables#NODE_CUSTOM_ATTRIBUTES} and {@link Files.Db.Tables#NODE}
+ *   queries containing joins between {@link Constants.Db.Tables#NODE_CUSTOM_ATTRIBUTES} and {@link Constants.Db.Tables#NODE}
  *   tables.
  * </p>
  */
 @Embeddable
 public class NodeCustomAttributesPK implements Serializable {
 
-  @Column(name = Files.Db.NodeCustomAttributes.NODE_ID, nullable = false)
+  @Column(name = Constants.Db.NodeCustomAttributes.NODE_ID, nullable = false)
   private String mNodeId;
 
-  @Column(name = Files.Db.NodeCustomAttributes.USER_ID, nullable = false)
+  @Column(name = Constants.Db.NodeCustomAttributes.USER_ID, nullable = false)
   private String mUserId;
 
   public NodeCustomAttributesPK(

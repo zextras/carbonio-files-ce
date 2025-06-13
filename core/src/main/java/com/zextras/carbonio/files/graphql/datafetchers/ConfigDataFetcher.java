@@ -5,10 +5,10 @@
 package com.zextras.carbonio.files.graphql.datafetchers;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.ServiceDiscover;
-import com.zextras.carbonio.files.Files.ServiceDiscover.Config;
-import com.zextras.carbonio.files.Files.GraphQL;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.ServiceDiscover;
+import com.zextras.carbonio.files.Constants.ServiceDiscover.Config;
+import com.zextras.carbonio.files.Constants.GraphQL;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import graphql.execution.DataFetcherResult;
@@ -21,7 +21,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * <p>Contains all the implementations of {@link DataFetcher}s for all the queries and mutations
- * defined in the GraphQL schema that are related to the {@link Files.GraphQL.Config} type.</p>
+ * defined in the GraphQL schema that are related to the {@link Constants.GraphQL.Config} type.</p>
  * <p>Each {@link DataFetcher} implementation is asynchronous and returns a {@link List} of
  * {@link HashMap} containing the data fetched from service discover.</p>
  * <p>These {@link DataFetcher}s will be used in the {@link GraphQLProvider} where they are bound
@@ -45,7 +45,7 @@ public class ConfigDataFetcher {
   }
 
   /**
-   * <p>This {@link DataFetcher} must be used for the {@link Files.GraphQL.Queries#GET_CONFIGS}
+   * <p>This {@link DataFetcher} must be used for the {@link Constants.GraphQL.Queries#GET_CONFIGS}
    * query.</p>
    * <p>The request does not need any parameters in input.</p>
    * <h2>Behaviour:</h2>

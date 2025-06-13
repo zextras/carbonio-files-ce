@@ -4,7 +4,6 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
-import com.zextras.carbonio.files.Files;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import io.ebean.OrderBy;
 import io.ebean.Query;

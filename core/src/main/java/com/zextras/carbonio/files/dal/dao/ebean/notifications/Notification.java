@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean.notifications;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationType;
 import io.ebean.annotation.Cache;
 
@@ -22,17 +22,17 @@ import javax.persistence.*;
 * */
 @Cache
 @Entity
-@Table(name = Files.Db.Tables.NOTIFICATION)
+@Table(name = Constants.Db.Tables.NOTIFICATION)
 public class Notification {
 
   @Id
-  @Column(name = Files.Db.Notification.NOTIFICATION_ID, length = 36, nullable = false)
+  @Column(name = Constants.Db.Notification.NOTIFICATION_ID, length = 36, nullable = false)
   private String notificationId;
 
-  @Column(name = Files.Db.Notification.CREATED_AT, nullable = false)
+  @Column(name = Constants.Db.Notification.CREATED_AT, nullable = false)
   private Long createdAt;
 
-  @Column(name = Files.Db.Notification.NOTIFICATION_TYPE, length = 36, nullable = false)
+  @Column(name = Constants.Db.Notification.NOTIFICATION_TYPE, length = 36, nullable = false)
   @Enumerated(EnumType.STRING)
   private NotificationType notificationType;
 

@@ -62,8 +62,8 @@ public class NettyServer {
 
       bootstrap
         .localAddress(
-          config.getProperty(Files.Config.Service.URL, "127.78.0.2"),
-          Integer.parseInt(config.getProperty(Files.Config.Service.PORT, "10000"))
+          config.getProperty(Constants.Files.HOST_PROPERTY, Constants.Files.DEFAULT_HOST),
+          Integer.parseInt(config.getProperty(Constants.Files.PORT_PROPERTY, String.valueOf(Constants.Files.DEFAULT_PORT)))
         )
         .bind()
         .sync()

@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files.rest.controllers;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files.API.Endpoints;
+import com.zextras.carbonio.files.Constants.API.Endpoints;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.tasks.PrometheusService;
 import io.netty.buffer.Unpooled;

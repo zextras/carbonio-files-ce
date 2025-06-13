@@ -5,10 +5,10 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Config.Pagination;
-import com.zextras.carbonio.files.Files.Db;
-import com.zextras.carbonio.files.Files.Db.RootId;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.Config.Pagination;
+import com.zextras.carbonio.files.Constants.Db;
+import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -113,7 +113,7 @@ public class NodeRepositoryEbean implements NodeRepository {
         .find(Node.class)
         .where()
         .contains(Db.Node.ANCESTOR_IDS, Db.RootId.TRASH_ROOT)
-        .lt(Files.Db.Node.UPDATED_AT, retentionTimestamp)
+        .lt(Constants.Db.Node.UPDATED_AT, retentionTimestamp)
         .findList();
   }
 
@@ -258,10 +258,10 @@ public class NodeRepositoryEbean implements NodeRepository {
                   limit
                       .map(
                           l ->
-                              (l >= Files.Config.Pagination.LIMIT)
-                                  ? Files.Config.Pagination.LIMIT
+                              (l >= Constants.Config.Pagination.LIMIT)
+                                  ? Constants.Config.Pagination.LIMIT
                                   : l)
-                      .orElse(Files.Config.Pagination.LIMIT);
+                      .orElse(Constants.Config.Pagination.LIMIT);
 
               List<NodeSort> realSortsToApply = getRealSortingsToApply(sort);
               List<Node> nodes =
@@ -415,9 +415,9 @@ public class NodeRepositoryEbean implements NodeRepository {
     Query<Node> query =
         mDB.getEbeanDatabase()
             .createQuery(Node.class)
-            .select(Files.Db.Node.ID)
+            .select(Constants.Db.Node.ID)
             .where()
-            .eq(Files.Db.Node.PARENT_ID, nodeId)
+            .eq(Constants.Db.Node.PARENT_ID, nodeId)
             .query();
 
     if (nodeId.equals(RootId.LOCAL_ROOT) && userId.isPresent()) {
@@ -481,7 +481,7 @@ public class NodeRepositoryEbean implements NodeRepository {
 
   @Override
   public int deleteNodes(List<String> nodesIds) {
-    return mDB.getEbeanDatabase().find(Node.class).where().in(Files.Db.Node.ID, nodesIds).delete();
+    return mDB.getEbeanDatabase().find(Node.class).where().in(Constants.Db.Node.ID, nodesIds).delete();
   }
 
   @Override
@@ -515,8 +515,8 @@ public class NodeRepositoryEbean implements NodeRepository {
     return mDB.getEbeanDatabase()
         .find(NodeCustomAttributes.class)
         .where()
-        .eq(Files.Db.NodeCustomAttributes.NODE_ID, nodeId)
-        .eq(Files.Db.NodeCustomAttributes.USER_ID, userId)
+        .eq(Constants.Db.NodeCustomAttributes.NODE_ID, nodeId)
+        .eq(Constants.Db.NodeCustomAttributes.USER_ID, userId)
         .findOneOrEmpty();
   }
 
@@ -562,7 +562,7 @@ public class NodeRepositoryEbean implements NodeRepository {
         .find(Node.class)
         .where()
         .contains(Db.Node.ANCESTOR_IDS, Db.RootId.TRASH_ROOT)
-        .lt(Files.Db.Node.UPDATED_AT, retentionTimestamp)
+        .lt(Constants.Db.Node.UPDATED_AT, retentionTimestamp)
         .delete();
   }
 

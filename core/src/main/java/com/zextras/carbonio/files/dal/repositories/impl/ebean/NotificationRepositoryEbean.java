@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -79,20 +79,20 @@ public class NotificationRepositoryEbean implements NotificationRepository {
           mDB.getEbeanDatabase()
               .find(UserNotificationInterest.class)
               .where()
-              .eq(Files.Db.UserNotificationInterest.USER_ID, userId)
-              .eq(Files.Db.UserNotificationInterest.NOTIFICATION_ID, lastNotificationId)
+              .eq(Constants.Db.UserNotificationInterest.USER_ID, userId)
+              .eq(Constants.Db.UserNotificationInterest.NOTIFICATION_ID, lastNotificationId)
               .findOneOrEmpty()
               .ifPresentOrElse(userNotification -> {
                 Long lastNotificationCreatedAt = userNotification.getCreatedAt();
                 notificationIdsAtomic.set(mDB.getEbeanDatabase()
                     .find(UserNotificationInterest.class)
                     .where()
-                    .eq(Files.Db.UserNotificationInterest.USER_ID, userId)
-                    .lt(Files.Db.UserNotificationInterest.CREATED_AT, lastNotificationCreatedAt)
+                    .eq(Constants.Db.UserNotificationInterest.USER_ID, userId)
+                    .lt(Constants.Db.UserNotificationInterest.CREATED_AT, lastNotificationCreatedAt)
                     .orderBy()
-                    .desc(Files.Db.UserNotificationInterest.CREATED_AT)
+                    .desc(Constants.Db.UserNotificationInterest.CREATED_AT)
                     .orderBy()
-                    .desc(Files.Db.UserNotificationInterest.NOTIFICATION_ID) // discriminate on equal timestamps
+                    .desc(Constants.Db.UserNotificationInterest.NOTIFICATION_ID) // discriminate on equal timestamps
                     .setMaxRows(limit)
                     .findList()
                     .stream()
@@ -107,11 +107,11 @@ public class NotificationRepositoryEbean implements NotificationRepository {
             notificationIdsAtomic.set(mDB.getEbeanDatabase()
                 .find(UserNotificationInterest.class)
                 .where()
-                .eq(Files.Db.UserNotificationInterest.USER_ID, userId)
+                .eq(Constants.Db.UserNotificationInterest.USER_ID, userId)
                 .orderBy()
-                .desc(Files.Db.UserNotificationInterest.CREATED_AT)
+                .desc(Constants.Db.UserNotificationInterest.CREATED_AT)
                 .orderBy()
-                .desc(Files.Db.UserNotificationInterest.NOTIFICATION_ID) // discriminate on equal timestamps
+                .desc(Constants.Db.UserNotificationInterest.NOTIFICATION_ID) // discriminate on equal timestamps
                 .setMaxRows(limit)
                 .findList()
                 .stream()
@@ -128,7 +128,7 @@ public class NotificationRepositoryEbean implements NotificationRepository {
         mDB.getEbeanDatabase()
             .find(Notification.class)
             .where()
-            .in(Files.Db.Notification.NOTIFICATION_ID, notificationIds)
+            .in(Constants.Db.Notification.NOTIFICATION_ID, notificationIds)
             .findList();
 
     // Manual fetching of real notifications:
@@ -152,7 +152,7 @@ public class NotificationRepositoryEbean implements NotificationRepository {
             mDB.getEbeanDatabase()
                 .find(notifClass)
                 .where()
-                .in(Files.Db.Notification.NOTIFICATION_ID, idsForType)
+                .in(Constants.Db.Notification.NOTIFICATION_ID, idsForType)
                 .findList();
         resultList.forEach(notif -> notificationsById.put(notif.getNotificationId(), notif));
       }
@@ -194,9 +194,9 @@ public class NotificationRepositoryEbean implements NotificationRepository {
     return mDB.getEbeanDatabase()
         .find(SnapshotUser.class)
         .where()
-        .eq(Files.Db.SnapshotUser.USER_ID, userId)
+        .eq(Constants.Db.SnapshotUser.USER_ID, userId)
         .orderBy()
-        .desc(Files.Db.SnapshotUser.SNAPSHOT_TIMESTAMP)
+        .desc(Constants.Db.SnapshotUser.SNAPSHOT_TIMESTAMP)
         .setMaxRows(1)
         .findOneOrEmpty();
   }
@@ -224,9 +224,9 @@ public class NotificationRepositoryEbean implements NotificationRepository {
     return mDB.getEbeanDatabase()
         .find(SnapshotNode.class)
         .where()
-        .eq(Files.Db.SnapshotNode.NODE_ID, nodeId)
+        .eq(Constants.Db.SnapshotNode.NODE_ID, nodeId)
         .orderBy()
-        .desc(Files.Db.SnapshotNode.SNAPSHOT_TIMESTAMP)
+        .desc(Constants.Db.SnapshotNode.SNAPSHOT_TIMESTAMP)
         .setMaxRows(1)
         .findOneOrEmpty();
   }
@@ -251,8 +251,8 @@ public class NotificationRepositoryEbean implements NotificationRepository {
     return mDB.getEbeanDatabase()
         .find(UserNotificationInterest.class)
         .where()
-        .eq(Files.Db.UserNotificationInterest.USER_ID, userId)
-        .eq(Files.Db.UserNotificationInterest.NOTIFICATION_ID, notificationId)
+        .eq(Constants.Db.UserNotificationInterest.USER_ID, userId)
+        .eq(Constants.Db.UserNotificationInterest.NOTIFICATION_ID, notificationId)
         .findOneOrEmpty();
   }
 

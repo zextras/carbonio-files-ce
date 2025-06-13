@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
-import com.zextras.carbonio.files.Files.Db.Node;
+import com.zextras.carbonio.files.Constants.Db.Node;
 
 public class NodeSQLCondition extends SQLCondition {
 

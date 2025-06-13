@@ -5,8 +5,8 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Db;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.cache.Cache;
 import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
@@ -52,8 +52,8 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
     return mDB.getEbeanDatabase()
       .find(FileVersion.class)
       .where()
-      .eq(Files.Db.FileVersion.NODE_ID, nodeId)
-      .eq(Files.Db.FileVersion.VERSION, version)
+      .eq(Constants.Db.FileVersion.NODE_ID, nodeId)
+      .eq(Constants.Db.FileVersion.VERSION, version)
       .findOneOrEmpty();
   }
 
@@ -108,7 +108,7 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
         mDB.getEbeanDatabase()
             .find(FileVersion.class)
             .where()
-            .eq(Files.Db.FileVersion.NODE_ID, nodeId)
+            .eq(Constants.Db.FileVersion.NODE_ID, nodeId)
             .query();
 
     sorts.forEach(sort -> sort.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery()));
@@ -133,9 +133,9 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
     List<FileVersion> fileVersions = mDB.getEbeanDatabase()
       .find(FileVersion.class)
       .where()
-      .eq(Files.Db.FileVersion.NODE_ID, nodeId)
+      .eq(Constants.Db.FileVersion.NODE_ID, nodeId)
       .and()
-      .in(Files.Db.FileVersion.VERSION, versions)
+      .in(Constants.Db.FileVersion.VERSION, versions)
       .findList();
 
     fileVersions.forEach(fileVersion ->

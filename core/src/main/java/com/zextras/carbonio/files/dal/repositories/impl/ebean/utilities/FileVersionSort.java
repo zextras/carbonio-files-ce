@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import io.ebean.Query;
 
@@ -20,14 +20,14 @@ public enum FileVersionSort implements SortingEntityEbean<FileVersion> {
   VERSION_ASC {
     @Override
     public Query<FileVersion> getOrderEbeanQuery(Query<FileVersion> query, Optional<String> collate) {
-      return query.orderBy().asc(Files.Db.FileVersion.VERSION);
+      return query.orderBy().asc(Constants.Db.FileVersion.VERSION);
     }
   },
 
   VERSION_DESC {
     @Override
     public Query<FileVersion> getOrderEbeanQuery(Query<FileVersion> query, Optional<String> collate) {
-      return query.orderBy().desc(Files.Db.FileVersion.VERSION);
+      return query.orderBy().desc(Constants.Db.FileVersion.VERSION);
     }
   },
 

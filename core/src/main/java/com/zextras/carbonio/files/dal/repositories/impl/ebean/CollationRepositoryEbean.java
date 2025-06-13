@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
@@ -60,10 +60,10 @@ public class CollationRepositoryEbean implements CollationRepository {
     if (
         defaultCollate.isPresent() &&
         (defaultCollate.get().equals("C") || defaultCollate.get().equals("C.UTF-8")) &&
-        isCollationValid(Files.ServiceDiscover.Config.FALLBACK_COLLATE)
+        isCollationValid(Constants.ServiceDiscover.Config.FALLBACK_COLLATE)
     ) {
-      cachedCollate = Optional.of("\"" + Files.ServiceDiscover.Config.FALLBACK_COLLATE + "\"");
-      logger.info("C collation detected, setting collation to {}", Files.ServiceDiscover.Config.FALLBACK_COLLATE);
+      cachedCollate = Optional.of("\"" + Constants.ServiceDiscover.Config.FALLBACK_COLLATE + "\"");
+      logger.info("C collation detected, setting collation to {}", Constants.ServiceDiscover.Config.FALLBACK_COLLATE);
       return cachedCollate;
     }
 
@@ -81,7 +81,7 @@ public class CollationRepositoryEbean implements CollationRepository {
     * the Files database.
    */
   private Optional<String> getDefaultCollate() {
-    String datname = Files.ServiceDiscover.Config.Db.DEFAULT_NAME;
+    String datname = Constants.ServiceDiscover.Config.Key.DEFAULT_NAME;
     String sql = "SELECT datcollate FROM pg_database WHERE datname = :datname";
     SqlQuery query = mDB.getEbeanDatabase().sqlQuery(sql);
     query.setParameter("datname", datname);

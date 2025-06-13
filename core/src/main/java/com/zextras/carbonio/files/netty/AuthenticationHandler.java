@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files.netty;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.exceptions.AuthenticationException;
 import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
@@ -37,7 +37,7 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
    * Authenticates the requests via cookies. It can check one type of cookie:
    *
    * <ul>
-   *   <li>{@link Files.API.Headers#COOKIE_ZM_AUTH_TOKEN}
+   *   <li>{@link Constants.API.Headers#COOKIE_ZM_AUTH_TOKEN}
    * </ul>
    *
    * If the cookie is valid, it fetches the User that made the request, saves some info in the
@@ -61,12 +61,12 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
     Set<Cookie> cookies = ServerCookieDecoder.STRICT.decode(cookiesString);
     Optional<Cookie> optCookie =
         cookies.stream()
-            .filter(cookie -> cookie.name().equals(Files.API.Headers.COOKIE_ZM_AUTH_TOKEN))
+            .filter(cookie -> cookie.name().equals(Constants.API.Headers.COOKIE_ZM_AUTH_TOKEN))
             .findFirst();
 
     if (optCookie.isPresent()) {
       switch (optCookie.get().name()) {
-        case Files.API.Headers.COOKIE_ZM_AUTH_TOKEN:
+        case Constants.API.Headers.COOKIE_ZM_AUTH_TOKEN:
           validateAuthTokenAndFetchAccount(
               context, httpRequest, cookiesString, optCookie.get().value());
           break;
@@ -84,7 +84,7 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
    * This method allows to:
    *
    * <ul>
-   *   <li>Validate the {@link Files.API.Headers#COOKIE_ZM_AUTH_TOKEN}
+   *   <li>Validate the {@link Constants.API.Headers#COOKIE_ZM_AUTH_TOKEN}
    *   <li>Fetch the User that made the requests (if the token is valid)
    *   <li>Save the cookies and the requester in the {@link ChannelHandlerContext} so they can be
    *       used by other channels
@@ -117,11 +117,11 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
                       }
                       context
                           .channel()
-                          .attr(AttributeKey.valueOf(Files.API.ContextAttribute.REQUESTER))
+                          .attr(AttributeKey.valueOf(Constants.API.ContextAttribute.REQUESTER))
                           .set(user);
                       context
                           .channel()
-                          .attr(AttributeKey.valueOf(Files.API.ContextAttribute.COOKIES))
+                          .attr(AttributeKey.valueOf(Constants.API.ContextAttribute.COOKIES))
                           .set(cookies);
 
                       context.fireChannelRead(httpRequest);

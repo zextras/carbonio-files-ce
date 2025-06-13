@@ -5,10 +5,10 @@
 package com.zextras.carbonio.files.graphql.datafetchers;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.API.Endpoints;
-import com.zextras.carbonio.files.Files.GraphQL;
-import com.zextras.carbonio.files.Files.GraphQL.InputParameters;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.API.Endpoints;
+import com.zextras.carbonio.files.Constants.GraphQL;
+import com.zextras.carbonio.files.Constants.GraphQL.InputParameters;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
@@ -33,11 +33,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.RandomStringUtils;
 
-import static com.zextras.carbonio.files.Files.Config.Link.MAX_LINKS_PER_NODE;
+import static com.zextras.carbonio.files.Constants.Config.Link.MAX_LINKS_PER_NODE;
 
 /**
  * <p>Contains all the implementations of {@link DataFetcher}s for all the queries and mutations
- * defined in the GraphQL schema that are related to the {@link Files.GraphQL.Link} type.</p>
+ * defined in the GraphQL schema that are related to the {@link Constants.GraphQL.Link} type.</p>
  * <p>Each {@link DataFetcher} implementation is asynchronous and returns an {@link HashMap}
  * containing the data fetched from the database. Each key of the resulting map must match the name
  * of the related Link's attribute defined in the GraphQL schema.</p>
@@ -80,22 +80,22 @@ public class LinkDataFetcher {
     Map<String, Object> result = new HashMap<>();
     Map<String, String> linkContext = new HashMap<>();
 
-    result.put(Files.GraphQL.Link.ID, link.getLinkId());
+    result.put(Constants.GraphQL.Link.ID, link.getLinkId());
 
     String publicLinkUrl = (isNodeAFolder)
       ? requesterDomain + Endpoints.PUBLIC_LINK_ACCESS_URL + link.getPublicId()
       : requesterDomain + Endpoints.PUBLIC_LINK_DOWNLOAD_URL + link.getPublicId();
 
-    result.put(Files.GraphQL.Link.URL, publicLinkUrl);
-    result.put(Files.GraphQL.Link.CREATED_AT, link.getCreatedAt());
+    result.put(Constants.GraphQL.Link.URL, publicLinkUrl);
+    result.put(Constants.GraphQL.Link.CREATED_AT, link.getCreatedAt());
 
     link
       .getExpiresAt()
-      .ifPresent(expiration -> result.put(Files.GraphQL.Link.EXPIRES_AT, expiration));
+      .ifPresent(expiration -> result.put(Constants.GraphQL.Link.EXPIRES_AT, expiration));
 
     link
       .getDescription()
-      .ifPresent(description -> result.put(Files.GraphQL.Link.DESCRIPTION, description));
+      .ifPresent(description -> result.put(Constants.GraphQL.Link.DESCRIPTION, description));
 
     link
       .getAccessCode()
@@ -112,18 +112,18 @@ public class LinkDataFetcher {
 
   /**
    * TODO: update javadoc
-   * <p>This {@link DataFetcher} must be used for the {@link Files.GraphQL.Mutations#CREATE_LINK} mutation.</p>
+   * <p>This {@link DataFetcher} must be used for the {@link Constants.GraphQL.Mutations#CREATE_LINK} mutation.</p>
    * <p>The request must have the following parameters in input:</p>
    * <ul>
-   * <li>{@link Files.GraphQL.InputParameters.Link#NODE_ID}: a {@link String} representing the id of the node (this is
+   * <li>{@link Constants.GraphQL.InputParameters.Link#NODE_ID}: a {@link String} representing the id of the node (this is
    * mandatory).</li>
-   * <li>{@link Files.GraphQL.InputParameters.Link#DESCRIPTION}: a {@link String} representing the description of the
+   * <li>{@link Constants.GraphQL.InputParameters.Link#DESCRIPTION}: a {@link String} representing the description of the
    * link to create (this is optional).</li>
-   * <li>{@link Files.GraphQL.InputParameters.Link#EXPIRES_AT}: a long representing the expiration timestamp.</li>
+   * <li>{@link Constants.GraphQL.InputParameters.Link#EXPIRES_AT}: a long representing the expiration timestamp.</li>
    * </ul>
    * <h2>Behaviour:</h2>
    * <p>It creates the link with the values specified in input, it saves the mandatory parameter necessary to fetch
-   * the related {@link Files.GraphQL.Node} object, then it creates the GraphQL map of the new link.</p>
+   * the related {@link Constants.GraphQL.Node} object, then it creates the GraphQL map of the new link.</p>
    *
    * @return an asynchronous {@link DataFetcher} containing a {@link Map} of all the attributes
    * values of the created link.
@@ -131,8 +131,8 @@ public class LinkDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> createLink() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
-      User requester = environment.getGraphQlContext().get(Files.GraphQL.Context.REQUESTER);
-      String nodeId = environment.getArgument(Files.GraphQL.InputParameters.Link.NODE_ID);
+      User requester = environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
+      String nodeId = environment.getArgument(Constants.GraphQL.InputParameters.Link.NODE_ID);
 
       Optional<Node> optNode = nodeRepository.getNode(nodeId);
       if (permissionsChecker
@@ -173,7 +173,7 @@ public class LinkDataFetcher {
 
   public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> getLinks() {
     return environment -> CompletableFuture.supplyAsync(() -> {
-      User requester = environment.getGraphQlContext().get(Files.GraphQL.Context.REQUESTER);
+      User requester = environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
       Optional<Map<String, String>> optLocalContext = Optional
         .ofNullable(environment.getLocalContext());
 
@@ -205,8 +205,8 @@ public class LinkDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> updateLink() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
-      User requester = environment.getGraphQlContext().get(Files.GraphQL.Context.REQUESTER);
-      String linkId = environment.getArgument(Files.GraphQL.InputParameters.Link.LINK_ID);
+      User requester = environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
+      String linkId = environment.getArgument(Constants.GraphQL.InputParameters.Link.LINK_ID);
 
       return linkRepository.getLinkById(linkId)
         .filter(link -> permissionsChecker
@@ -257,7 +257,7 @@ public class LinkDataFetcher {
       ResultPath path = environment.getExecutionStepInfo().getPath();
       String requesterId = ((User) environment
         .getGraphQlContext()
-        .get(Files.GraphQL.Context.REQUESTER)).getId();
+        .get(Constants.GraphQL.Context.REQUESTER)).getId();
       List<String> linkIds = environment.getArgument(InputParameters.Link.LINK_IDS);
 
       List<String> linkIdsToDelete = linkIds

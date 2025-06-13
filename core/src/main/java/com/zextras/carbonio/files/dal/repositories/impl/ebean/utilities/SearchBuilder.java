@@ -4,8 +4,8 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Db;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import io.ebean.Database;
@@ -218,7 +218,7 @@ public class SearchBuilder {
   }
 
   /**
-   * Allows to set the {@link Files.Db.Node#TYPE} attribute in the <code>where</code>clause of the
+   * Allows to set the {@link Constants.Db.Node#TYPE} attribute in the <code>where</code>clause of the
    * query.
    *
    * @param nodeType is a {@link NodeType} representing the node type that needs to be searched.

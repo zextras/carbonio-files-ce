@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
@@ -55,7 +55,7 @@ public class CollaborationLinkRepositoryEbean implements CollaborationLinkReposi
         .getEbeanDatabase()
         .find(CollaborationLink.class)
         .where()
-        .eq(Files.Db.CollaborationLink.INVITATION_ID, invitationId)
+        .eq(Constants.Db.CollaborationLink.INVITATION_ID, invitationId)
         .findOneOrEmpty();
   }
 
@@ -65,7 +65,7 @@ public class CollaborationLinkRepositoryEbean implements CollaborationLinkReposi
         .getEbeanDatabase()
         .find(CollaborationLink.class)
         .where()
-        .eq(Files.Db.CollaborationLink.NODE_ID, nodeId)
+        .eq(Constants.Db.CollaborationLink.NODE_ID, nodeId)
         .findList()
         .stream();
   }

@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean.notifications;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationType;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotNode;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotUser;
@@ -15,31 +15,31 @@ import javax.persistence.*;
 
 @Cache
 @Entity
-@Table(name = Files.Db.Tables.REMOVED_NODE_NOTIFICATION)
+@Table(name = Constants.Db.Tables.REMOVED_NODE_NOTIFICATION)
 public class RemovedNodeNotification extends BaseNotification {
 
-  @Column(name = Files.Db.RemovedNodeNotification.REMOVED_NODE_SNAPSHOT_ID, length = 36, nullable = false)
+  @Column(name = Constants.Db.RemovedNodeNotification.REMOVED_NODE_SNAPSHOT_ID, length = 36, nullable = false)
   private String removedNodeSnapshotId;
 
   @OneToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = Files.Db.RemovedNodeNotification.REMOVED_NODE_SNAPSHOT_ID, insertable = false, updatable = false)
+  @JoinColumn(name = Constants.Db.RemovedNodeNotification.REMOVED_NODE_SNAPSHOT_ID, insertable = false, updatable = false)
   private SnapshotNode removedNodeSnapshot;
 
-  @Column(name = Files.Db.RemovedNodeNotification.ORIGIN_FOLDER_SNAPSHOT_ID, length = 36, nullable = false)
+  @Column(name = Constants.Db.RemovedNodeNotification.ORIGIN_FOLDER_SNAPSHOT_ID, length = 36, nullable = false)
   private String originFolderSnapshotId;
 
   @OneToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = Files.Db.RemovedNodeNotification.ORIGIN_FOLDER_SNAPSHOT_ID, insertable = false, updatable = false)
+  @JoinColumn(name = Constants.Db.RemovedNodeNotification.ORIGIN_FOLDER_SNAPSHOT_ID, insertable = false, updatable = false)
   private SnapshotNode originFolderSnapshot;
 
-  @Column(name = Files.Db.RemovedNodeNotification.TRIGGERING_USER_SNAPSHOT_ID, length = 36, nullable = false)
+  @Column(name = Constants.Db.RemovedNodeNotification.TRIGGERING_USER_SNAPSHOT_ID, length = 36, nullable = false)
   private String triggeringUserSnapshotId;
 
   @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = Files.Db.AddedNodeNotification.TRIGGERING_USER_SNAPSHOT_ID, insertable = false, updatable = false)
+  @JoinColumn(name = Constants.Db.AddedNodeNotification.TRIGGERING_USER_SNAPSHOT_ID, insertable = false, updatable = false)
   private SnapshotUser triggeringUserSnapshot;
 
-  @Column(name = Files.Db.RemovedNodeNotification.REMOVED_NODE_TYPE, length = 50, nullable = false)
+  @Column(name = Constants.Db.RemovedNodeNotification.REMOVED_NODE_TYPE, length = 50, nullable = false)
   @Enumerated(EnumType.STRING)
   private RemovedNodeType removedNodeType;
 
