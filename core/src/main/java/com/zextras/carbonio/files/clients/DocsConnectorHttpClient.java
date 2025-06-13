@@ -23,7 +23,7 @@ public class DocsConnectorHttpClient {
   @Inject
   public DocsConnectorHttpClient(CloseableHttpClient httpClient, FilesConfig filesConfig) {
     this.httpClient = httpClient;
-    this.docsConnectorUrl = "http://" + filesConfig.getDocsConnectorHost() + ":" + filesConfig.getDocsConnectorPort() + "/";
+    this.docsConnectorUrl = "http://" + filesConfig.getDocsConnectorHost() + ":" + filesConfig.getDocsConnectorPort();
   }
 
   /**

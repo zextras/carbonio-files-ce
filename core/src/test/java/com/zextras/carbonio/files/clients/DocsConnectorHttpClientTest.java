@@ -6,6 +6,8 @@ package com.zextras.carbonio.files.clients;
 
 import com.zextras.carbonio.files.config.FilesConfig;
 import java.io.IOException;
+
+import com.zextras.carbonio.files.utilities.MockFilesConfig;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -28,7 +30,7 @@ class DocsConnectorHttpClientTest {
     FilesConfig filesConfigMock = Mockito.mock(FilesConfig.class);
     Mockito.when(filesConfigMock.getDocsConnectorHost()).thenReturn("http://127.78.0.2:20005");
 
-    docsConnectorHttpClient = new DocsConnectorHttpClient(httpClientMock, filesConfigMock);
+    docsConnectorHttpClient = new DocsConnectorHttpClient(httpClientMock, new MockFilesConfig());
   }
 
   @Test
