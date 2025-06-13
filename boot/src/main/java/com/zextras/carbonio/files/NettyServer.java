@@ -39,7 +39,6 @@ public class NettyServer {
   }
 
   public void start() {
-    Properties config = filesConfig.getProperties();
     EventLoopGroup bossGroup = new NioEventLoopGroup();
     EventLoopGroup workerGroup = new NioEventLoopGroup();
     try {
@@ -62,8 +61,8 @@ public class NettyServer {
 
       bootstrap
         .localAddress(
-          config.getProperty(Constants.Files.HOST_PROPERTY, Constants.Files.DEFAULT_HOST),
-          Integer.parseInt(config.getProperty(Constants.Files.PORT_PROPERTY, String.valueOf(Constants.Files.DEFAULT_PORT)))
+          filesConfig.getFilesHost(),
+          Integer.parseInt(filesConfig.getFilesPort())
         )
         .bind()
         .sync()

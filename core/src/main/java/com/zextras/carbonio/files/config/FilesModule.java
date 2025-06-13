@@ -8,9 +8,19 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
+import com.zaxxer.hikari.HikariDataSource;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.cache.CacheHandlerFactory;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.dao.ebean.*;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.AddedNodeNotification;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.NewShareNotification;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.Notification;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.RemovedNodeNotification;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.UserNotificationInterest;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.UserNotificationsInfo;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotNode;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotUser;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.*;
 import com.zextras.carbonio.files.dal.repositories.interfaces.*;
 import com.zextras.carbonio.files.graphql.validators.GenericControllerEvaluatorFactory;
@@ -24,8 +34,14 @@ import com.zextras.filestore.api.Filestore;
 
 
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
 
 import com.zextras.storages.api.StoragesClient;
+import io.ebean.Database;
+import io.ebean.DatabaseFactory;
+import io.ebean.config.DatabaseConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.slf4j.Logger;
@@ -39,6 +55,7 @@ public class FilesModule extends AbstractModule {
   public void configure() {
     bind(Clock.class).toInstance(Clock.systemUTC());
 
+    bind(EbeanDatabaseManager.class).in(Singleton.class);
     bind(NodeRepository.class).to(NodeRepositoryEbean.class);
     bind(ShareRepository.class).to(ShareRepositoryEbean.class);
     bind(TombstoneRepository.class).to(TombstoneRepositoryEbean.class);
@@ -70,6 +87,93 @@ public class FilesModule extends AbstractModule {
         .setMaxConnPerRoute(10)
         .setMaxConnTotal(30)
         .build();
+  }
+
+  @Provides
+  @Singleton
+  public HikariDataSource provideDataSource(FilesConfig config) {
+    String jdbcPostgresUrl = String.format("jdbc:postgresql://%s:%s/%s",
+        config.getDatabaseHost(),
+        config.getDatabasePort(),
+        config.getDatabaseName());
+
+    int maximumPoolSize = config.getHikariMaxPoolSize();
+    int minimumIdleConnections = config.getHikariMinIdleConnections();
+
+    logger.info("Hikari: maximum pool size: {}", maximumPoolSize);
+    logger.info("Hikari: minimum idle connections: {}", minimumIdleConnections);
+
+    Properties dataSourceProperties = new Properties();
+    dataSourceProperties.setProperty("sslmode", "disable");
+
+    HikariDataSource dataSource = new HikariDataSource();
+    dataSource.setJdbcUrl(jdbcPostgresUrl);
+    dataSource.setUsername(config.getDatabaseUsername());
+    dataSource.setPassword(config.getDatabasePassword());
+    dataSource.setMaximumPoolSize(maximumPoolSize);
+    dataSource.setMinimumIdle(minimumIdleConnections);
+    dataSource.setDataSourceProperties(dataSourceProperties);
+    return dataSource;
+  }
+
+  @Provides
+  @Singleton
+  public DatabaseConfig provideEbeanDatabaseConfig(HikariDataSource dataSource) {
+    ArrayList<Class<?>> entityList = new ArrayList<>();
+    entityList.add(DbInfo.class);
+    entityList.add(Node.class);
+    entityList.add(NodeCustomAttributesPK.class);
+    entityList.add(NodeCustomAttributes.class);
+    entityList.add(FileVersionPK.class);
+    entityList.add(FileVersion.class);
+    entityList.add(SharePK.class);
+    entityList.add(Share.class);
+    entityList.add(Link.class);
+    entityList.add(CollaborationLink.class);
+    entityList.add(TombstonePK.class);
+    entityList.add(Tombstone.class);
+    entityList.add(TrashedNode.class);
+    entityList.add(Notification.class);
+    entityList.add(NewShareNotification.class);
+    entityList.add(AddedNodeNotification.class);
+    entityList.add(RemovedNodeNotification.class);
+    entityList.add(UserNotificationsInfo.class);
+    entityList.add(UserNotificationInterest.class);
+    entityList.add(SnapshotUser.class);
+    entityList.add(SnapshotNode.class);
+
+    DatabaseConfig databaseConfig = new DatabaseConfig();
+    databaseConfig.setName("carbonio-files-postgres");
+    databaseConfig.setDataSource(dataSource);
+    databaseConfig.setDefaultServer(true);
+    databaseConfig.addAll(entityList);
+    databaseConfig.setCacheMaxSize(100_000);
+    databaseConfig.setCacheMaxTimeToLive(300);
+    databaseConfig.setCacheMaxIdleTime(300);
+
+    return databaseConfig;
+  }
+
+  @Provides
+  @Singleton
+  public Database provideEbeanDatabase(DatabaseConfig databaseConfig) {
+    try {
+      Database ebeanDatabase = DatabaseFactory.createWithContextClassLoader(
+          databaseConfig,
+          FilesModule.class.getClassLoader());
+
+      logger.info("Database connection created successfully");
+      return ebeanDatabase;
+    } catch (Exception exception) {
+      String error = String.format(
+          "%s: e.g. %s, %s or %s",
+          "Unable to create the database connection! Something went wrong",
+          "database is not reachable",
+          "the database does not exist",
+          "the database credentials are wrong");
+
+      throw new RuntimeException(error, exception);
+    }
   }
 
   @Provides

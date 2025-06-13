@@ -81,7 +81,7 @@ public class CollationRepositoryEbean implements CollationRepository {
     * the Files database.
    */
   private Optional<String> getDefaultCollate() {
-    String datname = Constants.ServiceDiscover.Config.Key.DEFAULT_NAME;
+    String datname = Constants.Config.Database.DEFAULT_NAME;
     String sql = "SELECT datcollate FROM pg_database WHERE datname = :datname";
     SqlQuery query = mDB.getEbeanDatabase().sqlQuery(sql);
     query.setParameter("datname", datname);

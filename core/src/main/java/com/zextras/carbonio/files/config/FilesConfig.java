@@ -125,6 +125,18 @@ public class FilesConfig {
         .getOrElse("");
   }
 
+  public String getFilesHost() {
+    return properties.getProperty(
+        Constants.Files.HOST_PROPERTY,
+        Constants.Files.DEFAULT_HOST);
+  }
+
+  public String getFilesPort() {
+    return properties.getProperty(
+        Constants.Files.PORT_PROPERTY,
+        String.valueOf(Constants.Files.DEFAULT_PORT));
+  }
+
   public String getUserManagementHost() {
     return properties.getProperty(
         Constants.Config.UserManagement.HOST_PROPERTY,

@@ -12,6 +12,9 @@ import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.files.rest.types.health.DependencyType;
 import com.zextras.carbonio.files.rest.types.health.ServiceHealth;
+import com.zextras.carbonio.preview.PreviewClient;
+import com.zextras.carbonio.usermanagement.UserManagementClient;
+import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.Filestore.Liveness;
 
 public class HealthService {
@@ -20,17 +23,24 @@ public class HealthService {
   private final FilesConfig filesConfig;
   private final DocsConnectorHttpClient docsConnectorHttpClient;
   private final MessageBrokerManager messageBrokerManager;
+  private final PreviewClient previewClient;
+  private final UserManagementClient userManagementClient;
+  private final Filestore storagesClient;
 
   @Inject
   public HealthService(
       EbeanDatabaseManager ebeanDatabaseManager,
       FilesConfig filesConfig,
       DocsConnectorHttpClient docsConnectorHttpClient,
-      MessageBrokerManager messageBrokerManager) {
+      MessageBrokerManager messageBrokerManager,
+      PreviewClient previewClient, UserManagementClient userManagementClient, Filestore storagesClient) {
     this.ebeanDatabaseManager = ebeanDatabaseManager;
     this.filesConfig = filesConfig;
     this.docsConnectorHttpClient = docsConnectorHttpClient;
     this.messageBrokerManager = messageBrokerManager;
+    this.previewClient = previewClient;
+    this.userManagementClient = userManagementClient;
+    this.storagesClient = storagesClient;
   }
 
   /**
@@ -44,21 +54,21 @@ public class HealthService {
    * @return true if the carbonio-user-management service is reachable, false otherwise.
    */
   public boolean isUserManagementLive() {
-    return filesConfig.getUserManagementClient().healthCheck();
+    return userManagementClient.healthCheck();
   }
 
   /**
    * @return true if the carbonio-storages service is reachable, false otherwise.
    */
   public boolean isStoragesLive() {
-    return filesConfig.getStoragesClient().checkLiveness().equals(Liveness.OK);
+    return storagesClient.checkLiveness().equals(Liveness.OK);
   }
 
   /**
    * @return true if the carbonio-preview service is reachable, false otherwise.
    */
   public boolean isPreviewLive() {
-    return filesConfig.getPreviewClient().healthReady();
+    return previewClient.healthReady();
   }
 
   /**

@@ -39,7 +39,7 @@ class FilesConfigTest {
     FilesConfig filesConfig = new FilesConfig();
 
     // When
-    String mailboxUrl = filesConfig.getMailboxHost();
+    String mailboxUrl = "http://" + filesConfig.getMailboxHost() + ":" + filesConfig.getMailboxPort() + "/";
 
     // Then
     Assertions.assertThat(mailboxUrl).isEqualTo("http://127.78.0.2:20004/");

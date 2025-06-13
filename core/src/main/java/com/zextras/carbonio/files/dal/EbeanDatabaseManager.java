@@ -8,33 +8,11 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.Constants.Config.Hikari;
 import com.zextras.carbonio.files.Constants.Db;
-import com.zextras.carbonio.files.Constants.ServiceDiscover;
-import com.zextras.carbonio.files.Constants.ServiceDiscover.Config;
-import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
-import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
-import com.zextras.carbonio.files.dal.dao.ebean.FileVersionPK;
-import com.zextras.carbonio.files.dal.dao.ebean.Link;
-import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributesPK;
-import com.zextras.carbonio.files.dal.dao.ebean.Share;
-import com.zextras.carbonio.files.dal.dao.ebean.SharePK;
-import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
-import com.zextras.carbonio.files.dal.dao.ebean.TombstonePK;
-import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
-import com.zextras.carbonio.files.dal.dao.ebean.notifications.*;
-import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.UserNotificationsInfo;
-import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.UserNotificationInterest;
-import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotNode;
-import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotUser;
 import io.ebean.Database;
-import io.ebean.DatabaseFactory;
-import io.ebean.config.DatabaseConfig;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -42,11 +20,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.Properties;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
@@ -64,54 +38,18 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class EbeanDatabaseManager {
 
-  private static final Logger         logger = LoggerFactory.getLogger(EbeanDatabaseManager.class);
-  private final        List<Class<?>> entityList;
-  private final        String         jdbcPostgresUrl;
-  private final        String         postgresDatabase;
-  private final        String         postgresUser;
-  private final        String         postgresPassword;
-  private final        int            hikariMaximumPoolSize;
-  private final        int            hikariMinimumIdleConnections;
-  private              Database       ebeanDatabase;
+  private static final Logger logger = LoggerFactory.getLogger(EbeanDatabaseManager.class);
+  private final FilesConfig filesConfig;
+  private final Database ebeanDatabase;
+  private final HikariDataSource dataSource;
+  private final String postgresDatabase;
 
   @Inject
-  public EbeanDatabaseManager(FilesConfig filesConfig) {
-    postgresDatabase = filesConfig.getDatabaseName();
-    postgresUser = filesConfig.getDatabaseUsername();
-    postgresPassword = filesConfig.getDatabasePassword();
-
-    jdbcPostgresUrl = String.format(
-      "jdbc:postgresql://%s:%s/%s",
-      filesConfig.getDatabaseHost(),
-      filesConfig.getDatabasePort(),
-      postgresDatabase
-    );
-
-    hikariMaximumPoolSize = filesConfig.getHikariMaxPoolSize();
-    hikariMinimumIdleConnections = filesConfig.getHikariMinIdleConnections();
-
-    entityList = new ArrayList<>();
-    entityList.add(DbInfo.class);
-    entityList.add(Node.class);
-    entityList.add(NodeCustomAttributesPK.class);
-    entityList.add(NodeCustomAttributes.class);
-    entityList.add(FileVersionPK.class);
-    entityList.add(FileVersion.class);
-    entityList.add(SharePK.class);
-    entityList.add(Share.class);
-    entityList.add(Link.class);
-    entityList.add(CollaborationLink.class);
-    entityList.add(TombstonePK.class);
-    entityList.add(Tombstone.class);
-    entityList.add(TrashedNode.class);
-    entityList.add(Notification.class);
-    entityList.add(NewShareNotification.class);
-    entityList.add(AddedNodeNotification.class);
-    entityList.add(RemovedNodeNotification.class);
-    entityList.add(UserNotificationsInfo.class);
-    entityList.add(UserNotificationInterest.class);
-    entityList.add(SnapshotUser.class);
-    entityList.add(SnapshotNode.class);
+  public EbeanDatabaseManager(FilesConfig filesConfig, Database ebeanDatabase, HikariDataSource dataSource) {
+    this.filesConfig = filesConfig;
+    this.ebeanDatabase = ebeanDatabase;
+    this.dataSource = dataSource;
+    this.postgresDatabase = filesConfig.getDatabaseName();
   }
 
   private void checkDatabaseExistence() {
@@ -134,9 +72,9 @@ public class EbeanDatabaseManager {
   }
 
   /**
-   * This method checks if the database
+   * This method checks if the database is initialized and returns the current version
    *
-   * @return
+   * @return current database version
    */
   private int getCurrentDatabaseVersion() {
     boolean isDatabaseInitialized = ebeanDatabase
@@ -159,7 +97,6 @@ public class EbeanDatabaseManager {
     return isDatabaseInitialized
       ? ebeanDatabase.find(DbInfo.class).findOneOrEmpty().map(DbInfo::getVersion).orElse(0)
       : 0;
-
   }
 
   private void populatePostgreSQLSchema(
@@ -217,60 +154,20 @@ public class EbeanDatabaseManager {
   /**
    * Starts the service:
    * <ul>
-   *   <li>Create the {@link DatabaseConfig} with all the necessary configuration settings and
-   *       especially set as <strong>default</strong> the database</li>
-   *   <li>Create the {@link Database} instance</li>
-   *   <li>If the database does not have the schema then the system creates it (this is temporary)</li>
+   *   <li>Check if database exists</li>
+   *   <li>Check current database version and populate schema if needed</li>
    * </ul>
+   *
+   * Note: Database and DataSource are now injected via providers, so no need to create them here
    */
   public void start() {
-
-    if (ebeanDatabase != null) {
-      logger.warn(""
-        + "Database already up and running!"
-        + "The system is trying to start the database manager multiple times: this is not allowed!"
-      );
-      return;
-    }
-
-    Properties dataSourceProperties = new Properties();
-    dataSourceProperties.setProperty("sslmode", "disable");
-
-    HikariDataSource dataSource = new HikariDataSource();
-    dataSource.setJdbcUrl(jdbcPostgresUrl);
-    dataSource.setUsername(postgresUser);
-    dataSource.setPassword(postgresPassword);
-    dataSource.setMaximumPoolSize(hikariMaximumPoolSize);
-    dataSource.setMinimumIdle(hikariMinimumIdleConnections);
-    dataSource.setDataSourceProperties(dataSourceProperties);
-
-    logger.info("Hikari: maximum pool size: {}", hikariMaximumPoolSize);
-    logger.info("Hikari: minimum idle connections: {}", hikariMinimumIdleConnections);
-
-    DatabaseConfig serverConfig = new DatabaseConfig();
-    serverConfig.setName("carbonio-files-postgres");
-    serverConfig.setDataSource(dataSource);
-    serverConfig.setDefaultServer(true);
-    serverConfig.addAll(entityList);
-    serverConfig.setCacheMaxSize(100_000);
-    serverConfig.setCacheMaxTimeToLive(300);
-    serverConfig.setCacheMaxIdleTime(300);
-
-    ebeanDatabase = DatabaseFactory.createWithContextClassLoader(
-      serverConfig,
-      this.getClass().getClassLoader()
-    );
-
-    Optional
-      .ofNullable(ebeanDatabase)
-      .orElseThrow(() ->
-        new RuntimeException("Unable to create the database datasource! Something bad happened")
-      );
+    logger.info("Starting EbeanDatabaseManager...");
 
     checkDatabaseExistence();
 
     try {
       populatePostgreSQLSchema(dataSource.getConnection(), getCurrentDatabaseVersion());
+      logger.info("EbeanDatabaseManager started successfully");
     } catch (SQLException exception) {
       logger.error("Unable to connect to the database " + postgresDatabase);
       logger.error(exception.getMessage());

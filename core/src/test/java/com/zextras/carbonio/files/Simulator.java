@@ -4,13 +4,10 @@
 
 package com.zextras.carbonio.files;
 
-import com.google.inject.Guice;
-import com.google.inject.Injector;
+import com.google.inject.*;
+import com.google.inject.Module;
+import com.google.inject.util.Modules;
 import com.zextras.carbonio.files.Constants.Config.Database;
-import com.zextras.carbonio.files.Constants.Config.DocsConnector;
-import com.zextras.carbonio.files.Constants.Config.Preview;
-import com.zextras.carbonio.files.Constants.Config.Storages;
-import com.zextras.carbonio.files.Constants.Config.UserManagement;
 import com.zextras.carbonio.files.Constants.ServiceDiscover.Config.Key;
 import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.config.FilesConfig;
@@ -27,10 +24,11 @@ import com.zextras.storages.internal.pojo.Query;
 import com.zextras.storages.internal.pojo.StoragesBulkDeleteResponse;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.HttpMethod;
+
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
+
 import org.mockserver.client.MockServerClient;
 import org.mockserver.integration.ClientAndServer;
 import org.mockserver.model.Cookie;
@@ -65,7 +63,18 @@ public class Simulator implements AutoCloseable {
   //
 
   private Simulator createInjector() {
-    injector = Guice.createInjector(new FilesModule(new MockFilesConfig()));
+    Module overrideModule = new AbstractModule() {
+        @Provides
+        @Singleton
+        public FilesConfig provideFilesConfig() throws Exception {
+            final MockFilesConfig config = new MockFilesConfig();
+            config.loadConfig();
+            return config;
+        }
+    };
+    injector = Guice.createInjector(
+        Modules.override(new FilesModule()).with(overrideModule)
+    );
     return this;
   }
 
@@ -220,8 +229,8 @@ public class Simulator implements AutoCloseable {
     final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
     userManagementMock =
         new MockServerClient(
-            filesConfig.getProperties().getProperty(UserManagement.HOST_PROPERTY),
-            Integer.parseInt(filesConfig.getProperties().getProperty(UserManagement.PORT_PROPERTY)));
+            filesConfig.getUserManagementHost(),
+            Integer.parseInt(filesConfig.getUserManagementPort()));
 
     return this;
   }
@@ -263,8 +272,8 @@ public class Simulator implements AutoCloseable {
     final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
     storagesMock =
         new MockServerClient(
-            filesConfig.getProperties().getProperty(Storages.HOST_PROPERTY),
-            Integer.parseInt(filesConfig.getProperties().getProperty(Storages.PORT_PROPERTY)));
+            filesConfig.getStoragesHost(),
+            Integer.parseInt(filesConfig.getStoragesPort()));
 
     return this;
   }
@@ -274,8 +283,8 @@ public class Simulator implements AutoCloseable {
 
     final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
     previewServiceMock = new MockServerClient(
-      filesConfig.getProperties().getProperty(Preview.DEFAULT_HOST),
-      Integer.parseInt(filesConfig.getProperties().getProperty(Preview.PORT_PROPERTY))
+      filesConfig.getPreviewHost(),
+      Integer.parseInt(filesConfig.getPreviewPort())
     );
 
     return this;
@@ -286,8 +295,8 @@ public class Simulator implements AutoCloseable {
 
     final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
     docsConnectorServiceMock = new MockServerClient(
-      filesConfig.getProperties().getProperty(DocsConnector.HOST_PROPERTY),
-      Integer.parseInt(filesConfig.getProperties().getProperty(DocsConnector.PORT_PROPERTY))
+      filesConfig.getDocsConnectorHost(),
+      Integer.parseInt(filesConfig.getDocsConnectorPort())
     );
 
     return this;
@@ -295,11 +304,11 @@ public class Simulator implements AutoCloseable {
 
   private void startMockServer() {
     if (clientAndServer == null) {
-      final Properties properties = injector.getInstance(FilesConfig.class).getProperties();
-      final int userManagementPort = Integer.parseInt(properties.getProperty(UserManagement.PORT_PROPERTY));
-      final int storagesPort = Integer.parseInt(properties.getProperty(Storages.PORT_PROPERTY));
-      final int previewServicePort = Integer.parseInt(properties.getProperty(Preview.PORT_PROPERTY));
-      final int docsConnectorServicePort = Integer.parseInt(properties.getProperty(DocsConnector.PORT_PROPERTY));
+      final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
+      final int userManagementPort = Integer.parseInt(filesConfig.getUserManagementPort());
+      final int storagesPort = Integer.parseInt(filesConfig.getStoragesPort());
+      final int previewServicePort = Integer.parseInt(filesConfig.getPreviewPort());
+      final int docsConnectorServicePort = Integer.parseInt(filesConfig.getDocsConnectorPort());
 
       clientAndServer =
           ClientAndServer.startClientAndServer(8500, userManagementPort, storagesPort, previewServicePort, docsConnectorServicePort);

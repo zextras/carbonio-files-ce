@@ -46,7 +46,7 @@ public class Boot {
       )
     );
 
-    Injector injector = Guice.createInjector(new FilesModule(new FilesConfig()));
+    Injector injector = Guice.createInjector(new FilesModule());
     injector.getInstance(FilesConfig.class);
 
     try {

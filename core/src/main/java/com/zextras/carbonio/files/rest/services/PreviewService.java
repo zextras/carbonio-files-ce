@@ -26,18 +26,12 @@ public class PreviewService {
   private static final Logger logger = LoggerFactory.getLogger(PreviewService.class);
 
   private final NodeRepository nodeRepository;
-  private final String previewURL;
+  private final PreviewClient previewClient;
 
   @Inject
-  public PreviewService(FilesConfig filesConfig, NodeRepository nodeRepository) {
+  public PreviewService(FilesConfig filesConfig, NodeRepository nodeRepository, PreviewClient previewClient) {
     this.nodeRepository = nodeRepository;
-
-    Properties properties = filesConfig.getProperties();
-    previewURL =
-        "http://"
-            + properties.getProperty(Preview.URL, "127.78.0.2")
-            + ":"
-            + properties.getProperty(Preview.PORT, "20003");
+    this.previewClient = previewClient;
   }
 
   /**
@@ -61,7 +55,7 @@ public class PreviewService {
     logger.debug(MessageFormat.format("Image preview query built: {0}", query));
 
     Try<com.zextras.carbonio.preview.queries.BlobResponse> response =
-        PreviewClient.atURL(previewURL).getPreviewOfImage(query);
+        previewClient.getPreviewOfImage(query);
 
     return mapResponseToBlobResponse(response, nodeId);
   }
@@ -88,7 +82,7 @@ public class PreviewService {
     logger.debug(MessageFormat.format("Image thumbnail query built: {0}", query));
 
     Try<com.zextras.carbonio.preview.queries.BlobResponse> response =
-        PreviewClient.atURL(previewURL).getThumbnailOfImage(query);
+        previewClient.getThumbnailOfImage(query);
 
     return mapResponseToBlobResponse(response, nodeId);
   }
@@ -108,7 +102,7 @@ public class PreviewService {
     logger.debug(MessageFormat.format("Pdf preview query built: {0}", query));
 
     Try<com.zextras.carbonio.preview.queries.BlobResponse> response =
-        PreviewClient.atURL(previewURL).getPreviewOfPdf(query);
+        previewClient.getPreviewOfPdf(query);
 
     return mapResponseToBlobResponse(response, nodeId);
   }
@@ -134,7 +128,7 @@ public class PreviewService {
     logger.debug(MessageFormat.format("Pdf thumbnail query built: {0}", query));
 
     Try<com.zextras.carbonio.preview.queries.BlobResponse> response =
-        PreviewClient.atURL(previewURL).getThumbnailOfPdf(query);
+        previewClient.getThumbnailOfPdf(query);
 
     return mapResponseToBlobResponse(response, nodeId);
   }
@@ -155,7 +149,7 @@ public class PreviewService {
     logger.info(MessageFormat.format("Document preview query built: {0}", query));
 
     Try<com.zextras.carbonio.preview.queries.BlobResponse> response =
-        PreviewClient.atURL(previewURL).getPreviewOfDocument(query);
+        previewClient.getPreviewOfDocument(query);
 
     return mapResponseToBlobResponse(response, nodeId);
   }
@@ -181,7 +175,7 @@ public class PreviewService {
     logger.debug(MessageFormat.format("Document thumbnail query built: {0}", query));
 
     Try<com.zextras.carbonio.preview.queries.BlobResponse> response =
-        PreviewClient.atURL(previewURL).getThumbnailOfDocument(query);
+        previewClient.getThumbnailOfDocument(query);
 
     return mapResponseToBlobResponse(response, nodeId);
   }
