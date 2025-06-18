@@ -8,7 +8,7 @@ import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.tasks.PrometheusService;
-import com.zextras.carbonio.files.utilities.TestFilesConfig;
+import com.zextras.carbonio.files.utilities.MockFilesConfig;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -24,11 +24,9 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
@@ -88,7 +86,7 @@ public class BlobControllerTest {
       ))
       .thenReturn(Optional.of(blobResponseMock));
 
-    BlobController blobController = new BlobController(new TestFilesConfig(), blobServiceMock, prometheusServiceMock);
+    BlobController blobController = new BlobController(new MockFilesConfig(), blobServiceMock, prometheusServiceMock);
 
     // When
     blobController.channelRead0(contextMock, httpRequestMock);

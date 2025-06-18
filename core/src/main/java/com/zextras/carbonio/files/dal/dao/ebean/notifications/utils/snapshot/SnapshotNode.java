@@ -4,9 +4,8 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import io.ebean.annotation.Cache;
 
@@ -15,30 +14,30 @@ import java.util.Objects;
 
 @Cache
 @Entity
-@Table(name = Files.Db.Tables.SNAPSHOT_NODE)
+@Table(name = Constants.Db.Tables.SNAPSHOT_NODE)
 public class SnapshotNode {
 
   @Id
-  @Column(name = Files.Db.SnapshotNode.SNAPSHOT_NODE_ID, length = 36, nullable = false)
+  @Column(name = Constants.Db.SnapshotNode.SNAPSHOT_NODE_ID, length = 36, nullable = false)
   private String snapshotNodeId;
 
-  @Column(name = Files.Db.SnapshotNode.SNAPSHOT_TIMESTAMP, nullable = false)
+  @Column(name = Constants.Db.SnapshotNode.SNAPSHOT_TIMESTAMP, nullable = false)
   private Long snapshotTimestamp;
 
-  @Column(name = Files.Db.SnapshotNode.NODE_ID, length = 36, nullable = false)
+  @Column(name = Constants.Db.SnapshotNode.NODE_ID, length = 36, nullable = false)
   private String nodeId;
 
-  @Column(name = Files.Db.SnapshotNode.OWNER_ID, length = 36)
+  @Column(name = Constants.Db.SnapshotNode.OWNER_ID, length = 36)
   private String ownerId;
 
-  @Column(name = Files.Db.SnapshotNode.CREATION_TIMESTAMP, nullable = false)
+  @Column(name = Constants.Db.SnapshotNode.CREATION_TIMESTAMP, nullable = false)
   private Long createdAt;
 
-  @Column(name = Files.Db.SnapshotNode.NODE_TYPE, length = 50, nullable = false)
+  @Column(name = Constants.Db.SnapshotNode.NODE_TYPE, length = 50, nullable = false)
   @Enumerated(EnumType.STRING)
   private NodeType nodeType;
 
-  @Column(name = Files.Db.SnapshotNode.NAME, length = 1024, nullable = false)
+  @Column(name = Constants.Db.SnapshotNode.NAME, length = 1024, nullable = false)
   private String name;
 
   public SnapshotNode(String snapshotNodeId, Long snapshotTimestamp, String nodeId, String ownerId, Long createdAt, NodeType nodeType, String name) {

@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.User;
 import io.ebean.annotation.Cache;
 
@@ -16,23 +16,23 @@ import java.util.Objects;
 
 @Cache
 @Entity
-@Table(name = Files.Db.Tables.SNAPSHOT_USER)
+@Table(name = Constants.Db.Tables.SNAPSHOT_USER)
 public class SnapshotUser {
 
   @Id
-  @Column(name = Files.Db.SnapshotUser.SNAPSHOT_USER_ID, length = 256, nullable = false)
+  @Column(name = Constants.Db.SnapshotUser.SNAPSHOT_USER_ID, length = 256, nullable = false)
   private String snapshotUserId;
 
-  @Column(name = Files.Db.SnapshotUser.SNAPSHOT_TIMESTAMP, nullable = false)
+  @Column(name = Constants.Db.SnapshotUser.SNAPSHOT_TIMESTAMP, nullable = false)
   private Long snapshotTimestamp;
 
-  @Column(name = Files.Db.SnapshotUser.USER_ID, length = 256, nullable = false)
+  @Column(name = Constants.Db.SnapshotUser.USER_ID, length = 256, nullable = false)
   private String userId;
 
-  @Column(name = Files.Db.SnapshotUser.FULL_NAME, length = 1024, nullable = false)
+  @Column(name = Constants.Db.SnapshotUser.FULL_NAME, length = 1024, nullable = false)
   private String fullName;
 
-  @Column(name = Files.Db.SnapshotUser.EMAIL, length = 1024, nullable = false)
+  @Column(name = Constants.Db.SnapshotUser.EMAIL, length = 1024, nullable = false)
   private String email;
 
   public SnapshotUser(String snapshotUserId, Long snapshotTimestamp, String userId, String fullName, String email) {

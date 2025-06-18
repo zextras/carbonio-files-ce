@@ -7,7 +7,7 @@ package com.zextras.carbonio.files.rest.controllers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files.API.ContextAttribute;
+import com.zextras.carbonio.files.Constants.API.ContextAttribute;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;

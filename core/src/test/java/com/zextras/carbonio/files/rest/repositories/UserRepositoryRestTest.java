@@ -6,7 +6,7 @@ package com.zextras.carbonio.files.rest.repositories;
 
 import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.UserRepositoryRest;
-import com.zextras.carbonio.files.utilities.TestFilesConfig;
+import com.zextras.carbonio.files.utilities.MockFilesConfig;
 import com.zextras.carbonio.usermanagement.UserManagementClient;
 import com.zextras.carbonio.usermanagement.entities.UserId;
 import com.zextras.carbonio.usermanagement.entities.UserMyself;
@@ -24,33 +24,38 @@ import static org.mockito.Mockito.mockStatic;
 
 class UserRepositoryRestTest {
 
-  private UserRepositoryRest userRepositoryRest;
+    private UserRepositoryRest userRepositoryRest;
+    private UserManagementClient userManagementClientMock;
+    private CacheHandler cacheHandlerMock;
+    private MockFilesConfig mockFilesConfig;
 
-  @BeforeEach
-  void setup() {
-    userRepositoryRest = new UserRepositoryRest(new TestFilesConfig(), Mockito.mock(CacheHandler.class));
-  }
+    @BeforeEach
+    void setup() {
+        mockFilesConfig = new MockFilesConfig();
+        cacheHandlerMock = Mockito.mock(CacheHandler.class);
+        userManagementClientMock = Mockito.mock(UserManagementClient.class);
 
-  @Test
-  void givenUserManagementsUsermyselfGetUserMyselfByCookieNotCachedShouldContainUserMyself() {
-    // Given
-    UserMyself userMyself = new UserMyself();
-    UserId userId = new UserId();
-    userMyself.setId(userId);
-
-    Try<UserMyself> userMyselfTry = Try.of(() -> userMyself);
-
-    try (MockedStatic<UserManagementClient> mockedStatic = mockStatic(UserManagementClient.class)) {
-      UserManagementClient userManagementClientMock = Mockito.mock(UserManagementClient.class);
-
-      mockedStatic.when(() -> UserManagementClient.atURL(anyString())).thenReturn(userManagementClientMock);
-      Mockito.when(userManagementClientMock.getUserMyself("cookie", true)).thenReturn(userMyselfTry);
-
-      // When
-      Optional<com.zextras.carbonio.files.dal.dao.UserMyself> returnedUserMyselfOpt = userRepositoryRest.getUserMyselfByCookieNotCached("cookie");
-
-      // Then
-      Assertions.assertThat(returnedUserMyselfOpt.isPresent()).isTrue();
+        userRepositoryRest = new UserRepositoryRest(mockFilesConfig, cacheHandlerMock, userManagementClientMock);
     }
-  }
+
+    @Test
+    void givenUserManagementsUsermyselfGetUserMyselfByCookieNotCachedShouldContainUserMyself() {
+        // Given
+        UserMyself userMyself = new UserMyself();
+        UserId userId = new UserId();
+        userMyself.setId(userId);
+
+        Try<UserMyself> userMyselfTry = Try.of(() -> userMyself);
+
+        Mockito.when(userManagementClientMock.getUserMyself("cookie", true)).thenReturn(userMyselfTry);
+
+        // When
+        Optional<com.zextras.carbonio.files.dal.dao.UserMyself> returnedUserMyselfOpt =
+            userRepositoryRest.getUserMyselfByCookieNotCached("cookie");
+
+        // Then
+        Assertions.assertThat(returnedUserMyselfOpt.isPresent()).isTrue();
+
+        Mockito.verify(userManagementClientMock).getUserMyself("cookie", true);
+    }
 }

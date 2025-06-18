@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.netty;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.exceptions.AuthenticationException;
@@ -19,7 +19,7 @@ import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 import io.vavr.control.Try;
 import java.util.Optional;
-import java.util.UUID;
+
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,7 +74,7 @@ class AuthenticationHandlerTest {
   }
 
   /**
-   * An unmanaged cookie is a cookie different from {@link Files.API.Headers#COOKIE_ZM_AUTH_TOKEN}.
+   * An unmanaged cookie is a cookie different from {@link Constants.API.Headers#COOKIE_ZM_AUTH_TOKEN}.
    * For example a ZM_AUTH_TOKEN is a cookie that Files are not able to validate (unmanaged). In
    * this scenario Files returns a "Missing cookie" error message because the client does not use an
    * acceptable type of cookie.

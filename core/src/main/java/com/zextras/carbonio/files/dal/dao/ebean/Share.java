@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import io.ebean.annotation.Cache;
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -17,7 +17,7 @@ import javax.persistence.Table;
 
 /**
  * Represents an Ebean {@link Share} entity that matches a record of the {@link
- * Files.Db.Tables#SHARE} table.
+ * Constants.Db.Tables#SHARE} table.
  *
  * <p>The share has properties mapped to the corresponding table columns:
  *
@@ -38,32 +38,32 @@ import javax.persistence.Table;
  */
 @Cache
 @Entity
-@Table(name = Files.Db.Tables.SHARE)
+@Table(name = Constants.Db.Tables.SHARE)
 public class Share {
 
   @EmbeddedId private final SharePK composedPrimaryKey;
 
-  @Column(name = Files.Db.Share.PERMISSIONS)
+  @Column(name = Constants.Db.Share.PERMISSIONS)
   private Short permissions;
 
-  @Column(name = Files.Db.Share.CREATED_AT, nullable = false)
+  @Column(name = Constants.Db.Share.CREATED_AT, nullable = false)
   private final Long createdAt;
 
-  @Column(name = Files.Db.Share.EXPIRED_AT)
+  @Column(name = Constants.Db.Share.EXPIRED_AT)
   private Long expiredAt;
 
   @ManyToOne
   @JoinColumn(
-      name = Files.Db.Share.NODE_ID,
-      referencedColumnName = Files.Db.Node.ID,
+      name = Constants.Db.Share.NODE_ID,
+      referencedColumnName = Constants.Db.Node.ID,
       insertable = false,
       updatable = false)
   private Node node;
 
-  @Column(name = Files.Db.Share.DIRECT, nullable = false)
+  @Column(name = Constants.Db.Share.DIRECT, nullable = false)
   private Boolean direct;
 
-  @Column(name = Files.Db.Share.CREATED_VIA_LINK, nullable = false)
+  @Column(name = Constants.Db.Share.CREATED_VIA_LINK, nullable = false)
   private Boolean createdViaLink;
 
   /**

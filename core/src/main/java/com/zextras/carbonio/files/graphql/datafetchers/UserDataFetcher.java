@@ -5,9 +5,9 @@
 package com.zextras.carbonio.files.graphql.datafetchers;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.GraphQL.InputParameters.GetAccountsByEmail;
-import com.zextras.carbonio.files.Files.GraphQL.InputParameters.GetUser;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.GetAccountsByEmail;
+import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.GetUser;
 import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
@@ -91,10 +91,10 @@ public class UserDataFetcher {
 
   private DataFetcherResult<Map<String, Object>> convertUserToDataFetcherResult(User user) {
     Map<String, Object> result = new HashMap<>();
-    result.put(Files.GraphQL.User.ID, user.getId());
-    result.put(Files.GraphQL.User.EMAIL, user.getEmail());
-    result.put(Files.GraphQL.User.FULL_NAME, user.getFullName());
-    result.put(Files.GraphQL.ENTITY_TYPE, Files.GraphQL.Types.USER);
+    result.put(Constants.GraphQL.User.ID, user.getId());
+    result.put(Constants.GraphQL.User.EMAIL, user.getEmail());
+    result.put(Constants.GraphQL.User.FULL_NAME, user.getFullName());
+    result.put(Constants.GraphQL.ENTITY_TYPE, Constants.GraphQL.Types.USER);
 
     return new DataFetcherResult
       .Builder<Map<String, Object>>()
@@ -135,7 +135,7 @@ public class UserDataFetcher {
             .orElse(null));
         return Optional
           .ofNullable(userId).map(uId -> fetchUserByIdAndConvertToDataFetcherResult(
-            environment.getGraphQlContext().get(Files.GraphQL.Context.COOKIES), userId,
+            environment.getGraphQlContext().get(Constants.GraphQL.Context.COOKIES), userId,
             environment.getExecutionStepInfo().getPath()))
           .orElseGet(() -> new DataFetcherResult.Builder<Map<String, Object>>().build());
       });
@@ -147,10 +147,10 @@ public class UserDataFetcher {
    * input:
    * <ul>
    *   <li>
-   *     {@link Files.GraphQL.InputParameters#LIMIT}: an {@link Integer} of how many elements you want to fetch
+   *     {@link Constants.GraphQL.InputParameters#LIMIT}: an {@link Integer} of how many elements you want to fetch
    *   </li>
    *   <li>
-   *     {@link Files.GraphQL.InputParameters#CURSOR}: a {@link String} of the last element fetched (this is optional,
+   *     {@link Constants.GraphQL.InputParameters#CURSOR}: a {@link String} of the last element fetched (this is optional,
    *     and it is useful for pagination)
    *   </li>
    * </ul>
@@ -159,8 +159,8 @@ public class UserDataFetcher {
    * <ul>
    *  <li>It fetches all the user ids of the distribution list from zimbra</li>
    *  <li>
-   *    It filters only the interested users applying the {@link Files.GraphQL.InputParameters#LIMIT} and the
-   *    {@link Files.GraphQL.InputParameters#CURSOR} parameters
+   *    It filters only the interested users applying the {@link Constants.GraphQL.InputParameters#LIMIT} and the
+   *    {@link Constants.GraphQL.InputParameters#CURSOR} parameters
    *  </li>
    *  <li>
    *    It fetches all the interested users, and it converts each of them into a {@link HashMap} containing all the
@@ -179,7 +179,7 @@ public class UserDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<List<Map<String, Object>>>>> getDLUsersFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
         Map<String, Object> partialResult = environment.getSource();
-        String distributionListId = (String) partialResult.get(Files.GraphQL.Share.SHARE_TARGET);
+        String distributionListId = (String) partialResult.get(Constants.GraphQL.Share.SHARE_TARGET);
 
         /*
          * If the execution is arrived in this data fetcher then the partialResult contains the distributionListId
@@ -212,9 +212,9 @@ public class UserDataFetcher {
     return environment ->
     {
       Map<String, Object> result = environment.getObject();
-      return (result.get(Files.GraphQL.ENTITY_TYPE).equals(Files.GraphQL.Types.DISTRIBUTION_LIST))
-        ? (GraphQLObjectType) environment.getSchema().getType(Files.GraphQL.Types.DISTRIBUTION_LIST)
-        : (GraphQLObjectType) environment.getSchema().getType(Files.GraphQL.Types.USER);
+      return (result.get(Constants.GraphQL.ENTITY_TYPE).equals(Constants.GraphQL.Types.DISTRIBUTION_LIST))
+        ? (GraphQLObjectType) environment.getSchema().getType(Constants.GraphQL.Types.DISTRIBUTION_LIST)
+        : (GraphQLObjectType) environment.getSchema().getType(Constants.GraphQL.Types.USER);
     };
   }
 
@@ -223,9 +223,9 @@ public class UserDataFetcher {
    * <p>This {@link DataFetcher} retrieves a target user of a sharing node and it creates the
    * related {@link Map}.</p>
    * <p>It <strong>must</strong> be bound to a Share query and used only to retrieve a target user
-   * that represents the attribute {@link Files.GraphQL.Share#SHARE_TARGET} in a GraphQL Share
+   * that represents the attribute {@link Constants.GraphQL.Share#SHARE_TARGET} in a GraphQL Share
    * object. It works only if the previous data fetcher saves the
-   * {@link Files.GraphQL.Share#SHARE_TARGET} in the context, otherwise the execution will be
+   * {@link Constants.GraphQL.Share#SHARE_TARGET} in the context, otherwise the execution will be
    * aborted with an {@link AbortExecutionException}.</p>
    *
    * @return an asynchronous {@link DataFetcher} containing a {@link Map} of all the attributes
@@ -235,11 +235,11 @@ public class UserDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
       String userId = ((Map<String, String>) environment.getLocalContext()).get(
-        Files.GraphQL.Share.SHARE_TARGET
+        Constants.GraphQL.Share.SHARE_TARGET
       );
 
       return fetchUserByIdAndConvertToDataFetcherResult(
-        environment.getGraphQlContext().get(Files.GraphQL.Context.COOKIES),
+        environment.getGraphQlContext().get(Constants.GraphQL.Context.COOKIES),
         userId,
         environment.getExecutionStepInfo().getPath()
       );
@@ -269,7 +269,7 @@ public class UserDataFetcher {
     {
       String email = environment.getArgument(GetUser.EMAIL);
       return fetchUserByEmailAndConvertToDataFetcherResult(
-        environment.getGraphQlContext().get(Files.GraphQL.Context.COOKIES),
+        environment.getGraphQlContext().get(Constants.GraphQL.Context.COOKIES),
         email,
         environment.getExecutionStepInfo().getPath()
       );
@@ -289,7 +289,7 @@ public class UserDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
       List<String> accountEmails = environment.getArgument(GetAccountsByEmail.EMAILS);
-      String requesterCookie = environment.getGraphQlContext().get(Files.GraphQL.Context.COOKIES);
+      String requesterCookie = environment.getGraphQlContext().get(Constants.GraphQL.Context.COOKIES);
 
       return accountEmails
         .stream()

@@ -5,9 +5,7 @@
 package com.zextras.carbonio.files.rest.controllers;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files.API.Endpoints;
-import com.zextras.carbonio.files.dal.dao.ebean.Link;
-import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
+import com.zextras.carbonio.files.Constants.API.Endpoints;
 import com.zextras.carbonio.files.exceptions.AccessCodeRequiredException;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.netty.utilities.HttpResponseBuilder;

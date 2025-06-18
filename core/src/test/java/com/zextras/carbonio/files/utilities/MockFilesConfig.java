@@ -4,13 +4,13 @@
 
 package com.zextras.carbonio.files.utilities;
 
-import com.zextras.carbonio.files.config.impl.FilesConfigImpl;
+import com.zextras.carbonio.files.config.FilesConfig;
 
 /**
  * Here one can override the standard behaviour of FilesConfigImpl to mock or otherwise differentiate
  * the standard configuration from the test configuration.
  */
-public class TestFilesConfig extends FilesConfigImpl {
+public class MockFilesConfig extends FilesConfig {
     boolean areNotificationsEnabled = true;
 
     @Override

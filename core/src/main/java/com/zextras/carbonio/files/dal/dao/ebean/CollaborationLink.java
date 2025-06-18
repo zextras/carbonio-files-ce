@@ -4,9 +4,9 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean;
 
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Db;
-import com.zextras.carbonio.files.Files.Db.Tables;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.Db;
+import com.zextras.carbonio.files.Constants.Db.Tables;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import java.time.Instant;
 import java.util.UUID;
@@ -17,7 +17,7 @@ import javax.persistence.Table;
 
 /**
  * Represents an Ebean {@link CollaborationLink} entity that matches a record of the {@link
- * Files.Db.Tables#COLLABORATION_LINK} table.
+ * Constants.Db.Tables#COLLABORATION_LINK} table.
  *
  * <p>The collaboration link has properties mapped to the corresponding table columns:
  *

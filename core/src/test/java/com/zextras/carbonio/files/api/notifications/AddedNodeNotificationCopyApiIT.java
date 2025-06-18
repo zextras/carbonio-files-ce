@@ -16,7 +16,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.utilities.TestFilesConfig;
+import com.zextras.carbonio.files.utilities.MockFilesConfig;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import org.assertj.core.api.Assertions;
@@ -153,7 +153,7 @@ class AddedNodeNotificationCopyApiIT {
   @Test
   void givenANodeCopyOnASharedDirectoryIAndDisabledNotificationsNoNotificationShouldBeSavedOrReturned() {
     // Given
-    ((TestFilesConfig)
+    ((MockFilesConfig)
         simulator
             .getInjector()
             .getInstance(FilesConfig.class))
@@ -184,7 +184,7 @@ class AddedNodeNotificationCopyApiIT {
     Assertions.assertThat(notifications).hasSize(0); // One newShare and one addedNode
 
     //reset
-    ((TestFilesConfig)
+    ((MockFilesConfig)
         simulator
             .getInjector()
             .getInstance(FilesConfig.class))

@@ -4,8 +4,8 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean;
 
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Db;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.Db;
 
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -15,7 +15,7 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 
 /**
- * Represents an Ebean {@link Link} entity that matches a record of the {@link Files.Db.Link} table.
+ * Represents an Ebean {@link Link} entity that matches a record of the {@link Constants.Db.Link} table.
  *
  * <p>The public link has properties mapped to the corresponding table columns:
  *
@@ -33,7 +33,7 @@ import javax.persistence.Table;
  * because, when these methods are called, these controls <strong>must</strong> be already done.
  */
 @Entity
-@Table(name = Files.Db.Tables.LINK)
+@Table(name = Constants.Db.Tables.LINK)
 public class Link {
 
   @Id
@@ -46,10 +46,10 @@ public class Link {
   @Column(name = Db.Link.PUBLIC_ID, nullable = false)
   private String publicId;
 
-  @Column(name = Files.Db.Link.CREATED_AT, nullable = false)
+  @Column(name = Constants.Db.Link.CREATED_AT, nullable = false)
   private Long createdAt;
 
-  @Column(name = Files.Db.Link.EXPIRES_AT)
+  @Column(name = Constants.Db.Link.EXPIRES_AT)
   private Long expiresAt;
 
   @Column(name = Db.Link.DESCRIPTION, length = 300)

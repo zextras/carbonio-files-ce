@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +34,7 @@ public class FindNodeKeySetBuilder {
   private NodeSQLCondition createSQLCondition(NodeSort sort, SortOrder order) {
     String columnNameToCompare = sort.getName();
     // Special case: if sorting by name -> compare the lowercase of the fullName
-    Object parameterToCompare = Files.Db.Node.NAME.equals(columnNameToCompare)
+    Object parameterToCompare = Constants.Db.Node.NAME.equals(columnNameToCompare)
       ? node.getFullName().toLowerCase()
       : node.getSortingValueFromColumn(columnNameToCompare);
 

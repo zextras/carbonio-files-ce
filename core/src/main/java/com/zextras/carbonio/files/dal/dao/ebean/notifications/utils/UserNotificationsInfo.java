@@ -1,6 +1,6 @@
 package com.zextras.carbonio.files.dal.dao.ebean.notifications.utils;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import io.ebean.annotation.Cache;
 
 import javax.persistence.*;
@@ -13,17 +13,17 @@ import javax.persistence.*;
 * */
 @Cache
 @Entity
-@Table(name = Files.Db.Tables.USER_NOTIFICATIONS_INFO)
+@Table(name = Constants.Db.Tables.USER_NOTIFICATIONS_INFO)
 public class UserNotificationsInfo {
 
   @Id
-  @Column(name = Files.Db.UserNotificationsInfo.USER_ID, length = 36, nullable = false)
+  @Column(name = Constants.Db.UserNotificationsInfo.USER_ID, length = 36, nullable = false)
   private String userId;
 
-  @Column(name = Files.Db.UserNotificationsInfo.LAST_SEEN, nullable = false)
+  @Column(name = Constants.Db.UserNotificationsInfo.LAST_SEEN, nullable = false)
   private Long lastSeen;
 
-  @Column(name = Files.Db.UserNotificationsInfo.UNREAD, nullable = false)
+  @Column(name = Constants.Db.UserNotificationsInfo.UNREAD, nullable = false)
   private Integer unread;
 
   public UserNotificationsInfo(String userId, Long lastSeen, Integer unread) {

@@ -6,7 +6,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
 import static com.zextras.carbonio.files.dal.repositories.impl.ebean.NodeRepositoryEbean.getRealSortingsToApply;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import java.util.List;
@@ -21,9 +21,9 @@ class FindNodesKeySetBuilderTest {
   void givenNodeAndOrderByNameTheBuildShouldReturnAValidSqlExpression() {
     // Given
     Node mockNode = Mockito.mock(Node.class);
-    Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.CATEGORY))
+    Mockito.when(mockNode.getSortingValueFromColumn(Constants.Db.Node.CATEGORY))
       .thenReturn(NodeCategory.FILE.getValue());
-    Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.ID)).thenReturn("nodeId");
+    Mockito.when(mockNode.getSortingValueFromColumn(Constants.Db.Node.ID)).thenReturn("nodeId");
     Mockito.when(mockNode.getFullName()).thenReturn("NameFile.txt");
     List<NodeSort> realSortsToApply = getRealSortingsToApply(Optional.of(NodeSort.NAME_ASC));
 
@@ -48,10 +48,10 @@ class FindNodesKeySetBuilderTest {
   void givenNodeAndOrderBySizeTheBuildShouldReturnAValidSqlExpression() {
     // Given
     Node mockNode = Mockito.mock(Node.class);
-    Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.CATEGORY))
+    Mockito.when(mockNode.getSortingValueFromColumn(Constants.Db.Node.CATEGORY))
       .thenReturn(NodeCategory.FILE.getValue());
-    Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.SIZE)).thenReturn(1L);
-    Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.ID)).thenReturn("nodeId");
+    Mockito.when(mockNode.getSortingValueFromColumn(Constants.Db.Node.SIZE)).thenReturn(1L);
+    Mockito.when(mockNode.getSortingValueFromColumn(Constants.Db.Node.ID)).thenReturn("nodeId");
     Mockito.when(mockNode.getFullName()).thenReturn("file.txt");
     List<NodeSort> realSortsToApply = getRealSortingsToApply(Optional.of(NodeSort.SIZE_ASC));
 
@@ -89,10 +89,10 @@ class FindNodesKeySetBuilderTest {
   void givenNodeAndOrderByCreatedAtTheBuildShouldReturnAValidSqlExpression() {
     // Given
     Node mockNode = Mockito.mock(Node.class);
-    Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.CATEGORY))
+    Mockito.when(mockNode.getSortingValueFromColumn(Constants.Db.Node.CATEGORY))
       .thenReturn(NodeCategory.FILE.getValue());
-    Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.CREATED_AT)).thenReturn(100L);
-    Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.ID)).thenReturn("nodeId");
+    Mockito.when(mockNode.getSortingValueFromColumn(Constants.Db.Node.CREATED_AT)).thenReturn(100L);
+    Mockito.when(mockNode.getSortingValueFromColumn(Constants.Db.Node.ID)).thenReturn("nodeId");
     List<NodeSort> realSortsToApply = getRealSortingsToApply(Optional.of(NodeSort.CREATED_AT_ASC));
 
     // When
@@ -117,9 +117,9 @@ class FindNodesKeySetBuilderTest {
   void givenNodeAndOrderEmptyAtTheBuildShouldReturnAValidSqlExpression() {
     // Given
     Node mockNode = Mockito.mock(Node.class);
-    Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.CATEGORY))
+    Mockito.when(mockNode.getSortingValueFromColumn(Constants.Db.Node.CATEGORY))
       .thenReturn(NodeCategory.FILE.getValue());
-    Mockito.when(mockNode.getSortingValueFromColumn(Files.Db.Node.ID)).thenReturn("nodeId");
+    Mockito.when(mockNode.getSortingValueFromColumn(Constants.Db.Node.ID)).thenReturn("nodeId");
     List<NodeSort> realSortsToApply = getRealSortingsToApply(Optional.empty());
 
     // When

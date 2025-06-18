@@ -5,9 +5,9 @@
 package com.zextras.carbonio.files.graphql.validators;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.GraphQL.InputParameters.DeleteCollaborationLinks;
-import com.zextras.carbonio.files.Files.GraphQL.InputParameters.RestoreNodes;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.DeleteCollaborationLinks;
+import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.RestoreNodes;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import graphql.GraphQL;
 import graphql.GraphQLError;
@@ -36,7 +36,7 @@ public class InputFieldsController {
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Queries#GET_NODE} to
+   * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Queries#GET_NODE} to
    * check if the node id in input is valid.
    * @see GenericControllerEvaluator#checkNodeId(String)
    */
@@ -44,13 +44,13 @@ public class InputFieldsController {
     return (fieldAndArguments, environment) ->
     {
       return mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkNodeId(Files.GraphQL.InputParameters.NODE_ID)
+        .checkNodeId(Constants.GraphQL.InputParameters.NODE_ID)
         .evaluate();
     };
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Mutations#CREATE_FOLDER}
+   * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Mutations#CREATE_FOLDER}
    * to check if the parent id is valid and if the folder name in input is valid.
    * @see GenericControllerEvaluator#checkNodeId(String)
    * @see GenericControllerEvaluator#checkNodeName(String)
@@ -59,14 +59,14 @@ public class InputFieldsController {
     return (fieldAndArguments, environment) ->
     {
       return mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkNodeId(Files.GraphQL.InputParameters.CreateFolder.PARENT_ID)
-        .checkNodeName(Files.GraphQL.InputParameters.CreateFolder.NAME)
+        .checkNodeId(Constants.GraphQL.InputParameters.CreateFolder.PARENT_ID)
+        .checkNodeName(Constants.GraphQL.InputParameters.CreateFolder.NAME)
         .evaluate();
     };
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Folder#CHILDREN}
+   * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Folder#CHILDREN}
    * attribute to checks if the pagination limit is valid and if the cursor node is valid.
    * @see GenericControllerEvaluator#checkLimitPagination(String)
    * @see GenericControllerEvaluator#checkNodeId(String)
@@ -75,14 +75,14 @@ public class InputFieldsController {
     return ((fieldAndArguments, environment) ->
     {
       return mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkLimitPagination(Files.GraphQL.InputParameters.LIMIT)
-        .checkNodeId(Files.GraphQL.InputParameters.CURSOR)
+        .checkLimitPagination(Constants.GraphQL.InputParameters.LIMIT)
+        .checkNodeId(Constants.GraphQL.InputParameters.CURSOR)
         .evaluate();
     });
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Mutations#UPDATE_NODE} to
+   * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Mutations#UPDATE_NODE} to
    * check if the id, the name and/or the description of the node are valid.
    * @see GenericControllerEvaluator#checkNodeId(String)
    * @see GenericControllerEvaluator#checkNodeName(String)
@@ -92,15 +92,15 @@ public class InputFieldsController {
     return ((fieldAndArguments, environment) ->
     {
       return mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkNodeId(Files.GraphQL.InputParameters.UpdateNode.NODE_ID)
-        .checkNodeName(Files.GraphQL.InputParameters.UpdateNode.NAME)
-        .checkNodeDescription(Files.GraphQL.InputParameters.UpdateNode.DESCRIPTION)
+        .checkNodeId(Constants.GraphQL.InputParameters.UpdateNode.NODE_ID)
+        .checkNodeName(Constants.GraphQL.InputParameters.UpdateNode.NAME)
+        .checkNodeDescription(Constants.GraphQL.InputParameters.UpdateNode.DESCRIPTION)
         .evaluate();
     });
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Mutations#MOVE_NODES} to
+   * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Mutations#MOVE_NODES} to
    * check if the ids of the nodes to move and the destination are valid.
    * @see GenericControllerEvaluator#checkNodesIds(String)
    * @see GenericControllerEvaluator#checkNodeId(String)
@@ -109,40 +109,40 @@ public class InputFieldsController {
     return ((fieldAndArguments, environment) ->
     {
       return mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkNodesIds(Files.GraphQL.InputParameters.MoveNodes.NODE_IDS)
-        .checkNodeId(Files.GraphQL.InputParameters.MoveNodes.DESTINATION_ID)
+        .checkNodesIds(Constants.GraphQL.InputParameters.MoveNodes.NODE_IDS)
+        .checkNodeId(Constants.GraphQL.InputParameters.MoveNodes.DESTINATION_ID)
         .evaluate();
     });
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Mutations#DELETE_NODES}
+   * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Mutations#DELETE_NODES}
    * to check if the ids of the nodes to delete are valid.
    * @see GenericControllerEvaluator#checkNodesIds(String)
    */
   public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> deleteNodesValidation() {
     return ((fieldAndArguments, environment) ->
       mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkNodesIds(Files.GraphQL.InputParameters.DeleteNodes.NODE_IDS)
+        .checkNodesIds(Constants.GraphQL.InputParameters.DeleteNodes.NODE_IDS)
         .evaluate()
     );
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Mutations#TRASH_NODES} to
+   * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Mutations#TRASH_NODES} to
    * check if the ids of the nodes to trash are valid.
    * @see GenericControllerEvaluator#checkNodesIds(String)
    */
   public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> trashNodesValidation() {
     return ((fieldAndArguments, environment) ->
       mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkNodesIds(Files.GraphQL.InputParameters.TrashNodes.NODE_IDS)
+        .checkNodesIds(Constants.GraphQL.InputParameters.TrashNodes.NODE_IDS)
         .evaluate()
     );
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Mutations#RESTORE_NODES}
+   * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Mutations#RESTORE_NODES}
    * to check if the ids of the nodes to delete are valid.
    * @see GenericControllerEvaluator#checkNodesIds(String)
    */
@@ -155,7 +155,7 @@ public class InputFieldsController {
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Mutations#COPY_NODES} to
+   * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Mutations#COPY_NODES} to
    * check if the ids of the nodes to move and the destination are valid.
    * @see GenericControllerEvaluator#checkNodesIds(String)
    * @see GenericControllerEvaluator#checkNodeId(String)
@@ -163,14 +163,14 @@ public class InputFieldsController {
   public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> copyNodesValidation() {
     return ((fieldAndArguments, environment) ->
       mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkNodesIds(Files.GraphQL.InputParameters.CopyNodes.NODE_IDS)
-        .checkNodeId(Files.GraphQL.InputParameters.CopyNodes.DESTINATION_ID)
+        .checkNodesIds(Constants.GraphQL.InputParameters.CopyNodes.NODE_IDS)
+        .checkNodeId(Constants.GraphQL.InputParameters.CopyNodes.DESTINATION_ID)
         .evaluate());
   }
 
   /**
    * @return a {@link BiFunction} rule bound with the queries and mutations related to the
-   * {@link Files.GraphQL.Types#SHARE} type check if the node id and the target user id in input are
+   * {@link Constants.GraphQL.Types#SHARE} type check if the node id and the target user id in input are
    * valid.
    * @see GenericControllerEvaluator#checkNodeId(String)
    * @see GenericControllerEvaluator#checkUserId(String)
@@ -180,15 +180,15 @@ public class InputFieldsController {
     {
       GenericControllerEvaluator controller = mGenericControllerEvaluatorFactory
         .create(fieldAndArguments, environment)
-        .checkNodeId(Files.GraphQL.InputParameters.Share.NODE_ID)
-        .checkUserId(Files.GraphQL.InputParameters.Share.SHARE_TARGET_ID);
+        .checkNodeId(Constants.GraphQL.InputParameters.Share.NODE_ID)
+        .checkUserId(Constants.GraphQL.InputParameters.Share.SHARE_TARGET_ID);
 
       return controller.evaluate();
     };
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Mutations#CREATE_LINK} to
+   * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Mutations#CREATE_LINK} to
    * check if the node id and/or the link description and/or the access code are valid.
    * @see GenericControllerEvaluator#checkNodeId(String)
    * @see GenericControllerEvaluator#checkLinkDescription(String)
@@ -198,15 +198,15 @@ public class InputFieldsController {
     return (fieldAndArguments, environment) ->
     {
       return mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkNodeId(Files.GraphQL.InputParameters.Link.NODE_ID)
-        .checkLinkDescription(Files.GraphQL.InputParameters.Link.DESCRIPTION)
-        .checkLinkAccessCode(Files.GraphQL.InputParameters.Link.ACCESS_CODE)
+        .checkNodeId(Constants.GraphQL.InputParameters.Link.NODE_ID)
+        .checkLinkDescription(Constants.GraphQL.InputParameters.Link.DESCRIPTION)
+        .checkLinkAccessCode(Constants.GraphQL.InputParameters.Link.ACCESS_CODE)
         .evaluate();
     };
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Queries#GET_LINKS} to
+   * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Queries#GET_LINKS} to
    * check if the node id of the links to retrieve is valid.
    * @see GenericControllerEvaluator#checkNodeId(String)
    */
@@ -214,13 +214,13 @@ public class InputFieldsController {
     return (fieldAndArguments, environment) ->
     {
       return mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkNodeId(Files.GraphQL.InputParameters.Link.NODE_ID)
+        .checkNodeId(Constants.GraphQL.InputParameters.Link.NODE_ID)
         .evaluate();
     };
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Mutations#UPDATE_LINK} to
+   * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Mutations#UPDATE_LINK} to
    * check if the link id and/or the link description and/or the access code are valid.
    * @see GenericControllerEvaluator#checkLinkId(String)
    * @see GenericControllerEvaluator#checkLinkDescription(String)
@@ -230,15 +230,15 @@ public class InputFieldsController {
     return (fieldAndArguments, environment) ->
     {
       return mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkLinkId(Files.GraphQL.InputParameters.Link.LINK_ID)
-        .checkLinkDescription(Files.GraphQL.InputParameters.Link.DESCRIPTION)
-        .checkLinkAccessCode(Files.GraphQL.InputParameters.Link.ACCESS_CODE)
+        .checkLinkId(Constants.GraphQL.InputParameters.Link.LINK_ID)
+        .checkLinkDescription(Constants.GraphQL.InputParameters.Link.DESCRIPTION)
+        .checkLinkAccessCode(Constants.GraphQL.InputParameters.Link.ACCESS_CODE)
         .evaluate();
     };
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Mutations#DELETE_LINKS}
+   * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Mutations#DELETE_LINKS}
    * to check if the link ids to remove are valid.
    * @see GenericControllerEvaluator#checkLinkIds(String)
    */
@@ -246,13 +246,13 @@ public class InputFieldsController {
     return (fieldAndArguments, environment) ->
     {
       return mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkLinkIds(Files.GraphQL.InputParameters.Link.LINK_IDS)
+        .checkLinkIds(Constants.GraphQL.InputParameters.Link.LINK_IDS)
         .evaluate();
     };
   }
 
   /**
-   * @return a {@link BiFunction} rule bound with the {@link Files.GraphQL.Queries#GET_PATH} to
+   * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Queries#GET_PATH} to
    * check if the node id in input is valid.
    * @see GenericControllerEvaluator#checkNodeId(String)
    */
@@ -260,54 +260,54 @@ public class InputFieldsController {
     return (fieldAndArguments, environment) ->
     {
       return mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkNodeId(Files.GraphQL.InputParameters.NODE_ID)
+        .checkNodeId(Constants.GraphQL.InputParameters.NODE_ID)
         .evaluate();
     };
   }
 
   /**
    * @return a {@link BiFunction} rule bound with the
-   * {@link Files.GraphQL.Queries#GET_ACCOUNT_BY_EMAIL} to check if the email in input is valid.
+   * {@link Constants.GraphQL.Queries#GET_ACCOUNT_BY_EMAIL} to check if the email in input is valid.
    * @see GenericControllerEvaluator#checkEmail(String)
    */
   public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> getAccountByEmailValidation() {
     return (fieldAndArguments, environment) ->
     {
       return mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkEmail(Files.GraphQL.InputParameters.EMAIL)
+        .checkEmail(Constants.GraphQL.InputParameters.EMAIL)
         .evaluate();
     };
   }
 
   /**
    * @return a {@link BiFunction} rule bound with the
-   * {@link Files.GraphQL.Queries#GET_ACCOUNTS_BY_EMAIL} to check if the list of emails in input are
+   * {@link Constants.GraphQL.Queries#GET_ACCOUNTS_BY_EMAIL} to check if the list of emails in input are
    * valid.
    * @see GenericControllerEvaluator#checkEmails(String)
    */
   public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> getAccountsByEmailValidation() {
     return (fieldAndArguments, environment) ->
       mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkEmails(Files.GraphQL.InputParameters.GetAccountsByEmail.EMAILS)
+        .checkEmails(Constants.GraphQL.InputParameters.GetAccountsByEmail.EMAILS)
         .evaluate();
   }
 
   /**
    * @return a {@link BiFunction} rule bound with the
-   * {@link Files.GraphQL.Mutations#CREATE_COLLABORATION_LINK} to check if the node id is valid.
+   * {@link Constants.GraphQL.Mutations#CREATE_COLLABORATION_LINK} to check if the node id is valid.
    * @see GenericControllerEvaluator#checkNodeId(String)
    */
   public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> createCollaborationLinkValidation() {
     return (fieldAndArguments, environment) ->
       mGenericControllerEvaluatorFactory
         .create(fieldAndArguments, environment)
-        .checkNodeId(Files.GraphQL.InputParameters.CreateCollaborationLink.NODE_ID)
+        .checkNodeId(Constants.GraphQL.InputParameters.CreateCollaborationLink.NODE_ID)
         .evaluate();
   }
 
   /**
    * @return a {@link BiFunction} rule bound with the
-   * {@link Files.GraphQL.Queries#GET_COLLABORATION_LINKS} to check if the node id of the
+   * {@link Constants.GraphQL.Queries#GET_COLLABORATION_LINKS} to check if the node id of the
    * collaboration links to retrieve is valid.
    * @see GenericControllerEvaluator#checkNodeId(String)
    */
@@ -315,13 +315,13 @@ public class InputFieldsController {
     return (fieldAndArguments, environment) ->
       mGenericControllerEvaluatorFactory
         .create(fieldAndArguments, environment)
-        .checkNodeId(Files.GraphQL.InputParameters.GetCollaborationLink.NODE_ID)
+        .checkNodeId(Constants.GraphQL.InputParameters.GetCollaborationLink.NODE_ID)
         .evaluate();
   }
 
   /**
    * @return a {@link BiFunction} rule bound with the
-   * {@link Files.GraphQL.Mutations#DELETE_COLLABORATION_LINKS} to check if the collaboration link
+   * {@link Constants.GraphQL.Mutations#DELETE_COLLABORATION_LINKS} to check if the collaboration link
    * ids to remove are valid.
    * @see GenericControllerEvaluator#checkLinkIds(String)
    */
@@ -335,12 +335,12 @@ public class InputFieldsController {
 
   /**
    * @return a {@link BiFunction} rule bound with the
-   * {@link Files.GraphQL.Mutations#DELETE_ALL_NODES_AND_BLOBS} to check if the user id is not empty or null.
+   * {@link Constants.GraphQL.Mutations#DELETE_ALL_NODES_AND_BLOBS} to check if the user id is not empty or null.
    */
   public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> deleteAllNodesAndBlobsValidation() {
     return (fieldAndArguments, environment) ->
       mGenericControllerEvaluatorFactory.create(fieldAndArguments, environment)
-        .checkUserId(Files.GraphQL.InputParameters.DeleteAllNodesAndBlobs.USER_ID)
+        .checkUserId(Constants.GraphQL.InputParameters.DeleteAllNodesAndBlobs.USER_ID)
         .evaluate();
   }
 }

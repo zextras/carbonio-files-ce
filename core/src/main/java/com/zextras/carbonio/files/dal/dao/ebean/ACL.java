@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean;
 
-import com.zextras.carbonio.files.Files.GraphQL.Types;
+import com.zextras.carbonio.files.Constants.GraphQL.Types;
 import java.util.Objects;
 
 /**

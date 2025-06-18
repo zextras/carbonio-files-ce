@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.graphql.types;
 
-import com.zextras.carbonio.files.Files.GraphQL;
+import com.zextras.carbonio.files.Constants.GraphQL;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;

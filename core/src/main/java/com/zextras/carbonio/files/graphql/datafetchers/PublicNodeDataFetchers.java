@@ -5,10 +5,10 @@
 package com.zextras.carbonio.files.graphql.datafetchers;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.GraphQL.InputParameters.FindNodes;
-import com.zextras.carbonio.files.Files.GraphQL.InputParameters.GetPublicNode;
-import com.zextras.carbonio.files.Files.GraphQL.NodePage;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.FindNodes;
+import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.GetPublicNode;
+import com.zextras.carbonio.files.Constants.GraphQL.NodePage;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
@@ -51,10 +51,10 @@ public class PublicNodeDataFetchers {
   public TypeResolver getNodeInterfaceResolver() {
     return environment -> {
       Map<String, Object> result = environment.getObject();
-      return (result.get(Files.GraphQL.Node.TYPE).equals(NodeType.FOLDER)
-              || result.get(Files.GraphQL.Node.TYPE).equals(NodeType.ROOT))
-          ? (GraphQLObjectType) environment.getSchema().getType(Files.GraphQL.Types.FOLDER)
-          : (GraphQLObjectType) environment.getSchema().getType(Files.GraphQL.Types.FILE);
+      return (result.get(Constants.GraphQL.Node.TYPE).equals(NodeType.FOLDER)
+              || result.get(Constants.GraphQL.Node.TYPE).equals(NodeType.ROOT))
+          ? (GraphQLObjectType) environment.getSchema().getType(Constants.GraphQL.Types.FOLDER)
+          : (GraphQLObjectType) environment.getSchema().getType(Constants.GraphQL.Types.FILE);
     };
   }
 

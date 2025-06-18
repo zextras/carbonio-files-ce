@@ -4,18 +4,18 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import java.io.Serializable;
 import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
 
 /**
- * <p>This class represents the primary key of the {@link Files.Db.Tables#TOMBSTONE}. It is
+ * <p>This class represents the primary key of the {@link Constants.Db.Tables#TOMBSTONE}. It is
  * composed by two fields:
  *  <ul>
- *    <li>{@link Files.Db.Tombstone#NODE_ID}: the foreign key of the node identifier;</li>
- *    <li>{@link Files.Db.Tombstone#VERSION}: an integer representing the version of the file.</li>
+ *    <li>{@link Constants.Db.Tombstone#NODE_ID}: the foreign key of the node identifier;</li>
+ *    <li>{@link Constants.Db.Tombstone#VERSION}: an integer representing the version of the file.</li>
  *  </ul>
  * </p>
  * <p>
@@ -25,10 +25,10 @@ import javax.persistence.Embeddable;
 @Embeddable
 public class TombstonePK implements Serializable {
 
-  @Column(name = Files.Db.Tombstone.NODE_ID, nullable = false)
+  @Column(name = Constants.Db.Tombstone.NODE_ID, nullable = false)
   private String mNodeId;
 
-  @Column(name = Files.Db.Tombstone.VERSION, nullable = false)
+  @Column(name = Constants.Db.Tombstone.VERSION, nullable = false)
   private Integer mVersion;
 
   public TombstonePK(

@@ -8,8 +8,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.GraphQL.DataLoaders;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.GraphQL.DataLoaders;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.GraphQLRequest;
 import com.zextras.carbonio.files.graphql.dataloaders.NodeBatchLoader;
@@ -121,17 +121,17 @@ public class GraphQLController extends SimpleChannelInboundHandler<FullHttpReque
 
     Map<String, Object> graphQLContext = new HashMap<>();
     graphQLContext.put(
-      Files.GraphQL.Context.REQUESTER,
+      Constants.GraphQL.Context.REQUESTER,
       context.channel().attr(AttributeKey.valueOf("requester")).get()
     );
     graphQLContext.put(
-      Files.GraphQL.Context.COOKIES,
+      Constants.GraphQL.Context.COOKIES,
       context.channel().attr(AttributeKey.valueOf("cookies")).get()
     );
 
     if(httpRequest.headers().contains("Internal")) {
       graphQLContext.put(
-          Files.GraphQL.Context.INTERNAL,
+          Constants.GraphQL.Context.INTERNAL,
           httpRequest.headers().get("Internal")
       );
     }

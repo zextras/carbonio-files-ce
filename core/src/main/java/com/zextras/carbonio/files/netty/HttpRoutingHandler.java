@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files.netty;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files.API.Endpoints;
+import com.zextras.carbonio.files.Constants.API.Endpoints;
 import com.zextras.carbonio.files.graphql.controllers.GraphQLController;
 import com.zextras.carbonio.files.graphql.controllers.PublicGraphQLController;
 import com.zextras.carbonio.files.rest.controllers.BlobController;

@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.cache.Cache;
 import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.config.FilesConfig;
@@ -32,25 +32,19 @@ public class UserRepositoryRest implements UserRepository {
 
   private static final Logger logger = LoggerFactory.getLogger(UserRepositoryRest.class);
 
-  private final String usermanagementUrl;
   private final Cache<User> userCache;
+  private final UserManagementClient userManagementClient;
 
   @Inject
-  public UserRepositoryRest(FilesConfig filesConfig, CacheHandler cacheHandler) {
-    Properties p = filesConfig.getProperties();
-    usermanagementUrl =
-        "http://"
-            + p.getProperty(Files.Config.UserManagement.URL, "127.78.0.2")
-            + ":"
-            + p.getProperty(Files.Config.UserManagement.PORT, "20001");
-
+  public UserRepositoryRest(FilesConfig filesConfig, CacheHandler cacheHandler, UserManagementClient userManagementClient) {
+    this.userManagementClient = userManagementClient;
     userCache = cacheHandler.getUserCache();
   }
 
   // no cache on this one since it is not requested often and we always want the updated version
   @Override
   public Optional<UserMyself> getUserMyselfByCookieNotCached(String cookies) {
-    return UserManagementClient.atURL(usermanagementUrl)
+    return userManagementClient
         .getUserMyself(cookies, true)
         .onFailure(failure -> logger.error(failure.getMessage()))
         .map(
@@ -70,7 +64,7 @@ public class UserRepositoryRest implements UserRepository {
     return (ignoreCache ? Optional.<User>empty() : userCache.get(userId))
         .or(
             () ->
-                UserManagementClient.atURL(usermanagementUrl)
+                userManagementClient
                   .getUserById(cookies, userId, ignoreCache)
                   .onFailure(failure -> logger.error(failure.getMessage()))
                   .map(
@@ -94,7 +88,7 @@ public class UserRepositoryRest implements UserRepository {
     return (ignoreCache ? Optional.<User>empty() : userCache.get(userEmail))
         .or(
             () ->
-                UserManagementClient.atURL(usermanagementUrl)
+                userManagementClient
                   .getUserByEmail(cookies, userEmail, ignoreCache)
                   .onFailure(failure -> logger.error(failure.getMessage()))
                   .map(
@@ -115,7 +109,7 @@ public class UserRepositoryRest implements UserRepository {
 
   @Override
   public Try<UserId> validateToken(String carbonioUserToken) {
-    return UserManagementClient.atURL(usermanagementUrl)
+    return userManagementClient
         .validateUserToken(carbonioUserToken)
         .orElse(
             () -> {

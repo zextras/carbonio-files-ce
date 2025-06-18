@@ -8,9 +8,9 @@ import static graphql.schema.idl.TypeRuntimeWiring.newTypeWiring;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.zextras.carbonio.files.Files.GraphQL.NodePage;
-import com.zextras.carbonio.files.Files.GraphQL.Queries;
-import com.zextras.carbonio.files.Files.GraphQL.Types;
+import com.zextras.carbonio.files.Constants.GraphQL.NodePage;
+import com.zextras.carbonio.files.Constants.GraphQL.Queries;
+import com.zextras.carbonio.files.Constants.GraphQL.Types;
 import com.zextras.carbonio.files.graphql.datafetchers.DateTimeScalar;
 import com.zextras.carbonio.files.graphql.datafetchers.PublicNodeDataFetchers;
 import graphql.GraphQL;

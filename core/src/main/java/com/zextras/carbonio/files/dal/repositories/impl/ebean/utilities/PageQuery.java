@@ -9,7 +9,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.exceptions.InvalidTokenSignException;
 
@@ -50,7 +50,7 @@ public class PageQuery {
   private Optional<String> ownerId;
 
   public PageQuery() {
-    limit = Files.Config.Pagination.LIMIT;
+    limit = Constants.Config.Pagination.LIMIT;
     keywords = Collections.emptyList();
     keySet = Optional.empty();
     sort = Optional.empty();

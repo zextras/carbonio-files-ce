@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean;
 
-import com.zextras.carbonio.files.Files;
+import com.zextras.carbonio.files.Constants;
 import javax.persistence.Column;
 import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
@@ -12,25 +12,25 @@ import javax.persistence.Table;
 
 /**
  * <p>Represents an Ebean {@link Tombstone} entity that matches a record of the {@link
- * Files.Db.Tables#TOMBSTONE} table.</p>
+ * Constants.Db.Tables#TOMBSTONE} table.</p>
  * <p>The implementation of constructors and setters should not care to check if the values in
  * input are valid or not because, when these methods are called, these controls
  * <strong>must</strong> be already done.</p>
  */
 @Entity
-@Table(name = Files.Db.Tables.TOMBSTONE)
+@Table(name = Constants.Db.Tables.TOMBSTONE)
 public class Tombstone {
 
   @EmbeddedId
   private TombstonePK mComposedId;
 
-  @Column(name = Files.Db.Tombstone.OWNER_ID, length = 256)
+  @Column(name = Constants.Db.Tombstone.OWNER_ID, length = 256)
   private String mOwnerId;
 
-  @Column(name = Files.Db.Tombstone.TIMESTAMP, nullable = false)
+  @Column(name = Constants.Db.Tombstone.TIMESTAMP, nullable = false)
   private Long mTimestamp;
 
-  @Column(name = Files.Db.Tombstone.VERSION, nullable = false)
+  @Column(name = Constants.Db.Tombstone.VERSION, nullable = false)
   private Integer mVersion;
 
   public Tombstone(

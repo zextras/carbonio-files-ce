@@ -4,8 +4,8 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean;
 
-import com.zextras.carbonio.files.Files;
-import com.zextras.carbonio.files.Files.Db;
+import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.Constants.Db;
 import java.util.Optional;
 import javax.persistence.Column;
 import javax.persistence.EmbeddedId;
@@ -16,37 +16,37 @@ import javax.persistence.Table;
 
 /**
  * <p>Represents an Ebean {@link FileVersion} entity that matches a record of the {@link
- * Files.Db.Tables#FILE_VERSION} table.</p>
+ * Constants.Db.Tables#FILE_VERSION} table.</p>
  * <p>The implementation of constructors and setters should not care to check if the values in
  * input are valid or not because, when these methods are called, these controls
  * <strong>must</strong> be already done.</p>
  */
 @Entity
-@Table(name = Files.Db.Tables.FILE_VERSION)
+@Table(name = Constants.Db.Tables.FILE_VERSION)
 public class FileVersion {
 
   @EmbeddedId
   private FileVersionPK mComposedId;
 
-  @Column(name = Files.Db.FileVersion.LAST_EDITOR_ID, length = 256, nullable = false)
+  @Column(name = Constants.Db.FileVersion.LAST_EDITOR_ID, length = 256, nullable = false)
   private String mLastEditorId;
 
-  @Column(name = Files.Db.FileVersion.UPDATED_AT, nullable = false)
+  @Column(name = Constants.Db.FileVersion.UPDATED_AT, nullable = false)
   private Long mUpdatedAt;
 
-  @Column(name = Files.Db.FileVersion.MIME_TYPE, length = 256, nullable = false)
+  @Column(name = Constants.Db.FileVersion.MIME_TYPE, length = 256, nullable = false)
   private String mMimeType;
 
-  @Column(name = Files.Db.FileVersion.SIZE, nullable = false)
+  @Column(name = Constants.Db.FileVersion.SIZE, nullable = false)
   private Long mSize;
 
-  @Column(name = Files.Db.FileVersion.DIGEST, length = 128, nullable = false)
+  @Column(name = Constants.Db.FileVersion.DIGEST, length = 128, nullable = false)
   private String mDigest;
 
-  @Column(name = Files.Db.FileVersion.AUTOSAVE, nullable = false)
+  @Column(name = Constants.Db.FileVersion.AUTOSAVE, nullable = false)
   private Boolean mIsAutosave;
 
-  @Column(name = Files.Db.FileVersion.VERSION, nullable = false)
+  @Column(name = Constants.Db.FileVersion.VERSION, nullable = false)
   private Integer mVersion;
 
   @Column(name = Db.FileVersion.IS_KEPT_FOREVER, nullable = false)
@@ -56,7 +56,7 @@ public class FileVersion {
   private Integer clonedFromVersion;
 
   @ManyToOne
-  @JoinColumn(name = Files.Db.NodeCustomAttributes.NODE_ID, referencedColumnName = Files.Db.Node.ID, insertable = false, updatable = false)
+  @JoinColumn(name = Constants.Db.NodeCustomAttributes.NODE_ID, referencedColumnName = Constants.Db.Node.ID, insertable = false, updatable = false)
   private Node node;
 
   public FileVersion(
