@@ -1,0 +1,12 @@
+{
+  "name": "storages-mock",
+  "version": "1.0.0",
+  "description": "Mock service for Carbonio Storages",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
