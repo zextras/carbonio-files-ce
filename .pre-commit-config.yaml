@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-exclude: "mvnw|package-lock.json|go.sum"
+exclude: "mvnw|package.json|go.sum"
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0

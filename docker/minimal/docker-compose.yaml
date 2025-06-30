@@ -1,0 +1,181 @@
+services:
+  mailbox:
+    image: registry.dev.zextras.com/dev/carbonio-mailbox:latest
+    hostname: docker.demo.zextras.io
+    restart: on-failure
+    networks:
+      - carbonio-files-network
+    ports:
+      - "7071:7071"
+      - "8080:8080"
+      - "5005:5005"
+      - "7025:7025"
+      - "7143:7143"
+    healthcheck:
+      interval: 60s
+      retries: 10
+      start_period: 20s
+      test: netcat -z localhost 8080 || exit 1
+      timeout: 10s
+    depends_on:
+      openldap:
+        condition: service_healthy
+      postfix:
+        condition: service_healthy
+
+  # This is useful to avoid having to manually launch provisioning each time
+  provisioner:
+    image: alpinelinux/docker-cli:latest
+    networks:
+      - carbonio-files-network
+    depends_on:
+      - mailbox
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./provisioning/provisioning.sh:/provisioning.sh:ro
+    command: sh provisioning.sh
+    restart: "no"
+
+  openldap:
+    image: registry.dev.zextras.com/dev/carbonio-openldap:latest
+    restart: on-failure
+    networks:
+      - carbonio-files-network
+    ports:
+      - "1389:1389"
+    healthcheck:
+      interval: 60s
+      retries: 10
+      start_period: 20s
+      test: nc -z localhost 1389 || exit 1
+      timeout: 10s
+
+  mariadb:
+    image: registry.dev.zextras.com/dev/carbonio-mariadb:latest
+    networks:
+      - carbonio-files-network
+    ports:
+      - "3306:3306"
+
+  postfix:
+    image: registry.dev.zextras.com/dev/carbonio-mta:latest
+    networks:
+      - carbonio-files-network
+    ports:
+      - "20025:25"
+    healthcheck:
+      interval: 60s
+      retries: 10
+      start_period: 20s
+      test: netcat -z localhost 25 || exit 1
+      timeout: 10s
+    depends_on:
+      openldap:
+        condition: service_healthy
+
+  user-management:
+    image: registry.dev.zextras.com/dev/carbonio-user-management:latest
+    container_name: carbonio-user-management
+    restart: on-failure
+    networks:
+      - carbonio-files-network
+    ports:
+      - "20001:10000"
+    environment:
+      - CARBONIO_USER_MANAGEMENT_HOST=0.0.0.0
+      - CARBONIO_USER_MANAGEMENT_PORT=10000
+      - CARBONIO_MAILBOX_HOST=mailbox
+      - CARBONIO_MAILBOX_PORT=8080
+    depends_on:
+      - mailbox
+
+  consul-mock:
+    image: mockserver/mockserver:5.15.0
+    container_name: consul-mock
+    networks:
+      - carbonio-files-network
+    ports:
+      - "8500:8000"
+    environment:
+      MOCKSERVER_INITIALIZATION_JSON_PATH: /config/consul.json
+    volumes:
+      - ./mockserver/consul.json:/config/consul.json
+    command: -serverPort 8000 -logLevel WARN
+
+  postgres:
+    image: postgres:16
+    container_name: carbonio-postgres
+    restart: on-failure
+    networks:
+      - carbonio-files-network
+    ports:
+      - "20000:5432"
+    environment:
+      - POSTGRES_DB=carbonio-files-db
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+    volumes:
+      - postgres_data_files:/var/lib/postgresql/data
+
+  storages:
+    container_name: carbonio-storages-mock
+    build:
+      context: ../../
+      dockerfile: docker/minimal/carbonio-storages/Dockerfile
+    restart: on-failure
+    networks:
+      - carbonio-files-network
+    volumes:
+      - storages_data_files:/storage
+
+  files:
+    container_name: carbonio-files
+    restart: on-failure
+    networks:
+      - carbonio-files-network
+    ports:
+      - "20007:10000"
+    environment:
+      - CARBONIO_FILES_HOST=0.0.0.0
+      - CARBONIO_FILES_PORT=10000
+      - CARBONIO_DOCS_CONNECTOR_HOST=docs-connector
+      - CARBONIO_DOCS_CONNECTOR_PORT=10000
+      - CARBONIO_MAILBOX_HOST=mailbox
+      - CARBONIO_MAILBOX_PORT=10000
+      - CARBONIO_MESSAGE_BROKER_HOST=message-broker
+      - CARBONIO_MESSAGE_BROKER_PORT=10000
+      - CARBONIO_POSTGRESQL_HOST=postgres
+      - CARBONIO_POSTGRESQL_PORT=5432
+      - CARBONIO_PREVIEW_HOST=preview
+      - CARBONIO_PREVIEW_PORT=10000
+      - CARBONIO_STORAGES_HOST=storages
+      - CARBONIO_STORAGES_PORT=10000
+      - CARBONIO_USER_MANAGEMENT_HOST=user-management
+      - CARBONIO_USER_MANAGEMENT_PORT=10000
+    build:
+      context: ../../
+      dockerfile: docker/minimal/carbonio-files/Dockerfile
+    depends_on:
+      - user-management
+      - consul-mock
+      - postgres
+    extra_hosts:
+      - "localhost:host-gateway" #useful so files can "see" consul on localhost without using network mode host
+
+  composed-ui:
+    networks:
+      - carbonio-files-network
+    ports:
+      - "9000:9000"
+      - "6071:6071"
+    build:
+      dockerfile: composed-ui/Dockerfile
+    depends_on:
+      - files
+
+networks:
+  carbonio-files-network:
+
+volumes:
+  postgres_data_files:
+  storages_data_files:
