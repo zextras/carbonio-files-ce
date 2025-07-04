@@ -1,10 +1,10 @@
 services:
   mailbox:
     image: registry.dev.zextras.com/dev/carbonio-mailbox:latest
-    hostname: docker.demo.zextras.io
+    hostname: docker.carbonio.localhost
     restart: on-failure
     networks:
-      - carbonio-files-network
+      - carbonio-files-ce-network
     ports:
       - "7071:7071"
       - "8080:8080"
@@ -27,7 +27,7 @@ services:
   provisioner:
     image: alpinelinux/docker-cli:latest
     networks:
-      - carbonio-files-network
+      - carbonio-files-ce-network
     depends_on:
       - mailbox
     volumes:
@@ -40,7 +40,7 @@ services:
     image: registry.dev.zextras.com/dev/carbonio-openldap:latest
     restart: on-failure
     networks:
-      - carbonio-files-network
+      - carbonio-files-ce-network
     ports:
       - "1389:1389"
     healthcheck:
@@ -53,14 +53,14 @@ services:
   mariadb:
     image: registry.dev.zextras.com/dev/carbonio-mariadb:latest
     networks:
-      - carbonio-files-network
+      - carbonio-files-ce-network
     ports:
       - "3306:3306"
 
   postfix:
     image: registry.dev.zextras.com/dev/carbonio-mta:latest
     networks:
-      - carbonio-files-network
+      - carbonio-files-ce-network
     ports:
       - "20025:25"
     healthcheck:
@@ -78,7 +78,7 @@ services:
     container_name: carbonio-user-management
     restart: on-failure
     networks:
-      - carbonio-files-network
+      - carbonio-files-ce-network
     ports:
       - "20001:10000"
     environment:
@@ -93,7 +93,7 @@ services:
     image: mockserver/mockserver:5.15.0
     container_name: consul-mock
     networks:
-      - carbonio-files-network
+      - carbonio-files-ce-network
     ports:
       - "8500:8000"
     environment:
@@ -107,15 +107,16 @@ services:
     container_name: carbonio-postgres
     restart: on-failure
     networks:
-      - carbonio-files-network
+      - carbonio-files-ce-network
     ports:
       - "20000:5432"
     environment:
-      - POSTGRES_DB=carbonio-files-db
+      - POSTGRES_DB=postgres
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=admin
     volumes:
-      - postgres_data_files:/var/lib/postgresql/data
+      - postgres_data_files_ce:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   storages:
     container_name: carbonio-storages-mock
@@ -124,21 +125,89 @@ services:
       dockerfile: docker/minimal/carbonio-storages/Dockerfile
     restart: on-failure
     networks:
-      - carbonio-files-network
+      - carbonio-files-ce-network
     volumes:
-      - storages_data_files:/storage
+      - storages_data_files_ce:/storage
 
-  files:
-    container_name: carbonio-files
+  docs-connector-ce:
+    image: registry.dev.zextras.com/dev/carbonio-docs-connector-ce:latest
+    container_name: carbonio-docs-connector-ce
     restart: on-failure
     networks:
-      - carbonio-files-network
+      - carbonio-files-ce-network
+    ports:
+      - "20009:10000"
+    environment:
+      - CARBONIO_DOCS_CONNECTOR_HOST=0.0.0.0
+      - CARBONIO_DOCS_CONNECTOR_PORT=10000
+      - CARBONIO_POSTGRES_HOST=postgres
+      - CARBONIO_POSTGRES_PORT=5432
+      - CARBONIO_FILES_HOST=files-ce
+      - CARBONIO_FILES_PORT=10000
+      - CARBONIO_USER_MANAGEMENT_HOST=user-management
+      - CARBONIO_USER_MANAGEMENT_PORT=10000
+      - CARBONIO_WOPI_HOST=docs-connector-ce
+      - CARBONIO_WOPI_PORT=10000
+      - CARBONIO_REQUESTER_DOMAIN_OVERRIDE=http://docker.carbonio.localhost
+    depends_on:
+      - files-ce
+      - docs-editor
+    extra_hosts:
+      - "localhost:host-gateway" #useful so docs can "see" consul on localhost without using network mode host
+
+  docs-editor:
+    container_name: carbonio-docs-editor
+    build:
+      context: ../../
+      dockerfile: docker/minimal/carbonio-docs-editor/Dockerfile
+    restart: on-failure
+    networks:
+      - carbonio-files-ce-network
+    ports:
+      - "20010:10000"
+    environment:
+      - LANG=C.UTF-8
+      - DONT_GEN_SSL_CERT=1
+    cap_add:
+      - MKNOD
+      - SYS_ADMIN
+      - FOWNER
+      - CHOWN
+      - SYS_CHROOT
+    security_opt:
+      - apparmor:unconfined
+
+  preview-ce:
+    image: registry.dev.zextras.com/dev/carbonio-preview-ce:latest
+    container_name: carbonio-preview-ce
+    restart: on-failure
+    networks:
+      - carbonio-files-ce-network
+    ports:
+      - "20008:10000"
+    environment:
+      - PREVIEW_HOST=0.0.0.0
+      - PREVIEW_PORT=10000
+      - STORAGES_HOST=storages
+      - STORAGES_PORT=10000
+      - DOCS_EDITOR_HOST=docs-editor
+      - DOCS_EDITOR_PORT=10000
+    depends_on:
+      - consul-mock
+      - storages
+      - docs-editor
+
+  files-ce:
+    container_name: carbonio-files-ce
+    restart: on-failure
+    networks:
+      - carbonio-files-ce-network
     ports:
       - "20007:10000"
     environment:
       - CARBONIO_FILES_HOST=0.0.0.0
       - CARBONIO_FILES_PORT=10000
-      - CARBONIO_DOCS_CONNECTOR_HOST=docs-connector
+      - CARBONIO_DOCS_CONNECTOR_HOST=docs-connector-ce
       - CARBONIO_DOCS_CONNECTOR_PORT=10000
       - CARBONIO_MAILBOX_HOST=mailbox
       - CARBONIO_MAILBOX_PORT=10000
@@ -146,7 +215,7 @@ services:
       - CARBONIO_MESSAGE_BROKER_PORT=10000
       - CARBONIO_POSTGRESQL_HOST=postgres
       - CARBONIO_POSTGRESQL_PORT=5432
-      - CARBONIO_PREVIEW_HOST=preview
+      - CARBONIO_PREVIEW_HOST=preview-ce
       - CARBONIO_PREVIEW_PORT=10000
       - CARBONIO_STORAGES_HOST=storages
       - CARBONIO_STORAGES_PORT=10000
@@ -159,23 +228,24 @@ services:
       - user-management
       - consul-mock
       - postgres
+      - storages
     extra_hosts:
       - "localhost:host-gateway" #useful so files can "see" consul on localhost without using network mode host
 
   composed-ui:
     networks:
-      - carbonio-files-network
+      - carbonio-files-ce-network
     ports:
-      - "9000:9000"
+      - "80:80"
       - "6071:6071"
     build:
       dockerfile: composed-ui/Dockerfile
     depends_on:
-      - files
+      - files-ce
 
 networks:
-  carbonio-files-network:
+  carbonio-files-ce-network:
 
 volumes:
-  postgres_data_files:
-  storages_data_files:
+  postgres_data_files_ce:
+  storages_data_files_ce:

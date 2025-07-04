@@ -6,8 +6,8 @@ Steps:
     1. `mvn clean install -DskipTests=true`
     2. `cd docker/minimal`
     3. `docker compose up --build`
-    4. Browse tasks on `http://localhost:9000/`, backend accessible on `http://localhost:20007`
-    5. Login using `test@demo.zextras.io`/`password`
+    4. Browse Carbonio on `http://docker.carbonio.localhost`, backends are exposed on various ports (see docker-compose.yaml)
+    5. Login using `user@carbonio.localhost`/`assext`
 
 Possible configs for files:
   - CARBONIO_FILES_HOST
