@@ -40,5 +40,57 @@
         }
       ]
     }
+  },
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/v1/kv/carbonio-docs-connector/max-file-size-in-mb/.*"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "body": [
+        {
+          "Value": "OTk5OTk5OTk5"
+        }
+      ]
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/v1/kv/carbonio-message-broker/default/username"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "body": [
+        {
+          "Value": "Z3Vlc3Q="
+        }
+      ]
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/v1/kv/carbonio-message-broker/default/password"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "body": [
+        {
+          "Value": "Z3Vlc3Q="
+        }
+      ]
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/v1/status/leader"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "body": "127.0.0.1:8500"
+    }
   }
 ]

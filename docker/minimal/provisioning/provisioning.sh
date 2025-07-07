@@ -16,7 +16,7 @@ wait_for_mailbox() {
     while [ $attempt -le $max_attempts ]; do
         echo "Attempt $attempt/$max_attempts..."
 
-        OUTPUT=$(docker exec minimal-mailbox-1 sh -c "echo 'cd demo.zextras.io' | zmprov 2>&1")
+        OUTPUT=$(docker exec minimal-mailbox-1 sh -c "echo 'cd carbonio.localhost' | zmprov 2>&1")
 
         if echo "$OUTPUT" | grep -q "DOMAIN_EXISTS"; then
             echo "Mailbox is ready! Domain already exists."
@@ -44,9 +44,9 @@ fi
 
 echo "Executing provisioning commands..."
 docker exec minimal-mailbox-1 sh -c "> /tmp/prov.ls && cat > /tmp/prov.ls <<EOF
-cd demo.zextras.io
-ca test@demo.zextras.io password
-ca admin@demo.zextras.io password zimbraIsAdminAccount TRUE
+cd carbonio.localhost
+ca user@carbonio.localhost assext
+ca admin@carbonio.localhost assext zimbraIsAdminAccount TRUE
 EOF
 zmprov < /tmp/prov.ls"
 
