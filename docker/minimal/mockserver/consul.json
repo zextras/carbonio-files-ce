@@ -58,6 +58,34 @@
   {
     "httpRequest": {
       "method": "GET",
+      "path": "/v1/kv/carbonio-message-broker/default/username"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "body": [
+        {
+          "Value": "Z3Vlc3Q="
+        }
+      ]
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/v1/kv/carbonio-message-broker/default/password"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "body": [
+        {
+          "Value": "Z3Vlc3Q="
+        }
+      ]
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "GET",
       "path": "/v1/status/leader"
     },
     "httpResponse": {

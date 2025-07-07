@@ -197,6 +197,13 @@ services:
       - storages
       - docs-editor
 
+  message-broker:
+    image: registry.dev.zextras.com/dev/carbonio-message-broker:latest
+    networks:
+      - carbonio-files-ce-network
+    ports:
+      - "10001:10001"
+
   files-ce:
     container_name: carbonio-files-ce
     restart: on-failure
@@ -233,13 +240,14 @@ services:
       - "localhost:host-gateway" #useful so files can "see" consul on localhost without using network mode host
 
   composed-ui:
+    build:
+      dockerfile: composed-ui/Dockerfile
+    restart: on-failure
     networks:
       - carbonio-files-ce-network
     ports:
       - "80:80"
       - "6071:6071"
-    build:
-      dockerfile: composed-ui/Dockerfile
     depends_on:
       - files-ce
 
