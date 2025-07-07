@@ -535,6 +535,14 @@ pipeline {
                                 'docker/minimal/carbonio-files/Dockerfile',
                                 imageTag
                             )
+
+                            // alias "latest" for last build of develop
+                            if (env.BRANCH_NAME == 'develop') {
+                                def latestTag = "registry.dev.zextras.com/dev/carbonio-files-ce:latest"
+
+                                sh "docker tag ${imageTag} ${latestTag}"
+                                sh "docker push ${latestTag}"
+                            }
                         }
                     }
                 }
