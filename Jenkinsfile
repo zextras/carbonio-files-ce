@@ -560,8 +560,8 @@ pipeline {
                             def imageTag = "registry.dev.zextras.com/dev/carbonio-files-ce:${releaseTag}"
 
                             buildContainer(
-                                'Carbonio Files CE - Release',
-                                'Carbonio Files Community Edition - Official Release',
+                                'Carbonio Files CE',
+                                'Carbonio Files Community Edition',
                                 'docker/minimal/carbonio-files/Dockerfile',
                                 imageTag
                             )
