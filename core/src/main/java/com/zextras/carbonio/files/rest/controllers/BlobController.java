@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.rest.controllers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.inject.Inject;
@@ -21,29 +22,25 @@ import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.UploadVersionResponse;
 import com.zextras.carbonio.files.tasks.PrometheusService;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderValues;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpObject;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.channel.*;
+import io.netty.handler.codec.http.*;
+import io.netty.handler.stream.ChunkedStream;
 import io.netty.util.AttributeKey;
+import org.apache.commons.codec.binary.Base64;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
-import org.apache.commons.codec.binary.Base64;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @ChannelHandler.Sharable
 public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
@@ -73,9 +70,14 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         String uriRequest = httpRequest.uri();
 
         Matcher downloadMatcher = Endpoints.DOWNLOAD_FILE.matcher(uriRequest);
+        Matcher downloadMultipleMatcher = Endpoints.DOWNLOAD_MULTIPLE.matcher(uriRequest);
         Matcher uploadMatcher = Endpoints.UPLOAD_FILE.matcher(uriRequest);
         Matcher uploadInternalMatcher = Endpoints.UPLOAD_FILE_INTERNAL.matcher(uriRequest);
         Matcher uploadVersionMatcher = Endpoints.UPLOAD_FILE_VERSION.matcher(uriRequest);
+
+        if (downloadMultipleMatcher.find()) {
+          downloadMultiple(context, httpRequest);
+        }
 
         if (downloadMatcher.find()) {
           download(context, httpRequest, downloadMatcher);
@@ -112,6 +114,57 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       // Catching the RuntimeException and the JsonProcessingException
       context.fireExceptionCaught(exception);
     }
+  }
+
+  private void downloadMultiple(ChannelHandlerContext context, HttpRequest request) {
+    User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
+
+    if (!(request instanceof FullHttpRequest fullRequest)) {
+      context.fireExceptionCaught(new IllegalArgumentException("Request must be a FullHttpRequest to read body"));
+      return;
+    }
+
+    ByteBuf content = fullRequest.content();
+    content.retain();
+    if (content.readableBytes() == 0) {
+      context.fireExceptionCaught(new IllegalArgumentException("Request body is empty"));
+      return;
+    }
+
+    String bodyContent = content.toString(StandardCharsets.UTF_8);
+    List<String> nodeIds;
+
+    try {
+      QueryStringDecoder decoder = new QueryStringDecoder(bodyContent, false);
+      Map<String, List<String>> parameters = decoder.parameters();
+
+      List<String> nodeIdsParam = parameters.get(Constants.API.BodyAttributes.NODE_IDS);
+
+      if (nodeIdsParam == null || nodeIdsParam.isEmpty()) {
+        throw new IllegalArgumentException("Missing nodeIds parameter in form data");
+      }
+
+      String nodeIdsJson = nodeIdsParam.get(0);
+      nodeIds = new ObjectMapper().readValue(nodeIdsJson, new TypeReference<>() {
+      });
+
+      if (nodeIds == null || nodeIds.isEmpty()) {
+        throw new IllegalArgumentException("nodeIds list cannot be empty");
+      }
+
+    } catch (Exception exception) {
+      context.fireExceptionCaught(new IllegalArgumentException("Can't parse form data. Expected 'nodeIds' field with JSON array.", exception));
+      return;
+    }
+
+    BlobResponse blobResponse = blobService
+        .downloadMultiple(nodeIds, requester)
+        .orElseThrow(() -> new NoSuchElementException(
+            String.format("Request %s: nodes %s requested by %s - some nodes do not exist or user lacks permission",
+                request.uri(), nodeIds, requester.getId())));
+
+    context.write(HttpResponseBuilder.createSuccessDownloadHttpResponse(blobResponse));
+    writeStreamAsChunked(context, blobResponse.getBlobStream());
   }
 
   private void download(ChannelHandlerContext context, HttpRequest request, Matcher uriMatched) {
@@ -300,5 +353,30 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
             Unpooled.wrappedBuffer(jsonByteArray),
             headers,
             new DefaultHttpHeaders()));
+  }
+
+  private void writeStreamAsChunked(ChannelHandlerContext context, InputStream inputStream) {
+    context.write(new ChunkedStream(inputStream));
+    ChannelFuture lastContentFuture = context.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+    lastContentFuture.addListener(new ChannelFutureListener() {
+      @Override
+      public void operationComplete(ChannelFuture future) {
+        if (future.isSuccess()) {
+          logger.debug("ZIP stream sent successfully");
+        } else {
+          logger.error("Error sending ZIP stream", future.cause());
+        }
+
+        try {
+          inputStream.close();
+        } catch (IOException e) {
+          logger.error("Error closing input stream", e);
+        }
+
+        if (!"keep-alive".equals(context.channel().attr(AttributeKey.valueOf("connection")).get())) {
+          context.close();
+        }
+      }
+    });
   }
 }

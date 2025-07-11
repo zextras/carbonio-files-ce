@@ -69,6 +69,32 @@ paths:
           $ref: '#/components/responses/403Forbidden'
         404:
           $ref: '#/components/responses/404NotFound'
+  /download-multiple:
+    post:
+      description: Downloads multiple nodes by their IDs
+      operationId: downloadMultipleNodes
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                nodeIds:
+                  type: string
+                  description: JSON stringified array of node IDs
+                  example: '["abc123","def456","ghi789"]'
+              required:
+                - nodeIds
+      responses:
+        200:
+          $ref: '#/components/responses/200DownloadNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        403:
+          $ref: '#/components/responses/403Forbidden'
+        404:
+          $ref: '#/components/responses/404NotFound'
   /upload:
     post:
       description: Uploads a new node
@@ -372,7 +398,7 @@ paths:
   /collaboration/{collaborationLinkId}:
     get:
       description: Allows to auto-share a specific node with a specific permission to the logged
-                   user that click on this link.
+        user that click on this link.
       operationId: collaborationLink
       parameters:
         - $ref: '#/components/parameters/headerCookies'

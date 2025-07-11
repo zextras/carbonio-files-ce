@@ -57,6 +57,7 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
     else if( cause instanceof BadRequestException
       || cause instanceof FileTypeMismatchException
       || cause instanceof IllegalArgumentException
+      || cause instanceof NodesOnDifferentLevelsException
     ) {
       responseStatus = HttpResponseStatus.BAD_REQUEST;
       payload = HttpResponseStatus.BAD_REQUEST.toString();
@@ -82,6 +83,10 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
     else if (cause instanceof FileSizeException) {
       responseStatus = HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE;
       payload = HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE.toString();
+    }
+    else if (cause instanceof ZipGenerationException) {
+      responseStatus = HttpResponseStatus.INTERNAL_SERVER_ERROR;
+      payload = cause.getMessage();
     }
     else {
       responseStatus = HttpResponseStatus.INTERNAL_SERVER_ERROR;
