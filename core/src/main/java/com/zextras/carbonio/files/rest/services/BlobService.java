@@ -65,9 +65,6 @@ public class BlobService {
   private final FilesConfig filesConfig;
   private final EbeanDatabaseManager ebeanDatabaseManager;
 
-  private record NodeWithVersion(Node node, FileVersion fileVersion) {
-  }
-
   @Inject
   public BlobService(
       NodeRepository nodeRepository,
@@ -115,24 +112,28 @@ public class BlobService {
     // Useful to cache both nodes and versions, since it's better to avoid multiple repository calls when not needed.
     // We handle that here because throwing an exception during zip generation will result in an empty zip since stream
     // has already started, so to minimize that we make sure the data needed exists before starting streaming.
-    List<NodeWithVersion> nodesWithVersions = new ArrayList<>();
+    List<Node> nodes = new ArrayList<>();
     Set<String> processedNodeIds = new HashSet<>();
     String referenceParentId = null;
 
-    for (String nodeId : nodeIds) {
-      // If we encounter LOCAL_ROOT as node id, no other node can be passed since they obviously will not be on the same
-      // level of hierarchy.
-      if (nodeId.equals(Constants.Db.RootId.LOCAL_ROOT)) {
+    // If we encounter LOCAL_ROOT as node id, no other node can be passed since they obviously will not be on the same
+    // level of hierarchy.
+    if (nodeIds.contains(Constants.Db.RootId.LOCAL_ROOT)) {
         if (nodeIds.size() > 1) {
-          logger.warn("Cannot create ZIP: nodes are not on the same level. NodeIds: {}", nodeIds);
+          logger.warn("Cannot create ZIP: if root is present it must be the only node passed. NodeIds: {}", nodeIds);
           throw new NodesOnDifferentLevelsException("All nodes must be in the same directory to create a ZIP file");
         }
-        // Add LOCAL_ROOT to list of nodes to process and avoid performing all other checks since they are not needed.
-        nodesWithVersions.add(
-            new NodeWithVersion(nodeRepository.getNode(Constants.Db.RootId.LOCAL_ROOT).get(), null));
-        break;
+        // Here we consider the LOCAL_ROOT as if the client requested the list of its children,
+        // useful to avoid selecting all nodes and pass the root as an "alias".
+        // Here we replace the input list with the children of root if LOCAL_ROOT is the only element of the list.
+        nodeIds = nodeRepository.getChildrenIds(
+            RootId.LOCAL_ROOT,
+            Optional.empty(),
+            Optional.of(requester.getId()),
+            false);
       }
 
+    for (String nodeId : nodeIds) {
       if (processedNodeIds.contains(nodeId)) {
         logger.debug("Duplicate nodeId {} ignored", nodeId);
         continue;
@@ -149,21 +150,15 @@ public class BlobService {
 
       Node node = nodeRepository.getNode(nodeId).orElse(null);
       if (node == null) {
-        logger.error("Node with id {} not found", nodeId);
-        return Optional.empty();
-      }
-
-      FileVersion fileVersion = fileVersionRepository.getFileVersion(nodeId, node.getCurrentVersion()).orElse(null);
-      if (fileVersion == null) {
-        logger.error("File version for node with id {} not found", nodeId);
+        logger.error("Node with id {} not found", nodeId); // Since permissions control passed, this should never happen
         return Optional.empty();
       }
 
       // Cache parent node and return empty optional if nodes are on different levels of hierarchy.
-      // If node doesn't have a parent it's a root (LOCAL_ROOT handled above, TRASH_ROOT should not be downloadable) or
-      // is broken in some other way, in every case return 404 since parent was not found.
+      // If node doesn't have a parent it's a root or
+      // is broken in some other way, if it's LOCAL_ROOT it's ok, return 404 otherwise.
       String currentParentId = node.getParentId().orElse(null);
-      if (currentParentId == null) {
+      if (currentParentId == null && !node.getId().equals(Constants.Db.RootId.LOCAL_ROOT)) {
         logger.error("Parent not found for node with id {}", nodeId);
         return Optional.empty();
       }
@@ -175,11 +170,11 @@ public class BlobService {
         throw new NodesOnDifferentLevelsException("All nodes must be in the same directory to create a ZIP file");
       }
 
-      nodesWithVersions.add(new NodeWithVersion(node, fileVersion));
+      nodes.add(node);
       processedNodeIds.add(nodeId);
     }
 
-    return downloadMultipleInZip(nodesWithVersions);
+    return downloadMultipleInZip(nodes);
   }
 
   /**
@@ -660,8 +655,8 @@ public class BlobService {
     }
   }
 
-  private Optional<BlobResponse> downloadMultipleInZip(List<NodeWithVersion> nodesWithVersions) {
-    logger.info("Creating ZIP with {} nodes", nodesWithVersions.size());
+  private Optional<BlobResponse> downloadMultipleInZip(List<Node> nodes) {
+    logger.info("Creating ZIP with {} nodes", nodes.size());
 
     try {
       PipedInputStream pipedInput = new PipedInputStream(8192);
@@ -669,8 +664,8 @@ public class BlobService {
 
       CompletableFuture.runAsync(() -> {
         try (ZipOutputStream zos = new ZipOutputStream(pipedOutput)) {
-          for (NodeWithVersion nodeWithVersion : nodesWithVersions) {
-            addNodeToZip(nodeWithVersion, zos);
+          for (Node node : nodes) {
+            addNodeToZip(node, zos, "");
           }
           zos.finish();
         } catch (IOException e) {
@@ -702,39 +697,66 @@ public class BlobService {
     }
   }
 
-  private void addNodeToZip(NodeWithVersion nodeWithVersion, ZipOutputStream zos) {
-    Node node = nodeWithVersion.node();
-    FileVersion fileVersion = nodeWithVersion.fileVersion();
-
+  private void addNodeToZip(Node node, ZipOutputStream zos, String path) {
     try {
-      ZipEntry entry = new ZipEntry(node.getFullName());
-      entry.setSize(fileVersion.getSize());
-      zos.putNextEntry(entry);
-
-      try (InputStream fileStream = fileStore.download(FilesIdentifier.of(
-          fileVersion.getNodeId(),
-          fileVersion.getVersion(),
-          node.getOwnerId()))) {
-
-        byte[] buffer = new byte[8192];
-        int bytesRead;
-        while ((bytesRead = fileStream.read(buffer)) != -1) {
-          zos.write(buffer, 0, bytesRead);
-        }
-      } catch (Exception e) {
-        throw new DependencyException(
-            String.format("Storages failed: unable to upload node with id %s and version 1", node.getId()),
-            e
-        );
+      if (node.getNodeType().equals(NodeType.FOLDER)) {
+        addFolderToZip(node, zos, path);
+      } else {
+        addFileToZip(node, zos, path);
       }
-
-      zos.closeEntry();
-
-    } catch (ZipGenerationException e) {
-      // forward original exception
-      throw e;
     } catch (Exception e) {
       throw new ZipGenerationException("Error adding node " + node.getId() + " to ZIP", e);
     }
+  }
+
+  private void addFolderToZip(Node folder, ZipOutputStream zos, String parentPath) throws IOException {
+    String folderPath = parentPath.isEmpty() ? folder.getFullName() : parentPath + "/" + folder.getFullName();
+
+    ZipEntry folderEntry = new ZipEntry(folderPath + "/");
+    zos.putNextEntry(folderEntry);
+    zos.closeEntry();
+
+    List<String> childrenIds = nodeRepository.getChildrenIds(
+        folder.getId(),
+        Optional.empty(),
+        Optional.empty(),
+        false
+    );
+
+    for (String childId : childrenIds) {
+      Node childNode = nodeRepository.getNode(childId)
+          .orElseThrow(() -> new ZipGenerationException("Child node not found: " + childId));
+
+      addNodeToZip(childNode, zos, folderPath);
+    }
+  }
+
+  private void addFileToZip(Node node, ZipOutputStream zos, String parentPath) throws IOException {
+    FileVersion fileVersion = fileVersionRepository.getLastFileVersion(node.getId()).get(); // a file always has a version
+
+    String filePath = parentPath.isEmpty() ? node.getFullName() : parentPath + "/" + node.getFullName();
+
+    ZipEntry entry = new ZipEntry(filePath);
+    entry.setSize(fileVersion.getSize());
+    zos.putNextEntry(entry);
+
+    try (InputStream fileStream = fileStore.download(FilesIdentifier.of(
+        fileVersion.getNodeId(),
+        fileVersion.getVersion(),
+        node.getOwnerId()))) {
+
+      byte[] buffer = new byte[8192];
+      int bytesRead;
+      while ((bytesRead = fileStream.read(buffer)) != -1) {
+        zos.write(buffer, 0, bytesRead);
+      }
+    } catch (Exception e) {
+      throw new DependencyException(
+          String.format("Storages failed: unable to upload node with id %s and version 1", node.getId()),
+          e
+      );
+    }
+
+    zos.closeEntry();
   }
 }
