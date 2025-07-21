@@ -6,6 +6,7 @@
 Description=Carbonio Files sidecar proxy
 Documentation=https://docs.zextras.com/zextras-suite-documentation/latest/
 Requires=network-online.target
+After=network-online.target
 PartOf=carbonio.target
 
 [Service]
