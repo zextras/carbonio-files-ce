@@ -134,26 +134,27 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     String bodyContent = content.toString(StandardCharsets.UTF_8);
     List<String> nodeIds;
 
+    QueryStringDecoder decoder = new QueryStringDecoder(bodyContent, false);
+    Map<String, List<String>> parameters = decoder.parameters();
+
+    List<String> nodeIdsParam = parameters.get(Constants.API.BodyAttributes.NODE_IDS);
+
+    if (nodeIdsParam == null || nodeIdsParam.isEmpty()) {
+      context.fireExceptionCaught(new IllegalArgumentException("Missing nodeIds parameter in form data"));
+      return;
+    }
+
+    String nodeIdsJson = nodeIdsParam.get(0);
+
     try {
-      QueryStringDecoder decoder = new QueryStringDecoder(bodyContent, false);
-      Map<String, List<String>> parameters = decoder.parameters();
+      nodeIds = new ObjectMapper().readValue(nodeIdsJson, new TypeReference<>() {});
+    } catch (JsonProcessingException exception) {
+      context.fireExceptionCaught(new IllegalArgumentException("Can't parse form data. Expected 'nodeIds' field with JSON array."));
+      return;
+    }
 
-      List<String> nodeIdsParam = parameters.get(Constants.API.BodyAttributes.NODE_IDS);
-
-      if (nodeIdsParam == null || nodeIdsParam.isEmpty()) {
-        throw new IllegalArgumentException("Missing nodeIds parameter in form data");
-      }
-
-      String nodeIdsJson = nodeIdsParam.get(0);
-      nodeIds = new ObjectMapper().readValue(nodeIdsJson, new TypeReference<>() {
-      });
-
-      if (nodeIds == null || nodeIds.isEmpty()) {
-        throw new IllegalArgumentException("nodeIds list cannot be empty");
-      }
-
-    } catch (Exception exception) {
-      context.fireExceptionCaught(new IllegalArgumentException("Can't parse form data. Expected 'nodeIds' field with JSON array.", exception));
+    if (nodeIds == null || nodeIds.isEmpty()) {
+      context.fireExceptionCaught(new IllegalArgumentException("nodeIds list cannot be empty"));
       return;
     }
 
