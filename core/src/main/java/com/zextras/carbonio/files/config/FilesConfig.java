@@ -292,4 +292,19 @@ public class FilesConfig {
         properties.getProperty(
             Constants.Files.ENABLE_NOTIFICATIONS_PROPERTY, String.valueOf(Constants.Files.DEFAULT_ENABLE_NOTIFICATIONS)));
   }
+
+  public Optional<Integer> getMaxDownloadableFileSizeInMb() {
+    return Optional.ofNullable(
+        ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+            .getConfig(ServiceDiscover.Config.MAX_DOWNLOADABLE_SIZE_IN_MB)
+            .getOrElse((String) null)
+    )
+    .flatMap(s -> {
+      try {
+        return Optional.of(Integer.parseInt(s));
+      } catch (NumberFormatException e) {
+        return Optional.empty();
+      }
+    });
+  }
 }

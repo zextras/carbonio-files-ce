@@ -41,6 +41,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
 import java.util.zip.ZipOutputStream;
 
 import static com.zextras.carbonio.files.utilities.RenameNodeUtils.searchAlternativeName;
@@ -115,23 +116,24 @@ public class BlobService {
     List<Node> nodes = new ArrayList<>();
     Set<String> processedNodeIds = new HashSet<>();
     String referenceParentId = null;
+    Long totalSizeRequested = 0L;
 
     // If we encounter LOCAL_ROOT as node id, no other node can be passed since they obviously will not be on the same
     // level of hierarchy.
     if (nodeIds.contains(Constants.Db.RootId.LOCAL_ROOT)) {
-        if (nodeIds.size() > 1) {
-          logger.warn("Cannot create ZIP: if root is present it must be the only node passed. NodeIds: {}", nodeIds);
-          throw new NodesOnDifferentLevelsException("All nodes must be in the same directory to create a ZIP file");
-        }
-        // Here we consider the LOCAL_ROOT as if the client requested the list of its children,
-        // useful to avoid selecting all nodes and pass the root as an "alias".
-        // Here we replace the input list with the children of root if LOCAL_ROOT is the only element of the list.
-        nodeIds = nodeRepository.getChildrenIds(
-            RootId.LOCAL_ROOT,
-            Optional.empty(),
-            Optional.of(requester.getId()),
-            false);
+      if (nodeIds.size() > 1) {
+        logger.warn("Cannot create ZIP: if root is present it must be the only node passed. NodeIds: {}", nodeIds);
+        throw new NodesOnDifferentLevelsException("All nodes must be in the same directory to create a ZIP file");
       }
+      // Here we consider the LOCAL_ROOT as if the client requested the list of its children,
+      // useful to avoid selecting all nodes and pass the root as an "alias".
+      // Here we replace the input list with the children of root if LOCAL_ROOT is the only element of the list.
+      nodeIds = nodeRepository.getChildrenIds(
+          RootId.LOCAL_ROOT,
+          Optional.empty(),
+          Optional.of(requester.getId()),
+          false);
+    }
 
     for (String nodeId : nodeIds) {
       if (processedNodeIds.contains(nodeId)) {
@@ -139,18 +141,20 @@ public class BlobService {
         continue;
       }
 
-      if (!permissionsChecker.getPermissions(nodeId, requester.getId()).has(SharePermission.READ_ONLY)) {
-        logger.warn(
-            "User {} does not have the necessary permission to download node {}. Operation aborted.",
-            requester.getId(),
-            nodeId
-        );
-        return Optional.empty();
-      }
-
       Node node = nodeRepository.getNode(nodeId).orElse(null);
       if (node == null) {
         logger.error("Node with id {} not found", nodeId); // Since permissions control passed, this should never happen
+        return Optional.empty();
+      }
+
+      // Since this feature is not planned to work on shared nodes for now, here I avoided checking for permissions,
+      // and instead I only check ownership. To be changed if in the future we want it to work with shared nodes.
+      if (!node.getOwnerId().equals(requester.getId())) {
+        logger.warn(
+            "User {} is not the owner of the node {}. Operation aborted.",
+            requester.getId(),
+            nodeId
+        );
         return Optional.empty();
       }
 
@@ -169,9 +173,24 @@ public class BlobService {
         logger.warn("Cannot create ZIP: nodes are not on the same level. NodeIds: {}", nodeIds);
         throw new NodesOnDifferentLevelsException("All nodes must be in the same directory to create a ZIP file");
       }
+      
+      // Let's calculate the size of every node and sum it
+      if (node.getNodeType().equals(NodeType.FOLDER)) {
+        totalSizeRequested += nodeRepository.calculateFolderSize(node.getId()).orElse(0L);
+      } else {
+        totalSizeRequested += node.getSize();
+      }
 
       nodes.add(node);
       processedNodeIds.add(nodeId);
+    }
+
+    double totalSizeRequestedInMb = totalSizeRequested / (1024.0 * 1024.0);
+    Optional<Integer> maxFileSize = filesConfig.getMaxDownloadableFileSizeInMb();
+    logger.info("Requested file size: {}", totalSizeRequestedInMb);
+    logger.info("Max file size: {}", maxFileSize);
+    if (maxFileSize.isPresent() && totalSizeRequestedInMb > maxFileSize.get()) {
+      throw new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB");
     }
 
     return downloadMultipleInZip(nodes);
@@ -199,6 +218,13 @@ public class BlobService {
         .getPermissions(nodeId, requester.getId())
         .has(SharePermission.READ_ONLY)
     ) {
+      double totalSizeRequestedInMb = nodeRepository.getNode(nodeId).get().getSize() / (1024.0 * 1024.0);
+      Optional<Integer> maxFileSize = filesConfig.getMaxDownloadableFileSizeInMb();
+      logger.info("Requested file size: {}", totalSizeRequestedInMb);
+      logger.info("Max file size: {}", maxFileSize);
+      if (maxFileSize.isPresent() && totalSizeRequestedInMb > maxFileSize.get()) {
+        throw new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB");
+      }
       return downloadFile(nodeId, version);
     }
 
@@ -703,6 +729,13 @@ public class BlobService {
         addFolderToZip(node, zos, path);
       } else {
         addFileToZip(node, zos, path);
+      }
+    } catch (ZipException e) {
+      if (e.getMessage() != null && e.getMessage().startsWith("duplicate entry")) {
+        logger.warn("Skipping duplicate entry for node: {} ({}), path: {}",
+            node.getId(), node.getFullName(), path); // should never happen (last famous words)
+      } else {
+        throw new ZipGenerationException("Error adding node " + node.getId() + " to ZIP", e);
       }
     } catch (Exception e) {
       throw new ZipGenerationException("Error adding node " + node.getId() + " to ZIP", e);

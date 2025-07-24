@@ -15,25 +15,23 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FindNodeKeySetBuilder;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.PageQuery;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SQLExpression;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SearchBuilder;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.*;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import io.ebean.Query;
 import io.ebean.annotation.Transactional;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class NodeRepositoryEbean implements NodeRepository {
 
@@ -54,9 +52,9 @@ public class NodeRepositoryEbean implements NodeRepository {
    * This method creates a new pageToken based on the find params and the data of a node, used to
    * creating the cursor to the nextPage
    *
-   * @param node a {@link Node} that MUST be the last node of the previous page
-   * @param limit the number of nodes to retrieve
-   * @param sort the sort used for ordering the dataset
+   * @param node    a {@link Node} that MUST be the last node of the previous page
+   * @param limit   the number of nodes to retrieve
+   * @param sort    the sort used for ordering the dataset
    * @param flagged the value of the flag
    * @return a {@link String} containing the next pageToken
    */
@@ -88,10 +86,10 @@ public class NodeRepositoryEbean implements NodeRepository {
 
     List<NodeSort> realSortsToApply = getRealSortingsToApply(sort);
     nextPage.setKeySet(
-      FindNodeKeySetBuilder.aSearchKeySetBuilder()
-        .withNodeSorts(realSortsToApply)
-        .fromNode(node)
-        .build());
+        FindNodeKeySetBuilder.aSearchKeySetBuilder()
+            .withNodeSorts(realSortsToApply)
+            .fromNode(node)
+            .build());
     return nextPage.toToken(filesConfig.getPageTokenSecretKey());
   }
 
@@ -333,34 +331,34 @@ public class NodeRepositoryEbean implements NodeRepository {
     Optional<String> collation = collationRepository.getValidCollateForQuery();
     if (collation.isPresent()) {
       nodes =
-        findNodeQuery
-            .orderBy()
-            .asc(Db.Node.CATEGORY)
-            .orderBy()
-            .asc(Db.Node.NAME, collation.get())
-            .setMaxRows(pageQuery.getLimit())
-            .findList()
-            .stream()
-            // This filter is tricky because it denies the access of nodes that are not children of
-            // the
-            // requested public folder
-            .filter(node -> node.getAncestorsList().contains(folderId))
-            .toList();
+          findNodeQuery
+              .orderBy()
+              .asc(Db.Node.CATEGORY)
+              .orderBy()
+              .asc(Db.Node.NAME, collation.get())
+              .setMaxRows(pageQuery.getLimit())
+              .findList()
+              .stream()
+              // This filter is tricky because it denies the access of nodes that are not children of
+              // the
+              // requested public folder
+              .filter(node -> node.getAncestorsList().contains(folderId))
+              .toList();
     } else {
       nodes =
-        findNodeQuery
-            .orderBy()
-            .asc(Db.Node.CATEGORY)
-            .orderBy()
-            .asc(Db.Node.NAME)
-            .setMaxRows(pageQuery.getLimit())
-            .findList()
-            .stream()
-            // This filter is tricky because it denies the access of nodes that are not children of
-            // the
-            // requested public folder
-            .filter(node -> node.getAncestorsList().contains(folderId))
-            .toList();
+          findNodeQuery
+              .orderBy()
+              .asc(Db.Node.CATEGORY)
+              .orderBy()
+              .asc(Db.Node.NAME)
+              .setMaxRows(pageQuery.getLimit())
+              .findList()
+              .stream()
+              // This filter is tricky because it denies the access of nodes that are not children of
+              // the
+              // requested public folder
+              .filter(node -> node.getAncestorsList().contains(folderId))
+              .toList();
     }
 
     if (nodes.size() == realLimit) {
@@ -393,7 +391,7 @@ public class NodeRepositoryEbean implements NodeRepository {
    * Directly retrieves from DB a list of nodes
    *
    * @param nodeIds the list of nodes to retrieve
-   * @param sort the sorting for the list of nodes
+   * @param sort    the sorting for the list of nodes
    * @return
    */
   private List<Node> getRealNodes(List<String> nodeIds, Optional<NodeSort> sort) {
@@ -509,7 +507,7 @@ public class NodeRepositoryEbean implements NodeRepository {
    * @param nodeId the id of the node to retrieve the custom attributes
    * @param userId the id of the user which to retrieve the custom attributes
    * @return {@link NodeCustomAttributes} if there are custom attributes saved for the user,
-   *     otherwise it returns Optional.empty();
+   * otherwise it returns Optional.empty();
    */
   private Optional<NodeCustomAttributes> getCustomAttributesForUser(String nodeId, String userId) {
     return mDB.getEbeanDatabase()
@@ -618,11 +616,30 @@ public class NodeRepositoryEbean implements NodeRepository {
   @Override
   @Transactional
   public void invertHiddenFlagNodes(List<Node> nodesToFlag) {
-     nodesToFlag.forEach(node -> mDB.getEbeanDatabase().update(node.setHidden(!node.isHidden())));
+    nodesToFlag.forEach(node -> mDB.getEbeanDatabase().update(node.setHidden(!node.isHidden())));
   }
 
   @Override
   public List<Node> findAllNodesFiles() {
     return mDB.getEbeanDatabase().find(Node.class).where().ne(Db.Node.TYPE, NodeType.FOLDER).and().ne(Db.Node.TYPE, NodeType.ROOT).findList();
+  }
+
+  @Override
+  public Optional<Long> calculateFolderSize(String folderId) {
+    Optional<Node> folderOpt = getNode(folderId);
+    if (folderOpt.isEmpty() || folderOpt.get().getNodeType() != NodeType.FOLDER) {
+      return Optional.empty();
+    }
+
+    Long totalSize = mDB.getEbeanDatabase()
+        .find(Node.class)
+        .where()
+        .contains(Db.Node.ANCESTOR_IDS, folderId)
+        .ne(Db.Node.TYPE, NodeType.FOLDER)
+        .ne(Db.Node.TYPE, NodeType.ROOT)
+        .select("sum(size)::Long")
+        .findSingleAttribute();
+
+    return Optional.of(totalSize != null ? totalSize : 0L);
   }
 }
