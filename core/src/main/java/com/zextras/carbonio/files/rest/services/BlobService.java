@@ -93,15 +93,7 @@ public class BlobService {
     this.ebeanDatabaseManager = ebeanDatabaseManager;
   }
 
-  /**
-   * Here we check permissions for each node, while also checking if they all are on the same level (parent directory)
-   * and if they all exist with their version. If even a single node has any of these problems, we return an empty optional.
-   * We build here the list of nodes to avoid multiple repository access when not needed.
-   * We also handle duplicates ignoring them, avoiding returning an error.
-   * If the list contains LOCAL_ROOT it's a special case where we download everything, and since the root does not
-   * have a parent we handle that differently.
-   */
-  public Optional<BlobResponse> downloadMultiple(
+  public Optional<List<Node>> checkDownloadMultiple(
       List<String> nodeIds,
       User requester
   ) {
@@ -173,7 +165,7 @@ public class BlobService {
         logger.warn("Cannot create ZIP: nodes are not on the same level. NodeIds: {}", nodeIds);
         throw new NodesOnDifferentLevelsException("All nodes must be in the same directory to create a ZIP file");
       }
-      
+
       // Let's calculate the size of every node and sum it
       if (node.getNodeType().equals(NodeType.FOLDER)) {
         totalSizeRequested += nodeRepository.calculateFolderSize(node.getId()).orElse(0L);
@@ -193,7 +185,50 @@ public class BlobService {
       throw new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB");
     }
 
-    return downloadMultipleInZip(nodes);
+    return Optional.of(nodes);
+  }
+
+  /**
+   * Here we check permissions for each node, while also checking if they all are on the same level (parent directory)
+   * and if they all exist with their version. If even a single node has any of these problems, we return an empty optional.
+   * We build here the list of nodes to avoid multiple repository access when not needed.
+   * We also handle duplicates ignoring them, avoiding returning an error.
+   * If the list contains LOCAL_ROOT it's a special case where we download everything, and since the root does not
+   * have a parent we handle that differently.
+   */
+  public Optional<BlobResponse> downloadMultiple(
+      List<String> nodeIds,
+      User requester
+  ) {
+    Optional<List<Node>> optNodes = checkDownloadMultiple(nodeIds, requester);
+    return optNodes.flatMap(this::downloadMultipleInZip);
+  }
+
+  public Optional<Node> checkDownloadFileById(
+      String nodeId,
+      User requester
+  ) {
+    if (permissionsChecker
+        .getPermissions(nodeId, requester.getId())
+        .has(SharePermission.READ_ONLY)
+    ) {
+      Node node = nodeRepository.getNode(nodeId).get();
+      double totalSizeRequestedInMb = node.getSize() / (1024.0 * 1024.0);
+      Optional<Integer> maxFileSize = filesConfig.getMaxDownloadableFileSizeInMb();
+      logger.info("Requested file size: {}", totalSizeRequestedInMb);
+      logger.info("Max file size: {}", maxFileSize);
+      if (maxFileSize.isPresent() && totalSizeRequestedInMb > maxFileSize.get()) {
+        throw new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB");
+      }
+      return Optional.of(node);
+    }
+
+    logger.warn(
+        "User {} does not have the necessary permission to download the node {}",
+        requester.getId(),
+        nodeId
+    );
+    return Optional.empty();
   }
 
   /**
@@ -214,26 +249,12 @@ public class BlobService {
       @Nullable Integer version,
       User requester
   ) {
-    if (permissionsChecker
-        .getPermissions(nodeId, requester.getId())
-        .has(SharePermission.READ_ONLY)
-    ) {
-      double totalSizeRequestedInMb = nodeRepository.getNode(nodeId).get().getSize() / (1024.0 * 1024.0);
-      Optional<Integer> maxFileSize = filesConfig.getMaxDownloadableFileSizeInMb();
-      logger.info("Requested file size: {}", totalSizeRequestedInMb);
-      logger.info("Max file size: {}", maxFileSize);
-      if (maxFileSize.isPresent() && totalSizeRequestedInMb > maxFileSize.get()) {
-        throw new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB");
-      }
+    Optional<Node> optNode = checkDownloadFileById(nodeId, requester);
+    if (optNode.isPresent()) {
       return downloadFile(nodeId, version);
+    } else {
+      return Optional.empty();
     }
-
-    logger.warn(
-        "User {} does not have the necessary permission to download the node {}",
-        requester.getId(),
-        nodeId
-    );
-    return Optional.empty();
   }
 
   /**

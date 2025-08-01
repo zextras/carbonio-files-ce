@@ -1064,6 +1064,10 @@ public final class Constants {
           SERVICE + "download/([a-f\\d\\-]*)/?([\\d]+)?/?$");
       public static final Pattern DOWNLOAD_MULTIPLE = Pattern.compile(
           SERVICE + "download-multiple");
+      public static final Pattern DOWNLOAD_FILE_CHECK = Pattern.compile(
+          SERVICE + "download/([a-f\\d\\-]*)/check/?$");
+      public static final Pattern DOWNLOAD_MULTIPLE_CHECK = Pattern.compile(
+          SERVICE + "download-multiple/check/?$");
       public static final Pattern PUBLIC_LINK =
           Pattern.compile(SERVICE + "link/([\\w]{8}|[\\w]{32}|[\\w]{50})/?$");
       public static final Pattern DOWNLOAD_VIA_PUBLIC_LINK =

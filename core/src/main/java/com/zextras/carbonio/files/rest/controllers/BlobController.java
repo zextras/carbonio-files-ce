@@ -14,6 +14,7 @@ import com.zextras.carbonio.files.Constants.API.Endpoints;
 import com.zextras.carbonio.files.Constants.API.Headers;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.User;
+import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.exceptions.FileSizeException;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
 import com.zextras.carbonio.files.netty.utilities.HttpResponseBuilder;
@@ -71,15 +72,21 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
         Matcher downloadMatcher = Endpoints.DOWNLOAD_FILE.matcher(uriRequest);
         Matcher downloadMultipleMatcher = Endpoints.DOWNLOAD_MULTIPLE.matcher(uriRequest);
+        Matcher downloadCheckMatcher = Endpoints.DOWNLOAD_FILE_CHECK.matcher(uriRequest);
+        Matcher downloadMultipleCheckMatcher = Endpoints.DOWNLOAD_MULTIPLE_CHECK.matcher(uriRequest);
         Matcher uploadMatcher = Endpoints.UPLOAD_FILE.matcher(uriRequest);
         Matcher uploadInternalMatcher = Endpoints.UPLOAD_FILE_INTERNAL.matcher(uriRequest);
         Matcher uploadVersionMatcher = Endpoints.UPLOAD_FILE_VERSION.matcher(uriRequest);
 
-        if (downloadMultipleMatcher.find()) {
+        if (downloadMultipleCheckMatcher.find()) {
+          checkDownloadMultiple(context, httpRequest);
+        } else if (downloadMultipleMatcher.find()) {
           downloadMultiple(context, httpRequest);
         }
 
-        if (downloadMatcher.find()) {
+        if (downloadCheckMatcher.find()) {
+          checkDownload(context, httpRequest, downloadCheckMatcher);
+        } else if (downloadMatcher.find()) {
           download(context, httpRequest, downloadMatcher);
         }
 
@@ -114,6 +121,76 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       // Catching the RuntimeException and the JsonProcessingException
       context.fireExceptionCaught(exception);
     }
+  }
+
+  private void checkDownloadMultiple(ChannelHandlerContext context, HttpRequest request) {
+    User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
+
+    if (!(request instanceof FullHttpRequest fullRequest)) {
+      context.fireExceptionCaught(new IllegalArgumentException("Request must be a FullHttpRequest to read body"));
+      return;
+    }
+
+    ByteBuf content = fullRequest.content();
+    content.retain();
+    if (content.readableBytes() == 0) {
+      context.fireExceptionCaught(new IllegalArgumentException("Request body is empty"));
+      return;
+    }
+
+    String bodyContent = content.toString(StandardCharsets.UTF_8);
+    List<String> nodeIds;
+
+    QueryStringDecoder decoder = new QueryStringDecoder(bodyContent, false);
+    Map<String, List<String>> parameters = decoder.parameters();
+
+    List<String> nodeIdsParam = parameters.get(Constants.API.BodyAttributes.NODE_IDS);
+
+    if (nodeIdsParam == null || nodeIdsParam.isEmpty()) {
+      context.fireExceptionCaught(new IllegalArgumentException("Missing nodeIds parameter in form data"));
+      return;
+    }
+
+    String nodeIdsJson = nodeIdsParam.get(0);
+
+    try {
+      nodeIds = new ObjectMapper().readValue(nodeIdsJson, new TypeReference<>() {
+      });
+    } catch (JsonProcessingException exception) {
+      context.fireExceptionCaught(new IllegalArgumentException("Can't parse form data. Expected 'nodeIds' field with JSON array."));
+      return;
+    }
+
+    if (nodeIds == null || nodeIds.isEmpty()) {
+      context.fireExceptionCaught(new IllegalArgumentException("nodeIds list cannot be empty"));
+      return;
+    }
+
+    Optional<List<Node>> optNodes = Optional.ofNullable(blobService
+        .checkDownloadMultiple(nodeIds, requester)
+        .orElseThrow(() -> new NoSuchElementException(
+            String.format("Request %s: nodes %s requested by %s - some nodes do not exist or user lacks permission",
+                request.uri(), nodeIds, requester.getId()))));
+
+    context.writeAndFlush(HttpResponseBuilder.createNoContentResponse());
+  }
+
+  private void checkDownload(ChannelHandlerContext context, HttpRequest request, Matcher uriMatched) {
+    User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
+
+    String nodeId = uriMatched.group(1);
+    Optional<Node> optNode =
+        Optional.ofNullable(blobService
+            .checkDownloadFileById(nodeId, requester)
+            .orElseThrow(
+                () ->
+                    new NoSuchElementException(
+                        String.format(
+                            "Request %s: node %s requested by %s does not exist or it does not have"
+                                + " the permission to read it",
+                            request.uri(), nodeId, requester.getId()))));
+
+    context.writeAndFlush(HttpResponseBuilder.createNoContentResponse());
   }
 
   private void downloadMultiple(ChannelHandlerContext context, HttpRequest request) {

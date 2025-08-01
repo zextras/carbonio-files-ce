@@ -71,4 +71,8 @@ public class HttpResponseBuilder {
 
     return new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.TEMPORARY_REDIRECT, headers);
   }
+
+  public static HttpResponse createNoContentResponse() {
+    return new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NO_CONTENT);
+  }
 }

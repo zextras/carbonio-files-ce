@@ -107,7 +107,8 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
       return;
     }
 
-    if (Endpoints.DOWNLOAD_MULTIPLE.matcher(request.uri()).matches()) {
+    if (Endpoints.DOWNLOAD_MULTIPLE.matcher(request.uri()).matches()
+      || Endpoints.DOWNLOAD_MULTIPLE_CHECK.matcher(request.uri()).matches()) {
       context.pipeline()
         .addLast("http-aggregator", new HttpObjectAggregator(1048576)) // 1MB max
         .addLast("chunkedWriter", new ChunkedWriteHandler())
@@ -119,6 +120,7 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     }
 
     if (Endpoints.DOWNLOAD_FILE.matcher(request.uri()).matches()
+      || Endpoints.DOWNLOAD_FILE_CHECK.matcher(request.uri()).matches()
       || Endpoints.UPLOAD_FILE.matcher(request.uri()).matches()
       || Endpoints.UPLOAD_FILE_VERSION.matcher(request.uri()).matches()) {
       context.pipeline()

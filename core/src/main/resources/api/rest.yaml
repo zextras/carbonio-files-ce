@@ -42,6 +42,27 @@ paths:
           $ref: '#/components/responses/403Forbidden'
         404:
           $ref: '#/components/responses/404NotFound'
+  /download/{nodeId}/check:
+    get:
+      description: Preliminary check for downloading the last version of a node
+      operationId: checkDownloadNodeLastVersion
+      parameters:
+        - in: path
+          name: nodeId
+          description: The id of the node to download
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          $ref: '#/components/responses/200DownloadNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        403:
+          $ref: '#/components/responses/403Forbidden'
+        404:
+          $ref: '#/components/responses/404NotFound'
   /download/{nodeId}/{version}:
     get:
       description: Downloads a specific version of a node
@@ -73,6 +94,32 @@ paths:
     post:
       description: Downloads multiple nodes by their IDs
       operationId: downloadMultipleNodes
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                nodeIds:
+                  type: string
+                  description: JSON stringified array of node IDs
+                  example: '["abc123","def456","ghi789"]'
+              required:
+                - nodeIds
+      responses:
+        200:
+          $ref: '#/components/responses/200DownloadNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        403:
+          $ref: '#/components/responses/403Forbidden'
+        404:
+          $ref: '#/components/responses/404NotFound'
+  /download-multiple/check:
+    post:
+      description: Preliminary check for downloading multiple nodes by their IDs
+      operationId: checkDownloadMultipleNodes
       requestBody:
         required: true
         content:
