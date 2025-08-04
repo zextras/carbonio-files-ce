@@ -1063,7 +1063,7 @@ public final class Constants {
       public static final Pattern DOWNLOAD_FILE = Pattern.compile(
           SERVICE + "download/([a-f\\d\\-]*)/?([\\d]+)?/?$");
       public static final Pattern DOWNLOAD_MULTIPLE = Pattern.compile(
-          SERVICE + "download-multiple");
+          SERVICE + "download-multiple/?$");
       public static final Pattern DOWNLOAD_FILE_CHECK = Pattern.compile(
           SERVICE + "download/([a-f\\d\\-]*)/check/?$");
       public static final Pattern DOWNLOAD_MULTIPLE_CHECK = Pattern.compile(

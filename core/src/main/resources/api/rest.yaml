@@ -55,8 +55,8 @@ paths:
             type: string
             format: uuid
       responses:
-        200:
-          $ref: '#/components/responses/200DownloadNode'
+        204:
+          description: Check completed successfully - node is ready for download
         400:
           $ref: '#/components/responses/400BadRequest'
         403:
@@ -134,8 +134,8 @@ paths:
               required:
                 - nodeIds
       responses:
-        200:
-          $ref: '#/components/responses/200DownloadNode'
+        204:
+          description: Check completed successfully - zip is ready for download
         400:
           $ref: '#/components/responses/400BadRequest'
         403:
