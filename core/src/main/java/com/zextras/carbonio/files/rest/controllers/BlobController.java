@@ -172,7 +172,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
             String.format("Request %s: nodes %s requested by %s - some nodes do not exist or user lacks permission",
                 request.uri(), nodeIds, requester.getId()))));
 
-    context.writeAndFlush(HttpResponseBuilder.createNoContentResponse());
+    ChannelFuture future = context.writeAndFlush(HttpResponseBuilder.createNoContentResponse());
+    future.addListener(ChannelFutureListener.CLOSE);
   }
 
   private void checkDownload(ChannelHandlerContext context, HttpRequest request, Matcher uriMatched) {
@@ -190,7 +191,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
                                 + " the permission to read it",
                             request.uri(), nodeId, requester.getId()))));
 
-    context.writeAndFlush(HttpResponseBuilder.createNoContentResponse());
+    ChannelFuture future = context.writeAndFlush(HttpResponseBuilder.createNoContentResponse());
+    future.addListener(ChannelFutureListener.CLOSE);
   }
 
   private void downloadMultiple(ChannelHandlerContext context, HttpRequest request) {
