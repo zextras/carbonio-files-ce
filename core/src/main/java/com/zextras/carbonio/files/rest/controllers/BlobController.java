@@ -141,23 +141,22 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     String bodyContent = content.toString(StandardCharsets.UTF_8);
     List<String> nodeIds;
 
-    QueryStringDecoder decoder = new QueryStringDecoder(bodyContent, false);
-    Map<String, List<String>> parameters = decoder.parameters();
-
-    List<String> nodeIdsParam = parameters.get(Constants.API.BodyAttributes.NODE_IDS);
-
-    if (nodeIdsParam == null || nodeIdsParam.isEmpty()) {
-      context.fireExceptionCaught(new IllegalArgumentException("Missing nodeIds parameter in form data"));
-      return;
-    }
-
-    String nodeIdsJson = nodeIdsParam.get(0);
-
     try {
-      nodeIds = new ObjectMapper().readValue(nodeIdsJson, new TypeReference<>() {
+      ObjectMapper objectMapper = new ObjectMapper();
+      Map<String, Object> jsonBody = objectMapper.readValue(bodyContent, new TypeReference<Map<String, Object>>() {
       });
+
+      Object nodeIdsObj = jsonBody.get(Constants.API.BodyAttributes.NODE_IDS);
+      if (nodeIdsObj == null) {
+        context.fireExceptionCaught(new IllegalArgumentException("Missing nodeIds parameter in JSON body"));
+        return;
+      }
+
+      nodeIds = objectMapper.convertValue(nodeIdsObj, new TypeReference<List<String>>() {
+      });
+
     } catch (JsonProcessingException exception) {
-      context.fireExceptionCaught(new IllegalArgumentException("Can't parse form data. Expected 'nodeIds' field with JSON array."));
+      context.fireExceptionCaught(new IllegalArgumentException("Can't parse JSON body. Expected 'nodeIds' field with array of strings.", exception));
       return;
     }
 
@@ -226,7 +225,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     String nodeIdsJson = nodeIdsParam.get(0);
 
     try {
-      nodeIds = new ObjectMapper().readValue(nodeIdsJson, new TypeReference<>() {});
+      nodeIds = new ObjectMapper().readValue(nodeIdsJson, new TypeReference<>() {
+      });
     } catch (JsonProcessingException exception) {
       context.fireExceptionCaught(new IllegalArgumentException("Can't parse form data. Expected 'nodeIds' field with JSON array."));
       return;

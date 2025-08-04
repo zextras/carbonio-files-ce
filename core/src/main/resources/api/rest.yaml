@@ -123,14 +123,16 @@ paths:
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
               type: object
               properties:
                 nodeIds:
-                  type: string
-                  description: JSON stringified array of node IDs
-                  example: '["abc123","def456","ghi789"]'
+                  type: array
+                  items:
+                    type: string
+                  description: Array of node IDs
+                  example: [ "abc123","def456","ghi789" ]
               required:
                 - nodeIds
       responses:
