@@ -705,6 +705,11 @@ public class BlobService {
   private Optional<BlobResponse> downloadMultipleInZip(List<Node> nodes) {
     logger.info("Creating ZIP with {} nodes", nodes.size());
 
+    String zipName = "Files.zip";
+    if (nodes.size() == 1) {
+      zipName = nodes.get(0).getName();
+    }
+
     try {
       PipedInputStream pipedInput = new PipedInputStream(8192);
       PipedOutputStream pipedOutput = new PipedOutputStream(pipedInput);
@@ -733,7 +738,7 @@ public class BlobService {
 
       return Optional.of(new BlobResponse(
           pipedInput,
-          "Files.zip",
+          zipName,
           null,
           "application/zip")
       );
