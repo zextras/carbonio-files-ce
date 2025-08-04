@@ -733,7 +733,7 @@ public class BlobService {
 
       return Optional.of(new BlobResponse(
           pipedInput,
-          "files.zip",
+          "Files.zip",
           null,
           "application/zip")
       );
