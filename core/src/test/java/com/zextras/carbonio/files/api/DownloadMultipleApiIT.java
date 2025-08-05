@@ -163,7 +163,7 @@ public class DownloadMultipleApiIT {
         .anyMatch(header ->
             header.getKey().equalsIgnoreCase("content-disposition") &&
                 header.getValue().contains("attachment") &&
-                header.getValue().contains("files.zip")
+                header.getValue().contains("Files.zip")
         );
 
     // Verify storages was called for each file
