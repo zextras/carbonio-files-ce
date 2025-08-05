@@ -707,7 +707,7 @@ public class BlobService {
 
     String zipName = "Files.zip";
     if (nodes.size() == 1) {
-      zipName = nodes.get(0).getName();
+      zipName = nodes.get(0).getName() + ".zip";
     }
 
     try {
