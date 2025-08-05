@@ -7,6 +7,7 @@ Description=Carbonio Files sidecar proxy
 Documentation=https://docs.zextras.com/zextras-suite-documentation/latest/
 Requires=network-online.target
 After=network-online.target
+PartOf=carbonio.target
 
 [Service]
 Type=simple
@@ -24,4 +25,4 @@ TimeoutSec=120
 TimeoutStopSec=120
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=carbonio.target
