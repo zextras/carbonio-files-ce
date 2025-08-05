@@ -41,6 +41,8 @@ public class ConfigDataFetcher {
   public ConfigDataFetcher() {
     configMap = new HashMap<>();
     configMap.put(Config.MAX_VERSIONS, String.valueOf(Config.DEFAULT_MAX_VERSIONS));
+    configMap.put(Config.MAX_DOWNLOADABLE_SIZE_IN_MB, null);
+    configMap.put(Config.MAX_UPLOADABLE_SIZE_IN_MB, null);
     maxKeepVersionsValue = String.valueOf(Config.DEFAULT_MAX_KEEP_VERSIONS);
   }
 
@@ -63,11 +65,23 @@ public class ConfigDataFetcher {
           .defaultURL(ServiceDiscover.SERVICE_NAME)
           .getConfig(key)
           .getOrElse(value);
+
+        if (Config.MAX_VERSIONS.equals(key)) {
+          updateMaxKeepVersionsValue(currValue);
+        }
+
         result.add(convertConfigToGraphQLMap(key, currValue));
       });
       result.add(convertConfigToGraphQLMap(Config.MAX_KEEP_VERSIONS, maxKeepVersionsValue));
       return result;
     });
+  }
+
+  private void updateMaxKeepVersionsValue(String maxVersionsValue) {
+    int maxVersions = Integer.parseInt(maxVersionsValue);
+    maxKeepVersionsValue = maxVersions <= Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION
+      ? "0"
+      : String.valueOf(maxVersions - Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION);
   }
 
   private DataFetcherResult<Map<String, String>> convertConfigToGraphQLMap(
@@ -83,12 +97,6 @@ public class ConfigDataFetcher {
       GraphQL.Config.VALUE,
       value
     );
-    // TODO: Federico, FIX ME PLEASE
-    if (Config.MAX_VERSIONS.equals(key)) {
-      maxKeepVersionsValue = Integer.parseInt(value) <= Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION
-        ? "0"
-        : String.valueOf(Integer.parseInt(value) - Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION);
-    }
     return DataFetcherResult
       .<Map<String, String>>newResult()
       .data(resultMap)
