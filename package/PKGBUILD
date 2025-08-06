@@ -78,7 +78,6 @@ sha256sums=(
 
 backup=(
   "etc/zextras/service-discover/carbonio-files.hcl"
-  "etc/carbonio/files/config.properties"
 )
 
 build__ubuntu_focal() {
