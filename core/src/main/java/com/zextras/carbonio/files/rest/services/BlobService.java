@@ -106,8 +106,6 @@ public class BlobService {
     // We handle that here because throwing an exception during zip generation will result in an empty zip since stream
     // has already started, so to minimize that we make sure the data needed exists before starting streaming.
     List<Node> nodes = new ArrayList<>();
-    Set<String> processedNodeIds = new HashSet<>();
-    String referenceParentId = null;
     Long totalSizeRequested = 0L;
 
     // If we encounter LOCAL_ROOT as node id, no other node can be passed since they obviously will not be on the same
@@ -128,42 +126,24 @@ public class BlobService {
     }
 
     for (String nodeId : nodeIds) {
-      if (processedNodeIds.contains(nodeId)) {
-        logger.debug("Duplicate nodeId {} ignored", nodeId);
-        continue;
-      }
-
       Node node = nodeRepository.getNode(nodeId).orElse(null);
       if (node == null) {
         logger.error("Node with id {} not found", nodeId); // Since permissions control passed, this should never happen
         return Optional.empty();
       }
 
-      // Since this feature is not planned to work on shared nodes for now, here I avoided checking for permissions,
-      // and instead I only check ownership. To be changed if in the future we want it to work with shared nodes.
-      if (!node.getOwnerId().equals(requester.getId())) {
+      // Here we check permissions at least for top level nodes, to filter out requests of nodes from users
+      // without permissions. This doesn't check for permissions on other levels, because a user can have read permission
+      // for a folder but not all of its children: when downloading, we will only send the children that can be seen by requester.
+      if (!permissionsChecker
+          .getPermissions(nodeId, requester.getId())
+          .has(SharePermission.READ_ONLY)) {
         logger.warn(
-            "User {} is not the owner of the node {}. Operation aborted.",
+            "User {} doesn't have permission for the node {}. Operation aborted.",
             requester.getId(),
             nodeId
         );
         return Optional.empty();
-      }
-
-      // Cache parent node and return empty optional if nodes are on different levels of hierarchy.
-      // If node doesn't have a parent it's a root or
-      // is broken in some other way, if it's LOCAL_ROOT it's ok, return 404 otherwise.
-      String currentParentId = node.getParentId().orElse(null);
-      if (currentParentId == null && !node.getId().equals(Constants.Db.RootId.LOCAL_ROOT)) {
-        logger.error("Parent not found for node with id {}", nodeId);
-        return Optional.empty();
-      }
-
-      if (referenceParentId == null) {
-        referenceParentId = currentParentId;
-      } else if (!Objects.equals(referenceParentId, currentParentId)) {
-        logger.warn("Cannot create ZIP: nodes are not on the same level. NodeIds: {}", nodeIds);
-        throw new NodesOnDifferentLevelsException("All nodes must be in the same directory to create a ZIP file");
       }
 
       // Let's calculate the size of every node and sum it
@@ -174,7 +154,6 @@ public class BlobService {
       }
 
       nodes.add(node);
-      processedNodeIds.add(nodeId);
     }
 
     double totalSizeRequestedInMb = totalSizeRequested / (1024.0 * 1024.0);

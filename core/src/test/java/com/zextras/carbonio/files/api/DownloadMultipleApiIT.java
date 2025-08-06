@@ -656,7 +656,6 @@ public class DownloadMultipleApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
   }
 
-  /* NOT TRUE, for now...
   @Test
   void givenSharedNodeTheDownloadMultipleShouldReturnZipWith200() throws Exception {
     // Given
@@ -718,7 +717,6 @@ public class DownloadMultipleApiIT {
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
   }
-  */
 
   @Test
   void givenDuplicateNodeIdsTheDownloadMultipleShouldReturnZipWith200() throws Exception {
