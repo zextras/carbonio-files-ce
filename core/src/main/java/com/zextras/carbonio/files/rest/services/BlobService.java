@@ -128,7 +128,7 @@ public class BlobService {
     for (String nodeId : nodeIds) {
       Node node = nodeRepository.getNode(nodeId).orElse(null);
       if (node == null) {
-        logger.error("Node with id {} not found", nodeId); // Since permissions control passed, this should never happen
+        logger.error("Node with id {} not found", nodeId);
         return Optional.empty();
       }
 
@@ -167,20 +167,12 @@ public class BlobService {
     return Optional.of(nodes);
   }
 
-  /**
-   * Here we check permissions for each node, while also checking if they all are on the same level (parent directory)
-   * and if they all exist with their version. If even a single node has any of these problems, we return an empty optional.
-   * We build here the list of nodes to avoid multiple repository access when not needed.
-   * We also handle duplicates ignoring them, avoiding returning an error.
-   * If the list contains LOCAL_ROOT it's a special case where we download everything, and since the root does not
-   * have a parent we handle that differently.
-   */
   public Optional<BlobResponse> downloadMultiple(
       List<String> nodeIds,
       User requester
   ) {
     Optional<List<Node>> optNodes = checkDownloadMultiple(nodeIds, requester);
-    return optNodes.flatMap(this::downloadMultipleInZip);
+    return optNodes.flatMap(nodes -> downloadMultipleInZip(nodes, requester));
   }
 
   public Optional<Node> checkDownloadFileById(
@@ -229,11 +221,7 @@ public class BlobService {
       User requester
   ) {
     Optional<Node> optNode = checkDownloadFileById(nodeId, requester);
-    if (optNode.isPresent()) {
-      return downloadFile(nodeId, version);
-    } else {
-      return Optional.empty();
-    }
+    return optNode.flatMap(node -> downloadFile(nodeId, version));
   }
 
   /**
@@ -681,7 +669,7 @@ public class BlobService {
     }
   }
 
-  private Optional<BlobResponse> downloadMultipleInZip(List<Node> nodes) {
+  private Optional<BlobResponse> downloadMultipleInZip(List<Node> nodes, User requester) {
     logger.info("Creating ZIP with {} nodes", nodes.size());
 
     String zipName = "Files.zip";
@@ -696,7 +684,7 @@ public class BlobService {
       CompletableFuture.runAsync(() -> {
         try (ZipOutputStream zos = new ZipOutputStream(pipedOutput)) {
           for (Node node : nodes) {
-            addNodeToZip(node, zos, "");
+            addNodeToZip(node, zos, "", requester);
           }
           zos.finish();
         } catch (IOException e) {
@@ -728,12 +716,20 @@ public class BlobService {
     }
   }
 
-  private void addNodeToZip(Node node, ZipOutputStream zos, String path) {
+  private void addNodeToZip(Node node, ZipOutputStream zos, String path, User requester) {
     try {
-      if (node.getNodeType().equals(NodeType.FOLDER)) {
-        addFolderToZip(node, zos, path);
-      } else {
-        addFileToZip(node, zos, path);
+      // Here we check for permissions of each node passed.
+      // Yeah, for top level nodes we already checked permissions, doesn't matter.
+      // For every other node this check is necessary since if A contains B and C, there could be a case where
+      // the requester has permission for A and B but not C
+      if (permissionsChecker
+          .getPermissions(node.getId(), requester.getId())
+          .has(SharePermission.READ_ONLY)) {
+        if (node.getNodeType().equals(NodeType.FOLDER)) {
+          addFolderToZip(node, zos, path, requester);
+        } else {
+          addFileToZip(node, zos, path);
+        }
       }
     } catch (ZipException e) {
       if (e.getMessage() != null && e.getMessage().startsWith("duplicate entry")) {
@@ -747,7 +743,7 @@ public class BlobService {
     }
   }
 
-  private void addFolderToZip(Node folder, ZipOutputStream zos, String parentPath) throws IOException {
+  private void addFolderToZip(Node folder, ZipOutputStream zos, String parentPath, User requester) throws IOException {
     String folderPath = parentPath.isEmpty() ? folder.getFullName() : parentPath + "/" + folder.getFullName();
 
     ZipEntry folderEntry = new ZipEntry(folderPath + "/");
@@ -765,7 +761,7 @@ public class BlobService {
       Node childNode = nodeRepository.getNode(childId)
           .orElseThrow(() -> new ZipGenerationException("Child node not found: " + childId));
 
-      addNodeToZip(childNode, zos, folderPath);
+      addNodeToZip(childNode, zos, folderPath, requester);
     }
   }
 
