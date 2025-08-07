@@ -331,5 +331,5 @@ public interface NodeRepository {
    */
   List<Node> findAllNodesFiles();
 
-  Optional<Long> calculateFolderSize(String folderId);
+  Optional<Long> calculateFolderSize(String folderId, Optional<String> userId);
 }

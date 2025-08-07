@@ -11,10 +11,7 @@ import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
-import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
+import com.zextras.carbonio.files.dal.dao.ebean.*;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.*;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -26,12 +23,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+
+import static io.ebean.Expr.raw;
 
 public class NodeRepositoryEbean implements NodeRepository {
 
@@ -625,18 +623,38 @@ public class NodeRepositoryEbean implements NodeRepository {
   }
 
   @Override
-  public Optional<Long> calculateFolderSize(String folderId) {
+  public Optional<Long> calculateFolderSize(String folderId, Optional<String> userId) {
     Optional<Node> folderOpt = getNode(folderId);
     if (folderOpt.isEmpty() || folderOpt.get().getNodeType() != NodeType.FOLDER) {
       return Optional.empty();
     }
 
-    Long totalSize = mDB.getEbeanDatabase()
+    var query = mDB.getEbeanDatabase()
         .find(Node.class)
         .where()
         .contains(Db.Node.ANCESTOR_IDS, folderId)
         .ne(Db.Node.TYPE, NodeType.FOLDER)
         .ne(Db.Node.TYPE, NodeType.ROOT)
+        .ne(Db.Node.HIDDEN, true);
+
+    if (userId.isPresent()) {
+      String userIdValue = userId.get();
+
+      query = query.or()
+          .eq(Db.Node.OWNER_ID, userIdValue)
+          .exists(
+              mDB.getEbeanDatabase()
+                  .find(Share.class)
+                  .where()
+                  .eq(Db.Share.NODE_ID, Db.Tables.NODE + "." + Db.Node.ID)
+                  .eq(Db.Share.SHARE_TARGET_UUID, userIdValue)
+                  .ge(Db.Share.PERMISSIONS, ACL.READ)
+                  .query()
+          )
+          .endOr();
+    }
+
+    Long totalSize = query
         .select("sum(size)::Long")
         .findSingleAttribute();
 

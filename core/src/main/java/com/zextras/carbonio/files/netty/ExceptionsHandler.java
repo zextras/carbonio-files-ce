@@ -57,7 +57,7 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
     else if( cause instanceof BadRequestException
       || cause instanceof FileTypeMismatchException
       || cause instanceof IllegalArgumentException
-      || cause instanceof NodesOnDifferentLevelsException
+      || cause instanceof AliasNotAloneInDownload
     ) {
       responseStatus = HttpResponseStatus.BAD_REQUEST;
       payload = HttpResponseStatus.BAD_REQUEST.toString();

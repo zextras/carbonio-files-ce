@@ -102,22 +102,15 @@ public class BlobService {
       return Optional.empty();
     }
 
-    // Useful to cache both nodes and versions, since it's better to avoid multiple repository calls when not needed.
-    // We handle that here because throwing an exception during zip generation will result in an empty zip since stream
-    // has already started, so to minimize that we make sure the data needed exists before starting streaming.
     List<Node> nodes = new ArrayList<>();
     Long totalSizeRequested = 0L;
 
-    // If we encounter LOCAL_ROOT as node id, no other node can be passed since they obviously will not be on the same
-    // level of hierarchy.
+    // Consider LOCAL_ROOT as alias for its children
     if (nodeIds.contains(Constants.Db.RootId.LOCAL_ROOT)) {
       if (nodeIds.size() > 1) {
         logger.warn("Cannot create ZIP: if root is present it must be the only node passed. NodeIds: {}", nodeIds);
-        throw new NodesOnDifferentLevelsException("All nodes must be in the same directory to create a ZIP file");
+        throw new AliasNotAloneInDownload("If LOCAL_ROOT is passed it must be the only node passed.");
       }
-      // Here we consider the LOCAL_ROOT as if the client requested the list of its children,
-      // useful to avoid selecting all nodes and pass the root as an "alias".
-      // Here we replace the input list with the children of root if LOCAL_ROOT is the only element of the list.
       nodeIds = nodeRepository.getChildrenIds(
           RootId.LOCAL_ROOT,
           Optional.empty(),
@@ -132,9 +125,8 @@ public class BlobService {
         return Optional.empty();
       }
 
-      // Here we check permissions at least for top level nodes, to filter out requests of nodes from users
-      // without permissions. This doesn't check for permissions on other levels, because a user can have read permission
-      // for a folder but not all of its children: when downloading, we will only send the children that can be seen by requester.
+      // Here we check permissions for top level nodes, to return 404 if an explicitly requested node is not downloadable.
+      // We could also just ignore them, but I think it could be useful to know when the download will not be as expected.
       if (!permissionsChecker
           .getPermissions(nodeId, requester.getId())
           .has(SharePermission.READ_ONLY)) {
@@ -146,9 +138,9 @@ public class BlobService {
         return Optional.empty();
       }
 
-      // Let's calculate the size of every node and sum it
+      // Let's calculate the size of every node and sum it (only nodes visible and thus downloadable by requester)
       if (node.getNodeType().equals(NodeType.FOLDER)) {
-        totalSizeRequested += nodeRepository.calculateFolderSize(node.getId()).orElse(0L);
+        totalSizeRequested += nodeRepository.calculateFolderSize(node.getId(), Optional.of(requester.getId())).orElse(0L);
       } else {
         totalSizeRequested += node.getSize();
       }
