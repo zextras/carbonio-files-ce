@@ -140,6 +140,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     context.channel().attr(fileStreamReader).set(new BufferInputStream(context.channel().config()));
   }
 
+  // Do not check size limit on internal upload
   private void uploadFileInternal(ChannelHandlerContext context, HttpRequest httpRequest) {
     String accountId = httpRequest.headers().get(Constants.API.Headers.UPLOAD_ACCOUNT_ID);
     doUploadFile(context, httpRequest, accountId, Optional.empty());
@@ -147,6 +148,10 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
   private void uploadFile(ChannelHandlerContext context, HttpRequest httpRequest) {
     User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
+    if (isRequestSizeOverLimit(httpRequest)) {
+      context.fireExceptionCaught(new FileSizeException("File size exceeds the maximum allowed"));
+      return;
+    }
     doUploadFile(context, httpRequest, requester.getId(), Optional.of(requester));
   }
 
@@ -157,17 +162,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     String description =
         Optional.ofNullable(httpRequest.headers().getAsString(Constants.API.Headers.UPLOAD_DESCRIPTION))
             .orElse("");
-    long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
 
-    // Check if the file size is within the limit (empty optional limit means no limit)
-    double blobLengthInMB = blobLength / (1024.0 * 1024.0);
-    Optional<Integer> maxFileSize = filesConfig.getMaxUploadableFileSizeInMb();
-    logger.info("File size: {}", blobLengthInMB);
-    logger.info("Max file size: {}", maxFileSize);
-    if (maxFileSize.isPresent() && blobLengthInMB > maxFileSize.get()) {
-      context.fireExceptionCaught(new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB"));
-      return;
-    }
+    long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
 
     String encodedFilename = httpRequest.headers().getAsString(Constants.API.Headers.UPLOAD_FILENAME);
     String decodedFilename =
@@ -232,13 +228,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         Boolean.parseBoolean(httpRequest.headers().getAsString(Headers.UPLOAD_OVERWRITE_VERSION));
     long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
 
-    // Check if the file size is within the limit (empty optional limit means no limit)
-    double blobLengthInMB = blobLength / (1024.0 * 1024.0);
-    Optional<Integer> maxFileSize = filesConfig.getMaxUploadableFileSizeInMb();
-    logger.info("File size: {}", blobLengthInMB);
-    logger.info("Max file size: {}", maxFileSize);
-    if (maxFileSize.isPresent() && blobLengthInMB > maxFileSize.get()) {
-      context.fireExceptionCaught(new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB"));
+    if (isRequestSizeOverLimit(httpRequest)) {
+      context.fireExceptionCaught(new FileSizeException("File size exceeds the maximum allowed"));
       return;
     }
 
@@ -300,5 +291,17 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
             Unpooled.wrappedBuffer(jsonByteArray),
             headers,
             new DefaultHttpHeaders()));
+  }
+
+  private boolean isRequestSizeOverLimit(HttpRequest httpRequest) {
+    long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
+
+    // Check if the file size is within the limit (empty optional limit means no limit)
+    double blobLengthInMB = blobLength / (1024.0 * 1024.0);
+    Optional<Integer> maxFileSize = filesConfig.getMaxUploadableFileSizeInMb();
+    logger.info("File size: {}", blobLengthInMB);
+    logger.info("Max file size: {}", maxFileSize);
+
+    return maxFileSize.isPresent() && blobLengthInMB > maxFileSize.get();
   }
 }
