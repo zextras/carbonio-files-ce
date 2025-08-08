@@ -331,5 +331,7 @@ public interface NodeRepository {
    */
   List<Node> findAllNodesFiles();
 
-  Optional<Long> calculateFolderSize(String folderId, Optional<String> userId);
+  Long calculateAbsoluteFolderSize(String folderId);
+
+  Long calculateRelativeFolderSize(String folderId, String userId);
 }

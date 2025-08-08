@@ -102,10 +102,8 @@ public class BlobService {
       return Optional.empty();
     }
 
-    List<Node> nodes = new ArrayList<>();
-    Long totalSizeRequested = 0L;
-
-    // Consider LOCAL_ROOT as alias for its children
+    // Consider LOCAL_ROOT as an alias for its children
+    // Might want to isolate this in the future if we want to support more aliases, for example all shared with me etc
     if (nodeIds.contains(Constants.Db.RootId.LOCAL_ROOT)) {
       if (nodeIds.size() > 1) {
         logger.warn("Cannot create ZIP: if root is present it must be the only node passed. NodeIds: {}", nodeIds);
@@ -118,29 +116,20 @@ public class BlobService {
           false);
     }
 
+    List<Node> nodes = new ArrayList<>();
+    Long totalSizeRequested = 0L;
+
     for (String nodeId : nodeIds) {
       Node node = nodeRepository.getNode(nodeId).orElse(null);
       if (node == null) {
         logger.error("Node with id {} not found", nodeId);
-        return Optional.empty();
-      }
-
-      // Here we check permissions for top level nodes, to return 404 if an explicitly requested node is not downloadable.
-      // We could also just ignore them, but I think it could be useful to know when the download will not be as expected.
-      if (!permissionsChecker
-          .getPermissions(nodeId, requester.getId())
-          .has(SharePermission.READ_ONLY)) {
-        logger.warn(
-            "User {} doesn't have permission for the node {}. Operation aborted.",
-            requester.getId(),
-            nodeId
-        );
-        return Optional.empty();
+        continue;
       }
 
       // Let's calculate the size of every node and sum it (only nodes visible and thus downloadable by requester)
       if (node.getNodeType().equals(NodeType.FOLDER)) {
-        totalSizeRequested += nodeRepository.calculateFolderSize(node.getId(), Optional.of(requester.getId())).orElse(0L);
+        totalSizeRequested += nodeRepository.calculateRelativeFolderSize(node.getId(), requester.getId())
+            .orElseThrow(() -> new ZipGenerationException("Can't calculate size of folder " + node.getId()));
       } else {
         totalSizeRequested += node.getSize();
       }
@@ -710,10 +699,7 @@ public class BlobService {
 
   private void addNodeToZip(Node node, ZipOutputStream zos, String path, User requester) {
     try {
-      // Here we check for permissions of each node passed.
-      // Yeah, for top level nodes we already checked permissions, doesn't matter.
-      // For every other node this check is necessary since if A contains B and C, there could be a case where
-      // the requester has permission for A and B but not C
+      // Only add node if user has permission to see it
       if (permissionsChecker
           .getPermissions(node.getId(), requester.getId())
           .has(SharePermission.READ_ONLY)) {

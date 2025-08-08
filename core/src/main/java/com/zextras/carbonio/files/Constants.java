@@ -165,7 +165,7 @@ public final class Constants {
     private Db() {
     }
 
-    public static final short DB_VERSION = 8;
+    public static final short DB_VERSION = 9;
 
     /**
      * Names of Files tables
