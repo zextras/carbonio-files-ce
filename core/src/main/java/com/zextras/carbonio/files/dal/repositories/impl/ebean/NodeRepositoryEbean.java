@@ -627,7 +627,7 @@ public class NodeRepositoryEbean implements NodeRepository {
   as an ancestor.
    */
   @Override
-  public Long calculateAbsoluteFolderSize(String folderId) {
+  public Optional<Long> calculateAbsoluteFolderSize(String folderId) {
     Optional<Node> folderOpt = getNode(folderId);
     if (folderOpt.isEmpty() || folderOpt.get().getNodeType() != NodeType.FOLDER) {
       throw new RuntimeException("Node is not a folder or does not exists");
@@ -643,11 +643,7 @@ public class NodeRepositoryEbean implements NodeRepository {
         .select("sum(size)::Long")
         .findSingleAttribute();
 
-    if (totalSize != null) {
-      return totalSize;
-    } else {
-      throw new RuntimeException("Total size is null");
-    }
+    return Optional.ofNullable(totalSize);
   }
 
   /*
@@ -665,10 +661,10 @@ public class NodeRepositoryEbean implements NodeRepository {
   file C, since the user will not actually see C inside A since they can't see B.
    */
   @Override
-  public Long calculateRelativeFolderSize(String folderId, String userId) {
+  public Optional<Long> calculateRelativeFolderSize(String folderId, String userId) {
     Optional<Node> folderOpt = getNode(folderId);
     if (folderOpt.isEmpty() || folderOpt.get().getNodeType() != NodeType.FOLDER) {
-      throw new RuntimeException("Node is not a folder or does not exists");
+      return Optional.empty();
     }
 
     String sql = """
@@ -737,19 +733,15 @@ public class NodeRepositoryEbean implements NodeRepository {
 
       if (row != null) {
         Long totalSize = row.getLong("total_size");
-        if (totalSize != null) {
-          return totalSize;
-        } else {
-          throw new RuntimeException("Total size is null");
-        }
+        return Optional.ofNullable(totalSize);
       }
 
-      throw new RuntimeException("Can't calculate size of requested node");
+      return Optional.empty();
 
     } catch (Exception e) {
       logger.error("Error calculating relative folder size for folder {} and user {}: {}",
           folderId, userId, e.getMessage(), e);
-      throw new RuntimeException(e);
+      return Optional.empty();
     }
   }
 }

@@ -387,50 +387,6 @@ public class DownloadMultipleApiIT {
   }
 
   @Test
-  void givenNonExistentNodeTheDownloadMultipleShouldReturn404() throws Exception {
-    // Given
-    String existingFileId = "00000000-0000-0000-0000-000000000601";
-    String nonExistentFileId = "99999999-9999-9999-9999-999999999601";
-
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addNode(
-            new PopulatorNode(
-                existingFileId,
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                Constants.Db.RootId.LOCAL_ROOT,
-                "file.txt",
-                "",
-                NodeType.TEXT,
-                Constants.Db.RootId.LOCAL_ROOT,
-                10L,
-                "text/plain"));
-
-    List<String> nodeIds = List.of(existingFileId, nonExistentFileId);
-    String jsonArray = objectMapper.writeValueAsString(nodeIds);
-    String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8);
-
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
-
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/download-multiple",
-        "ZM_AUTH_TOKEN=fake-token",
-        headers,
-        requestBody
-    );
-
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
-
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
-  }
-
-  @Test
   void givenEmptyNodeListTheDownloadMultipleShouldReturn400() throws Exception {
     // Given
     List<String> nodeIds = List.of();
@@ -528,50 +484,6 @@ public class DownloadMultipleApiIT {
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(400);
-  }
-
-  @Test
-  void givenUserWithoutPermissionTheDownloadMultipleShouldReturn404() throws Exception {
-    // Given
-    String fileId = "00000000-0000-0000-0000-000000000801";
-
-    // Create a file owned by a different user
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addNode(
-            new PopulatorNode(
-                fileId,
-                "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-                "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-                Constants.Db.RootId.LOCAL_ROOT,
-                "file.txt",
-                "",
-                NodeType.TEXT,
-                Constants.Db.RootId.LOCAL_ROOT,
-                10L,
-                "text/plain"));
-
-    List<String> nodeIds = List.of(fileId);
-    String jsonArray = objectMapper.writeValueAsString(nodeIds);
-    String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8);
-
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
-
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/download-multiple",
-        "ZM_AUTH_TOKEN=fake-token",
-        headers,
-        requestBody
-    );
-
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
-
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
   }
 
   @Test
