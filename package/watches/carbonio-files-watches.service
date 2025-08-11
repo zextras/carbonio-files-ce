@@ -7,6 +7,7 @@ Description=Carbonio Files Watches daemon
 Wants=network.target
 Requires=network-online.target
 After=network-online.target
+PartOf=carbonio.target
 
 [Service]
 Type=simple
@@ -20,4 +21,4 @@ TimeoutStopSec=120
 
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=carbonio.target
