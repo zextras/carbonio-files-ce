@@ -5,14 +5,9 @@
 package com.zextras.carbonio.files.netty.utilities;
 
 import com.zextras.carbonio.files.rest.types.BlobResponse;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderValues;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.*;
 import io.vavr.control.Try;
+
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
@@ -29,7 +24,7 @@ public class HttpResponseBuilder {
    * </ul>
    *
    * @param blobResponse is a {@link BlobResponse} containing all the related attributes of the blob
-   *     to download.
+   *                     to download.
    * @return a {@link HttpResponse} containing all the necessary headers of the blob to download.
    */
   public static HttpResponse createSuccessDownloadHttpResponse(BlobResponse blobResponse) {
@@ -45,8 +40,13 @@ public class HttpResponseBuilder {
                 });
 
     DefaultHttpHeaders headers = new DefaultHttpHeaders(true);
-    headers.add(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
-    headers.add(HttpHeaderNames.CONTENT_LENGTH, blobResponse.getSize());
+    if (blobResponse.getSize() != null) {
+      headers.add(HttpHeaderNames.CONTENT_LENGTH, blobResponse.getSize());
+      headers.add(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
+    } else {
+      // In case of streaming of zip, we don't know the size beforehand
+      headers.add(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
+    }
     headers.add(HttpHeaderNames.CONTENT_TYPE, blobResponse.getMimeType());
     headers.add(
         HttpHeaderNames.CONTENT_DISPOSITION,
@@ -70,5 +70,9 @@ public class HttpResponseBuilder {
     headers.add(HttpHeaderNames.LOCATION, redirectUrl);
 
     return new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.TEMPORARY_REDIRECT, headers);
+  }
+
+  public static HttpResponse createNoContentResponse() {
+    return new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NO_CONTENT);
   }
 }

@@ -330,4 +330,26 @@ public interface NodeRepository {
    * <p>Returns a {@link List<Node>} with absolutely all the nodes ever saved.</p>
    */
   List<Node> findAllNodesFiles();
+
+  /*
+    Calculates the absolute size of a folder by performing a sum of the sizes of all files that have that folder
+    as an ancestor.
+     */
+  Optional<Long> calculateAbsoluteFolderSize(String folderId);
+
+  /*
+    Listen, I'm not proud of this one.
+    This abomination of raw SQL calculates the size of a folder relative to a certain user.
+    This is necessary when a user has permission to see only some files inside a folder, and we need to know
+    what the size will be to him. That means that a folder has an absolute size and a relative size to each user it has
+    been shared with. This implies, of course, that if a user is the owner of the folder, absolute size will be equal to
+    that user's relative size.
+    It works by running a recursive query that explores the hierarchy by the nodes' folder_id (parent folder), checking
+    if every node is visible to the requested user (checks hidden node, ownership, permissions).
+    This has been necessary because there exists a particular case where, in a hierarchy like folderA(folderB(fileC))), an
+    user could have direct shares on folder A and file C but not folder B: this means that even if fileC has folder A as
+    an ancestor, and even if file C is visible by the requested user, the size of folder A should not include the size of
+    file C, since the user will not actually see C inside A since they can't see B.
+     */
+  Optional<Long> calculateRelativeFolderSize(String folderId, String userId);
 }

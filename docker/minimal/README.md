@@ -6,7 +6,7 @@ Steps:
     1. `mvn clean install -DskipTests=true`
     2. `cd docker/minimal`
     3. `docker compose up --build`
-    4. Browse Carbonio on `http://docker.carbonio.localhost`, backends are exposed on various ports (see docker-compose.yaml)
+    4. Browse Carbonio on `http://docker.carbonio.localhost`, backends are exposed on various ports (see docker-compose.yaml), debug on 5050
     5. Login using `user@carbonio.localhost`/`assext`
 
 Possible configs for files:

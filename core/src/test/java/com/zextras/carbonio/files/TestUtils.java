@@ -11,14 +11,8 @@ import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.http.DefaultFullHttpRequest;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.*;
+
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -43,7 +37,7 @@ public class TestUtils {
 
         if (data.get(operation) != null) {
           Object dataOperation = data.get(operation);
-          if(dataOperation instanceof ArrayList<?>) {
+          if (dataOperation instanceof ArrayList<?>) {
             Map<String, Object> listResult = new HashMap<>();
             listResult.put("data", dataOperation);
             return listResult;
@@ -148,5 +142,49 @@ public class TestUtils {
     }
 
     return HttpResponse.of(defaultHttpResponse.status().code(), defaultHttpResponse.headers().entries(), null);
+  }
+
+  public static HttpResponse sendFormRequest(HttpRequest request, EmbeddedChannel nettyChannel) {
+    final ByteBuf payloadBuffer = Unpooled.wrappedBuffer(
+        request.getBodyPayload().orElse("").getBytes(StandardCharsets.UTF_8)
+    );
+
+    DefaultHttpHeaders httpHeaders = new DefaultHttpHeaders();
+
+    if (request.getHeaders().isPresent()) {
+      request.getHeaders().get().forEach(header -> httpHeaders.add(header.getKey(), header.getValue()));
+    }
+
+    if (request.getCookie().isPresent()) {
+      httpHeaders.add(HttpHeaderNames.COOKIE, request.getCookie().get());
+    }
+
+    final FullHttpRequest fullHttpRequest = new DefaultFullHttpRequest(
+        HttpVersion.HTTP_1_1,
+        HttpMethod.valueOf(request.getMethod()),
+        request.getEndpoint(),
+        payloadBuffer,
+        httpHeaders,
+        httpHeaders
+    );
+
+    fullHttpRequest.retain(2);
+    nettyChannel.writeInbound(fullHttpRequest);
+
+    final DefaultHttpResponse defaultHttpResponse = nettyChannel.readOutbound();
+
+    if (defaultHttpResponse instanceof DefaultFullHttpResponse fullHttpResponse) {
+      return HttpResponse.of(
+          fullHttpResponse.status().code(),
+          fullHttpResponse.headers().entries(),
+          fullHttpResponse.content().toString(StandardCharsets.UTF_8)
+      );
+    }
+
+    return HttpResponse.of(
+        defaultHttpResponse.status().code(),
+        defaultHttpResponse.headers().entries(),
+        null
+    );
   }
 }

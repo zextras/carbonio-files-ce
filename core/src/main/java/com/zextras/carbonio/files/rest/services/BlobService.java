@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.rest.services;
 
 import com.google.common.net.MediaType;
 import com.google.inject.Inject;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
@@ -18,10 +19,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.*;
-import com.zextras.carbonio.files.exceptions.AccessCodeRequiredException;
-import com.zextras.carbonio.files.exceptions.DependencyException;
-import com.zextras.carbonio.files.exceptions.FileTypeMismatchException;
-import com.zextras.carbonio.files.exceptions.MaxNumberOfFileVersionsException;
+import com.zextras.carbonio.files.exceptions.*;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.utilities.MimeTypeUtils;
@@ -31,12 +29,20 @@ import com.zextras.filestore.api.UploadResponse;
 import com.zextras.filestore.model.FilesIdentifier;
 import io.ebean.Transaction;
 import io.vavr.control.Try;
-
-import java.util.*;
-import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
+import java.util.zip.ZipOutputStream;
 
 import static com.zextras.carbonio.files.utilities.RenameNodeUtils.searchAlternativeName;
 
@@ -62,17 +68,17 @@ public class BlobService {
 
   @Inject
   public BlobService(
-    NodeRepository nodeRepository,
-    NotificationRepository notificationRepository,
-    FileVersionRepository fileVersionRepository,
-    ShareRepository shareRepository,
-    LinkRepository linkRepository,
-    PermissionsChecker permissionsChecker,
-    TombstoneRepository tombstoneRepository,
-    MimeTypeUtils mimeTypeUtils,
-    Filestore fileStore,
-    FilesConfig filesConfig,
-    EbeanDatabaseManager ebeanDatabaseManager
+      NodeRepository nodeRepository,
+      NotificationRepository notificationRepository,
+      FileVersionRepository fileVersionRepository,
+      ShareRepository shareRepository,
+      LinkRepository linkRepository,
+      PermissionsChecker permissionsChecker,
+      TombstoneRepository tombstoneRepository,
+      MimeTypeUtils mimeTypeUtils,
+      Filestore fileStore,
+      FilesConfig filesConfig,
+      EbeanDatabaseManager ebeanDatabaseManager
   ) {
     this.nodeRepository = nodeRepository;
     this.notificationRepository = notificationRepository;
@@ -85,6 +91,96 @@ public class BlobService {
     this.fileStore = fileStore;
     this.filesConfig = filesConfig;
     this.ebeanDatabaseManager = ebeanDatabaseManager;
+  }
+
+  public Optional<List<Node>> checkDownloadMultiple(
+      List<String> nodeIds,
+      User requester
+  ) {
+    if (nodeIds.isEmpty()) {
+      logger.error("Cannot create ZIP: no nodes provided");
+      return Optional.empty();
+    }
+
+    // Consider LOCAL_ROOT as an alias for its children
+    // Might want to isolate this in the future if we want to support more aliases, for example all shared with me etc
+    if (nodeIds.contains(Constants.Db.RootId.LOCAL_ROOT)) {
+      if (nodeIds.size() > 1) {
+        logger.warn("Cannot create ZIP: if root is present it must be the only node passed. NodeIds: {}", nodeIds);
+        throw new AliasNotAloneInDownload("If LOCAL_ROOT is passed it must be the only node passed.");
+      }
+      nodeIds = nodeRepository.getChildrenIds(
+          RootId.LOCAL_ROOT,
+          Optional.empty(),
+          Optional.of(requester.getId()),
+          false);
+    }
+
+    List<Node> nodes = new ArrayList<>();
+    Long totalSizeRequested = 0L;
+
+    for (String nodeId : nodeIds) {
+      Node node = nodeRepository.getNode(nodeId).orElse(null);
+      if (node == null) {
+        logger.error("Node with id {} not found", nodeId);
+        continue;
+      }
+
+      // Let's calculate the size of every node and sum it (only nodes visible and thus downloadable by requester)
+      if (node.getNodeType().equals(NodeType.FOLDER)) {
+        totalSizeRequested += nodeRepository.calculateRelativeFolderSize(node.getId(), requester.getId())
+            .orElseThrow(() -> new ZipGenerationException("Can't calculate size of folder " + node.getId()));
+      } else {
+        totalSizeRequested += node.getSize();
+      }
+
+      nodes.add(node);
+    }
+
+    double totalSizeRequestedInMb = totalSizeRequested / (1024.0 * 1024.0);
+    Optional<Integer> maxFileSize = filesConfig.getMaxDownloadableFileSizeInMb();
+    logger.info("Requested file size: {}", totalSizeRequestedInMb);
+    logger.info("Max file size: {}", maxFileSize);
+    if (maxFileSize.isPresent() && totalSizeRequestedInMb > maxFileSize.get()) {
+      throw new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB");
+    }
+
+    return Optional.of(nodes);
+  }
+
+  public Optional<BlobResponse> downloadMultiple(
+      List<String> nodeIds,
+      User requester
+  ) {
+    Optional<List<Node>> optNodes = checkDownloadMultiple(nodeIds, requester);
+    return optNodes.flatMap(nodes -> downloadMultipleInZip(nodes, requester));
+  }
+
+  public Optional<Node> checkDownloadFileById(
+      String nodeId,
+      User requester
+  ) {
+    if (permissionsChecker
+        .getPermissions(nodeId, requester.getId())
+        .has(SharePermission.READ_ONLY)
+    ) {
+      Node node = nodeRepository.getNode(nodeId).get();
+      double totalSizeRequestedInMb = node.getSize() / (1024.0 * 1024.0);
+      Optional<Integer> maxFileSize = filesConfig.getMaxDownloadableFileSizeInMb();
+      logger.info("Requested file size: {}", totalSizeRequestedInMb);
+      logger.info("Max file size: {}", maxFileSize);
+      if (maxFileSize.isPresent() && totalSizeRequestedInMb > maxFileSize.get()) {
+        throw new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB");
+      }
+      return Optional.of(node);
+    }
+
+    logger.warn(
+        "User {} does not have the necessary permission to download the node {}",
+        requester.getId(),
+        nodeId
+    );
+    return Optional.empty();
   }
 
   /**
@@ -101,23 +197,12 @@ public class BlobService {
    * @throws DependencyException if the {@link Filestore} failed to download the blob
    */
   public Optional<BlobResponse> downloadFileById(
-    String nodeId,
-    @Nullable Integer version,
-    User requester
+      String nodeId,
+      @Nullable Integer version,
+      User requester
   ) {
-    if (permissionsChecker
-      .getPermissions(nodeId, requester.getId())
-      .has(SharePermission.READ_ONLY)
-    ) {
-      return downloadFile(nodeId, version);
-    }
-
-    logger.warn(
-      "User {} does not have the necessary permission to download the node {}",
-      requester.getId(),
-      nodeId
-    );
-    return Optional.empty();
+    Optional<Node> optNode = checkDownloadFileById(nodeId, requester);
+    return optNode.flatMap(node -> downloadFile(nodeId, version));
   }
 
   /**
@@ -138,12 +223,12 @@ public class BlobService {
         linkRepository.isLinkValidForNode(nodeLinkId, nodeOptional.get()) &&
         nodeRepository.getTrashedNode(nodeId).isEmpty() // Should not be trashed, if it is download will fail
     ) {
-        Link link = linkRepository.getLinkByNotExpiredPublicId(nodeLinkId).get();
-        // If file is protected by access code, check if the access code is correct and return empty if not
-        if (link.getAccessCode().isPresent() && !link.getAccessCode().get().equals(accessCode)) {
-          return Optional.empty();
-        }
-        return nodeOptional.flatMap(node -> downloadFile(nodeId, null));
+      Link link = linkRepository.getLinkByNotExpiredPublicId(nodeLinkId).get();
+      // If file is protected by access code, check if the access code is correct and return empty if not
+      if (link.getAccessCode().isPresent() && !link.getAccessCode().get().equals(accessCode)) {
+        return Optional.empty();
+      }
+      return nodeOptional.flatMap(node -> downloadFile(nodeId, null));
     }
 
     return Optional.empty();
@@ -157,22 +242,22 @@ public class BlobService {
    * @return an {@link Optional} of {@link BlobResponse} containing the stream of bytes (the blob
    * itself) and all its metadata if the {@link Link} and the related {@link Node} exist. Otherwise,
    * it returns an {@link Optional#empty()}.
-   * @throws DependencyException if the {@link Filestore} failed to download the blob
+   * @throws DependencyException         if the {@link Filestore} failed to download the blob
    * @throws AccessCodeRequiredException if the link is protected by an access code (no direct download allowed)
    */
-  public Optional<BlobResponse> downloadFileByLink(String linkId) throws AccessCodeRequiredException{
+  public Optional<BlobResponse> downloadFileByLink(String linkId) throws AccessCodeRequiredException {
     Optional<Link> linkOptional = linkRepository.getLinkByNotExpiredPublicId(linkId);
     if (linkOptional.isPresent() && linkOptional.get().getAccessCode().isPresent()) {
       throw new AccessCodeRequiredException("Access code is required to download the file");
     }
     return linkOptional
-      .flatMap(link -> {
-        if (nodeRepository.getTrashedNode(link.getNodeId()).isPresent()) {
-          logger.error("Unable to download node {}: the node is trashed", link.getNodeId());
-          return Optional.empty(); // Return empty if the node is trashed exactly as if the node didn't exist
-        }
-        return downloadFile(link.getNodeId(), null);
-      });
+        .flatMap(link -> {
+          if (nodeRepository.getTrashedNode(link.getNodeId()).isPresent()) {
+            logger.error("Unable to download node {}: the node is trashed", link.getNodeId());
+            return Optional.empty(); // Return empty if the node is trashed exactly as if the node didn't exist
+          }
+          return downloadFile(link.getNodeId(), null);
+        });
   }
 
   /**
@@ -182,7 +267,7 @@ public class BlobService {
    *   <li>creates the shares for the new node if the destination folder has shares associated</li>
    * </ul>
    *
-   * @param requesterId         is a {@link String} id of user making the upload request
+   * @param requesterId       is a {@link String} id of user making the upload request
    * @param bufferInputStream is a {@link BufferInputStream} of the blob to upload
    * @param blobLength        is a <code>long</code> representing the length of the blob
    * @param folderId          is a {@link String} representing the folder identifier where the node
@@ -197,77 +282,77 @@ public class BlobService {
    * @throws DependencyException if the {@link Filestore} failed to upload the blob
    */
   public Optional<String> uploadFile(
-    String requesterId,
-    Optional<User> requesterEntity,
-    BufferInputStream bufferInputStream,
-    long blobLength,
-    String folderId,
-    String filename,
-    String description
+      String requesterId,
+      Optional<User> requesterEntity,
+      BufferInputStream bufferInputStream,
+      long blobLength,
+      String folderId,
+      String filename,
+      String description
   ) {
     if (permissionsChecker
-      .getPermissions(folderId, requesterId)
-      .has(SharePermission.READ_AND_WRITE)
+        .getPermissions(folderId, requesterId)
+        .has(SharePermission.READ_AND_WRITE)
     ) {
       // Here we are sure that the node exists otherwise the permission checker would be failed
       Node destinationFolder = nodeRepository.getNode(folderId).get();
       String nodeId = UUID.randomUUID().toString();
       String nodeOwner = folderId.equals(RootId.LOCAL_ROOT)
-        ? requesterId
-        : destinationFolder.getOwnerId();
+          ? requesterId
+          : destinationFolder.getOwnerId();
 
       MediaType mediaType = mimeTypeUtils.detectMimeTypeFromFilename(
-        filename,
-        MediaType.OCTET_STREAM.toString()
+          filename,
+          MediaType.OCTET_STREAM.toString()
       );
 
       NodeType nodeType = NodeType.getNodeType(mediaType);
 
       Node newNode = nodeRepository.createNewNode(
-        nodeId,
-        requesterId,
-        nodeOwner,
-        folderId,
-        searchAlternativeName(nodeRepository, filename.trim(), folderId, nodeOwner),
-        description,
-        nodeType,
-        NodeType.ROOT.equals(destinationFolder.getNodeType())
-          ? folderId
-          : destinationFolder.getAncestorIds() + "," + folderId,
-        0L
+          nodeId,
+          requesterId,
+          nodeOwner,
+          folderId,
+          searchAlternativeName(nodeRepository, filename.trim(), folderId, nodeOwner),
+          description,
+          nodeType,
+          NodeType.ROOT.equals(destinationFolder.getNodeType())
+              ? folderId
+              : destinationFolder.getAncestorIds() + "," + folderId,
+          0L
       );
 
       UploadResponse uploadResponse = Try.of(() ->
-        fileStore
-          .uploadPost(
-            FilesIdentifier.of(nodeId, 1, requesterId),
-            bufferInputStream,
-            blobLength
-          )
+          fileStore
+              .uploadPost(
+                  FilesIdentifier.of(nodeId, 1, requesterId),
+                  bufferInputStream,
+                  blobLength
+              )
       ).getOrElseThrow(failure -> {
         nodeRepository.deleteNode(nodeId);
         throw new DependencyException(
-          String.format("Storages failed: unable to upload node with id %s and version 1", nodeId),
-          failure
+            String.format("Storages failed: unable to upload node with id %s and version 1", nodeId),
+            failure
         );
       });
 
       logger.info(
-        "Uploaded file to storages successfully: nodeId {}, version 1, size: {}, digest: {}",
-        nodeId,
-        uploadResponse.getSize(),
-        uploadResponse.getDigest()
+          "Uploaded file to storages successfully: nodeId {}, version 1, size: {}, digest: {}",
+          nodeId,
+          uploadResponse.getSize(),
+          uploadResponse.getDigest()
       );
 
       try (Transaction t = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
         fileVersionRepository.createNewFileVersion(
-          nodeId,
-          requesterId,
-          1,
-          mediaType.toString(),
-          uploadResponse.getSize(),
-          uploadResponse.getDigest(),
-          false
+            nodeId,
+            requesterId,
+            1,
+            mediaType.toString(),
+            uploadResponse.getSize(),
+            uploadResponse.getDigest(),
+            false
         );
 
         newNode.setSize(uploadResponse.getSize());
@@ -278,22 +363,22 @@ public class BlobService {
         // Add new shares for the new file
         // Create share also for the requester if it is not the owner of the parent folder
         shareRepository
-          .getShares(folderId, Collections.emptyList())
-          .forEach(share -> {
-                // Don't notify the requester since it's dumb
-                if (!share.getTargetUserId().equals(requesterId)) {
-                  usersToNotify.add(share.getTargetUserId());
+            .getShares(folderId, Collections.emptyList())
+            .forEach(share -> {
+                  // Don't notify the requester since it's dumb
+                  if (!share.getTargetUserId().equals(requesterId)) {
+                    usersToNotify.add(share.getTargetUserId());
+                  }
+                  shareRepository.upsertShare(
+                      nodeId,
+                      share.getTargetUserId(),
+                      share.getPermissions(),
+                      false,
+                      false,
+                      share.getExpiredAt()
+                  );
                 }
-                shareRepository.upsertShare(
-                    nodeId,
-                    share.getTargetUserId(),
-                    share.getPermissions(),
-                    false,
-                    false,
-                    share.getExpiredAt()
-                );
-              }
-          );
+            );
         t.commit();
 
         // If the requester is the owner of the parent folder, do not notify him since he did the upload himself
@@ -312,10 +397,10 @@ public class BlobService {
     }
 
     logger.warn(
-      "User {} does not have the necessary permission to upload the node {} on the folder {}",
-      requesterId,
-      filename,
-      folderId
+        "User {} does not have the necessary permission to upload the node {} on the folder {}",
+        requesterId,
+        filename,
+        folderId
     );
     return Optional.empty();
   }
@@ -354,17 +439,17 @@ public class BlobService {
    * @throws DependencyException              if the {@link Filestore} failed to upload the blob
    */
   public Optional<Integer> uploadFileVersion(
-    User requester,
-    BufferInputStream bufferInputStream,
-    long blobLength,
-    String nodeId,
-    String filename,
-    boolean overwrite
+      User requester,
+      BufferInputStream bufferInputStream,
+      long blobLength,
+      String nodeId,
+      String filename,
+      boolean overwrite
   ) {
 
     if (permissionsChecker
-      .getPermissions(nodeId, requester.getId())
-      .has(SharePermission.READ_AND_WRITE)
+        .getPermissions(nodeId, requester.getId())
+        .has(SharePermission.READ_AND_WRITE)
     ) {
       List<FileVersion> allFileVersion = fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
       int maxNumberOfVersions = filesConfig.getMaxNumberOfFileVersion();
@@ -374,9 +459,9 @@ public class BlobService {
       // regarding the maximum number of versions a node can have
       if (!overwrite && allFileVersion.size() > maxNumberOfVersions) {
         throw new MaxNumberOfFileVersionsException(String.format(
-          "Node %s has reached max number of versions (%d), cannot add more versions",
-          nodeId,
-          maxNumberOfVersions
+            "Node %s has reached max number of versions (%d), cannot add more versions",
+            nodeId,
+            maxNumberOfVersions
         ));
       }
 
@@ -384,28 +469,28 @@ public class BlobService {
       Node node = nodeRepository.getNode(nodeId).get();
 
       MediaType mediaType = mimeTypeUtils.detectMimeTypeFromFilename(
-        filename,
-        MediaType.OCTET_STREAM.toString()
+          filename,
+          MediaType.OCTET_STREAM.toString()
       );
 
       NodeType nodeType = NodeType.getNodeType(mediaType);
 
       if (nodeType != node.getNodeType()) {
         throw new FileTypeMismatchException(String.format(
-          "Node %s with wrong type %s, should be the same as old versions: %s",
-          nodeId,
-          nodeType,
-          node.getNodeType()
+            "Node %s with wrong type %s, should be the same as old versions: %s",
+            nodeId,
+            nodeType,
+            node.getNodeType()
         ));
       }
 
       return uploadFileVersionOperation(
-        requester,
-        bufferInputStream,
-        blobLength,
-        node,
-        mediaType,
-        overwrite
+          requester,
+          bufferInputStream,
+          blobLength,
+          node,
+          mediaType,
+          overwrite
       ).map(versionUploaded -> {
         // Detect if it is necessary to delete an old version to make space for the new one
         // respecting the maxNumberOfVersion limit.
@@ -413,24 +498,24 @@ public class BlobService {
         // with the maxNumberOfVersion must be more strict (>=). (this saves a query to the db)
         if (!overwrite && allFileVersion.size() >= maxNumberOfVersions) {
           List<FileVersion> allVersionsNotKeptForever = allFileVersion
-            .stream()
-            .filter(version -> !version.isKeptForever())
-            .collect(Collectors.toList());
+              .stream()
+              .filter(version -> !version.isKeptForever())
+              .collect(Collectors.toList());
           FileVersion oldestVersionToDelete =
-            allVersionsNotKeptForever.get(allVersionsNotKeptForever.size() - 1);
+              allVersionsNotKeptForever.get(allVersionsNotKeptForever.size() - 1);
 
           // The List of not keep forever elements is never <1, at this point the element that are
           // kept forever are always less than max allowed.
           fileVersionRepository.deleteFileVersion(oldestVersionToDelete);
           tombstoneRepository.createTombstonesBulk(
-            List.of(oldestVersionToDelete),
-            node.getOwnerId()
+              List.of(oldestVersionToDelete),
+              node.getOwnerId()
           );
 
           logger.info(
-            "File version limit for node {} has been reached, deleting version {} to make space for the new one",
-            oldestVersionToDelete.getNodeId(),
-            oldestVersionToDelete.getVersion()
+              "File version limit for node {} has been reached, deleting version {} to make space for the new one",
+              oldestVersionToDelete.getNodeId(),
+              oldestVersionToDelete.getVersion()
           );
         }
 
@@ -438,62 +523,62 @@ public class BlobService {
       });
     } else {
       logger.warn(
-        "User {} does not have the necessary permission to upload a new version of the node {}",
-        requester.getId(),
-        nodeId
+          "User {} does not have the necessary permission to upload a new version of the node {}",
+          requester.getId(),
+          nodeId
       );
       return Optional.empty();
     }
   }
 
   private Optional<BlobResponse> downloadFile(
-    String nodeId,
-    @Nullable Integer version
+      String nodeId,
+      @Nullable Integer version
   ) {
     logger.info(String.format(
-      "Start to download node with id %s and version %s",
-      nodeId,
-      version == null ? "latest" : version
+        "Start to download node with id %s and version %s",
+        nodeId,
+        version == null ? "latest" : version
     ));
     return nodeRepository
-      .getNode(nodeId)
-      .map(node -> fileVersionRepository
-        .getFileVersion(node.getId(), version == null ? node.getCurrentVersion() : version)
-        .map(fileVersion -> Try
-          .of(() -> fileStore
-            .download(FilesIdentifier.of(
-              fileVersion.getNodeId(),
-              fileVersion.getVersion(),
-              node.getOwnerId())
-            )
-          )
-          .map(blob -> new BlobResponse(
-            blob,
-            node.getFullName(),
-            fileVersion.getSize(),
-            fileVersion.getMimeType())
-          )
-          .getOrElseThrow(failure -> {
-            throw new DependencyException(String.format(
-              "Storages failed: unable to download node with id %s and version %s",
-              fileVersion.getNodeId(),
-              fileVersion.getVersion()),
-              failure
-            );
-          })))
-      .orElseGet(() -> {
-        logger.error("Unable to download node {}: the node id does not exist", nodeId);
-        return Optional.empty();
-      });
+        .getNode(nodeId)
+        .map(node -> fileVersionRepository
+            .getFileVersion(node.getId(), version == null ? node.getCurrentVersion() : version)
+            .map(fileVersion -> Try
+                .of(() -> fileStore
+                    .download(FilesIdentifier.of(
+                        fileVersion.getNodeId(),
+                        fileVersion.getVersion(),
+                        node.getOwnerId())
+                    )
+                )
+                .map(blob -> new BlobResponse(
+                    blob,
+                    node.getFullName(),
+                    fileVersion.getSize(),
+                    fileVersion.getMimeType())
+                )
+                .getOrElseThrow(failure -> {
+                  throw new DependencyException(String.format(
+                      "Storages failed: unable to download node with id %s and version %s",
+                      fileVersion.getNodeId(),
+                      fileVersion.getVersion()),
+                      failure
+                  );
+                })))
+        .orElseGet(() -> {
+          logger.error("Unable to download node {}: the node id does not exist", nodeId);
+          return Optional.empty();
+        });
   }
 
   private Optional<Integer> uploadFileVersionOperation(
-    User requester,
-    BufferInputStream bufferInputStream,
-    long blobLength,
-    Node node,
-    MediaType mediaType,
-    boolean overwrite
+      User requester,
+      BufferInputStream bufferInputStream,
+      long blobLength,
+      Node node,
+      MediaType mediaType,
+      boolean overwrite
   ) {
 
     String nodeId = node.getId();
@@ -503,45 +588,45 @@ public class BlobService {
     try {
       if (overwrite) {
         uploadResponse = fileStore
-          .uploadPut(
-            FilesIdentifier.of(nodeId, versionToUpload, requester.getId()),
-            bufferInputStream,
-            blobLength
-          );
+            .uploadPut(
+                FilesIdentifier.of(nodeId, versionToUpload, requester.getId()),
+                bufferInputStream,
+                blobLength
+            );
 
         // Delete the metadata of the old version since they will be recreated below
         fileVersionRepository.deleteFileVersions(nodeId,
-          Collections.singletonList(versionToUpload));
+            Collections.singletonList(versionToUpload));
 
       } else {
         versionToUpload += 1;
         uploadResponse = fileStore
-          .uploadPost(
-            FilesIdentifier.of(nodeId, versionToUpload, requester.getId()),
-            bufferInputStream,
-            blobLength
-          );
+            .uploadPost(
+                FilesIdentifier.of(nodeId, versionToUpload, requester.getId()),
+                bufferInputStream,
+                blobLength
+            );
       }
     } catch (Exception exception) {
       throw new DependencyException(
-        String.format(
-          "Storages failed: unable to upload node with id %s and version %d",
-          nodeId,
-          versionToUpload
-        ),
-        exception
+          String.format(
+              "Storages failed: unable to upload node with id %s and version %d",
+              nodeId,
+              versionToUpload
+          ),
+          exception
       );
     }
 
     try (Transaction t = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
       Optional<FileVersion> result = fileVersionRepository.createNewFileVersion(
-        nodeId,
-        requester.getId(),
-        versionToUpload,
-        mediaType.toString(),
-        uploadResponse.getSize(),
-        uploadResponse.getDigest(),
-        false
+          nodeId,
+          requester.getId(),
+          versionToUpload,
+          mediaType.toString(),
+          uploadResponse.getSize(),
+          uploadResponse.getDigest(),
+          false
       );
       node.setSize(uploadResponse.getSize());
       node.setLastEditorId(requester.getId());
@@ -554,14 +639,178 @@ public class BlobService {
       t.commit();
 
       logger.info(
-        "Uploaded file to storages successfully: nodeId {}, version {}, size: {}, digest: {}",
-        nodeId,
-        versionToUpload,
-        uploadResponse.getSize(),
-        uploadResponse.getDigest()
+          "Uploaded file to storages successfully: nodeId {}, version {}, size: {}, digest: {}",
+          nodeId,
+          versionToUpload,
+          uploadResponse.getSize(),
+          uploadResponse.getDigest()
       );
 
       return result.map(FileVersion::getVersion);
     }
+  }
+
+  private Optional<BlobResponse> downloadMultipleInZip(List<Node> nodes, User requester) {
+    logger.info("Creating ZIP with {} nodes", nodes.size());
+
+    String zipName = "Files.zip";
+    if (nodes.size() == 1) {
+      zipName = nodes.get(0).getName() + ".zip";
+    }
+
+    try {
+      PipedInputStream pipedInput = new PipedInputStream(8192);
+      PipedOutputStream pipedOutput = new PipedOutputStream(pipedInput);
+
+      CompletableFuture.runAsync(() -> {
+        try (ZipOutputStream zos = new ZipOutputStream(pipedOutput)) {
+          Set<String> usedPaths = new HashSet<>();
+          for (Node node : nodes) {
+            addNodeToZip(node, zos, "", requester, usedPaths);
+          }
+          zos.finish();
+        } catch (IOException e) {
+          logger.error("Error creating ZIP stream", e);
+          throw new ZipGenerationException("Failed to create ZIP stream", e);
+        } catch (Exception e) {
+          logger.error("Unexpected error during ZIP creation", e);
+          throw new ZipGenerationException("Unexpected error during ZIP creation", e);
+        } finally {
+          try {
+            pipedOutput.close();
+          } catch (IOException ex) {
+            logger.debug("Error closing pipedOutput", ex);
+            throw new ZipGenerationException("Unexpected error during ZIP creation", ex);
+          }
+        }
+      });
+
+      return Optional.of(new BlobResponse(
+          pipedInput,
+          zipName,
+          null,
+          "application/zip")
+      );
+
+    } catch (IOException e) {
+      logger.error("Failed to initialize ZIP stream", e);
+      throw new ZipGenerationException("Failed to initialize ZIP stream", e);
+    }
+  }
+
+  private void addNodeToZip(Node node, ZipOutputStream zos, String path, User requester, Set<String> usedPaths) {
+    try {
+      // Only add node if user has permission to see it
+      if (permissionsChecker
+          .getPermissions(node.getId(), requester.getId())
+          .has(SharePermission.READ_ONLY)) {
+        if (node.getNodeType().equals(NodeType.FOLDER)) {
+          addFolderToZip(node, zos, path, requester, usedPaths);
+        } else {
+          addFileToZip(node, zos, path, usedPaths);
+        }
+      }
+    } catch (ZipException e) {
+      if (e.getMessage() != null && e.getMessage().startsWith("duplicate entry")) {
+        logger.warn("Skipping duplicate entry for node: {} ({}), path: {}",
+            node.getId(), node.getFullName(), path); // should never happen (last famous words)
+      } else {
+        throw new ZipGenerationException("Error adding node " + node.getId() + " to ZIP", e);
+      }
+    } catch (Exception e) {
+      throw new ZipGenerationException("Error adding node " + node.getId() + " to ZIP", e);
+    }
+  }
+
+  private void addFolderToZip(Node folder, ZipOutputStream zos, String parentPath, User requester, Set<String> usedPaths) throws IOException {
+    String folderPath = getUniqueNameForZip(
+        parentPath.isEmpty() ? folder.getFullName() : parentPath + "/" + folder.getFullName(),
+        usedPaths,
+        true
+    );
+
+    ZipEntry folderEntry = new ZipEntry(folderPath + "/");
+    zos.putNextEntry(folderEntry);
+    zos.closeEntry();
+
+    List<String> childrenIds = nodeRepository.getChildrenIds(
+        folder.getId(),
+        Optional.empty(),
+        Optional.empty(),
+        false
+    );
+
+    for (String childId : childrenIds) {
+      Node childNode = nodeRepository.getNode(childId)
+          .orElseThrow(() -> new ZipGenerationException("Child node not found: " + childId));
+
+      addNodeToZip(childNode, zos, folderPath, requester, usedPaths);
+    }
+  }
+
+  private void addFileToZip(Node node, ZipOutputStream zos, String parentPath, Set<String> usedPaths) throws IOException {
+    FileVersion fileVersion = fileVersionRepository.getLastFileVersion(node.getId()).get(); // a file always has a version
+
+    String filePath = getUniqueNameForZip(
+        parentPath.isEmpty() ? node.getFullName() : parentPath + "/" + node.getFullName(),
+        usedPaths,
+        false
+    );
+
+    ZipEntry entry = new ZipEntry(filePath);
+    entry.setSize(fileVersion.getSize());
+    zos.putNextEntry(entry);
+
+    try (InputStream fileStream = fileStore.download(FilesIdentifier.of(
+        fileVersion.getNodeId(),
+        fileVersion.getVersion(),
+        node.getOwnerId()))) {
+
+      byte[] buffer = new byte[8192];
+      int bytesRead;
+      while ((bytesRead = fileStream.read(buffer)) != -1) {
+        zos.write(buffer, 0, bytesRead);
+      }
+    } catch (Exception e) {
+      throw new DependencyException(
+          String.format("Storages failed: unable to upload node with id %s and version 1", node.getId()),
+          e
+      );
+    }
+
+    zos.closeEntry();
+  }
+
+  private String getUniqueNameForZip(String originalName, Set<String> usedPaths, boolean isFolder) {
+    String targetPath = isFolder ? originalName + "/" : originalName;
+
+    if (!usedPaths.contains(targetPath)) {
+      usedPaths.add(targetPath);
+      return originalName;
+    }
+
+    String baseName = originalName;
+    String extension = "";
+
+    if (!isFolder) {
+      int lastDotIndex = originalName.lastIndexOf('.');
+      if (lastDotIndex > 0 && lastDotIndex < originalName.length() - 1) {
+        baseName = originalName.substring(0, lastDotIndex);
+        extension = originalName.substring(lastDotIndex);
+      }
+    }
+
+    int counter = 1;
+    String newName;
+    String newPath;
+
+    do {
+      newName = baseName + " (" + counter + ")" + extension;
+      newPath = isFolder ? newName + "/" : newName;
+      counter++;
+    } while (usedPaths.contains(newPath));
+
+    usedPaths.add(newPath);
+    return newName;
   }
 }

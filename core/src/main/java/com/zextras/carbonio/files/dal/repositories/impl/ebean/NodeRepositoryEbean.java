@@ -11,29 +11,25 @@ import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
-import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FindNodeKeySetBuilder;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.PageQuery;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SQLExpression;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SearchBuilder;
+import com.zextras.carbonio.files.dal.dao.ebean.*;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.*;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import io.ebean.Query;
+import io.ebean.SqlQuery;
+import io.ebean.SqlRow;
 import io.ebean.annotation.Transactional;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class NodeRepositoryEbean implements NodeRepository {
 
@@ -54,9 +50,9 @@ public class NodeRepositoryEbean implements NodeRepository {
    * This method creates a new pageToken based on the find params and the data of a node, used to
    * creating the cursor to the nextPage
    *
-   * @param node a {@link Node} that MUST be the last node of the previous page
-   * @param limit the number of nodes to retrieve
-   * @param sort the sort used for ordering the dataset
+   * @param node    a {@link Node} that MUST be the last node of the previous page
+   * @param limit   the number of nodes to retrieve
+   * @param sort    the sort used for ordering the dataset
    * @param flagged the value of the flag
    * @return a {@link String} containing the next pageToken
    */
@@ -88,10 +84,10 @@ public class NodeRepositoryEbean implements NodeRepository {
 
     List<NodeSort> realSortsToApply = getRealSortingsToApply(sort);
     nextPage.setKeySet(
-      FindNodeKeySetBuilder.aSearchKeySetBuilder()
-        .withNodeSorts(realSortsToApply)
-        .fromNode(node)
-        .build());
+        FindNodeKeySetBuilder.aSearchKeySetBuilder()
+            .withNodeSorts(realSortsToApply)
+            .fromNode(node)
+            .build());
     return nextPage.toToken(filesConfig.getPageTokenSecretKey());
   }
 
@@ -333,34 +329,34 @@ public class NodeRepositoryEbean implements NodeRepository {
     Optional<String> collation = collationRepository.getValidCollateForQuery();
     if (collation.isPresent()) {
       nodes =
-        findNodeQuery
-            .orderBy()
-            .asc(Db.Node.CATEGORY)
-            .orderBy()
-            .asc(Db.Node.NAME, collation.get())
-            .setMaxRows(pageQuery.getLimit())
-            .findList()
-            .stream()
-            // This filter is tricky because it denies the access of nodes that are not children of
-            // the
-            // requested public folder
-            .filter(node -> node.getAncestorsList().contains(folderId))
-            .toList();
+          findNodeQuery
+              .orderBy()
+              .asc(Db.Node.CATEGORY)
+              .orderBy()
+              .asc(Db.Node.NAME, collation.get())
+              .setMaxRows(pageQuery.getLimit())
+              .findList()
+              .stream()
+              // This filter is tricky because it denies the access of nodes that are not children of
+              // the
+              // requested public folder
+              .filter(node -> node.getAncestorsList().contains(folderId))
+              .toList();
     } else {
       nodes =
-        findNodeQuery
-            .orderBy()
-            .asc(Db.Node.CATEGORY)
-            .orderBy()
-            .asc(Db.Node.NAME)
-            .setMaxRows(pageQuery.getLimit())
-            .findList()
-            .stream()
-            // This filter is tricky because it denies the access of nodes that are not children of
-            // the
-            // requested public folder
-            .filter(node -> node.getAncestorsList().contains(folderId))
-            .toList();
+          findNodeQuery
+              .orderBy()
+              .asc(Db.Node.CATEGORY)
+              .orderBy()
+              .asc(Db.Node.NAME)
+              .setMaxRows(pageQuery.getLimit())
+              .findList()
+              .stream()
+              // This filter is tricky because it denies the access of nodes that are not children of
+              // the
+              // requested public folder
+              .filter(node -> node.getAncestorsList().contains(folderId))
+              .toList();
     }
 
     if (nodes.size() == realLimit) {
@@ -393,7 +389,7 @@ public class NodeRepositoryEbean implements NodeRepository {
    * Directly retrieves from DB a list of nodes
    *
    * @param nodeIds the list of nodes to retrieve
-   * @param sort the sorting for the list of nodes
+   * @param sort    the sorting for the list of nodes
    * @return
    */
   private List<Node> getRealNodes(List<String> nodeIds, Optional<NodeSort> sort) {
@@ -509,7 +505,7 @@ public class NodeRepositoryEbean implements NodeRepository {
    * @param nodeId the id of the node to retrieve the custom attributes
    * @param userId the id of the user which to retrieve the custom attributes
    * @return {@link NodeCustomAttributes} if there are custom attributes saved for the user,
-   *     otherwise it returns Optional.empty();
+   * otherwise it returns Optional.empty();
    */
   private Optional<NodeCustomAttributes> getCustomAttributesForUser(String nodeId, String userId) {
     return mDB.getEbeanDatabase()
@@ -618,11 +614,134 @@ public class NodeRepositoryEbean implements NodeRepository {
   @Override
   @Transactional
   public void invertHiddenFlagNodes(List<Node> nodesToFlag) {
-     nodesToFlag.forEach(node -> mDB.getEbeanDatabase().update(node.setHidden(!node.isHidden())));
+    nodesToFlag.forEach(node -> mDB.getEbeanDatabase().update(node.setHidden(!node.isHidden())));
   }
 
   @Override
   public List<Node> findAllNodesFiles() {
     return mDB.getEbeanDatabase().find(Node.class).where().ne(Db.Node.TYPE, NodeType.FOLDER).and().ne(Db.Node.TYPE, NodeType.ROOT).findList();
+  }
+
+  /*
+  Calculates the absolute size of a folder by performing a sum of the sizes of all files that have that folder
+  as an ancestor.
+   */
+  @Override
+  public Optional<Long> calculateAbsoluteFolderSize(String folderId) {
+    Optional<Node> folderOpt = getNode(folderId);
+    if (folderOpt.isEmpty() || folderOpt.get().getNodeType() != NodeType.FOLDER) {
+      throw new RuntimeException("Node is not a folder or does not exists");
+    }
+
+    Long totalSize = mDB.getEbeanDatabase()
+        .find(Node.class)
+        .where()
+        .contains(Db.Node.ANCESTOR_IDS, folderId)
+        .ne(Db.Node.TYPE, NodeType.FOLDER)
+        .ne(Db.Node.TYPE, NodeType.ROOT)
+        .ne(Db.Node.HIDDEN, true)
+        .select("sum(size)::Long")
+        .findSingleAttribute();
+
+    return Optional.ofNullable(totalSize);
+  }
+
+  /*
+  Listen, I'm not proud of this one.
+  This abomination of raw SQL calculates the size of a folder relative to a certain user.
+  This is necessary when a user has permission to see only some files inside a folder, and we need to know
+  what the size will be to him. That means that a folder has an absolute size and a relative size to each user it has
+  been shared with. This implies, of course, that if a user is the owner of the folder, absolute size will be equal to
+  that user's relative size.
+  It works by running a recursive query that explores the hierarchy by the nodes' folder_id (parent folder), checking
+  if every node is visible to the requested user (checks hidden node, ownership, permissions).
+  This has been necessary because there exists a particular case where, in a hierarchy like folderA(folderB(fileC))), an
+  user could have direct shares on folder A and file C but not folder B: this means that even if fileC has folder A as
+  an ancestor, and even if file C is visible by the requested user, the size of folder A should not include the size of
+  file C, since the user will not actually see C inside A since they can't see B.
+   */
+  @Override
+  public Optional<Long> calculateRelativeFolderSize(String folderId, String userId) {
+    Optional<Node> folderOpt = getNode(folderId);
+    if (folderOpt.isEmpty() || folderOpt.get().getNodeType() != NodeType.FOLDER) {
+      return Optional.empty();
+    }
+
+    String sql = """
+        WITH RECURSIVE visible_hierarchy AS (
+            SELECT 
+                n.node_id,
+                n.folder_id,
+                n.node_type,
+                0::BIGINT as size
+            FROM node n
+            WHERE n.node_id = ?
+              AND n.node_type = 'FOLDER'
+              AND (
+                  n.owner_id = ?
+                  OR EXISTS (
+                      SELECT 1 
+                      FROM share s
+                      WHERE s.node_id = n.node_id
+                        AND s.target_uuid = ?
+                        AND s.rights >= ?
+                  )
+              )
+        
+            UNION ALL
+        
+            SELECT 
+                n.node_id,
+                n.folder_id,
+                n.node_type,
+                CASE 
+                    WHEN n.node_type IN ('FOLDER', 'ROOT') THEN 0
+                    ELSE COALESCE(n.size, 0)
+                END as size
+            FROM node n
+            INNER JOIN visible_hierarchy vh ON n.folder_id = vh.node_id
+            WHERE (
+                  n.owner_id = ?
+                  OR EXISTS (
+                      SELECT 1 
+                      FROM share s
+                      WHERE s.node_id = n.node_id
+                        AND s.target_uuid = ?
+                        AND s.rights >= ?
+                  )
+              )
+        )
+        SELECT COALESCE(SUM(size), 0) as total_size
+        FROM visible_hierarchy
+        WHERE node_type NOT IN ('FOLDER', 'ROOT')
+        """;
+
+    try {
+      SqlQuery sqlQuery = mDB.getEbeanDatabase().sqlQuery(sql);
+
+      sqlQuery.setParameter(1, folderId);
+      sqlQuery.setParameter(2, userId);
+      sqlQuery.setParameter(3, userId);
+      sqlQuery.setParameter(4, ACL.READ);
+      sqlQuery.setParameter(5, userId);
+      sqlQuery.setParameter(6, userId);
+      sqlQuery.setParameter(7, ACL.READ);
+
+      sqlQuery.setTimeout(30);
+
+      SqlRow row = sqlQuery.findOne();
+
+      if (row != null) {
+        Long totalSize = row.getLong("total_size");
+        return Optional.ofNullable(totalSize);
+      }
+
+      return Optional.empty();
+
+    } catch (Exception e) {
+      logger.error("Error calculating relative folder size for folder {} and user {}: {}",
+          folderId, userId, e.getMessage(), e);
+      return Optional.empty();
+    }
   }
 }

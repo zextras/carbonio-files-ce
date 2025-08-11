@@ -165,7 +165,7 @@ public final class Constants {
     private Db() {
     }
 
-    public static final short DB_VERSION = 8;
+    public static final short DB_VERSION = 9;
 
     /**
      * Names of Files tables
@@ -1062,6 +1062,12 @@ public final class Constants {
       public static final Pattern UPLOAD_FILE_TO = Pattern.compile(SERVICE + "upload-to/?$");
       public static final Pattern DOWNLOAD_FILE = Pattern.compile(
           SERVICE + "download/([a-f\\d\\-]*)/?([\\d]+)?/?$");
+      public static final Pattern DOWNLOAD_MULTIPLE = Pattern.compile(
+          SERVICE + "download-multiple/?$");
+      public static final Pattern DOWNLOAD_FILE_CHECK = Pattern.compile(
+          SERVICE + "download/([a-f\\d\\-]*)/check/?$");
+      public static final Pattern DOWNLOAD_MULTIPLE_CHECK = Pattern.compile(
+          SERVICE + "download-multiple/check/?$");
       public static final Pattern PUBLIC_LINK =
           Pattern.compile(SERVICE + "link/([\\w]{8}|[\\w]{32}|[\\w]{50})/?$");
       public static final Pattern DOWNLOAD_VIA_PUBLIC_LINK =
@@ -1116,6 +1122,13 @@ public final class Constants {
       public static final String REQUESTER = "requester";
       public static final String COOKIES = "cookies";
     }
+
+    public static final class BodyAttributes {
+      private BodyAttributes() {
+      }
+
+      public static final String NODE_IDS = "nodeIds";
+    }
   }
 
   public static final class ServiceDiscover {
@@ -1133,6 +1146,7 @@ public final class Constants {
 
       public static final String COLLATION = "collation";
       public static final String MAX_UPLOADABLE_SIZE_IN_MB = "max-uploadable-size-in-mb";
+      public static final String MAX_DOWNLOADABLE_SIZE_IN_MB = "max-downloadable-size-in-mb";
       public static final String PAGE_TOKEN_SECRET_KEY = "page-token-secret-key";
       public static final String DEFAULT_PAGE_TOKEN_SECRET_KEY = "carbonio-files-page-token-sign";
       public static final String FALLBACK_COLLATE = "en_US.utf8";

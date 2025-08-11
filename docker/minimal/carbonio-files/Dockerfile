@@ -42,5 +42,6 @@ JAR=$(ls carbonio-files-*-jar-with-dependencies.jar | head -n 1) && \
 java -Djava.net.preferIPv4Stack=true \
      -Xms4096m \
      -Xmx4096m \
-     -DFILES_LOG_LEVEL=warn \
+     -DFILES_LOG_LEVEL=info \
+     -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5050 \
      -jar "$JAR"'

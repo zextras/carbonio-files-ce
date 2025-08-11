@@ -21,7 +21,7 @@ type User {
 
 type Config {
     name: String!
-    value: String!
+    value: String
 }
 
 type DistributionList {
