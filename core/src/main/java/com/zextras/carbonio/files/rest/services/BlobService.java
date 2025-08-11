@@ -664,8 +664,9 @@ public class BlobService {
 
       CompletableFuture.runAsync(() -> {
         try (ZipOutputStream zos = new ZipOutputStream(pipedOutput)) {
+          Set<String> usedPaths = new HashSet<>();
           for (Node node : nodes) {
-            addNodeToZip(node, zos, "", requester);
+            addNodeToZip(node, zos, "", requester, usedPaths);
           }
           zos.finish();
         } catch (IOException e) {
@@ -697,16 +698,16 @@ public class BlobService {
     }
   }
 
-  private void addNodeToZip(Node node, ZipOutputStream zos, String path, User requester) {
+  private void addNodeToZip(Node node, ZipOutputStream zos, String path, User requester, Set<String> usedPaths) {
     try {
       // Only add node if user has permission to see it
       if (permissionsChecker
           .getPermissions(node.getId(), requester.getId())
           .has(SharePermission.READ_ONLY)) {
         if (node.getNodeType().equals(NodeType.FOLDER)) {
-          addFolderToZip(node, zos, path, requester);
+          addFolderToZip(node, zos, path, requester, usedPaths);
         } else {
-          addFileToZip(node, zos, path);
+          addFileToZip(node, zos, path, usedPaths);
         }
       }
     } catch (ZipException e) {
@@ -721,8 +722,12 @@ public class BlobService {
     }
   }
 
-  private void addFolderToZip(Node folder, ZipOutputStream zos, String parentPath, User requester) throws IOException {
-    String folderPath = parentPath.isEmpty() ? folder.getFullName() : parentPath + "/" + folder.getFullName();
+  private void addFolderToZip(Node folder, ZipOutputStream zos, String parentPath, User requester, Set<String> usedPaths) throws IOException {
+    String folderPath = getUniqueNameForZip(
+        parentPath.isEmpty() ? folder.getFullName() : parentPath + "/" + folder.getFullName(),
+        usedPaths,
+        true
+    );
 
     ZipEntry folderEntry = new ZipEntry(folderPath + "/");
     zos.putNextEntry(folderEntry);
@@ -739,14 +744,18 @@ public class BlobService {
       Node childNode = nodeRepository.getNode(childId)
           .orElseThrow(() -> new ZipGenerationException("Child node not found: " + childId));
 
-      addNodeToZip(childNode, zos, folderPath, requester);
+      addNodeToZip(childNode, zos, folderPath, requester, usedPaths);
     }
   }
 
-  private void addFileToZip(Node node, ZipOutputStream zos, String parentPath) throws IOException {
+  private void addFileToZip(Node node, ZipOutputStream zos, String parentPath, Set<String> usedPaths) throws IOException {
     FileVersion fileVersion = fileVersionRepository.getLastFileVersion(node.getId()).get(); // a file always has a version
 
-    String filePath = parentPath.isEmpty() ? node.getFullName() : parentPath + "/" + node.getFullName();
+    String filePath = getUniqueNameForZip(
+        parentPath.isEmpty() ? node.getFullName() : parentPath + "/" + node.getFullName(),
+        usedPaths,
+        false
+    );
 
     ZipEntry entry = new ZipEntry(filePath);
     entry.setSize(fileVersion.getSize());
@@ -770,5 +779,38 @@ public class BlobService {
     }
 
     zos.closeEntry();
+  }
+
+  private String getUniqueNameForZip(String originalName, Set<String> usedPaths, boolean isFolder) {
+    String targetPath = isFolder ? originalName + "/" : originalName;
+
+    if (!usedPaths.contains(targetPath)) {
+      usedPaths.add(targetPath);
+      return originalName;
+    }
+
+    String baseName = originalName;
+    String extension = "";
+
+    if (!isFolder) {
+      int lastDotIndex = originalName.lastIndexOf('.');
+      if (lastDotIndex > 0 && lastDotIndex < originalName.length() - 1) {
+        baseName = originalName.substring(0, lastDotIndex);
+        extension = originalName.substring(lastDotIndex);
+      }
+    }
+
+    int counter = 1;
+    String newName;
+    String newPath;
+
+    do {
+      newName = baseName + " (" + counter + ")" + extension;
+      newPath = isFolder ? newName + "/" : newName;
+      counter++;
+    } while (usedPaths.contains(newPath));
+
+    usedPaths.add(newPath);
+    return newName;
   }
 }
