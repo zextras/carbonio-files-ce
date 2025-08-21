@@ -8,6 +8,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.17.0](https://github.com/zextras/carbonio-files-ce/compare/v0.16.0...v0.17.0) (2025-08-21)
+
+
+### Features
+
+* build packages via docker ([#180](https://github.com/zextras/carbonio-files-ce/issues/180)) ([b8fae4f](https://github.com/zextras/carbonio-files-ce/commit/b8fae4f2f94cf971331a156edb6c75669a0a4415))
+* implement multiple nodes download ([#181](https://github.com/zextras/carbonio-files-ce/issues/181)) ([87efe6c](https://github.com/zextras/carbonio-files-ce/commit/87efe6c512f20b04c50c13a33987a60de478ee2c))
+* working minimal ([#173](https://github.com/zextras/carbonio-files-ce/issues/173)) ([9d7b78f](https://github.com/zextras/carbonio-files-ce/commit/9d7b78f8375f8c8fa27eaa2f8e065755a210989f))
+
+
+### Bug Fixes
+
+* rename docker tag release jenkinsfile ([#175](https://github.com/zextras/carbonio-files-ce/issues/175)) ([7c33c75](https://github.com/zextras/carbonio-files-ce/commit/7c33c75498f2ea7b66a9b7de2e99bf5e72eaf9f0))
+* revert WantedBy for compatibility with older systems ([#182](https://github.com/zextras/carbonio-files-ce/issues/182)) ([6536893](https://github.com/zextras/carbonio-files-ce/commit/65368937e7f56e30a73dfcfecccfb59cc68858e4))
+
 ## [0.16.0](https://github.com/zextras/carbonio-files-ce/compare/v0.15.1...v0.16.0) (2025-05-19)
 
 
