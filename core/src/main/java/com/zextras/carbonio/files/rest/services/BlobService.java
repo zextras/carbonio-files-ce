@@ -813,4 +813,17 @@ public class BlobService {
     usedPaths.add(newPath);
     return newName;
   }
+
+  // It seems that manual checking is sometimes necessary
+  private boolean verifyBlobExists(String nodeId, int version, String nodeOwner) {
+    try {
+      InputStream blobStream = fileStore.download(
+          FilesIdentifier.of(nodeId, version, nodeOwner)
+      );
+      blobStream.close();
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
+  }
 }
