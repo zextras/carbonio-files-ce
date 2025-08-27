@@ -344,6 +344,13 @@ public class BlobService {
           uploadResponse.getDigest()
       );
 
+      if (!verifyBlobExists(nodeId, 1, nodeOwner)) {
+        nodeRepository.deleteNode(nodeId);
+        throw new DependencyException(
+            String.format("Upload verification failed: blob not accessible for node %s", nodeId)
+        );
+      }
+
       try (Transaction t = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
         fileVersionRepository.createNewFileVersion(
             nodeId,
@@ -615,6 +622,12 @@ public class BlobService {
               versionToUpload
           ),
           exception
+      );
+    }
+
+    if (!verifyBlobExists(nodeId, versionToUpload, node.getOwnerId())) {
+      throw new DependencyException(
+          String.format("Upload verification failed: blob not accessible for node %s version %d", nodeId, versionToUpload)
       );
     }
 
