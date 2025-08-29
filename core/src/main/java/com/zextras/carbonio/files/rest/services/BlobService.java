@@ -344,6 +344,13 @@ public class BlobService {
           uploadResponse.getDigest()
       );
 
+      if (!verifyBlobExists(nodeId, 1, nodeOwner)) {
+        nodeRepository.deleteNode(nodeId);
+        throw new DependencyException(
+            String.format("Upload verification failed: blob not accessible for node %s", nodeId)
+        );
+      }
+
       try (Transaction t = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
         fileVersionRepository.createNewFileVersion(
             nodeId,
@@ -618,6 +625,12 @@ public class BlobService {
       );
     }
 
+    if (!verifyBlobExists(nodeId, versionToUpload, node.getOwnerId())) {
+      throw new DependencyException(
+          String.format("Upload verification failed: blob not accessible for node %s version %d", nodeId, versionToUpload)
+      );
+    }
+
     try (Transaction t = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
       Optional<FileVersion> result = fileVersionRepository.createNewFileVersion(
           nodeId,
@@ -812,5 +825,18 @@ public class BlobService {
 
     usedPaths.add(newPath);
     return newName;
+  }
+
+  // It seems that manual checking is sometimes necessary
+  private boolean verifyBlobExists(String nodeId, int version, String nodeOwner) {
+    try {
+      InputStream blobStream = fileStore.download(
+          FilesIdentifier.of(nodeId, version, nodeOwner)
+      );
+      blobStream.close();
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
   }
 }
