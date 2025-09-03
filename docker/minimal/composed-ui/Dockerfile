@@ -13,6 +13,7 @@ RUN apt update && \
     carbonio-webui \
     carbonio-shell-ui \
     carbonio-files-ui \
+    carbonio-files-public-folder-ui \
     carbonio-login-ui && \
     apt clean
 

@@ -39,6 +39,7 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
@@ -97,6 +98,46 @@ public class BlobService {
       List<String> nodeIds,
       User requester
   ) {
+    return checkDownloadMultipleInternal(
+        nodeIds,
+        node -> permissionsChecker.getPermissions(node.getId(), requester.getId()).has(SharePermission.READ_ONLY),
+        nodeId -> nodeRepository.calculateRelativeFolderSize(nodeId, requester.getId())
+            .orElseThrow(() -> new ZipGenerationException("Can't calculate size of folder " + nodeId)),
+        requester.getId()
+    );
+  }
+
+  public Optional<List<Node>> checkDownloadPublicMultiple(
+      List<String> nodeIds,
+      String nodeLinkId,
+      String accessCode
+  ) {
+    Optional<Link> linkOpt = linkRepository.getLinkByNotExpiredPublicId(nodeLinkId);
+    if (linkOpt.isEmpty()) {
+      return Optional.empty();
+    }
+
+    Link link = linkOpt.get();
+    if (link.getAccessCode().isPresent() && !link.getAccessCode().get().equals(accessCode)) {
+      return Optional.empty();
+    }
+
+    return checkDownloadMultipleInternal(
+        nodeIds,
+        node -> linkRepository.isLinkValidForNode(nodeLinkId, node) &&
+            nodeRepository.getTrashedNode(node.getId()).isEmpty(),
+        nodeId -> nodeRepository.calculateAbsoluteFolderSize(nodeId)
+            .orElseThrow(() -> new ZipGenerationException("Can't calculate size of folder " + nodeId)),
+        null
+    );
+  }
+
+  private Optional<List<Node>> checkDownloadMultipleInternal(
+      List<String> nodeIds,
+      Function<Node, Boolean> accessChecker,
+      Function<String, Long> folderSizeCalculator,
+      String requesterId
+  ) {
     if (nodeIds.isEmpty()) {
       logger.error("Cannot create ZIP: no nodes provided");
       return Optional.empty();
@@ -109,10 +150,15 @@ public class BlobService {
         logger.warn("Cannot create ZIP: if root is present it must be the only node passed. NodeIds: {}", nodeIds);
         throw new AliasNotAloneInDownload("If LOCAL_ROOT is passed it must be the only node passed.");
       }
+
+      if (requesterId == null) {
+        return Optional.empty();
+      }
+
       nodeIds = nodeRepository.getChildrenIds(
           RootId.LOCAL_ROOT,
           Optional.empty(),
-          Optional.of(requester.getId()),
+          Optional.of(requesterId),
           false);
     }
 
@@ -121,15 +167,13 @@ public class BlobService {
 
     for (String nodeId : nodeIds) {
       Node node = nodeRepository.getNode(nodeId).orElse(null);
-      if (node == null) {
+      if (node == null || !accessChecker.apply(node)) {
         logger.error("Node with id {} not found", nodeId);
         continue;
       }
 
-      // Let's calculate the size of every node and sum it (only nodes visible and thus downloadable by requester)
       if (node.getNodeType().equals(NodeType.FOLDER)) {
-        totalSizeRequested += nodeRepository.calculateRelativeFolderSize(node.getId(), requester.getId())
-            .orElseThrow(() -> new ZipGenerationException("Can't calculate size of folder " + node.getId()));
+        totalSizeRequested += folderSizeCalculator.apply(node.getId());
       } else {
         totalSizeRequested += node.getSize();
       }
@@ -141,6 +185,7 @@ public class BlobService {
     Optional<Integer> maxFileSize = filesConfig.getMaxDownloadableFileSizeInMb();
     logger.info("Requested file size: {}", totalSizeRequestedInMb);
     logger.info("Max file size: {}", maxFileSize);
+
     if (maxFileSize.isPresent() && totalSizeRequestedInMb > maxFileSize.get()) {
       throw new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB");
     }
@@ -153,7 +198,23 @@ public class BlobService {
       User requester
   ) {
     Optional<List<Node>> optNodes = checkDownloadMultiple(nodeIds, requester);
-    return optNodes.flatMap(nodes -> downloadMultipleInZip(nodes, requester));
+    return optNodes.flatMap(nodes -> createZip(
+        nodes,
+        node -> permissionsChecker.getPermissions(node.getId(), requester.getId()).has(SharePermission.READ_ONLY)
+    ));
+  }
+
+  public Optional<BlobResponse> downloadPublicMultiple(
+      List<String> nodeIds,
+      String nodeLinkId,
+      String accessCode
+  ) {
+    Optional<List<Node>> optNodes = checkDownloadPublicMultiple(nodeIds, nodeLinkId, accessCode);
+    return optNodes.flatMap(nodes -> createZip(
+        nodes,
+        node -> linkRepository.isLinkValidForNode(nodeLinkId, node) &&
+            nodeRepository.getTrashedNode(node.getId()).isEmpty()
+    ));
   }
 
   public Optional<Node> checkDownloadFileById(
@@ -165,13 +226,7 @@ public class BlobService {
         .has(SharePermission.READ_ONLY)
     ) {
       Node node = nodeRepository.getNode(nodeId).get();
-      double totalSizeRequestedInMb = node.getSize() / (1024.0 * 1024.0);
-      Optional<Integer> maxFileSize = filesConfig.getMaxDownloadableFileSizeInMb();
-      logger.info("Requested file size: {}", totalSizeRequestedInMb);
-      logger.info("Max file size: {}", maxFileSize);
-      if (maxFileSize.isPresent() && totalSizeRequestedInMb > maxFileSize.get()) {
-        throw new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB");
-      }
+      validateFileSize(node.getSize());
       return Optional.of(node);
     }
 
@@ -183,19 +238,42 @@ public class BlobService {
     return Optional.empty();
   }
 
-  /**
-   * Downloads from the {@link Filestore} a blob related to a node identifier and/or a specific
-   * version.
-   *
-   * @param nodeId    is a {@link String} representing the node identifier
-   * @param version   is s {@link Integer} representing the node version. If the version is null,
-   *                  the method downloads the latest version of the node
-   * @param requester is a {@link User} making the download request
-   * @return an {@link Optional} of {@link BlobResponse} containing the stream of bytes (the blob
-   * itself) and all its metadata if the requester has the {@link SharePermission#READ} permission
-   * and the {@link Node} exists. Otherwise, it returns an {@link Optional#empty()}.
-   * @throws DependencyException if the {@link Filestore} failed to download the blob
-   */
+  public Optional<Node> checkDownloadPublicFileById(
+      String nodeId,
+      String nodeLinkId,
+      String accessCode
+  ) {
+    Optional<Node> nodeOptional = nodeRepository.getNode(nodeId);
+
+    if (nodeOptional.isPresent() &&
+        linkRepository.isLinkValidForNode(nodeLinkId, nodeOptional.get()) &&
+        nodeRepository.getTrashedNode(nodeId).isEmpty()
+    ) {
+      Link link = linkRepository.getLinkByNotExpiredPublicId(nodeLinkId).get();
+
+      if (link.getAccessCode().isPresent() && !link.getAccessCode().get().equals(accessCode)) {
+        return Optional.empty();
+      }
+
+      Node node = nodeOptional.get();
+      validateFileSize(node.getSize());
+      return Optional.of(node);
+    }
+
+    return Optional.empty();
+  }
+
+  private void validateFileSize(Long size) {
+    double totalSizeRequestedInMb = size / (1024.0 * 1024.0);
+    Optional<Integer> maxFileSize = filesConfig.getMaxDownloadableFileSizeInMb();
+    logger.info("Requested file size: {}", totalSizeRequestedInMb);
+    logger.info("Max file size: {}", maxFileSize);
+
+    if (maxFileSize.isPresent() && totalSizeRequestedInMb > maxFileSize.get()) {
+      throw new FileSizeException("File size exceeds the maximum allowed of " + maxFileSize.get() + "MB");
+    }
+  }
+
   public Optional<BlobResponse> downloadFileById(
       String nodeId,
       @Nullable Integer version,
@@ -205,46 +283,29 @@ public class BlobService {
     return optNode.flatMap(node -> downloadFile(nodeId, version));
   }
 
-  /**
-   * Downloads from the {@link Filestore} a blob related to an identifier of a public node.
-   *
-   * @param nodeId     is a {@link String} representing the node identifier
-   * @param nodeLinkId is a {@link String} representing the link public id
-   * @param accessCode
-   * @return an {@link Optional} of {@link BlobResponse} containing the stream of bytes (the blob
-   * itself) and all its metadata if the {@link Node} exists, and it is contained on a public folder with a valid link.
-   * Otherwise, it returns an {@link Optional#empty()}.
-   * @throws DependencyException if the {@link Filestore} failed to download the blob
-   */
-  public Optional<BlobResponse> downloadPublicFileById(String nodeId, String nodeLinkId, String accessCode) {
+  public Optional<BlobResponse> downloadPublicFileById(
+      String nodeId,
+      String nodeLinkId,
+      String accessCode
+  ) {
     Optional<Node> nodeOptional = nodeRepository.getNode(nodeId);
 
     if (nodeOptional.isPresent() &&
         linkRepository.isLinkValidForNode(nodeLinkId, nodeOptional.get()) &&
-        nodeRepository.getTrashedNode(nodeId).isEmpty() // Should not be trashed, if it is download will fail
+        nodeRepository.getTrashedNode(nodeId).isEmpty()
     ) {
       Link link = linkRepository.getLinkByNotExpiredPublicId(nodeLinkId).get();
-      // If file is protected by access code, check if the access code is correct and return empty if not
+
       if (link.getAccessCode().isPresent() && !link.getAccessCode().get().equals(accessCode)) {
         return Optional.empty();
       }
+
       return nodeOptional.flatMap(node -> downloadFile(nodeId, null));
     }
 
     return Optional.empty();
   }
 
-  /**
-   * Downloads from the {@link Filestore} a specific blob linked to a public link.
-   *
-   * @param linkId is a {@link String} representing the identifier of a {@link Link} that is linked
-   *               to a specific node identifier
-   * @return an {@link Optional} of {@link BlobResponse} containing the stream of bytes (the blob
-   * itself) and all its metadata if the {@link Link} and the related {@link Node} exist. Otherwise,
-   * it returns an {@link Optional#empty()}.
-   * @throws DependencyException         if the {@link Filestore} failed to download the blob
-   * @throws AccessCodeRequiredException if the link is protected by an access code (no direct download allowed)
-   */
   public Optional<BlobResponse> downloadFileByLink(String linkId) throws AccessCodeRequiredException {
     Optional<Link> linkOptional = linkRepository.getLinkByNotExpiredPublicId(linkId);
     if (linkOptional.isPresent() && linkOptional.get().getAccessCode().isPresent()) {
@@ -254,33 +315,12 @@ public class BlobService {
         .flatMap(link -> {
           if (nodeRepository.getTrashedNode(link.getNodeId()).isPresent()) {
             logger.error("Unable to download node {}: the node is trashed", link.getNodeId());
-            return Optional.empty(); // Return empty if the node is trashed exactly as if the node didn't exist
+            return Optional.empty();
           }
           return downloadFile(link.getNodeId(), null);
         });
   }
 
-  /**
-   * Uploads a blob to the {@link Filestore} and, when the upload is completed, it:
-   * <ul>
-   *   <li>creates the related {@link Node} and {@link FileVersion} metadata</li>
-   *   <li>creates the shares for the new node if the destination folder has shares associated</li>
-   * </ul>
-   *
-   * @param requesterId       is a {@link String} id of user making the upload request
-   * @param bufferInputStream is a {@link BufferInputStream} of the blob to upload
-   * @param blobLength        is a <code>long</code> representing the length of the blob
-   * @param folderId          is a {@link String} representing the folder identifier where the node
-   *                          will be uploaded
-   * @param filename          is a {@link String} representing the full filename (name and
-   *                          extension) of the node
-   * @param description       is a {@link String} representing the description of the node
-   * @return an {@link Optional} of {@link String} containing the identifier of the node associated
-   * to the blob uploaded if the requester has the {@link SharePermission#READ_AND_WRITE} permission
-   * on the destination folder and if the destination folder exists. Otherwise, it returns an
-   * {@link Optional#empty()}.
-   * @throws DependencyException if the {@link Filestore} failed to upload the blob
-   */
   public Optional<String> uploadFile(
       String requesterId,
       Optional<User> requesterEntity,
@@ -294,7 +334,6 @@ public class BlobService {
         .getPermissions(folderId, requesterId)
         .has(SharePermission.READ_AND_WRITE)
     ) {
-      // Here we are sure that the node exists otherwise the permission checker would be failed
       Node destinationFolder = nodeRepository.getNode(folderId).get();
       String nodeId = UUID.randomUUID().toString();
       String nodeOwner = folderId.equals(RootId.LOCAL_ROOT)
@@ -367,12 +406,9 @@ public class BlobService {
 
         List<String> usersToNotify = new ArrayList<>();
 
-        // Add new shares for the new file
-        // Create share also for the requester if it is not the owner of the parent folder
         shareRepository
             .getShares(folderId, Collections.emptyList())
             .forEach(share -> {
-                  // Don't notify the requester since it's dumb
                   if (!share.getTargetUserId().equals(requesterId)) {
                     usersToNotify.add(share.getTargetUserId());
                   }
@@ -388,8 +424,6 @@ public class BlobService {
             );
         t.commit();
 
-        // If the requester is the owner of the parent folder, do not notify him since he did the upload himself
-        // Also exclude uploads on root, since root can't be shared and does not have an owner
         if (!destinationFolder.getNodeType().equals(NodeType.ROOT) &&
             !requesterId.equals(destinationFolder.getOwnerId()) &&
             !usersToNotify.contains(requesterId)) {
@@ -412,39 +446,6 @@ public class BlobService {
     return Optional.empty();
   }
 
-  /**
-   * Uploads a blob to the {@link Filestore} representing a version of an existing {@link Node}. The
-   * uploaded version can be a new one if the {@param overwrite} is <code>false</code>, otherwise
-   * the version is overwritten to the latest one. When the upload is completed, it:
-   * <ul>
-   *   <li>checks if the number of versions a node can have has already reached the limit</li>
-   *   <li>creates the related {@link FileVersion} metadata</li>
-   *   <li>updates the {@link Node} metadata associated to it</li>
-   *   <li>checks if it is necessary to make space for future versions deleting the oldest one that
-   *   is not marked with the "keep forever" flag.</li>
-   * </ul>
-   *
-   * @param requester         is a {@link User} making the upload version request
-   * @param bufferInputStream is a {@link BufferInputStream} of the blob to upload
-   * @param blobLength        is a <code>long</code> representing the length of the blob
-   * @param nodeId            is a {@link String} representing the node identifier to which add the
-   *                          new version
-   * @param filename          is a {@link String} representing the full filename (name and
-   *                          extension) of the node. It is necessary in order to check if the
-   *                          {@link NodeType} of the new version is the same of all the other
-   *                          version types.
-   * @param overwrite         is a <code>boolean</code> that can be <code>true</code> if the
-   *                          requester wants to overwrite the latest version of a specific node;
-   *                          <code>false</code> if the requester wants to upload a new version
-   * @return an {@link Optional} of {@link Integer} containing the version of the node uploaded if
-   * the requester has the {@link SharePermission#READ_AND_WRITE} permission on the {@link Node} and
-   * if the {@link Node} itself exists. Otherwise, it returns an {@link Optional#empty()}.
-   * @throws MaxNumberOfFileVersionsException if the specific {@link Node} already reached the
-   *                                          maximum number of version that a node can have
-   * @throws FileTypeMismatchException        if the requester wants to upload a blob with a
-   *                                          different {@link NodeType} than previous versions
-   * @throws DependencyException              if the {@link Filestore} failed to upload the blob
-   */
   public Optional<Integer> uploadFileVersion(
       User requester,
       BufferInputStream bufferInputStream,
@@ -461,9 +462,6 @@ public class BlobService {
       List<FileVersion> allFileVersion = fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
       int maxNumberOfVersions = filesConfig.getMaxNumberOfFileVersion();
 
-      // This check seems (at first) useless since there is a mechanism to remove the oldest version
-      // not flagged as keep forever. However, it remains useful when the sysadmin reduces the config
-      // regarding the maximum number of versions a node can have
       if (!overwrite && allFileVersion.size() > maxNumberOfVersions) {
         throw new MaxNumberOfFileVersionsException(String.format(
             "Node %s has reached max number of versions (%d), cannot add more versions",
@@ -472,7 +470,6 @@ public class BlobService {
         ));
       }
 
-      // Here we are sure that the node exists otherwise the permission checker would be failed
       Node node = nodeRepository.getNode(nodeId).get();
 
       MediaType mediaType = mimeTypeUtils.detectMimeTypeFromFilename(
@@ -499,10 +496,6 @@ public class BlobService {
           mediaType,
           overwrite
       ).map(versionUploaded -> {
-        // Detect if it is necessary to delete an old version to make space for the new one
-        // respecting the maxNumberOfVersion limit.
-        // allFileVersion.size() does not contain the just created new FileVersion so the comparison
-        // with the maxNumberOfVersion must be more strict (>=). (this saves a query to the db)
         if (!overwrite && allFileVersion.size() >= maxNumberOfVersions) {
           List<FileVersion> allVersionsNotKeptForever = allFileVersion
               .stream()
@@ -511,8 +504,6 @@ public class BlobService {
           FileVersion oldestVersionToDelete =
               allVersionsNotKeptForever.get(allVersionsNotKeptForever.size() - 1);
 
-          // The List of not keep forever elements is never <1, at this point the element that are
-          // kept forever are always less than max allowed.
           fileVersionRepository.deleteFileVersion(oldestVersionToDelete);
           tombstoneRepository.createTombstonesBulk(
               List.of(oldestVersionToDelete),
@@ -601,7 +592,6 @@ public class BlobService {
                 blobLength
             );
 
-        // Delete the metadata of the old version since they will be recreated below
         fileVersionRepository.deleteFileVersions(nodeId,
             Collections.singletonList(versionToUpload));
 
@@ -643,9 +633,6 @@ public class BlobService {
       );
       node.setSize(uploadResponse.getSize());
       node.setLastEditorId(requester.getId());
-      // The update of the current version can be overkill when the version is overwritten but,
-      // since we are already doing the sql query to update the other node metadata, it doesn't add
-      // any extra costs, and it makes the code more readable.
       node.setCurrentVersion(versionToUpload);
       nodeRepository.updateNode(node);
 
@@ -663,7 +650,10 @@ public class BlobService {
     }
   }
 
-  private Optional<BlobResponse> downloadMultipleInZip(List<Node> nodes, User requester) {
+  private Optional<BlobResponse> createZip(
+      List<Node> nodes,
+      Function<Node, Boolean> accessChecker
+  ) {
     logger.info("Creating ZIP with {} nodes", nodes.size());
 
     String zipName = "Files.zip";
@@ -679,7 +669,7 @@ public class BlobService {
         try (ZipOutputStream zos = new ZipOutputStream(pipedOutput)) {
           Set<String> usedPaths = new HashSet<>();
           for (Node node : nodes) {
-            addNodeToZip(node, zos, "", requester, usedPaths);
+            addNodeToZip(node, zos, "", accessChecker, usedPaths);
           }
           zos.finish();
         } catch (IOException e) {
@@ -711,14 +701,17 @@ public class BlobService {
     }
   }
 
-  private void addNodeToZip(Node node, ZipOutputStream zos, String path, User requester, Set<String> usedPaths) {
+  private void addNodeToZip(
+      Node node,
+      ZipOutputStream zos,
+      String path,
+      Function<Node, Boolean> accessChecker,
+      Set<String> usedPaths
+  ) {
     try {
-      // Only add node if user has permission to see it
-      if (permissionsChecker
-          .getPermissions(node.getId(), requester.getId())
-          .has(SharePermission.READ_ONLY)) {
+      if (accessChecker.apply(node)) {
         if (node.getNodeType().equals(NodeType.FOLDER)) {
-          addFolderToZip(node, zos, path, requester, usedPaths);
+          addFolderToZip(node, zos, path, accessChecker, usedPaths);
         } else {
           addFileToZip(node, zos, path, usedPaths);
         }
@@ -726,7 +719,7 @@ public class BlobService {
     } catch (ZipException e) {
       if (e.getMessage() != null && e.getMessage().startsWith("duplicate entry")) {
         logger.warn("Skipping duplicate entry for node: {} ({}), path: {}",
-            node.getId(), node.getFullName(), path); // should never happen (last famous words)
+            node.getId(), node.getFullName(), path);
       } else {
         throw new ZipGenerationException("Error adding node " + node.getId() + " to ZIP", e);
       }
@@ -735,7 +728,13 @@ public class BlobService {
     }
   }
 
-  private void addFolderToZip(Node folder, ZipOutputStream zos, String parentPath, User requester, Set<String> usedPaths) throws IOException {
+  private void addFolderToZip(
+      Node folder,
+      ZipOutputStream zos,
+      String parentPath,
+      Function<Node, Boolean> accessChecker,
+      Set<String> usedPaths
+  ) throws IOException {
     String folderPath = getUniqueNameForZip(
         parentPath.isEmpty() ? folder.getFullName() : parentPath + "/" + folder.getFullName(),
         usedPaths,
@@ -757,12 +756,12 @@ public class BlobService {
       Node childNode = nodeRepository.getNode(childId)
           .orElseThrow(() -> new ZipGenerationException("Child node not found: " + childId));
 
-      addNodeToZip(childNode, zos, folderPath, requester, usedPaths);
+      addNodeToZip(childNode, zos, folderPath, accessChecker, usedPaths);
     }
   }
 
   private void addFileToZip(Node node, ZipOutputStream zos, String parentPath, Set<String> usedPaths) throws IOException {
-    FileVersion fileVersion = fileVersionRepository.getLastFileVersion(node.getId()).get(); // a file always has a version
+    FileVersion fileVersion = fileVersionRepository.getLastFileVersion(node.getId()).get();
 
     String filePath = getUniqueNameForZip(
         parentPath.isEmpty() ? node.getFullName() : parentPath + "/" + node.getFullName(),
@@ -786,7 +785,7 @@ public class BlobService {
       }
     } catch (Exception e) {
       throw new DependencyException(
-          String.format("Storages failed: unable to upload node with id %s and version 1", node.getId()),
+          String.format("Storages failed: unable to download node with id %s", node.getId()),
           e
       );
     }

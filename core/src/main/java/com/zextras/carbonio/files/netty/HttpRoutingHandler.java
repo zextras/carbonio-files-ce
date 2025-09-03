@@ -150,6 +150,24 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
       return;
     }
 
+    if (Endpoints.DOWNLOAD_PUBLIC_FILE_CHECK.matcher(request.uri()).matches()
+      || Endpoints.DOWNLOAD_PUBLIC_MULTIPLE.matcher(request.uri()).matches()
+      || Endpoints.DOWNLOAD_PUBLIC_MULTIPLE_CHECK.matcher(request.uri()).matches()) {
+
+      if (Endpoints.DOWNLOAD_PUBLIC_MULTIPLE.matcher(request.uri()).matches()
+        || Endpoints.DOWNLOAD_PUBLIC_MULTIPLE_CHECK.matcher(request.uri()).matches()) {
+        context.pipeline()
+          .addLast("http-aggregator", new HttpObjectAggregator(1048576))
+          .addLast("chunkedWriter", new ChunkedWriteHandler());
+      }
+
+      context.pipeline()
+        .addLast("rest-handler", publicBlobController)
+        .addLast("exceptions-handler", exceptionsHandler);
+      context.fireChannelRead(request);
+      return;
+    }
+
     if (Endpoints.COLLABORATION_LINK.matcher(request.uri()).matches()) {
       context
         .pipeline()

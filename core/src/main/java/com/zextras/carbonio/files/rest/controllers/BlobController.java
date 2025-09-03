@@ -27,14 +27,11 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.handler.codec.http.*;
-import io.netty.handler.stream.ChunkedStream;
 import io.netty.util.AttributeKey;
 import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -244,7 +241,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
                 request.uri(), nodeIds, requester.getId())));
 
     context.write(HttpResponseBuilder.createSuccessDownloadHttpResponse(blobResponse));
-    writeStreamAsChunked(context, blobResponse.getBlobStream());
+    new NettyBufferWriter(context).writeStreamAsChunked(blobResponse.getBlobStream());
   }
 
   private void download(ChannelHandlerContext context, HttpRequest request, Matcher uriMatched) {
@@ -424,31 +421,6 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
             Unpooled.wrappedBuffer(jsonByteArray),
             headers,
             new DefaultHttpHeaders()));
-  }
-
-  private void writeStreamAsChunked(ChannelHandlerContext context, InputStream inputStream) {
-    context.write(new ChunkedStream(inputStream));
-    ChannelFuture lastContentFuture = context.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
-    lastContentFuture.addListener(new ChannelFutureListener() {
-      @Override
-      public void operationComplete(ChannelFuture future) {
-        if (future.isSuccess()) {
-          logger.debug("ZIP stream sent successfully");
-        } else {
-          logger.error("Error sending ZIP stream", future.cause());
-        }
-
-        try {
-          inputStream.close();
-        } catch (IOException e) {
-          logger.error("Error closing input stream", e);
-        }
-
-        if (!"keep-alive".equals(context.channel().attr(AttributeKey.valueOf("connection")).get())) {
-          context.close();
-        }
-      }
-    });
   }
 
   private boolean isRequestSizeOverLimit(HttpRequest httpRequest) {
