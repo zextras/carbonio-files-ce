@@ -94,10 +94,10 @@ paths:
                   type: string
                   description: JSON stringified array of node IDs
                   example: '["abc123","def456","ghi789"]'
-                node_link_id:
+                nodeLinkId:
                   type: string
                   description: The id of the node link for all nodes
-                access_code:
+                accessCode:
                   type: string
                   description: The access code for protected links
                   required: false
@@ -131,10 +131,10 @@ paths:
                     type: string
                   description: Array of node IDs
                   example: [ "abc123","def456","ghi789" ]
-                node_link_id:
+                nodeLinkId:
                   type: string
                   description: The id of the node link for all nodes
-                access_code:
+                accessCode:
                   type: string
                   description: The access code for protected links
                   required: false

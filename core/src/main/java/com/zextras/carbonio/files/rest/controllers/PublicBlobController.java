@@ -150,8 +150,8 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
       nodeIds = mapper.convertValue(
           jsonBody.get("nodeIds"), new TypeReference<List<String>>() {
           });
-      nodeLinkId = (String) jsonBody.get("node_link_id");
-      accessCode = (String) jsonBody.get("access_code");
+      nodeLinkId = (String) jsonBody.get("nodeLinkId");
+      accessCode = (String) jsonBody.get("accessCode");
 
     } catch (JsonProcessingException e) {
       context.fireExceptionCaught(
@@ -190,8 +190,8 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
     Map<String, List<String>> parameters = decoder.parameters();
 
     List<String> nodeIdsParam = parameters.get("nodeIds");
-    List<String> nodeLinkIdParam = parameters.get("node_link_id");
-    List<String> accessCodeParam = parameters.get("access_code");
+    List<String> nodeLinkIdParam = parameters.get("nodeLinkId");
+    List<String> accessCodeParam = parameters.get("accessCode");
 
     if (nodeIdsParam == null || nodeLinkIdParam == null) {
       context.fireExceptionCaught(
