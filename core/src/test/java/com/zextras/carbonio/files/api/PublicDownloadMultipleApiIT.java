@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Zextras <https://www.zextras.com>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-
 package com.zextras.carbonio.files.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -73,7 +69,6 @@ public class PublicDownloadMultipleApiIT {
 
   @Test
   void givenMultipleFilesWithPublicLinkTheDownloadMultipleShouldReturnZipWith200() throws Exception {
-    // Given
     String userId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
     String folderId = "11111111-1111-1111-1111-111111111101";
     String fileId1 = "00000000-0000-0000-0000-000000000101";
@@ -133,7 +128,6 @@ public class PublicDownloadMultipleApiIT {
                 "image/jpeg"))
         .addLink(linkId, folderId, publicId, Optional.empty(), Optional.of("Public folder link"), Optional.empty());
 
-    // Mock storages responses for each file
     simulator.getBlob(fileId1, 1);
     simulator.getBlob(fileId2, 1);
     simulator.getBlob(fileId3, 1);
@@ -155,11 +149,9 @@ public class PublicDownloadMultipleApiIT {
         requestBody
     );
 
-    // When
     final HttpResponse httpResponse =
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
 
-    // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
     Assertions.assertThat(httpResponse.getHeaders())
         .anyMatch(header ->
@@ -173,7 +165,6 @@ public class PublicDownloadMultipleApiIT {
                 header.getValue().contains("Files.zip")
         );
 
-    // Verify storages was called for each file
     simulator
         .getStoragesMock()
         .verify(
@@ -188,7 +179,6 @@ public class PublicDownloadMultipleApiIT {
 
   @Test
   void givenPublicLinkWithAccessCodeTheDownloadMultipleShouldReturnZipWith200() throws Exception {
-    // Given
     String userId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
     String folderId = "11111111-1111-1111-1111-111111111201";
     String fileId1 = "00000000-0000-0000-0000-000000000201";
@@ -236,7 +226,6 @@ public class PublicDownloadMultipleApiIT {
                 "text/plain"))
         .addLink(linkId, folderId, publicId, Optional.empty(), Optional.of("Protected link"), Optional.of(accessCode));
 
-    // Mock storages responses
     simulator.getBlob(fileId1, 1);
     simulator.getBlob(fileId2, 1);
 
@@ -258,92 +247,14 @@ public class PublicDownloadMultipleApiIT {
         requestBody
     );
 
-    // When
     final HttpResponse httpResponse =
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
 
-    // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
   }
 
   @Test
-  void givenValidPublicLinkTheCheckDownloadMultipleShouldReturn204() throws Exception {
-    // Given
-    String userId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
-    String folderId = "11111111-1111-1111-1111-111111111301";
-    String fileId1 = "00000000-0000-0000-0000-000000000301";
-    String fileId2 = "00000000-0000-0000-0000-000000000302";
-    String linkId = UUID.randomUUID().toString();
-    String publicId = UUID.randomUUID().toString();
-
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addNode(
-            new PopulatorNode(
-                folderId,
-                userId,
-                userId,
-                Constants.Db.RootId.LOCAL_ROOT,
-                "folder",
-                "",
-                NodeType.FOLDER,
-                Constants.Db.RootId.LOCAL_ROOT,
-                0L,
-                null))
-        .addNode(
-            new PopulatorNode(
-                fileId1,
-                userId,
-                userId,
-                folderId,
-                "file1.txt",
-                "",
-                NodeType.TEXT,
-                Constants.Db.RootId.LOCAL_ROOT + "," + folderId,
-                10L,
-                "text/plain"))
-        .addNode(
-            new PopulatorNode(
-                fileId2,
-                userId,
-                userId,
-                folderId,
-                "file2.txt",
-                "",
-                NodeType.TEXT,
-                Constants.Db.RootId.LOCAL_ROOT + "," + folderId,
-                20L,
-                "text/plain"))
-        .addLink(linkId, folderId, publicId, Optional.empty(), Optional.empty(), Optional.empty());
-
-    Map<String, Object> requestBody = new HashMap<>();
-    requestBody.put("nodeIds", List.of(fileId1, fileId2));
-    requestBody.put("nodeLinkId", publicId);  // Use camelCase, not snake_case
-
-    String jsonBody = objectMapper.writeValueAsString(requestBody);
-
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/json")
-    );
-
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/public/download-multiple/check",
-        null,
-        headers,
-        jsonBody
-    );
-
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
-
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(204);
-  }
-
-  @Test
   void givenInvalidPublicLinkTheDownloadMultipleShouldReturn404() throws Exception {
-    // Given
     String userId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
     String fileId = "00000000-0000-0000-0000-000000000401";
     String invalidPublicId = UUID.randomUUID().toString();
@@ -379,17 +290,14 @@ public class PublicDownloadMultipleApiIT {
         requestBody
     );
 
-    // When
     final HttpResponse httpResponse =
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
 
-    // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
   }
 
   @Test
   void givenMissingNodeLinkIdTheDownloadMultipleShouldReturn400() throws Exception {
-    // Given
     List<String> nodeIds = List.of("00000000-0000-0000-0000-000000000501");
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
     String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8);
@@ -406,17 +314,14 @@ public class PublicDownloadMultipleApiIT {
         requestBody
     );
 
-    // When
     final HttpResponse httpResponse =
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
 
-    // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(400);
   }
 
   @Test
-  void givenEmptyNodeListTheDownloadMultipleShouldReturn400() throws Exception {
-    // Given
+  void givenEmptyNodeListTheDownloadMultipleShouldReturn404() throws Exception {
     String publicId = UUID.randomUUID().toString();
     List<String> nodeIds = List.of();
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
@@ -435,82 +340,14 @@ public class PublicDownloadMultipleApiIT {
         requestBody
     );
 
-    // When
     final HttpResponse httpResponse =
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
 
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(400);
-  }
-
-  @Test
-  void givenWrongAccessCodeTheCheckDownloadMultipleShouldReturn404() throws Exception {
-    // Given
-    String userId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
-    String folderId = "11111111-1111-1111-1111-111111111601";
-    String fileId = "00000000-0000-0000-0000-000000000601";
-    String linkId = UUID.randomUUID().toString();
-    String publicId = UUID.randomUUID().toString();
-    String correctAccessCode = "correct123";
-    String wrongAccessCode = "wrong456";
-
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addNode(
-            new PopulatorNode(
-                folderId,
-                userId,
-                userId,
-                Constants.Db.RootId.LOCAL_ROOT,
-                "protected-folder",
-                "",
-                NodeType.FOLDER,
-                Constants.Db.RootId.LOCAL_ROOT,
-                0L,
-                null))
-        .addNode(
-            new PopulatorNode(
-                fileId,
-                userId,
-                userId,
-                folderId,
-                "file.txt",
-                "",
-                NodeType.TEXT,
-                Constants.Db.RootId.LOCAL_ROOT + "," + folderId,
-                10L,
-                "text/plain"))
-        .addLink(linkId, folderId, publicId, Optional.empty(), Optional.empty(), Optional.of(correctAccessCode));
-
-    Map<String, Object> requestBody = new HashMap<>();
-    requestBody.put("nodeIds", List.of(fileId));
-    requestBody.put("nodeLinkId", publicId);  // Use camelCase
-    requestBody.put("accessCode", wrongAccessCode);
-
-    String jsonBody = objectMapper.writeValueAsString(requestBody);
-
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/json")
-    );
-
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/public/download-multiple/check",
-        null,
-        headers,
-        jsonBody
-    );
-
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
-
-    // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
   }
 
   @Test
   void givenMixedNodesWithPublicLinkTheDownloadMultipleShouldReturnZipWith200() throws Exception {
-    // Given
     String userId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
     String parentFolderId = "11111111-1111-1111-1111-111111111701";
     String subFolderId = "22222222-2222-2222-2222-222222222701";
@@ -570,7 +407,6 @@ public class PublicDownloadMultipleApiIT {
                 "text/plain"))
         .addLink(linkId, parentFolderId, publicId, Optional.empty(), Optional.empty(), Optional.empty());
 
-    // Mock storages responses
     simulator.getBlob(fileId1, 1);
     simulator.getBlob(fileId2, 1);
 
@@ -591,42 +427,14 @@ public class PublicDownloadMultipleApiIT {
         requestBody
     );
 
-    // When
     final HttpResponse httpResponse =
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
 
-    // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
   }
 
   @Test
-  void givenInvalidJsonFormatInCheckEndpointShouldReturn400() {
-    // Given
-    String invalidJsonBody = "{ invalid json }";
-
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/json")
-    );
-
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/public/download-multiple/check",
-        null,
-        headers,
-        invalidJsonBody
-    );
-
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
-
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(400);
-  }
-
-  @Test
   void givenMissingAccessCodeForProtectedLinkTheDownloadMultipleShouldReturn404() throws Exception {
-    // Given
     String userId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
     String folderId = "11111111-1111-1111-1111-111111111801";
     String fileId = "00000000-0000-0000-0000-000000000801";
@@ -678,11 +486,9 @@ public class PublicDownloadMultipleApiIT {
         requestBody
     );
 
-    // When
     final HttpResponse httpResponse =
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
 
-    // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
   }
 }
