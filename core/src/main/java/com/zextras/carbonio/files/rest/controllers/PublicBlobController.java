@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.exceptions.AccessCodeRequiredException;
@@ -101,28 +102,6 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
     }
   }
 
-  void checkDownloadPublicFile(
-      ChannelHandlerContext context,
-      HttpRequest request,
-      Matcher uriMatched) {
-
-    String nodeId = uriMatched.group(1);
-    String nodeLinkId = uriMatched.group(2);
-    String accessCode = uriMatched.group(3);
-
-    Optional<Node> optNode = blobService.checkDownloadPublicFileById(
-        nodeId, nodeLinkId, accessCode);
-
-    if (optNode.isPresent()) {
-      ChannelFuture future = context.writeAndFlush(
-          HttpResponseBuilder.createNoContentResponse());
-      future.addListener(ChannelFutureListener.CLOSE);
-    } else {
-      context.fireExceptionCaught(new NoSuchElementException(
-          String.format("Node %s not accessible with provided link", nodeId)));
-    }
-  }
-
   void checkDownloadPublicMultiple(
       ChannelHandlerContext context,
       HttpRequest request) {
@@ -144,14 +123,12 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
     try {
       ObjectMapper mapper = new ObjectMapper();
       Map<String, Object> jsonBody = mapper.readValue(
-          bodyContent, new TypeReference<Map<String, Object>>() {
-          });
+          bodyContent, new TypeReference<Map<String, Object>>() {});
 
       nodeIds = mapper.convertValue(
-          jsonBody.get("nodeIds"), new TypeReference<List<String>>() {
-          });
-      nodeLinkId = (String) jsonBody.get("nodeLinkId");
-      accessCode = (String) jsonBody.get("accessCode");
+          jsonBody.get(Constants.API.BodyAttributes.NODE_IDS), new TypeReference<List<String>>() {});
+      nodeLinkId = (String) jsonBody.get(Constants.API.BodyAttributes.NODE_LINK_ID);
+      accessCode = (String) jsonBody.get(Constants.API.BodyAttributes.ACCESS_CODE);
 
     } catch (JsonProcessingException e) {
       context.fireExceptionCaught(
@@ -189,9 +166,9 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
     QueryStringDecoder decoder = new QueryStringDecoder(bodyContent, false);
     Map<String, List<String>> parameters = decoder.parameters();
 
-    List<String> nodeIdsParam = parameters.get("nodeIds");
-    List<String> nodeLinkIdParam = parameters.get("nodeLinkId");
-    List<String> accessCodeParam = parameters.get("accessCode");
+    List<String> nodeIdsParam = parameters.get(Constants.API.BodyAttributes.NODE_IDS);
+    List<String> nodeLinkIdParam = parameters.get(Constants.API.BodyAttributes.NODE_LINK_ID);
+    List<String> accessCodeParam = parameters.get(Constants.API.BodyAttributes.ACCESS_CODE);
 
     if (nodeIdsParam == null || nodeLinkIdParam == null) {
       context.fireExceptionCaught(
@@ -251,6 +228,28 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
             httpRequest.uri());
 
     context.fireExceptionCaught(new NoSuchElementException(errorMessage));
+  }
+
+  void checkDownloadPublicFile(
+      ChannelHandlerContext context,
+      HttpRequest request,
+      Matcher uriMatched) {
+
+    String nodeId = uriMatched.group(1);
+    String nodeLinkId = uriMatched.group(2);
+    String accessCode = uriMatched.group(3);
+
+    Optional<Node> optNode = blobService.checkDownloadPublicFileById(
+        nodeId, nodeLinkId, accessCode);
+
+    if (optNode.isPresent()) {
+      ChannelFuture future = context.writeAndFlush(
+          HttpResponseBuilder.createNoContentResponse());
+      future.addListener(ChannelFutureListener.CLOSE);
+    } else {
+      context.fireExceptionCaught(new NoSuchElementException(
+          String.format("Node %s not accessible with provided link", nodeId)));
+    }
   }
 
   void downloadByNodeId(

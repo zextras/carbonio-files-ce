@@ -1134,6 +1134,8 @@ public final class Constants {
       }
 
       public static final String NODE_IDS = "nodeIds";
+      public static final String ACCESS_CODE = "accessCode";
+      public static final String NODE_LINK_ID = "nodeLinkId";
     }
   }
 
