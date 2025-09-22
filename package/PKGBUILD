@@ -60,20 +60,20 @@ source=(
   "carbonio-files-handle-kv-changes.py"
 )
 sha256sums=(
-  "SKIP"
-  "SKIP"
-  "SKIP"
-  "SKIP"
-  "SKIP"
-  "SKIP"
-  "SKIP"
-  "SKIP"
-  "SKIP"
-  "SKIP"
-  "SKIP"
-  "SKIP"
-  "SKIP"
-  "SKIP"
+  '88099c1d28b2857bab3b3ebfdaf24a21d7bbd6dbb43eca0078d5e8990f8ef687'
+  '1b48886989ad379f5c8ef1024f275a3657801c55cd038fe95ac4c9026ce471a7'
+  '89151c012e0588af6c52625bf393c5b8a331edf39631ab1f4754c7e89f7fe0d4'
+  '96f4a551909cd061e95fe06175ff3e2f35578af77ac677023174098c8f940ed3'
+  'ef9409dc0ff2e5096fefa6b6ee06b0253e7a5005f1600771bf1e1bba36381d20'
+  '92246cdad4debf24f0be23a623e941ab9a13662ad6e2b7af07886b83c3eef09b'
+  'SKIP'
+  'fe0b8af35966e3b07a727f1d2c09e1dc9b8c36e8a396746e40c9198b54df190b'
+  'bc4ae477209ec6c64162749a087cd039269bd087647419648bdfee334c87ced3'
+  '419211cf2a57b235eaa96d50c46212897e5731589bef96e5cf898f732208bd66'
+  '1a1a163fbbca4006ff7951add46d41415fb99948f072a02cd16e408e1fc322da'
+  '28b19e0eadf4afc64bb097878abf666ca4594168c53d03fdb13213e33a31c967'
+  '2fc8cb3533d4a14c7666a91ca5092431ceee469f845feccc20b0b505262da6ec'
+  '6bc85f53bf4470e3251dcb477085336f7e0a674b789f64bb883a4b70603495b4'
 )
 
 backup=(
@@ -153,45 +153,43 @@ build__rocky_9() {
 }
 
 package() {
-  cd "${srcdir}"
-
-  install -Dm 755 carbonio-files \
+  install -Dm755 "${srcdir}/carbonio-files" \
     "${pkgdir}/usr/bin/carbonio-files"
 
-  install -Dm 755 carbonio-files-setup \
+  install -Dm755 "${srcdir}/carbonio-files-setup" \
     "${pkgdir}/usr/bin/carbonio-files-setup"
 
-  install -Dm 755 carbonio-files.jar \
+  install -Dm755 "${srcdir}/carbonio-files.jar" \
     "${pkgdir}/usr/share/carbonio/carbonio-files.jar"
 
-  install -Dm 644 carbonio-files.service \
+  install -Dm644 "${srcdir}/carbonio-files.service" \
     "${pkgdir}/lib/systemd/system/carbonio-files.service"
 
-  install -Dm 644 carbonio-files-sidecar.service \
+  install -Dm644 "${srcdir}/carbonio-files-sidecar.service" \
     "${pkgdir}/lib/systemd/system/carbonio-files-sidecar.service"
 
-  install -Dm 644 carbonio-files.hcl \
+  install -Dm644 "${srcdir}/carbonio-files.hcl" \
     "${pkgdir}/etc/zextras/service-discover/carbonio-files.hcl"
 
-  install -Dm 644 carbonio-files-pending-setup \
+  install -Dm644 "${srcdir}/carbonio-files-pending-setup" \
     "${pkgdir}/etc/zextras/pending-setups.d/carbonio-files.sh"
 
-  install -Dm 644 intentions.json \
+  install -Dm644 "${srcdir}/intentions.json" \
     "${pkgdir}/etc/carbonio/files/service-discover/intentions.json"
 
-  install -Dm 644 policies.json \
+  install -Dm644 "${srcdir}/policies.json" \
     "${pkgdir}/etc/carbonio/files/service-discover/policies.json"
 
-  install -Dm 644 service-protocol.json \
+  install -Dm644 "${srcdir}/service-protocol.json" \
     "${pkgdir}/etc/carbonio/files/service-discover/service-protocol.json"
 
-  install -Dm 644 service-router.json \
+  install -Dm644 "${srcdir}/service-router.json" \
     "${pkgdir}/etc/carbonio/files/service-discover/service-router.json"
 
-  install -Dm 644 carbonio-files-watches.service \
+  install -Dm644 "${srcdir}/carbonio-files-watches.service" \
     "${pkgdir}/lib/systemd/system/carbonio-files-watches.service"
 
-  install -Dm 755 carbonio-files-handle-kv-changes.py \
+  install -Dm755 "${srcdir}/carbonio-files-handle-kv-changes.py" \
     "${pkgdir}/usr/bin/carbonio-files-handle-kv-changes.py"
 }
 
