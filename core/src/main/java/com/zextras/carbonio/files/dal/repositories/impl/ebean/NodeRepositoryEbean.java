@@ -640,7 +640,7 @@ public class NodeRepositoryEbean implements NodeRepository {
         .ne(Db.Node.TYPE, NodeType.FOLDER)
         .ne(Db.Node.TYPE, NodeType.ROOT)
         .ne(Db.Node.HIDDEN, true)
-        .select("sum(size)::Long")
+        .select("coalesce(sum(size), 0)::Long")
         .findSingleAttribute();
 
     return Optional.ofNullable(totalSize);
