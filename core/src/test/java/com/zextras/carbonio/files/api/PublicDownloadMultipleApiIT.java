@@ -25,7 +25,6 @@ import org.mockserver.verify.VerificationTimes;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -490,5 +489,50 @@ public class PublicDownloadMultipleApiIT {
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
 
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
+  }
+
+  @Test
+  void givenEmptyFolderWithPublicLinkTheDownloadMultipleShouldReturn200() throws Exception {
+    String userId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+    String folderId = "11111111-1111-1111-1111-111111111901";
+    String linkId = UUID.randomUUID().toString();
+    String publicId = UUID.randomUUID().toString();
+
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(
+            new PopulatorNode(
+                folderId,
+                userId,
+                userId,
+                Constants.Db.RootId.LOCAL_ROOT,
+                "empty-folder",
+                "",
+                NodeType.FOLDER,
+                Constants.Db.RootId.LOCAL_ROOT,
+                0L,
+                null))
+        .addLink(linkId, folderId, publicId, Optional.empty(), Optional.of("Empty folder link"), Optional.empty());
+
+    List<String> nodeIds = List.of(folderId);
+    String jsonArray = objectMapper.writeValueAsString(nodeIds);
+    String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
+        + "&nodeLinkId=" + publicId;
+
+    List<Map.Entry<String, String>> headers = List.of(
+        Map.entry("Content-Type", "application/x-www-form-urlencoded")
+    );
+
+    final HttpRequest httpRequest = HttpRequest.of(
+        "POST",
+        "/public/download-multiple",
+        null,
+        headers,
+        requestBody
+    );
+
+    final HttpResponse httpResponse =
+        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
   }
 }
