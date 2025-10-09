@@ -18,6 +18,7 @@ import com.zextras.carbonio.files.netty.HttpRoutingHandler;
 import com.zextras.carbonio.files.utilities.MockFilesConfig;
 import com.zextras.carbonio.usermanagement.entities.UserId;
 import com.zextras.carbonio.usermanagement.entities.UserInfo;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
 import com.zextras.carbonio.usermanagement.enumerations.UserType;
 import com.zextras.storages.internal.pojo.Query;
@@ -27,6 +28,7 @@ import io.netty.handler.codec.http.HttpMethod;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.mockserver.client.MockServerClient;
@@ -235,33 +237,21 @@ public class Simulator implements AutoCloseable {
     return this;
   }
 
-  private void validateUser(String cookie, String userId) {
-    userManagementMock
-        .when(
-            HttpRequest.request()
-                .withMethod(HttpMethod.GET.toString())
-                .withPath("/auth/token/" + cookie))
-        .respond(
-            HttpResponse.response()
-                .withStatusCode(200)
-                .withBody("{\"userId\":\"" + userId + "\"}"));
-  }
-
   private void getUser(String cookie, String userId) {
-    final UserInfo userInfo =
-        new UserInfo(
+    final UserMyself userInfo =
+        new UserMyself(
             new UserId(userId),
             "fake-email@example.com",
             "Fake User",
             "example.com",
-            UserStatus.ACTIVE,
+            Locale.ENGLISH,
             UserType.INTERNAL);
 
     userManagementMock
         .when(
             HttpRequest.request()
                 .withMethod(HttpMethod.GET.toString())
-                .withPath("/users/id/" + userId)
+                .withPath("/users/myself/")
                 .withCookie(Cookie.cookie("ZM_AUTH_TOKEN", cookie)))
         .respond(HttpResponse.response().withStatusCode(200).withBody(JsonBody.json(userInfo)));
   }
@@ -496,7 +486,6 @@ public class Simulator implements AutoCloseable {
       simulator.startUserManagement();
       users.forEach(
           (cookie, userId) -> {
-            simulator.validateUser(cookie, userId);
             simulator.getUser(cookie, userId);
           });
       return this;

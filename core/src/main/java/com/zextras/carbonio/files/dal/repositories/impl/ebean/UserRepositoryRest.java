@@ -106,15 +106,4 @@ public class UserRepositoryRest implements UserRepository {
                       })
                   .toJavaOptional());
   }
-
-  @Override
-  public Try<UserId> validateToken(String carbonioUserToken) {
-    return userManagementClient
-        .validateUserToken(carbonioUserToken)
-        .orElse(
-            () -> {
-              logger.info("Non-valid token");
-              return Try.failure(new Exception("Invalid token"));
-            });
-  }
 }

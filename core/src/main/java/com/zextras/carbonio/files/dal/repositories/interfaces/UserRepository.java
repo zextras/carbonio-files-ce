@@ -24,6 +24,4 @@ public interface UserRepository {
   Optional<User> getUserById(String cookies, String userId, boolean ignoreCache);
 
   Optional<User> getUserByEmail(String cookies, String userEmail, boolean ignoreCache);
-
-  Try<UserId> validateToken(String carbonioUserToken);
 }
