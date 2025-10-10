@@ -5,8 +5,13 @@
 package com.zextras.carbonio.files.netty.utilities;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.stream.ChunkedStream;
+import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.io.InputStream;
@@ -64,5 +69,30 @@ public class NettyBufferWriter {
           }
         }
       );
+  }
+
+  public void writeStreamAsChunked(InputStream inputStream) {
+    context.write(new ChunkedStream(inputStream));
+    ChannelFuture lastContentFuture = context.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+    lastContentFuture.addListener(new ChannelFutureListener() {
+      @Override
+      public void operationComplete(ChannelFuture future) {
+        if (future.isSuccess()) {
+          logger.debug("ZIP stream sent successfully");
+        } else {
+          logger.error("Error sending ZIP stream", future.cause());
+        }
+
+        try {
+          inputStream.close();
+        } catch (IOException e) {
+          logger.error("Error closing input stream", e);
+        }
+
+        if (!"keep-alive".equals(context.channel().attr(AttributeKey.valueOf("connection")).get())) {
+          context.close();
+        }
+      }
+    });
   }
 }

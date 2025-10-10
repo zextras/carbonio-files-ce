@@ -29,9 +29,121 @@ paths:
           required: true
           schema:
             type: string
+        - in: query
+          name: access_code
+          description: The access code for protected links
+          required: false
+          schema:
+            type: string
       responses:
         200:
           $ref: '#/components/responses/200DownloadNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        404:
+          $ref: '#/components/responses/404NotFound'
+        503:
+          $ref: '#/components/responses/503BadGateway'
+
+  /download/{nodeId}/check:
+    get:
+      description: Preliminary check for downloading the last version of a node if it has a valid public link associated
+      operationId: checkDownloadNodeLastVersion
+      parameters:
+        - in: path
+          name: nodeId
+          description: The id of the node to download
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: node_link_id
+          description: The id of the node link
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: access_code
+          description: The access code for protected links
+          required: false
+          schema:
+            type: string
+      responses:
+        204:
+          description: Check completed successfully - node is ready for download
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        404:
+          $ref: '#/components/responses/404NotFound'
+        503:
+          $ref: '#/components/responses/503BadGateway'
+
+  /download-multiple:
+    post:
+      description: Downloads multiple nodes by their IDs if they have a valid public link associated
+      operationId: downloadMultipleNodes
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                nodeIds:
+                  type: string
+                  description: JSON stringified array of node IDs
+                  example: '["abc123","def456","ghi789"]'
+                nodeLinkId:
+                  type: string
+                  description: The id of the node link for all nodes
+                accessCode:
+                  type: string
+                  description: The access code for protected links
+                  required: false
+              required:
+                - nodeIds
+                - nodeLinkId
+      responses:
+        200:
+          $ref: '#/components/responses/200DownloadNode'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        404:
+          $ref: '#/components/responses/404NotFound'
+        503:
+          $ref: '#/components/responses/503BadGateway'
+
+  /download-multiple/check:
+    post:
+      description: Preliminary check for downloading multiple nodes by their IDs if they have a valid public link associated
+      operationId: checkDownloadMultipleNodes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nodeIds:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of node IDs
+                  example: [ "abc123","def456","ghi789" ]
+                nodeLinkId:
+                  type: string
+                  description: The id of the node link for all nodes
+                accessCode:
+                  type: string
+                  description: The access code for protected links
+                  required: false
+              required:
+                - nodeIds
+                - nodeLinkId
+      responses:
+        204:
+          description: Check completed successfully - zip is ready for download
         400:
           $ref: '#/components/responses/400BadRequest'
         404:

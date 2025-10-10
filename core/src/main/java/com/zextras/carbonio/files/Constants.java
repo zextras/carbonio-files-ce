@@ -1076,6 +1076,12 @@ public final class Constants {
           SERVICE + "public/download/([a-f\\d\\-]*)/?\\?node_link_id=([a-zA-Z\\d\\-]*)(?:&access_code=([a-zA-Z\\d]*))?/?");
       public static final Pattern COLLABORATION_LINK = Pattern.compile(
           SERVICE + "invite/([\\w]{8})/?$");
+      public static final Pattern DOWNLOAD_PUBLIC_FILE_CHECK = Pattern.compile(
+          SERVICE + "public/download/([a-f\\d\\-]*)/check/?\\?node_link_id=([a-zA-Z\\d\\-]*)(?:&access_code=([a-zA-Z\\d]*))?/?");
+      public static final Pattern DOWNLOAD_PUBLIC_MULTIPLE = Pattern.compile(
+          SERVICE + "public/download-multiple/?$");
+      public static final Pattern DOWNLOAD_PUBLIC_MULTIPLE_CHECK = Pattern.compile(
+          SERVICE + "public/download-multiple/check/?$");
 
       public static final Pattern PREVIEW = Pattern.compile(SERVICE + "preview/(.*)");
       public static final Pattern PREVIEW_IMAGE = Pattern.compile(
@@ -1128,6 +1134,8 @@ public final class Constants {
       }
 
       public static final String NODE_IDS = "nodeIds";
+      public static final String ACCESS_CODE = "accessCode";
+      public static final String NODE_LINK_ID = "nodeLinkId";
     }
   }
 

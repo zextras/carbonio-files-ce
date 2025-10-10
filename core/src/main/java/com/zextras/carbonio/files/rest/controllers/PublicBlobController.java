@@ -4,24 +4,38 @@
 
 package com.zextras.carbonio.files.rest.controllers;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.API.Endpoints;
+import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.exceptions.AccessCodeRequiredException;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.netty.utilities.HttpResponseBuilder;
 import com.zextras.carbonio.files.netty.utilities.NettyBufferWriter;
 import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.*;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.stream.ChunkedStream;
+import io.netty.util.AttributeKey;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.regex.Matcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @ChannelHandler.Sharable
 public class PublicBlobController extends SimpleChannelInboundHandler<HttpRequest> {
@@ -43,6 +57,27 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
           Endpoints.DOWNLOAD_VIA_PUBLIC_LINK.matcher(httpRequest.uri());
       final Matcher downloadPublicFileMatcher =
           Endpoints.DOWNLOAD_PUBLIC_FILE.matcher(httpRequest.uri());
+      final Matcher downloadPublicFileCheckMatcher =
+          Endpoints.DOWNLOAD_PUBLIC_FILE_CHECK.matcher(httpRequest.uri());
+      final Matcher downloadPublicMultipleMatcher =
+          Endpoints.DOWNLOAD_PUBLIC_MULTIPLE.matcher(httpRequest.uri());
+      final Matcher downloadPublicMultipleCheckMatcher =
+          Endpoints.DOWNLOAD_PUBLIC_MULTIPLE_CHECK.matcher(httpRequest.uri());
+
+      if (downloadPublicFileCheckMatcher.find()) {
+        checkDownloadPublicFile(context, httpRequest, downloadPublicFileCheckMatcher);
+        return;
+      }
+
+      if (downloadPublicMultipleCheckMatcher.find()) {
+        checkDownloadPublicMultiple(context, httpRequest);
+        return;
+      }
+
+      if (downloadPublicMultipleMatcher.find()) {
+        downloadPublicMultiple(context, httpRequest);
+        return;
+      }
 
       if (publicLinkMatcher.find()) {
         downloadByPublicLink(context, httpRequest, publicLinkMatcher);
@@ -67,6 +102,104 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
     }
   }
 
+  void checkDownloadPublicMultiple(
+      ChannelHandlerContext context,
+      HttpRequest request) {
+
+    if (!(request instanceof FullHttpRequest fullRequest)) {
+      context.fireExceptionCaught(
+          new IllegalArgumentException("Request must be a FullHttpRequest to read body"));
+      return;
+    }
+
+    ByteBuf content = fullRequest.content();
+    content.retain();
+
+    String bodyContent = content.toString(StandardCharsets.UTF_8);
+    List<String> nodeIds;
+    String nodeLinkId;
+    String accessCode = null;
+
+    try {
+      ObjectMapper mapper = new ObjectMapper();
+      Map<String, Object> jsonBody = mapper.readValue(
+          bodyContent, new TypeReference<Map<String, Object>>() {});
+
+      nodeIds = mapper.convertValue(
+          jsonBody.get(Constants.API.BodyAttributes.NODE_IDS), new TypeReference<List<String>>() {});
+      nodeLinkId = (String) jsonBody.get(Constants.API.BodyAttributes.NODE_LINK_ID);
+      accessCode = (String) jsonBody.get(Constants.API.BodyAttributes.ACCESS_CODE);
+
+    } catch (JsonProcessingException e) {
+      context.fireExceptionCaught(
+          new IllegalArgumentException("Invalid JSON body", e));
+      return;
+    }
+
+    Optional<List<Node>> optNodes = blobService.checkDownloadPublicMultiple(
+        nodeIds, nodeLinkId, accessCode);
+
+    if (optNodes.isPresent()) {
+      ChannelFuture future = context.writeAndFlush(
+          HttpResponseBuilder.createNoContentResponse());
+      future.addListener(ChannelFutureListener.CLOSE);
+    } else {
+      context.fireExceptionCaught(new NoSuchElementException(
+          "Some nodes not accessible with provided link"));
+    }
+  }
+
+  void downloadPublicMultiple(
+      ChannelHandlerContext context,
+      HttpRequest request) {
+
+    if (!(request instanceof FullHttpRequest fullRequest)) {
+      context.fireExceptionCaught(
+          new IllegalArgumentException("Request must be a FullHttpRequest to read body"));
+      return;
+    }
+
+    ByteBuf content = fullRequest.content();
+    content.retain();
+
+    String bodyContent = content.toString(StandardCharsets.UTF_8);
+    QueryStringDecoder decoder = new QueryStringDecoder(bodyContent, false);
+    Map<String, List<String>> parameters = decoder.parameters();
+
+    List<String> nodeIdsParam = parameters.get(Constants.API.BodyAttributes.NODE_IDS);
+    List<String> nodeLinkIdParam = parameters.get(Constants.API.BodyAttributes.NODE_LINK_ID);
+    List<String> accessCodeParam = parameters.get(Constants.API.BodyAttributes.ACCESS_CODE);
+
+    if (nodeIdsParam == null || nodeLinkIdParam == null) {
+      context.fireExceptionCaught(
+          new IllegalArgumentException("Missing required parameters"));
+      return;
+    }
+
+    String nodeIdsJson = nodeIdsParam.get(0);
+    String nodeLinkId = nodeLinkIdParam.get(0);
+    String accessCode = accessCodeParam != null ? accessCodeParam.get(0) : null;
+
+    List<String> nodeIds;
+    try {
+      nodeIds = new ObjectMapper().readValue(
+          nodeIdsJson, new TypeReference<>() {
+          });
+    } catch (JsonProcessingException e) {
+      context.fireExceptionCaught(
+          new IllegalArgumentException("Invalid nodeIds JSON", e));
+      return;
+    }
+
+    BlobResponse blobResponse = blobService.downloadPublicMultiple(
+            nodeIds, nodeLinkId, accessCode)
+        .orElseThrow(() -> new NoSuchElementException(
+            "Nodes not accessible with provided link"));
+
+    context.write(HttpResponseBuilder.createSuccessDownloadHttpResponse(blobResponse));
+    new NettyBufferWriter(context).writeStreamAsChunked(blobResponse.getBlobStream());
+  }
+
   void downloadByPublicLink(
       ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched) {
 
@@ -77,7 +210,7 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
     try {
       blobResponse = blobService.downloadFileByLink(publicLinkId);
     } catch (AccessCodeRequiredException e) {
-      String newRedirectUrl =  "/files/public/link/access/" + publicLinkId;
+      String newRedirectUrl = "/files/public/link/access/" + publicLinkId;
       context.writeAndFlush(HttpResponseBuilder.createRedirectHttpResponse(newRedirectUrl)).addListener(ChannelFutureListener.CLOSE);
       return;
     }
@@ -95,6 +228,28 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
             httpRequest.uri());
 
     context.fireExceptionCaught(new NoSuchElementException(errorMessage));
+  }
+
+  void checkDownloadPublicFile(
+      ChannelHandlerContext context,
+      HttpRequest request,
+      Matcher uriMatched) {
+
+    String nodeId = uriMatched.group(1);
+    String nodeLinkId = uriMatched.group(2);
+    String accessCode = uriMatched.group(3);
+
+    Optional<Node> optNode = blobService.checkDownloadPublicFileById(
+        nodeId, nodeLinkId, accessCode);
+
+    if (optNode.isPresent()) {
+      ChannelFuture future = context.writeAndFlush(
+          HttpResponseBuilder.createNoContentResponse());
+      future.addListener(ChannelFutureListener.CLOSE);
+    } else {
+      context.fireExceptionCaught(new NoSuchElementException(
+          String.format("Node %s not accessible with provided link", nodeId)));
+    }
   }
 
   void downloadByNodeId(
