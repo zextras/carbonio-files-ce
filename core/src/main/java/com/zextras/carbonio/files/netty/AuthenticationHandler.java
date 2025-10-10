@@ -18,6 +18,7 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import io.netty.util.AttributeKey;
+
 import java.util.Optional;
 import java.util.Set;
 
@@ -39,12 +40,12 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
    * <ul>
    *   <li>{@link Constants.API.Headers#COOKIE_ZM_AUTH_TOKEN}
    * </ul>
-   *
+   * <p>
    * If the cookie is valid, it fetches the User that made the request, saves some info in the
    * {@link ChannelHandlerContext} so they can be used by other channels and fires the http request
    * in the next channel of the netty pipeline.
    *
-   * @param context is a {@link ChannelHandlerContext} representing the context of this channel.
+   * @param context     is a {@link ChannelHandlerContext} representing the context of this channel.
    * @param httpRequest is a {@link HttpRequest} representing the request in input.
    */
   @Override
@@ -68,7 +69,7 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
       switch (optCookie.get().name()) {
         case Constants.API.Headers.COOKIE_ZM_AUTH_TOKEN:
           validateAuthTokenAndFetchAccount(
-              context, httpRequest, cookiesString, optCookie.get().value());
+              context, httpRequest, cookiesString);
           break;
         default: // The execution will never reach this point
           break;
@@ -91,55 +92,42 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
    *   <li>Fire the http request in the next channel of the netty pipeline
    * </ul>
    *
-   * @param context is a {@link ChannelHandlerContext} representing the context of this channel.
+   * @param context     is a {@link ChannelHandlerContext} representing the context of this channel.
    * @param httpRequest is a {@link HttpRequest} representing the request in input.
-   * @param cookies is a {@link String} representing all the received cookies
-   * @param zmAuthToken is a {@link String} representing the ZM_AUTH_TOKEN
+   * @param cookies     is a {@link String} representing all the received cookies
    */
-  private void validateAuthTokenAndFetchAccount(
-      ChannelHandlerContext context, HttpRequest httpRequest, String cookies, String zmAuthToken) {
+  private void validateAuthTokenAndFetchAccount(ChannelHandlerContext context, HttpRequest httpRequest, String cookies) {
     userRepository
-        .validateToken(zmAuthToken)
-        .onSuccess(
-            userId -> userRepository
-                .getUserById(cookies, userId.getUserId(), true) // ignore cache here, get fresh copy
-                .ifPresentOrElse(
-                    user -> {
-                      // If user is not active we block interaction with Files
-                      if (!user.getStatus().equals(UserStatus.ACTIVE)) {
-                          context.fireExceptionCaught(
-                              new AuthenticationException(
-                                  String.format(
-                                      UNAUTHORIZED_ERROR_MESSAGE,
-                                      httpRequest.uri(),
-                                      "User is not active")));
-                          return;
-                      }
-                      context
-                          .channel()
-                          .attr(AttributeKey.valueOf(Constants.API.ContextAttribute.REQUESTER))
-                          .set(user);
-                      context
-                          .channel()
-                          .attr(AttributeKey.valueOf(Constants.API.ContextAttribute.COOKIES))
-                          .set(cookies);
-
-                      context.fireChannelRead(httpRequest);
-                    },
-                    () ->
-                        context.fireExceptionCaught(
-                            new AuthenticationException(
-                                String.format(
-                                    UNAUTHORIZED_ERROR_MESSAGE,
-                                    httpRequest.uri(),
-                                    "Unable to find user with id " + userId.getUserId())))))
-        .onFailure(
-            failure ->
+        .getUserMyselfByCookieNotCached(cookies)
+        .ifPresentOrElse(
+            user -> {
+              // If user is not active we block interaction with Files
+              if (!user.getStatus().equals(UserStatus.ACTIVE)) {
                 context.fireExceptionCaught(
                     new AuthenticationException(
                         String.format(
                             UNAUTHORIZED_ERROR_MESSAGE,
                             httpRequest.uri(),
-                            "Invalid ZM_AUTH_TOKEN"))));
+                            "User is not active")));
+                return;
+              }
+              context
+                  .channel()
+                  .attr(AttributeKey.valueOf(Constants.API.ContextAttribute.REQUESTER))
+                  .set(user);
+              context
+                  .channel()
+                  .attr(AttributeKey.valueOf(Constants.API.ContextAttribute.COOKIES))
+                  .set(cookies);
+
+              context.fireChannelRead(httpRequest);
+            },
+            () ->
+                context.fireExceptionCaught(
+                    new AuthenticationException(
+                        String.format(
+                            UNAUTHORIZED_ERROR_MESSAGE,
+                            httpRequest.uri(),
+                            "Unable to find requested user"))));
   }
 }

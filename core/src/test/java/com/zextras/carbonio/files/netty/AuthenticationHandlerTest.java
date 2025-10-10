@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.netty;
 
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.User;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.exceptions.AuthenticationException;
 import com.zextras.carbonio.usermanagement.entities.UserId;
@@ -110,7 +111,7 @@ class AuthenticationHandlerTest {
   @Test
   void givenARequestWithValidZM_AUTH_TOKENAuthenticationHandlerShouldAuthenticateTheRequestCorrectly() {
     // Given
-    User userMock = Mockito.mock(User.class);
+    UserMyself userMock = Mockito.mock(UserMyself.class);
     Attribute<Object> requesterChannelAttributeMock = Mockito.mock(Attribute.class);
     Attribute<Object> cookiesChannelAttributeMock = Mockito.mock(Attribute.class);
 
@@ -120,11 +121,7 @@ class AuthenticationHandlerTest {
       .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
       .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=valid-token");
     Mockito
-      .when(userRepositoryMock.validateToken("valid-token"))
-      .thenReturn(Try.success(new UserId("6c594bb9-f8c7-424f-9320-7bf72daae3e7")));
-    Mockito
-      .when(userRepositoryMock.getUserById("IRIS=ui; ZM_AUTH_TOKEN=valid-token",
-        "6c594bb9-f8c7-424f-9320-7bf72daae3e7", true))
+      .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
       .thenReturn(Optional.of(userMock));
     Mockito
       .when(channelMock.attr(AttributeKey.valueOf("requester")))
@@ -163,7 +160,7 @@ class AuthenticationHandlerTest {
   @Test
   void givenARequestWithValidZM_AUTH_TOKENAndUserMaintenanceAuthenticationHandlerShouldThrow() {
     // Given
-    User userMock = Mockito.mock(User.class);
+    UserMyself userMock = Mockito.mock(UserMyself.class);
     Attribute<Object> requesterChannelAttributeMock = Mockito.mock(Attribute.class);
     Attribute<Object> cookiesChannelAttributeMock = Mockito.mock(Attribute.class);
 
@@ -173,11 +170,7 @@ class AuthenticationHandlerTest {
       .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
       .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=valid-token");
     Mockito
-      .when(userRepositoryMock.validateToken("valid-token"))
-      .thenReturn(Try.success(new UserId("6c594bb9-f8c7-424f-9320-7bf72daae3e7")));
-    Mockito
-      .when(userRepositoryMock.getUserById("IRIS=ui; ZM_AUTH_TOKEN=valid-token",
-        "6c594bb9-f8c7-424f-9320-7bf72daae3e7", true))
+      .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
       .thenReturn(Optional.of(userMock));
     Mockito
       .when(channelMock.attr(AttributeKey.valueOf("requester")))
@@ -214,9 +207,6 @@ class AuthenticationHandlerTest {
     Mockito
       .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
       .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=invalid-token");
-    Mockito
-      .when(userRepositoryMock.validateToken("invalid-token"))
-      .thenReturn(Try.failure(new Throwable()));
 
     ArgumentCaptor<AuthenticationException> captorException = ArgumentCaptor.forClass(
       AuthenticationException.class);
@@ -236,7 +226,7 @@ class AuthenticationHandlerTest {
 
     Assertions
       .assertThat(captorException.getValue().getMessage())
-      .isEqualTo("Failed to authenticate request /test/: Invalid ZM_AUTH_TOKEN");
+      .isEqualTo("Failed to authenticate request /test/: Unable to find requested user");
   }
 
   @Test
@@ -247,11 +237,7 @@ class AuthenticationHandlerTest {
       .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
       .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=valid-token");
     Mockito
-      .when(userRepositoryMock.validateToken("valid-token"))
-      .thenReturn(Try.success(new UserId("6c594bb9-f8c7-424f-9320-7bf72daae3e7")));
-    Mockito
-      .when(userRepositoryMock.getUserById("IRIS=ui; ZM_AUTH_TOKEN=valid-token",
-        "6c594bb9-f8c7-424f-9320-7bf72daae3e7", true))
+      .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
       .thenReturn(Optional.empty());
 
     ArgumentCaptor<AuthenticationException> captorException = ArgumentCaptor.forClass(
@@ -273,6 +259,6 @@ class AuthenticationHandlerTest {
     Assertions
       .assertThat(captorException.getValue().getMessage())
       .isEqualTo(
-        "Failed to authenticate request /test/: Unable to find user with id 6c594bb9-f8c7-424f-9320-7bf72daae3e7");
+        "Failed to authenticate request /test/: Unable to find requested user");
   }
 }
