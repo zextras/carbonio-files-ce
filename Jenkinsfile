@@ -58,14 +58,14 @@ pipeline {
             }
             steps {
                 script {
-                    String commentMessage = ""
-                    String commitTitle = env.CHANGE_TITLE ? env.CHANGE_TITLE : ""
-                    if (!commitTitle.contains("chore(release)") && !readFile('package/PKGBUILD').trim().contains('SNAPSHOT')) {
-                        commentMessage = "Please increase the micro version in the `pkgver` and add a **SNAPSHOT** label to the `pkgrel`."
+                    String commentMessage = ''
+                    String commitTitle = env.CHANGE_TITLE ? env.CHANGE_TITLE : ''
+                    if (!commitTitle.contains('chore(release)') && !readFile('package/PKGBUILD').trim().contains('SNAPSHOT')) {
+                        commentMessage = 'Please increase the micro version in the `pkgver` and add a **SNAPSHOT** label to the `pkgrel`.'
                     }
 
-                    if (commitTitle.contains("chore(release)") && readFile('package/PKGBUILD').trim().contains('SNAPSHOT')) {
-                        commentMessage = "Please remove the **SNAPSHOT** label to the `pkgrel`."
+                    if (commitTitle.contains('chore(release)') && readFile('package/PKGBUILD').trim().contains('SNAPSHOT')) {
+                        commentMessage = 'Please remove the **SNAPSHOT** label to the `pkgrel`.'
                     }
 
                     if (commentMessage) {
@@ -88,12 +88,18 @@ pipeline {
 
         stage('Build jar') {
             steps {
-                container('jdk-17') {
-                    sh """
-                        mvn ${MVN_OPTS} clean package
-                        cp -a boot/target/carbonio-files-*-jar-with-dependencies.jar package/carbonio-files.jar
-                        cp -a package/watches/* package/
-                    """
+                script {
+                    def profile = '-P dev'
+                    if (env.TAG_NAME) {
+                        profile = '-P prod'
+                    }
+                    container('jdk-17') {
+                        sh """
+                            mvn ${MVN_OPTS} clean package ${profile}
+                            cp -a boot/target/carbonio-files-*-jar-with-dependencies.jar package/carbonio-files.jar
+                            cp -a package/watches/* package/
+                        """
+                    }
                 }
             }
         }
@@ -136,7 +142,7 @@ pipeline {
         stage('Build and Publish Docker Image') {
             when {
                 not {
-                    expression { env.BRANCH_NAME.startsWith("PR-") }
+                    expression { env.BRANCH_NAME.startsWith('PR-') }
                 }
             }
 
