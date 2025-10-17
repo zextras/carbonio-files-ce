@@ -21,7 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <groupId>com.zextras.carbonio.files</groupId>
   <artifactId>carbonio-files-ce</artifactId>
-  <version>0.17.1-SNAPSHOT</version>
+  <version>${revision}${changelist}</version>
   <packaging>pom</packaging>
 
   <name>carbonio-files-ce</name>
@@ -32,6 +32,8 @@ SPDX-License-Identifier: AGPL-3.0-only
   </modules>
 
   <properties>
+    <!-- Maven CI Friendly properties -->
+    <revision>0.17.1</revision>
     <!-- Dependencies -->
     <assertj.version>3.27.3</assertj.version>
     <caffeine.version>3.2.0</caffeine.version>
@@ -83,6 +85,23 @@ SPDX-License-Identifier: AGPL-3.0-only
     <skip.jacoco.full.report.generation>true</skip.jacoco.full.report.generation>
   </properties>
 
+  <profiles>
+    <profile>
+      <id>dev</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <properties>
+        <changelist>-SNAPSHOT</changelist>
+      </properties>
+    </profile>
+    <profile>
+      <id>prod</id>
+      <properties>
+        <changelist></changelist>
+      </properties>
+    </profile>
+  </profiles>
   <dependencyManagement>
     <dependencies>
       <!-- Guice dependencies -->
