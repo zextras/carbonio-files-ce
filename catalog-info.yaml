@@ -15,7 +15,7 @@ metadata:
     - java
     - backend
   links:
-    - url: https://github.com/Zextras/carbonio-files-ce/blob/develop/README.md
+    - url: https://github.com/Zextras/carbonio-files-ce/blob/devel/README.md
       title: README
 spec:
   type: service
@@ -46,7 +46,7 @@ spec:
   lifecycle: production
   owner: shuffled-waffles
   definition:
-    $text: https://github.com/Zextras/carbonio-files-ce/blob/develop/core/src/main/resources/api/rest.yaml
+    $text: https://github.com/Zextras/carbonio-files-ce/blob/devel/core/src/main/resources/api/rest.yaml
 
 ---
 
@@ -63,7 +63,7 @@ spec:
   lifecycle: production
   owner: shuffled-waffles
   definition:
-    $text: https://github.com/Zextras/carbonio-files-ce/blob/develop/core/src/main/resources/api/schema.graphql
+    $text: https://github.com/Zextras/carbonio-files-ce/blob/devel/core/src/main/resources/api/schema.graphql
 
 ---
 
@@ -80,7 +80,7 @@ spec:
   lifecycle: production
   owner: shuffled-waffles
   definition:
-    $text: https://github.com/Zextras/carbonio-files-ce/blob/develop/core/src/main/resources/api/public-rest.yaml
+    $text: https://github.com/Zextras/carbonio-files-ce/blob/devel/core/src/main/resources/api/public-rest.yaml
 
 ---
 
@@ -97,4 +97,4 @@ spec:
   lifecycle: production
   owner: shuffled-waffles
   definition:
-    $text: https://github.com/Zextras/carbonio-files-ce/blob/develop/core/src/main/resources/api/public-schema.graphql
+    $text: https://github.com/Zextras/carbonio-files-ce/blob/devel/core/src/main/resources/api/public-schema.graphql
