@@ -9,8 +9,8 @@ import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.exceptions.AuthenticationException;
-import com.zextras.carbonio.usermanagement.entities.UserId;
 import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
+import com.zextras.carbonio.usermanagement.enumerations.UserType;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -18,22 +18,21 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
-import io.vavr.control.Try;
-import java.util.Optional;
-
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import java.util.Optional;
+
 class AuthenticationHandlerTest {
 
-  private UserRepository        userRepositoryMock;
+  private UserRepository userRepositoryMock;
   private ChannelHandlerContext channelHandlerContextMock;
-  private Channel               channelMock;
-  private HttpRequest           httpRequestMock;
-  private HttpHeaders           httpHeadersMock;
+  private Channel channelMock;
+  private HttpRequest httpRequestMock;
+  private HttpHeaders httpHeadersMock;
 
   @BeforeEach
   void initTest() {
@@ -54,7 +53,7 @@ class AuthenticationHandlerTest {
     // Given
     Mockito.when(httpHeadersMock.contains(HttpHeaderNames.COOKIE)).thenReturn(false);
     ArgumentCaptor<AuthenticationException> captorException =
-      ArgumentCaptor.forClass(AuthenticationException.class);
+        ArgumentCaptor.forClass(AuthenticationException.class);
 
     AuthenticationHandler authenticationHandler = new AuthenticationHandler(userRepositoryMock);
 
@@ -63,15 +62,15 @@ class AuthenticationHandlerTest {
 
     // Then
     Mockito
-      .verify(channelHandlerContextMock, Mockito.times(0))
-      .fireChannelRead(httpRequestMock);
+        .verify(channelHandlerContextMock, Mockito.times(0))
+        .fireChannelRead(httpRequestMock);
     Mockito
-      .verify(channelHandlerContextMock, Mockito.times(1))
-      .fireExceptionCaught(captorException.capture());
+        .verify(channelHandlerContextMock, Mockito.times(1))
+        .fireExceptionCaught(captorException.capture());
 
     Assertions
-      .assertThat(captorException.getValue().getMessage())
-      .isEqualTo("Failed to authenticate request /test/: Missing cookies");
+        .assertThat(captorException.getValue().getMessage())
+        .isEqualTo("Failed to authenticate request /test/: Missing cookies");
   }
 
   /**
@@ -85,10 +84,10 @@ class AuthenticationHandlerTest {
     // Given
     Mockito.when(httpHeadersMock.contains(HttpHeaderNames.COOKIE)).thenReturn(true);
     Mockito
-      .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
-      .thenReturn("IRIS=ui, UNMANAGED_TOKEN=fake");
+        .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
+        .thenReturn("IRIS=ui, UNMANAGED_TOKEN=fake");
     ArgumentCaptor<AuthenticationException> captorException =
-      ArgumentCaptor.forClass(AuthenticationException.class);
+        ArgumentCaptor.forClass(AuthenticationException.class);
 
     AuthenticationHandler authenticationHandler = new AuthenticationHandler(userRepositoryMock);
 
@@ -97,15 +96,15 @@ class AuthenticationHandlerTest {
 
     // Then
     Mockito
-      .verify(channelHandlerContextMock, Mockito.times(0))
-      .fireChannelRead(httpRequestMock);
+        .verify(channelHandlerContextMock, Mockito.times(0))
+        .fireChannelRead(httpRequestMock);
     Mockito
-      .verify(channelHandlerContextMock, Mockito.times(1))
-      .fireExceptionCaught(captorException.capture());
+        .verify(channelHandlerContextMock, Mockito.times(1))
+        .fireExceptionCaught(captorException.capture());
 
     Assertions
-      .assertThat(captorException.getValue().getMessage())
-      .isEqualTo("Failed to authenticate request /test/: Missing cookies");
+        .assertThat(captorException.getValue().getMessage())
+        .isEqualTo("Failed to authenticate request /test/: Missing cookies");
   }
 
   @Test
@@ -116,19 +115,20 @@ class AuthenticationHandlerTest {
     Attribute<Object> cookiesChannelAttributeMock = Mockito.mock(Attribute.class);
 
     Mockito.when(userMock.getStatus()).thenReturn(UserStatus.ACTIVE);
+    Mockito.when(userMock.getType()).thenReturn(UserType.INTERNAL);
     Mockito.when(httpHeadersMock.contains(HttpHeaderNames.COOKIE)).thenReturn(true);
     Mockito
-      .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
-      .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=valid-token");
+        .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
+        .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=valid-token");
     Mockito
-      .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
-      .thenReturn(Optional.of(userMock));
+        .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
+        .thenReturn(Optional.of(userMock));
     Mockito
-      .when(channelMock.attr(AttributeKey.valueOf("requester")))
-      .thenReturn(requesterChannelAttributeMock);
+        .when(channelMock.attr(AttributeKey.valueOf("requester")))
+        .thenReturn(requesterChannelAttributeMock);
     Mockito
-      .when(channelMock.attr(AttributeKey.valueOf("cookies")))
-      .thenReturn(cookiesChannelAttributeMock);
+        .when(channelMock.attr(AttributeKey.valueOf("cookies")))
+        .thenReturn(cookiesChannelAttributeMock);
 
     ArgumentCaptor<User> captorUserInChannelContext = ArgumentCaptor.forClass(User.class);
     ArgumentCaptor<String> captorCookieInChannelContext = ArgumentCaptor.forClass(String.class);
@@ -140,21 +140,21 @@ class AuthenticationHandlerTest {
 
     // Then
     Mockito
-      .verify(channelHandlerContextMock, Mockito.times(1))
-      .fireChannelRead(httpRequestMock);
+        .verify(channelHandlerContextMock, Mockito.times(1))
+        .fireChannelRead(httpRequestMock);
     Mockito
-      .verify(requesterChannelAttributeMock, Mockito.times(1))
-      .set(captorUserInChannelContext.capture());
+        .verify(requesterChannelAttributeMock, Mockito.times(1))
+        .set(captorUserInChannelContext.capture());
     Mockito
-      .verify(cookiesChannelAttributeMock, Mockito.times(1))
-      .set(captorCookieInChannelContext.capture());
+        .verify(cookiesChannelAttributeMock, Mockito.times(1))
+        .set(captorCookieInChannelContext.capture());
 
     Assertions
-      .assertThat(captorUserInChannelContext.getValue())
-      .isEqualTo(userMock);
+        .assertThat(captorUserInChannelContext.getValue())
+        .isEqualTo(userMock);
     Assertions
-      .assertThat(captorCookieInChannelContext.getValue())
-      .isEqualTo("IRIS=ui; ZM_AUTH_TOKEN=valid-token");
+        .assertThat(captorCookieInChannelContext.getValue())
+        .isEqualTo("IRIS=ui; ZM_AUTH_TOKEN=valid-token");
   }
 
   @Test
@@ -165,22 +165,23 @@ class AuthenticationHandlerTest {
     Attribute<Object> cookiesChannelAttributeMock = Mockito.mock(Attribute.class);
 
     Mockito.when(userMock.getStatus()).thenReturn(UserStatus.MAINTENANCE);
+    Mockito.when(userMock.getType()).thenReturn(UserType.INTERNAL);
     Mockito.when(httpHeadersMock.contains(HttpHeaderNames.COOKIE)).thenReturn(true);
     Mockito
-      .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
-      .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=valid-token");
+        .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
+        .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=valid-token");
     Mockito
-      .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
-      .thenReturn(Optional.of(userMock));
+        .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
+        .thenReturn(Optional.of(userMock));
     Mockito
-      .when(channelMock.attr(AttributeKey.valueOf("requester")))
-      .thenReturn(requesterChannelAttributeMock);
+        .when(channelMock.attr(AttributeKey.valueOf("requester")))
+        .thenReturn(requesterChannelAttributeMock);
     Mockito
-      .when(channelMock.attr(AttributeKey.valueOf("cookies")))
-      .thenReturn(cookiesChannelAttributeMock);
+        .when(channelMock.attr(AttributeKey.valueOf("cookies")))
+        .thenReturn(cookiesChannelAttributeMock);
 
     ArgumentCaptor<AuthenticationException> captorException = ArgumentCaptor.forClass(
-      AuthenticationException.class);
+        AuthenticationException.class);
 
     AuthenticationHandler authenticationHandler = new AuthenticationHandler(userRepositoryMock);
 
@@ -189,15 +190,15 @@ class AuthenticationHandlerTest {
 
     // Then
     Mockito
-      .verify(channelHandlerContextMock, Mockito.times(0))
-      .fireChannelRead(httpRequestMock);
+        .verify(channelHandlerContextMock, Mockito.times(0))
+        .fireChannelRead(httpRequestMock);
     Mockito
-      .verify(channelHandlerContextMock, Mockito.times(1))
-      .fireExceptionCaught(captorException.capture());
+        .verify(channelHandlerContextMock, Mockito.times(1))
+        .fireExceptionCaught(captorException.capture());
 
     Assertions
-      .assertThat(captorException.getValue().getMessage())
-      .isEqualTo("Failed to authenticate request /test/: User is not active");
+        .assertThat(captorException.getValue().getMessage())
+        .isEqualTo("Failed to authenticate request /test/: User is not active");
   }
 
   @Test
@@ -205,11 +206,11 @@ class AuthenticationHandlerTest {
     // Given
     Mockito.when(httpHeadersMock.contains(HttpHeaderNames.COOKIE)).thenReturn(true);
     Mockito
-      .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
-      .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=invalid-token");
+        .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
+        .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=invalid-token");
 
     ArgumentCaptor<AuthenticationException> captorException = ArgumentCaptor.forClass(
-      AuthenticationException.class);
+        AuthenticationException.class);
 
     AuthenticationHandler authenticationHandler = new AuthenticationHandler(userRepositoryMock);
 
@@ -218,15 +219,15 @@ class AuthenticationHandlerTest {
 
     // Then
     Mockito
-      .verify(channelHandlerContextMock, Mockito.times(0))
-      .fireChannelRead(httpRequestMock);
+        .verify(channelHandlerContextMock, Mockito.times(0))
+        .fireChannelRead(httpRequestMock);
     Mockito
-      .verify(channelHandlerContextMock, Mockito.times(1))
-      .fireExceptionCaught(captorException.capture());
+        .verify(channelHandlerContextMock, Mockito.times(1))
+        .fireExceptionCaught(captorException.capture());
 
     Assertions
-      .assertThat(captorException.getValue().getMessage())
-      .isEqualTo("Failed to authenticate request /test/: Unable to find requested user");
+        .assertThat(captorException.getValue().getMessage())
+        .isEqualTo("Failed to authenticate request /test/: Unable to find requested user");
   }
 
   @Test
@@ -234,14 +235,14 @@ class AuthenticationHandlerTest {
     // Given
     Mockito.when(httpHeadersMock.contains(HttpHeaderNames.COOKIE)).thenReturn(true);
     Mockito
-      .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
-      .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=valid-token");
+        .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
+        .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=valid-token");
     Mockito
-      .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
-      .thenReturn(Optional.empty());
+        .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
+        .thenReturn(Optional.empty());
 
     ArgumentCaptor<AuthenticationException> captorException = ArgumentCaptor.forClass(
-      AuthenticationException.class);
+        AuthenticationException.class);
 
     AuthenticationHandler authenticationHandler = new AuthenticationHandler(userRepositoryMock);
 
@@ -250,15 +251,59 @@ class AuthenticationHandlerTest {
 
     // Then
     Mockito
-      .verify(channelHandlerContextMock, Mockito.times(0))
-      .fireChannelRead(httpRequestMock);
+        .verify(channelHandlerContextMock, Mockito.times(0))
+        .fireChannelRead(httpRequestMock);
     Mockito
-      .verify(channelHandlerContextMock, Mockito.times(1))
-      .fireExceptionCaught(captorException.capture());
+        .verify(channelHandlerContextMock, Mockito.times(1))
+        .fireExceptionCaught(captorException.capture());
 
     Assertions
-      .assertThat(captorException.getValue().getMessage())
-      .isEqualTo(
-        "Failed to authenticate request /test/: Unable to find requested user");
+        .assertThat(captorException.getValue().getMessage())
+        .isEqualTo(
+            "Failed to authenticate request /test/: Unable to find requested user");
+  }
+
+  @Test
+  void givenARequestWithValidZM_AUTH_TOKENAndGuestUserAuthenticationHandlerShouldThrow() {
+    // Given
+    UserMyself userMock = Mockito.mock(UserMyself.class);
+    Attribute<Object> requesterChannelAttributeMock = Mockito.mock(Attribute.class);
+    Attribute<Object> cookiesChannelAttributeMock = Mockito.mock(Attribute.class);
+
+    Mockito.when(userMock.getStatus()).thenReturn(UserStatus.ACTIVE);
+    Mockito.when(userMock.getType()).thenReturn(UserType.GUEST);
+    Mockito.when(httpHeadersMock.contains(HttpHeaderNames.COOKIE)).thenReturn(true);
+    Mockito
+        .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
+        .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=guest-token");
+    Mockito
+        .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=guest-token"))
+        .thenReturn(Optional.of(userMock));
+    Mockito
+        .when(channelMock.attr(AttributeKey.valueOf("requester")))
+        .thenReturn(requesterChannelAttributeMock);
+    Mockito
+        .when(channelMock.attr(AttributeKey.valueOf("cookies")))
+        .thenReturn(cookiesChannelAttributeMock);
+
+    ArgumentCaptor<AuthenticationException> captorException = ArgumentCaptor.forClass(
+        AuthenticationException.class);
+
+    AuthenticationHandler authenticationHandler = new AuthenticationHandler(userRepositoryMock);
+
+    // When
+    authenticationHandler.channelRead0(channelHandlerContextMock, httpRequestMock);
+
+    // Then
+    Mockito
+        .verify(channelHandlerContextMock, Mockito.times(0))
+        .fireChannelRead(httpRequestMock);
+    Mockito
+        .verify(channelHandlerContextMock, Mockito.times(1))
+        .fireExceptionCaught(captorException.capture());
+
+    Assertions
+        .assertThat(captorException.getValue().getMessage())
+        .isEqualTo("Failed to authenticate request /test/: User is not internal");
   }
 }

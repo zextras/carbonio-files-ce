@@ -9,6 +9,7 @@ import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.exceptions.AuthenticationException;
 import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
+import com.zextras.carbonio.usermanagement.enumerations.UserType;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -109,6 +110,16 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
                             UNAUTHORIZED_ERROR_MESSAGE,
                             httpRequest.uri(),
                             "User is not active")));
+                return;
+              }
+              // If user is a guest we block interaction with Files
+              if (user.getType().equals(UserType.GUEST)) {
+                context.fireExceptionCaught(
+                    new AuthenticationException(
+                        String.format(
+                            UNAUTHORIZED_ERROR_MESSAGE,
+                            httpRequest.uri(),
+                            "User is not internal")));
                 return;
               }
               context
