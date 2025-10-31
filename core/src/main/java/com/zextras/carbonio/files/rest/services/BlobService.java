@@ -10,7 +10,6 @@ import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
@@ -24,6 +23,7 @@ import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.utilities.MimeTypeUtils;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.UploadResponse;
 import com.zextras.filestore.model.FilesIdentifier;
@@ -96,14 +96,14 @@ public class BlobService {
 
   public Optional<List<Node>> checkDownloadMultiple(
       List<String> nodeIds,
-      User requester
+      UserMyself requester
   ) {
     return checkDownloadMultipleInternal(
         nodeIds,
-        node -> permissionsChecker.getPermissions(node.getId(), requester.getId()).has(SharePermission.READ_ONLY),
-        nodeId -> nodeRepository.calculateRelativeFolderSize(nodeId, requester.getId())
+        node -> permissionsChecker.getPermissions(node.getId(), requester.getId().getUserId()).has(SharePermission.READ_ONLY),
+        nodeId -> nodeRepository.calculateRelativeFolderSize(nodeId, requester.getId().getUserId())
             .orElseThrow(() -> new ZipGenerationException("Can't calculate size of folder " + nodeId)),
-        requester.getId()
+        requester.getId().getUserId()
     );
   }
 
@@ -195,12 +195,12 @@ public class BlobService {
 
   public Optional<BlobResponse> downloadMultiple(
       List<String> nodeIds,
-      User requester
+      UserMyself requester
   ) {
     Optional<List<Node>> optNodes = checkDownloadMultiple(nodeIds, requester);
     return optNodes.flatMap(nodes -> createZip(
         nodes,
-        node -> permissionsChecker.getPermissions(node.getId(), requester.getId()).has(SharePermission.READ_ONLY)
+        node -> permissionsChecker.getPermissions(node.getId(), requester.getId().getUserId()).has(SharePermission.READ_ONLY)
     ));
   }
 
@@ -219,10 +219,10 @@ public class BlobService {
 
   public Optional<Node> checkDownloadFileById(
       String nodeId,
-      User requester
+      UserMyself requester
   ) {
     if (permissionsChecker
-        .getPermissions(nodeId, requester.getId())
+        .getPermissions(nodeId, requester.getId().getUserId())
         .has(SharePermission.READ_ONLY)
     ) {
       Node node = nodeRepository.getNode(nodeId).get();
@@ -277,7 +277,7 @@ public class BlobService {
   public Optional<BlobResponse> downloadFileById(
       String nodeId,
       @Nullable Integer version,
-      User requester
+      UserMyself requester
   ) {
     Optional<Node> optNode = checkDownloadFileById(nodeId, requester);
     return optNode.flatMap(node -> downloadFile(nodeId, version));
@@ -323,7 +323,7 @@ public class BlobService {
 
   public Optional<String> uploadFile(
       String requesterId,
-      Optional<User> requesterEntity,
+      Optional<UserMyself> requesterEntity,
       BufferInputStream bufferInputStream,
       long blobLength,
       String folderId,
@@ -447,7 +447,7 @@ public class BlobService {
   }
 
   public Optional<Integer> uploadFileVersion(
-      User requester,
+      UserMyself requester,
       BufferInputStream bufferInputStream,
       long blobLength,
       String nodeId,
@@ -456,7 +456,7 @@ public class BlobService {
   ) {
 
     if (permissionsChecker
-        .getPermissions(nodeId, requester.getId())
+        .getPermissions(nodeId, requester.getId().getUserId())
         .has(SharePermission.READ_AND_WRITE)
     ) {
       List<FileVersion> allFileVersion = fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
@@ -571,7 +571,7 @@ public class BlobService {
   }
 
   private Optional<Integer> uploadFileVersionOperation(
-      User requester,
+      UserMyself requester,
       BufferInputStream bufferInputStream,
       long blobLength,
       Node node,
@@ -587,7 +587,7 @@ public class BlobService {
       if (overwrite) {
         uploadResponse = fileStore
             .uploadPut(
-                FilesIdentifier.of(nodeId, versionToUpload, requester.getId()),
+                FilesIdentifier.of(nodeId, versionToUpload, requester.getId().getUserId()),
                 bufferInputStream,
                 blobLength
             );
@@ -599,7 +599,7 @@ public class BlobService {
         versionToUpload += 1;
         uploadResponse = fileStore
             .uploadPost(
-                FilesIdentifier.of(nodeId, versionToUpload, requester.getId()),
+                FilesIdentifier.of(nodeId, versionToUpload, requester.getId().getUserId()),
                 bufferInputStream,
                 blobLength
             );
@@ -624,7 +624,7 @@ public class BlobService {
     try (Transaction t = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
       Optional<FileVersion> result = fileVersionRepository.createNewFileVersion(
           nodeId,
-          requester.getId(),
+          requester.getId().getUserId(),
           versionToUpload,
           mediaType.toString(),
           uploadResponse.getSize(),
@@ -632,7 +632,7 @@ public class BlobService {
           false
       );
       node.setSize(uploadResponse.getSize());
-      node.setLastEditorId(requester.getId());
+      node.setLastEditorId(requester.getId().getUserId());
       node.setCurrentVersion(versionToUpload);
       nodeRepository.updateNode(node);
 

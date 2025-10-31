@@ -4,7 +4,6 @@
 
 package com.zextras.carbonio.files.dal.repositories.interfaces;
 
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.*;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.UserNotificationInterest;
@@ -13,6 +12,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.Sna
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.UserNotificationsInfo;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.RemovedNodeType;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import io.ebean.annotation.Transactional;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
@@ -46,11 +46,11 @@ public interface NotificationRepository {
   UserNotificationInterest createUserNotification(UserNotificationsInfo userNotificationsInfo, BaseNotification notification);
 
   @Transactional
-  NewShareNotification createNewShareNotification(Node node, User triggeringUser, List<String> usersIdsToNotify);
+  NewShareNotification createNewShareNotification(Node node, UserMyself triggeringUser, List<String> usersIdsToNotify);
 
   @Transactional
-  AddedNodeNotification createAddedNodeNotification(Node addedNode, Node destinationNode, User triggeringUser, AddedNodeType type, List<String> usersIdsToNotify);
+  AddedNodeNotification createAddedNodeNotification(Node addedNode, Node destinationNode, UserMyself triggeringUser, AddedNodeType type, List<String> usersIdsToNotify);
 
   @Transactional
-  RemovedNodeNotification createRemovedNodeNotification(Node removedNode, Node originNode, User triggeringUser, RemovedNodeType type, List<String> usersIdsToNotify);
+  RemovedNodeNotification createRemovedNodeNotification(Node removedNode, Node originNode, UserMyself triggeringUser, RemovedNodeType type, List<String> usersIdsToNotify);
 }

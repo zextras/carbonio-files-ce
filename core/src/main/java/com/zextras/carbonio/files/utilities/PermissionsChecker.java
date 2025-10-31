@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.utilities;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
@@ -15,7 +14,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 
 /**
- * Manages the relationship of permissions between a {@link Node} and a {@link User}. Thanks to the
+ * Manages the relationship of permissions between a {@link Node} and a {@link com.zextras.carbonio.usermanagement.entities.UserMyself}. Thanks to the
  * {@link NodeRepository} and the {@link ShareRepository} this calculation is fast because it's done
  * at run-time and doesn't overload the database with complex request.
  */
@@ -42,7 +41,7 @@ public class PermissionsChecker {
   }
 
   /**
-   * <p>Calculates the {@link ACL} of a {@link Node} for a specific {@link User}.</p>
+   * <p>Calculates the {@link ACL} of a {@link Node} for a specific {@link com.zextras.carbonio.usermanagement.entities.UserMyself}.</p>
    * <p>The algorithm is very simple: if the user is the owner/creator of the node then it returns
    * the {@link ACL#OWNER} permissions, this means that the user can do anything with this node;
    * otherwise it checks if the node is shared with the user. It finds one then returns the

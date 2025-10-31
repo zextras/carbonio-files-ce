@@ -5,10 +5,9 @@
 package com.zextras.carbonio.files.netty;
 
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.dal.dao.User;
-import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.exceptions.AuthenticationException;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
 import com.zextras.carbonio.usermanagement.enumerations.UserType;
 import io.netty.channel.Channel;
@@ -24,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import java.util.Map;
 import java.util.Optional;
 
 class AuthenticationHandlerTest {
@@ -116,6 +116,7 @@ class AuthenticationHandlerTest {
 
     Mockito.when(userMock.getStatus()).thenReturn(UserStatus.ACTIVE);
     Mockito.when(userMock.getType()).thenReturn(UserType.INTERNAL);
+    Mockito.when(userMock.getCarbonioAttributes()).thenReturn(Map.of("carbonioFeatureFilesEnabled", "TRUE"));
     Mockito.when(httpHeadersMock.contains(HttpHeaderNames.COOKIE)).thenReturn(true);
     Mockito
         .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
@@ -130,7 +131,7 @@ class AuthenticationHandlerTest {
         .when(channelMock.attr(AttributeKey.valueOf("cookies")))
         .thenReturn(cookiesChannelAttributeMock);
 
-    ArgumentCaptor<User> captorUserInChannelContext = ArgumentCaptor.forClass(User.class);
+    ArgumentCaptor<UserMyself> captorUserInChannelContext = ArgumentCaptor.forClass(UserMyself.class);
     ArgumentCaptor<String> captorCookieInChannelContext = ArgumentCaptor.forClass(String.class);
 
     AuthenticationHandler authenticationHandler = new AuthenticationHandler(userRepositoryMock);

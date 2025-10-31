@@ -8,7 +8,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants.API.ContextAttribute;
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
@@ -18,6 +17,7 @@ import com.zextras.carbonio.files.rest.types.UploadAttachmentResponse;
 import com.zextras.carbonio.files.rest.types.UploadToRequest;
 import com.zextras.carbonio.files.rest.types.UploadToRequest.TargetModule;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import com.zextras.carbonio.usermanagement.exceptions.BadRequest;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -87,7 +87,7 @@ public class ProcedureController extends SimpleChannelInboundHandler<FullHttpReq
     FullHttpRequest httpRequest
   ) {
 
-    final User requester = (User) context
+    final UserMyself requester = (UserMyself) context
       .channel()
       .attr(AttributeKey.valueOf(ContextAttribute.REQUESTER))
       .get();
@@ -115,7 +115,7 @@ public class ProcedureController extends SimpleChannelInboundHandler<FullHttpReq
     }
 
     if (permissionsChecker
-      .getPermissions(bodyRequest.getNodeId().toString(), requester.getId())
+      .getPermissions(bodyRequest.getNodeId().toString(), requester.getId().getUserId())
       .has(SharePermission.READ_ONLY)
     ) {
       procedureService

@@ -13,13 +13,13 @@ import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.CreateCollab
 import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.DeleteCollaborationLinks;
 import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.GetCollaborationLink;
 import com.zextras.carbonio.files.Constants.GraphQL.Node;
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import graphql.execution.DataFetcherResult;
 import graphql.execution.ResultPath;
 import graphql.schema.DataFetcher;
@@ -84,11 +84,11 @@ public class CollaborationLinkDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> createCollaborationLink() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
-      User requester = environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
+      UserMyself requester = environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
       String nodeId = environment.getArgument(CreateCollaborationLink.NODE_ID);
       SharePermission permissions = environment.getArgument(CreateCollaborationLink.PERMISSION);
 
-      if (permissionsChecker.getPermissions(nodeId, requester.getId()).has(permissions)) {
+      if (permissionsChecker.getPermissions(nodeId, requester.getId().getUserId()).has(permissions)) {
 
         // If there is an existing collaboration link having the same permission then the system
         // returns it, otherwise it creates a new collaboration link
@@ -117,7 +117,7 @@ public class CollaborationLinkDataFetcher {
   public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> getCollaborationLinksByNodeId() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
-      User requester = environment.getGraphQlContext().get(Context.REQUESTER);
+      UserMyself requester = environment.getGraphQlContext().get(Context.REQUESTER);
       Optional<Map<String, String>> optLocalContext =
         Optional.ofNullable(environment.getLocalContext());
 
@@ -125,7 +125,7 @@ public class CollaborationLinkDataFetcher {
         ? optLocalContext.get().get(Node.ID)
         : environment.getArgument(GetCollaborationLink.NODE_ID);
 
-      ACL permissions = permissionsChecker.getPermissions(nodeId, requester.getId());
+      ACL permissions = permissionsChecker.getPermissions(nodeId, requester.getId().getUserId());
 
       if (permissions.has(SharePermission.READ_AND_SHARE)
         || permissions.has(SharePermission.READ_WRITE_AND_SHARE)
@@ -153,7 +153,7 @@ public class CollaborationLinkDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<List<String>>>> deleteCollaborationLinks() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
-      User requester = environment.getGraphQlContext().get(Context.REQUESTER);
+      UserMyself requester = environment.getGraphQlContext().get(Context.REQUESTER);
       List<String> collaborationIds =
         environment.getArgument(DeleteCollaborationLinks.COLLABORATION_LINK_IDS);
 
@@ -163,7 +163,7 @@ public class CollaborationLinkDataFetcher {
           .getLinkById(UUID.fromString(collaborationId))
           .filter(collaborationLink -> {
             ACL requesterPermission = permissionsChecker
-              .getPermissions(collaborationLink.getNodeId(), requester.getId());
+              .getPermissions(collaborationLink.getNodeId(), requester.getId().getUserId());
 
             return requesterPermission.has(SharePermission.READ_WRITE_AND_SHARE) ||
               requesterPermission.has(SharePermission.READ_AND_SHARE);

@@ -9,7 +9,6 @@ import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.GraphQL.Context;
 import com.zextras.carbonio.files.Constants.GraphQL.NotificationPage;
 import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.AddedNodeNotification;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.BaseNotification;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.NewShareNotification;
@@ -21,6 +20,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.Sna
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.RemovedNodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
 import graphql.execution.DataFetcherResult.Builder;
@@ -161,8 +161,8 @@ public class NotificationDataFetcher {
 
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, String>>>> getNotificationsFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
-      String requesterId = ((User) environment.getGraphQlContext()
-          .get(Context.REQUESTER)).getId();
+      String requesterId = ((UserMyself) environment.getGraphQlContext()
+          .get(Context.REQUESTER)).getId().getUserId();
 
       Boolean updateLastSeen = environment.getArgument(Constants.GraphQL.InputParameters.UPDATE_LAST_SEEN);
       Optional<Integer> optLimit = Optional.ofNullable(

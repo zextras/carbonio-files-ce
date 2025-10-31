@@ -13,7 +13,6 @@ import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.API.Endpoints;
 import com.zextras.carbonio.files.Constants.API.Headers;
 import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.exceptions.FileSizeException;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
@@ -23,6 +22,7 @@ import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.UploadVersionResponse;
 import com.zextras.carbonio.files.tasks.PrometheusService;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
@@ -121,7 +121,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   }
 
   private void checkDownloadMultiple(ChannelHandlerContext context, HttpRequest request) {
-    User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
+    UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
     if (!(request instanceof FullHttpRequest fullRequest)) {
       context.fireExceptionCaught(new IllegalArgumentException("Request must be a FullHttpRequest to read body"));
@@ -173,7 +173,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   }
 
   private void checkDownload(ChannelHandlerContext context, HttpRequest request, Matcher uriMatched) {
-    User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
+    UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
     String nodeId = uriMatched.group(1);
     Optional<Node> optNode =
@@ -192,7 +192,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   }
 
   private void downloadMultiple(ChannelHandlerContext context, HttpRequest request) {
-    User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
+    UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
     if (!(request instanceof FullHttpRequest fullRequest)) {
       context.fireExceptionCaught(new IllegalArgumentException("Request must be a FullHttpRequest to read body"));
@@ -245,7 +245,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   }
 
   private void download(ChannelHandlerContext context, HttpRequest request, Matcher uriMatched) {
-    User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
+    UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
     String nodeId = uriMatched.group(1);
     Integer version = Optional.ofNullable(uriMatched.group(2)).map(Integer::parseInt).orElse(null);
@@ -277,15 +277,15 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   }
 
   private void uploadFile(ChannelHandlerContext context, HttpRequest httpRequest) {
-    User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
+    UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
     if (isRequestSizeOverLimit(httpRequest)) {
       context.fireExceptionCaught(new FileSizeException("File size exceeds the maximum allowed"));
       return;
     }
-    doUploadFile(context, httpRequest, requester.getId(), Optional.of(requester));
+    doUploadFile(context, httpRequest, requester.getId().getUserId(), Optional.of(requester));
   }
 
-  private void doUploadFile(ChannelHandlerContext context, HttpRequest httpRequest, String requestedId, Optional<User> requesterEntity) {
+  private void doUploadFile(ChannelHandlerContext context, HttpRequest httpRequest, String requestedId, Optional<UserMyself> requesterEntity) {
     String parentId =
         Optional.ofNullable(httpRequest.headers().getAsString(Constants.API.Headers.UPLOAD_PARENT_ID))
             .orElse(Constants.Db.RootId.LOCAL_ROOT);
@@ -353,7 +353,7 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       return;
     }
 
-    User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
+    UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
     boolean overwrite =
         Boolean.parseBoolean(httpRequest.headers().getAsString(Headers.UPLOAD_OVERWRITE_VERSION));
     long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));

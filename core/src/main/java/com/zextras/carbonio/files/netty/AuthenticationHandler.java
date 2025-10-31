@@ -122,6 +122,18 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
                             "User is not internal")));
                 return;
               }
+              // If user doesn't have the Files' feature enabled we block interaction with Files (if not present default on FALSE)
+              String carbonioFeatureFilesEnabled = user.getCarbonioAttributes().getOrDefault("carbonioFeatureFilesEnabled", "FALSE");
+              if (carbonioFeatureFilesEnabled.equals("FALSE")) {
+                context.fireExceptionCaught(
+                    new AuthenticationException(
+                        String.format(
+                            UNAUTHORIZED_ERROR_MESSAGE,
+                            httpRequest.uri(),
+                            "User is not internal")));
+                return;
+              }
+
               context
                   .channel()
                   .attr(AttributeKey.valueOf(Constants.API.ContextAttribute.REQUESTER))

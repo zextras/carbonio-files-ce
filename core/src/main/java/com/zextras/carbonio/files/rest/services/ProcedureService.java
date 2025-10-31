@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.rest.services;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.clients.MailboxHttpClient;
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
@@ -15,6 +14,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.rest.types.UploadToRequest.TargetModule;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.FilesIdentifier;
 import io.vavr.control.Try;
@@ -58,7 +58,7 @@ public class ProcedureService {
    *
    * @param nodeId is a {@link String} of the node id to upload.
    * @param targetModule is a {@link TargetModule} representing the module to upload.
-   * @param requester is a {@link User} representing the requester of this operation.
+   * @param requester is a {@link UserMyself} representing the requester of this operation.
    * @param cookiesRequester is a {@link String} representing the requester cookies necessary to
    *     perform the upload operation.
    * @return a {@link Try} containing a {@link String} representing the mailbox attachment id
@@ -71,7 +71,7 @@ public class ProcedureService {
    *     </ul>
    */
   public Try<String> uploadToModule(
-      UUID nodeId, TargetModule targetModule, User requester, String cookiesRequester) {
+      UUID nodeId, TargetModule targetModule, UserMyself requester, String cookiesRequester) {
 
     if (!targetModule.equals(TargetModule.CHATS)) {
       Node nodeToUpload = nodeRepository.getNode(nodeId.toString()).get();
@@ -83,7 +83,7 @@ public class ProcedureService {
           blob =
               fileStoreClient.download(
                   FilesIdentifier.of(
-                      nodeId.toString(), nodeToUpload.getCurrentVersion(), requester.getId()));
+                      nodeId.toString(), nodeToUpload.getCurrentVersion(), requester.getId().getUserId()));
         } catch (Exception exception) {
           logger.error(MessageFormat.format("Failed to download the node: {0}", nodeId));
           return Try.failure(new InternalServerErrorException(exception));

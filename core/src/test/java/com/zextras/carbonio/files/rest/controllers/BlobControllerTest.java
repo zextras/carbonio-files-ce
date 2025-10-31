@@ -4,11 +4,11 @@
 
 package com.zextras.carbonio.files.rest.controllers;
 
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.tasks.PrometheusService;
 import com.zextras.carbonio.files.utilities.MockFilesConfig;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -57,7 +57,7 @@ public class BlobControllerTest {
     Integer version
   ) {
     // Given
-    User userMock = Mockito.mock(User.class);
+    UserMyself userMock = Mockito.mock(UserMyself.class);
 
     ChannelHandlerContext contextMock = Mockito.mock(
       ChannelHandlerContext.class,

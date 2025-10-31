@@ -5,8 +5,8 @@
 package com.zextras.carbonio.files.cache;
 
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
+import com.zextras.carbonio.usermanagement.entities.UserInfo;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,7 +16,7 @@ class CacheHandlerTest {
 
   private CacheHandlerFactory cacheHandlerFactory;
   private LocalCacheAdapter<FileVersion> fileVersionCache;
-  private LocalCacheAdapter<User> userCache;
+  private LocalCacheAdapter<UserInfo> userCache;
 
   @BeforeEach
   void setUp() {
@@ -55,7 +55,7 @@ class CacheHandlerTest {
     CacheHandler cacheHandler = new CacheHandler(cacheHandlerFactory);
 
     // When
-    Cache<User> userCache = cacheHandler.getUserCache();
+    Cache<UserInfo> userCache = cacheHandler.getUserCache();
 
     // Then
     Assertions.assertThat(userCache.size()).isZero();

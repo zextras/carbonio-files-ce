@@ -8,10 +8,10 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.GetAccountsByEmail;
 import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.GetUser;
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
+import com.zextras.carbonio.usermanagement.entities.UserInfo;
 import graphql.execution.AbortExecutionException;
 import graphql.execution.DataFetcherResult;
 import graphql.execution.ResultPath;
@@ -89,7 +89,7 @@ public class UserDataFetcher {
       );
   }
 
-  private DataFetcherResult<Map<String, Object>> convertUserToDataFetcherResult(User user) {
+  private DataFetcherResult<Map<String, Object>> convertUserToDataFetcherResult(UserInfo user) {
     Map<String, Object> result = new HashMap<>();
     result.put(Constants.GraphQL.User.ID, user.getId());
     result.put(Constants.GraphQL.User.EMAIL, user.getEmail());
@@ -114,9 +114,9 @@ public class UserDataFetcher {
    *    If not present it tries to extrapolates the node id from the GraphQL localContext
    *    created by the previous {@link DataFetcher}, retrieving the specific key from the schema field requested.
    *  </li>
-   *  <li>It fetches the {@link User}</li>
+   *  <li>It fetches the {@link UserInfo}</li>
    *  <li>
-   *    It converts the {@link User} to a {@link HashMap} containing all the GraphQL attributes of the
+   *    It converts the {@link UserInfo} to a {@link HashMap} containing all the GraphQL attributes of the
    *    User defined in the schema. If the user does not exist the {@link HashMap} reference will be <code>null</code>
    *  </li>
    * </ul>
@@ -254,9 +254,9 @@ public class UserDataFetcher {
    *  <li>
    *    It fetches the account by the email specified in the GraphQL request.
    *  </li>
-   *  <li>It fetches the {@link User} by email</li>
+   *  <li>It fetches the {@link UserInfo} by email</li>
    *  <li>
-   *    It converts the {@link User} to a {@link HashMap} containing all the GraphQL attributes of the
+   *    It converts the {@link UserInfo} to a {@link HashMap} containing all the GraphQL attributes of the
    *    Account defined in the schema. If the account does not exist the {@link HashMap} reference will be <code>null</code>
    *  </li>
    * </ul>
@@ -277,8 +277,8 @@ public class UserDataFetcher {
   }
 
   /**
-   * This {@link DataFetcher} fetches {@link User} accounts given their email and it converts each
-   * {@link User} to a {@link HashMap} containing all the GraphQL attributes of the acccount defined
+   * This {@link DataFetcher} fetches {@link UserInfo} accounts given their email and it converts each
+   * {@link UserInfo} to a {@link HashMap} containing all the GraphQL attributes of the acccount defined
    * in the schema. If the account does not exist the {@link HashMap} reference will be
    * <code>null</code>
    *
