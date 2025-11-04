@@ -7,7 +7,6 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.*;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationType;
@@ -18,6 +17,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.Sna
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.RemovedNodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import io.ebean.annotation.Transactional;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.slf4j.Logger;
@@ -201,11 +201,11 @@ public class NotificationRepositoryEbean implements NotificationRepository {
         .findOneOrEmpty();
   }
 
-  private SnapshotUser createSnapshottedUser(User user) {
+  private SnapshotUser createSnapshottedUser(UserMyself user) {
     SnapshotUser snapshotUser = new SnapshotUser(
         UUID.randomUUID().toString(),
         System.currentTimeMillis(),
-        user.getId(),
+        user.getId().getUserId(),
         user.getFullName(),
         user.getEmail()
     );
@@ -290,9 +290,9 @@ public class NotificationRepositoryEbean implements NotificationRepository {
     return snapshotNodeRef.get();
   }
 
-  private SnapshotUser conditionallySnapshotUser(User user) {
+  private SnapshotUser conditionallySnapshotUser(UserMyself user) {
     AtomicReference<SnapshotUser> snapshotUserRef = new AtomicReference<>();
-    getLatestSnapshotOfUser(user.getId()).ifPresentOrElse(
+    getLatestSnapshotOfUser(user.getId().getUserId()).ifPresentOrElse(
         snap -> {
           // check if identical, if not still create a snapshot
           if (snap.representUser(user)) {
@@ -336,7 +336,7 @@ public class NotificationRepositoryEbean implements NotificationRepository {
   // Will not comment the others since they are very similar.
   @Override
   @Transactional
-  public NewShareNotification createNewShareNotification(Node sharedNode, User triggeringUser, List<String> usersIdsToNotify) {
+  public NewShareNotification createNewShareNotification(Node sharedNode, UserMyself triggeringUser, List<String> usersIdsToNotify) {
     // FIRST STEP: SNAPSHOT THE NODE AND THE TRIGGERING USER
     SnapshotNode snapshotNode = conditionallySnapshotNode(sharedNode);
     SnapshotUser snapshotUser = conditionallySnapshotUser(triggeringUser);
@@ -355,7 +355,7 @@ public class NotificationRepositoryEbean implements NotificationRepository {
 
   @Override
   @Transactional
-  public AddedNodeNotification createAddedNodeNotification(Node addedNode, Node destinationNode, User triggeringUser, AddedNodeType type, List<String> usersIdsToNotify) {
+  public AddedNodeNotification createAddedNodeNotification(Node addedNode, Node destinationNode, UserMyself triggeringUser, AddedNodeType type, List<String> usersIdsToNotify) {
     // FIRST STEP: SNAPSHOT THE NODES AND THE TRIGGERING USER
     SnapshotNode snapshotAddedNode = conditionallySnapshotNode(addedNode);
     SnapshotNode snapshotDestinationNode = conditionallySnapshotNode(destinationNode);
@@ -377,7 +377,7 @@ public class NotificationRepositoryEbean implements NotificationRepository {
 
   @Override
   @Transactional
-  public RemovedNodeNotification createRemovedNodeNotification(Node removedNode, Node originNode, User triggeringUser, RemovedNodeType type, List<String> usersIdsToNotify) {
+  public RemovedNodeNotification createRemovedNodeNotification(Node removedNode, Node originNode, UserMyself triggeringUser, RemovedNodeType type, List<String> usersIdsToNotify) {
     // FIRST STEP: SNAPSHOT THE NODES AND THE TRIGGERING USER
     SnapshotNode snapshotRemovedNode = conditionallySnapshotNode(removedNode);
     SnapshotNode snapshotOriginNode = conditionallySnapshotNode(originNode);

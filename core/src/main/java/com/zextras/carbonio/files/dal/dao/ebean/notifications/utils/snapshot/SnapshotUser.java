@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot;
 
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.dal.dao.User;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import io.ebean.annotation.Cache;
 
 import javax.persistence.Column;
@@ -43,9 +43,9 @@ public class SnapshotUser {
     this.email = email;
   }
 
-  public boolean representUser(User user) {
+  public boolean representUser(UserMyself user) {
     try {
-      return Objects.equals(this.userId, user.getId())
+      return Objects.equals(this.userId, user.getId().getUserId())
           && Objects.equals(this.fullName, user.getFullName())
           && Objects.equals(this.email, user.getEmail());
     } catch (Exception e) {

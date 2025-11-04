@@ -17,7 +17,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.netty.HttpRoutingHandler;
 import com.zextras.carbonio.files.utilities.MockFilesConfig;
 import com.zextras.carbonio.usermanagement.entities.UserId;
-import com.zextras.carbonio.usermanagement.entities.UserInfo;
 import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
 import com.zextras.carbonio.usermanagement.enumerations.UserType;
@@ -244,8 +243,10 @@ public class Simulator implements AutoCloseable {
             "fake-email@example.com",
             "Fake User",
             "example.com",
+            UserStatus.ACTIVE,
             Locale.ENGLISH,
-            UserType.INTERNAL);
+            UserType.INTERNAL,
+            Map.of("carbonioFeatureFilesEnabled", "TRUE"));
 
     userManagementMock
         .when(

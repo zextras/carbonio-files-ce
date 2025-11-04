@@ -6,10 +6,7 @@ package com.zextras.carbonio.files.rest.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.API.Endpoints;
-import com.zextras.carbonio.files.dal.dao.User;
-import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -25,6 +22,7 @@ import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
 import com.zextras.carbonio.files.utilities.MimeTypeUtils;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -97,20 +95,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       Matcher previewDocumentMatcher = Endpoints.PREVIEW_DOCUMENT.matcher((uriRequest));
       Matcher thumbnailDocumentMatcher = Endpoints.THUMBNAIL_DOCUMENT.matcher((uriRequest));
 
-      /*
-       get the user with updated lang tag for every preview request.
-       if this was cached so would be the lang tag resulting in incorrect preview if user changes
-       language and then requests a preview
-      */
-      HttpHeaders headersRequest = httpRequest.headers();
-      String cookiesString = headersRequest.get(HttpHeaderNames.COOKIE);
-
-      UserMyself requester = userRepository
-          .getUserMyselfByCookieNotCached(cookiesString)
-          .orElse(UserMyself.mapFromUser((User) context
-              .channel()
-              .attr(AttributeKey.valueOf(Constants.API.ContextAttribute.REQUESTER))
-              .get()));
+      UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
       logger.debug("Requester locale: {}", requester.getLocale());
 
@@ -171,10 +156,10 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    *
    * @param context     is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester   is a {@link User}, to check if the requester has the permission to view file.
+   * @param requester   is a {@link UserMyself}, to check if the requester has the permission to view file.
    */
   private void previewImage(
-      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, User requester) {
+      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, UserMyself requester) {
 
     String nodeId = uriMatched.group(1);
     String previewArea = uriMatched.group(2);
@@ -183,7 +168,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
-            requester.getId(),
+            requester.getId().getUserId(),
             nodeId,
             queryParameters.getNodeVersion().orElse(null),
             Collections.singleton("image/"));
@@ -215,10 +200,10 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    *
    * @param context     is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester   is a {@link User}, to check if the requester has the permission to view file.
+   * @param requester   is a {@link UserMyself}, to check if the requester has the permission to view file.
    */
   private void thumbnailImage(
-      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, User requester) {
+      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, UserMyself requester) {
     String nodeId = uriMatched.group(1);
     String previewArea = uriMatched.group(2);
 
@@ -226,7 +211,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
-            requester.getId(),
+            requester.getId().getUserId(),
             nodeId,
             queryParameters.getNodeVersion().orElse(null),
             Collections.singleton("image/"));
@@ -258,10 +243,10 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    *
    * @param context     is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester   is a {@link User}, to check if the requester has the permission to view file.
+   * @param requester   is a {@link UserMyself}, to check if the requester has the permission to view file.
    */
   private void previewPdf(
-      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, User requester) {
+      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, UserMyself requester) {
 
     String nodeId = uriMatched.group(1);
 
@@ -269,7 +254,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
-            requester.getId(),
+            requester.getId().getUserId(),
             nodeId,
             queryParameters.getNodeVersion().orElse(null),
             Collections.singleton("application/pdf"));
@@ -303,7 +288,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    * @param requester   is a {@link UserMyself}, to check if the requester has the permission to view file.
    */
   private void thumbnailPdf(
-      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, User requester) {
+      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, UserMyself requester) {
 
     String nodeId = uriMatched.group(1);
     String area = uriMatched.group(2);
@@ -312,7 +297,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
-            requester.getId(),
+            requester.getId().getUserId(),
             nodeId,
             queryParameters.getNodeVersion().orElse(null),
             Collections.singleton("application/pdf"));
@@ -361,7 +346,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
-            requester.getId(),
+            requester.getId().getUserId(),
             nodeId,
             queryParameters.getNodeVersion().orElse(null),
             documentAllowedTypes);
@@ -410,7 +395,7 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
 
     Try<Pair<Node, FileVersion>> tryCheckNode =
         checkNodePermissionAndExistence(
-            requester.getId(),
+            requester.getId().getUserId(),
             nodeId,
             queryParameters.getNodeVersion().orElse(null),
             documentAllowedTypes);

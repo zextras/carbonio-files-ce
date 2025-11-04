@@ -7,8 +7,9 @@ package com.zextras.carbonio.files.cache;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
+import com.zextras.carbonio.usermanagement.entities.UserInfo;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -56,9 +57,9 @@ public class CacheHandler {
   }
 
   /**
-   * @return the instance of the {@link Cache<User>}
+   * @return the instance of the {@link Cache<UserInfo>}
    */
-  public Cache<User> getUserCache() {
+  public Cache<UserInfo> getUserCache() {
     return caches.get(Constants.Cache.USER);
   }
 

@@ -5,7 +5,6 @@
 package com.zextras.carbonio.files.rest.services;
 
 import com.zextras.carbonio.files.clients.MailboxHttpClient;
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
@@ -14,6 +13,8 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.rest.types.UploadToRequest.TargetModule;
+import com.zextras.carbonio.usermanagement.entities.UserId;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
 import com.zextras.carbonio.usermanagement.enumerations.UserType;
 import com.zextras.filestore.api.Filestore;
@@ -21,6 +22,8 @@ import com.zextras.filestore.model.FilesIdentifier;
 import io.vavr.control.Try;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.commons.io.IOUtils;
@@ -57,9 +60,9 @@ class ProcedureServiceTest {
       givenADownloadableFileAndTheMailsTargetModuleTheUploadToShouldReturnTheAttachmentIdOfTheFileUploadedToMails()
           throws Exception {
     // Given
-    final User requester =
-        new User(
-            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "", "", "", UserStatus.ACTIVE, UserType.INTERNAL);
+    final UserMyself requester =
+        new UserMyself(
+            new UserId("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "", "", "", UserStatus.ACTIVE, Locale.ENGLISH, UserType.INTERNAL, Map.of("carbonioFeatureFilesEnabled", "TRUE"));
 
     final Node nodeMock = Mockito.mock(Node.class);
     Mockito.when(nodeMock.getNodeType()).thenReturn(NodeType.TEXT);
@@ -107,9 +110,9 @@ class ProcedureServiceTest {
   @Test
   void givenANotDownloadableFileTheUploadToShouldReturnATryFailure() throws Exception {
     // Given
-    final User requester =
-        new User(
-            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "", "", "", UserStatus.ACTIVE, UserType.INTERNAL);
+    final UserMyself requester =
+        new UserMyself(
+            new UserId("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "", "", "", UserStatus.ACTIVE, Locale.ENGLISH, UserType.INTERNAL, Map.of("carbonioFeatureFilesEnabled", "TRUE"));
 
     final Node nodeMock = Mockito.mock(Node.class);
     Mockito.when(nodeMock.getNodeType()).thenReturn(NodeType.TEXT);
@@ -153,9 +156,9 @@ class ProcedureServiceTest {
   void givenADownloadableFileAndAnUnreachableMailboxTheUploadToShouldReturnATryFailure()
       throws Exception {
     // Given
-    final User requester =
-        new User(
-            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "", "", "", UserStatus.ACTIVE, UserType.INTERNAL);
+    final UserMyself requester =
+        new UserMyself(
+            new UserId("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "", "", "", UserStatus.ACTIVE, Locale.ENGLISH, UserType.INTERNAL, Map.of("carbonioFeatureFilesEnabled", "TRUE"));
 
     final Node nodeMock = Mockito.mock(Node.class);
     Mockito.when(nodeMock.getNodeType()).thenReturn(NodeType.TEXT);
@@ -208,7 +211,7 @@ class ProcedureServiceTest {
         procedureService.uploadToModule(
             UUID.fromString("00000000-0000-0000-0000-000000000000"),
             TargetModule.CHATS,
-            Mockito.mock(User.class),
+            Mockito.mock(UserMyself.class),
             "fake-cookie");
 
     // Then
@@ -238,7 +241,7 @@ class ProcedureServiceTest {
         procedureService.uploadToModule(
             UUID.fromString("00000000-0000-0000-0000-000000000000"),
             TargetModule.MAILS,
-            Mockito.mock(User.class),
+            Mockito.mock(UserMyself.class),
             "fake-cookie");
 
     // Then

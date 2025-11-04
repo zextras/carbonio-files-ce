@@ -9,7 +9,6 @@ import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.API.Endpoints;
 import com.zextras.carbonio.files.Constants.GraphQL;
 import com.zextras.carbonio.files.Constants.GraphQL.InputParameters;
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -20,6 +19,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import graphql.execution.DataFetcherResult;
 import graphql.execution.ResultPath;
 import graphql.schema.DataFetcher;
@@ -131,12 +131,12 @@ public class LinkDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> createLink() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
-      User requester = environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
+      UserMyself requester = environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
       String nodeId = environment.getArgument(Constants.GraphQL.InputParameters.Link.NODE_ID);
 
       Optional<Node> optNode = nodeRepository.getNode(nodeId);
       if (permissionsChecker
-        .getPermissions(nodeId, requester.getId())
+        .getPermissions(nodeId, requester.getId().getUserId())
         .has(SharePermission.READ_AND_SHARE)
         && optNode.isPresent() && optNode.get().getNodeType() != NodeType.ROOT
       ) {
@@ -173,7 +173,7 @@ public class LinkDataFetcher {
 
   public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> getLinks() {
     return environment -> CompletableFuture.supplyAsync(() -> {
-      User requester = environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
+      UserMyself requester = environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
       Optional<Map<String, String>> optLocalContext = Optional
         .ofNullable(environment.getLocalContext());
 
@@ -184,7 +184,7 @@ public class LinkDataFetcher {
       Optional<Node> optNode = nodeRepository.getNode(nodeId);
 
       return permissionsChecker
-        .getPermissions(nodeId, requester.getId())
+        .getPermissions(nodeId, requester.getId().getUserId())
         .has(SharePermission.READ_AND_SHARE) && optNode.isPresent()
         ? linkRepository
         .getLinksByNodeId(nodeId, LinkSort.CREATED_AT_DESC)
@@ -205,12 +205,12 @@ public class LinkDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> updateLink() {
     return environment -> CompletableFuture.supplyAsync(() -> {
       ResultPath path = environment.getExecutionStepInfo().getPath();
-      User requester = environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
+      UserMyself requester = environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
       String linkId = environment.getArgument(Constants.GraphQL.InputParameters.Link.LINK_ID);
 
       return linkRepository.getLinkById(linkId)
         .filter(link -> permissionsChecker
-          .getPermissions(link.getNodeId(), requester.getId())
+          .getPermissions(link.getNodeId(), requester.getId().getUserId())
           .has(SharePermission.READ_AND_SHARE)
         )
         .map(link -> {
@@ -255,9 +255,9 @@ public class LinkDataFetcher {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
       ResultPath path = environment.getExecutionStepInfo().getPath();
-      String requesterId = ((User) environment
+      String requesterId = ((UserMyself) environment
         .getGraphQlContext()
-        .get(Constants.GraphQL.Context.REQUESTER)).getId();
+        .get(Constants.GraphQL.Context.REQUESTER)).getId().getUserId();
       List<String> linkIds = environment.getArgument(InputParameters.Link.LINK_IDS);
 
       List<String> linkIdsToDelete = linkIds

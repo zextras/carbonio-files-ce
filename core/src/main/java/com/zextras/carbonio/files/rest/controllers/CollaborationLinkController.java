@@ -6,8 +6,8 @@ package com.zextras.carbonio.files.rest.controllers;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants.API.Endpoints;
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.rest.services.CollaborationLinkService;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -46,10 +46,10 @@ public class CollaborationLinkController extends SimpleChannelInboundHandler<Htt
     try {
       if (collaborationLinkMatcher.find()) {
         String invitationId = collaborationLinkMatcher.group(1);
-        User requester = (User) context.channel().attr(AttributeKey.valueOf("requester")).get();
+        UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
         collaborationLinkService
-          .createShareByInvitationId(invitationId, requester.getId())
+          .createShareByInvitationId(invitationId, requester.getId().getUserId())
           .onSuccess(sharedNode -> {
             FullHttpResponse response = new DefaultFullHttpResponse(
               httpRequest.protocolVersion(),

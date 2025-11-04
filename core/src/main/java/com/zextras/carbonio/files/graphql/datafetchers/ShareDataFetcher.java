@@ -8,7 +8,6 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.GraphQL.DataLoaders;
 import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.dal.dao.User;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
@@ -19,6 +18,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import graphql.execution.AbortExecutionException;
 import graphql.execution.DataFetcherResult;
 import graphql.execution.DataFetcherResult.Builder;
@@ -120,8 +120,8 @@ public class ShareDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> createShareFetcher() {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
-      User requesterUser = (User) environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
-      String requesterId = requesterUser.getId();
+      UserMyself requesterUser = (UserMyself) environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
+      String requesterId = requesterUser.getId().getUserId();
       String sharedNodeId = environment.getArgument(Constants.GraphQL.InputParameters.Share.NODE_ID);
       String targetUserId = environment.getArgument(
         Constants.GraphQL.InputParameters.Share.SHARE_TARGET_ID
@@ -233,8 +233,8 @@ public class ShareDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> getShareFetcher() {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
-      String requesterId = ((User) environment.getGraphQlContext()
-        .get(Constants.GraphQL.Context.REQUESTER)).getId();
+      String requesterId = ((UserMyself) environment.getGraphQlContext()
+        .get(Constants.GraphQL.Context.REQUESTER)).getId().getUserId();
       String sharedNodeId = environment.getArgument(Constants.GraphQL.InputParameters.Share.NODE_ID);
       String targetUserId = environment.getArgument(
         Constants.GraphQL.InputParameters.Share.SHARE_TARGET_ID);
@@ -327,8 +327,8 @@ public class ShareDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> updateShareFetcher() {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
-      String requesterId = ((User) environment.getGraphQlContext()
-        .get(Constants.GraphQL.Context.REQUESTER)).getId();
+      String requesterId = ((UserMyself) environment.getGraphQlContext()
+        .get(Constants.GraphQL.Context.REQUESTER)).getId().getUserId();
       String sharedNodeId = environment.getArgument(Constants.GraphQL.InputParameters.Share.NODE_ID);
       String targetUserId = environment.getArgument(
         Constants.GraphQL.InputParameters.Share.SHARE_TARGET_ID);
@@ -391,8 +391,8 @@ public class ShareDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<Boolean>>> deleteShareFetcher() {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
-      String requesterId = ((User) environment.getGraphQlContext()
-        .get(Constants.GraphQL.Context.REQUESTER)).getId();
+      String requesterId = ((UserMyself) environment.getGraphQlContext()
+        .get(Constants.GraphQL.Context.REQUESTER)).getId().getUserId();
       final String sharedNodeId = environment.getArgument(
         Constants.GraphQL.InputParameters.Share.NODE_ID);
       final String targetUserId = environment.getArgument(
