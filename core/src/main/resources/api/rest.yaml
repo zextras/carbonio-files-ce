@@ -6,7 +6,7 @@ openapi: 3.0.3
 info:
   title: Files API
   description: Files API to upload, download blobs and to retrieve a link of a specific node.
-  version: 0.3.0
+  version: latest
 servers:
   - url: 'https://example.com/services/files/'
 tags:
