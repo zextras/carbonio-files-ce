@@ -1,3 +1,16 @@
+## [0.18.0](https://github.com/zextras/carbonio-files-ce/compare/v0.17.0...v0.18.0) (2025-11-11)
+
+### Features
+
+* enable folder download via public link ([#187](https://github.com/zextras/carbonio-files-ce/issues/187)) ([094a865](https://github.com/zextras/carbonio-files-ce/commit/094a865139378a40c5cecac6fb58948972da6078))
+
+### Bug Fixes
+
+* check uploaded blob exists after upload ([#185](https://github.com/zextras/carbonio-files-ce/issues/185)) ([9d9cb09](https://github.com/zextras/carbonio-files-ce/commit/9d9cb098bae2471184a7182deb36b7221d959ae3))
+* filter out guest accounts ([#192](https://github.com/zextras/carbonio-files-ce/issues/192)) ([0da8463](https://github.com/zextras/carbonio-files-ce/commit/0da846380b7b2cc7f09cbe0113507eda6c5d8309))
+* refuse access if files feature flag is false for requester ([#194](https://github.com/zextras/carbonio-files-ce/issues/194)) ([ff70101](https://github.com/zextras/carbonio-files-ce/commit/ff70101dab1314096f35c23dfd0a988561ccd3fc))
+* remove redundant token validation ([#188](https://github.com/zextras/carbonio-files-ce/issues/188)) ([7ecda6b](https://github.com/zextras/carbonio-files-ce/commit/7ecda6bb6cf9dba6a329255fa00154ca71c66f58))
+
 ## [0.17.0](https://github.com/zextras/carbonio-files-ce/compare/v0.16.0...v0.17.0) (2025-08-21)
 
 ### Features
