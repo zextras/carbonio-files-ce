@@ -1,0 +1,45 @@
+{
+  "branches": ["pre-release"],
+  "repositoryUrl": "https://github.com/zextras/carbonio-files-ce",
+  "tagFormat": "v${version}",
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "conventionalcommits",
+        "releaseRules": [
+          {"type": "feat", "release": "minor"},
+          {"type": "fix", "release": "patch"},
+          {"type": "perf", "release": "patch"},
+          {"type": "refactor", "release": "patch"},
+          {"breaking": true, "release": "major"}
+        ]
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits"
+      }
+    ],
+    [
+      "@semantic-release/changelog",
+      {
+        "changelogFile": "CHANGELOG.md"
+      }
+    ],
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "sed -i 's|<revision>.*</revision>|<revision>${nextRelease.version}</revision>|' pom.xml && sed -i 's/^pkgver=.*/pkgver=\"${nextRelease.version}\"/' package/PKGBUILD"
+      }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "assets": ["pom.xml", "CHANGELOG.md", "package/PKGBUILD"],
+        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+      }
+    ]
+  ]
+}
