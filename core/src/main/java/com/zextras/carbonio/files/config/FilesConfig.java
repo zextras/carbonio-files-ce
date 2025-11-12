@@ -236,6 +236,27 @@ public class FilesConfig {
         .getOrElse(Constants.Config.Hikari.MIN_IDLE_CONNECTIONS);
   }
 
+  public int getHikariIdleTimeout() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+      .getConfig(ServiceDiscover.Config.Key.HIKARI_IDLE_TIMEOUT)
+      .map(Integer::parseInt)
+      .getOrElse(Constants.Config.Hikari.IDLE_TIMEOUT);
+  }
+
+  public int getHikariLeakDetectionThreshold() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+      .getConfig(ServiceDiscover.Config.Key.HIKARI_LEAK_DETECTION_THRESHOLD)
+      .map(Integer::parseInt)
+      .getOrElse(Constants.Config.Hikari.LEAK_DETECTION_THRESHOLD);
+  }
+
+  public int getHikariMaxLifetime() {
+    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+      .getConfig(ServiceDiscover.Config.Key.HIKARI_MAX_LIFETIME)
+      .map(Integer::parseInt)
+      .getOrElse(Constants.Config.Hikari.MAX_LIFETIME);
+  }
+
   // ================================================================================
   // Application Configuration Methods (non-connectivity related)
   // ================================================================================
