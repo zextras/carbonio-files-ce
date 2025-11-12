@@ -99,20 +99,32 @@ public class FilesModule extends AbstractModule {
 
     int maximumPoolSize = config.getHikariMaxPoolSize();
     int minimumIdleConnections = config.getHikariMinIdleConnections();
+    int idleTimeout = config.getHikariIdleTimeout();
+    int leakDetectionThreshold = config.getHikariLeakDetectionThreshold();
+    int maxLifetime = config.getHikariMaxLifetime();
 
     logger.info("Hikari: maximum pool size: {}", maximumPoolSize);
     logger.info("Hikari: minimum idle connections: {}", minimumIdleConnections);
+    logger.info("Hikari: idle timeout: {}", idleTimeout);
+    logger.info("Hikari: leak detection threshold: {}", leakDetectionThreshold);
+    logger.info("Hikari: max lifetime: {}", maxLifetime);
 
     Properties dataSourceProperties = new Properties();
     dataSourceProperties.setProperty("sslmode", "disable");
+    dataSourceProperties.setProperty("ApplicationName", "files");
 
     HikariDataSource dataSource = new HikariDataSource();
     dataSource.setJdbcUrl(jdbcPostgresUrl);
+    dataSource.setPoolName("files-db-pool");
     dataSource.setUsername(config.getDatabaseUsername());
     dataSource.setPassword(config.getDatabasePassword());
     dataSource.setMaximumPoolSize(maximumPoolSize);
     dataSource.setMinimumIdle(minimumIdleConnections);
+    dataSource.setIdleTimeout(idleTimeout);
+    dataSource.setLeakDetectionThreshold(leakDetectionThreshold);
+    dataSource.setMaxLifetime(maxLifetime);
     dataSource.setDataSourceProperties(dataSourceProperties);
+
     return dataSource;
   }
 
