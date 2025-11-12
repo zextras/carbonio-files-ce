@@ -231,8 +231,8 @@ public class FilesConfig {
     int maxPoolSize = getHikariMaxPoolSize();
     return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
         .getConfig(ServiceDiscover.Config.Key.HIKARI_MIN_IDLE_CONNECTIONS)
-        .map(minIdleConnections ->
-            Math.min(Integer.parseInt(minIdleConnections), maxPoolSize))
+        .map(Integer::parseInt)
+        .map(minIdleConnections -> Math.min(minIdleConnections, maxPoolSize))
         .getOrElse(Constants.Config.Hikari.MIN_IDLE_CONNECTIONS);
   }
 
