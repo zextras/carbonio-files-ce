@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.Constants.ServiceDiscover;
 import com.zextras.carbonio.files.Constants.ServiceDiscover.Config;
 import com.zextras.carbonio.files.Constants.GraphQL;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
+import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import graphql.execution.DataFetcherResult;
 import graphql.schema.DataFetcher;
@@ -30,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 public class ConfigDataFetcher {
 
   private final Map<String, String> configMap;
+  private final FilesConfig filesConfig;
   private       String              maxKeepVersionsValue;
 
   /**
@@ -38,7 +40,8 @@ public class ConfigDataFetcher {
    * configuration</p>
    */
   @Inject
-  public ConfigDataFetcher() {
+  public ConfigDataFetcher(FilesConfig filesConfig) {
+    this.filesConfig = filesConfig;
     configMap = new HashMap<>();
     configMap.put(Config.MAX_VERSIONS, String.valueOf(Config.DEFAULT_MAX_VERSIONS));
     configMap.put(Config.MAX_DOWNLOADABLE_SIZE_IN_MB, null);
@@ -62,7 +65,7 @@ public class ConfigDataFetcher {
       List<DataFetcherResult<Map<String, String>>> result = new ArrayList<>();
       configMap.forEach((key, value) -> {
         String currValue = ServiceDiscoverHttpClient
-          .defaultURL(ServiceDiscover.SERVICE_NAME)
+            .atURL(filesConfig.getServiceDiscoverEndpoint(), ServiceDiscover.SERVICE_NAME)
           .getConfig(key)
           .getOrElse(value);
 

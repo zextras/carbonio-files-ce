@@ -137,7 +137,7 @@ public class NodeDataFetcher {
     this.fileStore = fileStore;
 
     this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
-      .defaultURL(ServiceDiscover.SERVICE_NAME)
+      .atURL(filesConfig.getServiceDiscoverEndpoint(), ServiceDiscover.SERVICE_NAME)
       .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
       .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
 

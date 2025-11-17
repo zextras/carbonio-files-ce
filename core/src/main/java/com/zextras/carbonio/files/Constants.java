@@ -1149,6 +1149,10 @@ public final class Constants {
 
     public static final String SERVICE_NAME = "carbonio-files";
     public static final String MESSAGE_BROKER_SERVICE_NAME = "carbonio-message-broker";
+    public static final String HOST_PROPERTY = "carbonio.service-discover.host";
+    public static final String PORT_PROPERTY = "carbonio.service-discover.port";
+    public static final String DEFAULT_HOST = "localhost";
+    public static final Integer DEFAULT_PORT = 8500;
 
     public static final class Config {
 
