@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/zextras/carbonio-files-ce/compare/v1.0.0...v1.0.1) (2025-11-18)
+
+### Bug Fixes
+
+* return uuid instead of UserId obj ([#203](https://github.com/zextras/carbonio-files-ce/issues/203)) ([7b3810e](https://github.com/zextras/carbonio-files-ce/commit/7b3810ebfb313cf2842362ec501e21b12eec951c))
+
 ## [1.0.0](https://github.com/zextras/carbonio-files-ce/compare/v0.17.0...v1.0.0) (2025-11-14)
 
 ### ⚠ BREAKING CHANGES
