@@ -91,7 +91,7 @@ public class UserDataFetcher {
 
   private DataFetcherResult<Map<String, Object>> convertUserToDataFetcherResult(UserInfo user) {
     Map<String, Object> result = new HashMap<>();
-    result.put(Constants.GraphQL.User.ID, user.getId());
+    result.put(Constants.GraphQL.User.ID, user.getId().getUserId());
     result.put(Constants.GraphQL.User.EMAIL, user.getEmail());
     result.put(Constants.GraphQL.User.FULL_NAME, user.getFullName());
     result.put(Constants.GraphQL.ENTITY_TYPE, Constants.GraphQL.Types.USER);
