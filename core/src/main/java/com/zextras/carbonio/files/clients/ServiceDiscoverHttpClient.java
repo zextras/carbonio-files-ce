@@ -36,10 +36,6 @@ public class ServiceDiscoverHttpClient {
     return new ServiceDiscoverHttpClient(url + "/v1/kv/" + serviceName + "/");
   }
 
-  public static ServiceDiscoverHttpClient defaultURL(String serviceName) {
-    return new ServiceDiscoverHttpClient("http://localhost:8500/v1/kv/" + serviceName + "/");
-  }
-
   public Try<String> getConfig(String configKey) {
     try (CloseableHttpClient httpClient = HttpClients.createMinimal()) {
       HttpGet request = new HttpGet(serviceDiscoverURL + configKey);

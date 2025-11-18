@@ -71,7 +71,7 @@ public class FilesConfig {
     try {
       logger.debug("Creating secret key");
       // Create secret key if not exists
-      ServiceDiscoverHttpClient client = ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME);
+      ServiceDiscoverHttpClient client = getServiceDiscoverFilesClient();
       final String configKey = ServiceDiscover.Config.PAGE_TOKEN_SECRET_KEY;
 
       // Get existing key
@@ -108,19 +108,19 @@ public class FilesConfig {
   }
 
   public String getDatabaseName() {
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+    return getServiceDiscoverFilesClient()
         .getConfig(ServiceDiscover.Config.Key.DB_NAME)
         .getOrElse(Constants.Config.Database.DEFAULT_NAME);
   }
 
   public String getDatabaseUsername() {
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+    return getServiceDiscoverFilesClient()
         .getConfig(ServiceDiscover.Config.Key.DB_USERNAME)
         .getOrElse(Constants.Config.Database.DEFAULT_USERNAME);
   }
 
   public String getDatabasePassword() {
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+    return getServiceDiscoverFilesClient()
         .getConfig(ServiceDiscover.Config.Key.DB_PASSWORD)
         .getOrElse("");
   }
@@ -209,19 +209,19 @@ public class FilesConfig {
   }
 
   public String getMessageBrokerPassword() {
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
+    return getServiceDiscoverBrokerClient()
         .getConfig("default/password")
         .getOrElse(Constants.MessageBroker.Config.DEFAULT_PASSWORD);
   }
 
   public String getMessageBrokerUsername() {
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME)
+    return getServiceDiscoverBrokerClient()
         .getConfig("default/username")
         .getOrElse(Constants.MessageBroker.Config.DEFAULT_USERNAME);
   }
 
   public int getHikariMaxPoolSize() {
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+    return getServiceDiscoverFilesClient()
         .getConfig(ServiceDiscover.Config.Key.HIKARI_MAX_POOL_SIZE)
         .map(Integer::parseInt)
         .getOrElse(Constants.Config.Hikari.MAX_POOL_SIZE);
@@ -229,7 +229,7 @@ public class FilesConfig {
 
   public int getHikariMinIdleConnections() {
     int maxPoolSize = getHikariMaxPoolSize();
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+    return getServiceDiscoverFilesClient()
         .getConfig(ServiceDiscover.Config.Key.HIKARI_MIN_IDLE_CONNECTIONS)
         .map(Integer::parseInt)
         .map(minIdleConnections -> Math.min(minIdleConnections, maxPoolSize))
@@ -237,24 +237,31 @@ public class FilesConfig {
   }
 
   public int getHikariIdleTimeout() {
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+    return getServiceDiscoverFilesClient()
       .getConfig(ServiceDiscover.Config.Key.HIKARI_IDLE_TIMEOUT)
       .map(Integer::parseInt)
       .getOrElse(Constants.Config.Hikari.IDLE_TIMEOUT);
   }
 
   public int getHikariLeakDetectionThreshold() {
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+    return getServiceDiscoverFilesClient()
       .getConfig(ServiceDiscover.Config.Key.HIKARI_LEAK_DETECTION_THRESHOLD)
       .map(Integer::parseInt)
       .getOrElse(Constants.Config.Hikari.LEAK_DETECTION_THRESHOLD);
   }
 
   public int getHikariMaxLifetime() {
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+    return getServiceDiscoverFilesClient()
       .getConfig(ServiceDiscover.Config.Key.HIKARI_MAX_LIFETIME)
       .map(Integer::parseInt)
       .getOrElse(Constants.Config.Hikari.MAX_LIFETIME);
+  }
+
+  public String getServiceDiscoverEndpoint() {
+    return "http://" + properties.getProperty(
+        ServiceDiscover.HOST_PROPERTY,
+        ServiceDiscover.DEFAULT_HOST) + ":" + properties.getProperty(ServiceDiscover.PORT_PROPERTY,
+        String.valueOf(ServiceDiscover.DEFAULT_PORT));
   }
 
   // ================================================================================
@@ -264,7 +271,7 @@ public class FilesConfig {
   public int getMaxNumberOfFileVersion() {
     try {
       return Integer.parseInt(
-          ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+          getServiceDiscoverFilesClient()
               .getConfig(ServiceDiscover.Config.MAX_VERSIONS)
               .getOrElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS)));
     } catch (NumberFormatException e) {
@@ -272,10 +279,18 @@ public class FilesConfig {
     }
   }
 
+  private ServiceDiscoverHttpClient getServiceDiscoverFilesClient() {
+    return ServiceDiscoverHttpClient.atURL(this.getServiceDiscoverEndpoint(), ServiceDiscover.SERVICE_NAME);
+  }
+
+  private ServiceDiscoverHttpClient getServiceDiscoverBrokerClient() {
+    return ServiceDiscoverHttpClient.atURL(this.getServiceDiscoverEndpoint(), ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME);
+  }
+
   public String getPageTokenSecretKey() {
     // The default secret key is obviously useless since it's public, but since the security implications are minimal
     // (only used for page token and already protected against attacks) I prefer to let the application run.
-    return ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+    return getServiceDiscoverFilesClient()
         .getConfig(ServiceDiscover.Config.PAGE_TOKEN_SECRET_KEY)
         .getOrElse(ServiceDiscover.Config.DEFAULT_PAGE_TOKEN_SECRET_KEY);
   }
@@ -293,7 +308,7 @@ public class FilesConfig {
   // Returns the maximum uploadable file size in MB or optional.empty if not found or malformed
   public Optional<Integer> getMaxUploadableFileSizeInMb() {
     return Optional.ofNullable(
-        ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+        getServiceDiscoverFilesClient()
             .getConfig(ServiceDiscover.Config.MAX_UPLOADABLE_SIZE_IN_MB)
             .getOrElse((String) null)
     )
@@ -316,7 +331,7 @@ public class FilesConfig {
 
   public Optional<Integer> getMaxDownloadableFileSizeInMb() {
     return Optional.ofNullable(
-        ServiceDiscoverHttpClient.defaultURL(ServiceDiscover.SERVICE_NAME)
+        getServiceDiscoverFilesClient()
             .getConfig(ServiceDiscover.Config.MAX_DOWNLOADABLE_SIZE_IN_MB)
             .getOrElse((String) null)
     )
