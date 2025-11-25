@@ -6,7 +6,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.*;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationType;
@@ -31,11 +31,11 @@ public class NotificationRepositoryEbean implements NotificationRepository {
 
   private static final Logger logger = LoggerFactory.getLogger(NotificationRepositoryEbean.class);
 
-  private EbeanDatabaseManager mDB;
+  private DatabaseManagerFlyway mDB;
 
   @Inject
-  public NotificationRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager) {
-    mDB = ebeanDatabaseManager;
+  public NotificationRepositoryEbean(DatabaseManagerFlyway databaseManagerFlyway) {
+    mDB = databaseManagerFlyway;
   }
 
   public ImmutablePair<List<BaseNotification>, String> getNotifications(

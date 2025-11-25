@@ -6,7 +6,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
@@ -19,12 +19,12 @@ import java.util.stream.Stream;
 public class CollaborationLinkRepositoryEbean implements CollaborationLinkRepository {
 
   private final Clock clock;
-  private final EbeanDatabaseManager ebeanDatabaseManager;
+  private final DatabaseManagerFlyway databaseManagerFlyway;
 
   @Inject
-  public CollaborationLinkRepositoryEbean(Clock clock, EbeanDatabaseManager ebeanDatabaseManager) {
+  public CollaborationLinkRepositoryEbean(Clock clock, DatabaseManagerFlyway databaseManagerFlyway) {
     this.clock = clock;
-    this.ebeanDatabaseManager = ebeanDatabaseManager;
+    this.databaseManagerFlyway = databaseManagerFlyway;
   }
 
   @Override
@@ -34,14 +34,14 @@ public class CollaborationLinkRepositoryEbean implements CollaborationLinkReposi
     CollaborationLink collaborationLink =
         new CollaborationLink(linkId, nodeId, invitationId, clock.instant(), permissions.encode());
 
-    ebeanDatabaseManager.getEbeanDatabase().insert(collaborationLink);
+    databaseManagerFlyway.getEbeanDatabase().insert(collaborationLink);
 
     return collaborationLink;
   }
 
   @Override
   public Optional<CollaborationLink> getLinkById(UUID linkId) {
-    return ebeanDatabaseManager
+    return databaseManagerFlyway
         .getEbeanDatabase()
         .find(CollaborationLink.class)
         .where()
@@ -51,7 +51,7 @@ public class CollaborationLinkRepositoryEbean implements CollaborationLinkReposi
 
   @Override
   public Optional<CollaborationLink> getLinkByInvitationId(String invitationId) {
-    return ebeanDatabaseManager
+    return databaseManagerFlyway
         .getEbeanDatabase()
         .find(CollaborationLink.class)
         .where()
@@ -61,7 +61,7 @@ public class CollaborationLinkRepositoryEbean implements CollaborationLinkReposi
 
   @Override
   public Stream<CollaborationLink> getLinksByNodeId(String nodeId) {
-    return ebeanDatabaseManager
+    return databaseManagerFlyway
         .getEbeanDatabase()
         .find(CollaborationLink.class)
         .where()
@@ -72,7 +72,7 @@ public class CollaborationLinkRepositoryEbean implements CollaborationLinkReposi
 
   @Override
   public void deleteLinks(Collection<UUID> linkIds) {
-    ebeanDatabaseManager
+    databaseManagerFlyway
         .getEbeanDatabase()
         .find(CollaborationLink.class)
         .where()

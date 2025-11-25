@@ -68,6 +68,11 @@ SPDX-License-Identifier: AGPL-3.0-only
       <artifactId>ebean-postgres</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+    </dependency>
+
     <!-- GraphQL -->
     <dependency>
       <groupId>com.graphql-java</groupId>

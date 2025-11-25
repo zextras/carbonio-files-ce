@@ -12,7 +12,7 @@ import com.zextras.carbonio.files.Constants.ServiceDiscover.Config.Key;
 import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.FilesModule;
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.netty.HttpRoutingHandler;
 import com.zextras.carbonio.files.utilities.MockFilesConfig;
@@ -51,7 +51,7 @@ public class Simulator implements AutoCloseable {
   private Injector injector;
   private PostgreSQLContainer<?> postgreSQLContainer;
   private RabbitMQContainer messageBrokerContainer;
-  private EbeanDatabaseManager ebeanDatabaseManager;
+  private DatabaseManagerFlyway databaseManagerFlyway;
   private ClientAndServer clientAndServer;
   private MockServerClient serviceDiscoverMock;
   private MockServerClient userManagementMock;
@@ -107,9 +107,9 @@ public class Simulator implements AutoCloseable {
   }
 
   private Simulator startEbeanDatabaseManager() {
-    if (ebeanDatabaseManager == null) {
-      ebeanDatabaseManager = injector.getInstance(EbeanDatabaseManager.class);
-      ebeanDatabaseManager.start();
+    if (databaseManagerFlyway == null) {
+      databaseManagerFlyway = injector.getInstance(DatabaseManagerFlyway.class);
+      databaseManagerFlyway.start();
     }
 
     return this;
@@ -319,8 +319,8 @@ public class Simulator implements AutoCloseable {
   }
 
   private void stopEbeanDatabaseManager() {
-    if (ebeanDatabaseManager != null) {
-      ebeanDatabaseManager.stop();
+    if (databaseManagerFlyway != null) {
+      databaseManagerFlyway.stop();
     }
   }
 
@@ -413,7 +413,7 @@ public class Simulator implements AutoCloseable {
   }
 
   public void resetDatabase() {
-    ebeanDatabaseManager.getEbeanDatabase().find(Node.class).delete();
+    databaseManagerFlyway.getEbeanDatabase().find(Node.class).delete();
   }
 
   public void clearFileVersionCache() {

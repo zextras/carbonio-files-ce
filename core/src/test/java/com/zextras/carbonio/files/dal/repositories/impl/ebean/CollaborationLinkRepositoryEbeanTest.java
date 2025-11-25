@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
@@ -45,11 +45,11 @@ class CollaborationLinkRepositoryEbeanTest {
   @BeforeEach
   void setup() {
     ebeanDatabaseMock = Mockito.mock(Database.class, Mockito.RETURNS_DEEP_STUBS);
-    EbeanDatabaseManager ebeanDatabaseManagerMock = Mockito.mock(EbeanDatabaseManager.class);
-    Mockito.when(ebeanDatabaseManagerMock.getEbeanDatabase()).thenReturn(ebeanDatabaseMock);
+    DatabaseManagerFlyway databaseManagerFlywayMock = Mockito.mock(DatabaseManagerFlyway.class);
+    Mockito.when(databaseManagerFlywayMock.getEbeanDatabase()).thenReturn(ebeanDatabaseMock);
     clockMock = Mockito.mock(Clock.class);
     collaborationLinkRepository =
-        new CollaborationLinkRepositoryEbean(clockMock, ebeanDatabaseManagerMock);
+        new CollaborationLinkRepositoryEbean(clockMock, databaseManagerFlywayMock);
   }
 
   @Test

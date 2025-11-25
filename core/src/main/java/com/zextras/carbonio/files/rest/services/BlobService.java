@@ -9,7 +9,7 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
@@ -65,7 +65,7 @@ public class BlobService {
   private final TombstoneRepository tombstoneRepository;
   private final Filestore fileStore;
   private final FilesConfig filesConfig;
-  private final EbeanDatabaseManager ebeanDatabaseManager;
+  private final DatabaseManagerFlyway databaseManagerFlyway;
 
   @Inject
   public BlobService(
@@ -79,7 +79,7 @@ public class BlobService {
       MimeTypeUtils mimeTypeUtils,
       Filestore fileStore,
       FilesConfig filesConfig,
-      EbeanDatabaseManager ebeanDatabaseManager
+      DatabaseManagerFlyway databaseManagerFlyway
   ) {
     this.nodeRepository = nodeRepository;
     this.notificationRepository = notificationRepository;
@@ -91,7 +91,7 @@ public class BlobService {
     this.tombstoneRepository = tombstoneRepository;
     this.fileStore = fileStore;
     this.filesConfig = filesConfig;
-    this.ebeanDatabaseManager = ebeanDatabaseManager;
+    this.databaseManagerFlyway = databaseManagerFlyway;
   }
 
   public Optional<List<Node>> checkDownloadMultiple(
@@ -390,7 +390,7 @@ public class BlobService {
         );
       }
 
-      try (Transaction t = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
+      try (Transaction t = databaseManagerFlyway.getEbeanDatabase().beginTransaction()) {
         fileVersionRepository.createNewFileVersion(
             nodeId,
             requesterId,
@@ -621,7 +621,7 @@ public class BlobService {
       );
     }
 
-    try (Transaction t = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
+    try (Transaction t = databaseManagerFlyway.getEbeanDatabase().beginTransaction()) {
       Optional<FileVersion> result = fileVersionRepository.createNewFileVersion(
           nodeId,
           requester.getId().getUserId(),

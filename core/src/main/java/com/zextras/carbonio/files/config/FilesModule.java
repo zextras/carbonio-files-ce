@@ -11,7 +11,8 @@ import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.cache.CacheHandlerFactory;
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.DatabaseManager;
+import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
 import com.zextras.carbonio.files.dal.dao.ebean.*;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.AddedNodeNotification;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.NewShareNotification;
@@ -31,19 +32,17 @@ import com.zextras.carbonio.message_broker.config.enums.Service;
 import com.zextras.carbonio.preview.PreviewClient;
 import com.zextras.carbonio.usermanagement.UserManagementClient;
 import com.zextras.filestore.api.Filestore;
-
-
-import java.time.Clock;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
-
 import com.zextras.storages.api.StoragesClient;
 import io.ebean.Database;
 import io.ebean.DatabaseFactory;
 import io.ebean.config.DatabaseConfig;
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.Properties;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +54,7 @@ public class FilesModule extends AbstractModule {
   public void configure() {
     bind(Clock.class).toInstance(Clock.systemUTC());
 
-    bind(EbeanDatabaseManager.class).in(Singleton.class);
+    bind(DatabaseManager.class).to(DatabaseManagerFlyway.class).in(Singleton.class);
     bind(NodeRepository.class).to(NodeRepositoryEbean.class);
     bind(ShareRepository.class).to(ShareRepositoryEbean.class);
     bind(TombstoneRepository.class).to(TombstoneRepositoryEbean.class);

@@ -2,7 +2,7 @@
 --
 -- SPDX-License-Identifier: AGPL-3.0-only
 
--- postgresql_1.sql adapted for hsqldb
+-- V1__init.sql adapted for hsqldb
 
 CREATE TABLE IF NOT EXISTS db_info (
     version INTEGER NOT NULL PRIMARY KEY
@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS collaboration_link (
     permissions SMALLINT
 );
 
--- postgresql_2.sql adapted for hsqldb
+-- V2__migration.sql adapted for hsqldb
 
 ALTER TABLE share ADD COLUMN IF NOT EXISTS created_via_link BOOLEAN DEFAULT FALSE NOT NULL;
 

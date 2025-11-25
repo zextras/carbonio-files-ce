@@ -58,6 +58,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <netty.version>4.1.113.Final</netty.version>
     <postgresql.version>42.7.4</postgresql.version>
     <testcontainers.version>1.20.1</testcontainers.version>
+    <flyway-database-postgresql.version>11.8.1</flyway-database-postgresql.version>
 
     <!-- Plugins -->
     <maven-assembly.version>3.6.0</maven-assembly.version>
@@ -148,6 +149,12 @@ SPDX-License-Identifier: AGPL-3.0-only
         <groupId>io.ebean</groupId>
         <artifactId>ebean-postgres</artifactId>
         <version>${ebean.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.flywaydb</groupId>
+        <artifactId>flyway-database-postgresql</artifactId>
+        <version>${flyway-database-postgresql.version}</version>
       </dependency>
 
       <!-- GraphQL -->

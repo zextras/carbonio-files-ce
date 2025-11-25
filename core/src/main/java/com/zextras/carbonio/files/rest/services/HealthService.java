@@ -7,7 +7,7 @@ package com.zextras.carbonio.files.rest.services;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.clients.DocsConnectorHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
 import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.files.rest.types.health.DependencyType;
@@ -19,7 +19,7 @@ import com.zextras.filestore.api.Filestore.Liveness;
 
 public class HealthService {
 
-  private final EbeanDatabaseManager ebeanDatabaseManager;
+  private final DatabaseManagerFlyway databaseManagerFlyway;
   private final FilesConfig filesConfig;
   private final DocsConnectorHttpClient docsConnectorHttpClient;
   private final MessageBrokerManager messageBrokerManager;
@@ -29,12 +29,12 @@ public class HealthService {
 
   @Inject
   public HealthService(
-      EbeanDatabaseManager ebeanDatabaseManager,
+      DatabaseManagerFlyway databaseManagerFlyway,
       FilesConfig filesConfig,
       DocsConnectorHttpClient docsConnectorHttpClient,
       MessageBrokerManager messageBrokerManager,
       PreviewClient previewClient, UserManagementClient userManagementClient, Filestore storagesClient) {
-    this.ebeanDatabaseManager = ebeanDatabaseManager;
+    this.databaseManagerFlyway = databaseManagerFlyway;
     this.filesConfig = filesConfig;
     this.docsConnectorHttpClient = docsConnectorHttpClient;
     this.messageBrokerManager = messageBrokerManager;
@@ -47,7 +47,7 @@ public class HealthService {
    * @return true if the database is reachable, false otherwise.
    */
   public boolean isDatabaseLive() {
-    return ebeanDatabaseManager.getEbeanDatabase().find(DbInfo.class).findOneOrEmpty().isPresent();
+    return databaseManagerFlyway.getEbeanDatabase().find(DbInfo.class).findOneOrEmpty().isPresent();
   }
 
   /**
