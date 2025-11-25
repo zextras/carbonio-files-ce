@@ -57,7 +57,10 @@ SPDX-License-Identifier: AGPL-3.0-only
     <mock-server.version>5.15.0</mock-server.version>
     <netty.version>4.1.113.Final</netty.version>
     <postgresql.version>42.7.4</postgresql.version>
-    <testcontainers.version>1.20.1</testcontainers.version>
+    <testcontainers.version>2.0.2</testcontainers.version>
+    <testcontainers.junit.jupiter.version>1.21.3</testcontainers.junit.jupiter.version>
+    <testcontainers.postgresql.version>1.21.3</testcontainers.postgresql.version>
+    <testcontainers.rabbitmq.version>1.21.3</testcontainers.rabbitmq.version>
 
     <!-- Plugins -->
     <maven-assembly.version>3.6.0</maven-assembly.version>
@@ -273,21 +276,21 @@ SPDX-License-Identifier: AGPL-3.0-only
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>junit-jupiter</artifactId>
-        <version>${testcontainers.version}</version>
+        <version>${testcontainers.junit.jupiter.version}</version>
         <scope>test</scope>
       </dependency>
 
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>postgresql</artifactId>
-        <version>${testcontainers.version}</version>
+        <version>${testcontainers.postgresql.version}</version>
         <scope>test</scope>
       </dependency>
 
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>rabbitmq</artifactId>
-        <version>${testcontainers.version}</version>
+        <version>${testcontainers.rabbitmq.version}</version>
         <scope>test</scope>
       </dependency>
 
