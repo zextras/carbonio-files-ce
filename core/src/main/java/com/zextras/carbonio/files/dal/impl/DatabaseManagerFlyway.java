@@ -41,7 +41,7 @@ public class DatabaseManagerFlyway implements DatabaseManager {
 
     // The idea here is to use legacy version (if present) to set baseline.
     // Both empty db and post-Flyway db will have no legacy version so Flyway can handle migration without issues;
-    // if the database is in a legacy version but already initialize we set the baseline so it can be migrated by Flyway
+    // if the database is in a legacy version but already initialized we set the baseline so it can be migrated by Flyway
     // only from where needed.
     legacyVersion.ifPresent(integer -> config.baselineVersion(String.valueOf(integer)).baselineOnMigrate(true));
 
@@ -83,6 +83,11 @@ public class DatabaseManagerFlyway implements DatabaseManager {
   public boolean isDatabaseCorrectVersion() {
     return flyway.info().current() != null
         && !flyway.info().current().getPhysicalLocation().isEmpty();
+  }
+
+  @Override
+  public Database getEbeanDatabase() {
+    return ebeanDatabase;
   }
 
   @Override

@@ -10,7 +10,7 @@ import com.zextras.carbonio.files.Constants.Config.Pagination;
 import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.*;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.*;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
@@ -35,12 +35,12 @@ public class NodeRepositoryEbean implements NodeRepository {
 
   private static final Logger logger = LoggerFactory.getLogger(NodeRepositoryEbean.class);
 
-  private DatabaseManagerFlyway mDB;
+  private DatabaseManager mDB;
   private FilesConfig filesConfig;
   private CollationRepository collationRepository;
 
   @Inject
-  public NodeRepositoryEbean(DatabaseManagerFlyway databaseManagerFlyway, FilesConfig filesConfig, CollationRepository collationRepository) {
+  public NodeRepositoryEbean(DatabaseManager databaseManagerFlyway, FilesConfig filesConfig, CollationRepository collationRepository) {
     mDB = databaseManagerFlyway;
     this.filesConfig = filesConfig;
     this.collationRepository = collationRepository;

@@ -9,7 +9,7 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
@@ -65,7 +65,7 @@ public class BlobService {
   private final TombstoneRepository tombstoneRepository;
   private final Filestore fileStore;
   private final FilesConfig filesConfig;
-  private final DatabaseManagerFlyway databaseManagerFlyway;
+  private final DatabaseManager databaseManagerFlyway;
 
   @Inject
   public BlobService(
@@ -79,7 +79,7 @@ public class BlobService {
       MimeTypeUtils mimeTypeUtils,
       Filestore fileStore,
       FilesConfig filesConfig,
-      DatabaseManagerFlyway databaseManagerFlyway
+      DatabaseManager databaseManagerFlyway
   ) {
     this.nodeRepository = nodeRepository;
     this.notificationRepository = notificationRepository;

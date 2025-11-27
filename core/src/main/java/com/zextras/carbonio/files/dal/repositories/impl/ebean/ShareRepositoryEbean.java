@@ -7,7 +7,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.Db;
-import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.ShareSort;
@@ -21,11 +21,11 @@ import java.util.Optional;
 
 public class ShareRepositoryEbean implements ShareRepository {
 
-  private final DatabaseManagerFlyway databaseManagerFlyway;
+  private final DatabaseManager databaseManagerFlyway;
   private CollationRepository collationRepository;
 
   @Inject
-  public ShareRepositoryEbean(DatabaseManagerFlyway databaseManagerFlyway, CollationRepository collationRepository) {
+  public ShareRepositoryEbean(DatabaseManager databaseManagerFlyway, CollationRepository collationRepository) {
     this.databaseManagerFlyway = databaseManagerFlyway;
     this.collationRepository = collationRepository;
   }

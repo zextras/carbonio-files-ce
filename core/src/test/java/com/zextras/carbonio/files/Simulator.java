@@ -12,7 +12,7 @@ import com.zextras.carbonio.files.Constants.ServiceDiscover.Config.Key;
 import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.FilesModule;
-import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.netty.HttpRoutingHandler;
 import com.zextras.carbonio.files.utilities.MockFilesConfig;
@@ -51,7 +51,7 @@ public class Simulator implements AutoCloseable {
   private Injector injector;
   private PostgreSQLContainer<?> postgreSQLContainer;
   private RabbitMQContainer messageBrokerContainer;
-  private DatabaseManagerFlyway databaseManagerFlyway;
+  private DatabaseManager databaseManagerFlyway;
   private ClientAndServer clientAndServer;
   private MockServerClient serviceDiscoverMock;
   private MockServerClient userManagementMock;
@@ -108,8 +108,8 @@ public class Simulator implements AutoCloseable {
 
   private Simulator startEbeanDatabaseManager() {
     if (databaseManagerFlyway == null) {
-      databaseManagerFlyway = injector.getInstance(DatabaseManagerFlyway.class);
-      databaseManagerFlyway.start();
+      databaseManagerFlyway = injector.getInstance(DatabaseManager.class);
+      databaseManagerFlyway.initialize();
     }
 
     return this;
@@ -227,11 +227,10 @@ public class Simulator implements AutoCloseable {
   private Simulator startUserManagement() {
     startMockServer();
 
-    final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
     userManagementMock =
         new MockServerClient(
-            filesConfig.getUserManagementHost(),
-            Integer.parseInt(filesConfig.getUserManagementPort()));
+            Constants.Config.UserManagement.DEFAULT_HOST,
+            Constants.Config.UserManagement.DEFAULT_PORT);
 
     return this;
   }
@@ -260,11 +259,10 @@ public class Simulator implements AutoCloseable {
   private Simulator startStorages() {
     startMockServer();
 
-    final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
     storagesMock =
         new MockServerClient(
-            filesConfig.getStoragesHost(),
-            Integer.parseInt(filesConfig.getStoragesPort()));
+            Constants.Config.Storages.DEFAULT_HOST,
+            Constants.Config.Storages.DEFAULT_PORT);
 
     return this;
   }
@@ -272,10 +270,9 @@ public class Simulator implements AutoCloseable {
   private Simulator startPreviewService() {
     startMockServer();
 
-    final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
     previewServiceMock = new MockServerClient(
-      filesConfig.getPreviewHost(),
-      Integer.parseInt(filesConfig.getPreviewPort())
+      Constants.Config.Preview.DEFAULT_HOST,
+      Constants.Config.Preview.DEFAULT_PORT
     );
 
     return this;
@@ -284,10 +281,9 @@ public class Simulator implements AutoCloseable {
   private Simulator startDocsConnectorService() {
     startMockServer();
 
-    final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
     docsConnectorServiceMock = new MockServerClient(
-      filesConfig.getDocsConnectorHost(),
-      Integer.parseInt(filesConfig.getDocsConnectorPort())
+      Constants.Config.DocsConnector.DEFAULT_HOST,
+      Constants.Config.DocsConnector.DEFAULT_PORT
     );
 
     return this;
@@ -295,11 +291,10 @@ public class Simulator implements AutoCloseable {
 
   private void startMockServer() {
     if (clientAndServer == null) {
-      final FilesConfig filesConfig = injector.getInstance(FilesConfig.class);
-      final int userManagementPort = Integer.parseInt(filesConfig.getUserManagementPort());
-      final int storagesPort = Integer.parseInt(filesConfig.getStoragesPort());
-      final int previewServicePort = Integer.parseInt(filesConfig.getPreviewPort());
-      final int docsConnectorServicePort = Integer.parseInt(filesConfig.getDocsConnectorPort());
+      final int userManagementPort = Constants.Config.UserManagement.DEFAULT_PORT;
+      final int storagesPort = Constants.Config.Storages.DEFAULT_PORT;
+      final int previewServicePort = Constants.Config.Preview.DEFAULT_PORT;
+      final int docsConnectorServicePort = Constants.Config.DocsConnector.DEFAULT_PORT;
 
       clientAndServer =
           ClientAndServer.startClientAndServer(8500, userManagementPort, storagesPort, previewServicePort, docsConnectorServicePort);
@@ -464,7 +459,6 @@ public class Simulator implements AutoCloseable {
 
     public SimulatorBuilder init() {
       simulator = new Simulator();
-      simulator.createInjector();
       return this;
     }
 
@@ -508,6 +502,7 @@ public class Simulator implements AutoCloseable {
     }
 
     public Simulator build() {
+      simulator.createInjector();
       return simulator;
     }
   }

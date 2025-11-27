@@ -7,7 +7,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
 import io.ebean.SqlQuery;
 import io.ebean.SqlRow;
@@ -19,12 +19,12 @@ import java.util.Optional;
 public class CollationRepositoryEbean implements CollationRepository {
 
   private static final Logger logger = LoggerFactory.getLogger(CollationRepositoryEbean.class);
-  private final DatabaseManagerFlyway mDB;
+  private final DatabaseManager mDB;
   private final FilesConfig filesConfig;
   private Optional<String> cachedCollate = null;
 
   @Inject
-  public CollationRepositoryEbean(DatabaseManagerFlyway databaseManagerFlyway, FilesConfig filesConfig) {
+  public CollationRepositoryEbean(DatabaseManager databaseManagerFlyway, FilesConfig filesConfig) {
     this.mDB = databaseManagerFlyway;
     this.filesConfig = filesConfig;
   }

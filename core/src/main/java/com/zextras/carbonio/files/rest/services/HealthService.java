@@ -7,7 +7,7 @@ package com.zextras.carbonio.files.rest.services;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.clients.DocsConnectorHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.files.rest.types.health.DependencyType;
@@ -19,7 +19,7 @@ import com.zextras.filestore.api.Filestore.Liveness;
 
 public class HealthService {
 
-  private final DatabaseManagerFlyway databaseManagerFlyway;
+  private final DatabaseManager databaseManagerFlyway;
   private final FilesConfig filesConfig;
   private final DocsConnectorHttpClient docsConnectorHttpClient;
   private final MessageBrokerManager messageBrokerManager;
@@ -29,7 +29,7 @@ public class HealthService {
 
   @Inject
   public HealthService(
-      DatabaseManagerFlyway databaseManagerFlyway,
+      DatabaseManager databaseManagerFlyway,
       FilesConfig filesConfig,
       DocsConnectorHttpClient docsConnectorHttpClient,
       MessageBrokerManager messageBrokerManager,
@@ -47,7 +47,7 @@ public class HealthService {
    * @return true if the database is reachable, false otherwise.
    */
   public boolean isDatabaseLive() {
-    return databaseManagerFlyway.getEbeanDatabase().find(DbInfo.class).findOneOrEmpty().isPresent();
+    return databaseManagerFlyway.isDatabaseLive();
   }
 
   /**

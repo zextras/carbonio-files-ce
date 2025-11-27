@@ -7,7 +7,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.Db;
-import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
@@ -18,10 +18,10 @@ import java.util.Optional;
 
 public class TombstoneRepositoryEbean implements TombstoneRepository {
 
-  private final DatabaseManagerFlyway dbManager;
+  private final DatabaseManager dbManager;
 
   @Inject
-  public TombstoneRepositoryEbean(DatabaseManagerFlyway DatabaseManagerFlyway) {
+  public TombstoneRepositoryEbean(DatabaseManager DatabaseManagerFlyway) {
     dbManager = DatabaseManagerFlyway;
   }
 

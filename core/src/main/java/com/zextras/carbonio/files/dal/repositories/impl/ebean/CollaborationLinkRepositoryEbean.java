@@ -6,10 +6,11 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
+
 import java.time.Clock;
 import java.util.Collection;
 import java.util.Optional;
@@ -19,10 +20,10 @@ import java.util.stream.Stream;
 public class CollaborationLinkRepositoryEbean implements CollaborationLinkRepository {
 
   private final Clock clock;
-  private final DatabaseManagerFlyway databaseManagerFlyway;
+  private final DatabaseManager databaseManagerFlyway;
 
   @Inject
-  public CollaborationLinkRepositoryEbean(Clock clock, DatabaseManagerFlyway databaseManagerFlyway) {
+  public CollaborationLinkRepositoryEbean(Clock clock, DatabaseManager databaseManagerFlyway) {
     this.clock = clock;
     this.databaseManagerFlyway = databaseManagerFlyway;
   }

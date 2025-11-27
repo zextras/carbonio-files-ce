@@ -4,6 +4,8 @@
 
 package com.zextras.carbonio.files.dal;
 
+import io.ebean.Database;
+
 public interface DatabaseManager {
   void initialize();
 
@@ -12,6 +14,8 @@ public interface DatabaseManager {
   boolean isDatabaseLive();
 
   boolean isDatabaseCorrectVersion();
+
+  Database getEbeanDatabase();
 
   void stop();
 }

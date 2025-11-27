@@ -6,7 +6,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants.Db;
-import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.LinkSort;
@@ -22,11 +22,11 @@ import java.util.stream.Stream;
 
 public class LinkRepositoryEbean implements LinkRepository {
 
-  private final DatabaseManagerFlyway databaseManagerFlyway;
+  private final DatabaseManager databaseManagerFlyway;
   private final CollationRepository collationRepository;
 
   @Inject
-  public LinkRepositoryEbean(DatabaseManagerFlyway databaseManagerFlyway, CollationRepository collationRepository) {
+  public LinkRepositoryEbean(DatabaseManager databaseManagerFlyway, CollationRepository collationRepository) {
     this.databaseManagerFlyway = databaseManagerFlyway;
     this.collationRepository = collationRepository;
   }

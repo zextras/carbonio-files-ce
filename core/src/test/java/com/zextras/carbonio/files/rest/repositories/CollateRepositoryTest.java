@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files.rest.repositories;
 
 import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.CollationRepositoryEbean;
 import io.ebean.Database;
 import io.ebean.SqlQuery;
@@ -17,17 +17,15 @@ import org.mockito.Mockito;
 
 import java.util.Optional;
 
-import static org.mockito.Mockito.mockStatic;
-
 class CollateRepositoryTest {
 
-  private DatabaseManagerFlyway databaseManagerFlywayMock;
+  private DatabaseManager databaseManagerFlywayMock;
   private FilesConfig filesConfigMock;
   private Database databaseMock;
 
   @BeforeEach
   void setup() {
-    databaseManagerFlywayMock = Mockito.mock(DatabaseManagerFlyway.class);
+    databaseManagerFlywayMock = Mockito.mock(DatabaseManager.class);
     filesConfigMock = Mockito.mock(FilesConfig.class);
     databaseMock = Mockito.mock(Database.class);
     Mockito.when(databaseManagerFlywayMock.getEbeanDatabase()).thenReturn(databaseMock);
