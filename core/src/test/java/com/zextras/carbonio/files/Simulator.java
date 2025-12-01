@@ -229,8 +229,9 @@ public class Simulator implements AutoCloseable {
 
     userManagementMock =
         new MockServerClient(
-            Constants.Config.UserManagement.DEFAULT_HOST,
+            "localhost",
             Constants.Config.UserManagement.DEFAULT_PORT);
+    System.setProperty(Constants.Config.UserManagement.HOST_PROPERTY, "localhost");
 
     return this;
   }
@@ -261,8 +262,9 @@ public class Simulator implements AutoCloseable {
 
     storagesMock =
         new MockServerClient(
-            Constants.Config.Storages.DEFAULT_HOST,
+            "localhost",
             Constants.Config.Storages.DEFAULT_PORT);
+    System.setProperty(Constants.Config.Storages.HOST_PROPERTY, "localhost");
 
     return this;
   }
@@ -271,9 +273,10 @@ public class Simulator implements AutoCloseable {
     startMockServer();
 
     previewServiceMock = new MockServerClient(
-      Constants.Config.Preview.DEFAULT_HOST,
+      "localhost",
       Constants.Config.Preview.DEFAULT_PORT
     );
+    System.setProperty(Constants.Config.Preview.HOST_PROPERTY, "localhost");
 
     return this;
   }
@@ -282,9 +285,10 @@ public class Simulator implements AutoCloseable {
     startMockServer();
 
     docsConnectorServiceMock = new MockServerClient(
-      Constants.Config.DocsConnector.DEFAULT_HOST,
+      "localhost",
       Constants.Config.DocsConnector.DEFAULT_PORT
     );
+    System.setProperty(Constants.Config.DocsConnector.HOST_PROPERTY, "localhost");
 
     return this;
   }
