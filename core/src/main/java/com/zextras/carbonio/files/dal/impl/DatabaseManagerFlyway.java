@@ -37,6 +37,7 @@ public class DatabaseManagerFlyway implements DatabaseManager {
 
     FluentConfiguration config = Flyway.configure()
       .dataSource(dataSource)
+      .locations("classpath:db/migration")
       .configuration(Map.of("flyway.postgresql.transactional.lock", "false"));
 
     // The idea here is to use legacy version (if present) to set baseline.
