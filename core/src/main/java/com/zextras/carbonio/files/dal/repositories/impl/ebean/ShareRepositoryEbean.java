@@ -7,7 +7,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.Db;
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.ShareSort;
@@ -21,12 +21,12 @@ import java.util.Optional;
 
 public class ShareRepositoryEbean implements ShareRepository {
 
-  private final EbeanDatabaseManager ebeanDatabaseManager;
+  private final DatabaseManager databaseManagerFlyway;
   private CollationRepository collationRepository;
 
   @Inject
-  public ShareRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager, CollationRepository collationRepository) {
-    this.ebeanDatabaseManager = ebeanDatabaseManager;
+  public ShareRepositoryEbean(DatabaseManager databaseManagerFlyway, CollationRepository collationRepository) {
+    this.databaseManagerFlyway = databaseManagerFlyway;
     this.collationRepository = collationRepository;
   }
 
@@ -39,7 +39,7 @@ public class ShareRepositoryEbean implements ShareRepository {
    *     otherwise.
    */
   private Optional<Share> getRealShare(String nodeId, String userId) {
-    return ebeanDatabaseManager
+    return databaseManagerFlyway
         .getEbeanDatabase()
         .find(Share.class)
         .where()
@@ -86,7 +86,7 @@ public class ShareRepositoryEbean implements ShareRepository {
               createdViaCollaborationLink,
               null);
       expireTimestamp.ifPresent(share::setExpiredAt);
-      ebeanDatabaseManager.getEbeanDatabase().save(share);
+      databaseManagerFlyway.getEbeanDatabase().save(share);
       return Optional.of(share);
     }
   }
@@ -98,7 +98,7 @@ public class ShareRepositoryEbean implements ShareRepository {
       Boolean direct,
       Boolean createdViaCollaborationLink,
       Optional<Long> expireTimestamp) {
-    try (Transaction transaction = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
+    try (Transaction transaction = databaseManagerFlyway.getEbeanDatabase().beginTransaction()) {
 
       // use JDBC batch
       transaction.setBatchMode(true);
@@ -120,18 +120,18 @@ public class ShareRepositoryEbean implements ShareRepository {
   }
 
   public Share updateShare(Share share) {
-    ebeanDatabaseManager.getEbeanDatabase().update(share);
+    databaseManagerFlyway.getEbeanDatabase().update(share);
     return share;
   }
 
   public boolean deleteShare(String nodeId, String targetUserId) {
     return getShare(nodeId, targetUserId)
-        .map(share -> ebeanDatabaseManager.getEbeanDatabase().delete(share))
+        .map(share -> databaseManagerFlyway.getEbeanDatabase().delete(share))
         .orElse(false);
   }
 
   public void deleteSharesBulk(List<String> nodeIds, String targetUserId) {
-    try (Transaction transaction = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
+    try (Transaction transaction = databaseManagerFlyway.getEbeanDatabase().beginTransaction()) {
 
       // use JDBC batch
       transaction.setBatchMode(true);
@@ -146,7 +146,7 @@ public class ShareRepositoryEbean implements ShareRepository {
   }
 
   public void deleteSharesBulk(List<String> nodeIds) {
-    ebeanDatabaseManager
+    databaseManagerFlyway
         .getEbeanDatabase()
         .find(Share.class)
         .where()
@@ -157,7 +157,7 @@ public class ShareRepositoryEbean implements ShareRepository {
   }
 
   public List<Share> getShares(List<String> nodeIds, String targetUserId) {
-    return ebeanDatabaseManager
+    return databaseManagerFlyway
         .getEbeanDatabase()
         .find(Share.class)
         .where()
@@ -168,7 +168,7 @@ public class ShareRepositoryEbean implements ShareRepository {
 
   public List<Share> getShares(String nodeId, List<String> targetUserIds) {
     ExpressionList<Share> query =
-        ebeanDatabaseManager
+        databaseManagerFlyway
             .getEbeanDatabase()
             .find(Share.class)
             .where()
@@ -182,7 +182,7 @@ public class ShareRepositoryEbean implements ShareRepository {
   }
 
   public List<Share> getShares(List<String> nodeIds) {
-    return ebeanDatabaseManager
+    return databaseManagerFlyway
         .getEbeanDatabase()
         .find(Share.class)
         .where()
@@ -192,7 +192,7 @@ public class ShareRepositoryEbean implements ShareRepository {
 
   public List<String> getSharesUsersIds(String nodeId, List<ShareSort> sorts) {
     Query<Share> query =
-        ebeanDatabaseManager
+        databaseManagerFlyway
             .getEbeanDatabase()
             .createQuery(Share.class)
             .where()

@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.LinkSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
@@ -30,12 +30,12 @@ class LinkRepositoryEbeanTest {
   @BeforeEach
   void setup() {
     ebeanDatabaseMock = Mockito.mock(Database.class, Mockito.RETURNS_DEEP_STUBS);
-    EbeanDatabaseManager ebeanDatabaseManagerMock = Mockito.mock(EbeanDatabaseManager.class);
+    DatabaseManager databaseManagerFlywayMock = Mockito.mock(DatabaseManager.class);
     CollationRepository collationRepositoryMock = Mockito.mock(CollationRepository.class);
-    Mockito.when(ebeanDatabaseManagerMock.getEbeanDatabase()).thenReturn(ebeanDatabaseMock);
+    Mockito.when(databaseManagerFlywayMock.getEbeanDatabase()).thenReturn(ebeanDatabaseMock);
     Mockito.when(collationRepositoryMock.getValidCollateForQuery()).thenReturn(Optional.empty());
 
-    linkRepository = new LinkRepositoryEbean(ebeanDatabaseManagerMock, collationRepositoryMock);
+    linkRepository = new LinkRepositoryEbean(databaseManagerFlywayMock, collationRepositoryMock);
   }
 
   @Test

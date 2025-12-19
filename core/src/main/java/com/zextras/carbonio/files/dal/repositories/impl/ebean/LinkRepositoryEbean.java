@@ -6,7 +6,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants.Db;
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.LinkSort;
@@ -22,12 +22,12 @@ import java.util.stream.Stream;
 
 public class LinkRepositoryEbean implements LinkRepository {
 
-  private final EbeanDatabaseManager ebeanDatabaseManager;
+  private final DatabaseManager databaseManagerFlyway;
   private final CollationRepository collationRepository;
 
   @Inject
-  public LinkRepositoryEbean(EbeanDatabaseManager ebeanDatabaseManager, CollationRepository collationRepository) {
-    this.ebeanDatabaseManager = ebeanDatabaseManager;
+  public LinkRepositoryEbean(DatabaseManager databaseManagerFlyway, CollationRepository collationRepository) {
+    this.databaseManagerFlyway = databaseManagerFlyway;
     this.collationRepository = collationRepository;
   }
 
@@ -46,13 +46,13 @@ public class LinkRepositoryEbean implements LinkRepository {
     optDescription.ifPresent(link::setDescription);
     optAccessCode.ifPresent(link::setAccessCode);
 
-    ebeanDatabaseManager.getEbeanDatabase().save(link);
+    databaseManagerFlyway.getEbeanDatabase().save(link);
 
     return link;
   }
 
   public Optional<Link> getLinkById(String linkId) {
-    return ebeanDatabaseManager
+    return databaseManagerFlyway
         .getEbeanDatabase()
         .find(Link.class)
         .where()
@@ -61,7 +61,7 @@ public class LinkRepositoryEbean implements LinkRepository {
   }
 
   public Optional<Link> getLinkByNotExpiredPublicId(String publicId) {
-    return ebeanDatabaseManager
+    return databaseManagerFlyway
       .getEbeanDatabase()
       .find(Link.class)
       .where()
@@ -75,7 +75,7 @@ public class LinkRepositoryEbean implements LinkRepository {
 
   public Stream<Link> getLinksByNodeId(String nodeId, LinkSort sort) {
     Query<Link> query =
-        ebeanDatabaseManager
+        databaseManagerFlyway
             .getEbeanDatabase()
             .find(Link.class)
             .where()
@@ -86,12 +86,12 @@ public class LinkRepositoryEbean implements LinkRepository {
   }
 
   public Link updateLink(Link link) {
-    ebeanDatabaseManager.getEbeanDatabase().update(link);
+    databaseManagerFlyway.getEbeanDatabase().update(link);
     return getLinkById(link.getLinkId()).get();
   }
 
   public void deleteLink(String linkId) {
-    ebeanDatabaseManager
+    databaseManagerFlyway
         .getEbeanDatabase()
         .find(Link.class)
         .where()
@@ -100,7 +100,7 @@ public class LinkRepositoryEbean implements LinkRepository {
   }
 
   public void deleteLinksBulk(Collection<String> linkIds) {
-    try (Transaction transaction = ebeanDatabaseManager.getEbeanDatabase().beginTransaction()) {
+    try (Transaction transaction = databaseManagerFlyway.getEbeanDatabase().beginTransaction()) {
       transaction.setBatchMode(true);
       transaction.setBatchSize(50);
 
@@ -117,7 +117,7 @@ public class LinkRepositoryEbean implements LinkRepository {
     nodeIds.add(node.getId());
     nodeIds.addAll(node.getAncestorsList());
 
-    Optional<Link> linkOptional = ebeanDatabaseManager
+    Optional<Link> linkOptional = databaseManagerFlyway
         .getEbeanDatabase()
         .find(Link.class)
         .where()
@@ -132,7 +132,7 @@ public class LinkRepositoryEbean implements LinkRepository {
   }
 
   public Integer getLinkCountByNode(Node node) {
-    return ebeanDatabaseManager
+    return databaseManagerFlyway
       .getEbeanDatabase()
       .find(Link.class)
       .where()

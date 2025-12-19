@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files.rest.repositories;
 
 import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.CollationRepositoryEbean;
 import io.ebean.Database;
 import io.ebean.SqlQuery;
@@ -17,27 +17,24 @@ import org.mockito.Mockito;
 
 import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mockStatic;
-
 class CollateRepositoryTest {
 
-  private EbeanDatabaseManager ebeanDatabaseManagerMock;
+  private DatabaseManager databaseManagerFlywayMock;
   private FilesConfig filesConfigMock;
   private Database databaseMock;
 
   @BeforeEach
   void setup() {
-    ebeanDatabaseManagerMock = Mockito.mock(EbeanDatabaseManager.class);
+    databaseManagerFlywayMock = Mockito.mock(DatabaseManager.class);
     filesConfigMock = Mockito.mock(FilesConfig.class);
     databaseMock = Mockito.mock(Database.class);
-    Mockito.when(ebeanDatabaseManagerMock.getEbeanDatabase()).thenReturn(databaseMock);
+    Mockito.when(databaseManagerFlywayMock.getEbeanDatabase()).thenReturn(databaseMock);
   }
 
   @Test
   void givenDefaultCollateIsEnUsUtf8_getValidCollateForQueryShouldReturnEmptyOptional() {
     // Given
-    CollationRepositoryEbean collationRepositoryEbean = new CollationRepositoryEbean(ebeanDatabaseManagerMock, filesConfigMock);
+    CollationRepositoryEbean collationRepositoryEbean = new CollationRepositoryEbean(databaseManagerFlywayMock, filesConfigMock);
 
     SqlQuery sqlQueryMock = Mockito.mock(SqlQuery.class);
     SqlRow sqlRowMock = Mockito.mock(SqlRow.class);
@@ -56,7 +53,7 @@ class CollateRepositoryTest {
   @Test
   void givenDefaultCollateIsCUtf8_getValidCollateForQueryShouldReturnOptionalWithEnUsUtf8() {
     // Given
-    CollationRepositoryEbean collationRepositoryEbean = new CollationRepositoryEbean(ebeanDatabaseManagerMock, filesConfigMock);
+    CollationRepositoryEbean collationRepositoryEbean = new CollationRepositoryEbean(databaseManagerFlywayMock, filesConfigMock);
 
     SqlQuery sqlQueryMock = Mockito.mock(SqlQuery.class);
     SqlRow sqlRowMock = Mockito.mock(SqlRow.class);

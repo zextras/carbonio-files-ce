@@ -9,7 +9,7 @@ import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.cache.Cache;
 import com.zextras.carbonio.files.cache.CacheHandler;
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
@@ -23,17 +23,17 @@ import java.util.stream.Collectors;
 
 public class FileVersionRepositoryEbean implements FileVersionRepository {
 
-  private EbeanDatabaseManager mDB;
+  private DatabaseManager mDB;
   private Cache<FileVersion>   fileVersionCache;
   private CollationRepository collationRepository;
 
   @Inject
   public FileVersionRepositoryEbean(
-    EbeanDatabaseManager ebeanDatabaseManager,
+    DatabaseManager databaseManagerFlyway,
     CacheHandler cacheHandler,
     CollationRepository collationRepository
   ) {
-    mDB = ebeanDatabaseManager;
+    mDB = databaseManagerFlyway;
     fileVersionCache = cacheHandler.getFileVersionCache();
     this.collationRepository = collationRepository;
   }

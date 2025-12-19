@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
@@ -34,12 +34,12 @@ class ShareRepositoryEbeanTest {
   @BeforeEach
   void setup() {
     ebeanDatabaseMock = Mockito.mock(Database.class, Mockito.RETURNS_DEEP_STUBS);
-    EbeanDatabaseManager ebeanDatabaseManagerMock = Mockito.mock(EbeanDatabaseManager.class);
+    DatabaseManager databaseManagerFlywayMock = Mockito.mock(DatabaseManager.class);
     CollationRepository collationRepositoryMock = Mockito.mock(CollationRepository.class);
-    Mockito.when(ebeanDatabaseManagerMock.getEbeanDatabase()).thenReturn(ebeanDatabaseMock);
+    Mockito.when(databaseManagerFlywayMock.getEbeanDatabase()).thenReturn(ebeanDatabaseMock);
     Mockito.when(collationRepositoryMock.getValidCollateForQuery()).thenReturn(Optional.empty());
 
-    shareRepository = new ShareRepositoryEbean(ebeanDatabaseManagerMock, collationRepositoryMock);
+    shareRepository = new ShareRepositoryEbean(databaseManagerFlywayMock, collationRepositoryMock);
   }
 
   @Test

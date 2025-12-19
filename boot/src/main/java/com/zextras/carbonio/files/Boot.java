@@ -4,16 +4,16 @@
 
 package com.zextras.carbonio.files;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.FilesModule;
-import com.zextras.carbonio.files.dal.EbeanDatabaseManager;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.files.tasks.PurgeService;
-import ch.qos.logback.classic.Logger;
 import org.slf4j.LoggerFactory;
-import ch.qos.logback.classic.Level;
 
 public class Boot {
 
@@ -26,7 +26,7 @@ public class Boot {
    */
   private static final Logger logger     = (Logger) LoggerFactory.getLogger(Boot.class);
 
-  private EbeanDatabaseManager ebeanDatabaseManager;
+  private DatabaseManager databaseManager;
   private PurgeService purgeService;
   private NettyServer nettyServer;
   private MessageBrokerManager messageBrokerManager;
@@ -38,20 +38,14 @@ public class Boot {
   public void boot() {
     // Set configuration level
     String logLevel = System.getProperty("FILES_LOG_LEVEL");
-    rootLogger.setLevel(
-      Level.toLevel(
-        logLevel == null
-          ? "warn"
-          : logLevel
-      )
-    );
+    rootLogger.setLevel(Level.toLevel(logLevel == null ? "warn" : logLevel));
 
     Injector injector = Guice.createInjector(new FilesModule());
     injector.getInstance(FilesConfig.class);
 
     try {
-      ebeanDatabaseManager = injector.getInstance(EbeanDatabaseManager.class);
-      ebeanDatabaseManager.start();
+      databaseManager = injector.getInstance(DatabaseManager.class);
+      databaseManager.initialize();
 
       purgeService = injector.getInstance(PurgeService.class);
       purgeService.start();
@@ -65,7 +59,7 @@ public class Boot {
       logger.error("Service stopped unexpectedly: ", exception);
       throw exception;
     } finally {
-      ebeanDatabaseManager.stop();
+      databaseManager.stop();
       purgeService.stop();
       messageBrokerManager.close();
     }
