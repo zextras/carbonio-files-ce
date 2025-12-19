@@ -42,7 +42,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <carbonio-storages-ce.version>0.0.15-SNAPSHOT</carbonio-storages-ce.version>
     <carbonio-user-management-sdk.version>0.5.9</carbonio-user-management-sdk.version>
     <carbonio-preview-sdk.version>1.0.5</carbonio-preview-sdk.version>
-    <commons-lang3.version>3.17.0</commons-lang3.version>
+    <commons-lang3.version>3.18.0</commons-lang3.version>
     <commons-validator.version>1.9.0</commons-validator.version>
     <ebean.version>13.26.1</ebean.version>
     <graphql-java.version>22.3</graphql-java.version>
