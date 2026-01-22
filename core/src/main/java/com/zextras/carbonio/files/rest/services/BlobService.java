@@ -454,12 +454,29 @@ public class BlobService {
       String filename,
       boolean overwrite
   ) {
+    String requesterId = requester.getId().getUserId();
 
-    if (permissionsChecker
-        .getPermissions(nodeId, requester.getId().getUserId())
+    if (!permissionsChecker
+        .getPermissions(nodeId, requesterId)
         .has(SharePermission.READ_AND_WRITE)
     ) {
-      List<FileVersion> allFileVersion = fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
+      logger.warn(
+          "User {} does not have the necessary permission to upload a new version of the node {}",
+          requesterId,
+          nodeId
+      );
+      return Optional.empty();
+    }
+
+    // Start transaction with row lock to prevent concurrent uploads on the same node
+    try (Transaction transaction = databaseManagerFlyway.getEbeanDatabase().beginTransaction()) {
+
+      // Lock the node row
+      Node node = nodeRepository.getNodeForUpdate(nodeId)
+          .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+
+      List<FileVersion> allFileVersion = fileVersionRepository
+          .getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
       int maxNumberOfVersions = filesConfig.getMaxNumberOfFileVersion();
 
       if (!overwrite && allFileVersion.size() > maxNumberOfVersions) {
@@ -470,15 +487,12 @@ public class BlobService {
         ));
       }
 
-      Node node = nodeRepository.getNode(nodeId).get();
-
       MediaType mediaType = mimeTypeUtils.detectMimeTypeFromFilename(
           filename,
           MediaType.OCTET_STREAM.toString()
       );
 
       NodeType nodeType = NodeType.getNodeType(mediaType);
-
       if (nodeType != node.getNodeType()) {
         throw new FileTypeMismatchException(String.format(
             "Node %s with wrong type %s, should be the same as old versions: %s",
@@ -488,44 +502,43 @@ public class BlobService {
         ));
       }
 
-      return uploadFileVersionOperation(
+      Optional<Integer> result = uploadFileVersionOperationLocked(
           requester,
           bufferInputStream,
           blobLength,
           node,
           mediaType,
           overwrite
-      ).map(versionUploaded -> {
+      );
+
+      result.ifPresent(versionUploaded -> {
         if (!overwrite && allFileVersion.size() >= maxNumberOfVersions) {
           List<FileVersion> allVersionsNotKeptForever = allFileVersion
               .stream()
               .filter(version -> !version.isKeptForever())
               .collect(Collectors.toList());
-          FileVersion oldestVersionToDelete =
-              allVersionsNotKeptForever.get(allVersionsNotKeptForever.size() - 1);
 
-          fileVersionRepository.deleteFileVersion(oldestVersionToDelete);
-          tombstoneRepository.createTombstonesBulk(
-              List.of(oldestVersionToDelete),
-              node.getOwnerId()
-          );
+          if (!allVersionsNotKeptForever.isEmpty()) {
+            FileVersion oldestVersionToDelete =
+                allVersionsNotKeptForever.get(allVersionsNotKeptForever.size() - 1);
 
-          logger.info(
-              "File version limit for node {} has been reached, deleting version {} to make space for the new one",
-              oldestVersionToDelete.getNodeId(),
-              oldestVersionToDelete.getVersion()
-          );
+            fileVersionRepository.deleteFileVersion(oldestVersionToDelete);
+            tombstoneRepository.createTombstonesBulk(
+                List.of(oldestVersionToDelete),
+                node.getOwnerId()
+            );
+
+            logger.info(
+                "File version limit for node {} has been reached, deleting version {} to make space",
+                oldestVersionToDelete.getNodeId(),
+                oldestVersionToDelete.getVersion()
+            );
+          }
         }
-
-        return versionUploaded;
       });
-    } else {
-      logger.warn(
-          "User {} does not have the necessary permission to upload a new version of the node {}",
-          requester.getId(),
-          nodeId
-      );
-      return Optional.empty();
+
+      transaction.commit();
+      return result;
     }
   }
 
@@ -570,7 +583,12 @@ public class BlobService {
         });
   }
 
-  private Optional<Integer> uploadFileVersionOperation(
+  /**
+   * Internal method that performs the actual upload operation.
+   * MUST be called within a transaction that holds a FOR UPDATE lock on the node.
+   * This ensures concurrent uploads to the same node are serialized.
+   */
+  private Optional<Integer> uploadFileVersionOperationLocked(
       UserMyself requester,
       BufferInputStream bufferInputStream,
       long blobLength,
@@ -578,76 +596,65 @@ public class BlobService {
       MediaType mediaType,
       boolean overwrite
   ) {
-
     String nodeId = node.getId();
     int versionToUpload = node.getCurrentVersion();
 
     UploadResponse uploadResponse;
     try {
       if (overwrite) {
-        uploadResponse = fileStore
-            .uploadPut(
-                FilesIdentifier.of(nodeId, versionToUpload, requester.getId().getUserId()),
-                bufferInputStream,
-                blobLength
-            );
-
-        fileVersionRepository.deleteFileVersions(nodeId,
-            Collections.singletonList(versionToUpload));
-
+        uploadResponse = fileStore.uploadPut(
+            FilesIdentifier.of(nodeId, versionToUpload, requester.getId().getUserId()),
+            bufferInputStream,
+            blobLength
+        );
+        fileVersionRepository.deleteFileVersions(nodeId, Collections.singletonList(versionToUpload));
       } else {
         versionToUpload += 1;
-        uploadResponse = fileStore
-            .uploadPost(
-                FilesIdentifier.of(nodeId, versionToUpload, requester.getId().getUserId()),
-                bufferInputStream,
-                blobLength
-            );
+        uploadResponse = fileStore.uploadPost(
+            FilesIdentifier.of(nodeId, versionToUpload, requester.getId().getUserId()),
+            bufferInputStream,
+            blobLength
+        );
       }
     } catch (Exception exception) {
       throw new DependencyException(
-          String.format(
-              "Storages failed: unable to upload node with id %s and version %d",
-              nodeId,
-              versionToUpload
-          ),
+          String.format("Storages failed: unable to upload node with id %s and version %d",
+              nodeId, versionToUpload),
           exception
       );
     }
 
     if (!verifyBlobExists(nodeId, versionToUpload, node.getOwnerId())) {
       throw new DependencyException(
-          String.format("Upload verification failed: blob not accessible for node %s version %d", nodeId, versionToUpload)
+          String.format("Upload verification failed: blob not accessible for node %s version %d",
+              nodeId, versionToUpload)
       );
     }
 
-    try (Transaction t = databaseManagerFlyway.getEbeanDatabase().beginTransaction()) {
-      Optional<FileVersion> result = fileVersionRepository.createNewFileVersion(
-          nodeId,
-          requester.getId().getUserId(),
-          versionToUpload,
-          mediaType.toString(),
-          uploadResponse.getSize(),
-          uploadResponse.getDigest(),
-          false
-      );
-      node.setSize(uploadResponse.getSize());
-      node.setLastEditorId(requester.getId().getUserId());
-      node.setCurrentVersion(versionToUpload);
-      nodeRepository.updateNode(node);
+    Optional<FileVersion> result = fileVersionRepository.createNewFileVersion(
+        nodeId,
+        requester.getId().getUserId(),
+        versionToUpload,
+        mediaType.toString(),
+        uploadResponse.getSize(),
+        uploadResponse.getDigest(),
+        false
+    );
 
-      t.commit();
+    node.setSize(uploadResponse.getSize());
+    node.setLastEditorId(requester.getId().getUserId());
+    node.setCurrentVersion(versionToUpload);
+    nodeRepository.updateNode(node);
 
-      logger.info(
-          "Uploaded file to storages successfully: nodeId {}, version {}, size: {}, digest: {}",
-          nodeId,
-          versionToUpload,
-          uploadResponse.getSize(),
-          uploadResponse.getDigest()
-      );
+    logger.info(
+        "Uploaded file to storages successfully: nodeId {}, version {}, size: {}, digest: {}",
+        nodeId,
+        versionToUpload,
+        uploadResponse.getSize(),
+        uploadResponse.getDigest()
+    );
 
-      return result.map(FileVersion::getVersion);
-    }
+    return result.map(FileVersion::getVersion);
   }
 
   private Optional<BlobResponse> createZip(
