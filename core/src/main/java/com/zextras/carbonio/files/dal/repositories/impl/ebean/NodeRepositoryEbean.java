@@ -103,6 +103,17 @@ public class NodeRepositoryEbean implements NodeRepository {
   }
 
   @Override
+  public Optional<Node> getNodeForUpdate(String nodeId) {
+    String normalizedId = nodeId + StringUtils.repeat(" ", 36 - nodeId.length());
+    return mDB.getEbeanDatabase()
+        .find(Node.class)
+        .forUpdate()
+        .where()
+        .idEq(normalizedId)
+        .findOneOrEmpty();
+  }
+
+  @Override
   public List<Node> getAllTrashedNodes(Long retentionTimestamp) {
 
     return mDB.getEbeanDatabase()
