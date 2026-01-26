@@ -401,6 +401,9 @@ type File implements Node {
     # Size of the file
     size: Float!
 
+    # Digest (hash) of the file content
+    digest: String!
+
     # Version of the file
     version: Int!
 
