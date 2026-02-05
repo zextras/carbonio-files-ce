@@ -1,16 +1,19 @@
+// SPDX-FileCopyrightText: 2026 2026 Zextras <https://www.zextras.com>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package com.zextras.carbonio.files.dal.dao.ebean.notifications.utils;
 
 import com.zextras.carbonio.files.Constants;
 import io.ebean.annotation.Cache;
-
 import javax.persistence.*;
 
 /*
-* This is a useful class mapping a table that contains information about the notifications of a user.
-* Since we don't have a user table in File's database, we created one relative to the notifications.
-* Since the users will be inserted on-demand, one assumption is that users with notifications will always be present
-* in this table, so we can assume if a user is not present here there is no notification for him.
-* */
+ * This is a useful class mapping a table that contains information about the notifications of a user.
+ * Since we don't have a user table in File's database, we created one relative to the notifications.
+ * Since the users will be inserted on-demand, one assumption is that users with notifications will always be present
+ * in this table, so we can assume if a user is not present here there is no notification for him.
+ * */
 @Cache
 @Entity
 @Table(name = Constants.Db.Tables.USER_NOTIFICATIONS_INFO)

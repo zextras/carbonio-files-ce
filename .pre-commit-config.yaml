@@ -5,7 +5,7 @@
 exclude: "mvnw|package.json|go.sum"
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: check-added-large-files
         args: [--maxkb=2048]
@@ -21,7 +21,7 @@ repos:
       - id: trailing-whitespace
 
   - repo: https://github.com/gruntwork-io/pre-commit
-    rev: v0.1.23
+    rev: v0.1.30
     hooks:
       - id: shellcheck
 
@@ -31,22 +31,22 @@ repos:
       - id: docker-compose-check
 
   - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v3.2.0
+    rev: v4.3.0
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
         args: []
 
   - repo: https://github.com/fsfe/reuse-tool
-    rev: v3.0.2
+    rev: v6.2.0
     hooks:
       - id: reuse
 
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
-    rev: v2.13.0
+    rev: v2.16.0
     hooks:
       - id: pretty-format-java
-        args: []
+        args: [--autofix]
 
   - repo: https://github.com/ejba/pre-commit-maven
     rev: v0.3.4
