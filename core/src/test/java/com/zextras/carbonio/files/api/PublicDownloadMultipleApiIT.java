@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 2026 Zextras <https://www.zextras.com>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package com.zextras.carbonio.files.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,6 +19,12 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import io.netty.handler.codec.http.HttpMethod;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -22,13 +32,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockserver.model.Parameter;
 import org.mockserver.verify.VerificationTimes;
-
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
 
 public class PublicDownloadMultipleApiIT {
 
@@ -67,7 +70,8 @@ public class PublicDownloadMultipleApiIT {
   }
 
   @Test
-  void givenMultipleFilesWithPublicLinkTheDownloadMultipleShouldReturnZipWith200() throws Exception {
+  void givenMultipleFilesWithPublicLinkTheDownloadMultipleShouldReturnZipWith200()
+      throws Exception {
     String userId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
     String folderId = "11111111-1111-1111-1111-111111111101";
     String fileId1 = "00000000-0000-0000-0000-000000000101";
@@ -125,7 +129,13 @@ public class PublicDownloadMultipleApiIT {
                 Constants.Db.RootId.LOCAL_ROOT + "," + folderId,
                 30L,
                 "image/jpeg"))
-        .addLink(linkId, folderId, publicId, Optional.empty(), Optional.of("Public folder link"), Optional.empty());
+        .addLink(
+            linkId,
+            folderId,
+            publicId,
+            Optional.empty(),
+            Optional.of("Public folder link"),
+            Optional.empty());
 
     simulator.getBlob(fileId1, 1);
     simulator.getBlob(fileId2, 1);
@@ -133,36 +143,33 @@ public class PublicDownloadMultipleApiIT {
 
     List<String> nodeIds = List.of(fileId1, fileId2, fileId3);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
-    String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
-        + "&nodeLinkId=" + publicId;
+    String requestBody =
+        "nodeIds="
+            + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
+            + "&nodeLinkId="
+            + publicId;
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/public/download-multiple",
-        null,
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
     final HttpResponse httpResponse =
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
 
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
     Assertions.assertThat(httpResponse.getHeaders())
-        .anyMatch(header ->
-            header.getKey().equalsIgnoreCase("content-type") &&
-                header.getValue().contains("application/zip")
-        );
+        .anyMatch(
+            header ->
+                header.getKey().equalsIgnoreCase("content-type")
+                    && header.getValue().contains("application/zip"));
     Assertions.assertThat(httpResponse.getHeaders())
-        .anyMatch(header ->
-            header.getKey().equalsIgnoreCase("content-disposition") &&
-                header.getValue().contains("attachment") &&
-                header.getValue().contains("Files.zip")
-        );
+        .anyMatch(
+            header ->
+                header.getKey().equalsIgnoreCase("content-disposition")
+                    && header.getValue().contains("attachment")
+                    && header.getValue().contains("Files.zip"));
 
     simulator
         .getStoragesMock()
@@ -223,28 +230,32 @@ public class PublicDownloadMultipleApiIT {
                 Constants.Db.RootId.LOCAL_ROOT + "," + folderId,
                 20L,
                 "text/plain"))
-        .addLink(linkId, folderId, publicId, Optional.empty(), Optional.of("Protected link"), Optional.of(accessCode));
+        .addLink(
+            linkId,
+            folderId,
+            publicId,
+            Optional.empty(),
+            Optional.of("Protected link"),
+            Optional.of(accessCode));
 
     simulator.getBlob(fileId1, 1);
     simulator.getBlob(fileId2, 1);
 
     List<String> nodeIds = List.of(fileId1, fileId2);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
-    String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
-        + "&nodeLinkId=" + publicId
-        + "&accessCode=" + accessCode;
+    String requestBody =
+        "nodeIds="
+            + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
+            + "&nodeLinkId="
+            + publicId
+            + "&accessCode="
+            + accessCode;
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/public/download-multiple",
-        null,
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
     final HttpResponse httpResponse =
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
@@ -274,20 +285,17 @@ public class PublicDownloadMultipleApiIT {
 
     List<String> nodeIds = List.of(fileId);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
-    String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
-        + "&nodeLinkId=" + invalidPublicId;
+    String requestBody =
+        "nodeIds="
+            + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
+            + "&nodeLinkId="
+            + invalidPublicId;
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/public/download-multiple",
-        null,
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
     final HttpResponse httpResponse =
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
@@ -301,17 +309,11 @@ public class PublicDownloadMultipleApiIT {
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
     String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8);
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/public/download-multiple",
-        null,
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
     final HttpResponse httpResponse =
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
@@ -324,20 +326,17 @@ public class PublicDownloadMultipleApiIT {
     String publicId = UUID.randomUUID().toString();
     List<String> nodeIds = List.of();
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
-    String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
-        + "&nodeLinkId=" + publicId;
+    String requestBody =
+        "nodeIds="
+            + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
+            + "&nodeLinkId="
+            + publicId;
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/public/download-multiple",
-        null,
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
     final HttpResponse httpResponse =
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
@@ -404,27 +403,25 @@ public class PublicDownloadMultipleApiIT {
                 Constants.Db.RootId.LOCAL_ROOT + "," + parentFolderId + "," + subFolderId,
                 20L,
                 "text/plain"))
-        .addLink(linkId, parentFolderId, publicId, Optional.empty(), Optional.empty(), Optional.empty());
+        .addLink(
+            linkId, parentFolderId, publicId, Optional.empty(), Optional.empty(), Optional.empty());
 
     simulator.getBlob(fileId1, 1);
     simulator.getBlob(fileId2, 1);
 
     List<String> nodeIds = List.of(fileId1, subFolderId);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
-    String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
-        + "&nodeLinkId=" + publicId;
+    String requestBody =
+        "nodeIds="
+            + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
+            + "&nodeLinkId="
+            + publicId;
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/public/download-multiple",
-        null,
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
     final HttpResponse httpResponse =
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
@@ -466,24 +463,27 @@ public class PublicDownloadMultipleApiIT {
                 Constants.Db.RootId.LOCAL_ROOT + "," + folderId,
                 10L,
                 "text/plain"))
-        .addLink(linkId, folderId, publicId, Optional.empty(), Optional.empty(), Optional.of(accessCode));
+        .addLink(
+            linkId,
+            folderId,
+            publicId,
+            Optional.empty(),
+            Optional.empty(),
+            Optional.of(accessCode));
 
     List<String> nodeIds = List.of(fileId);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
-    String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
-        + "&nodeLinkId=" + publicId;
+    String requestBody =
+        "nodeIds="
+            + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
+            + "&nodeLinkId="
+            + publicId;
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/public/download-multiple",
-        null,
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
     final HttpResponse httpResponse =
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
@@ -511,24 +511,27 @@ public class PublicDownloadMultipleApiIT {
                 Constants.Db.RootId.LOCAL_ROOT,
                 0L,
                 null))
-        .addLink(linkId, folderId, publicId, Optional.empty(), Optional.of("Empty folder link"), Optional.empty());
+        .addLink(
+            linkId,
+            folderId,
+            publicId,
+            Optional.empty(),
+            Optional.of("Empty folder link"),
+            Optional.empty());
 
     List<String> nodeIds = List.of(folderId);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
-    String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
-        + "&nodeLinkId=" + publicId;
+    String requestBody =
+        "nodeIds="
+            + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
+            + "&nodeLinkId="
+            + publicId;
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/public/download-multiple",
-        null,
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
     final HttpResponse httpResponse =
         TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
