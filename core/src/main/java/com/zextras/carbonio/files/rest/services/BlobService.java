@@ -603,7 +603,7 @@ public class BlobService {
     try {
       if (overwrite) {
         uploadResponse = fileStore.uploadPut(
-            FilesIdentifier.of(nodeId, versionToUpload, requester.getId().getUserId()),
+            FilesIdentifier.of(nodeId, versionToUpload, node.getOwnerId()),
             bufferInputStream,
             blobLength
         );
@@ -611,7 +611,7 @@ public class BlobService {
       } else {
         versionToUpload += 1;
         uploadResponse = fileStore.uploadPost(
-            FilesIdentifier.of(nodeId, versionToUpload, requester.getId().getUserId()),
+            FilesIdentifier.of(nodeId, versionToUpload, node.getOwnerId()),
             bufferInputStream,
             blobLength
         );
