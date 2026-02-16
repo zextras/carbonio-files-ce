@@ -561,8 +561,8 @@ public final class Constants {
       public static final String KEEP_VERSIONS = "keepVersions";
       public static final String CLONE_VERSION = "cloneVersion";
       public static final String CREATE_SHARE = "createShare";
-      public static final String UPDATE_SHARE = "updateShare";
-      public static final String DELETE_SHARE = "deleteShare";
+      public static final String UPDATE_SHARES = "updateShares";
+      public static final String DELETE_SHARES = "deleteShares";
       public static final String CREATE_LINK = "createLink";
       public static final String UPDATE_LINK = "updateLink";
       public static final String DELETE_LINKS = "deleteLinks";
@@ -700,6 +700,7 @@ public final class Constants {
 
         public static final String NODE_ID = "node_id";
         public static final String SHARE_TARGET_ID = "share_target_id";
+        public static final String SHARE_TARGET_IDS = "share_target_ids";
         public static final String PERMISSION = "permission";
         public static final String EXPIRES_AT = "expires_at";
         public static final String CUSTOM_MESSAGE = "custom_message";

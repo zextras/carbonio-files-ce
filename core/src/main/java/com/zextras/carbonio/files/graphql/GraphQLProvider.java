@@ -152,12 +152,12 @@ public class GraphQLProvider {
             inputFieldsController.shareQueriesValidation()
         )
         .addRule(
-            ResultPath.parse("/" + Constants.GraphQL.Mutations.UPDATE_SHARE),
-            inputFieldsController.shareQueriesValidation()
+            ResultPath.parse("/" + Constants.GraphQL.Mutations.UPDATE_SHARES),
+            inputFieldsController.bulkShareQueriesValidation()
         )
         .addRule(
-            ResultPath.parse("/" + Constants.GraphQL.Mutations.DELETE_SHARE),
-            inputFieldsController.shareQueriesValidation()
+            ResultPath.parse("/" + Constants.GraphQL.Mutations.DELETE_SHARES),
+            inputFieldsController.bulkShareQueriesValidation()
         )
         .addRule(
             ResultPath.parse("/" + Constants.GraphQL.Mutations.CREATE_LINK),
@@ -280,8 +280,8 @@ public class GraphQLProvider {
             .dataFetcher(Constants.GraphQL.Mutations.CLONE_VERSION, nodeDataFetcher.cloneVersionFetcher())
             .dataFetcher(Constants.GraphQL.Mutations.COPY_NODES, nodeDataFetcher.copyNodesFetcher())
             .dataFetcher(Constants.GraphQL.Mutations.CREATE_SHARE, shareDataFetcher.createShareFetcher())
-            .dataFetcher(Constants.GraphQL.Mutations.UPDATE_SHARE, shareDataFetcher.updateShareFetcher())
-            .dataFetcher(Constants.GraphQL.Mutations.DELETE_SHARE, shareDataFetcher.deleteShareFetcher())
+            .dataFetcher(Constants.GraphQL.Mutations.UPDATE_SHARES, shareDataFetcher.updateSharesFetcher())
+            .dataFetcher(Constants.GraphQL.Mutations.DELETE_SHARES, shareDataFetcher.deleteSharesFetcher())
             .dataFetcher(Constants.GraphQL.Mutations.CREATE_LINK, linkDataFetcher.createLink())
             .dataFetcher(Constants.GraphQL.Mutations.UPDATE_LINK, linkDataFetcher.updateLink())
             .dataFetcher(Constants.GraphQL.Mutations.DELETE_LINKS, linkDataFetcher.deleteLinks())

@@ -188,6 +188,25 @@ public class InputFieldsController {
   }
 
   /**
+   * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Mutations#UPDATE_SHARES}
+   * and {@link Constants.GraphQL.Mutations#DELETE_SHARES} mutations to check if the node id and the
+   * target user ids in input are valid.
+   * @see GenericControllerEvaluator#checkNodeId(String)
+   * @see GenericControllerEvaluator#checkUserIds(String)
+   */
+  public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> bulkShareQueriesValidation() {
+    return (fieldAndArguments, environment) ->
+    {
+      GenericControllerEvaluator controller = mGenericControllerEvaluatorFactory
+        .create(fieldAndArguments, environment)
+        .checkNodeId(Constants.GraphQL.InputParameters.Share.NODE_ID)
+        .checkUserIds(Constants.GraphQL.InputParameters.Share.SHARE_TARGET_IDS);
+
+      return controller.evaluate();
+    };
+  }
+
+  /**
    * @return a {@link BiFunction} rule bound with the {@link Constants.GraphQL.Mutations#CREATE_LINK} to
    * check if the node id and/or the link description and/or the access code are valid.
    * @see GenericControllerEvaluator#checkNodeId(String)
