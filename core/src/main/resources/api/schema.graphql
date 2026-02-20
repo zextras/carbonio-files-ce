@@ -732,31 +732,33 @@ type Mutation {
         custom_message: String
     ) : Share!
 
-    # Allows to update the SharePermissions and the expiration timestamp of an existing share.
-    updateShare(
+    # Allows to update the SharePermissions and the expiration timestamp of existing shares in bulk.
+    # Returns the list of successfully updated shares. If some shares cannot be updated,
+    # they will be reported as errors while the other shares are updated successfully.
+    updateShares(
         # The unique identifier of the shared node (mandatory)
         node_id: ID!
 
-        # The unique identifier of the target user that the node is shared with (mandatory)
-        share_target_id: ID!
+        # The unique identifiers of the target users that the node is shared with (mandatory)
+        share_target_ids: [ID!]!
 
-        # The new SharePermissions that the target user has on the node (optional)
+        # The new SharePermissions that the target users have on the node (optional)
         permission: SharePermission
 
-        # The expiration timestamp for this share (optional)
+        # The expiration timestamp for these shares (optional)
         expires_at: DateTime
-    ) : Share
+    ) : [Share]!
 
-    # Allows to delete the share of a node to a target user. It returns false if the share does not exist or the operation
-    # fails, otherwise it returns true.
-    #
-    deleteShare(
+    # Allows to delete the shares of a node to multiple target users in bulk.
+    # Returns the list of target user IDs for which the share was successfully deleted.
+    # If some shares cannot be deleted, they will be reported as errors while the other shares are deleted successfully.
+    deleteShares(
         # The unique identifier of the shared node (mandatory)
         node_id: ID!
 
-        # The unique identifier of the target user that the node is shared with (mandatory)
-        share_target_id: ID!
-    ) : Boolean!
+        # The unique identifiers of the target users that the node is shared with (mandatory)
+        share_target_ids: [ID!]!
+    ) : [ID]!
 
     # Allows to create a public link for an existing node. A link can be created only if the requester has the
     # <strong>can_share<strong> permission on the specified node.

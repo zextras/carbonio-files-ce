@@ -24,6 +24,8 @@ import graphql.execution.DataFetcherResult;
 import graphql.execution.DataFetcherResult.Builder;
 import graphql.schema.DataFetcher;
 import graphql.schema.idl.EnumValuesProvider;
+import graphql.GraphQLError;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -303,47 +305,59 @@ public class ShareDataFetcher {
   }
 
   /**
-   * <p>This {@link DataFetcher} must be used for the {@link Constants.GraphQL.Mutations#UPDATE_SHARE}
+   * <p>This {@link DataFetcher} must be used for the {@link Constants.GraphQL.Mutations#UPDATE_SHARES}
    * mutation.</p>
    * <p>The request must have the following parameters in input:</p>
    * <ul>
    * <li>{@link Constants.GraphQL.InputParameters.Share#NODE_ID}: a {@link String} representing the id of the shared node
    * (this is mandatory).</li>
-   * <li>{@link Constants.GraphQL.InputParameters.Share#SHARE_TARGET_ID}: a {@link String} representing the user to whom the
-   * node is shared with (this is mandatory).</li>
+   * <li>{@link Constants.GraphQL.InputParameters.Share#SHARE_TARGET_IDS}: a {@link List} of {@link String} representing
+   * the users to whom the node is shared with (this is mandatory).</li>
    * <li>{@link Constants.GraphQL.InputParameters.Share#PERMISSION}: an {@link ACL.SharePermission} representing the new
-   * permissions that the user will have on the node.</li>>
+   * permissions that the users will have on the node.</li>
    * <li>{@link Constants.GraphQL.InputParameters.Share#EXPIRES_AT}: a long representing the expiration timestamp.</li>
    * </ul>
    * <h2>Behaviour:</h2>
-   * <p>It retrieves the share, it updates that with the new values specified in input, it saves the mandatory
-   * parameters necessary to fetch the related {@link Constants.GraphQL.Node} object and the related
-   * {@link Constants.GraphQL.User} object, it propagates the updates on all sub nodes recursively, then it creates the
-   * GraphQL map of the updated share.</p>
+   * <p>For each target user, it retrieves the share, updates it with the new values specified in input,
+   * propagates the updates on all sub nodes recursively, then creates the GraphQL map of the updated share.
+   * Shares that do not exist or for which the requester lacks permissions are reported as errors while
+   * the remaining shares are updated successfully (partial success).</p>
    *
-   * @return an asynchronous {@link DataFetcher} containing a {@link Map} of all the attributes
-   * values of the updated share or <code>null</code> if the share does not exist.
+   * @return an asynchronous {@link DataFetcher} containing a {@link List} of {@link DataFetcherResult}
+   * with the successfully updated shares and errors for the failed ones.
    */
-  public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> updateShareFetcher() {
+  public DataFetcher<CompletableFuture<DataFetcherResult<List<DataFetcherResult<Map<String, Object>>>>>> updateSharesFetcher() {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
       String requesterId = ((UserMyself) environment.getGraphQlContext()
         .get(Constants.GraphQL.Context.REQUESTER)).getId().getUserId();
       String sharedNodeId = environment.getArgument(Constants.GraphQL.InputParameters.Share.NODE_ID);
-      String targetUserId = environment.getArgument(
-        Constants.GraphQL.InputParameters.Share.SHARE_TARGET_ID);
+      List<String> targetUserIds = environment.getArgument(
+        Constants.GraphQL.InputParameters.Share.SHARE_TARGET_IDS);
 
-      return permissionsChecker.getPermissions(sharedNodeId, requesterId)
-        .has(ACL.SharePermission.READ_AND_SHARE)
-        ? shareRepository.getShare(sharedNodeId, targetUserId)
-        .map(share -> {
-          Optional<ACL.SharePermission> optNewPermissions = Optional.ofNullable(
-            environment.getArgument(Constants.GraphQL.InputParameters.Share.PERMISSION)
-          );
-          Optional<Long> optNewExpiresAt = Optional.ofNullable(
-            environment.getArgument(Constants.GraphQL.InputParameters.Share.EXPIRES_AT)
-          );
+      Optional<ACL.SharePermission> optNewPermissions = Optional.ofNullable(
+        environment.getArgument(Constants.GraphQL.InputParameters.Share.PERMISSION)
+      );
+      Optional<Long> optNewExpiresAt = Optional.ofNullable(
+        environment.getArgument(Constants.GraphQL.InputParameters.Share.EXPIRES_AT)
+      );
 
+      boolean hasPermission = permissionsChecker.getPermissions(sharedNodeId, requesterId)
+        .has(ACL.SharePermission.READ_AND_SHARE);
+
+      List<DataFetcherResult<Map<String, Object>>> successShares = new ArrayList<>();
+      List<GraphQLError> errors = new ArrayList<>();
+
+      for (String targetUserId : targetUserIds) {
+        if (!hasPermission) {
+          errors.add(GraphQLResultErrors.shareNotfound(
+            sharedNodeId, targetUserId, environment.getExecutionStepInfo().getPath()));
+          continue;
+        }
+
+        Optional<Share> optShare = shareRepository.getShare(sharedNodeId, targetUserId);
+        if (optShare.isPresent()) {
+          Share share = optShare.get();
           optNewPermissions.ifPresent(permissions -> {
               share.setPermissions(ACL.decode(permissions));
               cascadeUpsertShare(sharedNodeId, targetUserId, ACL.decode(optNewPermissions.get()),
@@ -352,60 +366,67 @@ public class ShareDataFetcher {
           );
           optNewExpiresAt.ifPresent(share::setExpiredAt);
           Share updatedShare = shareRepository.updateShare(share);
+          successShares.add(convertShareToDataFetcherResult(updatedShare));
+        } else {
+          errors.add(GraphQLResultErrors.shareNotfound(
+            sharedNodeId, targetUserId, environment.getExecutionStepInfo().getPath()));
+        }
+      }
 
-          return convertShareToDataFetcherResult(updatedShare);
-        })
-        .orElse(new Builder<Map<String, Object>>()
-          .error(GraphQLResultErrors.shareNotfound(
-            sharedNodeId,
-            targetUserId,
-            environment.getExecutionStepInfo()
-              .getPath()))
-          .build())
-        : new Builder<Map<String, Object>>()
-          .error(GraphQLResultErrors.shareNotfound(
-            sharedNodeId,
-            targetUserId,
-            environment.getExecutionStepInfo()
-              .getPath()))
-          .build();
+      return DataFetcherResult.<List<DataFetcherResult<Map<String, Object>>>>newResult()
+        .data(successShares)
+        .errors(errors)
+        .build();
     });
   }
 
   /**
-   * <p>This {@link DataFetcher} must be used for the {@link Constants.GraphQL.Mutations#DELETE_SHARE}
+   * <p>This {@link DataFetcher} must be used for the {@link Constants.GraphQL.Mutations#DELETE_SHARES}
    * mutation.</p>
    * <p>The request must have the following parameters in input:</p>
    * <ul>
    * <li>{@link Constants.GraphQL.InputParameters.Share#NODE_ID}: a {@link String} representing the id of the shared node
    * (this is mandatory).</li>
-   * <li>{@link Constants.GraphQL.InputParameters.Share#SHARE_TARGET_ID}: a {@link String} representing the user to whom the
-   * node is shared with (this is mandatory).</li>
+   * <li>{@link Constants.GraphQL.InputParameters.Share#SHARE_TARGET_IDS}: a {@link List} of {@link String} representing
+   * the users to whom the node is shared with (this is mandatory).</li>
    * </ul>
    * <h2>Behaviour:</h2>
-   * <p>It retrieves and deletes the share (if exists). It also propagates the deletion on all sub nodes recursively.</p>
+   * <p>For each target user, it retrieves and deletes the share (if exists). It also propagates
+   * the deletion on all sub nodes recursively. Shares that do not exist or for which the requester
+   * lacks permissions are reported as errors while the other shares are deleted successfully
+   * (partial success).</p>
    *
-   * @return an asynchronous {@link DataFetcher} containing a {@link Boolean} that is true if the
-   * share exists and the deletion is done successfully, false otherwise.
+   * @return an asynchronous {@link DataFetcher} containing a {@link List} of target user IDs
+   * for which the share was successfully deleted, with errors for the failed ones.
    */
-  public DataFetcher<CompletableFuture<DataFetcherResult<Boolean>>> deleteShareFetcher() {
+  public DataFetcher<CompletableFuture<DataFetcherResult<List<String>>>> deleteSharesFetcher() {
     return environment -> CompletableFuture.supplyAsync(() ->
     {
       String requesterId = ((UserMyself) environment.getGraphQlContext()
         .get(Constants.GraphQL.Context.REQUESTER)).getId().getUserId();
       final String sharedNodeId = environment.getArgument(
         Constants.GraphQL.InputParameters.Share.NODE_ID);
-      final String targetUserId = environment.getArgument(
-        Constants.GraphQL.InputParameters.Share.SHARE_TARGET_ID);
+      List<String> targetUserIds = environment.getArgument(
+        Constants.GraphQL.InputParameters.Share.SHARE_TARGET_IDS);
 
-      return permissionsChecker.getPermissions(sharedNodeId, requesterId)
-        .has(ACL.SharePermission.READ_AND_SHARE)
-        || requesterId.equals(targetUserId)
-        ? shareRepository.getShare(sharedNodeId, targetUserId)
-        .map(share -> {
-          //TODO when adding the shareId we will return the removed shareId/share instead of the boolean
-          boolean shareDeleted = shareRepository.deleteShare(share.getNodeId(),
-            share.getTargetUserId());
+      List<String> deletedTargetUserIds = new ArrayList<>();
+      List<GraphQLError> errors = new ArrayList<>();
+
+      for (String targetUserId : targetUserIds) {
+        boolean hasPermission = permissionsChecker.getPermissions(sharedNodeId, requesterId)
+          .has(ACL.SharePermission.READ_AND_SHARE)
+          || requesterId.equals(targetUserId);
+
+        if (!hasPermission) {
+          errors.add(GraphQLResultErrors.shareNotfound(
+            sharedNodeId, targetUserId, environment.getExecutionStepInfo().getPath()));
+          continue;
+        }
+
+        Optional<Share> optShare = shareRepository.getShare(sharedNodeId, targetUserId);
+        if (optShare.isPresent()) {
+          Share share = optShare.get();
+          shareRepository.deleteShare(share.getNodeId(), share.getTargetUserId());
 
           // Recursively delete all the indirect share of targetUser (even for the trashed nodes)
           if (nodeRepository.getNode(sharedNodeId)
@@ -414,24 +435,17 @@ public class ShareDataFetcher {
             cascadeDeleteShare(sharedNodeId, targetUserId);
           }
 
-          return new Builder<Boolean>()
-            .data(shareDeleted)
-            .build();
-        })
-        .orElse(new Builder<Boolean>()
-          .error(GraphQLResultErrors.shareNotfound(
-            sharedNodeId,
-            targetUserId,
-            environment.getExecutionStepInfo()
-              .getPath()))
-          .build())
-        : new Builder<Boolean>()
-          .error(GraphQLResultErrors.shareNotfound(
-            sharedNodeId,
-            targetUserId,
-            environment.getExecutionStepInfo()
-              .getPath()))
-          .build();
+          deletedTargetUserIds.add(targetUserId);
+        } else {
+          errors.add(GraphQLResultErrors.shareNotfound(
+            sharedNodeId, targetUserId, environment.getExecutionStepInfo().getPath()));
+        }
+      }
+
+      return DataFetcherResult.<List<String>>newResult()
+        .data(deletedTargetUserIds)
+        .errors(errors)
+        .build();
     });
   }
 

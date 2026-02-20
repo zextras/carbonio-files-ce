@@ -209,14 +209,7 @@ public class GenericControllerEvaluator {
   public GenericControllerEvaluator checkUserId(String userIdKey) {
     inputsToCheckWithRelativeFunctions.add(Parameter.build(
       userIdKey,
-      (key) ->
-      {
-        String userId = fieldAndArguments.getArgumentValue(key);
-
-        return (userId == null || !userId.isEmpty())
-          ? Optional.empty()
-          : Optional.of("Invalid user ID. Length cannot be empty");
-      }
+      (key) -> validateUserId(fieldAndArguments.getArgumentValue(key))
     ));
     return this;
   }
@@ -259,6 +252,35 @@ public class GenericControllerEvaluator {
         return (linkPassword == null || linkPassword.length() >= 8)
           ? Optional.empty()
           : Optional.of("Invalid link password. Length cannot be less than 8 characters");
+      }
+    ));
+    return this;
+  }
+
+  /**
+   * Checks if all the user ids in the list are valid and creates the related error messages if they
+   * aren't. It builds a {@link Parameter} containing the implementation of the related
+   * {@link Function} necessary to check the values.
+   *
+   * @param userIdsKey is a {@link String} representing the input key mapping the value of a list
+   * of user ids.
+   *
+   * @return the {@link GenericControllerEvaluator} to allow the possibility to chain multiple
+   * checks to select.
+   */
+  public GenericControllerEvaluator checkUserIds(String userIdsKey) {
+    inputsToCheckWithRelativeFunctions.add(Parameter.build(
+      userIdsKey,
+      (key) ->
+      {
+        List<String> userIds = fieldAndArguments.getArgumentValue(key);
+        return Optional.of(userIds
+          .stream()
+          .map(this::validateUserId)
+          .filter(Optional::isPresent)
+          .map(Optional::get)
+          .collect(Collectors.joining("\n"))
+        );
       }
     ));
     return this;
@@ -389,6 +411,20 @@ public class GenericControllerEvaluator {
     return validator.isValid(email)
       ? Optional.empty()
       : Optional.of("Invalid Email");
+  }
+
+  /**
+   * Allows to validate a user id. It is necessary to respect the DRY principle.
+   *
+   * @param userId is a {@link String} of the user id.
+   *
+   * @return an {@link Optional#empty()} if the user id is valid, otherwise it returns an {@link
+   * Optional} containing the error message.
+   */
+  private Optional<String> validateUserId(String userId) {
+    return (userId == null || !userId.isEmpty())
+      ? Optional.empty()
+      : Optional.of("Invalid user ID. Length cannot be empty");
   }
 
   private Optional<String> validateLinkId(String linkId) {
