@@ -62,7 +62,14 @@ class ProcedureServiceTest {
     // Given
     final UserMyself requester =
         new UserMyself(
-            new UserId("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "", "", "", UserStatus.ACTIVE, Locale.ENGLISH, UserType.INTERNAL, Map.of("carbonioFeatureFilesEnabled", "TRUE"));
+            new UserId("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            "",
+            "",
+            "",
+            UserStatus.ACTIVE,
+            Locale.ENGLISH,
+            UserType.INTERNAL,
+            Map.of("carbonioFeatureFilesEnabled", "TRUE"));
 
     final Node nodeMock = Mockito.mock(Node.class);
     Mockito.when(nodeMock.getNodeType()).thenReturn(NodeType.TEXT);
@@ -112,7 +119,14 @@ class ProcedureServiceTest {
     // Given
     final UserMyself requester =
         new UserMyself(
-            new UserId("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "", "", "", UserStatus.ACTIVE, Locale.ENGLISH, UserType.INTERNAL, Map.of("carbonioFeatureFilesEnabled", "TRUE"));
+            new UserId("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            "",
+            "",
+            "",
+            UserStatus.ACTIVE,
+            Locale.ENGLISH,
+            UserType.INTERNAL,
+            Map.of("carbonioFeatureFilesEnabled", "TRUE"));
 
     final Node nodeMock = Mockito.mock(Node.class);
     Mockito.when(nodeMock.getNodeType()).thenReturn(NodeType.TEXT);
@@ -158,7 +172,14 @@ class ProcedureServiceTest {
     // Given
     final UserMyself requester =
         new UserMyself(
-            new UserId("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "", "", "", UserStatus.ACTIVE, Locale.ENGLISH, UserType.INTERNAL, Map.of("carbonioFeatureFilesEnabled", "TRUE"));
+            new UserId("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            "",
+            "",
+            "",
+            UserStatus.ACTIVE,
+            Locale.ENGLISH,
+            UserType.INTERNAL,
+            Map.of("carbonioFeatureFilesEnabled", "TRUE"));
 
     final Node nodeMock = Mockito.mock(Node.class);
     Mockito.when(nodeMock.getNodeType()).thenReturn(NodeType.TEXT);
@@ -202,28 +223,6 @@ class ProcedureServiceTest {
     Assertions.assertThat(tryAttachmentId.isFailure()).isTrue();
     Assertions.assertThatThrownBy(() -> tryAttachmentId.get())
         .isInstanceOf(InternalServerErrorException.class);
-  }
-
-  @Test
-  void givenTheChatTargetModuleTheUploadToShouldReturnATryFailureBecauseNotSupported() {
-    // Given & When
-    final Try<String> tryAttachmentId =
-        procedureService.uploadToModule(
-            UUID.fromString("00000000-0000-0000-0000-000000000000"),
-            TargetModule.CHATS,
-            Mockito.mock(UserMyself.class),
-            "fake-cookie");
-
-    // Then
-    Assertions.assertThat(tryAttachmentId.isFailure()).isTrue();
-    Assertions.assertThatThrownBy(() -> tryAttachmentId.get())
-        .isInstanceOf(InternalServerErrorException.class)
-        .hasMessage("CHATS not supported");
-
-    Mockito.verifyNoInteractions(nodeRepositoryMock);
-    Mockito.verifyNoInteractions(fileVersionRepositoryMock);
-    Mockito.verifyNoInteractions(fileStoreClientMock);
-    Mockito.verifyNoInteractions(mailboxHttpClientMock);
   }
 
   @Test

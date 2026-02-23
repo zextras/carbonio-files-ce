@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public class UploadToRequest {
 
-  private UUID         nodeId;
+  private UUID nodeId;
   private TargetModule targetModule;
 
   public UUID getNodeId() {
@@ -48,7 +48,6 @@ public class UploadToRequest {
   public enum TargetModule {
     MAILS,
     CALENDARS,
-    CONTACTS,
-    CHATS
+    CONTACTS
   }
 }

@@ -66,42 +66,36 @@ public class ProcedureService {
    *     <ul>
    *       <li>{@link BadRequestException} when the node is not a file
    *       <li>{@link Exception} when the download of the blob to upload fails
-   *       <li>{@link Exception} when the {@link TargetModule} is {@link TargetModule#CHATS}
-   *           because, for now, it is not supported
    *     </ul>
    */
   public Try<String> uploadToModule(
       UUID nodeId, TargetModule targetModule, UserMyself requester, String cookiesRequester) {
 
-    if (!targetModule.equals(TargetModule.CHATS)) {
-      Node nodeToUpload = nodeRepository.getNode(nodeId.toString()).get();
+    Node nodeToUpload = nodeRepository.getNode(nodeId.toString()).get();
 
-      if (!nodeToUpload.getNodeType().equals(NodeType.FOLDER)) {
-        FileVersion fileVersion = fileVersionRepository.getLastFileVersion(nodeId.toString()).get();
-        InputStream blob;
-        try {
-          blob =
-              fileStoreClient.download(
-                  FilesIdentifier.of(
-                      nodeId.toString(), nodeToUpload.getCurrentVersion(), requester.getId().getUserId()));
-        } catch (Exception exception) {
-          logger.error(MessageFormat.format("Failed to download the node: {0}", nodeId));
-          return Try.failure(new InternalServerErrorException(exception));
-        }
-
-        return mailboxHttpClient.uploadFile(
-            cookiesRequester,
-            nodeToUpload.getFullName(),
-            fileVersion.getMimeType(),
-            blob,
-            fileVersion.getSize());
+    if (!nodeToUpload.getNodeType().equals(NodeType.FOLDER)) {
+      FileVersion fileVersion = fileVersionRepository.getLastFileVersion(nodeId.toString()).get();
+      InputStream blob;
+      try {
+        blob =
+            fileStoreClient.download(
+                FilesIdentifier.of(
+                    nodeId.toString(),
+                    nodeToUpload.getCurrentVersion(),
+                    requester.getId().getUserId()));
+      } catch (Exception exception) {
+        logger.error(MessageFormat.format("Failed to download the node: {0}", nodeId));
+        return Try.failure(new InternalServerErrorException(exception));
       }
-      logger.error(MessageFormat.format("Folder cannot be uploaded to {0} store", targetModule));
-      return Try.failure(new BadRequestException());
-    }
 
-    return Try.failure(
-        new InternalServerErrorException(
-            MessageFormat.format("{0} not supported", TargetModule.CHATS)));
+      return mailboxHttpClient.uploadFile(
+          cookiesRequester,
+          nodeToUpload.getFullName(),
+          fileVersion.getMimeType(),
+          blob,
+          fileVersion.getSize());
+    }
+    logger.error(MessageFormat.format("Folder cannot be uploaded to {0} store", targetModule));
+    return Try.failure(new BadRequestException());
   }
 }
