@@ -1,3 +1,16 @@
+## [1.1.0](https://github.com/zextras/carbonio-files-ce/compare/v1.0.1...v1.1.0) (2026-02-23)
+
+### Features
+
+* bulk update and remove shares ([#230](https://github.com/zextras/carbonio-files-ce/issues/230)) ([82cff8d](https://github.com/zextras/carbonio-files-ce/commit/82cff8d572419a155c9d792658b7013dfba716e8))
+
+### Bug Fixes
+
+* **deps:** update dependency org.apache.commons:commons-lang3 to v3.18.0 [security] ([#209](https://github.com/zextras/carbonio-files-ce/issues/209)) ([7dee0e4](https://github.com/zextras/carbonio-files-ce/commit/7dee0e4ef1ec32f09d0556468363cec87c6fdf95))
+* **deps:** update dependency org.postgresql:postgresql to v42.7.7 [security] ([#208](https://github.com/zextras/carbonio-files-ce/issues/208)) ([8a0d5d8](https://github.com/zextras/carbonio-files-ce/commit/8a0d5d8f14d73cb3427a9028f61af82fff5bdb56))
+* solve race condition on file version upload ([#219](https://github.com/zextras/carbonio-files-ce/issues/219)) ([13cf57f](https://github.com/zextras/carbonio-files-ce/commit/13cf57f06902b65e9bf18438447d64e1d85d70b2))
+* use owner id on upload ([#229](https://github.com/zextras/carbonio-files-ce/issues/229)) ([f0eda18](https://github.com/zextras/carbonio-files-ce/commit/f0eda1895f49c36ef85ef9f3e3af13881d7442a1))
+
 ## [1.0.1](https://github.com/zextras/carbonio-files-ce/compare/v1.0.0...v1.0.1) (2025-11-18)
 
 ### Bug Fixes
