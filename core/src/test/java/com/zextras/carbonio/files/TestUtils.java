@@ -171,7 +171,17 @@ public class TestUtils {
     fullHttpRequest.retain(2);
     nettyChannel.writeInbound(fullHttpRequest);
 
-    final DefaultHttpResponse defaultHttpResponse = nettyChannel.readOutbound();
+    // For async handlers (e.g. download-multiple with writePipedStream), the response
+    // may not be immediately available. Run scheduled tasks to allow pollAndWrite to execute.
+    DefaultHttpResponse defaultHttpResponse = nettyChannel.readOutbound();
+    if (defaultHttpResponse == null) {
+      long deadline = System.currentTimeMillis() + 5000;
+      while (defaultHttpResponse == null && System.currentTimeMillis() < deadline) {
+        try { Thread.sleep(20); } catch (InterruptedException ignored) { break; }
+        nettyChannel.runScheduledPendingTasks();
+        defaultHttpResponse = nettyChannel.readOutbound();
+      }
+    }
 
     if (defaultHttpResponse instanceof DefaultFullHttpResponse fullHttpResponse) {
       return HttpResponse.of(
