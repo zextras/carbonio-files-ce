@@ -39,6 +39,9 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
@@ -54,6 +57,7 @@ import static com.zextras.carbonio.files.utilities.RenameNodeUtils.searchAlterna
 public class BlobService {
 
   private static final Logger logger = LoggerFactory.getLogger(BlobService.class);
+  private static final ExecutorService ZIP_EXECUTOR = Executors.newCachedThreadPool();
 
   private final NodeRepository nodeRepository;
   private final NotificationRepository notificationRepository;
@@ -669,37 +673,54 @@ public class BlobService {
     }
 
     try {
-      PipedInputStream pipedInput = new PipedInputStream(8192);
+      PipedInputStream pipedInput = new PipedInputStream(256 * 1024);
       PipedOutputStream pipedOutput = new PipedOutputStream(pipedInput);
+      AtomicBoolean cancelled = new AtomicBoolean(false);
+      AtomicBoolean producerDone = new AtomicBoolean(false);
 
       CompletableFuture.runAsync(() -> {
         try (ZipOutputStream zos = new ZipOutputStream(pipedOutput)) {
           Set<String> usedPaths = new HashSet<>();
           for (Node node : nodes) {
-            addNodeToZip(node, zos, "", accessChecker, usedPaths);
+            if (cancelled.get()) {
+              logger.debug("ZIP creation cancelled before processing node {}", node.getId());
+              return;
+            }
+            addNodeToZip(node, zos, "", accessChecker, usedPaths, cancelled);
           }
           zos.finish();
         } catch (IOException e) {
-          logger.error("Error creating ZIP stream", e);
-          throw new ZipGenerationException("Failed to create ZIP stream", e);
+          if (cancelled.get()) {
+            logger.debug("ZIP creation interrupted (client disconnected)");
+          } else {
+            logger.error("Error creating ZIP stream", e);
+            throw new ZipGenerationException("Failed to create ZIP stream", e);
+          }
         } catch (Exception e) {
-          logger.error("Unexpected error during ZIP creation", e);
-          throw new ZipGenerationException("Unexpected error during ZIP creation", e);
+          if (cancelled.get()) {
+            logger.debug("ZIP creation interrupted (client disconnected)");
+          } else {
+            logger.error("Unexpected error during ZIP creation", e);
+            throw new ZipGenerationException("Unexpected error during ZIP creation", e);
+          }
         } finally {
           try {
             pipedOutput.close();
           } catch (IOException ex) {
             logger.debug("Error closing pipedOutput", ex);
-            throw new ZipGenerationException("Unexpected error during ZIP creation", ex);
           }
+          // Set producerDone AFTER closing pipedOutput so that read() returns -1 immediately
+          producerDone.set(true);
         }
-      });
+      }, ZIP_EXECUTOR);
 
       return Optional.of(new BlobResponse(
           pipedInput,
           zipName,
           null,
-          "application/zip")
+          "application/zip",
+          producerDone,
+          cancelled)
       );
 
     } catch (IOException e) {
@@ -713,14 +734,18 @@ public class BlobService {
       ZipOutputStream zos,
       String path,
       Function<Node, Boolean> accessChecker,
-      Set<String> usedPaths
+      Set<String> usedPaths,
+      AtomicBoolean cancelled
   ) {
+    if (cancelled.get()) {
+      return;
+    }
     try {
       if (accessChecker.apply(node)) {
         if (node.getNodeType().equals(NodeType.FOLDER)) {
-          addFolderToZip(node, zos, path, accessChecker, usedPaths);
+          addFolderToZip(node, zos, path, accessChecker, usedPaths, cancelled);
         } else {
-          addFileToZip(node, zos, path, usedPaths);
+          addFileToZip(node, zos, path, usedPaths, cancelled);
         }
       }
     } catch (ZipException e) {
@@ -740,8 +765,13 @@ public class BlobService {
       ZipOutputStream zos,
       String parentPath,
       Function<Node, Boolean> accessChecker,
-      Set<String> usedPaths
+      Set<String> usedPaths,
+      AtomicBoolean cancelled
   ) throws IOException {
+    if (cancelled.get()) {
+      return;
+    }
+
     String folderPath = getUniqueNameForZip(
         parentPath.isEmpty() ? folder.getFullName() : parentPath + "/" + folder.getFullName(),
         usedPaths,
@@ -760,14 +790,27 @@ public class BlobService {
     );
 
     for (String childId : childrenIds) {
+      if (cancelled.get()) {
+        return;
+      }
       Node childNode = nodeRepository.getNode(childId)
           .orElseThrow(() -> new ZipGenerationException("Child node not found: " + childId));
 
-      addNodeToZip(childNode, zos, folderPath, accessChecker, usedPaths);
+      addNodeToZip(childNode, zos, folderPath, accessChecker, usedPaths, cancelled);
     }
   }
 
-  private void addFileToZip(Node node, ZipOutputStream zos, String parentPath, Set<String> usedPaths) throws IOException {
+  private void addFileToZip(
+      Node node,
+      ZipOutputStream zos,
+      String parentPath,
+      Set<String> usedPaths,
+      AtomicBoolean cancelled
+  ) throws IOException {
+    if (cancelled.get()) {
+      return;
+    }
+
     FileVersion fileVersion = fileVersionRepository.getLastFileVersion(node.getId()).get();
 
     String filePath = getUniqueNameForZip(
@@ -788,8 +831,20 @@ public class BlobService {
       byte[] buffer = new byte[8192];
       int bytesRead;
       while ((bytesRead = fileStream.read(buffer)) != -1) {
+        if (cancelled.get()) {
+          return;
+        }
         zos.write(buffer, 0, bytesRead);
       }
+    } catch (IOException e) {
+      if (cancelled.get()) {
+        logger.debug("ZIP creation interrupted for node {} (client disconnected)", node.getId());
+        throw e;
+      }
+      throw new DependencyException(
+          String.format("Storages failed: unable to download node with id %s", node.getId()),
+          e
+      );
     } catch (Exception e) {
       throw new DependencyException(
           String.format("Storages failed: unable to download node with id %s", node.getId()),
