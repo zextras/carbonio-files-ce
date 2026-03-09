@@ -241,7 +241,10 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
                 request.uri(), nodeIds, requester.getId())));
 
     context.write(HttpResponseBuilder.createSuccessDownloadHttpResponse(blobResponse));
-    new NettyBufferWriter(context).writeStreamAsChunked(blobResponse.getBlobStream());
+    new NettyBufferWriter(context).writePipedStream(
+        blobResponse.getPipedStream(),
+        blobResponse.getProducerDone(),
+        blobResponse.getCancelled());
   }
 
   private void download(ChannelHandlerContext context, HttpRequest request, Matcher uriMatched) {

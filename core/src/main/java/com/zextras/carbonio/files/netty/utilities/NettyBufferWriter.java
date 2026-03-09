@@ -10,11 +10,13 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.handler.stream.ChunkedStream;
 import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PipedInputStream;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,28 +73,86 @@ public class NettyBufferWriter {
       );
   }
 
-  public void writeStreamAsChunked(InputStream inputStream) {
-    context.write(new ChunkedStream(inputStream));
-    ChannelFuture lastContentFuture = context.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
-    lastContentFuture.addListener(new ChannelFutureListener() {
-      @Override
-      public void operationComplete(ChannelFuture future) {
-        if (future.isSuccess()) {
-          logger.debug("ZIP stream sent successfully");
+  /**
+   * Streams a {@link PipedInputStream} to the channel without blocking the event loop.
+   * Uses {@link PipedInputStream#available()} to check for data and schedules retries
+   * when no data is ready, keeping the event loop free to serve other requests.
+   * Closes the pipe when the channel is closed, signaling the producer to stop.
+   *
+   * @param pipedInputStream the pipe to read from
+   * @param producerDone flag set by the producer after it closes the pipe output,
+   *                     used to safely detect EOF without blocking
+   */
+  public void writePipedStream(
+      PipedInputStream pipedInputStream,
+      AtomicBoolean producerDone,
+      AtomicBoolean cancelled
+  ) {
+    context.channel().closeFuture().addListener(f -> {
+      if (cancelled != null) {
+        cancelled.set(true);
+      }
+      closeQuietly(pipedInputStream);
+    });
+    pollAndWrite(pipedInputStream, producerDone);
+  }
+
+  private void pollAndWrite(PipedInputStream pipedInputStream, AtomicBoolean producerDone) {
+    if (!context.channel().isActive()) {
+      closeQuietly(pipedInputStream);
+      return;
+    }
+
+    try {
+      int available = pipedInputStream.available();
+
+      if (available > 0) {
+        ByteBuf buf = context.alloc().buffer(Math.min(available, 64 * 1024));
+        int bytesRead = buf.writeBytes(pipedInputStream, buf.capacity());
+
+        if (bytesRead > 0) {
+          context.writeAndFlush(buf).addListener(future -> {
+            if (future.isSuccess()) {
+              pollAndWrite(pipedInputStream, producerDone);
+            } else {
+              logger.debug("Write failed, closing stream", future.cause());
+              closeQuietly(pipedInputStream);
+            }
+          });
         } else {
-          logger.error("Error sending ZIP stream", future.cause());
+          buf.release();
+          sendLastContentAndClose(pipedInputStream);
         }
+      } else if (producerDone.get()) {
+        // Producer has finished and closed the pipe. read() will return -1 immediately.
+        sendLastContentAndClose(pipedInputStream);
+      } else {
+        // No data yet, producer still working. Retry after short delay.
+        context.executor().schedule(
+            () -> pollAndWrite(pipedInputStream, producerDone),
+            10, TimeUnit.MILLISECONDS
+        );
+      }
+    } catch (IOException e) {
+      logger.debug("Pipe closed during read", e);
+      sendLastContentAndClose(pipedInputStream);
+    }
+  }
 
-        try {
-          inputStream.close();
-        } catch (IOException e) {
-          logger.error("Error closing input stream", e);
-        }
-
-        if (!"keep-alive".equals(context.channel().attr(AttributeKey.valueOf("connection")).get())) {
-          context.close();
-        }
+  private void sendLastContentAndClose(PipedInputStream pipedInputStream) {
+    closeQuietly(pipedInputStream);
+    context.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListener(future -> {
+      if (!"keep-alive".equals(context.channel().attr(AttributeKey.valueOf("connection")).get())) {
+        context.close();
       }
     });
+  }
+
+  private void closeQuietly(InputStream stream) {
+    try {
+      stream.close();
+    } catch (IOException e) {
+      logger.debug("Error closing stream", e);
+    }
   }
 }
