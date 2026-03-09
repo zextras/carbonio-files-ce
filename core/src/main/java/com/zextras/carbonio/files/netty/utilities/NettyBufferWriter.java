@@ -9,6 +9,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
+import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
@@ -32,6 +33,7 @@ public class NettyBufferWriter {
     ChannelPromise promise
   ) {
     ByteBuf byteBuffer = context.alloc().buffer(64 * 1024);
+    byteBuffer.retain();
     writeStreamChunk(contentStream, promise, byteBuffer);
   }
 
@@ -44,7 +46,7 @@ public class NettyBufferWriter {
       byteBuffer.writeBytes(contentStream, byteBuffer.capacity());
     } catch (IOException ex) {
       promise.setFailure(ex);
-      byteBuffer.release();
+      byteBuffer.release(2);
       return;
     }
 
@@ -52,7 +54,7 @@ public class NettyBufferWriter {
     // so in worst case it could return 1 byte each time
     // but never 0 until EOF
     if (byteBuffer.writerIndex() == 0) {
-      byteBuffer.release();
+      ReferenceCountUtil.safeRelease(byteBuffer, 2);
       context.flush().close();
 
       try {
@@ -67,8 +69,9 @@ public class NettyBufferWriter {
     context.writeAndFlush(byteBuffer)
       .addListener(future -> {
           if (future.isSuccess()) {
-            ByteBuf nextBuffer = context.alloc().buffer(64 * 1024);
-            writeStreamChunk(contentStream, promise, nextBuffer);
+            byteBuffer.retain();
+            byteBuffer.clear();
+            writeStreamChunk(contentStream, promise, byteBuffer);
           } else {
             promise.setFailure(future.cause());
           }
