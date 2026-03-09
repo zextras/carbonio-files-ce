@@ -5,13 +5,10 @@
 package com.zextras.carbonio.files.netty.utilities;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
-import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
@@ -25,30 +22,37 @@ public class NettyBufferWriter {
   private static final Logger logger = LoggerFactory.getLogger(NettyBufferWriter.class);
 
   private final ChannelHandlerContext context;
-  private final ByteBuf               byteBuffer;
 
   public NettyBufferWriter(ChannelHandlerContext context) {
     this.context = context;
-    byteBuffer = context.alloc().buffer(64 * 1024);
-    byteBuffer.retain();
   }
 
   public void writeStream(
     InputStream contentStream,
     ChannelPromise promise
   ) {
+    ByteBuf byteBuffer = context.alloc().buffer(64 * 1024);
+    writeStreamChunk(contentStream, promise, byteBuffer);
+  }
+
+  private void writeStreamChunk(
+    InputStream contentStream,
+    ChannelPromise promise,
+    ByteBuf byteBuffer
+  ) {
     try {
       byteBuffer.writeBytes(contentStream, byteBuffer.capacity());
     } catch (IOException ex) {
       promise.setFailure(ex);
-      byteBuffer.release(2);
+      byteBuffer.release();
+      return;
     }
 
     // writeBytes() uses a simple .read() from InputStream
     // so in worst case it could return 1 byte each time
     // but never 0 until EOF
     if (byteBuffer.writerIndex() == 0) {
-      ReferenceCountUtil.safeRelease(byteBuffer, 2);
+      byteBuffer.release();
       context.flush().close();
 
       try {
@@ -63,9 +67,8 @@ public class NettyBufferWriter {
     context.writeAndFlush(byteBuffer)
       .addListener(future -> {
           if (future.isSuccess()) {
-            byteBuffer.retain();
-            byteBuffer.clear();
-            writeStream(contentStream, promise);
+            ByteBuf nextBuffer = context.alloc().buffer(64 * 1024);
+            writeStreamChunk(contentStream, promise, nextBuffer);
           } else {
             promise.setFailure(future.cause());
           }
