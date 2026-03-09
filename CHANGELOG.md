@@ -1,3 +1,9 @@
+## [1.1.1](https://github.com/zextras/carbonio-files-ce/compare/v1.1.0...v1.1.1) (2026-03-09)
+
+### Bug Fixes
+
+* download multiple now uses own thread pool ([#235](https://github.com/zextras/carbonio-files-ce/issues/235)) ([32507b7](https://github.com/zextras/carbonio-files-ce/commit/32507b73515d3e1fcc0e049ad5e0067b07d8b157))
+
 ## [1.1.0](https://github.com/zextras/carbonio-files-ce/compare/v1.0.1...v1.1.0) (2026-02-23)
 
 ### Features
