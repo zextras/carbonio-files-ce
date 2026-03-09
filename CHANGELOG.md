@@ -1,3 +1,9 @@
+## [1.1.2](https://github.com/zextras/carbonio-files-ce/compare/v1.1.1...v1.1.2) (2026-03-09)
+
+### Bug Fixes
+
+* buffer not allocated on download multiple ([#237](https://github.com/zextras/carbonio-files-ce/issues/237)) ([9ec154e](https://github.com/zextras/carbonio-files-ce/commit/9ec154ea0cbc0bcb2921abc7b91ac1548c789e38))
+
 ## [1.1.1](https://github.com/zextras/carbonio-files-ce/compare/v1.1.0...v1.1.1) (2026-03-09)
 
 ### Bug Fixes
