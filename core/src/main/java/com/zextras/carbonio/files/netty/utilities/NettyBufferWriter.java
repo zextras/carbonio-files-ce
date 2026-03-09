@@ -5,8 +5,6 @@
 package com.zextras.carbonio.files.netty.utilities;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.LastHttpContent;
@@ -25,23 +23,31 @@ public class NettyBufferWriter {
   private static final Logger logger = LoggerFactory.getLogger(NettyBufferWriter.class);
 
   private final ChannelHandlerContext context;
-  private final ByteBuf               byteBuffer;
 
   public NettyBufferWriter(ChannelHandlerContext context) {
     this.context = context;
-    byteBuffer = context.alloc().buffer(64 * 1024);
-    byteBuffer.retain();
   }
 
   public void writeStream(
     InputStream contentStream,
     ChannelPromise promise
   ) {
+    ByteBuf byteBuffer = context.alloc().buffer(64 * 1024);
+    byteBuffer.retain();
+    writeStreamChunk(contentStream, promise, byteBuffer);
+  }
+
+  private void writeStreamChunk(
+    InputStream contentStream,
+    ChannelPromise promise,
+    ByteBuf byteBuffer
+  ) {
     try {
       byteBuffer.writeBytes(contentStream, byteBuffer.capacity());
     } catch (IOException ex) {
       promise.setFailure(ex);
       byteBuffer.release(2);
+      return;
     }
 
     // writeBytes() uses a simple .read() from InputStream
@@ -65,7 +71,7 @@ public class NettyBufferWriter {
           if (future.isSuccess()) {
             byteBuffer.retain();
             byteBuffer.clear();
-            writeStream(contentStream, promise);
+            writeStreamChunk(contentStream, promise, byteBuffer);
           } else {
             promise.setFailure(future.cause());
           }
