@@ -76,8 +76,7 @@ pipeline {
                         skipTests: params.SKIP_TESTS,
                         skipCoverage: params.SKIP_CHECKS,
                         skipSonar: params.SKIP_CHECKS,
-                        skipDeploy: true,
-                        overrideTestCmd: 'mvn -B verify -P run-unit-tests && mvn -B verify -P run-integration-tests',
+                        splitTests: true,
                         postBuildScript: '''
                             cp -a boot/target/carbonio-files-*-jar-with-dependencies.jar package/carbonio-files.jar
                             cp -a package/watches/* package/
