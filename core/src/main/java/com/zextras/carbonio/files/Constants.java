@@ -451,7 +451,6 @@ public final class Constants {
     public static final String FILE_VERSION = "FileVersion";
     public static final String SHARE = "Share";
     public static final String LINK = "Link";
-    public static final String USER = "User";
   }
 
   public static final class GraphQL {

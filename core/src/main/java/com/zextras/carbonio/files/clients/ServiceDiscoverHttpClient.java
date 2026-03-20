@@ -5,8 +5,8 @@
 package com.zextras.carbonio.files.clients;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zextras.carbonio.usermanagement.exceptions.InternalServerError;
-import com.zextras.carbonio.usermanagement.exceptions.UnAuthorized;
+import com.zextras.carbonio.files.exceptions.AuthenticationException;
+import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import io.vavr.control.Try;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -53,9 +53,9 @@ public class ServiceDiscoverHttpClient {
 
         return Try.success(valueDecoded);
       }
-      return Try.failure(new UnAuthorized());
+      return Try.failure(new AuthenticationException("Unauthorized access to service discover"));
     } catch (IOException exception) {
-      return Try.failure(new InternalServerError(exception));
+      return Try.failure(new InternalServerErrorException(exception));
     }
   }
 
@@ -71,10 +71,10 @@ public class ServiceDiscoverHttpClient {
           String body = IOUtils.toString(response.getEntity().getContent(), StandardCharsets.UTF_8);
           return Try.success(Boolean.parseBoolean(body));
         }
-        return Try.failure(new UnAuthorized());
+        return Try.failure(new AuthenticationException("Unauthorized access to service discover"));
       }
     } catch (IOException exception) {
-      return Try.failure(new InternalServerError(exception));
+      return Try.failure(new InternalServerErrorException(exception));
     }
   }
 }

@@ -88,7 +88,13 @@ SPDX-License-Identifier: AGPL-3.0-only
     <!-- Services: storages, authentication, preview -->
     <dependency>
       <groupId>com.zextras.carbonio.user-management</groupId>
-      <artifactId>carbonio-user-management-sdk</artifactId>
+      <artifactId>carbonio-user-management-grpc-sdk</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty-shaded</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
@@ -208,6 +214,12 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>org.mock-server</groupId>
       <artifactId>mockserver-client-java-no-dependencies</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-inprocess</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

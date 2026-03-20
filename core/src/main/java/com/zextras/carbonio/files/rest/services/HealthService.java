@@ -8,14 +8,14 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.clients.DocsConnectorHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.DatabaseManager;
-import com.zextras.carbonio.files.dal.dao.ebean.DbInfo;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.files.rest.types.health.DependencyType;
 import com.zextras.carbonio.files.rest.types.health.ServiceHealth;
 import com.zextras.carbonio.preview.PreviewClient;
-import com.zextras.carbonio.usermanagement.UserManagementClient;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.Filestore.Liveness;
+import io.grpc.ConnectivityState;
+import io.grpc.ManagedChannel;
 
 public class HealthService {
 
@@ -24,7 +24,7 @@ public class HealthService {
   private final DocsConnectorHttpClient docsConnectorHttpClient;
   private final MessageBrokerManager messageBrokerManager;
   private final PreviewClient previewClient;
-  private final UserManagementClient userManagementClient;
+  private final ManagedChannel userManagementChannel;
   private final Filestore storagesClient;
 
   @Inject
@@ -33,13 +33,15 @@ public class HealthService {
       FilesConfig filesConfig,
       DocsConnectorHttpClient docsConnectorHttpClient,
       MessageBrokerManager messageBrokerManager,
-      PreviewClient previewClient, UserManagementClient userManagementClient, Filestore storagesClient) {
+      PreviewClient previewClient,
+      ManagedChannel userManagementChannel,
+      Filestore storagesClient) {
     this.databaseManagerFlyway = databaseManagerFlyway;
     this.filesConfig = filesConfig;
     this.docsConnectorHttpClient = docsConnectorHttpClient;
     this.messageBrokerManager = messageBrokerManager;
     this.previewClient = previewClient;
-    this.userManagementClient = userManagementClient;
+    this.userManagementChannel = userManagementChannel;
     this.storagesClient = storagesClient;
   }
 
@@ -54,7 +56,8 @@ public class HealthService {
    * @return true if the carbonio-user-management service is reachable, false otherwise.
    */
   public boolean isUserManagementLive() {
-    return userManagementClient.healthCheck();
+    ConnectivityState state = userManagementChannel.getState(true);
+    return state == ConnectivityState.READY || state == ConnectivityState.IDLE;
   }
 
   /**

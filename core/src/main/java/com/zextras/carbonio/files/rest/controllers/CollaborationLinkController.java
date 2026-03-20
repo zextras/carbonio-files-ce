@@ -7,7 +7,7 @@ package com.zextras.carbonio.files.rest.controllers;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants.API.Endpoints;
 import com.zextras.carbonio.files.rest.services.CollaborationLinkService;
-import com.zextras.carbonio.usermanagement.entities.UserMyself;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;

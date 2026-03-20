@@ -4,8 +4,8 @@
 
 package com.zextras.carbonio.files.dal.repositories.interfaces;
 
-import com.zextras.carbonio.usermanagement.entities.UserInfo;
-import com.zextras.carbonio.usermanagement.entities.UserMyself;
+import com.zextras.carbonio.files.dal.dao.UserInfo;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 
 import java.util.Optional;
 
@@ -19,7 +19,7 @@ public interface UserRepository {
    */
   Optional<UserMyself> getUserMyselfByCookieNotCached(String cookies);
 
-  Optional<UserInfo> getUserById(String cookies, String userId, boolean ignoreCache);
+  Optional<UserInfo> getUserById(String cookies, String userId);
 
-  Optional<UserInfo> getUserByEmail(String cookies, String userEmail, boolean ignoreCache);
+  Optional<UserInfo> getUserByEmail(String cookies, String userEmail);
 }
