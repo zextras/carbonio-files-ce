@@ -30,19 +30,20 @@ import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
 import com.zextras.carbonio.message_broker.config.enums.Service;
 import com.zextras.carbonio.preview.PreviewClient;
-import com.zextras.carbonio.usermanagement.UserManagementClient;
+import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc;
+import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc.UserManagementServiceBlockingStub;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.storages.api.StoragesClient;
 import io.ebean.Database;
 import io.ebean.DatabaseFactory;
 import io.ebean.config.DatabaseConfig;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import java.time.Clock;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.Properties;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -200,14 +201,19 @@ public class FilesModule extends AbstractModule {
 
   @Provides
   @Singleton
-  public UserManagementClient provideUserManagementClient(FilesConfig config) {
-    final String carbonioUserManagementUrl = String.format(
-        "%s://%s:%s",
-        Constants.Config.UserManagement.DEFAULT_PROTOCOL,
-        config.getUserManagementHost(),
-        config.getUserManagementPort());
+  public ManagedChannel provideUserManagementChannel(FilesConfig config) {
+    String host = config.getUserManagementHost();
+    int port = Integer.parseInt(config.getUserManagementPort());
+    return ManagedChannelBuilder.forAddress(host, port)
+        .usePlaintext()
+        .build();
+  }
 
-    return UserManagementClient.atURL(carbonioUserManagementUrl);
+  @Provides
+  @Singleton
+  public UserManagementServiceBlockingStub provideUserManagementStub(
+      ManagedChannel userManagementChannel) {
+    return UserManagementServiceGrpc.newBlockingStub(userManagementChannel);
   }
 
   @Provides

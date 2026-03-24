@@ -17,8 +17,8 @@ import com.zextras.carbonio.files.rest.types.UploadAttachmentResponse;
 import com.zextras.carbonio.files.rest.types.UploadToRequest;
 import com.zextras.carbonio.files.rest.types.UploadToRequest.TargetModule;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
-import com.zextras.carbonio.usermanagement.entities.UserMyself;
-import com.zextras.carbonio.usermanagement.exceptions.BadRequest;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
+import com.zextras.carbonio.files.exceptions.BadRequestException;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler.Sharable;
@@ -72,7 +72,7 @@ public class ProcedureController extends SimpleChannelInboundHandler<FullHttpReq
       httpRequest.uri()
     ));
 
-    context.fireExceptionCaught(new BadRequest());
+    context.fireExceptionCaught(new BadRequestException());
   }
 
   /**

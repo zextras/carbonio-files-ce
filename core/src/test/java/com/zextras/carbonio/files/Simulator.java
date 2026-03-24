@@ -16,23 +16,36 @@ import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.netty.HttpRoutingHandler;
 import com.zextras.carbonio.files.utilities.MockFilesConfig;
-import com.zextras.carbonio.usermanagement.entities.UserId;
-import com.zextras.carbonio.usermanagement.entities.UserMyself;
-import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
-import com.zextras.carbonio.usermanagement.enumerations.UserType;
+import com.zextras.carbonio.user_management.sdk.grpc.GetUserByEmailRequest;
+import com.zextras.carbonio.user_management.sdk.grpc.GetUserByIdRequest;
+import com.zextras.carbonio.user_management.sdk.grpc.GetUserMyselfRequest;
+import com.zextras.carbonio.user_management.sdk.grpc.UserInfoProto;
+import com.zextras.carbonio.user_management.sdk.grpc.UserInfoResponse;
+import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc;
+import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc.UserManagementServiceBlockingStub;
+import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc.UserManagementServiceImplBase;
+import com.zextras.carbonio.user_management.sdk.grpc.UserMyselfProto;
+import com.zextras.carbonio.user_management.sdk.grpc.UserMyselfResponse;
+import com.zextras.carbonio.user_management.sdk.grpc.UserTypeProto;
 import com.zextras.storages.internal.pojo.Query;
 import com.zextras.storages.internal.pojo.StoragesBulkDeleteResponse;
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.Status;
+import io.grpc.inprocess.InProcessChannelBuilder;
+import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.stub.StreamObserver;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.HttpMethod;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.mockserver.client.MockServerClient;
 import org.mockserver.integration.ClientAndServer;
-import org.mockserver.model.Cookie;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 import org.mockserver.model.JsonBody;
@@ -48,22 +61,38 @@ import org.testcontainers.containers.RabbitMQContainer;
 public class Simulator implements AutoCloseable {
 
   private static final Logger logger = LoggerFactory.getLogger(Simulator.class);
+  private static final String UM_INPROCESS_NAME = "um-files-test";
+
   private Injector injector;
   private PostgreSQLContainer<?> postgreSQLContainer;
   private RabbitMQContainer messageBrokerContainer;
   private DatabaseManager databaseManagerFlyway;
   private ClientAndServer clientAndServer;
   private MockServerClient serviceDiscoverMock;
-  private MockServerClient userManagementMock;
   private MockServerClient storagesMock;
   private MockServerClient previewServiceMock;
   private MockServerClient docsConnectorServiceMock;
+
+  // gRPC in-process UM mock
+  private MockUserManagementService mockUmService;
+  private ManagedChannel umChannel;
+  private Server umGrpcServer;
 
   //
   // Private methods
   //
 
   private Simulator createInjector() {
+    // Always create the InProcess channel so Guice can inject ManagedChannel and BlockingStub.
+    // The InProcess server is only started when withUserManagement() is called; without it,
+    // the channel will be in TRANSIENT_FAILURE state (simulating UM being unreachable).
+    if (umChannel == null) {
+      umChannel = InProcessChannelBuilder.forName(UM_INPROCESS_NAME).directExecutor().build();
+    }
+    if (mockUmService == null) {
+      mockUmService = new MockUserManagementService();
+    }
+
     Module overrideModule = new AbstractModule() {
         @Provides
         @Singleton
@@ -73,8 +102,12 @@ public class Simulator implements AutoCloseable {
             return config;
         }
     };
+
+    Module umOverride = new UmOverrideModule(umChannel);
+    Module finalOverride = Modules.combine(overrideModule, umOverride);
+
     injector = Guice.createInjector(
-        Modules.override(new FilesModule()).with(overrideModule)
+        Modules.override(new FilesModule()).with(finalOverride)
     );
     return this;
   }
@@ -225,36 +258,29 @@ public class Simulator implements AutoCloseable {
   }
 
   private Simulator startUserManagement() {
-    startMockServer();
+    mockUmService = new MockUserManagementService();
+    umChannel = InProcessChannelBuilder.forName(UM_INPROCESS_NAME).directExecutor().build();
 
-    userManagementMock =
-        new MockServerClient(
-            "localhost",
-            Constants.Config.UserManagement.DEFAULT_PORT);
-    System.setProperty(Constants.Config.UserManagement.HOST_PROPERTY, "localhost");
+    try {
+      umGrpcServer =
+          InProcessServerBuilder.forName(UM_INPROCESS_NAME)
+              .directExecutor()
+              .addService(mockUmService)
+              .build()
+              .start();
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to start gRPC InProcessServer for UM", e);
+    }
 
     return this;
   }
 
-  private void getUser(String cookie, String userId) {
-    final UserMyself userInfo =
-        new UserMyself(
-            new UserId(userId),
-            "fake-email@example.com",
-            "Fake User",
-            "example.com",
-            UserStatus.ACTIVE,
-            Locale.ENGLISH,
-            UserType.INTERNAL,
-            Map.of("carbonioFeatureFilesEnabled", "TRUE"));
-
-    userManagementMock
-        .when(
-            HttpRequest.request()
-                .withMethod(HttpMethod.GET.toString())
-                .withPath("/users/myself/")
-                .withCookie(Cookie.cookie("ZM_AUTH_TOKEN", cookie)))
-        .respond(HttpResponse.response().withStatusCode(200).withBody(JsonBody.json(userInfo)));
+  /**
+   * Registers a token-to-userId mapping so that subsequent gRPC {@code getUserMyself} calls
+   * with the given token will return a valid user with the "carbonioFeatureFilesEnabled" feature.
+   */
+  private void registerUser(String cookie, String userId) {
+    mockUmService.registerToken(cookie, userId);
   }
 
   private Simulator startStorages() {
@@ -295,13 +321,12 @@ public class Simulator implements AutoCloseable {
 
   private void startMockServer() {
     if (clientAndServer == null) {
-      final int userManagementPort = Constants.Config.UserManagement.DEFAULT_PORT;
       final int storagesPort = Constants.Config.Storages.DEFAULT_PORT;
       final int previewServicePort = Constants.Config.Preview.DEFAULT_PORT;
       final int docsConnectorServicePort = Constants.Config.DocsConnector.DEFAULT_PORT;
 
       clientAndServer =
-          ClientAndServer.startClientAndServer(8500, userManagementPort, storagesPort, previewServicePort, docsConnectorServicePort);
+          ClientAndServer.startClientAndServer(8500, storagesPort, previewServicePort, docsConnectorServicePort);
     }
   }
 
@@ -330,8 +355,13 @@ public class Simulator implements AutoCloseable {
   }
 
   private void stopUserManagement() {
-    if (userManagementMock != null && userManagementMock.hasStarted()) {
-      userManagementMock.stop();
+    if (umGrpcServer != null) {
+      umGrpcServer.shutdownNow();
+      umGrpcServer = null;
+    }
+    if (umChannel != null) {
+      umChannel.shutdownNow();
+      umChannel = null;
     }
   }
 
@@ -387,8 +417,34 @@ public class Simulator implements AutoCloseable {
     return serviceDiscoverMock;
   }
 
-  public MockServerClient getUserManagementMock() {
-    return userManagementMock;
+  /**
+   * Returns the mock UM gRPC service, allowing tests to register additional users
+   * (e.g. for getUserById lookups in transfer ownership scenarios).
+   */
+  public MockUserManagementService getUserManagementService() {
+    return mockUmService;
+  }
+
+  /**
+   * Shuts down the UM gRPC InProcess server (but keeps the channel alive) to simulate
+   * user-management being unreachable. After this call, the ManagedChannel will transition
+   * to TRANSIENT_FAILURE state, causing health checks to report UM as unhealthy.
+   */
+  public void shutdownUserManagementServer() {
+    if (umGrpcServer != null) {
+      umGrpcServer.shutdownNow();
+      try {
+        umGrpcServer.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+      umGrpcServer = null;
+    }
+    // Shut down the channel so getState() returns SHUTDOWN,
+    // which the HealthService treats as unhealthy.
+    if (umChannel != null) {
+      umChannel.shutdownNow();
+    }
   }
 
   public MockServerClient getStoragesMock() {
@@ -453,6 +509,142 @@ public class Simulator implements AutoCloseable {
                 .withBody(JsonBody.json(response)));
   }
 
+  /**
+   * Guice module that overrides the ManagedChannel and BlockingStub bindings
+   * to use the gRPC InProcess transport for testing.
+   */
+  private static class UmOverrideModule extends AbstractModule {
+
+    private final ManagedChannel channel;
+
+    UmOverrideModule(ManagedChannel channel) {
+      this.channel = channel;
+    }
+
+    @Provides
+    @Singleton
+    public ManagedChannel provideUserManagementChannel() {
+      return channel;
+    }
+
+    @Provides
+    @Singleton
+    public UserManagementServiceBlockingStub provideUserManagementStub() {
+      return UserManagementServiceGrpc.newBlockingStub(channel);
+    }
+  }
+
+  /**
+   * In-memory gRPC service implementation for UserManagement. Supports
+   * {@code getUserMyself} (token lookup), {@code getUserById} (userId lookup),
+   * and {@code getUserByEmail} (email lookup).
+   */
+  public static class MockUserManagementService extends UserManagementServiceImplBase {
+
+    private final Map<String, UserMyselfResponse> tokenToMyself = new ConcurrentHashMap<>();
+    private final Map<String, UserInfoProto> userIdToInfo = new ConcurrentHashMap<>();
+
+    /**
+     * Registers a minimal token-to-userId mapping. A full {@link UserMyselfResponse} is built
+     * with default values for email, name, domain, status, locale, and the
+     * "carbonioFeatureFilesEnabled" feature enabled.
+     */
+    void registerToken(String token, String userId) {
+      if (!tokenToMyself.containsKey(token)) {
+        UserInfoProto info = UserInfoProto.newBuilder()
+            .setUserId(userId)
+            .setEmail("fake-email@example.com")
+            .setFullName("Fake User")
+            .setDomain("example.com")
+            .setStatus("active")
+            .setType(UserTypeProto.INTERNAL)
+            .build();
+        UserMyselfProto myself = UserMyselfProto.newBuilder()
+            .setInfo(info)
+            .setLocale("en")
+            .addFeatures("carbonioFeatureFilesEnabled")
+            .build();
+        tokenToMyself.put(token, UserMyselfResponse.newBuilder().setUser(myself).build());
+        userIdToInfo.put(userId, info);
+      }
+    }
+
+    /**
+     * Removes a userId from the {@code getUserById} lookup map so that subsequent
+     * {@code getUserById} calls for this user will return NOT_FOUND.
+     */
+    public void unregisterUserById(String userId) {
+      userIdToInfo.remove(userId);
+    }
+
+    /**
+     * Registers a user profile for lookup by userId via {@code getUserById}.
+     * This is used by integration tests that need to look up users other than
+     * the requester (e.g. transfer ownership target user).
+     */
+    public void registerUserById(String userId, String email, String fullName,
+        String domain, String status) {
+      UserInfoProto info = UserInfoProto.newBuilder()
+          .setUserId(userId)
+          .setEmail(email)
+          .setFullName(fullName)
+          .setDomain(domain)
+          .setStatus(status)
+          .setType(UserTypeProto.INTERNAL)
+          .build();
+      userIdToInfo.put(userId, info);
+    }
+
+    void clearAll() {
+      tokenToMyself.clear();
+      userIdToInfo.clear();
+    }
+
+    @Override
+    public void getUserMyself(GetUserMyselfRequest request,
+        StreamObserver<UserMyselfResponse> responseObserver) {
+      String token = request.getToken();
+      UserMyselfResponse response = tokenToMyself.get(token);
+      if (response != null) {
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+      } else {
+        responseObserver.onError(
+            Status.UNAUTHENTICATED.withDescription("Invalid token").asRuntimeException());
+      }
+    }
+
+    @Override
+    public void getUserById(GetUserByIdRequest request,
+        StreamObserver<UserInfoResponse> responseObserver) {
+      String userId = request.getUserId();
+      UserInfoProto info = userIdToInfo.get(userId);
+      if (info != null) {
+        responseObserver.onNext(UserInfoResponse.newBuilder().setUser(info).build());
+        responseObserver.onCompleted();
+      } else {
+        responseObserver.onError(
+            Status.NOT_FOUND.withDescription("User not found").asRuntimeException());
+      }
+    }
+
+    @Override
+    public void getUserByEmail(GetUserByEmailRequest request,
+        StreamObserver<UserInfoResponse> responseObserver) {
+      String email = request.getUserEmail();
+      // Search by email across registered users
+      for (UserInfoProto info : userIdToInfo.values()) {
+        if (info.getEmail().equals(email)) {
+          responseObserver.onNext(UserInfoResponse.newBuilder().setUser(info).build());
+          responseObserver.onCompleted();
+          return;
+        }
+      }
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription("User not found by email").asRuntimeException());
+    }
+  }
+
   public static class SimulatorBuilder {
 
     private Simulator simulator;
@@ -485,7 +677,7 @@ public class Simulator implements AutoCloseable {
       simulator.startUserManagement();
       users.forEach(
           (cookie, userId) -> {
-            simulator.getUser(cookie, userId);
+            simulator.registerUser(cookie, userId);
           });
       return this;
     }

@@ -12,7 +12,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.Sna
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.UserNotificationsInfo;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.RemovedNodeType;
-import com.zextras.carbonio.usermanagement.entities.UserMyself;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import io.ebean.annotation.Transactional;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 

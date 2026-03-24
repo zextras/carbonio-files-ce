@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot;
 
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.usermanagement.entities.UserMyself;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import io.ebean.annotation.Cache;
 
 import javax.persistence.Column;

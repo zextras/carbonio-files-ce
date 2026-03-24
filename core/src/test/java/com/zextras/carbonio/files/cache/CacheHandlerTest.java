@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.cache;
 
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
-import com.zextras.carbonio.usermanagement.entities.UserInfo;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,12 +15,10 @@ class CacheHandlerTest {
 
   private CacheHandlerFactory cacheHandlerFactory;
   private LocalCacheAdapter<FileVersion> fileVersionCache;
-  private LocalCacheAdapter<UserInfo> userCache;
 
   @BeforeEach
   void setUp() {
     fileVersionCache = Mockito.mock(LocalCacheAdapter.class);
-    userCache = Mockito.mock(LocalCacheAdapter.class);
     cacheHandlerFactory = Mockito.mock(CacheHandlerFactory.class);
 
     Mockito.when(cacheHandlerFactory.createFileVersionCache(
@@ -29,12 +26,6 @@ class CacheHandlerTest {
       Constants.Cache.DEFAULT_SIZE,
       Constants.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
     )).thenReturn(fileVersionCache);
-
-    Mockito.when(cacheHandlerFactory.createUserCache(
-      Constants.Cache.USER,
-      Constants.Cache.DEFAULT_SIZE,
-      Constants.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
-    )).thenReturn(userCache);
   }
 
   @Test
@@ -47,17 +38,5 @@ class CacheHandlerTest {
 
     // Then
     Assertions.assertThat(fileVersionCache.size()).isZero();
-  }
-
-  @Test
-  void givenACacheHandlerTheGetUserCacheShouldReturnTheUserCache() {
-    // Given
-    CacheHandler cacheHandler = new CacheHandler(cacheHandlerFactory);
-
-    // When
-    Cache<UserInfo> userCache = cacheHandler.getUserCache();
-
-    // Then
-    Assertions.assertThat(userCache.size()).isZero();
   }
 }

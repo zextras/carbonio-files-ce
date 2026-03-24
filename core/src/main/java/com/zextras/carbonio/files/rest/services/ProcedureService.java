@@ -14,7 +14,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.rest.types.UploadToRequest.TargetModule;
-import com.zextras.carbonio.usermanagement.entities.UserMyself;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.FilesIdentifier;
 import io.vavr.control.Try;

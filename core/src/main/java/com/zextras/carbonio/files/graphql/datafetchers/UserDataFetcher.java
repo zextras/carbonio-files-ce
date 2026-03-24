@@ -11,7 +11,7 @@ import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.GetUser;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
-import com.zextras.carbonio.usermanagement.entities.UserInfo;
+import com.zextras.carbonio.files.dal.dao.UserInfo;
 import graphql.execution.AbortExecutionException;
 import graphql.execution.DataFetcherResult;
 import graphql.execution.ResultPath;
@@ -66,7 +66,7 @@ public class UserDataFetcher {
     ResultPath path
   ) {
     return userRepository
-      .getUserById(cookies, userId, false)
+      .getUserById(cookies, userId)
       .map(this::convertUserToDataFetcherResult)
       .orElse(
         new DataFetcherResult.Builder<Map<String, Object>>()
@@ -80,7 +80,7 @@ public class UserDataFetcher {
     ResultPath path
   ) {
     return userRepository
-      .getUserByEmail(cookies, email, false)
+      .getUserByEmail(cookies, email)
       .map(this::convertUserToDataFetcherResult)
       .orElse(new DataFetcherResult
         .Builder<Map<String, Object>>()

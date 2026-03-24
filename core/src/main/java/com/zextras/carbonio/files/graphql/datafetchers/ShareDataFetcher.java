@@ -18,7 +18,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
-import com.zextras.carbonio.usermanagement.entities.UserMyself;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import graphql.execution.AbortExecutionException;
 import graphql.execution.DataFetcherResult;
 import graphql.execution.DataFetcherResult.Builder;

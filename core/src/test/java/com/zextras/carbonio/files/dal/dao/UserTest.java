@@ -4,10 +4,10 @@
 
 package com.zextras.carbonio.files.dal.dao;
 
-import com.zextras.carbonio.usermanagement.entities.UserId;
-import com.zextras.carbonio.usermanagement.entities.UserMyself;
-import com.zextras.carbonio.usermanagement.enumerations.UserStatus;
-import com.zextras.carbonio.usermanagement.enumerations.UserType;
+import com.zextras.carbonio.files.dal.dao.UserId;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
+import com.zextras.carbonio.files.dal.dao.UserStatus;
+import com.zextras.carbonio.files.dal.dao.UserType;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 

@@ -8,8 +8,6 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
-import com.zextras.carbonio.usermanagement.entities.UserInfo;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -44,23 +42,6 @@ public class CacheHandler {
         Constants.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
       )
     );
-
-    /* Creation of the cache that will contain user elements */
-    caches.put(
-      Constants.Cache.USER,
-      this.cacheHandlerFactory.createUserCache(
-        Constants.Cache.USER,
-        Constants.Cache.DEFAULT_SIZE,
-        Constants.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
-      )
-    );
-  }
-
-  /**
-   * @return the instance of the {@link Cache<UserInfo>}
-   */
-  public Cache<UserInfo> getUserCache() {
-    return caches.get(Constants.Cache.USER);
   }
 
   /**
