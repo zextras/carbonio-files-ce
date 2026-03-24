@@ -59,4 +59,4 @@ Thumbs.db
 LICENSES
 
 # VS Code
-.vscode/
+.vscode/.run/
