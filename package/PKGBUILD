@@ -50,6 +50,7 @@ source=(
   "carbonio-files.service"
   "carbonio-files-setup"
   "carbonio-files-sidecar.service"
+  "carbonio-files-sidecar-legacy.service"
   "carbonio-files.jar"
   "intentions.json"
   "policies.json"
@@ -65,7 +66,8 @@ sha256sums=(
   '1b48886989ad379f5c8ef1024f275a3657801c55cd038fe95ac4c9026ce471a7'
   '89151c012e0588af6c52625bf393c5b8a331edf39631ab1f4754c7e89f7fe0d4'
   'ef9409dc0ff2e5096fefa6b6ee06b0253e7a5005f1600771bf1e1bba36381d20'
-  'ca3637fdeb0d9434a4e2b23be079cef02a9f42e074a7f4ba5e33198f0455f062'
+  '999745be7b0af1051ebc2855d2331585984a80de644553af59e37ce00a2e3297'
+  '8963c7a7c3679a3c14550d4a40d353ff20ee6995d77eb7dc2c3c96f40690a7e3'
   'SKIP'
   '2f5e8f227d48471e14278068956723ae7dac12c4c6aa0dd6955c00868e1f7ad2'
   'bc4ae477209ec6c64162749a087cd039269bd087647419648bdfee334c87ced3'
@@ -80,79 +82,7 @@ backup=(
   "etc/zextras/service-discover/carbonio-files.hcl"
 )
 
-build__ubuntu_focal() {
-  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
-      "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-
-  pip3 install \
-    --prefix="${pkgdir}/opt/zextras/common" \
-    pika
-
-  # Replace python version and prefix according to distro
-  # without modify the start script in srcdir.
-  sed -i "s/PYTHON_VER/3.8/g" \
-    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-  sed -i "s/PREFIX/common/g" \
-    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-}
-
-build__ubuntu_jammy() {
-  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
-      "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-
-  pip3 install \
-    --prefix="${pkgdir}/opt/zextras/common" \
-    pika
-
-  sed -i "s/PYTHON_VER/3.10/g" \
-    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-  sed -i "s/PREFIX/common\/local/g" \
-    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-}
-
-build__ubuntu_noble() {
-  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
-      "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-
-  pip3 install \
-    --prefix="${pkgdir}/opt/zextras/common" \
-    pika
-
-  sed -i "s/PYTHON_VER/3.12/g" \
-    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-  sed -i "s/PREFIX/common\/local/g" \
-    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-}
-
-build__rocky_8() {
-  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
-      "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-
-  pip3.8 install \
-    --prefix="${pkgdir}/opt/zextras/common" \
-    pika
-
-  sed -i "s/PYTHON_VER/3.8/g" \
-    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-  sed -i "s/PREFIX/common/g" \
-    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-}
-
-build__rocky_9() {
-  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
-      "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-
-  pip3 install \
-    --prefix="${pkgdir}/opt/zextras/common" \
-    pika
-
-  sed -i "s/PYTHON_VER/3.9/g" \
-    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-  sed -i "s/PREFIX/common/g" \
-    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-}
-
-package() {
+_package_common() {
   install -Dm755 "${srcdir}/carbonio-files" \
     "${pkgdir}/usr/bin/carbonio-files"
 
@@ -164,9 +94,6 @@ package() {
 
   install -Dm644 "${srcdir}/carbonio-files.service" \
     "${pkgdir}/lib/systemd/system/carbonio-files.service"
-
-  install -Dm644 "${srcdir}/carbonio-files-sidecar.service" \
-    "${pkgdir}/lib/systemd/system/carbonio-files-sidecar.service"
 
   install -Dm644 "${srcdir}/carbonio-files.hcl" \
     "${pkgdir}/etc/zextras/service-discover/carbonio-files.hcl"
@@ -193,11 +120,87 @@ package() {
     "${pkgdir}/usr/bin/carbonio-files-handle-kv-changes.py"
 }
 
+_package_legacy() {
+  _package_common
+  install -Dm644 "${srcdir}/carbonio-files-sidecar-legacy.service" \
+    "${pkgdir}/lib/systemd/system/carbonio-files-sidecar.service"
+}
+
+_package_systemd() {
+  _package_common
+  install -Dm644 "${srcdir}/carbonio-files-sidecar.service" \
+    "${pkgdir}/lib/systemd/system/carbonio-files-sidecar.service"
+}
+
+build__rocky_8() {
+  pip3.8 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PYTHON_VER/3.8/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+}
+
+build__rocky_9() {
+  pip3 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PYTHON_VER/3.9/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+}
+
+build__ubuntu_jammy() {
+  pip3 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PYTHON_VER/3.10/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common\/local/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+}
+
+build__ubuntu_noble() {
+  pip3 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PYTHON_VER/3.12/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common\/local/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+}
+
+package() {
+  _package_systemd
+}
+
+package__rocky_8() {
+  _package_legacy
+}
+
+package__ubuntu_jammy() {
+  _package_legacy
+}
+
 postinst() {
-  getent group 'carbonio-files' >/dev/null ||
-    groupadd -r 'carbonio-files'
-  getent passwd 'carbonio-files' >/dev/null ||
-    useradd -r -M -g 'carbonio-files' -s /sbin/nologin 'carbonio-files'
+  getent group 'carbonio-files' >/dev/null \
+    || groupadd -r 'carbonio-files'
+  getent passwd 'carbonio-files' >/dev/null \
+    || useradd -r -M -g 'carbonio-files' -s /sbin/nologin 'carbonio-files'
 
   mkdir -p "/var/log/carbonio/files/"
   chown carbonio-files:carbonio-files "/var/log/carbonio/files"
@@ -216,10 +219,8 @@ postinst() {
 
 prerm() {
   if [ -d /run/systemd/system ]; then
-    systemctl --no-reload disable carbonio-files.service >/dev/null 2>&1 || :
-    systemctl --no-reload disable carbonio-files-sidecar.service >/dev/null 2>&1 || :
-    systemctl stop carbonio-files.service >/dev/null 2>&1 || :
-    systemctl stop carbonio-files-sidecar.service >/dev/null 2>&1 || :
+    systemctl disable --now carbonio-files.service >/dev/null 2>&1 || :
+    systemctl disable --now carbonio-files-sidecar.service >/dev/null 2>&1 || :
   fi
 }
 
