@@ -21,9 +21,6 @@ import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
 
-import java.util.Optional;
-import java.util.UUID;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.assertj.core.api.Assertions;
@@ -94,17 +91,6 @@ class CreatePublicLinkApiIT {
   void createShare(String nodeId, String targetUserId, SharePermission permission) {
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addShare(nodeId, targetUserId, permission);
-  }
-
-  void createLink(String nodeId) {
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addLink(
-            UUID.randomUUID().toString(),
-            nodeId,
-            RandomStringUtils.secure().nextAlphanumeric(32),
-            Optional.of(5L),
-            Optional.of("super-description"),
-            Optional.empty());
   }
 
   @Test
@@ -404,7 +390,8 @@ class CreatePublicLinkApiIT {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
-    IntStream.range(0, 50).forEach(i -> createLink("00000000-0000-0000-0000-000000000000"));
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addLinks("00000000-0000-0000-0000-000000000000", 50);
 
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("createLink")

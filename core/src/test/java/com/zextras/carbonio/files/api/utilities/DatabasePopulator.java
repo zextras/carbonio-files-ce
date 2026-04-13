@@ -113,6 +113,25 @@ public class DatabasePopulator {
     return this;
   }
 
+  /**
+   * Creates multiple links on a node without the per-insert delay.
+   * Use this when testing link count limits where link timestamps are irrelevant.
+   */
+  public DatabasePopulator addLinks(String nodeId, int count) {
+    Optional<Node> optionalNode = nodeRepository.getNode(nodeId);
+    if (optionalNode.isEmpty()) throw new IllegalArgumentException("Node does not exist");
+    for (int i = 0; i < count; i++) {
+      linkRepository.createLink(
+          UUID.randomUUID().toString(),
+          nodeId,
+          org.apache.commons.lang3.RandomStringUtils.secure().nextAlphanumeric(32),
+          Optional.of(5L),
+          Optional.of("bulk-link"),
+          Optional.empty());
+    }
+    return this;
+  }
+
   public DatabasePopulator addFlag(String nodeId, String requesterId) {
     nodeRepository.flagForUser(nodeId, requesterId, true);
     delay();
