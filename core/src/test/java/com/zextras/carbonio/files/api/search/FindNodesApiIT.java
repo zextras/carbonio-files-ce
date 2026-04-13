@@ -25,7 +25,9 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 class FindNodesApiIT {
 
@@ -56,351 +58,379 @@ class FindNodesApiIT {
     linkRepository = injector.getInstance(LinkRepository.class);
   }
 
-  @AfterEach
-  void cleanUp() {
-    simulator.resetDatabase();
-  }
-
   @AfterAll
   static void cleanUpAll() {
     simulator.stopAll();
   }
 
-  void createNodesDifferentNames() {
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addNode(
-            new SimplePopulatorFolder(
-                "10000000-0000-0000-0000-000000000001",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "folderA"))
-        .addNode(
-            new SimplePopulatorFolder(
-                "10000000-0000-0000-0000-000000000002",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "folderB"))
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000001",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "aaa.txt"))
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000002",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "bbb.txt"))
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000003",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "ccc.txt"));
+  @Nested
+  @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+  class SortByNameTests {
+
+    @BeforeAll
+    void setUp() {
+      DatabasePopulator.aNodePopulator(simulator.getInjector())
+          .addNode(
+              new SimplePopulatorFolder(
+                  "10000000-0000-0000-0000-000000000001",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "folderA"))
+          .addNode(
+              new SimplePopulatorFolder(
+                  "10000000-0000-0000-0000-000000000002",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "folderB"))
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000001",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "aaa.txt"))
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000002",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "bbb.txt"))
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000003",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "ccc.txt"));
+    }
+
+    @AfterAll
+    void tearDown() {
+      simulator.resetDatabase();
+    }
+
+    @Test
+    void givenFilesOnRootSearchWithSortNameAscShouldReturnCorrectlySortedNodes() {
+      String bodyPayload =
+          GraphqlCommandBuilder.aQueryBuilder("findNodes")
+              .withString("folder_id", "LOCAL_ROOT")
+              .withBoolean("cascade", true)
+              .withEnum("sort", NodeSort.NAME_ASC)
+              .withInteger("limit", 5)
+              .withWantedResultFormat("{ nodes { id name }, page_token }")
+              .build();
+
+      final HttpRequest httpRequest =
+          HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+      final HttpResponse httpResponse =
+          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+      final Map<String, Object> page =
+          TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+
+      final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+
+      Assertions.assertThat(nodes).hasSize(5);
+      Assertions.assertThat(nodes.get(0))
+          .containsEntry("id", "10000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "folderA");
+      Assertions.assertThat(nodes.get(1))
+          .containsEntry("id", "10000000-0000-0000-0000-000000000002")
+          .containsEntry("name", "folderB");
+      Assertions.assertThat(nodes.get(2))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "aaa");
+      Assertions.assertThat(nodes.get(3))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000002")
+          .containsEntry("name", "bbb");
+      Assertions.assertThat(nodes.get(4))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000003")
+          .containsEntry("name", "ccc");
+    }
+
+    @Test
+    void givenFilesOnRootSearchWithSortNameDescShouldReturnCorrectlySortedNodes() {
+      String bodyPayload =
+          GraphqlCommandBuilder.aQueryBuilder("findNodes")
+              .withString("folder_id", "LOCAL_ROOT")
+              .withBoolean("cascade", true)
+              .withEnum("sort", NodeSort.NAME_DESC)
+              .withInteger("limit", 5)
+              .withWantedResultFormat("{ nodes { id name }, page_token }")
+              .build();
+
+      final HttpRequest httpRequest =
+          HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+      final HttpResponse httpResponse =
+          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+      final Map<String, Object> page =
+          TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+
+      final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+
+      Assertions.assertThat(nodes).hasSize(5);
+      Assertions.assertThat(nodes.get(1))
+          .containsEntry("id", "10000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "folderA");
+      Assertions.assertThat(nodes.get(0))
+          .containsEntry("id", "10000000-0000-0000-0000-000000000002")
+          .containsEntry("name", "folderB");
+      Assertions.assertThat(nodes.get(4))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "aaa");
+      Assertions.assertThat(nodes.get(3))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000002")
+          .containsEntry("name", "bbb");
+      Assertions.assertThat(nodes.get(2))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000003")
+          .containsEntry("name", "ccc");
+    }
+
+    @Test
+    void givenFilesOnRootSearchWithSortLastUpdateAscShouldReturnCorrectlySortedNodes() {
+      String bodyPayload =
+          GraphqlCommandBuilder.aQueryBuilder("findNodes")
+              .withString("folder_id", "LOCAL_ROOT")
+              .withBoolean("cascade", true)
+              .withEnum("sort", NodeSort.UPDATED_AT_ASC)
+              .withInteger("limit", 5)
+              .withWantedResultFormat("{ nodes { id name }, page_token }")
+              .build();
+
+      final HttpRequest httpRequest =
+          HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+      final HttpResponse httpResponse =
+          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+      final Map<String, Object> page =
+          TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+
+      final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+
+      Assertions.assertThat(nodes).hasSize(5);
+      Assertions.assertThat(nodes.get(0))
+          .containsEntry("id", "10000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "folderA");
+      Assertions.assertThat(nodes.get(1))
+          .containsEntry("id", "10000000-0000-0000-0000-000000000002")
+          .containsEntry("name", "folderB");
+      Assertions.assertThat(nodes.get(2))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "aaa");
+      Assertions.assertThat(nodes.get(3))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000002")
+          .containsEntry("name", "bbb");
+      Assertions.assertThat(nodes.get(4))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000003")
+          .containsEntry("name", "ccc");
+    }
+
+    @Test
+    void givenFilesOnRootSearchWithSortLastUpdateDescShouldReturnCorrectlySortedNodes() {
+      String bodyPayload =
+          GraphqlCommandBuilder.aQueryBuilder("findNodes")
+              .withString("folder_id", "LOCAL_ROOT")
+              .withBoolean("cascade", true)
+              .withEnum("sort", NodeSort.UPDATED_AT_DESC)
+              .withInteger("limit", 5)
+              .withWantedResultFormat("{ nodes { id name }, page_token }")
+              .build();
+
+      final HttpRequest httpRequest =
+          HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+      final HttpResponse httpResponse =
+          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+      final Map<String, Object> page =
+          TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+
+      final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+
+      Assertions.assertThat(nodes).hasSize(5);
+      Assertions.assertThat(nodes.get(1))
+          .containsEntry("id", "10000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "folderA");
+      Assertions.assertThat(nodes.get(0))
+          .containsEntry("id", "10000000-0000-0000-0000-000000000002")
+          .containsEntry("name", "folderB");
+      Assertions.assertThat(nodes.get(4))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "aaa");
+      Assertions.assertThat(nodes.get(3))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000002")
+          .containsEntry("name", "bbb");
+      Assertions.assertThat(nodes.get(2))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000003")
+          .containsEntry("name", "ccc");
+    }
+
+    @Test
+    void givenFilesOnRootSearchByKeywordsShouldReturnCorrectNodes() {
+      String bodyPayload =
+          GraphqlCommandBuilder.aQueryBuilder("findNodes")
+              .withString("folder_id", "LOCAL_ROOT")
+              .withBoolean("cascade", true)
+              .withEnum("sort", NodeSort.NAME_ASC)
+              .withInteger("limit", 5)
+              .withListOfStrings("keywords", new String[] {"a"})
+              .withWantedResultFormat("{ nodes { id name }, page_token }")
+              .build();
+
+      final HttpRequest httpRequest =
+          HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+      final HttpResponse httpResponse =
+          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+      final Map<String, Object> page =
+          TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+
+      final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+
+      Assertions.assertThat(nodes).hasSize(2);
+      Assertions.assertThat(nodes.get(0))
+          .containsEntry("id", "10000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "folderA");
+      Assertions.assertThat(nodes.get(1))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "aaa");
+    }
   }
 
-  void createNodesDifferentSizes() { // files with same name, to really be sure it's the size that's
-    // being compared
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addNode(
-            new SimplePopulatorFolder(
-                "10000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
-        .addNode(
-            new SimplePopulatorFolder(
-                "10000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", 0L))
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", 1L))
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000003",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                2L));
+  @Nested
+  @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+  class SortBySizeTests {
+
+    @BeforeAll
+    void setUp() {
+      DatabasePopulator.aNodePopulator(simulator.getInjector())
+          .addNode(
+              new SimplePopulatorFolder(
+                  "10000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+          .addNode(
+              new SimplePopulatorFolder(
+                  "10000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", 0L))
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", 1L))
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000003",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  2L));
+    }
+
+    @AfterAll
+    void tearDown() {
+      simulator.resetDatabase();
+    }
+
+    @Test
+    void givenFilesOnRootSearchWithSortSizeAscShouldReturnCorrectlySortedNodes() {
+      String bodyPayload =
+          GraphqlCommandBuilder.aQueryBuilder("findNodes")
+              .withString("folder_id", "LOCAL_ROOT")
+              .withBoolean("cascade", true)
+              .withEnum("sort", NodeSort.SIZE_ASC)
+              .withInteger("limit", 5)
+              .withWantedResultFormat("{ nodes { id name }, page_token }")
+              .build();
+
+      final HttpRequest httpRequest =
+          HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+      final HttpResponse httpResponse =
+          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+      final Map<String, Object> page =
+          TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+
+      final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+
+      Assertions.assertThat(nodes).hasSize(5);
+      Assertions.assertThat(nodes.get(0))
+          .containsEntry("id", "10000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "folder");
+      Assertions.assertThat(nodes.get(1))
+          .containsEntry("id", "10000000-0000-0000-0000-000000000002")
+          .containsEntry("name", "folder");
+      Assertions.assertThat(nodes.get(2))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "fake");
+      Assertions.assertThat(nodes.get(3))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000002")
+          .containsEntry("name", "fake");
+      Assertions.assertThat(nodes.get(4))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000003")
+          .containsEntry("name", "fake");
+    }
+
+    @Test
+    void givenFilesOnRootSearchWithSortSizeDescShouldReturnCorrectlySortedNodes() {
+      String bodyPayload =
+          GraphqlCommandBuilder.aQueryBuilder("findNodes")
+              .withString("folder_id", "LOCAL_ROOT")
+              .withBoolean("cascade", true)
+              .withEnum("sort", NodeSort.SIZE_DESC)
+              .withInteger("limit", 5)
+              .withWantedResultFormat("{ nodes { id name }, page_token }")
+              .build();
+
+      final HttpRequest httpRequest =
+          HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+      final HttpResponse httpResponse =
+          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+      final Map<String, Object> page =
+          TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+
+      final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+
+      Assertions.assertThat(nodes).hasSize(5);
+      Assertions.assertThat(nodes.get(3))
+          .containsEntry("id", "10000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "folder");
+      Assertions.assertThat(nodes.get(4))
+          .containsEntry("id", "10000000-0000-0000-0000-000000000002")
+          .containsEntry("name", "folder");
+      Assertions.assertThat(nodes.get(2))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "fake");
+      Assertions.assertThat(nodes.get(1))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000002")
+          .containsEntry("name", "fake");
+      Assertions.assertThat(nodes.get(0))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000003")
+          .containsEntry("name", "fake");
+    }
   }
 
-  @Test
-  void givenFilesOnRootSearchWithSortNameAscShouldReturnCorrectlySortedNodes() {
-    // Given
-    createNodesDifferentNames();
-    String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("findNodes")
-            .withString("folder_id", "LOCAL_ROOT")
-            .withBoolean("cascade", true)
-            .withEnum("sort", NodeSort.NAME_ASC)
-            .withInteger("limit", 5)
-            .withWantedResultFormat("{ nodes { id name }, page_token }")
-            .build();
+  @Nested
+  class FilterTests {
 
-    final HttpRequest httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+    @AfterEach
+    void cleanUp() {
+      simulator.resetDatabase();
+    }
 
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
-
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-
-    final Map<String, Object> page =
-        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
-
-    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
-
-    Assertions.assertThat(nodes).hasSize(5);
-    // folders always on top
-    Assertions.assertThat(nodes.get(0))
-        .containsEntry("id", "10000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "folderA");
-    Assertions.assertThat(nodes.get(1))
-        .containsEntry("id", "10000000-0000-0000-0000-000000000002")
-        .containsEntry("name", "folderB");
-    Assertions.assertThat(nodes.get(2))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "aaa");
-    Assertions.assertThat(nodes.get(3))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000002")
-        .containsEntry("name", "bbb");
-    Assertions.assertThat(nodes.get(4))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000003")
-        .containsEntry("name", "ccc");
-  }
-
-  @Test
-  void givenFilesOnRootSearchWithSortNameDescShouldReturnCorrectlySortedNodes() {
-    // Given
-    createNodesDifferentNames();
-    String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("findNodes")
-            .withString("folder_id", "LOCAL_ROOT")
-            .withBoolean("cascade", true)
-            .withEnum("sort", NodeSort.NAME_DESC)
-            .withInteger("limit", 5)
-            .withWantedResultFormat("{ nodes { id name }, page_token }")
-            .build();
-
-    final HttpRequest httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
-
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
-
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-
-    final Map<String, Object> page =
-        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
-
-    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
-
-    Assertions.assertThat(nodes).hasSize(5);
-    // folders always on top
-    Assertions.assertThat(nodes.get(1))
-        .containsEntry("id", "10000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "folderA");
-    Assertions.assertThat(nodes.get(0))
-        .containsEntry("id", "10000000-0000-0000-0000-000000000002")
-        .containsEntry("name", "folderB");
-    Assertions.assertThat(nodes.get(4))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "aaa");
-    Assertions.assertThat(nodes.get(3))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000002")
-        .containsEntry("name", "bbb");
-    Assertions.assertThat(nodes.get(2))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000003")
-        .containsEntry("name", "ccc");
-  }
-
-  @Test
-  void givenFilesOnRootSearchWithSortSizeAscShouldReturnCorrectlySortedNodes() {
-    // Given
-    createNodesDifferentSizes();
-    String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("findNodes")
-            .withString("folder_id", "LOCAL_ROOT")
-            .withBoolean("cascade", true)
-            .withEnum("sort", NodeSort.SIZE_ASC)
-            .withInteger("limit", 5)
-            .withWantedResultFormat("{ nodes { id name }, page_token }")
-            .build();
-
-    final HttpRequest httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
-
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
-
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-
-    final Map<String, Object> page =
-        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
-
-    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
-
-    Assertions.assertThat(nodes).hasSize(5);
-    // folders have size 0 and are on top
-    Assertions.assertThat(nodes.get(0))
-        .containsEntry("id", "10000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "folder");
-    Assertions.assertThat(nodes.get(1))
-        .containsEntry("id", "10000000-0000-0000-0000-000000000002")
-        .containsEntry("name", "folder");
-    Assertions.assertThat(nodes.get(2))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "fake");
-    Assertions.assertThat(nodes.get(3))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000002")
-        .containsEntry("name", "fake");
-    Assertions.assertThat(nodes.get(4))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000003")
-        .containsEntry("name", "fake");
-  }
-
-  @Test
-  void givenFilesOnRootSearchWithSortSizeDescShouldReturnCorrectlySortedNodes() {
-    // Given
-    createNodesDifferentSizes();
-    String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("findNodes")
-            .withString("folder_id", "LOCAL_ROOT")
-            .withBoolean("cascade", true)
-            .withEnum("sort", NodeSort.SIZE_DESC)
-            .withInteger("limit", 5)
-            .withWantedResultFormat("{ nodes { id name }, page_token }")
-            .build();
-
-    final HttpRequest httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
-
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
-
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-
-    final Map<String, Object> page =
-        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
-
-    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
-
-    Assertions.assertThat(nodes).hasSize(5);
-    // folders have size 0 so they are always on bottom with size desc sorting
-    Assertions.assertThat(nodes.get(3))
-        .containsEntry("id", "10000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "folder");
-    Assertions.assertThat(nodes.get(4))
-        .containsEntry("id", "10000000-0000-0000-0000-000000000002")
-        .containsEntry("name", "folder");
-    Assertions.assertThat(nodes.get(2))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "fake");
-    Assertions.assertThat(nodes.get(1))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000002")
-        .containsEntry("name", "fake");
-    Assertions.assertThat(nodes.get(0))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000003")
-        .containsEntry("name", "fake");
-  }
-
-  @Test
-  void givenFilesOnRootSearchWithSortLastUpdateAscShouldReturnCorrectlySortedNodes() {
-    // Given
-    createNodesDifferentNames();
-    String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("findNodes")
-            .withString("folder_id", "LOCAL_ROOT")
-            .withBoolean("cascade", true)
-            .withEnum("sort", NodeSort.UPDATED_AT_ASC)
-            .withInteger("limit", 5)
-            .withWantedResultFormat("{ nodes { id name }, page_token }")
-            .build();
-
-    final HttpRequest httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
-
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
-
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-
-    final Map<String, Object> page =
-        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
-
-    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
-
-    Assertions.assertThat(nodes).hasSize(5);
-    // folders always on top
-    Assertions.assertThat(nodes.get(0))
-        .containsEntry("id", "10000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "folderA");
-    Assertions.assertThat(nodes.get(1))
-        .containsEntry("id", "10000000-0000-0000-0000-000000000002")
-        .containsEntry("name", "folderB");
-    Assertions.assertThat(nodes.get(2))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "aaa");
-    Assertions.assertThat(nodes.get(3))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000002")
-        .containsEntry("name", "bbb");
-    Assertions.assertThat(nodes.get(4))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000003")
-        .containsEntry("name", "ccc");
-  }
-
-  @Test
-  void givenFilesOnRootSearchWithSortLastUpdateDescShouldReturnCorrectlySortedNodes() { // recents
-    // Given
-    createNodesDifferentNames();
-    String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("findNodes")
-            .withString("folder_id", "LOCAL_ROOT")
-            .withBoolean("cascade", true)
-            .withEnum("sort", NodeSort.UPDATED_AT_DESC)
-            .withInteger("limit", 5)
-            .withWantedResultFormat("{ nodes { id name }, page_token }")
-            .build();
-
-    final HttpRequest httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
-
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
-
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-
-    final Map<String, Object> page =
-        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
-
-    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
-
-    Assertions.assertThat(nodes).hasSize(5);
-    // folders always on top
-    Assertions.assertThat(nodes.get(1))
-        .containsEntry("id", "10000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "folderA");
-    Assertions.assertThat(nodes.get(0))
-        .containsEntry("id", "10000000-0000-0000-0000-000000000002")
-        .containsEntry("name", "folderB");
-    Assertions.assertThat(nodes.get(4))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "aaa");
-    Assertions.assertThat(nodes.get(3))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000002")
-        .containsEntry("name", "bbb");
-    Assertions.assertThat(nodes.get(2))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000003")
-        .containsEntry("name", "ccc");
-  }
-
-  @Test
-  void givenFilesOnRootSearchWithFlaggedShouldReturnFlaggedNodes() {
+    @Test
+    void givenFilesOnRootSearchWithFlaggedShouldReturnFlaggedNodes() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -639,43 +669,5 @@ class FindNodesApiIT {
         .containsEntry("id", "00000000-0000-0000-0000-000000000001")
         .containsEntry("name", "trashed");
   }
-
-  @Test
-  void givenFilesOnRootSearchByKeywordsShouldReturnCorrectNodes() {
-    // Given
-    createNodesDifferentNames();
-    String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("findNodes")
-            .withString("folder_id", "LOCAL_ROOT")
-            .withBoolean("cascade", true)
-            .withEnum("sort", NodeSort.NAME_ASC)
-            .withInteger("limit", 5)
-            .withListOfStrings("keywords", new String[] {"a"})
-            .withWantedResultFormat("{ nodes { id name }, page_token }")
-            .build();
-
-    final HttpRequest httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
-
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
-
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-
-    final Map<String, Object> page =
-        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
-
-    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
-
-    Assertions.assertThat(nodes).hasSize(2);
-    // folders always on top
-    Assertions.assertThat(nodes.get(0))
-        .containsEntry("id", "10000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "folderA");
-    Assertions.assertThat(nodes.get(1))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "aaa");
   }
 }
