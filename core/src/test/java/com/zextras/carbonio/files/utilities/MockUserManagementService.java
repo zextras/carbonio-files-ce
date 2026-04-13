@@ -116,6 +116,7 @@ public class MockUserManagementService extends UserManagementServiceImplBase {
   public void getUserByEmail(GetUserByEmailRequest request,
       StreamObserver<UserInfoResponse> responseObserver) {
     String email = request.getUserEmail();
+    // Search by email across registered users
     for (UserInfoProto info : userIdToInfo.values()) {
       if (info.getEmail().equals(email)) {
         responseObserver.onNext(UserInfoResponse.newBuilder().setUser(info).build());

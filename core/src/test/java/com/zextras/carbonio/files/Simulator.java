@@ -29,12 +29,6 @@ import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.HttpMethod;
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.integration.ClientAndServer;
 import org.mockserver.model.HttpRequest;
@@ -45,11 +39,19 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.shaded.com.trilead.ssh2.crypto.Base64;
 
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class Simulator implements AutoCloseable {
 
   private static final Logger logger = LoggerFactory.getLogger(Simulator.class);
   private static final String UM_INPROCESS_BASE_NAME = "um-files-test";
-  private static final AtomicInteger UM_COUNTER = new AtomicInteger();
+  private static final AtomicInteger UM_COUNTER =
+      new AtomicInteger();
   private String umInProcessName;
 
   // Singleton containers: started once per JVM, reused across all test classes.
@@ -416,7 +418,7 @@ public class Simulator implements AutoCloseable {
    * Returns the mock UM gRPC service, allowing tests to register additional users
    * (e.g. for getUserById lookups in transfer ownership scenarios).
    */
-  public MockUserManagementService getUserManagementMock() {
+  public MockUserManagementService getUserManagementService() {
     return mockUmService;
   }
 
@@ -544,7 +546,10 @@ public class Simulator implements AutoCloseable {
 
     public SimulatorBuilder withUserManagement(Map<String, String> users) {
       simulator.startUserManagement();
-      users.forEach((cookie, userId) -> simulator.mockUmService.registerToken(cookie, userId));
+      users.forEach(
+          (cookie, userId) -> {
+            simulator.mockUmService.registerToken(cookie, userId);
+          });
       return this;
     }
 

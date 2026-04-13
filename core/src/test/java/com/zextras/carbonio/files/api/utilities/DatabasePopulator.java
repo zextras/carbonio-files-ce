@@ -16,8 +16,12 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionReposit
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
+import org.apache.commons.lang3.RandomStringUtils;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 public class DatabasePopulator {
   static NodeRepository nodeRepository;
@@ -124,7 +128,7 @@ public class DatabasePopulator {
       linkRepository.createLink(
           UUID.randomUUID().toString(),
           nodeId,
-          org.apache.commons.lang3.RandomStringUtils.secure().nextAlphanumeric(32),
+          RandomStringUtils.secure().nextAlphanumeric(32),
           Optional.of(5L),
           Optional.of("bulk-link"),
           Optional.empty());
