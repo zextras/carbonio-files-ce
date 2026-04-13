@@ -72,7 +72,7 @@ class HealthApiIT {
           .respond(HttpResponse.response().withStatusCode(200));
 
       // Preview
-      MockServerClient previewServiceMock = simulator.getPreviewServiceMock();
+      MockServerClient previewServiceMock = simulator.getPreviewMock();
 
       previewServiceMock
           .when(
@@ -82,7 +82,7 @@ class HealthApiIT {
           .respond(HttpResponse.response().withStatusCode(200));
 
       // DocsConnector
-      MockServerClient docsConnectorServiceMock = simulator.getDocsConnectorServiceMock();
+      MockServerClient docsConnectorServiceMock = simulator.getDocsConnectorMock();
 
       docsConnectorServiceMock
           .when(
@@ -173,7 +173,7 @@ class HealthApiIT {
           .respond(HttpResponse.response().withStatusCode(200));
 
       // Preview
-      MockServerClient previewServiceMock = simulator.getPreviewServiceMock();
+      MockServerClient previewServiceMock = simulator.getPreviewMock();
 
       previewServiceMock
           .when(
@@ -183,7 +183,7 @@ class HealthApiIT {
           .respond(HttpResponse.response().withStatusCode(200));
 
       // DocsConnector
-      MockServerClient docsConnectorServiceMock = simulator.getDocsConnectorServiceMock();
+      MockServerClient docsConnectorServiceMock = simulator.getDocsConnectorMock();
 
       docsConnectorServiceMock
           .when(

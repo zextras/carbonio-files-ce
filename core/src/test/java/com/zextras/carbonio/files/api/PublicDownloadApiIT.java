@@ -14,6 +14,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.utilities.StoragesMockHelper;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import io.netty.handler.codec.http.HttpMethod;
@@ -33,6 +34,7 @@ import org.mockserver.verify.VerificationTimes;
 public class PublicDownloadApiIT {
 
   static Simulator simulator;
+  static StoragesMockHelper storagesMockHelper;
   static NodeRepository nodeRepository;
   static FileVersionRepository fileVersionRepository;
   static LinkRepository linkRepository;
@@ -53,6 +55,7 @@ public class PublicDownloadApiIT {
     nodeRepository = injector.getInstance(NodeRepository.class);
     fileVersionRepository = injector.getInstance(FileVersionRepository.class);
     linkRepository = injector.getInstance(LinkRepository.class);
+    storagesMockHelper = new StoragesMockHelper(simulator.getStoragesMock());
   }
 
   @AfterEach
@@ -96,7 +99,7 @@ public class PublicDownloadApiIT {
             Optional.empty(),
             Optional.empty());
 
-    simulator.getBlob("00000000-0000-0000-0000-000000000000", 1);
+    storagesMockHelper.getBlob("00000000-0000-0000-0000-000000000000", 1);
 
     final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, userToken, null);
@@ -299,7 +302,7 @@ public class PublicDownloadApiIT {
             Optional.empty(),
             Optional.empty());
 
-    simulator.getBlob("00000000-0000-0000-0000-000000000000", 1);
+    storagesMockHelper.getBlob("00000000-0000-0000-0000-000000000000", 1);
 
     final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, userToken, null);
@@ -371,7 +374,7 @@ public class PublicDownloadApiIT {
             Optional.empty(),
             Optional.of("accesscode"));
 
-    simulator.getBlob("00000000-0000-0000-0000-000000000000", 1);
+    storagesMockHelper.getBlob("00000000-0000-0000-0000-000000000000", 1);
 
     final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab&access_code=accesscode";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);

@@ -76,7 +76,7 @@ class ThumbnailApiIT {
       request.withQueryStringParameter(new Parameter("lang_tag", "en"));
     }
 
-    return simulator.getPreviewServiceMock()
+    return simulator.getPreviewMock()
         .when(request)
         .respond(org.mockserver.model.HttpResponse.response()
             .withStatusCode(200)
@@ -84,7 +84,7 @@ class ThumbnailApiIT {
   }
 
   static void verifyAndClearExpectationInThumbnailMockService(String expectationId) {
-    MockServerClient previewServiceMock = simulator.getPreviewServiceMock();
+    MockServerClient previewServiceMock = simulator.getPreviewMock();
     previewServiceMock.verify(expectationId).clear(expectationId);
   }
 
