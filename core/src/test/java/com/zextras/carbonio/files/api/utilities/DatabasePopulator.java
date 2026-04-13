@@ -149,11 +149,14 @@ public class DatabasePopulator {
     return this;
   }
 
+  /**
+   * Waits until the system clock advances by at least 1ms so that consecutive
+   * inserts get distinct epoch-millis timestamps (needed for sort-by-time tests).
+   */
   private void delay() {
-    try {
-      Thread.sleep(500);
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
+    long start = System.currentTimeMillis();
+    while (System.currentTimeMillis() == start) {
+      Thread.onSpinWait();
     }
   }
 }
