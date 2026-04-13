@@ -40,9 +40,13 @@ import io.netty.handler.codec.http.HttpMethod;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.mockserver.client.MockServerClient;
 import org.mockserver.integration.ClientAndServer;
@@ -53,21 +57,33 @@ import org.mockserver.model.Parameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.shaded.com.trilead.ssh2.crypto.Base64;
 import org.testcontainers.containers.RabbitMQContainer;
+import org.testcontainers.shaded.com.trilead.ssh2.crypto.Base64;
 
-@Testcontainers
 public class Simulator implements AutoCloseable {
 
   private static final Logger logger = LoggerFactory.getLogger(Simulator.class);
-  private static final String UM_INPROCESS_NAME = "um-files-test";
+  private static final String UM_INPROCESS_BASE_NAME = "um-files-test";
+  private static final AtomicInteger UM_COUNTER = new AtomicInteger();
+  private String umInProcessName;
+
+  // Singleton containers: started once per JVM, reused across all test classes.
+  // Testcontainers' Ryuk will clean them up when the JVM exits.
+  private static final PostgreSQLContainer<?> SHARED_POSTGRES =
+      new PostgreSQLContainer<>("postgres:16.6");
+  private static final RabbitMQContainer SHARED_RABBITMQ =
+      new RabbitMQContainer("rabbitmq:3.13.4");
+
+  // Singleton MockServer: started once per JVM on fixed ports, reused across all test classes.
+  // Unlike the container fields (static final, never null, safe to lock on directly),
+  // sharedMockServer starts null — so we need a separate lock object to synchronize on.
+  private static volatile ClientAndServer sharedMockServer;
+  private static final Object MOCK_SERVER_LOCK = new Object();
+
+  private final Set<String> managedProperties = new HashSet<>();
 
   private Injector injector;
-  private PostgreSQLContainer<?> postgreSQLContainer;
-  private RabbitMQContainer messageBrokerContainer;
-  private DatabaseManager databaseManagerFlyway;
-  private ClientAndServer clientAndServer;
+  private DatabaseManager databaseManager;
   private MockServerClient serviceDiscoverMock;
   private MockServerClient storagesMock;
   private MockServerClient previewServiceMock;
@@ -82,12 +98,20 @@ public class Simulator implements AutoCloseable {
   // Private methods
   //
 
+  private void setManagedProperty(String key, String value) {
+    System.setProperty(key, value);
+    managedProperties.add(key);
+  }
+
   private Simulator createInjector() {
     // Always create the InProcess channel so Guice can inject ManagedChannel and BlockingStub.
     // The InProcess server is only started when withUserManagement() is called; without it,
     // the channel will be in TRANSIENT_FAILURE state (simulating UM being unreachable).
     if (umChannel == null) {
-      umChannel = InProcessChannelBuilder.forName(UM_INPROCESS_NAME).directExecutor().build();
+      if (umInProcessName == null) {
+        umInProcessName = UM_INPROCESS_BASE_NAME + "-" + UM_COUNTER.incrementAndGet();
+      }
+      umChannel = InProcessChannelBuilder.forName(umInProcessName).directExecutor().build();
     }
     if (mockUmService == null) {
       mockUmService = new MockUserManagementService();
@@ -113,36 +137,35 @@ public class Simulator implements AutoCloseable {
   }
 
   private Simulator startDatabase() {
-    if (postgreSQLContainer == null) {
-      postgreSQLContainer = new PostgreSQLContainer<>("postgres:16.6");
+    synchronized (SHARED_POSTGRES) {
+      if (!SHARED_POSTGRES.isRunning()) {
+        SHARED_POSTGRES.start();
+      }
     }
-
-    postgreSQLContainer.start();
-
     // Set the System.properties for the dynamic database url and port
-    System.setProperty(Database.HOST_PROPERTY, postgreSQLContainer.getHost());
-    System.setProperty(Database.PORT_PROPERTY, String.valueOf(postgreSQLContainer.getFirstMappedPort()));
+    setManagedProperty(Database.HOST_PROPERTY, SHARED_POSTGRES.getHost());
+    setManagedProperty(Database.PORT_PROPERTY, String.valueOf(SHARED_POSTGRES.getFirstMappedPort()));
 
     return this;
   }
 
   private Simulator startMessageBroker() {
-    if (messageBrokerContainer == null) {
-      messageBrokerContainer = new RabbitMQContainer("rabbitmq:3.13.4");
+    synchronized (SHARED_RABBITMQ) {
+      if (!SHARED_RABBITMQ.isRunning()) {
+        SHARED_RABBITMQ.start();
+      }
     }
-    messageBrokerContainer.start();
-
     // Set the System.properties for the dynamic rabbit url and port
-    System.setProperty(Constants.Config.MessageBroker.HOST_PROPERTY, messageBrokerContainer.getHost());
-    System.setProperty(Constants.Config.MessageBroker.PORT_PROPERTY, String.valueOf(messageBrokerContainer.getFirstMappedPort()));
+    setManagedProperty(Constants.Config.MessageBroker.HOST_PROPERTY, SHARED_RABBITMQ.getHost());
+    setManagedProperty(Constants.Config.MessageBroker.PORT_PROPERTY, String.valueOf(SHARED_RABBITMQ.getFirstMappedPort()));
 
     return this;
   }
 
   private Simulator startEbeanDatabaseManager() {
-    if (databaseManagerFlyway == null) {
-      databaseManagerFlyway = injector.getInstance(DatabaseManager.class);
-      databaseManagerFlyway.initialize();
+    if (databaseManager == null) {
+      databaseManager = injector.getInstance(DatabaseManager.class);
+      databaseManager.initialize();
     }
 
     return this;
@@ -159,10 +182,10 @@ public class Simulator implements AutoCloseable {
     String adminUsername;
     String adminPassword;
 
-    if (postgreSQLContainer != null && postgreSQLContainer.isRunning()) {
-      dbName = postgreSQLContainer.getDatabaseName();
-      dbUsername = postgreSQLContainer.getUsername();
-      dbPassword = postgreSQLContainer.getPassword();
+    if (SHARED_POSTGRES.isRunning()) {
+      dbName = SHARED_POSTGRES.getDatabaseName();
+      dbUsername = SHARED_POSTGRES.getUsername();
+      dbPassword = SHARED_POSTGRES.getPassword();
     } else {
       logger.warn(
           "The ServiceDiscover will be mocked without a database container. The database "
@@ -173,9 +196,9 @@ public class Simulator implements AutoCloseable {
       dbPassword = Key.DB_PASSWORD;
     }
 
-    if (messageBrokerContainer != null && messageBrokerContainer.isRunning()) {
-      adminUsername = messageBrokerContainer.getAdminUsername();
-      adminPassword = messageBrokerContainer.getAdminPassword();
+    if (SHARED_RABBITMQ.isRunning()) {
+      adminUsername = SHARED_RABBITMQ.getAdminUsername();
+      adminPassword = SHARED_RABBITMQ.getAdminPassword();
     } else {
       logger.warn("The ServiceDiscover will be mocked without a rabbitMQ container");
 
@@ -259,11 +282,12 @@ public class Simulator implements AutoCloseable {
 
   private Simulator startUserManagement() {
     mockUmService = new MockUserManagementService();
-    umChannel = InProcessChannelBuilder.forName(UM_INPROCESS_NAME).directExecutor().build();
+    umInProcessName = UM_INPROCESS_BASE_NAME + "-" + UM_COUNTER.incrementAndGet();
+    umChannel = InProcessChannelBuilder.forName(umInProcessName).directExecutor().build();
 
     try {
       umGrpcServer =
-          InProcessServerBuilder.forName(UM_INPROCESS_NAME)
+          InProcessServerBuilder.forName(umInProcessName)
               .directExecutor()
               .addService(mockUmService)
               .build()
@@ -290,7 +314,7 @@ public class Simulator implements AutoCloseable {
         new MockServerClient(
             "localhost",
             Constants.Config.Storages.DEFAULT_PORT);
-    System.setProperty(Constants.Config.Storages.HOST_PROPERTY, "localhost");
+    setManagedProperty(Constants.Config.Storages.HOST_PROPERTY, "localhost");
 
     return this;
   }
@@ -302,7 +326,7 @@ public class Simulator implements AutoCloseable {
       "localhost",
       Constants.Config.Preview.DEFAULT_PORT
     );
-    System.setProperty(Constants.Config.Preview.HOST_PROPERTY, "localhost");
+    setManagedProperty(Constants.Config.Preview.HOST_PROPERTY, "localhost");
 
     return this;
   }
@@ -314,44 +338,35 @@ public class Simulator implements AutoCloseable {
       "localhost",
       Constants.Config.DocsConnector.DEFAULT_PORT
     );
-    System.setProperty(Constants.Config.DocsConnector.HOST_PROPERTY, "localhost");
+    setManagedProperty(Constants.Config.DocsConnector.HOST_PROPERTY, "localhost");
 
     return this;
   }
 
   private void startMockServer() {
-    if (clientAndServer == null) {
-      final int storagesPort = Constants.Config.Storages.DEFAULT_PORT;
-      final int previewServicePort = Constants.Config.Preview.DEFAULT_PORT;
-      final int docsConnectorServicePort = Constants.Config.DocsConnector.DEFAULT_PORT;
+    synchronized (MOCK_SERVER_LOCK) {
+      if (sharedMockServer == null || !sharedMockServer.isRunning()) {
+        final int storagesPort = Constants.Config.Storages.DEFAULT_PORT;
+        final int previewServicePort = Constants.Config.Preview.DEFAULT_PORT;
+        final int docsConnectorServicePort = Constants.Config.DocsConnector.DEFAULT_PORT;
 
-      clientAndServer =
-          ClientAndServer.startClientAndServer(8500, storagesPort, previewServicePort, docsConnectorServicePort);
-    }
-  }
-
-  private void stopDatabase() {
-    if (postgreSQLContainer != null && postgreSQLContainer.isRunning()) {
-      postgreSQLContainer.stop();
-    }
-  }
-
-  private void stopRabbitMq() {
-    if (messageBrokerContainer != null && messageBrokerContainer.isRunning()) {
-      messageBrokerContainer.stop();
+        sharedMockServer =
+            ClientAndServer.startClientAndServer(8500, storagesPort, previewServicePort, docsConnectorServicePort);
+      }
     }
   }
 
   private void stopEbeanDatabaseManager() {
-    if (databaseManagerFlyway != null) {
-      databaseManagerFlyway.stop();
+    if (databaseManager != null) {
+      databaseManager.stop();
     }
   }
 
-  private void stopServiceDiscover() {
+  private void resetServiceDiscoverMock() {
     if (serviceDiscoverMock != null && serviceDiscoverMock.hasStarted()) {
-      serviceDiscoverMock.stop();
+      serviceDiscoverMock.reset();
     }
+    serviceDiscoverMock = null;
   }
 
   private void stopUserManagement() {
@@ -365,22 +380,25 @@ public class Simulator implements AutoCloseable {
     }
   }
 
-  private void stopStoragesService() {
-    if (previewServiceMock != null && previewServiceMock.hasStarted()) {
-      previewServiceMock.stop();
+  private void resetStoragesMock() {
+    if (storagesMock != null && storagesMock.hasStarted()) {
+      storagesMock.reset();
     }
+    storagesMock = null;
   }
 
-  private void stopPreviewService() {
+  private void resetPreviewMock() {
     if (previewServiceMock != null && previewServiceMock.hasStarted()) {
-      previewServiceMock.stop();
+      previewServiceMock.reset();
     }
+    previewServiceMock = null;
   }
 
-  private void stopDocsConnectorService() {
+  private void resetDocsConnectorMock() {
     if (docsConnectorServiceMock != null && docsConnectorServiceMock.hasStarted()) {
-      docsConnectorServiceMock.stop();
+      docsConnectorServiceMock.reset();
     }
+    docsConnectorServiceMock = null;
   }
 
   //
@@ -394,14 +412,18 @@ public class Simulator implements AutoCloseable {
   }
 
   public void stopAll() {
-    stopDocsConnectorService();
-    stopPreviewService();
-    stopStoragesService();
+    // Container lifecycle (PostgreSQL, RabbitMQ) and the shared MockServer are JVM-scoped
+    // singletons managed by Testcontainers' Ryuk — they are NOT stopped here.
+    // This method only tears down per-Simulator resources: Ebean/HikariCP, gRPC UM server,
+    // and MockServer expectations (reset, not stopped).
+    resetDocsConnectorMock();
+    resetPreviewMock();
+    resetStoragesMock();
     stopUserManagement();
-    stopServiceDiscover();
-    stopDatabase();
+    resetServiceDiscoverMock();
     stopEbeanDatabaseManager();
-    stopRabbitMq();
+    // Clear all System properties set by start methods to prevent leaking config to the next Simulator.
+    managedProperties.forEach(System::clearProperty);
   }
 
   @Override
@@ -434,7 +456,7 @@ public class Simulator implements AutoCloseable {
     if (umGrpcServer != null) {
       umGrpcServer.shutdownNow();
       try {
-        umGrpcServer.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+        umGrpcServer.awaitTermination(5, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
@@ -463,16 +485,35 @@ public class Simulator implements AutoCloseable {
     return new EmbeddedChannel(injector.getInstance(HttpRoutingHandler.class));
   }
 
-  public RabbitMQContainer getMessageBrokerContainer() {
-    return messageBrokerContainer;
-  }
-
   public void resetDatabase() {
-    databaseManagerFlyway.getEbeanDatabase().find(Node.class).delete();
+    var db = databaseManager.getEbeanDatabase();
+    // Delete test nodes but preserve ROOT nodes (LOCAL_ROOT, TRASH_ROOT) which have null owner_id.
+    db.find(Node.class)
+            .where()
+            .isNotNull("mOwnerId")
+            .delete();
+    // Wipe notification and snapshot tables (not FK-linked to node, so not cascade-deleted above).
+    db.sqlUpdate("TRUNCATE user_notification_interest, notification, snapshot_node, snapshot_user, user_notifications_info, tombstone CASCADE").execute();
   }
 
   public void clearFileVersionCache() {
     injector.getInstance(CacheHandler.class).getFileVersionCache().flushAll();
+  }
+
+  public void reinitializeMocks() {
+    if (serviceDiscoverMock != null && serviceDiscoverMock.hasStarted()) {
+      serviceDiscoverMock.reset();
+      startServiceDiscover();
+    }
+    if (storagesMock != null && storagesMock.hasStarted()) {
+      storagesMock.reset();
+    }
+    if (previewServiceMock != null && previewServiceMock.hasStarted()) {
+      previewServiceMock.reset();
+    }
+    if (docsConnectorServiceMock != null && docsConnectorServiceMock.hasStarted()) {
+      docsConnectorServiceMock.reset();
+    }
   }
 
   public void getBlob(String nodeId, int version) {

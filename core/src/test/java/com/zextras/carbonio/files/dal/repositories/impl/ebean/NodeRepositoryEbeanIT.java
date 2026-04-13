@@ -10,12 +10,10 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
  * This is only an example of test. It must be changed
  */
-@Testcontainers
 class NodeRepositoryEbeanIT {
 
   private static FilesPostgreSQLContainer database;

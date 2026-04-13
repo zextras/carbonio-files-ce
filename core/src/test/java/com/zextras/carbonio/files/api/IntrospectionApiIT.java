@@ -16,7 +16,7 @@ import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -29,8 +29,8 @@ class IntrospectionApiIT {
   static FileVersionRepository fileVersionRepository;
   static LinkRepository linkRepository;
 
-  @BeforeEach
-  void init() {
+  @BeforeAll
+  static void init() {
     simulator =
         SimulatorBuilder.aSimulator()
             .init()
@@ -52,7 +52,6 @@ class IntrospectionApiIT {
   @AfterEach
   void cleanUp() {
     simulator.resetDatabase();
-    simulator.stopAll();
   }
 
   @AfterAll
