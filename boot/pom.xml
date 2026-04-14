@@ -30,6 +30,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <dependencies>
     <dependency>
+      <groupId>com.zextras.carbonio</groupId>
+      <artifactId>carbonio-systemd-notify</artifactId>
+      <version>1.0.1</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.zextras.carbonio.files</groupId>
       <artifactId>carbonio-files-ce-core</artifactId>
       <version>${project.parent.version}</version>
@@ -46,6 +52,9 @@ SPDX-License-Identifier: AGPL-3.0-only
           <release>${java-compiler.version}</release>
           <source>${java-compiler.version}</source>
           <target>${java-compiler.version}</target>
+          <compilerArgs>
+            <arg>--enable-preview</arg>
+          </compilerArgs>
         </configuration>
       </plugin>
 

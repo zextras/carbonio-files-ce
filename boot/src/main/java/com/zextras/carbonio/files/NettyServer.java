@@ -17,6 +17,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpServerCodec;
+import com.zextras.carbonio.systemd.SystemdNotify;
 import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,16 +60,18 @@ public class NettyServer {
         .option(ChannelOption.SO_BACKLOG, 128)
         .childOption(ChannelOption.SO_KEEPALIVE, true);
 
-      bootstrap
+      Channel channel = bootstrap
         .localAddress(
           filesConfig.getFilesHost(),
           Integer.parseInt(filesConfig.getFilesPort())
         )
         .bind()
         .sync()
-        .channel()
-        .closeFuture()
-        .sync();
+        .channel();
+
+      SystemdNotify.ready("files ready");
+
+      channel.closeFuture().sync();
 
     } catch (InterruptedException exception) {
       logger.error("Service stopped unexpectedly: " + exception.getMessage());
