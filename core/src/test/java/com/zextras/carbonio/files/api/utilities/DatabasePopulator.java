@@ -16,8 +16,12 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionReposit
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
+import org.apache.commons.lang3.RandomStringUtils;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 public class DatabasePopulator {
   static NodeRepository nodeRepository;
@@ -113,6 +117,25 @@ public class DatabasePopulator {
     return this;
   }
 
+  /**
+   * Creates multiple links on a node without the per-insert delay.
+   * Use this when testing link count limits where link timestamps are irrelevant.
+   */
+  public DatabasePopulator addLinks(String nodeId, int count) {
+    Optional<Node> optionalNode = nodeRepository.getNode(nodeId);
+    if (optionalNode.isEmpty()) throw new IllegalArgumentException("Node does not exist");
+    for (int i = 0; i < count; i++) {
+      linkRepository.createLink(
+          UUID.randomUUID().toString(),
+          nodeId,
+          RandomStringUtils.secure().nextAlphanumeric(32),
+          Optional.of(5L),
+          Optional.of("bulk-link"),
+          Optional.empty());
+    }
+    return this;
+  }
+
   public DatabasePopulator addFlag(String nodeId, String requesterId) {
     nodeRepository.flagForUser(nodeId, requesterId, true);
     delay();
@@ -130,11 +153,14 @@ public class DatabasePopulator {
     return this;
   }
 
+  /**
+   * Waits until the system clock advances by at least 1ms so that consecutive
+   * inserts get distinct epoch-millis timestamps (needed for sort-by-time tests).
+   */
   private void delay() {
-    try {
-      Thread.sleep(500);
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
+    long start = System.currentTimeMillis();
+    while (System.currentTimeMillis() == start) {
+      Thread.onSpinWait();
     }
   }
 }

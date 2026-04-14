@@ -17,6 +17,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.utilities.StoragesMockHelper;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import io.netty.handler.codec.http.HttpMethod;
@@ -36,6 +37,7 @@ import java.util.Map;
 public class DownloadMultipleApiIT {
 
   static Simulator simulator;
+  static StoragesMockHelper storagesMockHelper;
   static NodeRepository nodeRepository;
   static FileVersionRepository fileVersionRepository;
   static LinkRepository linkRepository;
@@ -57,6 +59,7 @@ public class DownloadMultipleApiIT {
     nodeRepository = injector.getInstance(NodeRepository.class);
     fileVersionRepository = injector.getInstance(FileVersionRepository.class);
     linkRepository = injector.getInstance(LinkRepository.class);
+    storagesMockHelper = new StoragesMockHelper(simulator.getStoragesMock());
   }
 
   @AfterEach
@@ -128,9 +131,9 @@ public class DownloadMultipleApiIT {
                 "image/jpeg"));
 
     // Mock storages responses for each file
-    simulator.getBlob(fileId1, 1);
-    simulator.getBlob(fileId2, 1);
-    simulator.getBlob(fileId3, 1);
+    storagesMockHelper.getBlob(fileId1, 1);
+    storagesMockHelper.getBlob(fileId2, 1);
+    storagesMockHelper.getBlob(fileId3, 1);
 
     List<String> nodeIds = List.of(fileId1, fileId2, fileId3);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
@@ -238,8 +241,8 @@ public class DownloadMultipleApiIT {
                 "text/plain"));
 
     // Mock storages responses
-    simulator.getBlob(fileId1, 1);
-    simulator.getBlob(fileId2, 1);
+    storagesMockHelper.getBlob(fileId1, 1);
+    storagesMockHelper.getBlob(fileId2, 1);
 
     List<String> nodeIds = List.of(fileId1, subFolderId);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
@@ -311,8 +314,8 @@ public class DownloadMultipleApiIT {
                 null));
 
     // Mock storages responses
-    simulator.getBlob(fileId1, 1);
-    simulator.getBlob(fileId2, 1);
+    storagesMockHelper.getBlob(fileId1, 1);
+    storagesMockHelper.getBlob(fileId2, 1);
 
     List<String> nodeIds = List.of(Constants.Db.RootId.LOCAL_ROOT);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
@@ -522,7 +525,7 @@ public class DownloadMultipleApiIT {
         .addShare(fileId, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", ACL.SharePermission.READ_ONLY);
 
     // Mock storages response
-    simulator.getBlob(fileId, 1);
+    storagesMockHelper.getBlob(fileId, 1);
 
     List<String> nodeIds = List.of(fileId);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);

@@ -75,7 +75,7 @@ class PreviewApiIT {
       request.withQueryStringParameter(new Parameter("lang_tag", "en"));
     }
 
-    return simulator.getPreviewServiceMock()
+    return simulator.getPreviewMock()
         .when(request)
         .respond(org.mockserver.model.HttpResponse.response()
             .withStatusCode(200)
@@ -83,7 +83,7 @@ class PreviewApiIT {
   }
 
   static void verifyAndClearExpectationInPreviewMockService(String expectationId) {
-    MockServerClient previewServiceMock = simulator.getPreviewServiceMock();
+    MockServerClient previewServiceMock = simulator.getPreviewMock();
     previewServiceMock.verify(expectationId).clear(expectationId);
   }
 

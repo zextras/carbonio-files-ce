@@ -32,8 +32,8 @@ class MoveNodesApiIT {
   static FileVersionRepository fileVersionRepository;
   static LinkRepository linkRepository;
 
-  @BeforeEach
-  void init() {
+  @BeforeAll
+  static void init() {
     simulator =
         SimulatorBuilder.aSimulator()
             .init()
@@ -55,7 +55,6 @@ class MoveNodesApiIT {
   @AfterEach
   void cleanUp() {
     simulator.resetDatabase();
-    simulator.stopAll();
   }
 
   @AfterAll

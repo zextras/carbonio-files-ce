@@ -97,5 +97,9 @@ public class DatabaseManagerFlyway implements DatabaseManager {
       logger.info("Shutting down database connection...");
       ebeanDatabase.shutdown(true, true);
     }
+    if (dataSource != null && !dataSource.isClosed()) {
+      logger.info("Closing HikariCP data source...");
+      dataSource.close();
+    }
   }
 }

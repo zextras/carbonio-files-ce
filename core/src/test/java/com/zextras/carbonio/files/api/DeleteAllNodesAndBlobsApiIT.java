@@ -15,12 +15,13 @@ import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.utilities.StoragesMockHelper;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -30,12 +31,13 @@ import java.util.Optional;
 class DeleteAllNodesAndBlobsApiIT {
 
   static Simulator simulator;
+  static StoragesMockHelper storagesMockHelper;
   static NodeRepository nodeRepository;
   static FileVersionRepository fileVersionRepository;
   static LinkRepository linkRepository;
 
-  @BeforeEach
-  void init() {
+  @BeforeAll
+  static void init() {
     simulator =
         SimulatorBuilder.aSimulator()
             .init()
@@ -53,12 +55,13 @@ class DeleteAllNodesAndBlobsApiIT {
     nodeRepository = injector.getInstance(NodeRepository.class);
     fileVersionRepository = injector.getInstance(FileVersionRepository.class);
     linkRepository = injector.getInstance(LinkRepository.class);
+    storagesMockHelper = new StoragesMockHelper(simulator.getStoragesMock());
   }
 
   @AfterEach
   void cleanUp() {
     simulator.resetDatabase();
-    simulator.stopAll();
+    simulator.reinitializeMocks();
   }
 
   @AfterAll
@@ -123,7 +126,7 @@ class DeleteAllNodesAndBlobsApiIT {
             .withWantedResultFormat("")
             .build();
 
-    simulator.bulkDelete(List.of(new String[]{"00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-000000000003"}));
+    storagesMockHelper.bulkDelete(List.of(new String[]{"00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-000000000003"}));
 
     List<Map.Entry<String, String>> headers = List.of(Map.entry("Internal", ""));
     final HttpRequest httpRequest =
