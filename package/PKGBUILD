@@ -45,7 +45,6 @@ depends=(
 
 source=(
   "511-carbonio-files.sh"
-  "carbonio-files"
   "carbonio-files.hcl"
   "carbonio-files.service"
   "carbonio-files-setup"
@@ -62,9 +61,8 @@ source=(
 )
 sha256sums=(
   '96f4a551909cd061e95fe06175ff3e2f35578af77ac677023174098c8f940ed3'
-  '88099c1d28b2857bab3b3ebfdaf24a21d7bbd6dbb43eca0078d5e8990f8ef687'
   '1b48886989ad379f5c8ef1024f275a3657801c55cd038fe95ac4c9026ce471a7'
-  '89151c012e0588af6c52625bf393c5b8a331edf39631ab1f4754c7e89f7fe0d4'
+  'a7ee302ad9fbd4b833aaff762434318b1d16fd0dcbf749d44cffa23005a55d4f'
   'ef9409dc0ff2e5096fefa6b6ee06b0253e7a5005f1600771bf1e1bba36381d20'
   '999745be7b0af1051ebc2855d2331585984a80de644553af59e37ce00a2e3297'
   '8963c7a7c3679a3c14550d4a40d353ff20ee6995d77eb7dc2c3c96f40690a7e3'
@@ -83,9 +81,6 @@ backup=(
 )
 
 _package_common() {
-  install -Dm755 "${srcdir}/carbonio-files" \
-    "${pkgdir}/usr/bin/carbonio-files"
-
   install -Dm755 "${srcdir}/carbonio-files-setup" \
     "${pkgdir}/usr/bin/carbonio-files-setup"
 
