@@ -33,7 +33,6 @@ pipeline {
         JAVA_OPTS = '-Dfile.encoding=UTF8'
         LC_ALL = 'C.UTF-8'
         jenkins_build = 'true'
-        MVN_OPTS = '-B'
     }
 
     options {
@@ -48,16 +47,6 @@ pipeline {
             defaultValue: false,
             description: 'Check this to prepare a new release (creates pre-release branch and PR)'
         )
-        booleanParam(
-            name: 'SKIP_TESTS',
-            defaultValue: false,
-            description: 'Skip unit tests and integration tests'
-        )
-        booleanParam(
-            name: 'SKIP_CHECKS',
-            defaultValue: false,
-            description: 'Skip coverage and SonarQube analysis'
-        )
     }
 
     stages {
@@ -70,76 +59,16 @@ pipeline {
             }
         }
 
-        stage('Build jar') {
+        stage('Maven') {
             steps {
                 script {
-                    def profile = '-P dev'
-                    if (env.TAG_NAME) {
-                        profile = '-P prod'
-                    }
-                    container('jdk-21') {
-                        sh """
-                            mvn ${MVN_OPTS} clean package ${profile}
+                    mavenStage(
+                        splitTests: true,
+                        postBuildScript: '''
                             cp -a boot/target/carbonio-files-*-jar-with-dependencies.jar package/carbonio-files.jar
                             cp -a package/watches/* package/
-                        """
-                    }
-                }
-            }
-        }
-
-        stage('UTs') {
-            when {
-                expression { params.SKIP_TESTS == false }
-            }
-            steps {
-                container('jdk-21') {
-                    sh "mvn ${MVN_OPTS} verify -P run-unit-tests"
-                }
-            }
-        }
-
-        stage('ITs') {
-            when {
-                expression { params.SKIP_TESTS == false }
-            }
-            steps {
-                container('jdk-21') {
-                    sh "mvn ${MVN_OPTS} verify -P run-integration-tests"
-                }
-            }
-        }
-
-        stage('Coverage') {
-            when {
-                expression { params.SKIP_CHECKS == false }
-            }
-            steps {
-                container('jdk-21') {
-                    sh "mvn ${MVN_OPTS} verify -P generate-jacoco-full-report"
-                    recordCoverage(
-                        tools: [[parser: 'JACOCO']],
-                        sourceCodeRetention: 'MODIFIED'
+                        '''
                     )
-                }
-            }
-        }
-
-        stage('SonarQube analysis') {
-            when {
-               allOf {
-                   expression { params.SKIP_CHECKS == false }
-                   anyOf {
-                       branch 'devel'
-                       expression { env.BRANCH_NAME.contains("PR") }
-                   }
-               }
-            }
-            steps {
-                container('jdk-21') {
-                    withSonarQubeEnv(credentialsId: 'sonarqube-user-token', installationName: 'SonarQube instance') {
-                        sh "mvn ${MVN_OPTS} sonar:sonar"
-                    }
                 }
             }
         }
