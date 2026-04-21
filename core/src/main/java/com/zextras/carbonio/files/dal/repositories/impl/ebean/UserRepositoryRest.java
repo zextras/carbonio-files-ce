@@ -59,10 +59,8 @@ public class UserRepositoryRest implements UserRepository {
   @Override
   public Optional<UserInfo> getUserById(String cookies, String userId) {
     try {
-      String token = extractToken(cookies);
       GetUserByIdRequest request =
           GetUserByIdRequest.newBuilder()
-              .setToken(token)
               .setUserId(userId)
               .build();
       UserInfoResponse response = userManagementStub.getUserById(request);
@@ -76,10 +74,8 @@ public class UserRepositoryRest implements UserRepository {
   @Override
   public Optional<UserInfo> getUserByEmail(String cookies, String userEmail) {
     try {
-      String token = extractToken(cookies);
       GetUserByEmailRequest request =
           GetUserByEmailRequest.newBuilder()
-              .setToken(token)
               .setUserEmail(userEmail)
               .build();
       UserInfoResponse response = userManagementStub.getUserByEmail(request);
