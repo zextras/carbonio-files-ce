@@ -12,9 +12,12 @@ import com.zextras.carbonio.files.dal.dao.UserStatus;
 import com.zextras.carbonio.files.dal.dao.UserType;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 import org.assertj.core.api.Assertions;
@@ -306,5 +309,59 @@ class AuthenticationHandlerTest {
     Assertions
         .assertThat(captorException.getValue().getMessage())
         .isEqualTo("Failed to authenticate request /test/: User is not internal");
+  }
+
+  @Test
+  void givenSuccessfulAuth_fireChannelReadShouldRetainTheRequest() {
+    // Given
+    DefaultFullHttpRequest realRequest =
+        new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/test/");
+    realRequest.headers().add(HttpHeaderNames.COOKIE, "IRIS=ui; ZM_AUTH_TOKEN=valid-token");
+
+    UserMyself userMock = Mockito.mock(UserMyself.class);
+    Attribute<Object> requesterAttr = Mockito.mock(Attribute.class);
+    Attribute<Object> cookiesAttr = Mockito.mock(Attribute.class);
+
+    Mockito.when(userMock.getStatus()).thenReturn(UserStatus.ACTIVE);
+    Mockito.when(userMock.getType()).thenReturn(UserType.INTERNAL);
+    Mockito.when(userMock.getCarbonioAttributes())
+        .thenReturn(Map.of("carbonioFeatureFilesEnabled", "TRUE"));
+    Mockito.when(
+            userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
+        .thenReturn(Optional.of(userMock));
+    Mockito.when(channelMock.attr(AttributeKey.valueOf("requester"))).thenReturn(requesterAttr);
+    Mockito.when(channelMock.attr(AttributeKey.valueOf("cookies"))).thenReturn(cookiesAttr);
+
+    AuthenticationHandler handler = new AuthenticationHandler(userRepositoryMock);
+
+    // When
+    Assertions.assertThat(realRequest.refCnt()).isEqualTo(1);
+    handler.channelRead0(channelHandlerContextMock, realRequest);
+
+    // Then: refCnt must be 2 — proves ReferenceCountUtil.retain() was called
+    Assertions.assertThat(realRequest.refCnt()).isEqualTo(2);
+    Mockito.verify(channelHandlerContextMock).fireChannelRead(realRequest);
+
+    realRequest.release(2);
+  }
+
+  @Test
+  void givenFailedAuth_requestShouldNotBeRetained() {
+    // Given
+    DefaultFullHttpRequest realRequest =
+        new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/test/");
+    realRequest.headers().add(HttpHeaderNames.COOKIE, "IRIS=ui; ZM_AUTH_TOKEN=invalid-token");
+
+    AuthenticationHandler handler = new AuthenticationHandler(userRepositoryMock);
+
+    // When
+    Assertions.assertThat(realRequest.refCnt()).isEqualTo(1);
+    handler.channelRead0(channelHandlerContextMock, realRequest);
+
+    // Then: refCnt stays at 1 — no accidental retain on failure path
+    Assertions.assertThat(realRequest.refCnt()).isEqualTo(1);
+    Mockito.verify(channelHandlerContextMock, Mockito.never()).fireChannelRead(Mockito.any());
+
+    realRequest.release();
   }
 }
