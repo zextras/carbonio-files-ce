@@ -73,6 +73,7 @@ public class NettyBufferWriter {
             byteBuffer.clear();
             writeStreamChunk(contentStream, promise, byteBuffer);
           } else {
+            ReferenceCountUtil.safeRelease(byteBuffer);
             promise.setFailure(future.cause());
           }
         }
