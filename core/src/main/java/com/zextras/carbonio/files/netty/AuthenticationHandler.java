@@ -20,6 +20,7 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import io.netty.util.AttributeKey;
+import io.netty.util.ReferenceCountUtil;
 
 import java.util.Optional;
 import java.util.Set;
@@ -144,7 +145,7 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
                   .attr(AttributeKey.valueOf(Constants.API.ContextAttribute.COOKIES))
                   .set(cookies);
 
-              context.fireChannelRead(httpRequest);
+              context.fireChannelRead(ReferenceCountUtil.retain(httpRequest));
             },
             () ->
                 context.fireExceptionCaught(

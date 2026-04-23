@@ -129,7 +129,6 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     }
 
     ByteBuf content = fullRequest.content();
-    content.retain();
     if (content.readableBytes() == 0) {
       context.fireExceptionCaught(new IllegalArgumentException("Request body is empty"));
       return;
@@ -200,7 +199,6 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     }
 
     ByteBuf content = fullRequest.content();
-    content.retain();
     if (content.readableBytes() == 0) {
       context.fireExceptionCaught(new IllegalArgumentException("Request body is empty"));
       return;

@@ -113,7 +113,6 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
     }
 
     ByteBuf content = fullRequest.content();
-    content.retain();
 
     String bodyContent = content.toString(StandardCharsets.UTF_8);
     List<String> nodeIds;
@@ -160,7 +159,6 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
     }
 
     ByteBuf content = fullRequest.content();
-    content.retain();
 
     String bodyContent = content.toString(StandardCharsets.UTF_8);
     QueryStringDecoder decoder = new QueryStringDecoder(bodyContent, false);
