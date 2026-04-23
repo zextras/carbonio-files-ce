@@ -166,7 +166,6 @@ public class GraphQLController extends SimpleChannelInboundHandler<FullHttpReque
 
       response.headers().add(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
       response.headers().add(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
-      httpRequest.retain();
       context.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
 
     } catch (GraphQLRequest.InvalidPayloadRequestError | GraphQLException exception) {
