@@ -38,14 +38,20 @@ public class StoragesMockHelper {
                 .withBody((nodeId + version).getBytes(StandardCharsets.UTF_8)));
   }
 
-  public void bulkDelete(List<String> ids) {
+  /**
+   * Mocks the PowerStore bulk-delete endpoint. The {@code failedIds} parameter lists
+   * node IDs whose blob deletion should be reported as failed; an empty list means full success.
+   */
+  public void bulkDelete(List<String> failedIds) {
     final StoragesBulkDeleteResponse response = new StoragesBulkDeleteResponse();
-    Query queryList = new Query();
-    for (String id : ids) {
-      queryList.setNode(id);
-      queryList.setType("files");
+    List<Query> queries = new java.util.ArrayList<>();
+    for (String id : failedIds) {
+      Query query = new Query();
+      query.setNode(id);
+      query.setType("files");
+      queries.add(query);
     }
-    response.setIds(List.of(queryList));
+    response.setIds(queries);
     storagesMock
         .when(
             HttpRequest.request()

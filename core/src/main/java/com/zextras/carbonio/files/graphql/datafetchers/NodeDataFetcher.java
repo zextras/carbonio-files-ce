@@ -37,10 +37,13 @@ import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.graphql.types.Permissions;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
+import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
+import com.zextras.filestore.model.BulkDeleteResponseItem;
 import com.zextras.filestore.model.FilesIdentifier;
 import com.zextras.filestore.model.IdentifierType;
+import io.ebean.Transaction;
 import graphql.GraphQLError;
 import graphql.execution.AbortExecutionException;
 import graphql.execution.DataFetcherResult;
@@ -57,6 +60,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -111,6 +116,7 @@ public class NodeDataFetcher {
   private final ShareDataFetcher      shareDataFetcher;
   private final FilesConfig           filesConfig;
   private final Filestore             fileStore;
+  private final DatabaseManager       databaseManager;
   private final int                   maxNumberOfVersions;
   private final int                   maxNumberOfKeepVersions;
 
@@ -124,7 +130,8 @@ public class NodeDataFetcher {
     TombstoneRepository tombstoneRepository,
     ShareDataFetcher shareDataFetcher,
     FilesConfig filesConfig,
-    Filestore fileStore
+    Filestore fileStore,
+    DatabaseManager databaseManager
   ) {
     this.nodeRepository = nodeRepository;
     this.notificationRepository = notificationRepository;
@@ -135,6 +142,7 @@ public class NodeDataFetcher {
     this.shareDataFetcher = shareDataFetcher;
     this.filesConfig = filesConfig;
     this.fileStore = fileStore;
+    this.databaseManager = databaseManager;
 
     this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
       .atURL(filesConfig.getServiceDiscoverEndpoint(), ServiceDiscover.SERVICE_NAME)
@@ -2296,6 +2304,46 @@ public class NodeDataFetcher {
     });
   }
 
+  /**
+   * Bottom-up folder pruning: returns the set of node IDs that can safely be deleted.
+   * Files whose blobs failed to delete on PowerStore are excluded, and folders are only
+   * deleted if all their children (files and subfolders) are also being deleted.
+   */
+  private Set<String> computeNodesToActuallyDelete(
+    List<Node> allNodes,
+    Set<String> failedFileNodeIds
+  ) {
+    Set<String> toDelete = allNodes.stream()
+      .map(Node::getId)
+      .collect(Collectors.toCollection(HashSet::new));
+
+    toDelete.removeAll(failedFileNodeIds);
+
+    Map<String, Set<String>> parentToChildren = new HashMap<>();
+    for (Node node : allNodes) {
+      node.getParentId().ifPresent(parentId ->
+        parentToChildren.computeIfAbsent(parentId, k -> new HashSet<>()).add(node.getId())
+      );
+    }
+
+    List<Node> foldersByDepthDesc = allNodes.stream()
+      .filter(node -> node.getNodeType().equals(NodeType.FOLDER))
+      .sorted(Comparator.<Node, Integer>comparing(
+        node -> node.getAncestorIds().isEmpty() ? 0 : node.getAncestorIds().split(",").length
+      ).reversed())
+      .toList();
+
+    for (Node folder : foldersByDepthDesc) {
+      Set<String> children = parentToChildren.getOrDefault(folder.getId(), Set.of());
+      boolean allChildrenDeleted = children.stream().allMatch(toDelete::contains);
+      if (!allChildrenDeleted) {
+        toDelete.remove(folder.getId());
+      }
+    }
+
+    return toDelete;
+  }
+
   public DataFetcher<CompletableFuture<DataFetcherResult<Boolean>>> deleteAllNodesAndBlobs() {
 
     return environment -> CompletableFuture.supplyAsync(() -> {
@@ -2311,45 +2359,87 @@ public class NodeDataFetcher {
         .get(Constants.GraphQL.Context.REQUESTER)).getId().getUserId();
       String userId = (String) environment.getArgument(InputParameters.DeleteAllNodesAndBlobs.USER_ID);
 
-      List<Node> nodesToDelete = nodeRepository.findNodesByOwner(userId).stream()
+      List<Node> allNodes = nodeRepository.findNodesByOwner(userId).stream()
         .filter(Objects::nonNull)
         .filter(node -> !node.getNodeType()
           .equals(NodeType.ROOT))
         .toList();
 
-      List<BulkDeleteRequestItem> deleteRequests = new ArrayList<>();
+      List<Node> fileNodes = allNodes.stream()
+        .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
+        .toList();
 
-      nodesToDelete.forEach(node -> {
-        List<FileVersion> fileVersionsToDelete = fileVersionRepository.getFileVersions(node.getId(), List.of(FileVersionSort.VERSION_ASC));
+      List<BulkDeleteRequestItem> deleteRequests = new ArrayList<>();
+      fileNodes.forEach(node -> {
+        List<FileVersion> fileVersionsToDelete = fileVersionRepository.getFileVersions(
+          node.getId(), List.of(FileVersionSort.VERSION_ASC));
         fileVersionsToDelete.forEach(fileVersion ->
             deleteRequests.add(BulkDeleteRequestItem.filesItem(node.getId(), fileVersion.getVersion()))
         );
       });
 
+      List<BulkDeleteResponseItem> failedItems;
       try {
-        logger.info("Deleting {} nodes from storages", nodesToDelete.size());
-        this.fileStore.bulkDelete(IdentifierType.files, userId, deleteRequests);
+        logger.info("Deleting blobs for {} files from storages", fileNodes.size());
+        failedItems = this.fileStore.bulkDelete(IdentifierType.files, userId, deleteRequests);
+        if (failedItems == null) {
+          failedItems = List.of();
+        }
+      } catch (NullPointerException e) {
+        // SDK bug: StoragesBulkDeleteResponse.getIds() returns null when all deletes succeed
+        logger.debug("PowerStore returned null ids (all deletes succeeded): {}", e.getMessage());
+        failedItems = List.of();
       } catch (Exception e) {
-        // If storages call fails we don't delete the nodes, we block the delete nodes operation
         logger.error("Can't perform bulk delete on storages: {}", e.getMessage());
-
         return new Builder<Boolean>()
-        .error(GraphQLResultErrors.deleteAllNodesAndBlobsError(resultPath))
-        .build();
+          .error(GraphQLResultErrors.deleteAllNodesAndBlobsError(resultPath))
+          .build();
       }
 
-      deleteNodes(nodesToDelete);
+      Set<String> failedFileNodeIds = failedItems.stream()
+        .map(BulkDeleteResponseItem::getNode)
+        .collect(Collectors.toSet());
 
-      List<String> nodeIdsToDelete = nodesToDelete
-        .stream()
-        .map(Node::getId)
+      Set<String> nodeIdsToActuallyDelete = computeNodesToActuallyDelete(allNodes, failedFileNodeIds);
+
+      List<Node> nodesToActuallyDelete = allNodes.stream()
+        .filter(node -> nodeIdsToActuallyDelete.contains(node.getId()))
         .toList();
 
-      nodeIdsToDelete.forEach(this::cascadeDeleteNode);
+      Set<String> excludedNodeIds = allNodes.stream()
+        .map(Node::getId)
+        .filter(id -> !nodeIdsToActuallyDelete.contains(id))
+        .collect(Collectors.toSet());
 
-      return new Builder<Boolean>()
-        .data(true)
-        .build();
+      if (!nodesToActuallyDelete.isEmpty()) {
+        try (Transaction tx = databaseManager.getEbeanDatabase().beginTransaction()) {
+          try {
+            deleteNodes(nodesToActuallyDelete);
+
+            nodesToActuallyDelete.stream()
+              .filter(node -> node.getNodeType().equals(NodeType.FOLDER))
+              .map(Node::getId)
+              .forEach(this::cascadeDeleteNode);
+
+            tx.commit();
+          } catch (RuntimeException e) {
+            logger.error("DB error during deleteAllNodesAndBlobs, rolling back: {}", e.getMessage());
+            return new Builder<Boolean>()
+              .error(GraphQLResultErrors.deleteAllNodesAndBlobsError(resultPath))
+              .build();
+          }
+        }
+      }
+
+      Builder<Boolean> resultBuilder = new Builder<Boolean>()
+        .data(excludedNodeIds.isEmpty());
+
+      for (String excludedId : failedFileNodeIds) {
+        resultBuilder.error(
+          GraphQLResultErrors.deleteAllNodesAndBlobsPartialFailure(excludedId, resultPath));
+      }
+
+      return resultBuilder.build();
     });
   }
 }
