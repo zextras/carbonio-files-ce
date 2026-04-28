@@ -155,4 +155,92 @@ class DeleteVersionsApiIT {
     // DB: version 1 (blob failed) and version 3 (current) stay; version 2 is deleted
     Assertions.assertThat(getRemainingVersionNumbers(nodeId)).containsExactly(1, 3);
   }
+
+  // --- Test 3: Total failure — file with 3 versions, delete [1,2], all blobs fail ---
+
+  @Test
+  void givenFileWithThreeVersionsDeleteVersionsOneAndTwoAllBlobsFailThenNothingDeletedAndErrorsReturned() {
+    // Given
+    String nodeId = "00000000-0000-0000-0000-200000000003";
+    createFileWithThreeVersions(nodeId);
+
+    storagesMockHelper.bulkDeleteWithVersions(List.of(Map.entry(nodeId, 1), Map.entry(nodeId, 2)));
+
+    // When
+    HttpResponse httpResponse = executeDeleteVersions(nodeId, 1, 2);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    List<Integer> deletedVersions =
+        (List<Integer>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteVersions")
+            .orElse(List.of());
+    Assertions.assertThat(deletedVersions).isEmpty();
+
+    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(errors).hasSize(2);
+
+    // All 3 versions stay in DB
+    Assertions.assertThat(getRemainingVersionNumbers(nodeId)).containsExactly(1, 2, 3);
+  }
+
+  // --- Test 4: Current version cannot be deleted ---
+
+  @Test
+  void givenFileWithThreeVersionsDeleteCurrentVersionThenCurrentVersionSkippedAndErrorReturned() {
+    // Given
+    String nodeId = "00000000-0000-0000-0000-200000000004";
+    createFileWithThreeVersions(nodeId); // current = 3
+
+    storagesMockHelper.bulkDelete(List.of());
+
+    // When — try to delete current version (3)
+    HttpResponse httpResponse = executeDeleteVersions(nodeId, 3);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    List<Integer> deletedVersions =
+        (List<Integer>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteVersions")
+            .orElse(List.of());
+    Assertions.assertThat(deletedVersions).isEmpty();
+
+    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(errors).hasSize(1);
+
+    // All 3 versions stay in DB
+    Assertions.assertThat(getRemainingVersionNumbers(nodeId)).containsExactly(1, 2, 3);
+  }
+
+  // --- Test 5: keepForever version cannot be deleted ---
+
+  @Test
+  void givenFileWithKeepForeverVersionDeleteItThenKeepForeverVersionSkippedAndOnlyEligibleVersionDeleted() {
+    // Given — version 2 is keepForever, version 3 is current
+    String nodeId = "00000000-0000-0000-0000-200000000005";
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(new SimplePopulatorTextFile(nodeId, OWNER_ID, "file.txt"))
+        .addVersion(nodeId, true)   // version 2, keepForever=true
+        .addVersion(nodeId);        // version 3 (current)
+
+    storagesMockHelper.bulkDelete(List.of());
+
+    // When — try to delete v1 (eligible) and v2 (keepForever, ineligible)
+    HttpResponse httpResponse = executeDeleteVersions(nodeId, 1, 2);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    List<Integer> deletedVersions =
+        (List<Integer>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteVersions")
+            .orElse(List.of());
+    // Only v1 deleted; v2 is keepForever (skipped)
+    Assertions.assertThat(deletedVersions).containsExactly(1);
+
+    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(errors).hasSize(1); // error for v2
+
+    // v2 (keepForever) and v3 (current) stay
+    Assertions.assertThat(getRemainingVersionNumbers(nodeId)).containsExactly(2, 3);
+  }
 }

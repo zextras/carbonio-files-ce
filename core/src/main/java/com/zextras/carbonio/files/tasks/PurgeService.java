@@ -48,7 +48,7 @@ public class PurgeService implements Runnable {
     this.fileStore = fileStore;
   }
 
-  private void purgeTrashedNodes(long retentionDays) {
+  void purgeTrashedNodes(long retentionDays) {
     long retentionTimestamp = System.currentTimeMillis() - (retentionDays * 86400 * 1000);
 
     List<Node> trashedNodesToDelete = nodeRepository.getAllTrashedNodes(retentionTimestamp);

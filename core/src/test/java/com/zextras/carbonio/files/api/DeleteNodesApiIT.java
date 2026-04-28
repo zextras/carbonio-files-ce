@@ -208,7 +208,40 @@ class DeleteNodesApiIT {
     Assertions.assertThat(nodeRepository.getNode(fileId)).isEmpty();
   }
 
-  // --- Test 5: Mixed folder — folder with 2 files, one blob fails ---
+  // --- Test 5: Total failure — 2 files, all blobs fail ---
+
+  @Test
+  void givenTwoFilesAndAllBlobsFailThenNothingIsDeletedAndAllErrorsReturned() {
+    // Given
+    String file1Id = "00000000-0000-0000-0000-100000000012";
+    String file2Id = "00000000-0000-0000-0000-100000000013";
+
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(new SimplePopulatorTextFile(file1Id, OWNER_ID, "file1.txt"))
+        .addNode(new SimplePopulatorTextFile(file2Id, OWNER_ID, "file2.txt"));
+
+    storagesMockHelper.bulkDelete(List.of(file1Id, file2Id));
+
+    // When
+    HttpResponse httpResponse = executeDeleteNodes(file1Id, file2Id);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    List<String> deletedIds =
+        (List<String>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteNodes")
+            .orElse(List.of());
+    Assertions.assertThat(deletedIds).isEmpty();
+
+    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(errors).hasSize(2);
+
+    // Both stay in DB
+    Assertions.assertThat(nodeRepository.getNode(file1Id)).isPresent();
+    Assertions.assertThat(nodeRepository.getNode(file2Id)).isPresent();
+  }
+
+  // --- Test 6: Mixed folder — folder with 2 files, one blob fails ---
 
   @Test
   void givenFolderWithTwoFilesAndOneBlobFailsThenFolderAndFailedFileStayAndSucceededFileIsDeleted() {

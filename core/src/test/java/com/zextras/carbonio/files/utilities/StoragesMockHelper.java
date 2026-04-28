@@ -65,6 +65,21 @@ public class StoragesMockHelper {
   }
 
   /**
+   * Mocks the PowerStore bulk-delete endpoint to return an HTTP 500 error,
+   * simulating a complete PowerStore outage.
+   */
+  public void bulkDeleteError() {
+    storagesMock
+        .when(
+            HttpRequest.request()
+                .withMethod(HttpMethod.POST.toString())
+                .withPath("/bulk-delete"))
+        .respond(
+            HttpResponse.response()
+                .withStatusCode(500));
+  }
+
+  /**
    * Mocks the PowerStore bulk-delete endpoint for version-level failures.
    * Each entry in {@code failedNodeVersions} is a pair of (nodeId, version).
    * An empty list means full success.
