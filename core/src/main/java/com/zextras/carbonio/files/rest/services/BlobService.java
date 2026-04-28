@@ -26,7 +26,10 @@ import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.UploadResponse;
+import com.zextras.filestore.model.BulkDeleteRequestItem;
+import com.zextras.filestore.model.BulkDeleteResponseItem;
 import com.zextras.filestore.model.FilesIdentifier;
+import com.zextras.filestore.model.IdentifierType;
 import io.ebean.Transaction;
 import io.vavr.control.Try;
 import org.slf4j.Logger;
@@ -66,7 +69,6 @@ public class BlobService {
   private final LinkRepository linkRepository;
   private final PermissionsChecker permissionsChecker;
   private final MimeTypeUtils mimeTypeUtils;
-  private final TombstoneRepository tombstoneRepository;
   private final Filestore fileStore;
   private final FilesConfig filesConfig;
   private final DatabaseManager databaseManagerFlyway;
@@ -79,7 +81,6 @@ public class BlobService {
       ShareRepository shareRepository,
       LinkRepository linkRepository,
       PermissionsChecker permissionsChecker,
-      TombstoneRepository tombstoneRepository,
       MimeTypeUtils mimeTypeUtils,
       Filestore fileStore,
       FilesConfig filesConfig,
@@ -92,7 +93,6 @@ public class BlobService {
     this.linkRepository = linkRepository;
     this.permissionsChecker = permissionsChecker;
     this.mimeTypeUtils = mimeTypeUtils;
-    this.tombstoneRepository = tombstoneRepository;
     this.fileStore = fileStore;
     this.filesConfig = filesConfig;
     this.databaseManagerFlyway = databaseManagerFlyway;
@@ -526,17 +526,48 @@ public class BlobService {
             FileVersion oldestVersionToDelete =
                 allVersionsNotKeptForever.get(allVersionsNotKeptForever.size() - 1);
 
-            fileVersionRepository.deleteFileVersion(oldestVersionToDelete);
-            tombstoneRepository.createTombstonesBulk(
-                List.of(oldestVersionToDelete),
-                node.getOwnerId()
-            );
-
-            logger.info(
-                "File version limit for node {} has been reached, deleting version {} to make space",
-                oldestVersionToDelete.getNodeId(),
-                oldestVersionToDelete.getVersion()
-            );
+            try {
+              List<BulkDeleteResponseItem> failedItems = fileStore.bulkDelete(
+                  IdentifierType.files,
+                  node.getOwnerId(),
+                  List.of(BulkDeleteRequestItem.filesItem(
+                      oldestVersionToDelete.getNodeId(),
+                      oldestVersionToDelete.getVersion()
+                  ))
+              );
+              if (failedItems == null) {
+                failedItems = List.of();
+              }
+              if (failedItems.isEmpty()) {
+                fileVersionRepository.deleteFileVersion(oldestVersionToDelete);
+                logger.info(
+                    "File version limit for node {} has been reached, deleting version {} to make space",
+                    oldestVersionToDelete.getNodeId(),
+                    oldestVersionToDelete.getVersion()
+                );
+              } else {
+                logger.warn(
+                    "PowerStore failed to delete blob for node {} version {}, keeping version in DB",
+                    oldestVersionToDelete.getNodeId(),
+                    oldestVersionToDelete.getVersion()
+                );
+              }
+            } catch (NullPointerException e) {
+              // SDK bug: all deletes succeeded
+              fileVersionRepository.deleteFileVersion(oldestVersionToDelete);
+              logger.info(
+                  "File version limit for node {} has been reached, deleting version {} to make space",
+                  oldestVersionToDelete.getNodeId(),
+                  oldestVersionToDelete.getVersion()
+              );
+            } catch (Exception e) {
+              logger.warn(
+                  "PowerStore error deleting blob for node {} version {}: {}. Keeping version in DB.",
+                  oldestVersionToDelete.getNodeId(),
+                  oldestVersionToDelete.getVersion(),
+                  e.getMessage()
+              );
+            }
           }
         }
       });

@@ -9,6 +9,7 @@ import com.zextras.storages.internal.pojo.StoragesBulkDeleteResponse;
 import io.netty.handler.codec.http.HttpMethod;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
@@ -48,6 +49,33 @@ public class StoragesMockHelper {
     for (String id : failedIds) {
       Query query = new Query();
       query.setNode(id);
+      query.setType("files");
+      queries.add(query);
+    }
+    response.setIds(queries);
+    storagesMock
+        .when(
+            HttpRequest.request()
+                .withMethod(HttpMethod.POST.toString())
+                .withPath("/bulk-delete"))
+        .respond(
+            HttpResponse.response()
+                .withStatusCode(200)
+                .withBody(JsonBody.json(response)));
+  }
+
+  /**
+   * Mocks the PowerStore bulk-delete endpoint for version-level failures.
+   * Each entry in {@code failedNodeVersions} is a pair of (nodeId, version).
+   * An empty list means full success.
+   */
+  public void bulkDeleteWithVersions(List<Map.Entry<String, Integer>> failedNodeVersions) {
+    final StoragesBulkDeleteResponse response = new StoragesBulkDeleteResponse();
+    List<Query> queries = new java.util.ArrayList<>();
+    for (Map.Entry<String, Integer> entry : failedNodeVersions) {
+      Query query = new Query();
+      query.setNode(entry.getKey());
+      query.setVersion(entry.getValue().longValue());
       query.setType("files");
       queries.add(query);
     }
