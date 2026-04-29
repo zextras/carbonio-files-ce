@@ -63,3 +63,6 @@ LICENSES
 
 # Build artifacts
 docker/packaging/artifacts/
+
+# Git worktrees
+.worktrees/
