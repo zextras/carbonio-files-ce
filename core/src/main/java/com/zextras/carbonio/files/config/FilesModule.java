@@ -58,7 +58,6 @@ public class FilesModule extends AbstractModule {
     bind(DatabaseManager.class).to(DatabaseManagerFlyway.class).in(Singleton.class);
     bind(NodeRepository.class).to(NodeRepositoryEbean.class);
     bind(ShareRepository.class).to(ShareRepositoryEbean.class);
-    bind(TombstoneRepository.class).to(TombstoneRepositoryEbean.class);
     bind(FileVersionRepository.class).to(FileVersionRepositoryEbean.class);
     bind(LinkRepository.class).to(LinkRepositoryEbean.class);
     bind(CollaborationLinkRepository.class).to(CollaborationLinkRepositoryEbean.class);
@@ -142,8 +141,6 @@ public class FilesModule extends AbstractModule {
     entityList.add(Share.class);
     entityList.add(Link.class);
     entityList.add(CollaborationLink.class);
-    entityList.add(TombstonePK.class);
-    entityList.add(Tombstone.class);
     entityList.add(TrashedNode.class);
     entityList.add(Notification.class);
     entityList.add(NewShareNotification.class);

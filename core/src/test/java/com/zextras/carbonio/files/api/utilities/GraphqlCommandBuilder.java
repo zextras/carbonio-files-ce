@@ -55,6 +55,16 @@ public class GraphqlCommandBuilder {
     return this;
   }
 
+  public GraphqlCommandBuilder withListOfIntegers(String key, int[] values) {
+    query.append(key).append(": [");
+    for (int value : values) {
+      query.append(value).append(", ");
+    }
+    query.append("], ");
+    this.hasArguments = true;
+    return this;
+  }
+
   public GraphqlCommandBuilder withWantedResultFormat(String wantedResultFormat) {
     if (wantedResultFormat.isEmpty()){
       if (hasArguments) {

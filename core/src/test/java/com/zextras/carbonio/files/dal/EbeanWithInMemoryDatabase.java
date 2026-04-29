@@ -14,8 +14,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributesPK;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.dao.ebean.SharePK;
-import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
-import com.zextras.carbonio.files.dal.dao.ebean.TombstonePK;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
 import io.ebean.Database;
 import io.ebean.DatabaseFactory;
@@ -47,8 +45,6 @@ public final class EbeanWithInMemoryDatabase implements Closeable {
     entities.add(Share.class);
     entities.add(Link.class);
     entities.add(CollaborationLink.class);
-    entities.add(TombstonePK.class);
-    entities.add(Tombstone.class);
     entities.add(TrashedNode.class);
 
     // Properties to connect to an in memory hsqldb database

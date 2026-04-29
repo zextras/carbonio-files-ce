@@ -468,7 +468,7 @@ public class Simulator implements AutoCloseable {
             .isNotNull("mOwnerId")
             .delete();
     // Wipe notification and snapshot tables (not FK-linked to node, so not cascade-deleted above).
-    db.sqlUpdate("TRUNCATE user_notification_interest, notification, snapshot_node, snapshot_user, user_notifications_info, tombstone CASCADE").execute();
+    db.sqlUpdate("TRUNCATE user_notification_interest, notification, snapshot_node, snapshot_user, user_notifications_info CASCADE").execute();
   }
 
   public void clearFileVersionCache() {
