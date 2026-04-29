@@ -96,7 +96,7 @@ pipeline {
         stage('Prepare Release') {
             agent {
                 node {
-                    label 'nodejs-v1'
+                    label 'sm-release-v1'
                 }
             }
             when {
@@ -113,7 +113,7 @@ pipeline {
             }
             steps {
                 script {
-                    container('nodejs-20') {
+                    container('nodejs-22') {
                         prepareRelease(
                             repoName: 'carbonio-files-ce'
                         )
