@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 library(
-    identifier: 'jenkins-dt3-lib@v1.2.0',
+    identifier: 'jenkins-dt3-lib@v1.2.1',
     retriever: modernSCM([
         $class: 'GitSCMSource',
         remote: 'git@github.com:zextras/jenkins-dt3-lib.git',
