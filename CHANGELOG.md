@@ -1,3 +1,16 @@
+## [1.2.0](https://github.com/zextras/carbonio-files-ce/compare/v1.1.2...v1.2.0) (2026-05-04)
+
+### Features
+
+* adopt carbonio-systemd-notify for native sd_notify readiness ([#250](https://github.com/zextras/carbonio-files-ce/issues/250)) ([256fee2](https://github.com/zextras/carbonio-files-ce/commit/256fee2ec57843abdf9f78499885804f2ee184b8))
+* migrate to gRPC UM SDK ([#239](https://github.com/zextras/carbonio-files-ce/issues/239)) ([39e96fe](https://github.com/zextras/carbonio-files-ce/commit/39e96fe0a8673c479a196434cbe8f759e990ae00))
+* systemd hardening and service-discover.target orchestration ([#248](https://github.com/zextras/carbonio-files-ce/issues/248)) ([1ea2e58](https://github.com/zextras/carbonio-files-ce/commit/1ea2e58bd07933ec841463a3f45d96f0417e9c74))
+
+### Bug Fixes
+
+* balance Netty ByteBuf refcount (inbound + outbound leak) ([#253](https://github.com/zextras/carbonio-files-ce/issues/253)) ([bb6ba44](https://github.com/zextras/carbonio-files-ce/commit/bb6ba44ec1c738197bc7cce13271466b5d2bcaa1))
+* bulk delete propagates powerstore errors ([#255](https://github.com/zextras/carbonio-files-ce/issues/255)) ([eb55a20](https://github.com/zextras/carbonio-files-ce/commit/eb55a2099df42c2f4554e416d2a8959d5bb4d399))
+
 ## [1.1.2](https://github.com/zextras/carbonio-files-ce/compare/v1.1.1...v1.1.2) (2026-03-09)
 
 ### Bug Fixes
