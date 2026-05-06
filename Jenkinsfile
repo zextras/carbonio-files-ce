@@ -75,12 +75,12 @@ pipeline {
 
         stage('Build deb/rpm') {
             steps {
-                buildPackages([
-                    buildStageConfig: [
-                        addCarbonioRepos: true,
-                        carbonioRepoCredentialId: 'artifactory-jenkins-gradle-properties-splitted',
-                    ]
-                ])
+                script {
+                    buildPackages([
+                        pkgbuildPath: 'package/PKGBUILD',
+                        buildStageConfig: [:]
+                    ])
+                }
             }
         }
 
