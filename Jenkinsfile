@@ -78,7 +78,10 @@ pipeline {
                 script {
                     buildPackages([
                         pkgbuildPath: 'package/PKGBUILD',
-                        buildStageConfig: [:]
+                        buildStageConfig: [
+                            addCarbonioRepos: true,
+                            carbonioRepoCredentialId: 'artifactory-jenkins-gradle-properties-splitted',
+                        ]
                     ])
                 }
             }
