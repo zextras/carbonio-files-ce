@@ -1,3 +1,9 @@
+## [1.2.2](https://github.com/zextras/carbonio-files-ce/compare/v1.2.1...v1.2.2) (2026-05-27)
+
+### Bug Fixes
+
+* **deps:** add explicit service-discover-base dependency ([#264](https://github.com/zextras/carbonio-files-ce/issues/264)) ([5fa3b1d](https://github.com/zextras/carbonio-files-ce/commit/5fa3b1d692d4487b705c364ea426059bd1c42484))
+
 ## [1.2.1](https://github.com/zextras/carbonio-files-ce/compare/v1.2.0...v1.2.1) (2026-05-06)
 
 ### Bug Fixes
