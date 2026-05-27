@@ -39,6 +39,7 @@ provides__rocky_9=(
 )
 depends=(
   "service-discover"
+  "service-discover-base"
   "pending-setups"
   "carbonio-openjdk"
 )

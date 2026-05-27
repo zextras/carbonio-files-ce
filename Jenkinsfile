@@ -12,7 +12,7 @@ library(
 )
 
 library(
-    identifier: 'jenkins-lib-common@1.7.5',
+    identifier: 'jenkins-lib-common@v2.8.6',
     retriever: modernSCM([
         $class: 'GitSCMSource',
         credentialsId: 'jenkins-integration-with-github-account',
@@ -45,7 +45,7 @@ pipeline {
         booleanParam(
             name: 'PREPARE_RELEASE',
             defaultValue: false,
-            description: 'Check this to prepare a new release (creates pre-release branch and PR)'
+            description: 'Check this to prepare a new release (runs semantic-release)'
         )
     }
 
@@ -55,6 +55,7 @@ pipeline {
                 checkout scm
                 script {
                     gitMetadata()
+                    semanticRelease.guard()
                 }
             }
         }
@@ -76,70 +77,35 @@ pipeline {
         stage('Build deb/rpm') {
             steps {
                 script {
-                    buildPackages([
-                        pkgbuildPath: 'package/PKGBUILD',
-                        buildStageConfig: [
-                            addCarbonioRepos: true,
-                            carbonioRepoCredentialId: 'artifactory-jenkins-gradle-properties-splitted',
-                        ]
-                    ])
+                    buildStage(
+                        addCarbonioRepos: true
+                    )
                 }
             }
         }
 
         stage('Upload artifacts') {
+            when {
+                expression { return uploadStage.shouldUpload() }
+            }
             tools {
                 jfrog 'jfrog-cli'
             }
             steps {
-                uploadStage(
-                    packages: yapHelper.resolvePackageNames()
-                )
+                uploadStage()
             }
         }
 
         stage('Prepare Release') {
-            agent {
-                node {
-                    label 'sm-release-v1'
-                }
-            }
             when {
                 allOf {
                     branch 'devel'
                     expression { params.PREPARE_RELEASE == true }
-                    not {
-                        expression {
-                            return env.GIT_COMMIT_MSG.contains('[skip ci]') ||
-                                   env.GIT_COMMIT_MSG.contains('chore(release):')
-                        }
-                    }
                 }
             }
             steps {
                 script {
-                    container('nodejs-22') {
-                        prepareRelease(
-                            repoName: 'carbonio-files-ce'
-                        )
-                    }
-                }
-            }
-        }
-
-        stage('Tag for release') {
-            when {
-                allOf {
-                    branch 'devel'
-                    expression {
-                        return env.GIT_COMMIT_MSG.contains('chore(release):') &&
-                               env.GIT_COMMIT_MSG.contains('[skip ci]')
-                    }
-                }
-            }
-            steps {
-                script {
-                    tagRelease()
+                    semanticRelease()
                 }
             }
         }
@@ -151,11 +117,13 @@ pipeline {
                 }
             }
             steps {
-                buildAndPublishDockerImage(
-                    projectName: 'carbonio-files-ce',
+                dockerStage(
+                    imageName: 'carbonio-files-ce',
                     dockerfile: 'docker/minimal/carbonio-files/Dockerfile',
-                    imageTitle: 'Carbonio Files CE',
-                    imageDescription: 'Carbonio Files Community Edition'
+                    ocLabels: [
+                        title: 'Carbonio Files CE',
+                        description: 'Carbonio Files Community Edition'
+                    ]
                 )
             }
         }
