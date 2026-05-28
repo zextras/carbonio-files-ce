@@ -77,9 +77,12 @@ pipeline {
         stage('Build deb/rpm') {
             steps {
                 script {
-                    buildStage(
-                        addCarbonioRepos: true
-                    )
+                    buildPackages([
+                        pkgbuildPath: 'package/PKGBUILD',
+                        buildStageConfig: [
+                            addCarbonioRepos: true,
+                        ]
+                    ])
                 }
             }
         }
