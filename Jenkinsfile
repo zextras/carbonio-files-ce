@@ -122,6 +122,7 @@ pipeline {
             steps {
                 dockerStage(
                     imageName: 'carbonio-files-ce',
+                    platforms: ['linux/amd64', 'linux/arm64'] as Set,
                     dockerfile: 'docker/minimal/carbonio-files/Dockerfile',
                     ocLabels: [
                         title: 'Carbonio Files CE',
