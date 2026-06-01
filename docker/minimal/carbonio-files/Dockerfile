@@ -3,7 +3,7 @@
 FROM --platform=$BUILDPLATFORM busybox AS prep
 RUN mkdir -p /staging/etc/carbonio/files
 
-FROM eclipse-temurin:21-jdk-alpine
+FROM eclipse-temurin:21.0.11_10-jdk-alpine
 
 WORKDIR /app
 
