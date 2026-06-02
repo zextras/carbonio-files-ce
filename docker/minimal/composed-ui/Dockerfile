@@ -1,4 +1,4 @@
-FROM ubuntu/nginx:1.18-20.04_beta
+FROM docker.io/ubuntu/nginx:1.18-20.04_beta
 
 USER root
 

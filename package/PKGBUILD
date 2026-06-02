@@ -30,18 +30,11 @@ makedepends__rocky_8=(
 makedepends__rocky_9=(
   "python3-pip"
 )
-
-provides__rocky_8=(
-  "/bin/python3.8"
-)
-provides__rocky_9=(
-  "/bin/python3"
-)
 depends=(
+  "carbonio-openjdk"
+  "pending-setups"
   "service-discover"
   "service-discover-base"
-  "pending-setups"
-  "carbonio-openjdk"
 )
 
 source=(

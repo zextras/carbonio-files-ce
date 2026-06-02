@@ -3,7 +3,12 @@
   "description": "Zextras Carbonio Files",
   "buildDir": "/tmp/",
   "output": "artifacts",
-  "skipDeps": ["pending-setups", "service-discover", "service-discover-base"],
+  "skipDeps": [
+    "carbonio-openjdk",
+    "pending-setups",
+    "service-discover",
+    "service-discover-base"
+  ],
   "projects": [
     {
       "name": "package"

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM alpine:3.22.1 AS prep
+FROM docker.io/library/alpine:3.22.1 AS prep
 WORKDIR /staging
 COPY ../../. .
 
@@ -41,7 +41,7 @@ COPY --from=prep /staging .
 RUN yap build rocky-9 /tmp/staging/
 
 # Final stage
-FROM alpine:3.22.1 AS final
+FROM docker.io/library/alpine:3.22.1 AS final
 WORKDIR /output
 
 COPY --from=ubuntu-focal-builder /tmp/staging/artifacts ./ubuntu-focal/
