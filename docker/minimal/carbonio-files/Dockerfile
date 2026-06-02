@@ -1,9 +1,9 @@
 # Prep stage runs on BUILDPLATFORM (amd64 CI builder) — no QEMU. Creates the
 # arch-independent config dir so the final image needs no RUN step.
-FROM --platform=$BUILDPLATFORM busybox AS prep
+FROM --platform=$BUILDPLATFORM docker.io/library/busybox AS prep
 RUN mkdir -p /staging/etc/carbonio/files
 
-FROM eclipse-temurin:21-jdk-alpine
+FROM docker.io/library/eclipse-temurin:21-jdk-alpine
 
 WORKDIR /app
 
