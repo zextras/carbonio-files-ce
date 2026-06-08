@@ -21,22 +21,11 @@ dt3_pipeline(
     repoName: 'carbonio-files-ce',
     appModule: 'boot',
     packaging: [
-        pkgbuildPath: 'package/PKGBUILD',
         zextrasRepoCredentialsId: 'artifactory-jenkins-gradle-properties-splitted',
-        overrides: [
-            ubuntu: [
-                preBuildScript: '''
+        preBuildScript: '''
                     cp -a boot/target/carbonio-files-*-jar-with-dependencies.jar package/carbonio-files.jar
                     cp -a package/watches/* package/
                 ''',
-            ],
-            rocky: [
-                preBuildScript: '''
-                    cp -a boot/target/carbonio-files-*-jar-with-dependencies.jar package/carbonio-files.jar
-                    cp -a package/watches/* package/
-                ''',
-            ],
-        ],
     ],
     docker: [[
         dockerfile: 'docker/minimal/carbonio-files/Dockerfile',
