@@ -21,7 +21,7 @@ dt3_pipeline(
     repoName: 'carbonio-files-ce',
     appModule: 'boot',
     packaging: [
-        zextrasRepoCredentialsId: 'artifactory-jenkins-gradle-properties-splitted',
+        addCarbonioRepos: true,
         preBuildScript: '''
                     cp -a boot/target/carbonio-files-*-jar-with-dependencies.jar package/carbonio-files.jar
                     cp -a package/watches/* package/
