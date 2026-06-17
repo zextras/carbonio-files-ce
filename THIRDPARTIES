@@ -2,7 +2,6 @@ AGPL-3.0-only (https://spdx.org/licenses/AGPL-3.0-only.html) applies to:
 
   Carbonio Systemd Notify (com.zextras.carbonio:carbonio-systemd-notify:1.0.1)
   Carbonio User Management - gRPC SDK (com.zextras.carbonio.user-management:carbonio-user-management-grpc-sdk:1.0.3-dev.21.79fc3fa2)
-  carbonio-files-ce-core (com.zextras.carbonio.files:carbonio-files-ce-core:0.0.0-SNAPSHOT)
   carbonio-message-broker-sdk (com.zextras.carbonio.message-broker:carbonio-message-broker-sdk:1.0.1)
   filestore-sdk-common (com.zextras:filestore-sdk-common:0.0.15-20251106.164324-4)
   storages-ce-sdk (com.zextras:storages-ce-sdk:0.0.15-20251106.164324-4)
