@@ -55,9 +55,6 @@ Thumbs.db
 *.mov
 *.wmv
 
-# Reuse license
-LICENSES
-
 # VS Code
 .vscode/.run/
 
