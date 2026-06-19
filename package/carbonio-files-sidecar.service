@@ -25,7 +25,8 @@ LimitNOFILE=65536
 
 # Hardening
 PrivateTmp=yes
-ProtectSystem=strict
+#ProtectSystem=strict
+ProtectSystem=yes
 NoNewPrivileges=yes
 PrivateDevices=yes
 ProtectHome=yes
