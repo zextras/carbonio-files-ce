@@ -11,7 +11,7 @@ RUN mkdir -p package && \
     cp ./package/watches/* package/ 2>/dev/null
 
 # Stage Ubuntu 20.04 (Focal)
-FROM docker.io/m0rf30/yap-ubuntu-focal:1.44 AS ubuntu-focal-builder
+FROM docker.io/m0rf30/yap-ubuntu-focal:1.55 AS ubuntu-focal-builder
 WORKDIR /tmp/staging
 COPY --from=prep /staging .
 RUN yap build ubuntu-focal /tmp/staging/
