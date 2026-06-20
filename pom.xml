@@ -58,10 +58,10 @@ SPDX-License-Identifier: AGPL-3.0-only
     <mock-server.version>5.15.0</mock-server.version>
     <netty.version>4.1.113.Final</netty.version>
     <postgresql.version>42.7.7</postgresql.version>
-    <testcontainers.version>2.0.2</testcontainers.version>
-    <testcontainers.junit.jupiter.version>1.21.3</testcontainers.junit.jupiter.version>
-    <testcontainers.postgresql.version>1.21.3</testcontainers.postgresql.version>
-    <testcontainers.rabbitmq.version>1.21.3</testcontainers.rabbitmq.version>
+    <testcontainers.version>2.0.5</testcontainers.version>
+    <testcontainers.junit.jupiter.version>1.21.4</testcontainers.junit.jupiter.version>
+    <testcontainers.postgresql.version>1.21.4</testcontainers.postgresql.version>
+    <testcontainers.rabbitmq.version>1.21.4</testcontainers.rabbitmq.version>
     <flyway-database-postgresql.version>11.8.1</flyway-database-postgresql.version>
 
     <!-- Plugins -->
