@@ -70,7 +70,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <maven-failsafe.version>3.5.4</maven-failsafe.version>
     <maven-jacoco.version>0.8.12</maven-jacoco.version>
     <maven-surefire.version>3.5.4</maven-surefire.version>
-    <tiles-maven.version>2.40</tiles-maven.version>
+    <tiles-maven.version>2.44</tiles-maven.version>
 
     <!-- Other properties -->
     <maven.compiler.source>21</maven.compiler.source>
