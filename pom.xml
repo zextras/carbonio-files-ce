@@ -45,7 +45,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <carbonio-preview-sdk.version>2.0.1</carbonio-preview-sdk.version>
     <commons-lang3.version>3.18.0</commons-lang3.version>
     <commons-validator.version>1.9.0</commons-validator.version>
-    <ebean.version>13.26.1</ebean.version>
+    <ebean.version>13.26.1-jakarta</ebean.version>
     <graphql-java.version>22.3</graphql-java.version>
     <guice.version>6.0.0</guice.version>
     <hikaricp.version>5.1.0</hikaricp.version>
