@@ -17,7 +17,7 @@ COPY --from=prep /staging .
 RUN yap build ubuntu-focal /tmp/staging/
 
 # Stage Ubuntu 22.04 (Jammy)
-FROM docker.io/m0rf30/yap-ubuntu-jammy:1.44 AS ubuntu-jammy-builder
+FROM docker.io/m0rf30/yap-ubuntu-jammy:1.55 AS ubuntu-jammy-builder
 WORKDIR /tmp/staging
 COPY --from=prep /staging .
 RUN yap build ubuntu-jammy /tmp/staging/
