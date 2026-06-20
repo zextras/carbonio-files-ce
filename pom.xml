@@ -54,7 +54,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <junit5.version>5.11.0</junit5.version>
     <logback-classic.version>1.5.7</logback-classic.version>
     <micrometer.version>1.11.12</micrometer.version>
-    <mockito.version>5.20.0</mockito.version>
+    <mockito.version>5.23.0</mockito.version>
     <mock-server.version>5.15.0</mock-server.version>
     <netty.version>4.1.113.Final</netty.version>
     <postgresql.version>42.7.7</postgresql.version>
