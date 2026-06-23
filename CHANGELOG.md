@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/zextras/carbonio-files-ce/compare/v1.2.4...v1.3.0) (2026-06-23)
+
+### Features
+
+* migrate to dt3-pipeline ([#262](https://github.com/zextras/carbonio-files-ce/issues/262)) ([8174394](https://github.com/zextras/carbonio-files-ce/commit/8174394c970848fdcba9a0526b22aafb74d551a6))
+
 ## [1.2.3](https://github.com/zextras/carbonio-files-ce/compare/v1.2.2...v1.2.3) (2026-05-28)
 
 ## [1.2.2](https://github.com/zextras/carbonio-files-ce/compare/v1.2.1...v1.2.2) (2026-05-27)
