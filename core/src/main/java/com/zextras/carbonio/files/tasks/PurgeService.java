@@ -9,9 +9,11 @@ import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Constants.Config;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
@@ -34,6 +36,7 @@ public class PurgeService implements Runnable {
 
   private final NodeRepository           nodeRepository;
   private final FileVersionRepository    fileVersionRepository;
+  private final TombstoneRepository      tombstoneRepository;
   private final Filestore                fileStore;
   private       ScheduledExecutorService scheduledExecutor;
 
@@ -41,10 +44,12 @@ public class PurgeService implements Runnable {
   public PurgeService(
     NodeRepository nodeRepository,
     FileVersionRepository fileVersionRepository,
+    TombstoneRepository tombstoneRepository,
     Filestore fileStore
   ) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
+    this.tombstoneRepository = tombstoneRepository;
     this.fileStore = fileStore;
   }
 
@@ -137,8 +142,54 @@ public class PurgeService implements Runnable {
     }
   }
 
+  void purgeTombstones() {
+    List<Tombstone> tombstones = tombstoneRepository.getTombstones();
+    if (tombstones.isEmpty()) {
+      return;
+    }
+
+    // Group by ownerId — bulkDelete requires userId to select host.
+    Map<String, List<Tombstone>> byOwner = tombstones.stream()
+      .collect(Collectors.groupingBy(Tombstone::getOwnerId));
+
+    for (Map.Entry<String, List<Tombstone>> entry : byOwner.entrySet()) {
+      String ownerId = entry.getKey();
+      List<Tombstone> ownerTombstones = entry.getValue();
+
+      List<BulkDeleteRequestItem> requests = ownerTombstones.stream()
+        .map(t -> BulkDeleteRequestItem.filesItem(t.getNodeId(), t.getVersion()))
+        .collect(Collectors.toList());
+
+      try {
+        List<BulkDeleteResponseItem> failedItems =
+          fileStore.bulkDelete(IdentifierType.files, ownerId, requests);
+        if (failedItems == null) failedItems = List.of();
+
+        Set<String> failedNodeIds = failedItems.stream()
+          .map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
+
+        // Only remove tombstones for confirmed-deleted blobs.
+        ownerTombstones.stream()
+          .filter(t -> !failedNodeIds.contains(t.getNodeId()))
+          .forEach(t ->
+            tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion()));
+
+      } catch (NullPointerException e) {
+        logger.debug("PowerStore returned null ids (all deletes succeeded): {}", e.getMessage());
+        // All succeeded.
+        ownerTombstones.forEach(t ->
+          tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion()));
+      } catch (Exception e) {
+        logger.warn("purgeTombstones: bulk delete failed for owner {}: {}. Will retry next cycle.",
+          ownerId, e.getMessage());
+        // Keep tombstones — retry next run.
+      }
+    }
+  }
+
   @Override
   public void run() {
+    purgeTombstones();
     purgeTrashedNodes(Config.PurgeService.RETENTION_TRASHED_ITEMS_IN_DAYS);
   }
 

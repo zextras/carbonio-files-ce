@@ -80,6 +80,23 @@ public class StoragesMockHelper {
   }
 
   /**
+   * Mocks the PowerStore bulk-delete endpoint to return HTTP 200 with body {@code "{}"},
+   * which the SDK deserialises as {@code ids=null} and throws a {@link NullPointerException}.
+   * Production code treats this NPE as "all deletes succeeded".
+   */
+  public void bulkDeleteNullResponse() {
+    storagesMock
+        .when(
+            HttpRequest.request()
+                .withMethod(HttpMethod.POST.toString())
+                .withPath("/bulk-delete"))
+        .respond(
+            HttpResponse.response()
+                .withStatusCode(200)
+                .withBody("{}"));
+  }
+
+  /**
    * Mocks the PowerStore bulk-delete endpoint for version-level failures.
    * Each entry in {@code failedNodeVersions} is a pair of (nodeId, version).
    * An empty list means full success.

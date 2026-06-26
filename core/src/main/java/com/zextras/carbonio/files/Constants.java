@@ -407,6 +407,20 @@ public final class Constants {
     }
 
     /**
+     * Attributes' names for the FILES.TOMBSTONE table
+     */
+    public static final class Tombstone {
+
+      private Tombstone() {
+      }
+
+      public static final String NODE_ID = "node_id";
+      public static final String OWNER_ID = "owner_id";
+      public static final String TIMESTAMP = "timestamp";
+      public static final String VERSION = "version";
+    }
+
+    /**
      * Attributes' names for the FILES.COLLABORATION_LINK table
      */
     public static final class CollaborationLink {

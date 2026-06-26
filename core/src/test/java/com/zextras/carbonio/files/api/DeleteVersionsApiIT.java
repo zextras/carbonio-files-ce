@@ -14,6 +14,7 @@ import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.utilities.StoragesMockHelper;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
@@ -33,6 +34,7 @@ class DeleteVersionsApiIT {
   static StoragesMockHelper storagesMockHelper;
   static NodeRepository nodeRepository;
   static FileVersionRepository fileVersionRepository;
+  static TombstoneRepository tombstoneRepository;
 
   private static final String OWNER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
@@ -51,12 +53,16 @@ class DeleteVersionsApiIT {
     final Injector injector = simulator.getInjector();
     nodeRepository = injector.getInstance(NodeRepository.class);
     fileVersionRepository = injector.getInstance(FileVersionRepository.class);
+    tombstoneRepository = injector.getInstance(TombstoneRepository.class);
     storagesMockHelper = new StoragesMockHelper(simulator.getStoragesMock());
   }
 
   @AfterEach
   void cleanUp() {
     simulator.resetDatabase();
+    // Tombstones are not FK-linked to NODE so resetDatabase() doesn't clean them.
+    tombstoneRepository.getTombstones().forEach(t ->
+        tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion()));
     simulator.reinitializeMocks();
   }
 
@@ -98,6 +104,7 @@ class DeleteVersionsApiIT {
   }
 
   // --- Test 1: Happy path — file with 3 versions, delete [1,2], all blobs succeed ---
+  // Tombstones created then cleaned up.
 
   @Test
   void givenFileWithThreeVersionsDeleteVersionsOneAndTwoAllBlobsSucceedThenVersionsOneAndTwoDeletedVersionThreeStays() {
@@ -121,70 +128,47 @@ class DeleteVersionsApiIT {
     List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errors).isEmpty();
 
-    // Verify DB: only version 3 remains
+    // Verify DB: only version 3 remains.
     Assertions.assertThat(getRemainingVersionNumbers(nodeId)).containsExactly(3);
+
+    // Tombstones cleaned up after confirmed blob delete.
+    Assertions.assertThat(tombstoneRepository.getTombstones()).isEmpty();
   }
 
-  // --- Test 2: Partial failure — file with 3 versions, delete [1,2], version 1 blob fails ---
+  // --- Test 2: PowerStore fails (exception) — versions still deleted from DB, no error to user ---
+  // Core tombstone invariant: DB-first, tombstones remain for retry.
 
   @Test
-  void givenFileWithThreeVersionsDeleteVersionsOneAndTwoVersionOneBlobFailsThenOnlyVersionTwoDeletedVersionOneAndThreeStay() {
+  void givenFileWithThreeVersionsAndPowerStoreFailsThenVersionsOneAndTwoStillDeletedAndTombstonesRemain() {
     // Given
     String nodeId = "00000000-0000-0000-0000-200000000002";
     createFileWithThreeVersions(nodeId);
 
-    // version 1 blob deletion fails (node=nodeId, version=1)
-    storagesMockHelper.bulkDeleteWithVersions(List.of(Map.entry(nodeId, 1)));
+    // PowerStore returns HTTP 500 — complete failure.
+    storagesMockHelper.bulkDeleteError();
 
     // When — delete versions 1 and 2
     HttpResponse httpResponse = executeDeleteVersions(nodeId, 1, 2);
 
-    // Then
+    // Then — DB-first: versions deleted, no error to user.
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     List<Integer> deletedVersions =
         (List<Integer>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteVersions")
             .orElse(List.of());
-    // Only version 2 was successfully deleted in PowerStore
-    Assertions.assertThat(deletedVersions).containsExactly(2);
-
-    // Errors must be returned for version 1 (blob delete failed)
-    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
-    Assertions.assertThat(errors).isNotEmpty();
-
-    // DB: version 1 (blob failed) and version 3 (current) stay; version 2 is deleted
-    Assertions.assertThat(getRemainingVersionNumbers(nodeId)).containsExactly(1, 3);
-  }
-
-  // --- Test 3: Total failure — file with 3 versions, delete [1,2], all blobs fail ---
-
-  @Test
-  void givenFileWithThreeVersionsDeleteVersionsOneAndTwoAllBlobsFailThenNothingDeletedAndErrorsReturned() {
-    // Given
-    String nodeId = "00000000-0000-0000-0000-200000000003";
-    createFileWithThreeVersions(nodeId);
-
-    storagesMockHelper.bulkDeleteWithVersions(List.of(Map.entry(nodeId, 1), Map.entry(nodeId, 2)));
-
-    // When
-    HttpResponse httpResponse = executeDeleteVersions(nodeId, 1, 2);
-
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-
-    List<Integer> deletedVersions =
-        (List<Integer>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteVersions")
-            .orElse(List.of());
-    Assertions.assertThat(deletedVersions).isEmpty();
+    Assertions.assertThat(deletedVersions).containsExactlyInAnyOrder(1, 2);
 
     List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
-    Assertions.assertThat(errors).hasSize(2);
+    Assertions.assertThat(errors).isEmpty();
 
-    // All 3 versions stay in DB
-    Assertions.assertThat(getRemainingVersionNumbers(nodeId)).containsExactly(1, 2, 3);
+    // v1 and v2 deleted from DB (already committed before PowerStore call).
+    Assertions.assertThat(getRemainingVersionNumbers(nodeId)).containsExactly(3);
+
+    // Tombstones remain for PurgeService retry.
+    Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(2);
   }
 
-  // --- Test 4: Current version cannot be deleted ---
+  // --- Test 3: Protective filter — current version cannot be deleted ---
 
   @Test
   void givenFileWithThreeVersionsDeleteCurrentVersionThenCurrentVersionSkippedAndErrorReturned() {
@@ -208,11 +192,14 @@ class DeleteVersionsApiIT {
     List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errors).hasSize(1);
 
-    // All 3 versions stay in DB
+    // All 3 versions stay in DB.
     Assertions.assertThat(getRemainingVersionNumbers(nodeId)).containsExactly(1, 2, 3);
+
+    // No tombstones created (nothing eligible to delete).
+    Assertions.assertThat(tombstoneRepository.getTombstones()).isEmpty();
   }
 
-  // --- Test 5: keepForever version cannot be deleted ---
+  // --- Test 4: Protective filter — keepForever version cannot be deleted ---
 
   @Test
   void givenFileWithKeepForeverVersionDeleteItThenKeepForeverVersionSkippedAndOnlyEligibleVersionDeleted() {
@@ -234,13 +221,16 @@ class DeleteVersionsApiIT {
     List<Integer> deletedVersions =
         (List<Integer>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteVersions")
             .orElse(List.of());
-    // Only v1 deleted; v2 is keepForever (skipped)
+    // Only v1 deleted; v2 is keepForever (skipped → fileVersionNotFound error).
     Assertions.assertThat(deletedVersions).containsExactly(1);
 
     List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errors).hasSize(1); // error for v2
 
-    // v2 (keepForever) and v3 (current) stay
+    // v2 (keepForever) and v3 (current) stay.
     Assertions.assertThat(getRemainingVersionNumbers(nodeId)).containsExactly(2, 3);
+
+    // Tombstone for v1 cleaned up.
+    Assertions.assertThat(tombstoneRepository.getTombstones()).isEmpty();
   }
 }
