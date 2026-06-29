@@ -193,20 +193,9 @@ public class PurgeService implements Runnable {
         ownerTombstones.forEach(t ->
           tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion()));
       } catch (Exception e) {
-        logger.warn("purgeTombstones: bulk delete failed for owner {}: {}. Will retry next cycle.",
+        logger.warn("purgeTombstones: bulk delete failed for owner {}: {}. Tombstones kept for next cycle.",
           ownerId, e.getMessage());
-        // Entire per-owner call failed — apply retry-cap to all tombstones in this batch.
-        for (Tombstone t : ownerTombstones) {
-          if (t.getAttempts() + 1 >= MAX_TOMBSTONE_RETRIES) {
-            logger.warn(
-              "purgeTombstones: giving up on blob nodeId={} version={} after {} attempts; "
-                + "accepting orphan and removing tombstone.",
-              t.getNodeId(), t.getVersion(), t.getAttempts() + 1);
-            tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
-          } else {
-            tombstoneRepository.updateTombstone(t.setAttempts(t.getAttempts() + 1));
-          }
-        }
+        // Outage is not a per-blob failure: keep all tombstones, no attempts increment.
       }
     }
   }

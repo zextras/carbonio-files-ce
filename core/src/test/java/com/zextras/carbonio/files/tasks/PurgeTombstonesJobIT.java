@@ -154,11 +154,13 @@ class PurgeTombstonesJobIT {
   }
 
   /**
-   * When purgeTombstones() runs and PowerStore is completely down (exception),
-   * all tombstones are preserved for the next cycle.
+   * When purgeTombstones() runs and PowerStore is completely down (exception / HTTP 500),
+   * all tombstones are preserved for the next cycle with NO increment to attempts.
+   * Even after 3 consecutive outage runs the tombstone must still be there with attempts==0,
+   * proving that an outage never drains the retry budget.
    */
   @Test
-  void givenStrandedTombstoneWhenJobRunsWithOutageThenTombstoneKept() {
+  void givenStrandedTombstoneWhenJobRunsWithOutageThenTombstoneKeptAndAttemptsNeverIncrement() {
     // Given: a stranded tombstone from a previous delete.
     String nodeId = "00000000-0000-0000-0000-400000000003";
 
@@ -169,46 +171,62 @@ class PurgeTombstonesJobIT {
     executeDeleteNodes(nodeId);
 
     Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
-
-    // When: job runs and storages is still down.
-    // (mock is still configured to return 500)
-    purgeService.purgeTombstones();
-
-    // Then: tombstone is kept for retry (attempts=1, below cap=3).
-    Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
-    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getNodeId())
-        .isEqualTo(nodeId);
     Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getAttempts())
-        .as("attempts should be incremented to 1 after the first failed job run")
-        .isEqualTo(1);
+        .as("attempts must start at 0")
+        .isEqualTo(0);
+
+    // Run the purge job 3 times while PowerStore is still down.
+    // An outage must NEVER burn the retry budget (attempts stays at 0).
+    for (int run = 1; run <= 3; run++) {
+      simulator.reinitializeMocks();
+      storagesMockHelper.bulkDeleteError();
+      purgeService.purgeTombstones();
+
+      Assertions.assertThat(tombstoneRepository.getTombstones())
+          .as("tombstone must still exist after outage run " + run)
+          .hasSize(1);
+      Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getNodeId())
+          .isEqualTo(nodeId);
+      Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getAttempts())
+          .as("attempts must remain 0 after outage run " + run + " (outage must not burn retry budget)")
+          .isEqualTo(0);
+    }
   }
 
   /**
-   * Retry-cap scenario: a blob that keeps failing is dropped after the 3rd job run.
+   * Retry-cap scenario: a blob that keeps failing (per-blob partial failure, HTTP 200 with
+   * the node listed in the failed-ids list) is dropped after the 3rd job run.
+   *
+   * <p>This test intentionally uses the PARTIAL-FAILURE path (bulkDelete returns HTTP 200
+   * with the node id in the failed list), NOT the outage/exception path (HTTP 500).
+   * Only genuine per-blob PowerStore rejections count toward the retry cap; outages do not.
+   *
    * <p>
-   * Run 1: purgeTombstones fails → tombstone kept, attempts=1.
-   * Run 2: purgeTombstones fails → tombstone kept, attempts=2.
-   * Run 3: purgeTombstones fails → attempts+1 == 3 == MAX_TOMBSTONE_RETRIES → tombstone REMOVED
-   *         (orphan accepted, no perennial tombstone).
+   * Run 1: PowerStore responds 200, blob in failed list → attempts=1, tombstone kept.
+   * Run 2: PowerStore responds 200, blob in failed list → attempts=2, tombstone kept.
+   * Run 3: PowerStore responds 200, blob in failed list → attempts+1==3==MAX → tombstone REMOVED.
    */
   @Test
-  void givenBlobAlwaysFailsThenTombstoneRemovedAfterThirdJobRun() {
-    // Given: delete node while storages is down → tombstone created with attempts=0.
+  void givenBlobAlwaysFailsWithPartialFailureThenTombstoneRemovedAfterThirdJobRun() {
+    // Given: delete node while storages returns a partial failure → tombstone seeded with attempts=0.
     String nodeId = "00000000-0000-0000-0000-400000000004";
 
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(new SimplePopulatorTextFile(nodeId, OWNER_ID, "file.txt"));
 
-    storagesMockHelper.bulkDeleteError();
+    // Seed via partial failure (HTTP 200, node in failed ids list).
+    storagesMockHelper.bulkDelete(List.of(nodeId));
     HttpResponse deleteResp = executeDeleteNodes(nodeId);
     Assertions.assertThat(deleteResp.getStatus()).isEqualTo(200);
 
     Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
-    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getAttempts()).isEqualTo(0);
+    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getAttempts())
+        .as("attempts must be 0 after seeding")
+        .isEqualTo(0);
 
-    // Run 1: still failing.
+    // Run 1: PowerStore reports the blob as failed (HTTP 200, failed list) → attempts=1.
     simulator.reinitializeMocks();
-    storagesMockHelper.bulkDeleteError();
+    storagesMockHelper.bulkDelete(List.of(nodeId));
     purgeService.purgeTombstones();
 
     Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
@@ -216,9 +234,9 @@ class PurgeTombstonesJobIT {
         .as("attempts should be 1 after run 1")
         .isEqualTo(1);
 
-    // Run 2: still failing.
+    // Run 2: PowerStore reports the blob as failed again → attempts=2.
     simulator.reinitializeMocks();
-    storagesMockHelper.bulkDeleteError();
+    storagesMockHelper.bulkDelete(List.of(nodeId));
     purgeService.purgeTombstones();
 
     Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
@@ -226,9 +244,9 @@ class PurgeTombstonesJobIT {
         .as("attempts should be 2 after run 2")
         .isEqualTo(2);
 
-    // Run 3: cap hit (attempts=2, +1==3==MAX_TOMBSTONE_RETRIES) → tombstone REMOVED.
+    // Run 3: cap hit (attempts=2, +1==3==MAX_TOMBSTONE_RETRIES) → tombstone REMOVED (orphan accepted).
     simulator.reinitializeMocks();
-    storagesMockHelper.bulkDeleteError();
+    storagesMockHelper.bulkDelete(List.of(nodeId));
     purgeService.purgeTombstones();
 
     Assertions.assertThat(tombstoneRepository.getTombstones())
