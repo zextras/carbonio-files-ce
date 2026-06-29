@@ -33,6 +33,9 @@ public class Tombstone {
   @Column(name = Constants.Db.Tombstone.VERSION, nullable = false)
   private Integer mVersion;
 
+  @Column(name = Constants.Db.Tombstone.ATTEMPTS, nullable = false)
+  private Integer mAttempts;
+
   public Tombstone(
     String nodeId,
     String ownerId,
@@ -43,6 +46,7 @@ public class Tombstone {
     mOwnerId = ownerId;
     mTimestamp = timestamp;
     mVersion = version;
+    mAttempts = 0;
   }
 
   public String getNodeId() {
@@ -69,5 +73,14 @@ public class Tombstone {
 
   public Integer getVersion() {
     return mVersion;
+  }
+
+  public Integer getAttempts() {
+    return mAttempts == null ? 0 : mAttempts;
+  }
+
+  public Tombstone setAttempts(Integer attempts) {
+    mAttempts = attempts;
+    return this;
   }
 }

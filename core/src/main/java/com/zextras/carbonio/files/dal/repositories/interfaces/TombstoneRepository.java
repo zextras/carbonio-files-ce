@@ -17,11 +17,6 @@ import java.util.Optional;
 public interface TombstoneRepository {
 
   /**
-   * <p>Deletes all Tombstones from the database.</p>
-   */
-  void deleteTombstones(long itemsRetentionInMinutes);
-
-  /**
    * <p>Gets all Tombstones from the database.</p>
    *
    * @return the list of all Tombstones in the database.
@@ -55,8 +50,6 @@ public interface TombstoneRepository {
     String ownerId
   );
 
-  void deleteTombstonesFromOwner(String ownerId);
-
   /**
    * Deletes a single tombstone identified by nodeId and version.
    * Used after a blob has been confirmed deleted from PowerStore.
@@ -67,10 +60,9 @@ public interface TombstoneRepository {
   void deleteTombstonesByNodeAndVersion(String nodeId, Integer version);
 
   /**
-   * Deletes all tombstones for a list of nodeIds.
-   * Used for bulk cleanup after bulk-delete operations.
+   * Persists an updated {@link Tombstone} (e.g. after incrementing the attempts counter).
    *
-   * @param nodeIds list of node identifiers whose tombstones should be removed
+   * @param tombstone the tombstone to update
    */
-  void deleteTombstonesBulk(List<String> nodeIds);
+  void updateTombstone(Tombstone tombstone);
 }

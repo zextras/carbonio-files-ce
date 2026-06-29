@@ -11,7 +11,6 @@ import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
-import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,16 +21,6 @@ public class TombstoneRepositoryEbean implements TombstoneRepository {
   @Inject
   public TombstoneRepositoryEbean(DatabaseManager DatabaseManagerFlyway) {
     dbManager = DatabaseManagerFlyway;
-  }
-
-  public void deleteTombstones(long itemsRetentionInMinutes) {
-    dbManager.getEbeanDatabase()
-      .find(Tombstone.class)
-      .where()
-      .lt(
-        Db.Tombstone.TIMESTAMP,
-        System.currentTimeMillis() - Duration.ofMinutes(itemsRetentionInMinutes).toMillis())
-      .delete();
   }
 
   @Override
@@ -92,15 +81,6 @@ public class TombstoneRepositoryEbean implements TombstoneRepository {
   }
 
   @Override
-  public void deleteTombstonesFromOwner(String ownerId) {
-    dbManager.getEbeanDatabase()
-        .find(Tombstone.class)
-        .where()
-        .eq(Constants.Db.Tombstone.OWNER_ID, ownerId)
-        .delete();
-  }
-
-  @Override
   public void deleteTombstonesByNodeAndVersion(String nodeId, Integer version) {
     dbManager.getEbeanDatabase()
       .find(Tombstone.class)
@@ -111,14 +91,7 @@ public class TombstoneRepositoryEbean implements TombstoneRepository {
   }
 
   @Override
-  public void deleteTombstonesBulk(List<String> nodeIds) {
-    if (nodeIds == null || nodeIds.isEmpty()) {
-      return;
-    }
-    dbManager.getEbeanDatabase()
-      .find(Tombstone.class)
-      .where()
-      .in(Constants.Db.Tombstone.NODE_ID, nodeIds)
-      .delete();
+  public void updateTombstone(Tombstone tombstone) {
+    dbManager.getEbeanDatabase().update(tombstone);
   }
 }

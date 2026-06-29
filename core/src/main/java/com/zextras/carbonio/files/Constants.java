@@ -155,7 +155,6 @@ public final class Constants {
     public static final class PurgeService {
 
       public static final long RETENTION_TRASHED_ITEMS_IN_DAYS = 30L;
-      public static final long RETENTION_TOMBSTONE_ITEMS_IN_MINUTES = 120L;
       public static final long JOB_EXECUTION_INTERVAL_IN_MINUTES = 30L;
 
       private PurgeService() {
@@ -418,6 +417,7 @@ public final class Constants {
       public static final String OWNER_ID = "owner_id";
       public static final String TIMESTAMP = "timestamp";
       public static final String VERSION = "version";
+      public static final String ATTEMPTS = "attempts";
     }
 
     /**

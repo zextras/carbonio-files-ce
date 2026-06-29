@@ -174,9 +174,106 @@ class PurgeTombstonesJobIT {
     // (mock is still configured to return 500)
     purgeService.purgeTombstones();
 
-    // Then: tombstone is kept for retry.
+    // Then: tombstone is kept for retry (attempts=1, below cap=3).
     Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
     Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getNodeId())
         .isEqualTo(nodeId);
+    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getAttempts())
+        .as("attempts should be incremented to 1 after the first failed job run")
+        .isEqualTo(1);
+  }
+
+  /**
+   * Retry-cap scenario: a blob that keeps failing is dropped after the 3rd job run.
+   * <p>
+   * Run 1: purgeTombstones fails → tombstone kept, attempts=1.
+   * Run 2: purgeTombstones fails → tombstone kept, attempts=2.
+   * Run 3: purgeTombstones fails → attempts+1 == 3 == MAX_TOMBSTONE_RETRIES → tombstone REMOVED
+   *         (orphan accepted, no perennial tombstone).
+   */
+  @Test
+  void givenBlobAlwaysFailsThenTombstoneRemovedAfterThirdJobRun() {
+    // Given: delete node while storages is down → tombstone created with attempts=0.
+    String nodeId = "00000000-0000-0000-0000-400000000004";
+
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(new SimplePopulatorTextFile(nodeId, OWNER_ID, "file.txt"));
+
+    storagesMockHelper.bulkDeleteError();
+    HttpResponse deleteResp = executeDeleteNodes(nodeId);
+    Assertions.assertThat(deleteResp.getStatus()).isEqualTo(200);
+
+    Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
+    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getAttempts()).isEqualTo(0);
+
+    // Run 1: still failing.
+    simulator.reinitializeMocks();
+    storagesMockHelper.bulkDeleteError();
+    purgeService.purgeTombstones();
+
+    Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
+    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getAttempts())
+        .as("attempts should be 1 after run 1")
+        .isEqualTo(1);
+
+    // Run 2: still failing.
+    simulator.reinitializeMocks();
+    storagesMockHelper.bulkDeleteError();
+    purgeService.purgeTombstones();
+
+    Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
+    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getAttempts())
+        .as("attempts should be 2 after run 2")
+        .isEqualTo(2);
+
+    // Run 3: cap hit (attempts=2, +1==3==MAX_TOMBSTONE_RETRIES) → tombstone REMOVED.
+    simulator.reinitializeMocks();
+    storagesMockHelper.bulkDeleteError();
+    purgeService.purgeTombstones();
+
+    Assertions.assertThat(tombstoneRepository.getTombstones())
+        .as("tombstone must be removed after the retry cap is reached on the 3rd job run")
+        .isEmpty();
+  }
+
+  /**
+   * Retry-and-recover scenario: a blob fails on the first job run but succeeds on the second.
+   * <p>
+   * Run 1: purgeTombstones reports the blob as failed → tombstone kept, attempts incremented.
+   * Run 2: purgeTombstones succeeds → tombstone REMOVED normally (never hits the cap).
+   */
+  @Test
+  void givenBlobSucceedsOnSecondJobRunThenTombstoneRemovedNormallyBeforeCap() {
+    // Given: delete node while storages is down → tombstone created with attempts=0.
+    String nodeId = "00000000-0000-0000-0000-400000000005";
+
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(new SimplePopulatorTextFile(nodeId, OWNER_ID, "file.txt"));
+
+    storagesMockHelper.bulkDeleteError();
+    HttpResponse deleteResp = executeDeleteNodes(nodeId);
+    Assertions.assertThat(deleteResp.getStatus()).isEqualTo(200);
+
+    Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
+    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getAttempts()).isEqualTo(0);
+
+    // Run 1: blob reported as failed → tombstone kept.
+    simulator.reinitializeMocks();
+    storagesMockHelper.bulkDelete(List.of(nodeId));
+    purgeService.purgeTombstones();
+
+    Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
+    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getAttempts())
+        .as("attempts should be 1 after first failed run")
+        .isEqualTo(1);
+
+    // Run 2: blob deletion succeeds → tombstone REMOVED.
+    simulator.reinitializeMocks();
+    storagesMockHelper.bulkDelete(List.of());
+    purgeService.purgeTombstones();
+
+    Assertions.assertThat(tombstoneRepository.getTombstones())
+        .as("tombstone must be removed when the blob is successfully deleted on the second run")
+        .isEmpty();
   }
 }

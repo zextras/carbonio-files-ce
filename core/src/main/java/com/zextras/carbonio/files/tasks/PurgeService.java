@@ -34,6 +34,8 @@ public class PurgeService implements Runnable {
 
   private static final Logger logger = LoggerFactory.getLogger(PurgeService.class);
 
+  static final int MAX_TOMBSTONE_RETRIES = 3;
+
   private final NodeRepository           nodeRepository;
   private final FileVersionRepository    fileVersionRepository;
   private final TombstoneRepository      tombstoneRepository;
@@ -168,21 +170,43 @@ public class PurgeService implements Runnable {
         Set<String> failedNodeIds = failedItems.stream()
           .map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
 
-        // Only remove tombstones for confirmed-deleted blobs.
-        ownerTombstones.stream()
-          .filter(t -> !failedNodeIds.contains(t.getNodeId()))
-          .forEach(t ->
-            tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion()));
+        // Remove confirmed-deleted tombstones; apply retry-cap to failed ones.
+        for (Tombstone t : ownerTombstones) {
+          if (!failedNodeIds.contains(t.getNodeId())) {
+            tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
+          } else {
+            if (t.getAttempts() + 1 >= MAX_TOMBSTONE_RETRIES) {
+              logger.warn(
+                "purgeTombstones: giving up on blob nodeId={} version={} after {} attempts; "
+                  + "accepting orphan and removing tombstone.",
+                t.getNodeId(), t.getVersion(), t.getAttempts() + 1);
+              tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
+            } else {
+              tombstoneRepository.updateTombstone(t.setAttempts(t.getAttempts() + 1));
+            }
+          }
+        }
 
       } catch (NullPointerException e) {
         logger.debug("PowerStore returned null ids (all deletes succeeded): {}", e.getMessage());
-        // All succeeded.
+        // All succeeded — remove all tombstones for this owner.
         ownerTombstones.forEach(t ->
           tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion()));
       } catch (Exception e) {
         logger.warn("purgeTombstones: bulk delete failed for owner {}: {}. Will retry next cycle.",
           ownerId, e.getMessage());
-        // Keep tombstones — retry next run.
+        // Entire per-owner call failed — apply retry-cap to all tombstones in this batch.
+        for (Tombstone t : ownerTombstones) {
+          if (t.getAttempts() + 1 >= MAX_TOMBSTONE_RETRIES) {
+            logger.warn(
+              "purgeTombstones: giving up on blob nodeId={} version={} after {} attempts; "
+                + "accepting orphan and removing tombstone.",
+              t.getNodeId(), t.getVersion(), t.getAttempts() + 1);
+            tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
+          } else {
+            tombstoneRepository.updateTombstone(t.setAttempts(t.getAttempts() + 1));
+          }
+        }
       }
     }
   }
