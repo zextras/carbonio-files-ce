@@ -187,21 +187,38 @@ public class PurgeService implements Runnable {
     }
   }
 
+  /**
+   * @deprecated No longer called directly by the scheduler. Kept to satisfy the {@link Runnable}
+   *   contract; individual tasks are scheduled separately in {@link #start()}.
+   */
   @Override
+  @Deprecated
   public void run() {
     purgeTombstones();
     purgeTrashedNodes(Config.PurgeService.RETENTION_TRASHED_ITEMS_IN_DAYS);
   }
 
   public void start() {
-    scheduledExecutor = Executors.newScheduledThreadPool(1);
+    // Two threads: one per cadence so neither job blocks the other.
+    scheduledExecutor = Executors.newScheduledThreadPool(2);
+
+    // Tombstone purge — runs every 30 minutes (initial delay 1 min).
     scheduledExecutor.scheduleAtFixedRate(
-      this,
+      this::purgeTombstones,
+      1,
+      Config.PurgeService.TOMBSTONE_PURGE_INTERVAL_IN_MINUTES,
+      TimeUnit.MINUTES);
+
+    // Trashed-node purge — runs every 120 minutes (initial delay 1 min).
+    scheduledExecutor.scheduleAtFixedRate(
+      () -> purgeTrashedNodes(Config.PurgeService.RETENTION_TRASHED_ITEMS_IN_DAYS),
       1,
       Config.PurgeService.JOB_EXECUTION_INTERVAL_IN_MINUTES,
       TimeUnit.MINUTES);
 
-    logger.info("Purge Service started");
+    logger.info("Purge Service started (tombstone cadence={}min, trash cadence={}min)",
+      Config.PurgeService.TOMBSTONE_PURGE_INTERVAL_IN_MINUTES,
+      Config.PurgeService.JOB_EXECUTION_INTERVAL_IN_MINUTES);
   }
 
   public void stop() {

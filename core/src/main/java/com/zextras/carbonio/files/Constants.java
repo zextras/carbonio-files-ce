@@ -157,6 +157,7 @@ public final class Constants {
       public static final long RETENTION_TRASHED_ITEMS_IN_DAYS = 30L;
       public static final long RETENTION_TOMBSTONE_ITEMS_IN_MINUTES = 120L;
       public static final long JOB_EXECUTION_INTERVAL_IN_MINUTES = 120L;
+      public static final long TOMBSTONE_PURGE_INTERVAL_IN_MINUTES = 30L;
 
       private PurgeService() {
       }
