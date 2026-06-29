@@ -294,4 +294,38 @@ class PurgeTombstonesJobIT {
         .as("tombstone must be removed when the blob is successfully deleted on the second run")
         .isEmpty();
   }
+
+  /**
+   * Null/empty JSON response from PowerStore ({"ids":null} or {}) during purgeTombstones()
+   * must be treated the same as an outage: ALL tombstones kept, attempts NOT incremented.
+   */
+  @Test
+  void givenStrandedTombstoneWhenPurgeRunsWithNullResponseThenTombstoneKeptAndAttemptsNeverIncrement() {
+    // Given: a stranded tombstone.
+    String nodeId = "00000000-0000-0000-0000-400000000006";
+
+    DatabasePopulator.aNodePopulator(simulator.getInjector())
+        .addNode(new SimplePopulatorTextFile(nodeId, OWNER_ID, "file.txt"));
+
+    // Seed via error (HTTP 500) so the tombstone is created with attempts=0.
+    storagesMockHelper.bulkDeleteError();
+    executeDeleteNodes(nodeId);
+
+    Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
+    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getAttempts())
+        .as("attempts must start at 0")
+        .isEqualTo(0);
+
+    // Run purgeTombstones() with a null/empty response — must NOT remove tombstone or increment attempts.
+    simulator.reinitializeMocks();
+    storagesMockHelper.bulkDeleteNullResponse();
+    purgeService.purgeTombstones();
+
+    Assertions.assertThat(tombstoneRepository.getTombstones())
+        .as("tombstone must remain when purgeTombstones receives a null response")
+        .hasSize(1);
+    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getAttempts())
+        .as("attempts must stay 0 — null response is treated as outage, not per-blob failure")
+        .isEqualTo(0);
+  }
 }

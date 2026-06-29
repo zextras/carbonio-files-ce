@@ -1590,26 +1590,25 @@ public class NodeDataFetcher {
           .map(fv -> BulkDeleteRequestItem.filesItem(fv.getNodeId(), fv.getVersion()))
           .collect(Collectors.toList());
         if (deleteRequests.isEmpty()) return;
+        List<BulkDeleteResponseItem> failedItems;
         try {
-          List<BulkDeleteResponseItem> failedItems = fileStore.bulkDelete(
+          failedItems = fileStore.bulkDelete(
             IdentifierType.files, ownerId, deleteRequests);
-          if (failedItems == null) failedItems = List.of();
-          // Collect confirmed-deleted nodeId+version pairs.
-          Set<String> failedNodeIds = failedItems.stream()
-            .map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
-          versions.stream()
-            .filter(fv -> !failedNodeIds.contains(fv.getNodeId()))
-            .forEach(fv ->
-              tombstoneRepository.deleteTombstonesByNodeAndVersion(fv.getNodeId(), fv.getVersion()));
-        } catch (NullPointerException e) {
-          // SDK full-success returns null ids — treat as all succeeded.
-          logger.debug("PowerStore returned null ids (all deletes succeeded): {}", e.getMessage());
-          versions.forEach(fv ->
-            tombstoneRepository.deleteTombstonesByNodeAndVersion(fv.getNodeId(), fv.getVersion()));
-        } catch (Exception e) {
+        } catch (Exception e) {            // ANY exception (incl. NullPointerException) -> NOT deleted -> keep all tombstones
           logger.warn("Bulk delete failed for owner {}: {}. Tombstones remain for retry.", ownerId, e.getMessage());
-          // Leave tombstones — PurgeService will retry.
+          return;
         }
+        if (failedItems == null) {         // null return is NOT a success signal (happens on connection failure) -> keep all
+          logger.warn("Bulk delete returned null for owner {} (treated as failure). Tombstones remain for retry.", ownerId);
+          return;
+        }
+        // non-null list: empty = all deleted; partial = listed ids failed.
+        Set<String> failedNodeIds = failedItems.stream()
+          .map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
+        versions.stream()
+          .filter(fv -> !failedNodeIds.contains(fv.getNodeId()))
+          .forEach(fv ->
+            tombstoneRepository.deleteTombstonesByNodeAndVersion(fv.getNodeId(), fv.getVersion()));
       });
 
       // Phase 6: build result — always full success (all permitted nodes deleted).
@@ -2202,10 +2201,18 @@ public class NodeDataFetcher {
         List<BulkDeleteRequestItem> deleteRequests = fileVersionsToDelete.stream()
           .map(fv -> BulkDeleteRequestItem.filesItem(nodeId, fv.getVersion()))
           .collect(Collectors.toList());
+        List<BulkDeleteResponseItem> failedItems;
         try {
-          List<BulkDeleteResponseItem> failedItems = fileStore.bulkDelete(
+          failedItems = fileStore.bulkDelete(
             IdentifierType.files, ownerId, deleteRequests);
-          if (failedItems == null) failedItems = List.of();
+        } catch (Exception e) {            // ANY exception (incl. NullPointerException) -> NOT deleted -> keep all tombstones
+          logger.warn("Bulk delete failed for node {}: {}. Tombstones remain for retry.", nodeId, e.getMessage());
+          failedItems = null;
+        }
+        if (failedItems == null) {         // null return is NOT a success signal (happens on connection failure) -> keep all
+          logger.warn("Bulk delete returned null for node {} (treated as failure). Tombstones remain for retry.", nodeId);
+        } else {
+          // non-null list: empty = all deleted; partial = listed ids failed.
           Set<Integer> failedVersionSet = failedItems.stream()
             .filter(item -> nodeId.equals(item.getNode()))
             .map(BulkDeleteResponseItem::getVersion)
@@ -2215,13 +2222,6 @@ public class NodeDataFetcher {
             .filter(fv -> !failedVersionSet.contains(fv.getVersion()))
             .forEach(fv ->
               tombstoneRepository.deleteTombstonesByNodeAndVersion(fv.getNodeId(), fv.getVersion()));
-        } catch (NullPointerException e) {
-          logger.debug("PowerStore returned null ids (all deletes succeeded): {}", e.getMessage());
-          fileVersionsToDelete.forEach(fv ->
-            tombstoneRepository.deleteTombstonesByNodeAndVersion(fv.getNodeId(), fv.getVersion()));
-        } catch (Exception e) {
-          logger.warn("Bulk delete failed for node {}: {}. Tombstones remain for retry.", nodeId, e.getMessage());
-          // Leave tombstones — PurgeService will retry.
         }
       }
 
@@ -2467,24 +2467,25 @@ public class NodeDataFetcher {
           .map(fv -> BulkDeleteRequestItem.filesItem(fv.getNodeId(), fv.getVersion()))
           .collect(Collectors.toList());
         if (deleteRequests.isEmpty()) return;
+        List<BulkDeleteResponseItem> failedItems;
         try {
-          List<BulkDeleteResponseItem> failedItems = fileStore.bulkDelete(
+          failedItems = fileStore.bulkDelete(
             IdentifierType.files, ownerId, deleteRequests);
-          if (failedItems == null) failedItems = List.of();
-          Set<String> failedNodeIds = failedItems.stream()
-            .map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
-          versions.stream()
-            .filter(fv -> !failedNodeIds.contains(fv.getNodeId()))
-            .forEach(fv ->
-              tombstoneRepository.deleteTombstonesByNodeAndVersion(fv.getNodeId(), fv.getVersion()));
-        } catch (NullPointerException e) {
-          logger.debug("PowerStore returned null ids (all deletes succeeded): {}", e.getMessage());
-          versions.forEach(fv ->
-            tombstoneRepository.deleteTombstonesByNodeAndVersion(fv.getNodeId(), fv.getVersion()));
-        } catch (Exception e) {
+        } catch (Exception e) {            // ANY exception (incl. NullPointerException) -> NOT deleted -> keep all tombstones
           logger.warn("Bulk delete failed for owner {}: {}. Tombstones remain for retry.", ownerId, e.getMessage());
-          // Leave tombstones — PurgeService will retry.
+          return;
         }
+        if (failedItems == null) {         // null return is NOT a success signal (happens on connection failure) -> keep all
+          logger.warn("Bulk delete returned null for owner {} (treated as failure). Tombstones remain for retry.", ownerId);
+          return;
+        }
+        // non-null list: empty = all deleted; partial = listed ids failed.
+        Set<String> failedNodeIds = failedItems.stream()
+          .map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
+        versions.stream()
+          .filter(fv -> !failedNodeIds.contains(fv.getNodeId()))
+          .forEach(fv ->
+            tombstoneRepository.deleteTombstonesByNodeAndVersion(fv.getNodeId(), fv.getVersion()));
       });
 
       return new Builder<Boolean>().data(true).build();

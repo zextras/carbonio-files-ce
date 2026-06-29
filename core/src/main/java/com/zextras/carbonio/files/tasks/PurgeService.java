@@ -162,40 +162,44 @@ public class PurgeService implements Runnable {
         .map(t -> BulkDeleteRequestItem.filesItem(t.getNodeId(), t.getVersion()))
         .collect(Collectors.toList());
 
+      List<BulkDeleteResponseItem> failedItems;
       try {
-        List<BulkDeleteResponseItem> failedItems =
+        failedItems =
           fileStore.bulkDelete(IdentifierType.files, ownerId, requests);
-        if (failedItems == null) failedItems = List.of();
-
-        Set<String> failedNodeIds = failedItems.stream()
-          .map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
-
-        // Remove confirmed-deleted tombstones; apply retry-cap to failed ones.
-        for (Tombstone t : ownerTombstones) {
-          if (!failedNodeIds.contains(t.getNodeId())) {
-            tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
-          } else {
-            if (t.getAttempts() + 1 >= MAX_TOMBSTONE_RETRIES) {
-              logger.warn(
-                "purgeTombstones: giving up on blob nodeId={} version={} after {} attempts; "
-                  + "accepting orphan and removing tombstone.",
-                t.getNodeId(), t.getVersion(), t.getAttempts() + 1);
-              tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
-            } else {
-              tombstoneRepository.updateTombstone(t.setAttempts(t.getAttempts() + 1));
-            }
-          }
-        }
-
-      } catch (NullPointerException e) {
-        logger.debug("PowerStore returned null ids (all deletes succeeded): {}", e.getMessage());
-        // All succeeded — remove all tombstones for this owner.
-        ownerTombstones.forEach(t ->
-          tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion()));
       } catch (Exception e) {
+        // ANY exception (incl. NullPointerException) = outage/connection failure.
+        // NOT a per-blob failure: keep all tombstones, do NOT increment attempts.
         logger.warn("purgeTombstones: bulk delete failed for owner {}: {}. Tombstones kept for next cycle.",
           ownerId, e.getMessage());
-        // Outage is not a per-blob failure: keep all tombstones, no attempts increment.
+        continue;
+      }
+
+      if (failedItems == null) {
+        // null return is NOT a success signal (happens on connection failure) -> keep all tombstones
+        logger.warn("purgeTombstones: bulkDelete returned null for owner {} (treated as failure). Tombstones kept for next cycle.", ownerId);
+        continue;
+      }
+
+      // non-null list: empty = all deleted; partial = listed ids failed.
+      Set<String> failedNodeIds = failedItems.stream()
+        .map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
+
+      // Remove confirmed-deleted tombstones; apply retry-cap to failed ones.
+      for (Tombstone t : ownerTombstones) {
+        if (!failedNodeIds.contains(t.getNodeId())) {
+          tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
+        } else {
+          // Genuine per-blob PowerStore rejection — increment attempts toward retry cap.
+          if (t.getAttempts() + 1 >= MAX_TOMBSTONE_RETRIES) {
+            logger.warn(
+              "purgeTombstones: giving up on blob nodeId={} version={} after {} attempts; "
+                + "accepting orphan and removing tombstone.",
+              t.getNodeId(), t.getVersion(), t.getAttempts() + 1);
+            tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
+          } else {
+            tombstoneRepository.updateTombstone(t.setAttempts(t.getAttempts() + 1));
+          }
+        }
       }
     }
   }

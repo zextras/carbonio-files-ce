@@ -262,17 +262,17 @@ class DeleteNodesApiIT {
     Assertions.assertThat(nodeRepository.getNode(presentFileId)).isEmpty();
   }
 
-  // --- Test 6: Null response from PowerStore (SDK NPE path → treated as full success) ---
+  // --- Test 6: Null/empty JSON response from PowerStore — CORRECTED: null is NOT success, tombstone KEPT ---
 
   @Test
-  void givenNullResponseFromPowerStoreThenNodesDeletedAndTombstonesCleanedUp() {
+  void givenNullResponseFromPowerStoreThenNodeDeletedButTombstoneKeptForRetry() {
     // Given
     String file1Id = "00000000-0000-0000-0000-100000000012";
 
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(new SimplePopulatorTextFile(file1Id, OWNER_ID, "file1.txt"));
 
-    // null response (SDK throws NPE → treated as all-succeeded)
+    // {"ids":null} / "{}" — SDK may return null or throw NPE; BOTH are treated as connection failure.
     storagesMockHelper.bulkDeleteNullResponse();
 
     // When
@@ -286,8 +286,11 @@ class DeleteNodesApiIT {
             .orElse(List.of());
     Assertions.assertThat(deletedIds).containsExactly(file1Id);
 
-    // Node deleted, tombstone cleaned up.
+    // Node deleted from DB (DB-first design).
     Assertions.assertThat(nodeRepository.getNode(file1Id)).isEmpty();
-    Assertions.assertThat(tombstoneRepository.getTombstones()).isEmpty();
+    // CORRECTED: tombstone must REMAIN — null/empty response is NOT a success signal.
+    Assertions.assertThat(tombstoneRepository.getTombstones())
+        .as("Tombstone must remain when PowerStore returns null/empty response (NOT a success signal)")
+        .hasSize(1);
   }
 }
