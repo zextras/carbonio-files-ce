@@ -86,8 +86,8 @@ class HealthApiIT {
 
       docsConnectorServiceMock
           .when(
-              HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/health/live/"))
-          .respond(HttpResponse.response().withStatusCode(204));
+              HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/q/health/live"))
+          .respond(HttpResponse.response().withStatusCode(200));
 
       com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
           com.zextras.carbonio.files.utilities.http.HttpRequest.of(
@@ -187,8 +187,8 @@ class HealthApiIT {
 
       docsConnectorServiceMock
           .when(
-              HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/health/live/"))
-          .respond(HttpResponse.response().withStatusCode(204));
+              HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/q/health/live"))
+          .respond(HttpResponse.response().withStatusCode(200));
 
       com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
           com.zextras.carbonio.files.utilities.http.HttpRequest.of(

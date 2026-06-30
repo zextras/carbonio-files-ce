@@ -38,7 +38,7 @@ class DocsConnectorHttpClientTest {
     // Given
     CloseableHttpResponse httpResponseMock = Mockito.mock(CloseableHttpResponse.class);
     Mockito.when(httpResponseMock.getStatusLine())
-        .thenReturn(new BasicStatusLine(new ProtocolVersion("http", 1, 1), 204, ""));
+        .thenReturn(new BasicStatusLine(new ProtocolVersion("http", 1, 1), 200, ""));
 
     ArgumentCaptor<HttpGet> httpRequestCaptor = ArgumentCaptor.forClass(HttpGet.class);
     Mockito.when(httpClientMock.execute(httpRequestCaptor.capture())).thenReturn(httpResponseMock);
@@ -52,7 +52,7 @@ class DocsConnectorHttpClientTest {
     HttpGet httpRequest = httpRequestCaptor.getValue();
     Assertions.assertThat(httpRequest.getMethod()).isEqualTo("GET");
     Assertions.assertThat(httpRequest.getURI().toString())
-        .hasToString("http://127.78.0.2:20005/health/live/");
+        .hasToString("http://127.78.0.2:20005/q/health/live");
 
     Assertions.assertThat(httpRequest.getConfig().getConnectTimeout()).isEqualTo(2000L);
     Assertions.assertThat(httpRequest.getConfig().getSocketTimeout()).isEqualTo(2000L);
