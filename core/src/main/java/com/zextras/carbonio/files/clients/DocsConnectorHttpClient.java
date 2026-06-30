@@ -14,7 +14,10 @@ import org.apache.http.impl.client.CloseableHttpClient;
 /** Http client to make http requests to the docs-connector using the service discover. */
 public class DocsConnectorHttpClient {
 
-  private static final String HEALTH_LIVE_ENDPOINT = "/health/live/";
+  // carbonio-docs-connector is now a Quarkus service and exposes its liveness probe via
+  // SmallRye Health at /q/health/live (HTTP 200 when UP), instead of the legacy Jetty
+  // /health/live (HTTP 204). See the matching status-code check below.
+  private static final String HEALTH_LIVE_ENDPOINT = "/q/health/live";
   private static final int TIMEOUT_IN_MS = 2 * 1000;
 
   private final String docsConnectorUrl;
@@ -42,7 +45,7 @@ public class DocsConnectorHttpClient {
     request.setConfig(requestConfig);
 
     try (final CloseableHttpResponse docsConnectorResponse = httpClient.execute(request)) {
-      return docsConnectorResponse.getStatusLine().getStatusCode() == 204;
+      return docsConnectorResponse.getStatusLine().getStatusCode() == 200;
     } catch (Exception exception) {
       return false;
     }
