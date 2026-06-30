@@ -64,6 +64,7 @@ public class FilesModule extends AbstractModule {
     bind(UserRepository.class).to(UserRepositoryRest.class);
     bind(CollationRepository.class).to(CollationRepositoryEbean.class);
     bind(NotificationRepository.class).to(NotificationRepositoryEbean.class);
+    bind(TombstoneRepository.class).to(TombstoneRepositoryEbean.class);
 
     bind(MessageBrokerManager.class).to(MessageBrokerManagerImpl.class);
 
@@ -141,6 +142,8 @@ public class FilesModule extends AbstractModule {
     entityList.add(Share.class);
     entityList.add(Link.class);
     entityList.add(CollaborationLink.class);
+    entityList.add(TombstonePK.class);
+    entityList.add(Tombstone.class);
     entityList.add(TrashedNode.class);
     entityList.add(Notification.class);
     entityList.add(NewShareNotification.class);

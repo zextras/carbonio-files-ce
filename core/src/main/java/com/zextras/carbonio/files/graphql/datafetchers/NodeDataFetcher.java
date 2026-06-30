@@ -35,6 +35,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionReposit
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.graphql.types.Permissions;
@@ -119,6 +120,7 @@ public class NodeDataFetcher {
   private final FilesConfig           filesConfig;
   private final Filestore             fileStore;
   private final DatabaseManager       databaseManager;
+  private final TombstoneRepository   tombstoneRepository;
   private final int                   maxNumberOfVersions;
   private final int                   maxNumberOfKeepVersions;
 
@@ -132,7 +134,8 @@ public class NodeDataFetcher {
     ShareDataFetcher shareDataFetcher,
     FilesConfig filesConfig,
     Filestore fileStore,
-    DatabaseManager databaseManager
+    DatabaseManager databaseManager,
+    TombstoneRepository tombstoneRepository
   ) {
     this.nodeRepository = nodeRepository;
     this.notificationRepository = notificationRepository;
@@ -143,6 +146,7 @@ public class NodeDataFetcher {
     this.filesConfig = filesConfig;
     this.fileStore = fileStore;
     this.databaseManager = databaseManager;
+    this.tombstoneRepository = tombstoneRepository;
 
     this.maxNumberOfVersions = Integer.parseInt(ServiceDiscoverHttpClient
       .atURL(filesConfig.getServiceDiscoverEndpoint(), ServiceDiscover.SERVICE_NAME)
@@ -1519,8 +1523,7 @@ public class NodeDataFetcher {
   public DataFetcher<CompletableFuture<DataFetcherResult<List<String>>>> deleteNodesFetcher() {
 
     return environment -> CompletableFuture.supplyAsync(() -> {
-      ResultPath resultPath = environment.getExecutionStepInfo()
-        .getPath();
+      ResultPath resultPath = environment.getExecutionStepInfo().getPath();
       String requesterId = ((UserMyself) environment.getGraphQlContext()
         .get(Constants.GraphQL.Context.REQUESTER)).getId().getUserId();
       List<String> nodeIds = environment.getArgument(
@@ -1530,114 +1533,90 @@ public class NodeDataFetcher {
       List<Node> requestedNodes = nodeRepository.getNodes(nodeIds, Optional.empty())
         .filter(Objects::nonNull)
         .filter(node -> !node.getNodeType().equals(NodeType.ROOT))
-        .filter(node -> permissionsChecker
-          .getPermissions(node.getId(), requesterId)
-          .has(SharePermission.READ_AND_WRITE)
-        )
+        .filter(node -> permissionsChecker.getPermissions(node.getId(), requesterId)
+          .has(SharePermission.READ_AND_WRITE))
         .collect(Collectors.toList());
 
       Set<String> requestedNodeIds = requestedNodes.stream()
-        .map(Node::getId)
-        .collect(Collectors.toSet());
+        .map(Node::getId).collect(Collectors.toSet());
 
-      // Phase 2: expand the hierarchy — collect all descendants of folder nodes.
+      // Phase 2: expand hierarchy.
       List<Node> allNodes = collectAllDescendants(requestedNodes);
 
       List<Node> fileNodes = allNodes.stream()
         .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
         .collect(Collectors.toList());
 
-      // Phase 3: build bulk-delete requests for every file version of every file node.
-      List<BulkDeleteRequestItem> deleteRequests = new ArrayList<>();
+      // Phase 3: capture blob coords BEFORE delete (FK cascade removes file_versions).
+      // Group by ownerId for later bulkDelete calls.
+      Map<String, List<FileVersion>> fileVersionsByOwner = new java.util.HashMap<>();
       fileNodes.forEach(node -> {
-        List<FileVersion> fileVersionsToDelete = fileVersionRepository.getFileVersions(
+        List<FileVersion> versions = fileVersionRepository.getFileVersions(
           node.getId(), List.of(FileVersionSort.VERSION_ASC));
-        fileVersionsToDelete.forEach(fileVersion ->
-          deleteRequests.add(BulkDeleteRequestItem.filesItem(node.getId(), fileVersion.getVersion()))
-        );
+        fileVersionsByOwner.computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
+          .addAll(versions);
       });
 
-      // Phase 4: call PowerStore bulkDelete synchronously.
-      List<BulkDeleteResponseItem> failedItems;
-      try {
-        logger.info("Deleting blobs for {} files from storages", fileNodes.size());
-        failedItems = this.fileStore.bulkDelete(IdentifierType.files, requesterId, deleteRequests);
-        if (failedItems == null) {
-          failedItems = List.of();
-        }
-      } catch (NullPointerException e) {
-        // SDK bug: StoragesBulkDeleteResponse.getIds() returns null when all deletes succeed.
-        logger.debug("PowerStore returned null ids (all deletes succeeded): {}", e.getMessage());
-        failedItems = List.of();
-      } catch (Exception e) {
-        logger.error("Can't perform bulk delete on storages: {}", e.getMessage());
-        // Return every requested node as a write error — nothing was deleted from DB.
-        Builder<List<String>> errorBuilder = new Builder<List<String>>().data(List.of());
-        nodeIds.stream()
-          .filter(id -> !requestedNodeIds.contains(id))
-          .forEach(id -> errorBuilder.error(GraphQLResultErrors.nodeNotFound(id, resultPath)));
-        requestedNodeIds.forEach(id -> errorBuilder.error(GraphQLResultErrors.nodeWriteError(id, resultPath)));
-        return errorBuilder.build();
-      }
+      // Phase 4: ONE transaction — write tombstones + delete DB rows + commit.
+      try (Transaction tx = databaseManager.getEbeanDatabase().beginTransaction()) {
+        try {
+          // Write tombstones for all file versions grouped by owner.
+          fileVersionsByOwner.forEach((ownerId, versions) ->
+            tombstoneRepository.createTombstonesBulk(versions, ownerId));
 
-      Set<String> failedFileNodeIds = failedItems.stream()
-        .map(BulkDeleteResponseItem::getNode)
-        .collect(Collectors.toSet());
+          // Delete DB rows.
+          deleteNodes(allNodes);
+          allNodes.stream()
+            .filter(node -> node.getNodeType().equals(NodeType.FOLDER))
+            .map(Node::getId)
+            .forEach(this::cascadeDeleteNode);
 
-      // Phase 5: bottom-up folder pruning — only delete nodes whose blob deletes all succeeded.
-      Set<String> nodeIdsToActuallyDelete = computeNodesToActuallyDelete(allNodes, failedFileNodeIds);
-
-      List<Node> nodesToActuallyDelete = allNodes.stream()
-        .filter(node -> nodeIdsToActuallyDelete.contains(node.getId()))
-        .collect(Collectors.toList());
-
-      // Phase 6: DB transaction — delete nodes and cascade cleanup.
-      if (!nodesToActuallyDelete.isEmpty()) {
-        try (Transaction tx = databaseManager.getEbeanDatabase().beginTransaction()) {
-          try {
-            deleteNodes(nodesToActuallyDelete);
-
-            nodesToActuallyDelete.stream()
-              .filter(node -> node.getNodeType().equals(NodeType.FOLDER))
-              .map(Node::getId)
-              .forEach(this::cascadeDeleteNode);
-
-            tx.commit();
-          } catch (RuntimeException e) {
-            logger.error("DB error during deleteNodesFetcher, rolling back: {}", e.getMessage());
-            // On DB failure treat every requested node as a write error.
-            Builder<List<String>> errorBuilder = new Builder<List<String>>().data(List.of());
-            nodeIds.stream()
-              .filter(id -> !requestedNodeIds.contains(id))
-              .forEach(id -> errorBuilder.error(GraphQLResultErrors.nodeNotFound(id, resultPath)));
-            requestedNodeIds.forEach(id -> errorBuilder.error(GraphQLResultErrors.nodeWriteError(id, resultPath)));
-            return errorBuilder.build();
-          }
+          tx.commit();
+        } catch (RuntimeException e) {
+          logger.error("DB error during deleteNodesFetcher, rolling back: {}", e.getMessage());
+          Builder<List<String>> errorBuilder = new Builder<List<String>>().data(List.of());
+          nodeIds.stream()
+            .filter(id -> !requestedNodeIds.contains(id))
+            .forEach(id -> errorBuilder.error(GraphQLResultErrors.nodeNotFound(id, resultPath)));
+          requestedNodeIds.forEach(id ->
+            errorBuilder.error(GraphQLResultErrors.nodeWriteError(id, resultPath)));
+          return errorBuilder.build();
         }
       }
 
-      // Phase 7: build result — deleted IDs + write errors for blob failures + not-found for missing/no-perm.
-      // The "successfully deleted" set is the intersection of requested nodes and nodeIdsToActuallyDelete.
-      Set<String> deletedIds = requestedNodeIds.stream()
-        .filter(nodeIdsToActuallyDelete::contains)
-        .collect(Collectors.toSet());
+      // Phase 5: best-effort sync bulkDelete grouped by owner AFTER commit.
+      fileVersionsByOwner.forEach((ownerId, versions) -> {
+        List<BulkDeleteRequestItem> deleteRequests = versions.stream()
+          .map(fv -> BulkDeleteRequestItem.filesItem(fv.getNodeId(), fv.getVersion()))
+          .collect(Collectors.toList());
+        if (deleteRequests.isEmpty()) return;
+        List<BulkDeleteResponseItem> failedItems;
+        try {
+          failedItems = fileStore.bulkDelete(
+            IdentifierType.files, ownerId, deleteRequests);
+        } catch (Exception e) {            // ANY exception (incl. NullPointerException) -> NOT deleted -> keep all tombstones
+          logger.warn("Bulk delete failed for owner {}: {}. Tombstones remain for retry.", ownerId, e.getMessage());
+          return;
+        }
+        if (failedItems == null) {         // null return is NOT a success signal (happens on connection failure) -> keep all
+          logger.warn("Bulk delete returned null for owner {} (treated as failure). Tombstones remain for retry.", ownerId);
+          return;
+        }
+        // non-null list: empty = all deleted; partial = listed ids failed.
+        Set<String> failedNodeIds = failedItems.stream()
+          .map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
+        versions.stream()
+          .filter(fv -> !failedNodeIds.contains(fv.getNodeId()))
+          .forEach(fv ->
+            tombstoneRepository.deleteTombstonesByNodeAndVersion(fv.getNodeId(), fv.getVersion()));
+      });
 
-      // Failed requested nodes = requested nodes whose blob delete failed (they or a descendant).
-      Set<String> failedRequestedIds = requestedNodeIds.stream()
-        .filter(id -> !deletedIds.contains(id))
-        .collect(Collectors.toSet());
-
+      // Phase 6: build result — always full success (all permitted nodes deleted).
       Builder<List<String>> resultBuilder = new Builder<List<String>>()
-        .data(new ArrayList<>(deletedIds));
-
-      // nodeNotFound for IDs that were missing or had no permission.
+        .data(new ArrayList<>(requestedNodeIds));
       nodeIds.stream()
         .filter(id -> !requestedNodeIds.contains(id))
         .forEach(id -> resultBuilder.error(GraphQLResultErrors.nodeNotFound(id, resultPath)));
-
-      // nodeWriteError for requested nodes that could not be deleted due to blob failures.
-      failedRequestedIds.forEach(id -> resultBuilder.error(GraphQLResultErrors.nodeWriteError(id, resultPath)));
-
       return resultBuilder.build();
     });
   }
@@ -2174,107 +2153,86 @@ public class NodeDataFetcher {
 
   public DataFetcher<CompletableFuture<DataFetcherResult<List<Integer>>>> deleteVersionsFetcher() {
     return environment -> CompletableFuture.supplyAsync(() -> {
-      ResultPath path = environment.getExecutionStepInfo()
-        .getPath();
+      ResultPath path = environment.getExecutionStepInfo().getPath();
       String requesterId = ((UserMyself) environment.getGraphQlContext()
         .get(Constants.GraphQL.Context.REQUESTER)).getId().getUserId();
       String nodeId = environment.getArgument(GetVersions.NODE_ID);
       Optional<List<Integer>> optVersionsToDelete = Optional.ofNullable(
         environment.getArgument(GetVersions.VERSIONS));
 
-      if (permissionsChecker.getPermissions(nodeId, requesterId)
+      if (!permissionsChecker.getPermissions(nodeId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {
-        Node node = nodeRepository.getNode(nodeId)
-          .get();
+        return new Builder<List<Integer>>()
+          .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
+          .build();
+      }
 
-        // Phase 1: determine which versions are eligible for deletion (skip keepForever and current).
-        List<FileVersion> fileVersionsToDelete = optVersionsToDelete
-          .map(versions -> fileVersionRepository.getFileVersions(nodeId, versions))
-          .orElseGet(() -> fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)))
-          .stream()
-          .filter(fileVersion -> !fileVersion.isKeptForever())
-          .filter(fileVersion -> !node.getCurrentVersion().equals(fileVersion.getVersion()))
-          .collect(Collectors.toList());
+      Node node = nodeRepository.getNode(nodeId).get();
 
-        List<Integer> versionsToDelete = fileVersionsToDelete
-          .stream()
-          .map(FileVersion::getVersion)
-          .collect(Collectors.toList());
+      // Phase 1: determine eligible versions (skip current + keepForever).
+      List<FileVersion> fileVersionsToDelete = optVersionsToDelete
+        .map(versions -> fileVersionRepository.getFileVersions(nodeId, versions))
+        .orElseGet(() -> fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)))
+        .stream()
+        .filter(fv -> !fv.isKeptForever())
+        .filter(fv -> !node.getCurrentVersion().equals(fv.getVersion()))
+        .collect(Collectors.toList());
 
-        // Phase 2: call PowerStore bulkDelete synchronously (skip if nothing to delete).
-        Set<Integer> failedVersions = new HashSet<>();
-        if (!fileVersionsToDelete.isEmpty()) {
-          List<BulkDeleteRequestItem> deleteRequests = new ArrayList<>();
-          fileVersionsToDelete.forEach(fv ->
-            deleteRequests.add(BulkDeleteRequestItem.filesItem(nodeId, fv.getVersion()))
-          );
+      List<Integer> versionsToDelete = fileVersionsToDelete.stream()
+        .map(FileVersion::getVersion).collect(Collectors.toList());
 
-          List<BulkDeleteResponseItem> failedItems;
+      if (!versionsToDelete.isEmpty()) {
+        // Phase 2: ONE transaction — write tombstones + delete from DB + commit.
+        final String ownerId = node.getOwnerId();
+        try (Transaction tx = databaseManager.getEbeanDatabase().beginTransaction()) {
           try {
-            failedItems = this.fileStore.bulkDelete(IdentifierType.files, requesterId, deleteRequests);
-            if (failedItems == null) {
-              failedItems = List.of();
-            }
-          } catch (NullPointerException e) {
-            // SDK bug: StoragesBulkDeleteResponse.getIds() returns null when all deletes succeed.
-            logger.debug("PowerStore returned null ids (all deletes succeeded): {}", e.getMessage());
-            failedItems = List.of();
-          } catch (Exception e) {
-            logger.error("Can't perform bulk delete on storages: {}", e.getMessage());
+            tombstoneRepository.createTombstonesBulk(fileVersionsToDelete, ownerId);
+            fileVersionRepository.deleteFileVersions(nodeId, versionsToDelete);
+            tx.commit();
+          } catch (RuntimeException e) {
+            logger.error("DB error during deleteVersionsFetcher, rolling back: {}", e.getMessage());
             return new Builder<List<Integer>>()
               .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
               .build();
           }
+        }
 
-          failedVersions = failedItems.stream()
+        // Phase 3: best-effort bulkDelete AFTER commit.
+        List<BulkDeleteRequestItem> deleteRequests = fileVersionsToDelete.stream()
+          .map(fv -> BulkDeleteRequestItem.filesItem(nodeId, fv.getVersion()))
+          .collect(Collectors.toList());
+        List<BulkDeleteResponseItem> failedItems;
+        try {
+          failedItems = fileStore.bulkDelete(
+            IdentifierType.files, ownerId, deleteRequests);
+        } catch (Exception e) {            // ANY exception (incl. NullPointerException) -> NOT deleted -> keep all tombstones
+          logger.warn("Bulk delete failed for node {}: {}. Tombstones remain for retry.", nodeId, e.getMessage());
+          failedItems = null;
+        }
+        if (failedItems == null) {         // null return is NOT a success signal (happens on connection failure) -> keep all
+          logger.warn("Bulk delete returned null for node {} (treated as failure). Tombstones remain for retry.", nodeId);
+        } else {
+          // non-null list: empty = all deleted; partial = listed ids failed.
+          Set<Integer> failedVersionSet = failedItems.stream()
             .filter(item -> nodeId.equals(item.getNode()))
             .map(BulkDeleteResponseItem::getVersion)
-            .filter(Optional::isPresent)
-            .map(Optional::get)
+            .filter(Optional::isPresent).map(Optional::get)
             .collect(Collectors.toSet());
+          fileVersionsToDelete.stream()
+            .filter(fv -> !failedVersionSet.contains(fv.getVersion()))
+            .forEach(fv ->
+              tombstoneRepository.deleteTombstonesByNodeAndVersion(fv.getNodeId(), fv.getVersion()));
         }
-
-        // Phase 3: only delete from DB the versions PowerStore confirmed deleted.
-        final Set<Integer> finalFailedVersions = failedVersions;
-        List<Integer> confirmedVersions = versionsToDelete.stream()
-          .filter(v -> !finalFailedVersions.contains(v))
-          .collect(Collectors.toList());
-
-        if (!confirmedVersions.isEmpty()) {
-          try (Transaction tx = databaseManager.getEbeanDatabase().beginTransaction()) {
-            try {
-              fileVersionRepository.deleteFileVersions(nodeId, confirmedVersions);
-              tx.commit();
-            } catch (RuntimeException e) {
-              logger.error("DB error during deleteVersionsFetcher, rolling back: {}", e.getMessage());
-              return new Builder<List<Integer>>()
-                .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
-                .build();
-            }
-          }
-        }
-
-        // Phase 4: build result — confirmed deleted versions + errors for failed blobs and unfound versions.
-        Builder<List<Integer>> resultBuilder = new Builder<List<Integer>>().data(confirmedVersions);
-
-        // Errors for versions whose blob delete failed in PowerStore.
-        finalFailedVersions.forEach(v ->
-          resultBuilder.error(GraphQLResultErrors.fileVersionNotFound(nodeId, v, path))
-        );
-
-        // Errors for versions that were requested but didn't exist / were filtered out.
-        optVersionsToDelete.ifPresent(requested ->
-          requested.stream()
-            .filter(v -> !versionsToDelete.contains(v))
-            .forEach(v -> resultBuilder.error(GraphQLResultErrors.fileVersionNotFound(nodeId, v, path)))
-        );
-
-        return resultBuilder.build();
       }
 
-      return new Builder<List<Integer>>()
-        .error(GraphQLResultErrors.nodeWriteError(nodeId, path))
-        .build();
+      // Phase 4: build result — all eligible versions deleted (no PowerStore error surfaced).
+      Builder<List<Integer>> resultBuilder = new Builder<List<Integer>>().data(versionsToDelete);
+      optVersionsToDelete.ifPresent(requested ->
+        requested.stream()
+          .filter(v -> !versionsToDelete.contains(v))
+          .forEach(v -> resultBuilder.error(GraphQLResultErrors.fileVersionNotFound(nodeId, v, path)))
+      );
+      return resultBuilder.build();
     });
   }
 
@@ -2455,142 +2413,82 @@ public class NodeDataFetcher {
     });
   }
 
-  /**
-   * Bottom-up folder pruning: returns the set of node IDs that can safely be deleted.
-   * Files whose blobs failed to delete on PowerStore are excluded, and folders are only
-   * deleted if all their children (files and subfolders) are also being deleted.
-   */
-  private Set<String> computeNodesToActuallyDelete(
-    List<Node> allNodes,
-    Set<String> failedFileNodeIds
-  ) {
-    Set<String> toDelete = allNodes.stream()
-      .map(Node::getId)
-      .collect(Collectors.toCollection(HashSet::new));
-
-    toDelete.removeAll(failedFileNodeIds);
-
-    Map<String, Set<String>> parentToChildren = new HashMap<>();
-    for (Node node : allNodes) {
-      node.getParentId().ifPresent(parentId ->
-        parentToChildren.computeIfAbsent(parentId, k -> new HashSet<>()).add(node.getId())
-      );
-    }
-
-    List<Node> foldersByDepthDesc = allNodes.stream()
-      .filter(node -> node.getNodeType().equals(NodeType.FOLDER))
-      .sorted(Comparator.<Node, Integer>comparing(
-        node -> node.getAncestorIds().isEmpty() ? 0 : node.getAncestorIds().split(",").length
-      ).reversed())
-      .toList();
-
-    for (Node folder : foldersByDepthDesc) {
-      Set<String> children = parentToChildren.getOrDefault(folder.getId(), Set.of());
-      boolean allChildrenDeleted = children.stream().allMatch(toDelete::contains);
-      if (!allChildrenDeleted) {
-        toDelete.remove(folder.getId());
-      }
-    }
-
-    return toDelete;
-  }
-
   public DataFetcher<CompletableFuture<DataFetcherResult<Boolean>>> deleteAllNodesAndBlobs() {
-
     return environment -> CompletableFuture.supplyAsync(() -> {
       String internalHeader = environment.getGraphQlContext().get(Constants.GraphQL.Context.INTERNAL);
 
       if (internalHeader == null) {
-          throw new AbortExecutionException("This operation is internal and thus requires the 'Internal' header set");
+        throw new AbortExecutionException("This operation is internal and thus requires the 'Internal' header set");
       }
 
-      ResultPath resultPath = environment.getExecutionStepInfo()
-        .getPath();
-      String requesterId = ((UserMyself) environment.getGraphQlContext()
-        .get(Constants.GraphQL.Context.REQUESTER)).getId().getUserId();
+      ResultPath resultPath = environment.getExecutionStepInfo().getPath();
       String userId = (String) environment.getArgument(InputParameters.DeleteAllNodesAndBlobs.USER_ID);
 
       List<Node> allNodes = nodeRepository.findNodesByOwner(userId).stream()
         .filter(Objects::nonNull)
-        .filter(node -> !node.getNodeType()
-          .equals(NodeType.ROOT))
+        .filter(node -> !node.getNodeType().equals(NodeType.ROOT))
         .toList();
 
       List<Node> fileNodes = allNodes.stream()
         .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
         .toList();
 
-      List<BulkDeleteRequestItem> deleteRequests = new ArrayList<>();
+      // Capture file versions grouped by owner before delete.
+      Map<String, List<FileVersion>> fileVersionsByOwner = new java.util.HashMap<>();
       fileNodes.forEach(node -> {
-        List<FileVersion> fileVersionsToDelete = fileVersionRepository.getFileVersions(
+        List<FileVersion> versions = fileVersionRepository.getFileVersions(
           node.getId(), List.of(FileVersionSort.VERSION_ASC));
-        fileVersionsToDelete.forEach(fileVersion ->
-            deleteRequests.add(BulkDeleteRequestItem.filesItem(node.getId(), fileVersion.getVersion()))
-        );
+        fileVersionsByOwner.computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
+          .addAll(versions);
       });
 
-      List<BulkDeleteResponseItem> failedItems;
-      try {
-        logger.info("Deleting blobs for {} files from storages", fileNodes.size());
-        failedItems = this.fileStore.bulkDelete(IdentifierType.files, userId, deleteRequests);
-        if (failedItems == null) {
-          failedItems = List.of();
-        }
-      } catch (NullPointerException e) {
-        // SDK bug: StoragesBulkDeleteResponse.getIds() returns null when all deletes succeed
-        logger.debug("PowerStore returned null ids (all deletes succeeded): {}", e.getMessage());
-        failedItems = List.of();
-      } catch (Exception e) {
-        logger.error("Can't perform bulk delete on storages: {}", e.getMessage());
-        return new Builder<Boolean>()
-          .error(GraphQLResultErrors.deleteAllNodesAndBlobsError(resultPath))
-          .build();
-      }
-
-      Set<String> failedFileNodeIds = failedItems.stream()
-        .map(BulkDeleteResponseItem::getNode)
-        .collect(Collectors.toSet());
-
-      Set<String> nodeIdsToActuallyDelete = computeNodesToActuallyDelete(allNodes, failedFileNodeIds);
-
-      List<Node> nodesToActuallyDelete = allNodes.stream()
-        .filter(node -> nodeIdsToActuallyDelete.contains(node.getId()))
-        .toList();
-
-      Set<String> excludedNodeIds = allNodes.stream()
-        .map(Node::getId)
-        .filter(id -> !nodeIdsToActuallyDelete.contains(id))
-        .collect(Collectors.toSet());
-
-      if (!nodesToActuallyDelete.isEmpty()) {
-        try (Transaction tx = databaseManager.getEbeanDatabase().beginTransaction()) {
-          try {
-            deleteNodes(nodesToActuallyDelete);
-
-            nodesToActuallyDelete.stream()
-              .filter(node -> node.getNodeType().equals(NodeType.FOLDER))
-              .map(Node::getId)
-              .forEach(this::cascadeDeleteNode);
-
-            tx.commit();
-          } catch (RuntimeException e) {
-            logger.error("DB error during deleteAllNodesAndBlobs, rolling back: {}", e.getMessage());
-            return new Builder<Boolean>()
-              .error(GraphQLResultErrors.deleteAllNodesAndBlobsError(resultPath))
-              .build();
-          }
+      // ONE transaction: tombstones + DB delete + commit.
+      try (Transaction tx = databaseManager.getEbeanDatabase().beginTransaction()) {
+        try {
+          fileVersionsByOwner.forEach((ownerId, versions) ->
+            tombstoneRepository.createTombstonesBulk(versions, ownerId));
+          deleteNodes(allNodes);
+          allNodes.stream()
+            .filter(node -> node.getNodeType().equals(NodeType.FOLDER))
+            .map(Node::getId)
+            .forEach(this::cascadeDeleteNode);
+          tx.commit();
+        } catch (RuntimeException e) {
+          logger.error("DB error during deleteAllNodesAndBlobs, rolling back: {}", e.getMessage());
+          return new Builder<Boolean>()
+            .error(GraphQLResultErrors.deleteAllNodesAndBlobsError(resultPath))
+            .build();
         }
       }
 
-      Builder<Boolean> resultBuilder = new Builder<Boolean>()
-        .data(excludedNodeIds.isEmpty());
+      // Best-effort bulkDelete after commit.
+      fileVersionsByOwner.forEach((ownerId, versions) -> {
+        List<BulkDeleteRequestItem> deleteRequests = versions.stream()
+          .map(fv -> BulkDeleteRequestItem.filesItem(fv.getNodeId(), fv.getVersion()))
+          .collect(Collectors.toList());
+        if (deleteRequests.isEmpty()) return;
+        List<BulkDeleteResponseItem> failedItems;
+        try {
+          failedItems = fileStore.bulkDelete(
+            IdentifierType.files, ownerId, deleteRequests);
+        } catch (Exception e) {            // ANY exception (incl. NullPointerException) -> NOT deleted -> keep all tombstones
+          logger.warn("Bulk delete failed for owner {}: {}. Tombstones remain for retry.", ownerId, e.getMessage());
+          return;
+        }
+        if (failedItems == null) {         // null return is NOT a success signal (happens on connection failure) -> keep all
+          logger.warn("Bulk delete returned null for owner {} (treated as failure). Tombstones remain for retry.", ownerId);
+          return;
+        }
+        // non-null list: empty = all deleted; partial = listed ids failed.
+        Set<String> failedNodeIds = failedItems.stream()
+          .map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
+        versions.stream()
+          .filter(fv -> !failedNodeIds.contains(fv.getNodeId()))
+          .forEach(fv ->
+            tombstoneRepository.deleteTombstonesByNodeAndVersion(fv.getNodeId(), fv.getVersion()));
+      });
 
-      for (String excludedId : failedFileNodeIds) {
-        resultBuilder.error(
-          GraphQLResultErrors.deleteAllNodesAndBlobsPartialFailure(excludedId, resultPath));
-      }
-
-      return resultBuilder.build();
+      return new Builder<Boolean>().data(true).build();
     });
   }
 }

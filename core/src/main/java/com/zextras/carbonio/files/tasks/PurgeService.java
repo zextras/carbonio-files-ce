@@ -9,9 +9,11 @@ import com.google.inject.Singleton;
 import com.zextras.carbonio.files.Constants.Config;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
@@ -32,8 +34,11 @@ public class PurgeService implements Runnable {
 
   private static final Logger logger = LoggerFactory.getLogger(PurgeService.class);
 
+  static final int MAX_TOMBSTONE_RETRIES = 3;
+
   private final NodeRepository           nodeRepository;
   private final FileVersionRepository    fileVersionRepository;
+  private final TombstoneRepository      tombstoneRepository;
   private final Filestore                fileStore;
   private       ScheduledExecutorService scheduledExecutor;
 
@@ -41,10 +46,12 @@ public class PurgeService implements Runnable {
   public PurgeService(
     NodeRepository nodeRepository,
     FileVersionRepository fileVersionRepository,
+    TombstoneRepository tombstoneRepository,
     Filestore fileStore
   ) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
+    this.tombstoneRepository = tombstoneRepository;
     this.fileStore = fileStore;
   }
 
@@ -137,8 +144,69 @@ public class PurgeService implements Runnable {
     }
   }
 
+  void purgeTombstones() {
+    List<Tombstone> tombstones = tombstoneRepository.getTombstones();
+    if (tombstones.isEmpty()) {
+      return;
+    }
+
+    // Group by ownerId — bulkDelete requires userId to select host.
+    Map<String, List<Tombstone>> byOwner = tombstones.stream()
+      .collect(Collectors.groupingBy(Tombstone::getOwnerId));
+
+    for (Map.Entry<String, List<Tombstone>> entry : byOwner.entrySet()) {
+      String ownerId = entry.getKey();
+      List<Tombstone> ownerTombstones = entry.getValue();
+
+      List<BulkDeleteRequestItem> requests = ownerTombstones.stream()
+        .map(t -> BulkDeleteRequestItem.filesItem(t.getNodeId(), t.getVersion()))
+        .collect(Collectors.toList());
+
+      List<BulkDeleteResponseItem> failedItems;
+      try {
+        failedItems =
+          fileStore.bulkDelete(IdentifierType.files, ownerId, requests);
+      } catch (Exception e) {
+        // ANY exception (incl. NullPointerException) = outage/connection failure.
+        // NOT a per-blob failure: keep all tombstones, do NOT increment attempts.
+        logger.warn("purgeTombstones: bulk delete failed for owner {}: {}. Tombstones kept for next cycle.",
+          ownerId, e.getMessage());
+        continue;
+      }
+
+      if (failedItems == null) {
+        // null return is NOT a success signal (happens on connection failure) -> keep all tombstones
+        logger.warn("purgeTombstones: bulkDelete returned null for owner {} (treated as failure). Tombstones kept for next cycle.", ownerId);
+        continue;
+      }
+
+      // non-null list: empty = all deleted; partial = listed ids failed.
+      Set<String> failedNodeIds = failedItems.stream()
+        .map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
+
+      // Remove confirmed-deleted tombstones; apply retry-cap to failed ones.
+      for (Tombstone t : ownerTombstones) {
+        if (!failedNodeIds.contains(t.getNodeId())) {
+          tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
+        } else {
+          // Genuine per-blob PowerStore rejection — increment attempts toward retry cap.
+          if (t.getAttempts() + 1 >= MAX_TOMBSTONE_RETRIES) {
+            logger.warn(
+              "purgeTombstones: giving up on blob nodeId={} version={} after {} attempts; "
+                + "accepting orphan and removing tombstone.",
+              t.getNodeId(), t.getVersion(), t.getAttempts() + 1);
+            tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
+          } else {
+            tombstoneRepository.updateTombstone(t.setAttempts(t.getAttempts() + 1));
+          }
+        }
+      }
+    }
+  }
+
   @Override
   public void run() {
+    purgeTombstones();
     purgeTrashedNodes(Config.PurgeService.RETENTION_TRASHED_ITEMS_IN_DAYS);
   }
 

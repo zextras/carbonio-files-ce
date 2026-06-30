@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS tombstone (
     owner_id VARCHAR(256),
     timestamp BIGINT NOT NULL,
     version INTEGER NOT NULL,
+    attempts INTEGER DEFAULT 0 NOT NULL,
 
     PRIMARY KEY(node_id, version)
 );

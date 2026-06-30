@@ -155,8 +155,7 @@ public final class Constants {
     public static final class PurgeService {
 
       public static final long RETENTION_TRASHED_ITEMS_IN_DAYS = 30L;
-      public static final long RETENTION_TOMBSTONE_ITEMS_IN_MINUTES = 120L;
-      public static final long JOB_EXECUTION_INTERVAL_IN_MINUTES = 120L;
+      public static final long JOB_EXECUTION_INTERVAL_IN_MINUTES = 30L;
 
       private PurgeService() {
       }
@@ -404,6 +403,21 @@ public final class Constants {
       public static final String EXPIRES_AT = "expire_at";
       public static final String DESCRIPTION = "description";
       public static final String ACCESS_CODE = "access_code";
+    }
+
+    /**
+     * Attributes' names for the FILES.TOMBSTONE table
+     */
+    public static final class Tombstone {
+
+      private Tombstone() {
+      }
+
+      public static final String NODE_ID = "node_id";
+      public static final String OWNER_ID = "owner_id";
+      public static final String TIMESTAMP = "timestamp";
+      public static final String VERSION = "version";
+      public static final String ATTEMPTS = "attempts";
     }
 
     /**
