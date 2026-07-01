@@ -50,7 +50,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <guice.version>6.0.0</guice.version>
     <hikaricp.version>5.1.0</hikaricp.version>
     <hsqldb.version>2.7.4</hsqldb.version>
-    <jackson.version>2.17.2</jackson.version>
+    <jackson.version>2.18.8</jackson.version>
     <junit5.version>5.11.0</junit5.version>
     <logback-classic.version>1.5.7</logback-classic.version>
     <micrometer.version>1.11.12</micrometer.version>
