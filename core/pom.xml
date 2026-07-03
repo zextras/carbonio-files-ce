@@ -108,7 +108,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <dependency>
-      <artifactId>carbonio-preview-sdk</artifactId>
+      <artifactId>carbonio-preview-ce-rest-sdk</artifactId>
       <groupId>com.zextras.carbonio.preview</groupId>
     </dependency>
 
@@ -136,6 +136,16 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>commons-validator</groupId>
       <artifactId>commons-validator</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.vavr</groupId>
+      <artifactId>vavr</artifactId>
     </dependency>
 
     <!-- Metrics -->
