@@ -11,7 +11,7 @@ import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.files.rest.types.health.DependencyType;
 import com.zextras.carbonio.files.rest.types.health.ServiceHealth;
-import com.zextras.carbonio.preview.PreviewClient;
+import com.zextras.carbonio.preview.sdk.PreviewClient;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.Filestore.Liveness;
 import io.grpc.ConnectivityState;

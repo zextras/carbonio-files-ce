@@ -10,10 +10,10 @@ import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
-import com.zextras.carbonio.preview.PreviewClient;
-import com.zextras.carbonio.preview.queries.Query;
-import com.zextras.carbonio.preview.queries.Query.QueryBuilder;
-import com.zextras.carbonio.preview.queries.enums.ServiceType;
+import com.zextras.carbonio.preview.sdk.PreviewClient;
+import com.zextras.carbonio.preview.sdk.PreviewResponse;
+import com.zextras.carbonio.preview.sdk.Query;
+import com.zextras.carbonio.preview.sdk.QueryBuilder;
 import io.vavr.control.Try;
 import java.text.MessageFormat;
 import java.util.Optional;
@@ -54,10 +54,8 @@ public class PreviewService {
 
     logger.debug(MessageFormat.format("Image preview query built: {0}", query));
 
-    Try<com.zextras.carbonio.preview.queries.BlobResponse> response =
-        previewClient.getPreviewOfImage(query);
-
-    return mapResponseToBlobResponse(response, nodeId);
+    return Try.of(() -> previewClient.getPreviewOfImage(query))
+        .map(response -> mapResponseToBlobResponse(response, nodeId));
   }
 
   /**
@@ -81,10 +79,8 @@ public class PreviewService {
 
     logger.debug(MessageFormat.format("Image thumbnail query built: {0}", query));
 
-    Try<com.zextras.carbonio.preview.queries.BlobResponse> response =
-        previewClient.getThumbnailOfImage(query);
-
-    return mapResponseToBlobResponse(response, nodeId);
+    return Try.of(() -> previewClient.getThumbnailOfImage(query))
+        .map(response -> mapResponseToBlobResponse(response, nodeId));
   }
 
   /**
@@ -101,10 +97,8 @@ public class PreviewService {
     Query query = generateQuery(nodeId, version, ownerId, Optional.empty(), queryParameters);
     logger.debug(MessageFormat.format("Pdf preview query built: {0}", query));
 
-    Try<com.zextras.carbonio.preview.queries.BlobResponse> response =
-        previewClient.getPreviewOfPdf(query);
-
-    return mapResponseToBlobResponse(response, nodeId);
+    return Try.of(() -> previewClient.getPreviewOfPdf(query))
+        .map(response -> mapResponseToBlobResponse(response, nodeId));
   }
 
   /**
@@ -127,10 +121,8 @@ public class PreviewService {
 
     logger.debug(MessageFormat.format("Pdf thumbnail query built: {0}", query));
 
-    Try<com.zextras.carbonio.preview.queries.BlobResponse> response =
-        previewClient.getThumbnailOfPdf(query);
-
-    return mapResponseToBlobResponse(response, nodeId);
+    return Try.of(() -> previewClient.getThumbnailOfPdf(query))
+        .map(response -> mapResponseToBlobResponse(response, nodeId));
   }
 
   /**
@@ -148,10 +140,8 @@ public class PreviewService {
 
     logger.info(MessageFormat.format("Document preview query built: {0}", query));
 
-    Try<com.zextras.carbonio.preview.queries.BlobResponse> response =
-        previewClient.getPreviewOfDocument(query);
-
-    return mapResponseToBlobResponse(response, nodeId);
+    return Try.of(() -> previewClient.getPreviewOfDocument(query))
+        .map(response -> mapResponseToBlobResponse(response, nodeId));
   }
 
   /**
@@ -174,10 +164,8 @@ public class PreviewService {
 
     logger.debug(MessageFormat.format("Document thumbnail query built: {0}", query));
 
-    Try<com.zextras.carbonio.preview.queries.BlobResponse> response =
-        previewClient.getThumbnailOfDocument(query);
-
-    return mapResponseToBlobResponse(response, nodeId);
+    return Try.of(() -> previewClient.getThumbnailOfDocument(query))
+        .map(response -> mapResponseToBlobResponse(response, nodeId));
   }
 
   /**
@@ -198,41 +186,41 @@ public class PreviewService {
       PreviewQueryParameters queryParameters) {
     QueryBuilder parameterBuilder =
         new QueryBuilder()
-            .setServiceType(ServiceType.FILES)
-            .setFileId(nodeId)
-            .setVersion(version)
-            .setFileOwnerId(ownerId);
+            .serviceType("files")
+            .fileId(nodeId)
+            .version(version)
+            .ownerId(ownerId);
 
-    optArea.ifPresent(parameterBuilder::setPreviewArea);
-    queryParameters.getQuality().ifPresent(parameterBuilder::setQuality);
-    queryParameters.getOutputFormat().ifPresent(parameterBuilder::setOutputFormat);
-    queryParameters.getCrop().ifPresent(parameterBuilder::setCrop);
-    queryParameters.getShape().ifPresent(parameterBuilder::setShape);
-    queryParameters.getFirstPage().ifPresent(parameterBuilder::setFirstPage);
-    queryParameters.getLastPage().ifPresent(parameterBuilder::setLastPage);
-    queryParameters.getLangTag().ifPresent(parameterBuilder::setLangTag);
+    optArea.ifPresent(parameterBuilder::area);
+    // The REST SDK forwards these values verbatim as query-string parameters, so they must
+    // already be in the lower-case form the carbonio-preview server expects (the old gRPC SDK
+    // lower-cased its enums internally; PreviewQueryParameters still exposes the upper-case
+    // enum names, so we lower-case them here instead).
+    queryParameters.getQuality().ifPresent(quality -> parameterBuilder.quality(quality.toLowerCase()));
+    queryParameters.getOutputFormat()
+        .ifPresent(outputFormat -> parameterBuilder.outputFormat(outputFormat.toLowerCase()));
+    parameterBuilder.crop(queryParameters.getCrop().orElse(false));
+    queryParameters.getShape().ifPresent(shape -> parameterBuilder.shape(shape.toLowerCase()));
+    queryParameters.getFirstPage().ifPresent(parameterBuilder::firstPage);
+    queryParameters.getLastPage().ifPresent(parameterBuilder::lastPage);
+    queryParameters.getLangTag().ifPresent(parameterBuilder::langTag);
 
     return parameterBuilder.build();
   }
 
   /**
-   * This method maps all fields of a {@link com.zextras.carbonio.preview.queries.BlobResponse}
-   * object to the corresponding fields of a {@link BlobResponse} object.
+   * This method maps all fields of a {@link PreviewResponse} object to the corresponding fields
+   * of a {@link BlobResponse} object.
    *
-   * @param response is a {@link com.zextras.carbonio.preview.queries.BlobResponse} object to
-   *     convert.
+   * @param response is a {@link PreviewResponse} object to convert.
    * @param nodeId is a {@link String} representing the node id.
-   * @return generated {@link Query}
+   * @return the mapped {@link BlobResponse}
    */
-  private Try<BlobResponse> mapResponseToBlobResponse(
-      Try<com.zextras.carbonio.preview.queries.BlobResponse> response, String nodeId) {
-    return (response.isSuccess())
-        ? Try.success(
-            new BlobResponse(
-                response.get().getContent(),
-                nodeRepository.getNode(nodeId).get().getFullName(),
-                response.get().getLength(),
-                response.get().getMimeType()))
-        : Try.failure(response.failed().get());
+  private BlobResponse mapResponseToBlobResponse(PreviewResponse response, String nodeId) {
+    return new BlobResponse(
+        response.getContent(),
+        nodeRepository.getNode(nodeId).get().getFullName(),
+        response.getLength(),
+        response.getMimeType());
   }
 }

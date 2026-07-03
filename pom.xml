@@ -42,7 +42,8 @@ SPDX-License-Identifier: AGPL-3.0-only
     <carbonio-storages-ce.version>0.0.15-SNAPSHOT</carbonio-storages-ce.version>
     <carbonio-user-management-grpc-sdk.version>1.0.3-dev.21.79fc3fa2</carbonio-user-management-grpc-sdk.version>
     <grpc.version>1.68.2</grpc.version>
-    <carbonio-preview-sdk.version>2.0.1</carbonio-preview-sdk.version>
+    <carbonio-preview-ce-rest-sdk.version>2.0.2-1</carbonio-preview-ce-rest-sdk.version>
+    <commons-io.version>2.11.0</commons-io.version>
     <commons-lang3.version>3.18.0</commons-lang3.version>
     <commons-validator.version>1.9.0</commons-validator.version>
     <ebean.version>13.26.1</ebean.version>
@@ -62,6 +63,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <testcontainers.junit.jupiter.version>1.21.3</testcontainers.junit.jupiter.version>
     <testcontainers.postgresql.version>1.21.3</testcontainers.postgresql.version>
     <testcontainers.rabbitmq.version>1.21.3</testcontainers.rabbitmq.version>
+    <vavr.version>0.11.0</vavr.version>
     <flyway-database-postgresql.version>11.8.1</flyway-database-postgresql.version>
 
     <!-- Plugins -->
@@ -204,8 +206,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 
       <dependency>
         <groupId>com.zextras.carbonio.preview</groupId>
-        <artifactId>carbonio-preview-sdk</artifactId>
-        <version>${carbonio-preview-sdk.version}</version>
+        <artifactId>carbonio-preview-ce-rest-sdk</artifactId>
+        <version>${carbonio-preview-ce-rest-sdk.version}</version>
+      </dependency>
+
+      <!--
+        The old carbonio-preview-sdk transitively pulled in commons-io and vavr; the new
+        carbonio-preview-ce-rest-sdk is dependency-lean and does not. Both libraries are used
+        directly across the codebase (io.vavr.control.Try, org.apache.commons.io.IOUtils), so
+        they must now be declared explicitly. Versions match what was previously resolved
+        transitively (commons-io 2.11.0, vavr 0.11.0) to avoid an unintended version bump.
+      -->
+      <dependency>
+        <groupId>commons-io</groupId>
+        <artifactId>commons-io</artifactId>
+        <version>${commons-io.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.vavr</groupId>
+        <artifactId>vavr</artifactId>
+        <version>${vavr.version}</version>
       </dependency>
 
       <dependency>

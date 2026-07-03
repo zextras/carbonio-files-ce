@@ -29,7 +29,7 @@ import com.zextras.carbonio.files.message_broker.MessageBrokerManagerImpl;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
 import com.zextras.carbonio.message_broker.config.enums.Service;
-import com.zextras.carbonio.preview.PreviewClient;
+import com.zextras.carbonio.preview.sdk.PreviewClient;
 import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc;
 import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc.UserManagementServiceBlockingStub;
 import com.zextras.filestore.api.Filestore;
