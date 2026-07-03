@@ -42,7 +42,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <carbonio-storages-ce.version>0.0.15-SNAPSHOT</carbonio-storages-ce.version>
     <carbonio-user-management-grpc-sdk.version>1.0.3-dev.21.79fc3fa2</carbonio-user-management-grpc-sdk.version>
     <grpc.version>1.68.2</grpc.version>
-    <carbonio-preview-ce-rest-sdk.version>2.0.1-1</carbonio-preview-ce-rest-sdk.version>
+    <carbonio-preview-ce-rest-sdk.version>2.0.2-1</carbonio-preview-ce-rest-sdk.version>
     <commons-io.version>2.11.0</commons-io.version>
     <commons-lang3.version>3.18.0</commons-lang3.version>
     <commons-validator.version>1.9.0</commons-validator.version>
