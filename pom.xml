@@ -39,14 +39,14 @@ SPDX-License-Identifier: AGPL-3.0-only
     <caffeine.version>3.2.4</caffeine.version>
     <carbonio-message-broker-sdk.version>1.0.1</carbonio-message-broker-sdk.version>
     <carbonio-storages-common.version>0.0.15-SNAPSHOT</carbonio-storages-common.version>
-    <carbonio-storages-ce.version>0.0.16</carbonio-storages-ce.version>
+    <carbonio-storages-ce.version>0.0.15-SNAPSHOT</carbonio-storages-ce.version>
     <carbonio-user-management-grpc-sdk.version>1.0.3-dev.21.79fc3fa2</carbonio-user-management-grpc-sdk.version>
     <grpc.version>1.68.2</grpc.version>
     <carbonio-preview-ce-rest-sdk.version>2.0.2-1</carbonio-preview-ce-rest-sdk.version>
     <commons-io.version>2.11.0</commons-io.version>
     <commons-lang3.version>3.18.0</commons-lang3.version>
     <commons-validator.version>1.9.0</commons-validator.version>
-    <ebean.version>13.26.1-jakarta</ebean.version>
+    <ebean.version>13.26.1</ebean.version>
     <graphql-java.version>22.3</graphql-java.version>
     <guice.version>6.0.0</guice.version>
     <hikaricp.version>5.1.0</hikaricp.version>
