@@ -21,7 +21,7 @@ Apache-2.0 (https://spdx.org/licenses/Apache-2.0.html) applies to:
   avaje-applog-slf4j (io.avaje:avaje-applog-slf4j:1.0)
   avaje-config (io.avaje:avaje-config:3.10)
   avaje-lang (io.avaje:avaje-lang:1.1)
-  Caffeine cache (com.github.ben-manes.caffeine:caffeine:3.2.0)
+  Caffeine cache (com.github.ben-manes.caffeine:caffeine:3.2.4)
   classpath-scanner (io.avaje:classpath-scanner:7.1)
   classpath-scanner-api (io.avaje:classpath-scanner-api:7.1)
   Commons Digester (commons-digester:commons-digester:2.1)
@@ -139,18 +139,13 @@ CDDL + GPLv2 with classpath exception (https://spdx.org/licenses/CDDL + GPLv2 wi
 
 EPL-1.0 (https://spdx.org/licenses/EPL-1.0.html) applies to:
 
-  Logback Classic Module (ch.qos.logback:logback-classic:1.5.7)
-  Logback Core Module (ch.qos.logback:logback-core:1.5.7)
   persistence-api (io.ebean:persistence-api:3.0)
 
 EPL-2.0 (https://spdx.org/licenses/EPL-2.0.html) applies to:
 
   Jakarta Annotations API (jakarta.annotation:jakarta.annotation-api:3.0.0)
-
-GNU Lesser General Public License (https://spdx.org/licenses/GNU Lesser General Public License.html) applies to:
-
-  Logback Classic Module (ch.qos.logback:logback-classic:1.5.7)
-  Logback Core Module (ch.qos.logback:logback-core:1.5.7)
+  Logback Classic Module (ch.qos.logback:logback-classic:1.5.38)
+  Logback Core Module (ch.qos.logback:logback-core:1.5.38)
 
 GPL v2 (https://spdx.org/licenses/GPL v2.html) applies to:
 
@@ -160,11 +155,16 @@ GPL2 w/ CPE (https://spdx.org/licenses/GPL2 w/ CPE.html) applies to:
 
   Jakarta Annotations API (jakarta.annotation:jakarta.annotation-api:3.0.0)
 
+LGPL-2.1-only (https://spdx.org/licenses/LGPL-2.1-only.html) applies to:
+
+  Logback Classic Module (ch.qos.logback:logback-classic:1.5.38)
+  Logback Core Module (ch.qos.logback:logback-core:1.5.38)
+
 MIT (https://spdx.org/licenses/MIT.html) applies to:
 
   Checker Qual (org.checkerframework:checker-qual:3.49.3)
   graphql-java (com.graphql-java:graphql-java:22.3)
-  SLF4J API Module (org.slf4j:slf4j-api:2.0.15)
+  SLF4J API Module (org.slf4j:slf4j-api:2.0.17)
 
 MIT license (https://spdx.org/licenses/MIT license.html) applies to:
 
