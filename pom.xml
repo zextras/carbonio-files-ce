@@ -35,7 +35,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <!-- Maven CI Friendly properties -->
     <revision>1.3.6</revision>
     <!-- Dependencies -->
-    <assertj.version>3.27.6</assertj.version>
+    <assertj.version>3.27.7</assertj.version>
     <caffeine.version>3.2.4</caffeine.version>
     <carbonio-message-broker-sdk.version>1.1.0-1</carbonio-message-broker-sdk.version>
     <carbonio-storages-common.version>0.0.15-SNAPSHOT</carbonio-storages-common.version>
