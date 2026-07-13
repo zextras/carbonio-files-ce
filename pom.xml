@@ -43,7 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <carbonio-user-management-grpc-sdk.version>1.2.2-1</carbonio-user-management-grpc-sdk.version>
     <grpc.version>1.82.2</grpc.version>
     <carbonio-preview-ce-rest-sdk.version>2.0.2-1</carbonio-preview-ce-rest-sdk.version>
-    <commons-io.version>2.11.0</commons-io.version>
+    <commons-io.version>2.14.0</commons-io.version>
     <commons-lang3.version>3.20.0</commons-lang3.version>
     <commons-validator.version>1.10.1</commons-validator.version>
     <ebean.version>13.26.1</ebean.version>
