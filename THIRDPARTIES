@@ -133,7 +133,7 @@ Apache-2.0 (https://spdx.org/licenses/Apache-2.0.html) applies to:
 BSD-2-Clause (https://spdx.org/licenses/BSD-2-Clause.html) applies to:
 
   HdrHistogram (org.hdrhistogram:HdrHistogram:2.2.2)
-  PostgreSQL JDBC Driver (org.postgresql:postgresql:42.7.7)
+  PostgreSQL JDBC Driver (org.postgresql:postgresql:42.7.11)
 
 BSD-3-Clause (https://spdx.org/licenses/BSD-3-Clause.html) applies to:
 
@@ -173,7 +173,7 @@ LGPL-2.1-only (https://spdx.org/licenses/LGPL-2.1-only.html) applies to:
 
 MIT (https://spdx.org/licenses/MIT.html) applies to:
 
-  Checker Qual (org.checkerframework:checker-qual:3.49.3)
+  Checker Qual (org.checkerframework:checker-qual:3.12.0)
   graphql-java (com.graphql-java:graphql-java:22.4)
   SLF4J API Module (org.slf4j:slf4j-api:2.0.17)
 
