@@ -10,7 +10,7 @@ Apache-2.0 (https://spdx.org/licenses/Apache-2.0.html) applies to:
 
   Apache Commons BeanUtils (commons-beanutils:commons-beanutils:1.11.0)
   Apache Commons Codec (commons-codec:commons-codec:1.11)
-  Apache Commons IO (commons-io:commons-io:2.11.0)
+  Apache Commons IO (commons-io:commons-io:2.14.0)
   Apache Commons Lang (org.apache.commons:commons-lang3:3.20.0)
   Apache Commons Logging (commons-logging:commons-logging:1.3.5)
   Apache Commons Validator (commons-validator:commons-validator:1.10.1)
