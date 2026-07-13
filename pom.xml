@@ -52,6 +52,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <hikaricp.version>5.1.0</hikaricp.version>
     <hsqldb.version>2.7.4</hsqldb.version>
     <jackson.version>2.22</jackson.version>
+    <jackson-databind.version>2.22.1</jackson-databind.version>
     <junit5.version>5.14.4</junit5.version>
     <logback-classic.version>1.5.38</logback-classic.version>
     <micrometer.version>1.17.0</micrometer.version>
@@ -245,13 +246,13 @@ SPDX-License-Identifier: AGPL-3.0-only
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
-        <version>${jackson.version}</version>
+        <version>${jackson-databind.version}</version>
       </dependency>
 
       <dependency>
         <groupId>com.fasterxml.jackson.datatype</groupId>
         <artifactId>jackson-datatype-jdk8</artifactId>
-        <version>${jackson.version}</version>
+        <version>${jackson-databind.version}</version>
       </dependency>
 
       <dependency>
