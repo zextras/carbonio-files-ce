@@ -37,42 +37,43 @@ SPDX-License-Identifier: AGPL-3.0-only
     <!-- Dependencies -->
     <assertj.version>3.27.6</assertj.version>
     <caffeine.version>3.2.4</caffeine.version>
-    <carbonio-message-broker-sdk.version>1.0.1</carbonio-message-broker-sdk.version>
+    <carbonio-message-broker-sdk.version>1.1.0-1</carbonio-message-broker-sdk.version>
     <carbonio-storages-common.version>0.0.15-SNAPSHOT</carbonio-storages-common.version>
     <carbonio-storages-ce.version>0.0.15-SNAPSHOT</carbonio-storages-ce.version>
-    <carbonio-user-management-grpc-sdk.version>1.0.3-dev.21.79fc3fa2</carbonio-user-management-grpc-sdk.version>
-    <grpc.version>1.68.2</grpc.version>
+    <carbonio-user-management-grpc-sdk.version>1.2.2-1</carbonio-user-management-grpc-sdk.version>
+    <grpc.version>1.82.2</grpc.version>
     <carbonio-preview-ce-rest-sdk.version>2.0.2-1</carbonio-preview-ce-rest-sdk.version>
     <commons-io.version>2.11.0</commons-io.version>
-    <commons-lang3.version>3.18.0</commons-lang3.version>
-    <commons-validator.version>1.9.0</commons-validator.version>
+    <commons-lang3.version>3.20.0</commons-lang3.version>
+    <commons-validator.version>1.10.1</commons-validator.version>
     <ebean.version>13.26.1</ebean.version>
-    <graphql-java.version>22.3</graphql-java.version>
+    <graphql-java.version>22.4</graphql-java.version>
     <guice.version>6.0.0</guice.version>
     <hikaricp.version>5.1.0</hikaricp.version>
     <hsqldb.version>2.7.4</hsqldb.version>
-    <jackson.version>2.17.2</jackson.version>
-    <junit5.version>5.11.0</junit5.version>
+    <jackson.version>2.22</jackson.version>
+    <jackson-databind.version>2.22.1</jackson-databind.version>
+    <junit5.version>5.14.4</junit5.version>
     <logback-classic.version>1.5.38</logback-classic.version>
-    <micrometer.version>1.11.12</micrometer.version>
-    <mockito.version>5.20.0</mockito.version>
+    <micrometer.version>1.17.0</micrometer.version>
+    <mockito.version>5.23.0</mockito.version>
     <mock-server.version>5.15.0</mock-server.version>
-    <netty.version>4.1.113.Final</netty.version>
+    <netty.version>4.2.16.Final</netty.version>
     <postgresql.version>42.7.7</postgresql.version>
     <testcontainers.version>2.0.5</testcontainers.version>
     <testcontainers.junit.jupiter.version>1.21.4</testcontainers.junit.jupiter.version>
     <testcontainers.postgresql.version>1.21.4</testcontainers.postgresql.version>
     <testcontainers.rabbitmq.version>1.21.4</testcontainers.rabbitmq.version>
     <vavr.version>0.11.0</vavr.version>
-    <flyway-database-postgresql.version>11.8.1</flyway-database-postgresql.version>
+    <flyway-database-postgresql.version>11.20.3</flyway-database-postgresql.version>
 
     <!-- Plugins -->
     <maven-assembly.version>3.6.0</maven-assembly.version>
-    <maven-compiler.version>3.13.0</maven-compiler.version>
+    <maven-compiler.version>3.15.0</maven-compiler.version>
     <maven-failsafe.version>3.5.6</maven-failsafe.version>
     <maven-jacoco.version>0.8.15</maven-jacoco.version>
     <maven-surefire.version>3.5.6</maven-surefire.version>
-    <tiles-maven.version>2.40</tiles-maven.version>
+    <tiles-maven.version>2.44</tiles-maven.version>
 
     <!-- Other properties -->
     <maven.compiler.source>21</maven.compiler.source>
@@ -245,13 +246,13 @@ SPDX-License-Identifier: AGPL-3.0-only
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
-        <version>${jackson.version}</version>
+        <version>${jackson-databind.version}</version>
       </dependency>
 
       <dependency>
         <groupId>com.fasterxml.jackson.datatype</groupId>
         <artifactId>jackson-datatype-jdk8</artifactId>
-        <version>${jackson.version}</version>
+        <version>${jackson-databind.version}</version>
       </dependency>
 
       <dependency>

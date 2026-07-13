@@ -6,8 +6,8 @@ package com.zextras.carbonio.files.tasks;
 
 import com.google.inject.Singleton;
 import io.micrometer.core.instrument.Counter;
-import io.micrometer.prometheus.PrometheusConfig;
-import io.micrometer.prometheus.PrometheusMeterRegistry;
+import io.micrometer.prometheusmetrics.PrometheusConfig;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
 @Singleton
 public class PrometheusService {
