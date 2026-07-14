@@ -39,8 +39,23 @@ public class GuiceNettyFilesTestAppBuilder {
     return this;
   }
 
+  public GuiceNettyFilesTestAppBuilder withMessageBroker() {
+    simulatorBuilder.withMessageBroker();
+    return this;
+  }
+
   public GuiceNettyFilesTestAppBuilder withStorages() {
     simulatorBuilder.withStorages();
+    return this;
+  }
+
+  public GuiceNettyFilesTestAppBuilder withPreview() {
+    simulatorBuilder.withPreview();
+    return this;
+  }
+
+  public GuiceNettyFilesTestAppBuilder withDocsConnector() {
+    simulatorBuilder.withDocsConnector();
     return this;
   }
 

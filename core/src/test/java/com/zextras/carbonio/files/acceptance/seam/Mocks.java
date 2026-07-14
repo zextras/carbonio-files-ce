@@ -34,6 +34,64 @@ public interface Mocks {
    */
   void storagesBulkDeleteReturnsNullResponse();
 
+  /**
+   * Toggles the notifications feature flag. Replaces {@code ((MockFilesConfig)
+   * injector.getInstance(FilesConfig.class)).setAreNotificationsEnabled(bool)} (special case 1 —
+   * the 7 notification ITs).
+   */
+  void setNotificationsEnabled(boolean enabled);
+
+  /**
+   * Shuts down the in-process user-management gRPC server, simulating user-management being
+   * unreachable so health checks report it as unhealthy. Replaces {@code
+   * simulator.shutdownUserManagementServer()} (special case 2 — {@code HealthApiIT}). There is no
+   * corresponding "bring back up": once shut down the in-process server is gone for the rest of
+   * the test, matching the one-shot usage of the original {@code Simulator} method.
+   */
+  void userManagementDown();
+
+  /** Storages health endpoint ({@code GET /health/live}) reports live (HTTP 200). */
+  void storagesLive();
+
+  /** Storages health endpoint ({@code GET /health/live}) reports unreachable (HTTP 502). */
+  void storagesUnreachable();
+
+  /** Preview health endpoint ({@code GET /health/ready/}) reports ready (HTTP 200). */
+  void previewReady();
+
+  /** DocsConnector health endpoint ({@code GET /q/health/live}) reports live (HTTP 200). */
+  void docsConnectorLive();
+
+  /**
+   * Storages will return deterministic bytes for a download of {@code nodeId}/{@code version}.
+   * Replaces {@code StoragesMockHelper.getBlob(nodeId, version)} used directly in test bodies.
+   */
+  void storagesServesBlob(String nodeId, int version);
+
+  /**
+   * Storages' download endpoint ({@code GET /download}) drops the connection, simulating a
+   * network-level failure (production surfaces this as a 500). Distinct from {@link
+   * #storagesBulkDeleteFails()}, which targets the bulk-delete endpoint, not the download one.
+   */
+  void storagesDownloadConnectionDrops();
+
+  /** Verifies storages' download endpoint was hit exactly once for this {@code nodeId}/{@code version}. */
+  void verifyStoragesDownloaded(String nodeId, int version);
+
+  /** Verifies storages' download endpoint was never hit. */
+  void verifyStoragesNeverDownloaded();
+
+  /**
+   * Preview/thumbnail service will respond at {@code pathEndpoint} with {@code content} typed as
+   * {@code mediaType} (e.g. {@code "application/pdf"}, {@code "image/png"}, {@code "image/jpeg"}),
+   * tagged with the requesting file's owner id via the {@code FileOwnerId} header the production
+   * code sends. Returns an opaque expectation handle for {@link #verifyPreviewServed(String)}.
+   */
+  String previewServes(String pathEndpoint, String fileOwnerId, byte[] content, String mediaType);
+
+  /** Verifies the preview/thumbnail expectation identified by {@code expectationId} was matched, then clears it. */
+  void verifyPreviewServed(String expectationId);
+
   /** Resets all mock expectations to a clean baseline between tests. */
   void reset();
 }

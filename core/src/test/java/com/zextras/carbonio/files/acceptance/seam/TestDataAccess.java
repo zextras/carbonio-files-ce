@@ -6,6 +6,8 @@ package com.zextras.carbonio.files.acceptance.seam;
 
 import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
 
+import java.util.List;
+
 /**
  * Neutral backdoor for seeding and inspecting state without touching the DI container or the
  * ORM directly. Methods return domain-neutral primitives/DTOs only — NO {@code com.google.inject}
@@ -35,8 +37,44 @@ public interface TestDataAccess {
   int tombstoneCount();
 
   /**
+   * Number of tombstone rows for a specific node. There is no public API to read these; replaces
+   * {@code tombstoneRepository.getTombstones().stream().filter(t ->
+   * t.getNodeId().equals(nodeId)).count()}.
+   */
+  int tombstoneCountForNode(String nodeId);
+
+  /**
    * Deletes all tombstone rows. Tombstones are not FK-linked to a node, so {@link
    * #resetDatabase()} alone does not clean them up between tests.
    */
   void clearTombstones();
+
+  /**
+   * True if a share exists for this node/user pair. Replaces {@code
+   * shareRepository.getShare(nodeId, userId).isPresent()}.
+   */
+  boolean shareExists(String nodeId, String userId);
+
+  /**
+   * Remaining version numbers for a node, ascending. There is no public API to read these
+   * directly as a flat list; replaces {@code fileVersionRepository.getFileVersions(nodeId,
+   * List.of(FileVersionSort.VERSION_ASC)).stream().map(FileVersion::getVersion)}.
+   */
+  List<Integer> remainingVersionNumbers(String nodeId);
+
+  /**
+   * Builds a base64-encoded, tampered {@code findNodes} page-token with a fixed keySet/folderId/
+   * sort payload and NO {@code signature} field at all. Decoding it server-side fails signature
+   * verification. Replaces hand-rolled construction of {@code NodeSQLCondition}/{@code
+   * SQLExpression}/{@code SortOrder} (Ebean-era DAL internals) directly in a test body — used by
+   * {@code PublicFindNodesApiIT}'s "hacked page token without signature" test.
+   */
+  String forgeTamperedPageTokenMissingSignature();
+
+  /**
+   * Builds the same tampered cursor as {@link #forgeTamperedPageTokenMissingSignature()} but with
+   * an explicit, incorrect {@code signature} field set to {@code wrongSignature}. Used by {@code
+   * PublicFindNodesApiIT}'s "hacked page token with wrong signature" test.
+   */
+  String forgeTamperedPageTokenWithWrongSignature(String wrongSignature);
 }
