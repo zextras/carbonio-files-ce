@@ -2,19 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.api;
+package com.zextras.carbonio.files.acceptance;
 
-import com.google.inject.Injector;
-import com.zextras.carbonio.files.Simulator;
-import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
-import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.acceptance.seam.FilesTestApp;
+import com.zextras.carbonio.files.acceptance.seam.impl.GuiceNettyFilesTestAppBuilder;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import java.util.List;
@@ -28,37 +23,33 @@ import org.junit.jupiter.api.Test;
 
 public class GetPublicNodeApiIT {
 
-  static Simulator simulator;
-  static NodeRepository nodeRepository;
-  static LinkRepository linkRepository;
-  static FileVersionRepository fileVersionRepository;
+  static FilesTestApp app;
 
   @BeforeAll
   static void init() {
-    simulator =
-        SimulatorBuilder.aSimulator().init().withDatabase().withServiceDiscover().build().start();
-
-    final Injector injector = simulator.getInjector();
-    nodeRepository = injector.getInstance(NodeRepository.class);
-    linkRepository = injector.getInstance(LinkRepository.class);
-    fileVersionRepository = injector.getInstance(FileVersionRepository.class);
+    app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
+            .withDatabase()
+            .withServiceDiscover()
+            .build();
   }
 
   @AfterEach
   void cleanUp() {
-    simulator.resetDatabase();
+    app.backdoor().resetDatabase();
   }
 
   @AfterAll
   static void cleanUpAll() {
-    simulator.stopAll();
+    app.close();
   }
 
   @Test
   void givenAPublicLinkIdAndAnExistingFolderTheGetPublicNodeShouldReturnThePublicFolder() {
     // Given
     long now = System.currentTimeMillis();
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -88,7 +79,7 @@ public class GetPublicNodeApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -107,7 +98,8 @@ public class GetPublicNodeApiIT {
   void givenAPublicLinkIdAndAnExistingFileTheGetPublicNodeShouldReturnThePublicFile() {
     // Given
     long now = System.currentTimeMillis();
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -138,7 +130,7 @@ public class GetPublicNodeApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -160,7 +152,8 @@ public class GetPublicNodeApiIT {
   void
       givenANotExistingPublicLinkIdAndAnExistingFolderTheGetPublicNodeShouldReturn200StatusCodeWithAnErrorMessage() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -183,7 +176,7 @@ public class GetPublicNodeApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -200,7 +193,8 @@ public class GetPublicNodeApiIT {
   void
       givenAnExpiredPublicLinkIdAndAnExistingFolderTheGetPublicNodeShouldReturn200StatusCodeWithAnErrorMessage() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -230,7 +224,7 @@ public class GetPublicNodeApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -247,7 +241,8 @@ public class GetPublicNodeApiIT {
   void givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithCorrectCodeShouldReturnThePublicFolder() {
     // Given
     long now = System.currentTimeMillis();
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -278,7 +273,7 @@ public class GetPublicNodeApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -297,7 +292,8 @@ public class GetPublicNodeApiIT {
   void givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithWrongCodeShouldReturnAnErrorMessage() {
     // Given
     long now = System.currentTimeMillis();
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -328,7 +324,7 @@ public class GetPublicNodeApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -345,7 +341,8 @@ public class GetPublicNodeApiIT {
   void givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithNoCodeShouldReturnAnErrorMessage() {
     // Given
     long now = System.currentTimeMillis();
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -375,7 +372,7 @@ public class GetPublicNodeApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
