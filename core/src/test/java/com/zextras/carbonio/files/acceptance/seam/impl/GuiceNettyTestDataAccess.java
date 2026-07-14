@@ -15,6 +15,7 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSQLC
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SQLExpression;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SortOrder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
@@ -30,9 +31,9 @@ import java.nio.charset.StandardCharsets;
  * {@link Simulator} itself. Never expose {@link Injector} or repository types through the {@link
  * TestDataAccess} interface.
  *
- * <p>Constructs {@link DatabasePopulator} via its existing {@code Injector} constructor for now;
- * a later migration (Phase-1 Task 2) changes {@link DatabasePopulator} to take repositories
- * directly, at which point only this class changes.
+ * <p>Constructs {@link DatabasePopulator} via its neutral repositories constructor, resolving the
+ * four repositories from the injector here (the sanctioned place for {@code
+ * injector.getInstance(...)}) so {@link DatabasePopulator} itself no longer depends on Guice.
  */
 class GuiceNettyTestDataAccess implements TestDataAccess {
 
@@ -41,6 +42,7 @@ class GuiceNettyTestDataAccess implements TestDataAccess {
   private final TombstoneRepository tombstoneRepository;
   private final ShareRepository shareRepository;
   private final FileVersionRepository fileVersionRepository;
+  private final LinkRepository linkRepository;
 
   GuiceNettyTestDataAccess(Simulator simulator) {
     this.simulator = simulator;
@@ -49,11 +51,13 @@ class GuiceNettyTestDataAccess implements TestDataAccess {
     this.tombstoneRepository = injector.getInstance(TombstoneRepository.class);
     this.shareRepository = injector.getInstance(ShareRepository.class);
     this.fileVersionRepository = injector.getInstance(FileVersionRepository.class);
+    this.linkRepository = injector.getInstance(LinkRepository.class);
   }
 
   @Override
   public DatabasePopulator populator() {
-    return DatabasePopulator.aNodePopulator(simulator.getInjector());
+    return new DatabasePopulator(
+        nodeRepository, fileVersionRepository, linkRepository, shareRepository);
   }
 
   @Override
