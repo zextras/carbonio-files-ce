@@ -89,6 +89,11 @@ class GuiceNettyTestDataAccess implements TestDataAccess {
   }
 
   @Override
+  public void clearFileVersionCache() {
+    simulator.clearFileVersionCache();
+  }
+
+  @Override
   public boolean shareExists(String nodeId, String userId) {
     return shareRepository.getShare(nodeId, userId).isPresent();
   }

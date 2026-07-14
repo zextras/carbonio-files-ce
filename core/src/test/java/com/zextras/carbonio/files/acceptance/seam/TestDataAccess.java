@@ -50,6 +50,14 @@ public interface TestDataAccess {
   void clearTombstones();
 
   /**
+   * Flushes the in-memory file-version cache. Not FK/row-linked state, so {@link
+   * #resetDatabase()} alone does not clean it up between tests; replaces {@code
+   * simulator.clearFileVersionCache()} (used directly by {@code PreviewApiIT}/{@code
+   * ThumbnailApiIT}'s {@code @AfterEach}).
+   */
+  void clearFileVersionCache();
+
+  /**
    * True if a share exists for this node/user pair. Replaces {@code
    * shareRepository.getShare(nodeId, userId).isPresent()}.
    */

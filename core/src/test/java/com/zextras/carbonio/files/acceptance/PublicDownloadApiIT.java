@@ -2,22 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.api;
+package com.zextras.carbonio.files.acceptance;
 
-import com.google.inject.Injector;
-import com.zextras.carbonio.files.Simulator;
-import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
-import com.zextras.carbonio.files.TestUtils;
-import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.acceptance.seam.FilesTestApp;
+import com.zextras.carbonio.files.acceptance.seam.impl.GuiceNettyFilesTestAppBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.utilities.StoragesMockHelper;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
-import io.netty.handler.codec.http.HttpMethod;
 import java.util.Map;
 import java.util.Optional;
 import org.assertj.core.api.Assertions;
@@ -27,46 +19,31 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockserver.model.HttpError;
-import org.mockserver.model.Parameter;
-import org.mockserver.verify.VerificationTimes;
 
 public class PublicDownloadApiIT {
 
-  static Simulator simulator;
-  static StoragesMockHelper storagesMockHelper;
-  static NodeRepository nodeRepository;
-  static FileVersionRepository fileVersionRepository;
-  static LinkRepository linkRepository;
+  static FilesTestApp app;
 
   @BeforeAll
   static void init() {
-    simulator =
-        SimulatorBuilder.aSimulator()
-            .init()
+    app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withServiceDiscover()
             .withUserManagement(Map.of("fake-token", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
             .withStorages()
-            .build()
-            .start();
-
-    final Injector injector = simulator.getInjector();
-    nodeRepository = injector.getInstance(NodeRepository.class);
-    fileVersionRepository = injector.getInstance(FileVersionRepository.class);
-    linkRepository = injector.getInstance(LinkRepository.class);
-    storagesMockHelper = new StoragesMockHelper(simulator.getStoragesMock());
+            .build();
   }
 
   @AfterEach
   void cleanUp() {
-    simulator.resetDatabase();
-    simulator.getStoragesMock().reset();
+    app.backdoor().resetDatabase();
+    app.mocks().reset();
   }
 
   @AfterAll
   static void cleanUpAll() {
-    simulator.stopAll();
+    app.close();
   }
 
   @ParameterizedTest
@@ -78,7 +55,8 @@ public class PublicDownloadApiIT {
       givenAUserWithOrWithoutCookieAnExistingFileAndAValidPublicLinkAssociatedThePublicDownloadByNodeIdShouldReturnTheBlob(
           String userToken) {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -99,35 +77,25 @@ public class PublicDownloadApiIT {
             Optional.empty(),
             Optional.empty());
 
-    storagesMockHelper.getBlob("00000000-0000-0000-0000-000000000000", 1);
+    app.mocks().storagesServesBlob("00000000-0000-0000-0000-000000000000", 1);
 
     final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, userToken, null);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
-    simulator
-        .getStoragesMock()
-        .verify(
-            org.mockserver.model.HttpRequest.request()
-                .withMethod(HttpMethod.GET.toString())
-                .withPath("/download")
-                .withQueryStringParameter(
-                    Parameter.param("node", "00000000-0000-0000-0000-000000000000"))
-                .withQueryStringParameter(Parameter.param("version", "1"))
-                .withQueryStringParameter(Parameter.param("type", "files")),
-            VerificationTimes.once());
+    app.mocks().verifyStoragesDownloaded("00000000-0000-0000-0000-000000000000", 1);
   }
 
   @Test
   void givenAnExistingFileAndAnExpiredLinkThePublicDownloadByNodeIdShouldReturnA404StatusCode() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -152,26 +120,20 @@ public class PublicDownloadApiIT {
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
     Assertions.assertThat(httpResponse.getBodyPayload()).isEqualTo("404 Not Found");
 
-    simulator
-        .getStoragesMock()
-        .verify(
-            org.mockserver.model.HttpRequest.request()
-                .withMethod(HttpMethod.GET.toString())
-                .withPath("/download"),
-            VerificationTimes.never());
+    app.mocks().verifyStoragesNeverDownloaded();
   }
 
   @Test
   void givenAnExistingFileAndANotExistingLinkThePublicDownloadByNodeIdShouldReturnA404StatusCode() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -189,20 +151,13 @@ public class PublicDownloadApiIT {
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
     Assertions.assertThat(httpResponse.getBodyPayload()).isEqualTo("404 Not Found");
 
-    simulator
-        .getStoragesMock()
-        .verify(
-            org.mockserver.model.HttpRequest.request()
-                .withMethod(HttpMethod.GET.toString())
-                .withPath("/download"),
-            VerificationTimes.never());
+    app.mocks().verifyStoragesNeverDownloaded();
   }
 
   @Test
@@ -211,27 +166,21 @@ public class PublicDownloadApiIT {
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
     Assertions.assertThat(httpResponse.getBodyPayload()).isEqualTo("404 Not Found");
 
-    simulator
-        .getStoragesMock()
-        .verify(
-            org.mockserver.model.HttpRequest.request()
-                .withMethod(HttpMethod.GET.toString())
-                .withPath("/download"),
-            VerificationTimes.never());
+    app.mocks().verifyStoragesNeverDownloaded();
   }
 
   @Test
   void
       givenAnExistingFileAndAValidPublicLinkAssociatedAndAConnectionProblemToStoragesTheThePublicDownloadByNodeIdShouldReturnA500StatusCode() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -252,20 +201,13 @@ public class PublicDownloadApiIT {
             Optional.empty(),
             Optional.empty());
 
-    simulator
-        .getStoragesMock()
-        .when(
-            org.mockserver.model.HttpRequest.request()
-                .withMethod(HttpMethod.GET.toString())
-                .withPath("/download"))
-        .error(HttpError.error().withDropConnection(true));
+    app.mocks().storagesDownloadConnectionDrops();
 
     final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(500);
@@ -281,7 +223,8 @@ public class PublicDownloadApiIT {
       givenAUserWithOrWithoutCookieAnExistingFileAndAValidPublicLinkAssociatedButNotPassedInUrlThePublicDownloadByNodeIdShouldReturnA404StatusCode(
           String userToken) {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -302,14 +245,13 @@ public class PublicDownloadApiIT {
             Optional.empty(),
             Optional.empty());
 
-    storagesMockHelper.getBlob("00000000-0000-0000-0000-000000000000", 1);
+    app.mocks().storagesServesBlob("00000000-0000-0000-0000-000000000000", 1);
 
     final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, userToken, null);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
@@ -318,7 +260,8 @@ public class PublicDownloadApiIT {
   @Test
   void givenAnExistingFileWithAccessCodeAndAValidLinkThePublicDownloadByNodeIdWithoutAccessCodeShouldReturnA404StatusCode() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -343,8 +286,7 @@ public class PublicDownloadApiIT {
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
@@ -353,7 +295,8 @@ public class PublicDownloadApiIT {
   @Test
   void givenAnExistingFileWithAccessCodeAndAValidLinkThePublicDownloadByNodeIdWithAccessCodeShouldReturnTheBlob() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -374,14 +317,13 @@ public class PublicDownloadApiIT {
             Optional.empty(),
             Optional.of("accesscode"));
 
-    storagesMockHelper.getBlob("00000000-0000-0000-0000-000000000000", 1);
+    app.mocks().storagesServesBlob("00000000-0000-0000-0000-000000000000", 1);
 
     final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab&access_code=accesscode";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);

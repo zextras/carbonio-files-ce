@@ -2,40 +2,35 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.api;
+package com.zextras.carbonio.files.acceptance;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zextras.carbonio.files.Simulator;
-import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
-import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.acceptance.seam.FilesTestApp;
+import com.zextras.carbonio.files.acceptance.seam.impl.GuiceNettyFilesTestAppBuilder;
 import com.zextras.carbonio.files.rest.types.health.DependencyType;
 import com.zextras.carbonio.files.rest.types.health.HealthResponse;
 import com.zextras.carbonio.files.rest.types.health.ServiceHealth;
-import io.netty.handler.codec.http.HttpMethod;
+import com.zextras.carbonio.files.utilities.http.HttpRequest;
+import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import java.util.Collections;
 import java.util.List;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.mockserver.client.MockServerClient;
-import org.mockserver.model.HttpRequest;
-import org.mockserver.model.HttpResponse;
 
 class HealthApiIT {
 
   @Test
   void givenAnHealthServiceTheHealthLiveShouldReturn204StatusCode() {
     // Given
-    SimulatorBuilder simulatorBUilder =
-        SimulatorBuilder.aSimulator().init().withDatabase().withServiceDiscover();
-
-    try (Simulator simulator = simulatorBUilder.build().start()) {
-      com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
-          com.zextras.carbonio.files.utilities.http.HttpRequest.of(
-              HttpMethod.GET.toString(), "/health/live/", null, null);
+    try (FilesTestApp app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
+            .withDatabase()
+            .withServiceDiscover()
+            .build()) {
+      HttpRequest httpRequest = HttpRequest.of("GET", "/health/live/", null, null);
 
       // When
-      com.zextras.carbonio.files.utilities.http.HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      HttpResponse httpResponse = app.send(httpRequest);
 
       // Then
       Assertions.assertThat(httpResponse.getStatus()).isEqualTo(204);
@@ -47,55 +42,28 @@ class HealthApiIT {
   void givenAllDependenciesHealthyTheHealthShouldReturn200CodeWithTheHealthStatusOfEachDependency()
       throws Exception {
     // Given
-    SimulatorBuilder simulatorBuilder =
-        SimulatorBuilder.aSimulator()
-            .init()
+    try (FilesTestApp app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement(Collections.emptyMap())
             .withStorages()
             .withPreview()
-            .withDocsConnector();
-
-    try (Simulator simulator = simulatorBuilder.build().start()) {
+            .withDocsConnector()
+            .build()) {
 
       // UserManagement health: the InProcess gRPC server is running, so the channel
       // will be in READY/IDLE state and isUserManagementLive() returns true.
 
-      // Storages
-      MockServerClient storagesMock = simulator.getStoragesMock();
+      app.mocks().storagesLive();
+      app.mocks().previewReady();
+      app.mocks().docsConnectorLive();
 
-      storagesMock
-          .when(
-              HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/health/live"))
-          .respond(HttpResponse.response().withStatusCode(200));
-
-      // Preview
-      MockServerClient previewServiceMock = simulator.getPreviewMock();
-
-      previewServiceMock
-          .when(
-              HttpRequest.request()
-                  .withMethod(HttpMethod.GET.toString())
-                  .withPath("/health/ready/"))
-          .respond(HttpResponse.response().withStatusCode(200));
-
-      // DocsConnector
-      MockServerClient docsConnectorServiceMock = simulator.getDocsConnectorMock();
-
-      docsConnectorServiceMock
-          .when(
-              HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/q/health/live"))
-          .respond(HttpResponse.response().withStatusCode(200));
-
-      com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
-          com.zextras.carbonio.files.utilities.http.HttpRequest.of(
-              HttpMethod.GET.toString(), "/health/", null, null);
+      HttpRequest httpRequest = HttpRequest.of("GET", "/health/", null, null);
 
       // When
-      com.zextras.carbonio.files.utilities.http.HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      HttpResponse httpResponse = app.send(httpRequest);
 
       // Then
       Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -147,56 +115,29 @@ class HealthApiIT {
       givenUserManagementUnreachableAndOtherDependenciesHealthyTheHealthShouldReturn500CodeWithTheHealthStatusOfEachDependency()
           throws Exception {
     // Given: UM gRPC InProcess server is started then shut down to simulate UM being unreachable
-    SimulatorBuilder simulatorBuilder =
-        SimulatorBuilder.aSimulator()
-            .init()
+    try (FilesTestApp app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement(Collections.emptyMap())
             .withStorages()
             .withPreview()
-            .withDocsConnector();
-
-    try (Simulator simulator = simulatorBuilder.build().start()) {
+            .withDocsConnector()
+            .build()) {
 
       // Shut down the UM gRPC server to simulate UM being unreachable.
       // The channel will transition to TRANSIENT_FAILURE state.
-      simulator.shutdownUserManagementServer();
+      app.mocks().userManagementDown();
 
-      // Storages
-      MockServerClient storagesMock = simulator.getStoragesMock();
+      app.mocks().storagesLive();
+      app.mocks().previewReady();
+      app.mocks().docsConnectorLive();
 
-      storagesMock
-          .when(
-              HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/health/live"))
-          .respond(HttpResponse.response().withStatusCode(200));
-
-      // Preview
-      MockServerClient previewServiceMock = simulator.getPreviewMock();
-
-      previewServiceMock
-          .when(
-              HttpRequest.request()
-                  .withMethod(HttpMethod.GET.toString())
-                  .withPath("/health/ready/"))
-          .respond(HttpResponse.response().withStatusCode(200));
-
-      // DocsConnector
-      MockServerClient docsConnectorServiceMock = simulator.getDocsConnectorMock();
-
-      docsConnectorServiceMock
-          .when(
-              HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/q/health/live"))
-          .respond(HttpResponse.response().withStatusCode(200));
-
-      com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
-          com.zextras.carbonio.files.utilities.http.HttpRequest.of(
-              HttpMethod.GET.toString(), "/health/", null, null);
+      HttpRequest httpRequest = HttpRequest.of("GET", "/health/", null, null);
 
       // When
-      com.zextras.carbonio.files.utilities.http.HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      HttpResponse httpResponse = app.send(httpRequest);
 
       // Then
       Assertions.assertThat(httpResponse.getStatus()).isEqualTo(500);
@@ -246,35 +187,24 @@ class HealthApiIT {
   @Test
   void givenAllMandatoryDependenciesHealthyTheHealthReadyShouldReturn204StatusCode() {
     // Given
-    SimulatorBuilder simulatorBuilder =
-        SimulatorBuilder.aSimulator()
-            .init()
+    try (FilesTestApp app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement(Collections.emptyMap())
-            .withStorages();
-
-    try (Simulator simulator = simulatorBuilder.build().start()) {
+            .withStorages()
+            .build()) {
 
       // UserManagement health: the InProcess gRPC server is running, so the channel
       // will be in READY/IDLE state and isUserManagementLive() returns true.
 
-      // Storages
-      MockServerClient storagesMock = simulator.getStoragesMock();
+      app.mocks().storagesLive();
 
-      storagesMock
-          .when(
-              HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/health/live"))
-          .respond(HttpResponse.response().withStatusCode(200));
-
-      com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
-          com.zextras.carbonio.files.utilities.http.HttpRequest.of(
-              HttpMethod.GET.toString(), "/health/ready/", null, null);
+      HttpRequest httpRequest = HttpRequest.of("GET", "/health/ready/", null, null);
 
       // When
-      com.zextras.carbonio.files.utilities.http.HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      HttpResponse httpResponse = app.send(httpRequest);
 
       // Then
       Assertions.assertThat(httpResponse.getStatus()).isEqualTo(204);
@@ -286,35 +216,24 @@ class HealthApiIT {
   void
       givenUserManagementUnreachableAndOtherMandatoryDependenciesReachableTheHealthReadyShouldReturn500StatusCode() {
     // Given: UM gRPC InProcess server is started then shut down to simulate UM being unreachable
-    SimulatorBuilder simulatorBuilder =
-        SimulatorBuilder.aSimulator()
-            .init()
+    try (FilesTestApp app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement(Collections.emptyMap())
-            .withStorages();
-
-    try (Simulator simulator = simulatorBuilder.build().start()) {
+            .withStorages()
+            .build()) {
 
       // Shut down the UM gRPC server to simulate UM being unreachable
-      simulator.shutdownUserManagementServer();
+      app.mocks().userManagementDown();
 
-      // Storages
-      MockServerClient storagesMock = simulator.getStoragesMock();
+      app.mocks().storagesLive();
 
-      storagesMock
-          .when(
-              HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/health/live"))
-          .respond(HttpResponse.response().withStatusCode(200));
-
-      com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
-          com.zextras.carbonio.files.utilities.http.HttpRequest.of(
-              HttpMethod.GET.toString(), "/health/ready/", null, null);
+      HttpRequest httpRequest = HttpRequest.of("GET", "/health/ready/", null, null);
 
       // When
-      com.zextras.carbonio.files.utilities.http.HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      HttpResponse httpResponse = app.send(httpRequest);
 
       // Then
       Assertions.assertThat(httpResponse.getStatus()).isEqualTo(500);
@@ -326,35 +245,24 @@ class HealthApiIT {
   void
       givenStoragesUnreachableAndOtherMandatoryDependenciesReachableTheHealthReadyShouldReturn502StatusCode() {
     // Given
-    SimulatorBuilder simulatorBuilder =
-        SimulatorBuilder.aSimulator()
-            .init()
+    try (FilesTestApp app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withMessageBroker()
             .withServiceDiscover()
             .withUserManagement(Collections.emptyMap())
-            .withStorages();
-
-    try (Simulator simulator = simulatorBuilder.build().start()) {
+            .withStorages()
+            .build()) {
 
       // UserManagement health: the InProcess gRPC server is running, so the channel
       // will be in READY/IDLE state and isUserManagementLive() returns true.
 
-      // Storages
-      MockServerClient storagesMock = simulator.getStoragesMock();
+      app.mocks().storagesUnreachable();
 
-      storagesMock
-          .when(
-              HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/health/live"))
-          .respond(HttpResponse.response().withStatusCode(502));
-
-      com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
-          com.zextras.carbonio.files.utilities.http.HttpRequest.of(
-              HttpMethod.GET.toString(), "/health/ready/", null, null);
+      HttpRequest httpRequest = HttpRequest.of("GET", "/health/ready/", null, null);
 
       // When
-      com.zextras.carbonio.files.utilities.http.HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      HttpResponse httpResponse = app.send(httpRequest);
 
       // Then
       Assertions.assertThat(httpResponse.getStatus()).isEqualTo(500);
@@ -366,34 +274,23 @@ class HealthApiIT {
   void
   givenMessageBrokerUnreachableAndOtherMandatoryDependenciesReachableTheHealthReadyShouldReturn204StatusCode() {
     // Given
-    SimulatorBuilder simulatorBuilder =
-        SimulatorBuilder.aSimulator()
-            .init()
+    try (FilesTestApp app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withServiceDiscover()
             .withUserManagement(Collections.emptyMap())
-            .withStorages();
-
-    try (Simulator simulator = simulatorBuilder.build().start()) {
+            .withStorages()
+            .build()) {
 
       // UserManagement health: the InProcess gRPC server is running, so the channel
       // will be in READY/IDLE state and isUserManagementLive() returns true.
 
-      // Storages
-      MockServerClient storagesMock = simulator.getStoragesMock();
+      app.mocks().storagesLive();
 
-      storagesMock
-          .when(
-              HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/health/live"))
-          .respond(HttpResponse.response().withStatusCode(200));
-
-      com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
-          com.zextras.carbonio.files.utilities.http.HttpRequest.of(
-              HttpMethod.GET.toString(), "/health/ready/", null, null);
+      HttpRequest httpRequest = HttpRequest.of("GET", "/health/ready/", null, null);
 
       // When
-      com.zextras.carbonio.files.utilities.http.HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      HttpResponse httpResponse = app.send(httpRequest);
 
       // Then
       Assertions.assertThat(httpResponse.getStatus()).isEqualTo(204);

@@ -2,24 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.api;
+package com.zextras.carbonio.files.acceptance;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.inject.Injector;
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.Simulator;
-import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
-import com.zextras.carbonio.files.TestUtils;
-import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.acceptance.seam.FilesTestApp;
+import com.zextras.carbonio.files.acceptance.seam.impl.GuiceNettyFilesTestAppBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.utilities.StoragesMockHelper;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
-import io.netty.handler.codec.http.HttpMethod;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -31,45 +23,31 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.mockserver.model.Parameter;
-import org.mockserver.verify.VerificationTimes;
 
 public class PublicDownloadMultipleApiIT {
 
-  static Simulator simulator;
-  static StoragesMockHelper storagesMockHelper;
-  static NodeRepository nodeRepository;
-  static FileVersionRepository fileVersionRepository;
-  static LinkRepository linkRepository;
+  static FilesTestApp app;
   static ObjectMapper objectMapper = new ObjectMapper();
 
   @BeforeAll
   static void init() {
-    simulator =
-        SimulatorBuilder.aSimulator()
-            .init()
+    app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withServiceDiscover()
             .withUserManagement(Map.of())
             .withStorages()
-            .build()
-            .start();
-
-    final Injector injector = simulator.getInjector();
-    nodeRepository = injector.getInstance(NodeRepository.class);
-    fileVersionRepository = injector.getInstance(FileVersionRepository.class);
-    linkRepository = injector.getInstance(LinkRepository.class);
-    storagesMockHelper = new StoragesMockHelper(simulator.getStoragesMock());
+            .build();
   }
 
   @AfterEach
   void cleanUp() {
-    simulator.resetDatabase();
+    app.backdoor().resetDatabase();
   }
 
   @AfterAll
   static void cleanUpAll() {
-    simulator.stopAll();
+    app.close();
   }
 
   @Test
@@ -83,7 +61,8 @@ public class PublicDownloadMultipleApiIT {
     String linkId = UUID.randomUUID().toString();
     String publicId = UUID.randomUUID().toString();
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 folderId,
@@ -140,9 +119,9 @@ public class PublicDownloadMultipleApiIT {
             Optional.of("Public folder link"),
             Optional.empty());
 
-    storagesMockHelper.getBlob(fileId1, 1);
-    storagesMockHelper.getBlob(fileId2, 1);
-    storagesMockHelper.getBlob(fileId3, 1);
+    app.mocks().storagesServesBlob(fileId1, 1);
+    app.mocks().storagesServesBlob(fileId2, 1);
+    app.mocks().storagesServesBlob(fileId3, 1);
 
     List<String> nodeIds = List.of(fileId1, fileId2, fileId3);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
@@ -158,8 +137,7 @@ public class PublicDownloadMultipleApiIT {
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
     Assertions.assertThat(httpResponse.getHeaders())
@@ -174,16 +152,7 @@ public class PublicDownloadMultipleApiIT {
                     && header.getValue().contains("attachment")
                     && header.getValue().contains("Files.zip"));
 
-    simulator
-        .getStoragesMock()
-        .verify(
-            org.mockserver.model.HttpRequest.request()
-                .withMethod(HttpMethod.GET.toString())
-                .withPath("/download")
-                .withQueryStringParameter(Parameter.param("node", fileId1))
-                .withQueryStringParameter(Parameter.param("version", "1"))
-                .withQueryStringParameter(Parameter.param("type", "files")),
-            VerificationTimes.once());
+    app.mocks().verifyStoragesDownloaded(fileId1, 1);
   }
 
   @Test
@@ -196,7 +165,8 @@ public class PublicDownloadMultipleApiIT {
     String publicId = UUID.randomUUID().toString();
     String accessCode = "secret123";
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 folderId,
@@ -241,8 +211,8 @@ public class PublicDownloadMultipleApiIT {
             Optional.of("Protected link"),
             Optional.of(accessCode));
 
-    storagesMockHelper.getBlob(fileId1, 1);
-    storagesMockHelper.getBlob(fileId2, 1);
+    app.mocks().storagesServesBlob(fileId1, 1);
+    app.mocks().storagesServesBlob(fileId2, 1);
 
     List<String> nodeIds = List.of(fileId1, fileId2);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
@@ -260,8 +230,7 @@ public class PublicDownloadMultipleApiIT {
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
   }
@@ -272,7 +241,8 @@ public class PublicDownloadMultipleApiIT {
     String fileId = "00000000-0000-0000-0000-000000000401";
     String invalidPublicId = UUID.randomUUID().toString();
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 fileId,
@@ -300,8 +270,7 @@ public class PublicDownloadMultipleApiIT {
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
   }
@@ -318,8 +287,7 @@ public class PublicDownloadMultipleApiIT {
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(400);
   }
@@ -341,8 +309,7 @@ public class PublicDownloadMultipleApiIT {
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
   }
@@ -357,7 +324,8 @@ public class PublicDownloadMultipleApiIT {
     String linkId = UUID.randomUUID().toString();
     String publicId = UUID.randomUUID().toString();
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 parentFolderId,
@@ -409,8 +377,8 @@ public class PublicDownloadMultipleApiIT {
         .addLink(
             linkId, parentFolderId, publicId, Optional.empty(), Optional.empty(), Optional.empty());
 
-    storagesMockHelper.getBlob(fileId1, 1);
-    storagesMockHelper.getBlob(fileId2, 1);
+    app.mocks().storagesServesBlob(fileId1, 1);
+    app.mocks().storagesServesBlob(fileId2, 1);
 
     List<String> nodeIds = List.of(fileId1, subFolderId);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
@@ -426,8 +394,7 @@ public class PublicDownloadMultipleApiIT {
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
   }
@@ -441,7 +408,8 @@ public class PublicDownloadMultipleApiIT {
     String publicId = UUID.randomUUID().toString();
     String accessCode = "required123";
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 folderId,
@@ -488,8 +456,7 @@ public class PublicDownloadMultipleApiIT {
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(404);
   }
@@ -501,7 +468,8 @@ public class PublicDownloadMultipleApiIT {
     String linkId = UUID.randomUUID().toString();
     String publicId = UUID.randomUUID().toString();
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 folderId,
@@ -536,8 +504,7 @@ public class PublicDownloadMultipleApiIT {
     final HttpRequest httpRequest =
         HttpRequest.of("POST", "/public/download-multiple", null, headers, requestBody);
 
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
   }

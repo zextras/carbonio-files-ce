@@ -2,32 +2,22 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.api;
+package com.zextras.carbonio.files.acceptance;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.inject.Injector;
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.Simulator;
-import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
-import com.zextras.carbonio.files.TestUtils;
-import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.acceptance.seam.FilesTestApp;
+import com.zextras.carbonio.files.acceptance.seam.impl.GuiceNettyFilesTestAppBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.utilities.StoragesMockHelper;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
-import io.netty.handler.codec.http.HttpMethod;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.mockserver.model.Parameter;
-import org.mockserver.verify.VerificationTimes;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -36,40 +26,28 @@ import java.util.Map;
 
 public class DownloadMultipleApiIT {
 
-  static Simulator simulator;
-  static StoragesMockHelper storagesMockHelper;
-  static NodeRepository nodeRepository;
-  static FileVersionRepository fileVersionRepository;
-  static LinkRepository linkRepository;
+  static FilesTestApp app;
   static ObjectMapper objectMapper = new ObjectMapper();
 
   @BeforeAll
   static void init() {
-    simulator =
-        SimulatorBuilder.aSimulator()
-            .init()
+    app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withServiceDiscover()
             .withUserManagement(Map.of("fake-token", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
             .withStorages()
-            .build()
-            .start();
-
-    final Injector injector = simulator.getInjector();
-    nodeRepository = injector.getInstance(NodeRepository.class);
-    fileVersionRepository = injector.getInstance(FileVersionRepository.class);
-    linkRepository = injector.getInstance(LinkRepository.class);
-    storagesMockHelper = new StoragesMockHelper(simulator.getStoragesMock());
+            .build();
   }
 
   @AfterEach
   void cleanUp() {
-    simulator.resetDatabase();
+    app.backdoor().resetDatabase();
   }
 
   @AfterAll
   static void cleanUpAll() {
-    simulator.stopAll();
+    app.close();
   }
 
   @Test
@@ -80,7 +58,8 @@ public class DownloadMultipleApiIT {
     String fileId2 = "00000000-0000-0000-0000-000000000102";
     String fileId3 = "00000000-0000-0000-0000-000000000103";
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 folderId,
@@ -131,9 +110,9 @@ public class DownloadMultipleApiIT {
                 "image/jpeg"));
 
     // Mock storages responses for each file
-    storagesMockHelper.getBlob(fileId1, 1);
-    storagesMockHelper.getBlob(fileId2, 1);
-    storagesMockHelper.getBlob(fileId3, 1);
+    app.mocks().storagesServesBlob(fileId1, 1);
+    app.mocks().storagesServesBlob(fileId2, 1);
+    app.mocks().storagesServesBlob(fileId3, 1);
 
     List<String> nodeIds = List.of(fileId1, fileId2, fileId3);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
@@ -152,8 +131,7 @@ public class DownloadMultipleApiIT {
     );
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -170,16 +148,7 @@ public class DownloadMultipleApiIT {
         );
 
     // Verify storages was called for each file
-    simulator
-        .getStoragesMock()
-        .verify(
-            org.mockserver.model.HttpRequest.request()
-                .withMethod(HttpMethod.GET.toString())
-                .withPath("/download")
-                .withQueryStringParameter(Parameter.param("node", fileId1))
-                .withQueryStringParameter(Parameter.param("version", "1"))
-                .withQueryStringParameter(Parameter.param("type", "files")),
-            VerificationTimes.once());
+    app.mocks().verifyStoragesDownloaded(fileId1, 1);
   }
 
   @Test
@@ -190,7 +159,8 @@ public class DownloadMultipleApiIT {
     String fileId1 = "00000000-0000-0000-0000-000000000201";
     String fileId2 = "00000000-0000-0000-0000-000000000202";
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 parentFolderId,
@@ -241,8 +211,8 @@ public class DownloadMultipleApiIT {
                 "text/plain"));
 
     // Mock storages responses
-    storagesMockHelper.getBlob(fileId1, 1);
-    storagesMockHelper.getBlob(fileId2, 1);
+    app.mocks().storagesServesBlob(fileId1, 1);
+    app.mocks().storagesServesBlob(fileId2, 1);
 
     List<String> nodeIds = List.of(fileId1, subFolderId);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
@@ -261,8 +231,7 @@ public class DownloadMultipleApiIT {
     );
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -275,7 +244,8 @@ public class DownloadMultipleApiIT {
     String fileId2 = "00000000-0000-0000-0000-000000000302";
     String folderId = "11111111-1111-1111-1111-111111111301";
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 fileId1,
@@ -314,8 +284,8 @@ public class DownloadMultipleApiIT {
                 null));
 
     // Mock storages responses
-    storagesMockHelper.getBlob(fileId1, 1);
-    storagesMockHelper.getBlob(fileId2, 1);
+    app.mocks().storagesServesBlob(fileId1, 1);
+    app.mocks().storagesServesBlob(fileId2, 1);
 
     List<String> nodeIds = List.of(Constants.Db.RootId.LOCAL_ROOT);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
@@ -334,8 +304,7 @@ public class DownloadMultipleApiIT {
     );
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -351,7 +320,8 @@ public class DownloadMultipleApiIT {
     // Given
     String fileId = "00000000-0000-0000-0000-000000000501";
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 fileId,
@@ -382,8 +352,7 @@ public class DownloadMultipleApiIT {
     );
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(400);
@@ -409,8 +378,7 @@ public class DownloadMultipleApiIT {
     );
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(400);
@@ -432,8 +400,7 @@ public class DownloadMultipleApiIT {
     );
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(400);
@@ -457,8 +424,7 @@ public class DownloadMultipleApiIT {
     );
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(400);
@@ -482,8 +448,7 @@ public class DownloadMultipleApiIT {
     );
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(400);
@@ -496,7 +461,8 @@ public class DownloadMultipleApiIT {
     String fileId = "00000000-0000-0000-0000-000000000901";
 
     // Create a folder owned by another user but shared with our user
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 folderId,
@@ -525,7 +491,7 @@ public class DownloadMultipleApiIT {
         .addShare(fileId, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", ACL.SharePermission.READ_ONLY);
 
     // Mock storages response
-    storagesMockHelper.getBlob(fileId, 1);
+    app.mocks().storagesServesBlob(fileId, 1);
 
     List<String> nodeIds = List.of(fileId);
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
@@ -544,8 +510,7 @@ public class DownloadMultipleApiIT {
     );
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendFormRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.sendForm(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
