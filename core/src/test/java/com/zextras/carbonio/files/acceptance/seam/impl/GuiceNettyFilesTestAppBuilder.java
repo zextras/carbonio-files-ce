@@ -66,6 +66,13 @@ public class GuiceNettyFilesTestAppBuilder {
 
   public FilesTestApp build() {
     Simulator simulator = simulatorBuilder.build().start();
+    // Transport selection WITHOUT touching any test body: opt in to the real-HTTP transport
+    // (Option B) with -Dfiles.test.transport=http; the DEFAULT stays the embedded EmbeddedChannel
+    // transport, so plain `mvn verify` behavior is unchanged. Both drive the SAME acceptance-test
+    // bodies through the same neutral FilesTestApp seam.
+    if ("http".equalsIgnoreCase(System.getProperty("files.test.transport"))) {
+      return new RealHttpFilesTestApp(simulator);
+    }
     return new GuiceNettyFilesTestApp(simulator);
   }
 }
