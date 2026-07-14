@@ -9,8 +9,8 @@ WORKDIR /app
 
 COPY --from=prep /staging/etc /etc
 
-COPY ../../boot/target/carbonio-files-*-jar-with-dependencies.jar .
+COPY boot/target/carbonio-files-*-jar-with-dependencies.jar .
 
-COPY docker/minimal/carbonio-files/entrypoint.sh entrypoint.sh
+COPY docker/entrypoint.sh entrypoint.sh
 
 ENTRYPOINT ["/app/entrypoint.sh"]

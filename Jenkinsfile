@@ -28,7 +28,7 @@ dt3_pipeline(
                 ''',
     ],
     docker: [[
-        dockerfile: 'docker/minimal/carbonio-files/Dockerfile',
+        dockerfile: 'docker/Dockerfile',
         imageName: 'carbonio-files-ce',
         title: 'Carbonio Files CE',
         description: 'Carbonio Files Community Edition',
