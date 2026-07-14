@@ -2,20 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.api;
+package com.zextras.carbonio.files.acceptance;
 
-import com.google.inject.Injector;
-import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.Simulator;
-import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
-import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.acceptance.seam.FilesTestApp;
+import com.zextras.carbonio.files.acceptance.seam.impl.GuiceNettyFilesTestAppBuilder;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
-import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import org.assertj.core.api.Assertions;
@@ -26,60 +19,50 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 class RestoreNodesApiIT {
 
-  static Simulator simulator;
-  static NodeRepository nodeRepository;
-  static FileVersionRepository fileVersionRepository;
-  static LinkRepository linkRepository;
+  static FilesTestApp app;
 
   @BeforeAll
   static void init() {
-    simulator =
-        SimulatorBuilder.aSimulator()
-            .init()
+    app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withServiceDiscover()
             .withUserManagement( // create a fake token to use in cookie for auth
                 Map.of(
                     "fake-token",
                     "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
-            .build()
-            .start();
-
-    final Injector injector = simulator.getInjector();
-    nodeRepository = injector.getInstance(NodeRepository.class);
-    fileVersionRepository = injector.getInstance(FileVersionRepository.class);
-    linkRepository = injector.getInstance(LinkRepository.class);
+            .build();
   }
 
   @AfterEach
   void cleanUp() {
-    simulator.resetDatabase();
+    app.backdoor().resetDatabase();
   }
 
   @AfterAll
   static void cleanUpAll() {
-    simulator.stopAll();
+    app.close();
   }
 
-  private void trashNode(String nodeId){
-    Optional<Node> trashedNodeOpt = nodeRepository.getNode(nodeId);
-    trashedNodeOpt.ifPresent(trashedNode -> {
-      String nodeParentId = trashedNode.getParentId().get();
-      trashedNode.setAncestorIds(Constants.Db.RootId.TRASH_ROOT);
-      trashedNode.setParentId(Constants.Db.RootId.TRASH_ROOT);
-      nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
-      nodeRepository.updateNode(trashedNode);
-    });
+  /**
+   * Functionally identical to the pre-migration hand-rolled trashNode() (which loaded the node,
+   * flipped its ancestor/parent ids to TRASH_ROOT and called nodeRepository.trashNode(...)
+   * directly): {@link com.zextras.carbonio.files.api.utilities.DatabasePopulator#addNodeToTrash}
+   * already does exactly this. All nodes in this file are created via {@link
+   * SimplePopulatorTextFile}, whose parent is always {@code "LOCAL_ROOT"}.
+   */
+  private void trashNode(String nodeId) {
+    app.backdoor().populator().addNodeToTrash(nodeId, "LOCAL_ROOT");
   }
 
   @Test
   void givenATrashedNodeRestoreNodesShouldRestoreThatNode() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new SimplePopulatorTextFile(
                 "00000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
@@ -96,8 +79,7 @@ class RestoreNodesApiIT {
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -117,14 +99,14 @@ class RestoreNodesApiIT {
   @Test
   void givenTwoFilesOnWithTheSameNameAndOneIsTrashedBothWithSameParentDirectoryRestoreNodeShouldRestoreFileWithDifferentNameFromAlreadyExisting() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor().populator()
         .addNode(
             new SimplePopulatorTextFile(
                 "00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
 
     trashNode("00000000-0000-0000-0000-000000000000");
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor().populator()
         .addNode(
             new SimplePopulatorTextFile(
                 "00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
@@ -139,8 +121,7 @@ class RestoreNodesApiIT {
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);

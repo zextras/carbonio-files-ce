@@ -2,20 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.api.search;
+package com.zextras.carbonio.files.acceptance;
 
-import com.google.inject.Injector;
-import com.zextras.carbonio.files.Simulator;
-import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
-import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.acceptance.seam.FilesTestApp;
+import com.zextras.carbonio.files.acceptance.seam.impl.GuiceNettyFilesTestAppBuilder;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import java.util.List;
@@ -38,16 +33,12 @@ import org.junit.jupiter.api.TestInstance;
  */
 class PaginationFindNodesApiIT {
 
-  static Simulator simulator;
-  static NodeRepository nodeRepository;
-  static FileVersionRepository fileVersionRepository;
-  static LinkRepository linkRepository;
+  static FilesTestApp app;
 
   @BeforeAll
   static void init() {
-    simulator =
-        SimulatorBuilder.aSimulator()
-            .init()
+    app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withServiceDiscover()
             .withUserManagement( // create a fake token to use in cookie for auth
@@ -56,18 +47,12 @@ class PaginationFindNodesApiIT {
                     "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
                     "fake-token-account-for-sharing",
                     "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"))
-            .build()
-            .start();
-
-    final Injector injector = simulator.getInjector();
-    nodeRepository = injector.getInstance(NodeRepository.class);
-    fileVersionRepository = injector.getInstance(FileVersionRepository.class);
-    linkRepository = injector.getInstance(LinkRepository.class);
+            .build();
   }
 
   @AfterAll
   static void cleanUpAll() {
-    simulator.stopAll();
+    app.close();
   }
 
   @Nested
@@ -76,7 +61,7 @@ class PaginationFindNodesApiIT {
 
     @BeforeAll
     void setUp() {
-      DatabasePopulator.aNodePopulator(simulator.getInjector())
+      app.backdoor().populator()
           .addNode(
               new SimplePopulatorFolder(
                   "10000000-0000-0000-0000-000000000001",
@@ -106,7 +91,7 @@ class PaginationFindNodesApiIT {
 
     @AfterAll
     void tearDown() {
-      simulator.resetDatabase();
+      app.backdoor().resetDatabase();
     }
 
     @Test
@@ -123,8 +108,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequest =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-      final HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      final HttpResponse httpResponse = app.send(httpRequest);
 
       final Map<String, Object> page =
           TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
@@ -143,8 +127,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequestPage =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayloadPage);
 
-      final HttpResponse httpResponsePage =
-          TestUtils.sendRequest(httpRequestPage, simulator.getNettyChannel());
+      final HttpResponse httpResponsePage = app.send(httpRequestPage);
 
       Assertions.assertThat(httpResponsePage.getStatus()).isEqualTo(200);
 
@@ -173,8 +156,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequest =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-      final HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      final HttpResponse httpResponse = app.send(httpRequest);
 
       final Map<String, Object> page =
           TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
@@ -193,8 +175,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequestPage =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayloadPage);
 
-      final HttpResponse httpResponsePage =
-          TestUtils.sendRequest(httpRequestPage, simulator.getNettyChannel());
+      final HttpResponse httpResponsePage = app.send(httpRequestPage);
 
       Assertions.assertThat(httpResponsePage.getStatus()).isEqualTo(200);
 
@@ -223,8 +204,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequest =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-      final HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      final HttpResponse httpResponse = app.send(httpRequest);
 
       final Map<String, Object> page =
           TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
@@ -243,8 +223,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequestPage =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayloadPage);
 
-      final HttpResponse httpResponsePage =
-          TestUtils.sendRequest(httpRequestPage, simulator.getNettyChannel());
+      final HttpResponse httpResponsePage = app.send(httpRequestPage);
 
       Assertions.assertThat(httpResponsePage.getStatus()).isEqualTo(200);
 
@@ -274,8 +253,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequest =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-      final HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      final HttpResponse httpResponse = app.send(httpRequest);
 
       final Map<String, Object> page =
           TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
@@ -294,8 +272,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequestPage =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayloadPage);
 
-      final HttpResponse httpResponsePage =
-          TestUtils.sendRequest(httpRequestPage, simulator.getNettyChannel());
+      final HttpResponse httpResponsePage = app.send(httpRequestPage);
 
       Assertions.assertThat(httpResponsePage.getStatus()).isEqualTo(200);
 
@@ -317,7 +294,7 @@ class PaginationFindNodesApiIT {
 
     @BeforeAll
     void setUp() {
-      DatabasePopulator.aNodePopulator(simulator.getInjector())
+      app.backdoor().populator()
           .addNode(
               new SimplePopulatorFolder(
                   "10000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
@@ -339,7 +316,7 @@ class PaginationFindNodesApiIT {
 
     @AfterAll
     void tearDown() {
-      simulator.resetDatabase();
+      app.backdoor().resetDatabase();
     }
 
     @Test
@@ -356,8 +333,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequest =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-      final HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      final HttpResponse httpResponse = app.send(httpRequest);
 
       final Map<String, Object> page =
           TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
@@ -376,8 +352,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequestPage =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayloadPage);
 
-      final HttpResponse httpResponsePage =
-          TestUtils.sendRequest(httpRequestPage, simulator.getNettyChannel());
+      final HttpResponse httpResponsePage = app.send(httpRequestPage);
 
       Assertions.assertThat(httpResponsePage.getStatus()).isEqualTo(200);
 
@@ -406,8 +381,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequest =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-      final HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      final HttpResponse httpResponse = app.send(httpRequest);
 
       final Map<String, Object> page =
           TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
@@ -426,8 +400,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequestPage =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayloadPage);
 
-      final HttpResponse httpResponsePage =
-          TestUtils.sendRequest(httpRequestPage, simulator.getNettyChannel());
+      final HttpResponse httpResponsePage = app.send(httpRequestPage);
 
       Assertions.assertThat(httpResponsePage.getStatus()).isEqualTo(200);
 
@@ -448,7 +421,7 @@ class PaginationFindNodesApiIT {
 
     @AfterEach
     void cleanUp() {
-      simulator.resetDatabase();
+      app.backdoor().resetDatabase();
     }
 
     @Test
@@ -459,8 +432,8 @@ class PaginationFindNodesApiIT {
       page_token
       """)
     void givenFilesOnRootHavingInjectedSQLInFilenameSearchWithSortNameAscShouldNotBeVulnerable() {
-      DatabasePopulator
-        .aNodePopulator(simulator.getInjector())
+      app.backdoor()
+        .populator()
         .addNode(new SimplePopulatorFolder(
           "10000000-0000-0000-0000-000000000001",
           "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
@@ -493,8 +466,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-      final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      final HttpResponse httpResponse = app.send(httpRequest);
 
       final Map<String, Object> page =
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
@@ -512,8 +484,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequestPage =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayloadPage);
 
-      final HttpResponse httpResponsePage =
-        TestUtils.sendRequest(httpRequestPage, simulator.getNettyChannel());
+      final HttpResponse httpResponsePage = app.send(httpRequestPage);
 
       Assertions.assertThat(httpResponsePage.getStatus()).isEqualTo(200);
 
@@ -536,8 +507,8 @@ class PaginationFindNodesApiIT {
       """)
     @Test
     void givenFoldersOnRootHavingInjectedSQLInFilenameSearchWithSortNameAscShouldNotBeVulnerable() {
-      DatabasePopulator
-        .aNodePopulator(simulator.getInjector())
+      app.backdoor()
+        .populator()
         .addNode(new SimplePopulatorFolder(
           "10000000-0000-0000-0000-000000000001",
           "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
@@ -570,8 +541,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-      final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      final HttpResponse httpResponse = app.send(httpRequest);
 
       final Map<String, Object> page =
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
@@ -589,8 +559,7 @@ class PaginationFindNodesApiIT {
       final HttpRequest httpRequestPage =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayloadPage);
 
-      final HttpResponse httpResponsePage =
-        TestUtils.sendRequest(httpRequestPage, simulator.getNettyChannel());
+      final HttpResponse httpResponsePage = app.send(httpRequestPage);
 
       Assertions.assertThat(httpResponsePage.getStatus()).isEqualTo(200);
 

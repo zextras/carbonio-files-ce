@@ -2,18 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.api;
+package com.zextras.carbonio.files.acceptance;
 
-import com.google.inject.Injector;
-import com.zextras.carbonio.files.Simulator;
-import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
-import com.zextras.carbonio.files.TestUtils;
-import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.acceptance.seam.FilesTestApp;
+import com.zextras.carbonio.files.acceptance.seam.impl.GuiceNettyFilesTestAppBuilder;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
-import com.zextras.carbonio.files.utilities.StoragesMockHelper;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import org.assertj.core.api.Assertions;
@@ -37,43 +31,32 @@ import java.util.Map;
  */
 class TombstoneDeleteIT {
 
-  static Simulator simulator;
-  static StoragesMockHelper storagesMockHelper;
-  static NodeRepository nodeRepository;
-  static TombstoneRepository tombstoneRepository;
+  static FilesTestApp app;
 
   private static final String OWNER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
   @BeforeAll
   static void init() {
-    simulator =
-        SimulatorBuilder.aSimulator()
-            .init()
+    app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withServiceDiscover()
             .withStorages()
             .withUserManagement(Map.of("fake-token", OWNER_ID))
-            .build()
-            .start();
-
-    final Injector injector = simulator.getInjector();
-    nodeRepository = injector.getInstance(NodeRepository.class);
-    tombstoneRepository = injector.getInstance(TombstoneRepository.class);
-    storagesMockHelper = new StoragesMockHelper(simulator.getStoragesMock());
+            .build();
   }
 
   @AfterEach
   void cleanUp() {
-    simulator.resetDatabase();
+    app.backdoor().resetDatabase();
     // TOMBSTONE is not FK-linked to NODE, so resetDatabase() does not cascade into it.
-    tombstoneRepository.getTombstones().forEach(t ->
-        tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion()));
-    simulator.reinitializeMocks();
+    app.backdoor().clearTombstones();
+    app.mocks().reset();
   }
 
   @AfterAll
   static void cleanUpAll() {
-    simulator.stopAll();
+    app.close();
   }
 
   private HttpResponse executeDeleteNodes(String... nodeIds) {
@@ -84,7 +67,7 @@ class TombstoneDeleteIT {
             .build();
     HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", null, bodyPayload);
-    return TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    return app.send(httpRequest);
   }
 
   // --- Test 1: tombstone created → removed on sync-path success ---
@@ -95,20 +78,21 @@ class TombstoneDeleteIT {
     // Given
     String fileId = "00000000-0000-0000-0000-200000000001";
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(new SimplePopulatorTextFile(fileId, OWNER_ID, "file.txt"));
 
-    storagesMockHelper.bulkDelete(List.of());
+    app.mocks().storagesBulkDeleteSucceeds(List.of());
 
     // When
     HttpResponse httpResponse = executeDeleteNodes(fileId);
 
     // Then — node deleted from DB.
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    Assertions.assertThat(nodeRepository.getNode(fileId)).isEmpty();
+    Assertions.assertThat(app.backdoor().nodeExists(fileId)).isFalse();
 
     // Tombstone was created and then immediately removed after confirmed bulkDelete.
-    Assertions.assertThat(tombstoneRepository.getTombstones()).isEmpty();
+    Assertions.assertThat(app.backdoor().tombstoneCount()).isEqualTo(0);
   }
 
   // --- Test 2: tombstone remains when bulkDelete reports the blob as failed ---
@@ -119,23 +103,23 @@ class TombstoneDeleteIT {
     // Given
     String fileId = "00000000-0000-0000-0000-200000000002";
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(new SimplePopulatorTextFile(fileId, OWNER_ID, "file.txt"));
 
     // PowerStore responds 200 but reports this node as failed.
-    storagesMockHelper.bulkDelete(List.of(fileId));
+    app.mocks().storagesBulkDeleteSucceeds(List.of(fileId));
 
     // When
     HttpResponse httpResponse = executeDeleteNodes(fileId);
 
     // Then — DB delete committed (DB-first contract).
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    Assertions.assertThat(nodeRepository.getNode(fileId)).isEmpty();
+    Assertions.assertThat(app.backdoor().nodeExists(fileId)).isFalse();
 
     // Tombstone remains so PurgeService can retry blob deletion.
-    Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
-    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getNodeId())
-        .isEqualTo(fileId);
+    Assertions.assertThat(app.backdoor().tombstoneCount()).isEqualTo(1);
+    Assertions.assertThat(app.backdoor().tombstoneCountForNode(fileId)).isEqualTo(1);
   }
 
   // --- Test 3: tombstone remains on complete PowerStore outage (HTTP 500) ---
@@ -145,21 +129,21 @@ class TombstoneDeleteIT {
     // Given
     String fileId = "00000000-0000-0000-0000-200000000003";
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(new SimplePopulatorTextFile(fileId, OWNER_ID, "file.txt"));
 
-    storagesMockHelper.bulkDeleteError();
+    app.mocks().storagesBulkDeleteFails();
 
     // When
     HttpResponse httpResponse = executeDeleteNodes(fileId);
 
     // Then — DB delete committed; user sees success (DB-first contract).
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    Assertions.assertThat(nodeRepository.getNode(fileId)).isEmpty();
+    Assertions.assertThat(app.backdoor().nodeExists(fileId)).isFalse();
 
     // Tombstone remains for PurgeService retry.
-    Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
-    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getNodeId())
-        .isEqualTo(fileId);
+    Assertions.assertThat(app.backdoor().tombstoneCount()).isEqualTo(1);
+    Assertions.assertThat(app.backdoor().tombstoneCountForNode(fileId)).isEqualTo(1);
   }
 }

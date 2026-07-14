@@ -2,21 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.api.search;
+package com.zextras.carbonio.files.acceptance;
 
-import com.google.inject.Injector;
-import com.zextras.carbonio.files.Simulator;
-import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
-import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.acceptance.seam.FilesTestApp;
+import com.zextras.carbonio.files.acceptance.seam.impl.GuiceNettyFilesTestAppBuilder;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import java.util.List;
@@ -31,16 +26,12 @@ import org.junit.jupiter.api.TestInstance;
 
 class FindNodesApiIT {
 
-  static Simulator simulator;
-  static NodeRepository nodeRepository;
-  static FileVersionRepository fileVersionRepository;
-  static LinkRepository linkRepository;
+  static FilesTestApp app;
 
   @BeforeAll
   static void init() {
-    simulator =
-        SimulatorBuilder.aSimulator()
-            .init()
+    app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withServiceDiscover()
             .withUserManagement( // create a fake token to use in cookie for auth
@@ -49,18 +40,12 @@ class FindNodesApiIT {
                     "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
                     "fake-token-account-for-sharing",
                     "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"))
-            .build()
-            .start();
-
-    final Injector injector = simulator.getInjector();
-    nodeRepository = injector.getInstance(NodeRepository.class);
-    fileVersionRepository = injector.getInstance(FileVersionRepository.class);
-    linkRepository = injector.getInstance(LinkRepository.class);
+            .build();
   }
 
   @AfterAll
   static void cleanUpAll() {
-    simulator.stopAll();
+    app.close();
   }
 
   @Nested
@@ -69,7 +54,7 @@ class FindNodesApiIT {
 
     @BeforeAll
     void setUp() {
-      DatabasePopulator.aNodePopulator(simulator.getInjector())
+      app.backdoor().populator()
           .addNode(
               new SimplePopulatorFolder(
                   "10000000-0000-0000-0000-000000000001",
@@ -99,7 +84,7 @@ class FindNodesApiIT {
 
     @AfterAll
     void tearDown() {
-      simulator.resetDatabase();
+      app.backdoor().resetDatabase();
     }
 
     @Test
@@ -116,8 +101,7 @@ class FindNodesApiIT {
       final HttpRequest httpRequest =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-      final HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      final HttpResponse httpResponse = app.send(httpRequest);
 
       Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
@@ -158,8 +142,7 @@ class FindNodesApiIT {
       final HttpRequest httpRequest =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-      final HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      final HttpResponse httpResponse = app.send(httpRequest);
 
       Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
@@ -200,8 +183,7 @@ class FindNodesApiIT {
       final HttpRequest httpRequest =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-      final HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      final HttpResponse httpResponse = app.send(httpRequest);
 
       Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
@@ -242,8 +224,7 @@ class FindNodesApiIT {
       final HttpRequest httpRequest =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-      final HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      final HttpResponse httpResponse = app.send(httpRequest);
 
       Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
@@ -285,8 +266,7 @@ class FindNodesApiIT {
       final HttpRequest httpRequest =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-      final HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      final HttpResponse httpResponse = app.send(httpRequest);
 
       Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
@@ -311,7 +291,7 @@ class FindNodesApiIT {
 
     @BeforeAll
     void setUp() {
-      DatabasePopulator.aNodePopulator(simulator.getInjector())
+      app.backdoor().populator()
           .addNode(
               new SimplePopulatorFolder(
                   "10000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
@@ -333,7 +313,7 @@ class FindNodesApiIT {
 
     @AfterAll
     void tearDown() {
-      simulator.resetDatabase();
+      app.backdoor().resetDatabase();
     }
 
     @Test
@@ -350,8 +330,7 @@ class FindNodesApiIT {
       final HttpRequest httpRequest =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-      final HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      final HttpResponse httpResponse = app.send(httpRequest);
 
       Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
@@ -392,8 +371,7 @@ class FindNodesApiIT {
       final HttpRequest httpRequest =
           HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-      final HttpResponse httpResponse =
-          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      final HttpResponse httpResponse = app.send(httpRequest);
 
       Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
@@ -426,13 +404,13 @@ class FindNodesApiIT {
 
     @AfterEach
     void cleanUp() {
-      simulator.resetDatabase();
+      app.backdoor().resetDatabase();
     }
 
     @Test
     void givenFilesOnRootSearchWithFlaggedShouldReturnFlaggedNodes() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor().populator()
         .addNode(
             new SimplePopulatorTextFile(
                 "00000000-0000-0000-0000-000000000001",
@@ -458,8 +436,7 @@ class FindNodesApiIT {
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -478,7 +455,7 @@ class FindNodesApiIT {
   @Test
   void givenFilesOnRootSearchSharedByMeShouldReturnSharedByMeNodes() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor().populator()
         .addNode(
             new SimplePopulatorTextFile(
                 "00000000-0000-0000-0000-000000000001",
@@ -508,8 +485,7 @@ class FindNodesApiIT {
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -528,7 +504,7 @@ class FindNodesApiIT {
   @Test
   void givenFilesOnRootSearchSharedWithMeShouldReturnSharedWithMeNodes() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor().populator()
         .addNode(
             new SimplePopulatorTextFile(
                 "00000000-0000-0000-0000-000000000001",
@@ -558,8 +534,7 @@ class FindNodesApiIT {
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -578,7 +553,7 @@ class FindNodesApiIT {
   @Test
   void givenFilesOnTrashSearchTrashBinShouldReturnTrashedNodes() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor().populator()
         .addNode(
             new SimplePopulatorTextFile(
                 "00000000-0000-0000-0000-000000000001",
@@ -603,8 +578,7 @@ class FindNodesApiIT {
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -623,7 +597,7 @@ class FindNodesApiIT {
   @Test
   void givenExistingFilesTrashSearchSharedWithMeInTrashBinShouldReturnSharedTrashedNodes() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor().populator()
         .addNode(
             new SimplePopulatorTextFile(
                 "00000000-0000-0000-0000-000000000001",
@@ -653,8 +627,7 @@ class FindNodesApiIT {
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);

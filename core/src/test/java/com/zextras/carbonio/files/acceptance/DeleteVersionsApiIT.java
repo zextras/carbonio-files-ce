@@ -2,20 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.api;
+package com.zextras.carbonio.files.acceptance;
 
-import com.google.inject.Injector;
-import com.zextras.carbonio.files.Simulator;
-import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
-import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.acceptance.seam.FilesTestApp;
+import com.zextras.carbonio.files.acceptance.seam.impl.GuiceNettyFilesTestAppBuilder;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
-import com.zextras.carbonio.files.utilities.StoragesMockHelper;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import org.assertj.core.api.Assertions;
@@ -30,45 +23,32 @@ import java.util.stream.Collectors;
 
 class DeleteVersionsApiIT {
 
-  static Simulator simulator;
-  static StoragesMockHelper storagesMockHelper;
-  static NodeRepository nodeRepository;
-  static FileVersionRepository fileVersionRepository;
-  static TombstoneRepository tombstoneRepository;
+  static FilesTestApp app;
 
   private static final String OWNER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
   @BeforeAll
   static void init() {
-    simulator =
-        SimulatorBuilder.aSimulator()
-            .init()
+    app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withServiceDiscover()
             .withStorages()
             .withUserManagement(Map.of("fake-token", OWNER_ID))
-            .build()
-            .start();
-
-    final Injector injector = simulator.getInjector();
-    nodeRepository = injector.getInstance(NodeRepository.class);
-    fileVersionRepository = injector.getInstance(FileVersionRepository.class);
-    tombstoneRepository = injector.getInstance(TombstoneRepository.class);
-    storagesMockHelper = new StoragesMockHelper(simulator.getStoragesMock());
+            .build();
   }
 
   @AfterEach
   void cleanUp() {
-    simulator.resetDatabase();
+    app.backdoor().resetDatabase();
     // Tombstones are not FK-linked to NODE so resetDatabase() doesn't clean them.
-    tombstoneRepository.getTombstones().forEach(t ->
-        tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion()));
-    simulator.reinitializeMocks();
+    app.backdoor().clearTombstones();
+    app.mocks().reset();
   }
 
   @AfterAll
   static void cleanUpAll() {
-    simulator.stopAll();
+    app.close();
   }
 
   private HttpResponse executeDeleteVersions(String nodeId, int... versions) {
@@ -80,7 +60,7 @@ class DeleteVersionsApiIT {
             .build();
     HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", null, bodyPayload);
-    return TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    return app.send(httpRequest);
   }
 
   /**
@@ -89,17 +69,32 @@ class DeleteVersionsApiIT {
    * The node's currentVersion ends at 3.
    */
   private void createFileWithThreeVersions(String nodeId) {
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(new SimplePopulatorTextFile(nodeId, OWNER_ID, "file.txt"))
         .addVersion(nodeId)   // version 2
         .addVersion(nodeId);  // version 3
   }
 
+  /**
+   * Remaining version numbers, ascending, read back via the public {@code getVersions} GraphQL
+   * query (contract-observable) rather than the FileVersionRepository directly. Omitting the
+   * "versions" argument returns every version currently persisted for the node.
+   */
   private List<Integer> getRemainingVersionNumbers(String nodeId) {
-    return fileVersionRepository
-        .getFileVersions(nodeId, List.of(FileVersionSort.VERSION_ASC))
-        .stream()
-        .map(fv -> fv.getVersion())
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getVersions")
+            .withString("node_id", nodeId)
+            .withWantedResultFormat("{ version }")
+            .build();
+    HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+    HttpResponse httpResponse = app.send(httpRequest);
+    List<Map<String, Object>> versions =
+        TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "getVersions");
+    return versions.stream()
+        .map(v -> (Integer) v.get("version"))
+        .sorted()
         .collect(Collectors.toList());
   }
 
@@ -112,7 +107,7 @@ class DeleteVersionsApiIT {
     String nodeId = "00000000-0000-0000-0000-200000000001";
     createFileWithThreeVersions(nodeId);
 
-    storagesMockHelper.bulkDelete(List.of());
+    app.mocks().storagesBulkDeleteSucceeds(List.of());
 
     // When — delete versions 1 and 2 (current=3 must stay)
     HttpResponse httpResponse = executeDeleteVersions(nodeId, 1, 2);
@@ -132,7 +127,7 @@ class DeleteVersionsApiIT {
     Assertions.assertThat(getRemainingVersionNumbers(nodeId)).containsExactly(3);
 
     // Tombstones cleaned up after confirmed blob delete.
-    Assertions.assertThat(tombstoneRepository.getTombstones()).isEmpty();
+    Assertions.assertThat(app.backdoor().tombstoneCount()).isEqualTo(0);
   }
 
   // --- Test 2: PowerStore fails (exception) — versions still deleted from DB, no error to user ---
@@ -145,7 +140,7 @@ class DeleteVersionsApiIT {
     createFileWithThreeVersions(nodeId);
 
     // PowerStore returns HTTP 500 — complete failure.
-    storagesMockHelper.bulkDeleteError();
+    app.mocks().storagesBulkDeleteFails();
 
     // When — delete versions 1 and 2
     HttpResponse httpResponse = executeDeleteVersions(nodeId, 1, 2);
@@ -165,7 +160,7 @@ class DeleteVersionsApiIT {
     Assertions.assertThat(getRemainingVersionNumbers(nodeId)).containsExactly(3);
 
     // Tombstones remain for PurgeService retry.
-    Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(2);
+    Assertions.assertThat(app.backdoor().tombstoneCount()).isEqualTo(2);
   }
 
   // --- Test 3: Protective filter — current version cannot be deleted ---
@@ -176,7 +171,7 @@ class DeleteVersionsApiIT {
     String nodeId = "00000000-0000-0000-0000-200000000004";
     createFileWithThreeVersions(nodeId); // current = 3
 
-    storagesMockHelper.bulkDelete(List.of());
+    app.mocks().storagesBulkDeleteSucceeds(List.of());
 
     // When — try to delete current version (3)
     HttpResponse httpResponse = executeDeleteVersions(nodeId, 3);
@@ -196,7 +191,7 @@ class DeleteVersionsApiIT {
     Assertions.assertThat(getRemainingVersionNumbers(nodeId)).containsExactly(1, 2, 3);
 
     // No tombstones created (nothing eligible to delete).
-    Assertions.assertThat(tombstoneRepository.getTombstones()).isEmpty();
+    Assertions.assertThat(app.backdoor().tombstoneCount()).isEqualTo(0);
   }
 
   // --- Test 4: Protective filter — keepForever version cannot be deleted ---
@@ -205,12 +200,12 @@ class DeleteVersionsApiIT {
   void givenFileWithKeepForeverVersionDeleteItThenKeepForeverVersionSkippedAndOnlyEligibleVersionDeleted() {
     // Given — version 2 is keepForever, version 3 is current
     String nodeId = "00000000-0000-0000-0000-200000000005";
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor().populator()
         .addNode(new SimplePopulatorTextFile(nodeId, OWNER_ID, "file.txt"))
         .addVersion(nodeId, true)   // version 2, keepForever=true
         .addVersion(nodeId);        // version 3 (current)
 
-    storagesMockHelper.bulkDelete(List.of());
+    app.mocks().storagesBulkDeleteSucceeds(List.of());
 
     // When — try to delete v1 (eligible) and v2 (keepForever, ineligible)
     HttpResponse httpResponse = executeDeleteVersions(nodeId, 1, 2);
@@ -231,6 +226,6 @@ class DeleteVersionsApiIT {
     Assertions.assertThat(getRemainingVersionNumbers(nodeId)).containsExactly(2, 3);
 
     // Tombstone for v1 cleaned up.
-    Assertions.assertThat(tombstoneRepository.getTombstones()).isEmpty();
+    Assertions.assertThat(app.backdoor().tombstoneCount()).isEqualTo(0);
   }
 }

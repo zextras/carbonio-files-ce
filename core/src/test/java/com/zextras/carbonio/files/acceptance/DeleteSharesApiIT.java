@@ -2,18 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.api;
+package com.zextras.carbonio.files.acceptance;
 
-import com.google.inject.Injector;
-import com.zextras.carbonio.files.Simulator;
-import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
-import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.acceptance.seam.FilesTestApp;
+import com.zextras.carbonio.files.acceptance.seam.impl.GuiceNettyFilesTestAppBuilder;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import java.util.List;
@@ -26,15 +22,12 @@ import org.junit.jupiter.api.Test;
 
 class DeleteSharesApiIT {
 
-  static Simulator simulator;
-  static NodeRepository nodeRepository;
-  static ShareRepository shareRepository;
+  static FilesTestApp app;
 
   @BeforeAll
   static void init() {
-    simulator =
-        SimulatorBuilder.aSimulator()
-            .init()
+    app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withServiceDiscover()
             .withUserManagement(
@@ -45,36 +38,29 @@ class DeleteSharesApiIT {
                     "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
                     "fake-token-account-for-sharing-2",
                     "cccccccc-cccc-cccc-cccc-cccccccccccc"))
-            .build()
-            .start();
-    final Injector injector = simulator.getInjector();
-    nodeRepository = injector.getInstance(NodeRepository.class);
-    shareRepository = injector.getInstance(ShareRepository.class);
+            .build();
   }
 
   @AfterEach
   void cleanUp() {
-    simulator.resetDatabase();
+    app.backdoor().resetDatabase();
   }
 
   @AfterAll
   static void cleanUpAll() {
-    simulator.stopAll();
+    app.close();
   }
 
   void createFile(String nodeId, String ownerId) {
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addNode(new SimplePopulatorTextFile(nodeId, ownerId));
+    app.backdoor().populator().addNode(new SimplePopulatorTextFile(nodeId, ownerId));
   }
 
   void createShare(String nodeId, String targetUserId, SharePermission permission) {
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addShare(nodeId, targetUserId, permission);
+    app.backdoor().populator().addShare(nodeId, targetUserId, permission);
   }
 
   @Test
-  void
-      givenExistingSharesTheDeleteSharesShouldDeleteAllAndReturnTargetIds() {
+  void givenExistingSharesTheDeleteSharesShouldDeleteAllAndReturnTargetIds() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     createShare(
@@ -102,8 +88,7 @@ class DeleteSharesApiIT {
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -119,21 +104,20 @@ class DeleteSharesApiIT {
             "cccccccc-cccc-cccc-cccc-cccccccccccc");
 
     Assertions.assertThat(
-        shareRepository.getShare(
+        app.backdoor().shareExists(
             "00000000-0000-0000-0000-000000000000",
             "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
-    ).isEmpty();
+    ).isFalse();
 
     Assertions.assertThat(
-        shareRepository.getShare(
+        app.backdoor().shareExists(
             "00000000-0000-0000-0000-000000000000",
             "cccccccc-cccc-cccc-cccc-cccccccccccc")
-    ).isEmpty();
+    ).isFalse();
   }
 
   @Test
-  void
-      givenOneNonExistingShareTheDeleteSharesShouldReturnPartialSuccessWithErrors() {
+  void givenOneNonExistingShareTheDeleteSharesShouldReturnPartialSuccessWithErrors() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     createShare(
@@ -157,8 +141,7 @@ class DeleteSharesApiIT {
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -181,8 +164,7 @@ class DeleteSharesApiIT {
   }
 
   @Test
-  void
-      givenATargetUserTheDeleteSharesShouldAllowSelfDeletion() {
+  void givenATargetUserTheDeleteSharesShouldAllowSelfDeletion() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     createShare(
@@ -204,8 +186,7 @@ class DeleteSharesApiIT {
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -219,15 +200,14 @@ class DeleteSharesApiIT {
         .containsExactly("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 
     Assertions.assertThat(
-        shareRepository.getShare(
+        app.backdoor().shareExists(
             "00000000-0000-0000-0000-000000000000",
             "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
-    ).isEmpty();
+    ).isFalse();
   }
 
   @Test
-  void
-      givenAUserWithoutPermissionsTheDeleteSharesShouldReturnErrors() {
+  void givenAUserWithoutPermissionsTheDeleteSharesShouldReturnErrors() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     createShare(
@@ -250,8 +230,7 @@ class DeleteSharesApiIT {
             "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing-2", bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -268,8 +247,7 @@ class DeleteSharesApiIT {
   }
 
   @Test
-  void
-      givenOwnerAsTargetTheDeleteSharesShouldReturnErrorForOwner() {
+  void givenOwnerAsTargetTheDeleteSharesShouldReturnErrorForOwner() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     createShare(
@@ -293,8 +271,7 @@ class DeleteSharesApiIT {
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
