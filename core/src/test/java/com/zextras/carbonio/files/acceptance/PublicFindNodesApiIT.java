@@ -2,28 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.api.search;
+package com.zextras.carbonio.files.acceptance;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.inject.Injector;
-import com.zextras.carbonio.files.Simulator;
-import com.zextras.carbonio.files.Simulator.SimulatorBuilder;
 import com.zextras.carbonio.files.TestUtils;
-import com.zextras.carbonio.files.api.utilities.DatabasePopulator;
+import com.zextras.carbonio.files.acceptance.seam.FilesTestApp;
+import com.zextras.carbonio.files.acceptance.seam.impl.GuiceNettyFilesTestAppBuilder;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSQLCondition;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SQLExpression;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SortOrder;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,40 +25,32 @@ import org.junit.jupiter.api.Test;
 
 public class PublicFindNodesApiIT {
 
-  static Simulator simulator;
-  static NodeRepository nodeRepository;
-  static FileVersionRepository fileVersionRepository;
-  static LinkRepository linkRepository;
+  static FilesTestApp app;
 
   @BeforeAll
   static void init() {
-    simulator =
-        SimulatorBuilder.aSimulator().init()
+    app =
+        GuiceNettyFilesTestAppBuilder.aFilesTestApp()
             .withDatabase()
             .withServiceDiscover()
-            .build()
-            .start();
-
-    final Injector injector = simulator.getInjector();
-    nodeRepository = injector.getInstance(NodeRepository.class);
-    fileVersionRepository = injector.getInstance(FileVersionRepository.class);
-    linkRepository = injector.getInstance(LinkRepository.class);
+            .build();
   }
 
   @AfterEach
   void cleanUp() {
-    simulator.resetDatabase();
+    app.backdoor().resetDatabase();
   }
 
   @AfterAll
   static void cleanUpAll() {
-    simulator.stopAll();
+    app.close();
   }
 
   void createFolderTree() {
     String ownerId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -104,7 +85,8 @@ public class PublicFindNodesApiIT {
 
     childrenFileIds.forEach(
         fileId -> {
-          DatabasePopulator.aNodePopulator(simulator.getInjector())
+          app.backdoor()
+              .populator()
               .addNode(
                   new PopulatorNode(
                       fileId,
@@ -129,7 +111,8 @@ public class PublicFindNodesApiIT {
   void givenAnExistingFolderAndAValidPublicLinkTheFindNodesShouldReturnTheFirstPage() {
     // Given
     createFolderTree();
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addLink(
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
@@ -149,8 +132,7 @@ public class PublicFindNodesApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -183,7 +165,8 @@ public class PublicFindNodesApiIT {
   void givenAnExistingFolderAndAValidLinkTheFindNodesShouldReturnTheSecondPage() {
     // Given
     createFolderTree();
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addLink(
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
@@ -203,8 +186,7 @@ public class PublicFindNodesApiIT {
 
     final HttpRequest firstHttpRequest =
         HttpRequest.of("POST", "/public/graphql/", null, firstBodyPayload);
-    final HttpResponse firstHttpResponse =
-        TestUtils.sendRequest(firstHttpRequest, simulator.getNettyChannel());
+    final HttpResponse firstHttpResponse = app.send(firstHttpRequest);
 
     Assertions.assertThat(firstHttpResponse.getStatus()).isEqualTo(200);
     String pageToken =
@@ -225,8 +207,7 @@ public class PublicFindNodesApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     final Map<String, Object> page =
@@ -254,7 +235,8 @@ public class PublicFindNodesApiIT {
   void givenAnExistingFolderAndAValidPublicLinkTheFindNodesShouldReturnTheOnlyPageExisting() {
     // Given
     createFolderTree();
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addLink(
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
@@ -274,8 +256,7 @@ public class PublicFindNodesApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -312,7 +293,8 @@ public class PublicFindNodesApiIT {
   @Test
   void givenAnExistingEmptyFolderAndAValidPublicLinkTheFindNodesShouldReturnAnEmptyFirstPage() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -343,8 +325,7 @@ public class PublicFindNodesApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -367,7 +348,8 @@ public class PublicFindNodesApiIT {
   void
       givenAnExistingFolderAndAnExpiredPublicLinkTheFindNodesShouldReturn200CodeAndAnErrorMessage() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -398,8 +380,7 @@ public class PublicFindNodesApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -431,8 +412,7 @@ public class PublicFindNodesApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -457,8 +437,7 @@ public class PublicFindNodesApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -476,11 +455,12 @@ public class PublicFindNodesApiIT {
     not public and an hacked page token that is formed to try access a private node: the findNodes
     should return an empty page""")
   @Test
-  void givenAnHackedPageTokenWithoutSignatureTheFindNodesShouldReturnAnError() throws JsonProcessingException {
+  void givenAnHackedPageTokenWithoutSignatureTheFindNodesShouldReturnAnError() {
     // Given
     createFolderTree();
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addLink(
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
@@ -525,52 +505,21 @@ public class PublicFindNodesApiIT {
                 0L,
                 null));
 
-    SQLExpression keySet = SQLExpression.or(List.of(
-      new NodeSQLCondition("node_category", SortOrder.ASCENDING, 1),
-      SQLExpression.and(List.of(
-        new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
-        new NodeSQLCondition("name", SortOrder.ASCENDING, "folder child")
-      )),
-        SQLExpression.and(List.of(
-          new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
-          new NodeSQLCondition("name", SortOrder.EQUAL, "folder child"),
-          new NodeSQLCondition("node_id", SortOrder.ASCENDING, "88888888-8888-8888-8888-888888888888")
-        ))
-      ));
-    String jsonKeySet = new ObjectMapper().writeValueAsString(keySet);
-
-      String pageTokenHacked = String.format(
-        """
-    {
-      "limit": 1,
-      "keywords": [],
-      "keySet": %s,
-      "sort": "NAME_ASC",
-      "flagged": null,
-      "folderId": "77777777-7777-7777-7777-777777777777",
-      "cascade": null,
-      "sharedWithMe": null,
-      "sharedByMe": null,
-      "directShare": null,
-      "nodeType": null,
-      "ownerId": null
-    }""", jsonKeySet);
+    String pageTokenHacked = app.backdoor().forgeTamperedPageTokenMissingSignature();
 
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 1)
             .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
-            .withString(
-                "page_token", Base64.getEncoder().encodeToString(pageTokenHacked.getBytes()))
+            .withString("page_token", pageTokenHacked)
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -583,11 +532,12 @@ public class PublicFindNodesApiIT {
   }
 
   @Test
-  void givenAnHackedPageTokenWithWrongSignatureTheFindNodesShouldReturnAnError() throws JsonProcessingException {
+  void givenAnHackedPageTokenWithWrongSignatureTheFindNodesShouldReturnAnError() {
     // Given
     createFolderTree();
 
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addLink(
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
@@ -632,53 +582,22 @@ public class PublicFindNodesApiIT {
                 0L,
                 null));
 
-    SQLExpression keySet = SQLExpression.or(List.of(
-      new NodeSQLCondition("node_category", SortOrder.ASCENDING, 1),
-      SQLExpression.and(List.of(
-        new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
-        new NodeSQLCondition("name", SortOrder.ASCENDING, "folder child")
-      )),
-        SQLExpression.and(List.of(
-          new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
-          new NodeSQLCondition("name", SortOrder.EQUAL, "folder child"),
-          new NodeSQLCondition("node_id", SortOrder.ASCENDING, "88888888-8888-8888-8888-888888888888")
-        ))
-      ));
-    String jsonKeySet = new ObjectMapper().writeValueAsString(keySet);
-
-      String pageTokenHacked = String.format(
-        """
-    {
-      "signature": "wrong_signature",
-      "limit": 1,
-      "keywords": [],
-      "keySet": %s,
-      "sort": "NAME_ASC",
-      "flagged": null,
-      "folderId": "77777777-7777-7777-7777-777777777777",
-      "cascade": null,
-      "sharedWithMe": null,
-      "sharedByMe": null,
-      "directShare": null,
-      "nodeType": null,
-      "ownerId": null
-    }""", jsonKeySet);
+    String pageTokenHacked =
+        app.backdoor().forgeTamperedPageTokenWithWrongSignature("wrong_signature");
 
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "00000000-0000-0000-0000-000000000000")
             .withInteger("limit", 1)
             .withString("node_link_id", "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
-            .withString(
-                "page_token", Base64.getEncoder().encodeToString(pageTokenHacked.getBytes()))
+            .withString("page_token", pageTokenHacked)
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
 
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -694,7 +613,8 @@ public class PublicFindNodesApiIT {
   void givenAnExistingFolderAndAValidPublicLinkNotPassedInQueryTheFindNodesShouldReturn200AndAnErrorCode() {
     // Given
     createFolderTree();
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addLink(
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
@@ -713,8 +633,7 @@ public class PublicFindNodesApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -730,7 +649,8 @@ public class PublicFindNodesApiIT {
   void
       givenAnExistingFolderAndAValidPublicLinkWithAccessCodeTheFindNodesWithoutAccessCodeShouldReturn200CodeAndAnErrorMessage() {
     // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000000",
@@ -761,8 +681,7 @@ public class PublicFindNodesApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -779,7 +698,8 @@ public class PublicFindNodesApiIT {
       givenAnExistingFolderAndAValidPublicLinkWithAccessCodeTheFindNodesWithAccessCodeShouldReturnTheCorrectPage() {
     // Given
     createFolderTree();
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
+    app.backdoor()
+        .populator()
         .addLink(
             "54ef41f2-8edf-4023-8b70-b29441a8e8b0",
             "00000000-0000-0000-0000-000000000000",
@@ -800,8 +720,7 @@ public class PublicFindNodesApiIT {
     final HttpRequest httpRequest = HttpRequest.of("POST", "/public/graphql/", null, bodyPayload);
 
     // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse = app.send(httpRequest);
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
