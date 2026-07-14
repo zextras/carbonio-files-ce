@@ -45,6 +45,18 @@ public class GraphqlCommandBuilder {
     return this;
   }
 
+  /**
+   * Emits a GraphQL enum argument from its raw literal name (unquoted), e.g. {@code
+   * withEnumLiteral("sort", "NAME_ASC")}. Use this instead of {@link #withEnum(String, Enum)} when
+   * the caller must not depend on a production Java enum type (e.g. the {@code sort} argument is
+   * part of the GraphQL API contract, not an internal implementation detail).
+   */
+  public GraphqlCommandBuilder withEnumLiteral(String key, String enumLiteral) {
+    query.append(key).append(": ").append(enumLiteral).append(", ");
+    this.hasArguments = true;
+    return this;
+  }
+
   public GraphqlCommandBuilder withListOfStrings(String key, String[] values) {
     query.append(key).append(": [");
     for (String value : values) {

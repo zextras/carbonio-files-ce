@@ -11,7 +11,6 @@ import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import java.util.List;
@@ -93,7 +92,7 @@ class FindNodesApiIT {
           GraphqlCommandBuilder.aQueryBuilder("findNodes")
               .withString("folder_id", "LOCAL_ROOT")
               .withBoolean("cascade", true)
-              .withEnum("sort", NodeSort.NAME_ASC)
+              .withEnumLiteral("sort", "NAME_ASC")
               .withInteger("limit", 5)
               .withWantedResultFormat("{ nodes { id name }, page_token }")
               .build();
@@ -134,7 +133,7 @@ class FindNodesApiIT {
           GraphqlCommandBuilder.aQueryBuilder("findNodes")
               .withString("folder_id", "LOCAL_ROOT")
               .withBoolean("cascade", true)
-              .withEnum("sort", NodeSort.NAME_DESC)
+              .withEnumLiteral("sort", "NAME_DESC")
               .withInteger("limit", 5)
               .withWantedResultFormat("{ nodes { id name }, page_token }")
               .build();
@@ -175,7 +174,7 @@ class FindNodesApiIT {
           GraphqlCommandBuilder.aQueryBuilder("findNodes")
               .withString("folder_id", "LOCAL_ROOT")
               .withBoolean("cascade", true)
-              .withEnum("sort", NodeSort.UPDATED_AT_ASC)
+              .withEnumLiteral("sort", "UPDATED_AT_ASC")
               .withInteger("limit", 5)
               .withWantedResultFormat("{ nodes { id name }, page_token }")
               .build();
@@ -216,7 +215,7 @@ class FindNodesApiIT {
           GraphqlCommandBuilder.aQueryBuilder("findNodes")
               .withString("folder_id", "LOCAL_ROOT")
               .withBoolean("cascade", true)
-              .withEnum("sort", NodeSort.UPDATED_AT_DESC)
+              .withEnumLiteral("sort", "UPDATED_AT_DESC")
               .withInteger("limit", 5)
               .withWantedResultFormat("{ nodes { id name }, page_token }")
               .build();
@@ -257,7 +256,7 @@ class FindNodesApiIT {
           GraphqlCommandBuilder.aQueryBuilder("findNodes")
               .withString("folder_id", "LOCAL_ROOT")
               .withBoolean("cascade", true)
-              .withEnum("sort", NodeSort.NAME_ASC)
+              .withEnumLiteral("sort", "NAME_ASC")
               .withInteger("limit", 5)
               .withListOfStrings("keywords", new String[] {"a"})
               .withWantedResultFormat("{ nodes { id name }, page_token }")
@@ -322,7 +321,7 @@ class FindNodesApiIT {
           GraphqlCommandBuilder.aQueryBuilder("findNodes")
               .withString("folder_id", "LOCAL_ROOT")
               .withBoolean("cascade", true)
-              .withEnum("sort", NodeSort.SIZE_ASC)
+              .withEnumLiteral("sort", "SIZE_ASC")
               .withInteger("limit", 5)
               .withWantedResultFormat("{ nodes { id name }, page_token }")
               .build();
@@ -363,7 +362,7 @@ class FindNodesApiIT {
           GraphqlCommandBuilder.aQueryBuilder("findNodes")
               .withString("folder_id", "LOCAL_ROOT")
               .withBoolean("cascade", true)
-              .withEnum("sort", NodeSort.SIZE_DESC)
+              .withEnumLiteral("sort", "SIZE_DESC")
               .withInteger("limit", 5)
               .withWantedResultFormat("{ nodes { id name }, page_token }")
               .build();
@@ -426,7 +425,7 @@ class FindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "LOCAL_ROOT")
             .withBoolean("cascade", true)
-            .withEnum("sort", NodeSort.NAME_ASC)
+            .withEnumLiteral("sort", "NAME_ASC")
             .withInteger("limit", 5)
             .withBoolean("flagged", true)
             .withWantedResultFormat("{ nodes { id name }, page_token }")
@@ -474,7 +473,7 @@ class FindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "LOCAL_ROOT")
             .withBoolean("cascade", true)
-            .withEnum("sort", NodeSort.NAME_ASC)
+            .withEnumLiteral("sort", "NAME_ASC")
             .withInteger("limit", 5)
             .withBoolean("shared_by_me", true)
             .withBoolean("direct_share", true)
@@ -523,7 +522,7 @@ class FindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "LOCAL_ROOT")
             .withBoolean("cascade", true)
-            .withEnum("sort", NodeSort.NAME_ASC)
+            .withEnumLiteral("sort", "NAME_ASC")
             .withInteger("limit", 5)
             .withBoolean("shared_with_me", true)
             .withBoolean("direct_share", true)
@@ -569,7 +568,7 @@ class FindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "TRASH_ROOT")
             .withBoolean("cascade", false)
-            .withEnum("sort", NodeSort.NAME_ASC)
+            .withEnumLiteral("sort", "NAME_ASC")
             .withInteger("limit", 5)
             .withWantedResultFormat("{ nodes { id name }, page_token }")
             .build();
@@ -617,7 +616,7 @@ class FindNodesApiIT {
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "TRASH_ROOT")
             .withBoolean("cascade", false)
-            .withEnum("sort", NodeSort.NAME_ASC)
+            .withEnumLiteral("sort", "NAME_ASC")
             .withInteger("limit", 5)
             .withBoolean("shared_with_me", true)
             .withWantedResultFormat("{ nodes { id name }, page_token }")
