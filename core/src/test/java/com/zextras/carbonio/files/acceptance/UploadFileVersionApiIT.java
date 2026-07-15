@@ -20,7 +20,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 /**
  * Task 2.2 of the acceptance coverage-expansion plan: {@code POST /upload-version}, driven through
@@ -50,27 +49,19 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
  * code from a black-box perspective. Both scenarios are asserted below with their real, identical
  * 404 shape.
  *
- * <p><b>SECOND FINDING (shared with {@code UploadFileApiIT} -- see that class's javadoc for full
- * detail):</b> {@code TestUtils#sendUpload}'s second {@code writeInbound} call throws {@code
- * ClosedChannelException} on the EMBEDDED transport whenever {@code BlobController} responds
- * synchronously while handling the request head, before any content is read -- which is exactly
- * when the size-over-limit check fires. Confirmed to pass cleanly under {@code
- * -Dfiles.test.transport=http}; the affected test is gated with {@code
- * @EnabledIfSystemProperty(... matches = "http")} (still runs and passes under the http
- * transport) rather than editing the shared seam without approval.
+ * <p><b>SECOND FINDING (shared with {@code UploadFileApiIT}) -- RESOLVED:</b> {@code
+ * TestUtils#sendUpload} used to throw a raw {@code ClosedChannelException} on the EMBEDDED
+ * transport whenever {@code BlobController} responded and closed the channel synchronously while
+ * handling the request head, before any content is read -- which is exactly when the
+ * size-over-limit check fires. {@code TestUtils#sendUpload} now guards its second {@code
+ * writeInbound} with {@code nettyChannel.isOpen()}, so the response the handler already produced
+ * during head processing is read out normally on both transports. The size-cap test below now runs
+ * (and passes) on both the embedded and {@code -Dfiles.test.transport=http} transports.
  */
 class UploadFileVersionApiIT {
 
   static FilesTestApp app;
   static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
-  private static final String EMBEDDED_TRANSPORT_SEAM_BUG =
-      "FINDING: TestUtils#sendUpload's second writeInbound(LastHttpContent) call throws "
-          + "ClosedChannelException on the EMBEDDED transport when BlobController already "
-          + "responded+closed synchronously while handling the request head (before any content "
-          + "is read) -- see UploadFileApiIT's javadoc. Passes cleanly under "
-          + "-Dfiles.test.transport=http; disabled here rather than silently editing the shared "
-          + "seam (TestUtils.java) without approval.";
 
   private static final String REQUESTER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
   private static final String OTHER_USER_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
@@ -261,7 +252,6 @@ class UploadFileVersionApiIT {
   }
 
   @Test
-  @EnabledIfSystemProperty(named = "files.test.transport", matches = "http", disabledReason = EMBEDDED_TRANSPORT_SEAM_BUG)
   void givenABodyOverTheConfiguredSizeCapUploadVersionShouldReturn413() {
     // Given — a 0MB cap + a tiny body; see UploadFileApiIT's analogous test for why the body is
     // kept tiny rather than multi-MB (avoids a genuine client/server TCP race on both transports).
