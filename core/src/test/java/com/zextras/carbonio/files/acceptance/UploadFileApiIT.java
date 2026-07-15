@@ -24,7 +24,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 /**
  * Task 2.1 of the acceptance coverage-expansion plan: {@code POST /upload}, the plain new-node
@@ -48,41 +47,21 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
  * per the "don't silently edit shared seam" guardrail. This scenario is therefore DELIBERATELY
  * OMITTED here rather than faked with a test that would silently degrade to the happy path.
  *
- * <p><b>SECOND FINDING — a genuine Wave-0 seam BUG (not a design tradeoff), confirmed by running
- * BOTH transports:</b> any scenario where {@code BlobController} throws SYNCHRONOUSLY while
- * handling the request HEAD object -- i.e. before any {@code HttpContent} is read (the
- * size-over-limit check and the {@code Filename} validation both run this early) -- makes {@code
- * TestUtils#sendUpload} (the EMBEDDED-transport implementation only) throw a raw {@code
- * java.nio.channels.ClosedChannelException}, instead of returning the {@code HttpResponse} the
- * server already produced. Root cause: {@code sendUpload} unconditionally issues TWO separate
- * {@code EmbeddedChannel#writeInbound} calls (head, then {@code LastHttpContent}); when the first
- * call's synchronous exception handling already wrote the response AND closed the channel (via
- * {@code ExceptionsHandler}'s {@code ChannelFutureListener.CLOSE}), the second call hits {@code
- * EmbeddedChannel#ensureOpen()} and throws. This is REPRODUCIBLE and CONFIRMED transport-specific:
- * the identical scenarios pass cleanly under {@code -Dfiles.test.transport=http} (see the
- * disabled tests below), because {@code RealHttpFilesTestApp#upload} makes a single blocking
- * {@code HttpClient.send} call with no analogous second write. A one-line fix (guarding the
- * second {@code writeInbound} on {@code nettyChannel.isOpen()}, or catching {@code
- * ClosedChannelException} and returning whatever the first write already produced) would resolve
- * it, but {@code TestUtils.java} is shared Wave-0 seam infrastructure outside this task's scope --
- * per the "don't silently edit shared seam" guardrail, the affected tests are NOT deleted or
- * weakened: they are gated with {@code @EnabledIfSystemProperty(... matches = "http")} so they
- * still run (and pass) under {@code -Dfiles.test.transport=http}, and are only skipped on the
- * default embedded transport where the seam bug lives -- reporting this rather than patching it
- * unilaterally.
+ * <p><b>SECOND FINDING — RESOLVED:</b> {@code TestUtils#sendUpload} used to throw a raw {@code
+ * java.nio.channels.ClosedChannelException} on the EMBEDDED transport whenever {@code
+ * BlobController} responded and closed the channel synchronously while handling the request HEAD
+ * (before any {@code HttpContent} is read — the size-over-limit check and the {@code Filename}
+ * validation both run this early), because {@code sendUpload} unconditionally issued a second
+ * {@code EmbeddedChannel#writeInbound} call (the {@code LastHttpContent}) even when the first call
+ * had already closed the channel. {@code TestUtils#sendUpload} now guards that second write with
+ * {@code nettyChannel.isOpen()}, so the response the handler already produced during head
+ * processing is read out normally on both transports. The scenarios below now run (and pass) on
+ * both the embedded and {@code -Dfiles.test.transport=http} transports.
  */
 class UploadFileApiIT {
 
   static FilesTestApp app;
   static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
-  private static final String EMBEDDED_TRANSPORT_SEAM_BUG =
-      "FINDING: TestUtils#sendUpload's second writeInbound(LastHttpContent) call throws "
-          + "ClosedChannelException on the EMBEDDED transport when BlobController already "
-          + "responded+closed synchronously while handling the request head (before any content "
-          + "is read) -- see this class's javadoc. Passes cleanly under "
-          + "-Dfiles.test.transport=http; disabled here rather than silently editing the shared "
-          + "seam (TestUtils.java) without approval.";
 
   private static final String REQUESTER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
   private static final String OTHER_USER_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
@@ -249,13 +228,13 @@ class UploadFileApiIT {
   }
 
   @Test
-  @EnabledIfSystemProperty(named = "files.test.transport", matches = "http", disabledReason = EMBEDDED_TRANSPORT_SEAM_BUG)
   void givenABodyOverTheConfiguredSizeCapUploadShouldReturn413() {
     // Given — a 0MB cap + a tiny (few-byte) body: BlobController rejects based on Content-Length
     // alone, before reading any body bytes, so the server may respond+close the connection while
     // the client is still transmitting; keeping the body tiny (instead of multi-MB) keeps the
     // client's write effectively atomic and avoids a genuine client/server TCP race on both
-    // transports (see this class's SECOND FINDING for the embedded-only failure mode).
+    // transports (see this class's SECOND FINDING javadoc for the now-fixed embedded-transport
+    // seam bug this used to trigger).
     app.mocks().setMaxUploadableSizeMb(0);
     byte[] oversizedBody = "over the 0MB cap".getBytes(StandardCharsets.UTF_8);
 
@@ -268,7 +247,6 @@ class UploadFileApiIT {
   }
 
   @Test
-  @EnabledIfSystemProperty(named = "files.test.transport", matches = "http", disabledReason = EMBEDDED_TRANSPORT_SEAM_BUG)
   void givenANonBase64FilenameUploadShouldReturn400() {
     // When — "!" is not part of the base64 alphabet, so Base64.isBase64(...) is false
     HttpResponse httpResponse =
@@ -280,7 +258,6 @@ class UploadFileApiIT {
   }
 
   @Test
-  @EnabledIfSystemProperty(named = "files.test.transport", matches = "http", disabledReason = EMBEDDED_TRANSPORT_SEAM_BUG)
   void givenAnEmptyFilenameUploadShouldReturn400() {
     // When — base64 of the empty string decodes to an empty (blank-after-trim) filename
     HttpResponse httpResponse = upload(null, toBase64(""), "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
@@ -291,7 +268,6 @@ class UploadFileApiIT {
   }
 
   @Test
-  @EnabledIfSystemProperty(named = "files.test.transport", matches = "http", disabledReason = EMBEDDED_TRANSPORT_SEAM_BUG)
   void givenAFilenameLongerThan1024CharactersUploadShouldReturn400() {
     // Given
     String tooLongName = "a".repeat(1021) + ".txt"; // 1025 chars decoded

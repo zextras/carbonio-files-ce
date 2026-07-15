@@ -216,6 +216,15 @@ public class TestUtils {
    * readOutbound()}; poll with a deadline, pumping {@code runScheduledPendingTasks()} so the
    * background completion's {@code context.write(...)} (issued off the event-loop thread) gets
    * drained.
+   *
+   * <p><b>Synchronous-close guard:</b> when {@code BlobController} responds and closes the channel
+   * while still handling the request head (e.g. an invalid {@code Filename} or a size-over-limit
+   * rejection — both fire before any {@code HttpContent} is read), the channel is already closed by
+   * the time the head's {@code writeInbound} returns. The second {@code writeInbound} (the body) is
+   * only attempted if {@code nettyChannel.isOpen()}; otherwise it is skipped and the response the
+   * handler already produced during head processing is read out normally below. Without this guard,
+   * {@code EmbeddedChannel#ensureOpen()} throws {@code ClosedChannelException} instead of ever
+   * returning that response.
    */
   public static HttpResponse sendUpload(HttpRequest request, EmbeddedChannel nettyChannel) {
     final byte[] body = request.getBinaryBody().orElse(new byte[0]);
@@ -242,7 +251,9 @@ public class TestUtils {
             httpHeaders);
 
     nettyChannel.writeInbound(httpRequestHead);
-    nettyChannel.writeInbound(new DefaultLastHttpContent(Unpooled.wrappedBuffer(body)));
+    if (nettyChannel.isOpen()) {
+      nettyChannel.writeInbound(new DefaultLastHttpContent(Unpooled.wrappedBuffer(body)));
+    }
 
     DefaultHttpResponse defaultHttpResponse = nettyChannel.readOutbound();
     if (defaultHttpResponse == null) {
