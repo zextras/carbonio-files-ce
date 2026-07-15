@@ -52,6 +52,14 @@ class ExceptionResidueApiIT {
 
   @AfterEach
   void cleanUp() {
+    // NOTE: reset BEFORE close, not skipped -- this class's @BeforeEach already resets at the
+    // start of every test (needed because of the per-test app lifecycle explained in the class
+    // javadoc), but relying on that alone leaks whatever the LAST test in this class wrote (e.g.
+    // the fixed-UUID folder in the tampered-page-token test below) into the shared Postgres
+    // container for the NEXT *ApiIT class in the suite, which does not expect pre-existing rows.
+    // Found via a reproducible cross-class DuplicateKey failure in GetCollaborationLinksApiIT
+    // (same shared-container "00000000-..." fixture id) while measuring acceptance coverage.
+    app.backdoor().resetDatabase();
     app.close();
   }
 
