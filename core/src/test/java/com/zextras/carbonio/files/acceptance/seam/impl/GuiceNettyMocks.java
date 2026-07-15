@@ -19,6 +19,8 @@ import org.mockserver.model.MediaType;
 import org.mockserver.model.Parameter;
 import org.mockserver.verify.VerificationTimes;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 
 /**
@@ -254,5 +256,51 @@ class GuiceNettyMocks implements Mocks {
                 .withPath("/service/upload")
                 .withQueryStringParameter(Parameter.param("fmt", "raw")))
         .respond(HttpResponse.response().withStatusCode(500));
+  }
+
+  @Override
+  public void previewFails(String pathEndpoint) {
+    HttpRequest request =
+        HttpRequest.request()
+            .withMethod(HttpMethod.GET.toString())
+            .withPath(pathEndpoint)
+            .withQueryStringParameter(new Parameter("service_type", "files"));
+
+    if (pathEndpoint.contains("document")) {
+      request.withQueryStringParameter(new Parameter("lang_tag", "en"));
+    }
+
+    simulator.getPreviewMock().when(request).respond(HttpResponse.response().withStatusCode(500));
+  }
+
+  @Override
+  public void serviceDiscoverReturns(String key, String rawValue) {
+    String encodedValue =
+        Base64.getEncoder().encodeToString(rawValue.getBytes(StandardCharsets.UTF_8));
+
+    simulator
+        .getServiceDiscoverMock()
+        .when(
+            HttpRequest.request()
+                .withMethod(HttpMethod.GET.toString())
+                .withPath("/v1/kv/carbonio-files/" + key))
+        .respond(
+            HttpResponse.response()
+                .withStatusCode(200)
+                .withBody(
+                    String.format(
+                        "[{\"Key\":\"%s\",\"Value\":\"%s\"}]",
+                        "carbonio-files/" + key, encodedValue)));
+  }
+
+  @Override
+  public void serviceDiscoverConfigDown(String key) {
+    simulator
+        .getServiceDiscoverMock()
+        .when(
+            HttpRequest.request()
+                .withMethod(HttpMethod.GET.toString())
+                .withPath("/v1/kv/carbonio-files/" + key))
+        .error(HttpError.error().withDropConnection(true));
   }
 }

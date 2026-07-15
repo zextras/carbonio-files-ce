@@ -197,6 +197,26 @@ class GetNodeEdgeApiIT {
         .containsExactly("Could not find node with id " + nodeId);
   }
 
+  /**
+   * Closes {@code GenericControllerEvaluator#validateNodeId}'s missing branch: {@code
+   * RootId.TRASH_ROOT} is a special-cased valid id (alongside {@code LOCAL_ROOT}, already
+   * exercised elsewhere in the suite e.g. via {@code createFolder(parent_id: "LOCAL_ROOT")}), but
+   * no test ever passed {@code "TRASH_ROOT"} itself as a {@code getNode} argument, so that
+   * specific {@code || nodeId.equals(RootId.TRASH_ROOT)} branch direction was never taken.
+   */
+  @Test
+  void givenTrashRootAsNodeIdDirectGetNodeShouldPassValidationAndResolve() {
+    // When
+    HttpResponse httpResponse =
+        getNode("TRASH_ROOT", null, "{ id }", "ZM_AUTH_TOKEN=fake-token");
+
+    // Then — no "Invalid node ID" validation error; TRASH_ROOT resolves like any other root id.
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload())).isEmpty();
+    Map<String, Object> node = TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "getNode");
+    Assertions.assertThat(node).containsEntry("id", "TRASH_ROOT");
+  }
+
   @Test
   void givenARequestedVersionThatDoesNotExistGetNodeReturnsBaseDataPlusAnError() {
     // Given — a file that only has version 1

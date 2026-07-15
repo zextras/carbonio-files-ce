@@ -249,6 +249,64 @@ class ValidationErrorsApiIT {
             "Invalid link description. The description cannot be longer than 300 characters");
   }
 
+  /**
+   * Closes {@code GenericControllerEvaluator#checkNodeName}'s missing branch: the sibling test
+   * above ({@code givenEmptyNameOnUpdateNodeThenExactlyOneValidationError}) only exercises the
+   * {@code trim().isEmpty()} direction; every happy-path test elsewhere in the suite exercises
+   * {@code length &lt;= 1024}. The {@code length &gt; 1024} direction (non-blank but too long) was
+   * never exercised.
+   */
+  @Test
+  void givenTooLongNameOnUpdateNodeThenExactlyOneValidationError() {
+    // Given
+    String tooLongName = "a".repeat(1025);
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("updateNode")
+            .withString("node_id", VALID_NODE_ID)
+            .withString("name", tooLongName)
+            .withWantedResultFormat("{ id }")
+            .build();
+
+    // When
+    HttpResponse httpResponse = execute(bodyPayload);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly(
+            "Invalid node name. The name cannot be empty, longer than 1024 characters, nor be"
+                + " composed only by blank spaces.");
+  }
+
+  /**
+   * Closes {@code GenericControllerEvaluator#checkLimitPagination}'s missing branch: every other
+   * test in this suite either omits {@code limit} (default) or passes a negative value (covering
+   * the {@code limit &gt;= 0} false direction); the {@code limit &gt; LIMIT_ELEMENTS_FOR_PAGE}
+   * direction (a value that's non-negative but over the page-size cap) was never exercised.
+   */
+  @Test
+  void givenOverTheCapLimitOnGetNodeChildrenThenExactlyOneValidationError() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getNode")
+            .withString("node_id", "LOCAL_ROOT")
+            .withWantedResultFormat(
+                "{ ... on Folder { children(limit: 999, sort: NAME_ASC) { nodes { id } } } }")
+            .build();
+
+    // When
+    HttpResponse httpResponse = execute(bodyPayload);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Invalid limit value. The allowed range is between 0 and 50.");
+  }
+
   @Test
   void givenEmptyShareTargetIdOnGetShareThenExactlyOneValidationError() {
     // Given

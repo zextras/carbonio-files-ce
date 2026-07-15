@@ -507,6 +507,17 @@ public class Simulator implements AutoCloseable {
     return previewServiceMock;
   }
 
+  /**
+   * Exposes the ServiceDiscover MockServer client so {@code Mocks} can stub an arbitrary KV
+   * response (raw value or connection-level outage) for any {@code carbonio-files/<key>}, beyond
+   * the single hardwired {@code max-number-of-versions}-as-integer path {@link
+   * SimulatorBuilder#withMaxNumberOfVersions(int)} exposes. Mirrors {@link #getStoragesMock()}/
+   * {@link #getPreviewMock()}/{@link #getDocsConnectorMock()}/{@link #getMailboxMock()}.
+   */
+  public MockServerClient getServiceDiscoverMock() {
+    return serviceDiscoverMock;
+  }
+
   public MockServerClient getDocsConnectorMock() {
     return docsConnectorServiceMock;
   }

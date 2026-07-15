@@ -175,6 +175,37 @@ public interface Mocks {
   /** Mailbox's upload endpoint is unreachable/erroring, simulating the mailbox being down. */
   void mailboxDown();
 
+  /**
+   * Preview/thumbnail service responds at {@code pathEndpoint} with a non-2xx status (HTTP 500),
+   * simulating the Preview microservice ITSELF failing — distinct from a permission/mime-type
+   * failure (which never reaches the Preview service at all, see {@code
+   * PreviewController#checkNodePermissionAndExistence}). Reaches {@code
+   * PreviewController#failureResponse} via the {@code previewService.getXxx(...).onFailure(...)}
+   * path (production maps this, via the SDK's {@code PreviewException} not being a {@code
+   * BadRequestException}, to a {@code NoSuchElementException} -&gt; HTTP 404).
+   */
+  void previewFails(String pathEndpoint);
+
+  /**
+   * Stubs an arbitrary raw ServiceDiscover KV value for {@code carbonio-files/<key>} (e.g. a
+   * non-numeric {@code max-number-of-versions}), read live on every call by {@code
+   * ConfigDataFetcher}/{@code ServiceDiscoverHttpClient} (unlike {@code NodeDataFetcher}'s
+   * construction-time read, this needs no pre-build builder knob). {@code rawValue} is sent
+   * verbatim (base64-encoded, matching the real Consul KV response shape) so any string —
+   * including a non-numeric one that trips {@code ConfigDataFetcher#updateMaxKeepVersionsValue}'s
+   * uncaught {@code Integer.parseInt(...)} — can be exercised.
+   */
+  void serviceDiscoverReturns(String key, String rawValue);
+
+  /**
+   * ServiceDiscover is unreachable (connection-level outage, not merely a missing/unstubbed key)
+   * for {@code carbonio-files/<key>}: the request will error before any HTTP status is even read.
+   * Distinct from simply never stubbing the key (which MockServer answers with a 404, exercising
+   * {@code ServiceDiscoverHttpClient#getConfig}'s "non-200 status" branch, already reachable
+   * without this method) — this instead exercises its {@code catch (IOException)} branch.
+   */
+  void serviceDiscoverConfigDown(String key);
+
   /** Resets all mock expectations to a clean baseline between tests. */
   void reset();
 }
