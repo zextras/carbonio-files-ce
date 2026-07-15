@@ -75,6 +75,7 @@ public class Simulator implements AutoCloseable {
   private MockServerClient storagesMock;
   private MockServerClient previewServiceMock;
   private MockServerClient docsConnectorServiceMock;
+  private MockServerClient mailboxMock;
 
   // gRPC in-process UM mock
   private MockUserManagementService mockUmService;
@@ -322,17 +323,63 @@ public class Simulator implements AutoCloseable {
     return this;
   }
 
+  private Simulator startMailbox() {
+    startMockServer();
+
+    mailboxMock = new MockServerClient(
+      "localhost",
+      Constants.Config.Mailbox.DEFAULT_PORT
+    );
+    setManagedProperty(Constants.Config.Mailbox.HOST_PROPERTY, "localhost");
+
+    return this;
+  }
+
   private void startMockServer() {
     synchronized (MOCK_SERVER_LOCK) {
       if (sharedMockServer == null || !sharedMockServer.isRunning()) {
         final int storagesPort = Constants.Config.Storages.DEFAULT_PORT;
         final int previewServicePort = Constants.Config.Preview.DEFAULT_PORT;
         final int docsConnectorServicePort = Constants.Config.DocsConnector.DEFAULT_PORT;
+        final int mailboxPort = Constants.Config.Mailbox.DEFAULT_PORT;
 
         sharedMockServer =
-            ClientAndServer.startClientAndServer(8500, storagesPort, previewServicePort, docsConnectorServicePort);
+            ClientAndServer.startClientAndServer(
+                8500, storagesPort, previewServicePort, docsConnectorServicePort, mailboxPort);
       }
     }
+  }
+
+  /**
+   * Overrides the {@code max-number-of-versions} value the ServiceDiscover mock reports, BEFORE
+   * the Guice injector resolves {@code NodeDataFetcher} (which reads this KV directly at
+   * construction time to compute its keep-cap, bypassing {@code FilesConfig} entirely — see
+   * {@code NodeDataFetcher}'s constructor). Must therefore be called before {@link
+   * SimulatorBuilder#build()}; a post-build {@code Mocks} call would be too late for the real-HTTP
+   * transport (which resolves the whole object graph, including {@code NodeDataFetcher}, inside
+   * {@code RealHttpFilesTestApp}'s constructor).
+   */
+  private Simulator setMaxNumberOfVersions(int maxVersions) {
+    startServiceDiscover();
+
+    final String encodedValue =
+        new String(Base64.encode(String.valueOf(maxVersions).getBytes()));
+
+    serviceDiscoverMock
+        .when(
+            HttpRequest.request()
+                .withMethod(HttpMethod.GET.toString())
+                .withPath("/v1/kv/carbonio-files/max-number-of-versions")
+                .withHeader("X-Consul-Token", ""))
+        .respond(
+            HttpResponse.response()
+                .withStatusCode(200)
+                .withBody(
+                    String.format(
+                        "[{\"Key\":\"%s\",\"Value\":\"%s\"}]",
+                        "carbonio-files/max-number-of-versions", encodedValue)));
+
+    return this;
   }
 
   private void stopEbeanDatabaseManager() {
@@ -380,6 +427,13 @@ public class Simulator implements AutoCloseable {
     docsConnectorServiceMock = null;
   }
 
+  private void resetMailboxMock() {
+    if (mailboxMock != null && mailboxMock.hasStarted()) {
+      mailboxMock.reset();
+    }
+    mailboxMock = null;
+  }
+
   //
   // Public methods
   //
@@ -398,6 +452,7 @@ public class Simulator implements AutoCloseable {
     resetDocsConnectorMock();
     resetPreviewMock();
     resetStoragesMock();
+    resetMailboxMock();
     stopUserManagement();
     resetServiceDiscoverMock();
     stopEbeanDatabaseManager();
@@ -456,6 +511,10 @@ public class Simulator implements AutoCloseable {
     return docsConnectorServiceMock;
   }
 
+  public MockServerClient getMailboxMock() {
+    return mailboxMock;
+  }
+
   public EmbeddedChannel getNettyChannel() {
     return new EmbeddedChannel(injector.getInstance(HttpRoutingHandler.class));
   }
@@ -488,6 +547,9 @@ public class Simulator implements AutoCloseable {
     }
     if (docsConnectorServiceMock != null && docsConnectorServiceMock.hasStarted()) {
       docsConnectorServiceMock.reset();
+    }
+    if (mailboxMock != null && mailboxMock.hasStarted()) {
+      mailboxMock.reset();
     }
   }
 
@@ -565,6 +627,23 @@ public class Simulator implements AutoCloseable {
 
     public SimulatorBuilder withDocsConnector() {
       simulator.startDocsConnectorService();
+      return this;
+    }
+
+    public SimulatorBuilder withMailbox() {
+      simulator.startMailbox();
+      return this;
+    }
+
+    /**
+     * Overrides the {@code max-number-of-versions} value BEFORE the app is built — required for
+     * {@code keepVersions}/{@code cloneVersion}'s cap ({@code NodeDataFetcher} reads it directly
+     * from Service-Discover once at construction). For the {@code /upload-version} 405 cap
+     * instead, use {@code Mocks#setMaxNumberOfVersions} after {@link #build()} — that path is
+     * re-read live on every call via {@code FilesConfig}.
+     */
+    public SimulatorBuilder withMaxNumberOfVersions(int maxVersions) {
+      simulator.setMaxNumberOfVersions(maxVersions);
       return this;
     }
 

@@ -64,6 +64,23 @@ public class GuiceNettyFilesTestAppBuilder {
     return this;
   }
 
+  public GuiceNettyFilesTestAppBuilder withMailbox() {
+    simulatorBuilder.withMailbox();
+    return this;
+  }
+
+  /**
+   * Overrides {@code max-number-of-versions} BEFORE the app is built. Required for {@code
+   * keepVersions}/{@code cloneVersion}'s cap ({@code NodeDataFetcher} reads it directly from
+   * Service-Discover once at construction, bypassing {@code FilesConfig}) — a post-build {@code
+   * Mocks#setMaxNumberOfVersions} call would be too late. For the {@code /upload-version} 405
+   * cap, use {@code Mocks#setMaxNumberOfVersions} instead (re-read live on every call).
+   */
+  public GuiceNettyFilesTestAppBuilder withMaxNumberOfVersions(int maxVersions) {
+    simulatorBuilder.withMaxNumberOfVersions(maxVersions);
+    return this;
+  }
+
   public FilesTestApp build() {
     Simulator simulator = simulatorBuilder.build().start();
     // Transport selection WITHOUT touching any test body: opt in to the real-HTTP transport

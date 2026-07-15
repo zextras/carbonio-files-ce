@@ -44,6 +44,11 @@ public class GuiceNettyFilesTestApp implements FilesTestApp {
   }
 
   @Override
+  public HttpResponse upload(HttpRequest request) {
+    return TestUtils.sendUpload(request, simulator.getNettyChannel());
+  }
+
+  @Override
   public TestDataAccess backdoor() {
     return testDataAccess;
   }

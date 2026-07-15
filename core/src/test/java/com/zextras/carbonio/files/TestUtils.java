@@ -197,4 +197,74 @@ public class TestUtils {
         null
     );
   }
+
+  /**
+   * Drives a binary/streamed upload (routes {@code /upload}, {@code /upload-version},
+   * {@code /internal/upload}, {@code /upload-to}) through the embedded Netty pipeline.
+   *
+   * <p>Unlike {@link #sendRequest}/{@link #sendFormRequest} (which write ONE {@code
+   * DefaultFullHttpRequest} carrying the whole body), {@code BlobController}'s upload routes have
+   * no {@code HttpObjectAggregator} in front of them (see {@code HttpRoutingHandler}) and read the
+   * body chunk-by-chunk into a {@code BufferInputStream}. So this writes a headers-only {@code
+   * DefaultHttpRequest} (the caller's headers/cookie plus a Content-Length computed from the
+   * actual byte array — never taken from the caller's headers) followed by a single {@code
+   * DefaultLastHttpContent} carrying the bytes.
+   *
+   * <p>The upload itself completes on a {@code CompletableFuture} (a background thread reads the
+   * just-written content while it drives the Storages client), so — exactly like {@link
+   * #sendFormRequest}'s async branch — the response may not be immediately available on {@code
+   * readOutbound()}; poll with a deadline, pumping {@code runScheduledPendingTasks()} so the
+   * background completion's {@code context.write(...)} (issued off the event-loop thread) gets
+   * drained.
+   */
+  public static HttpResponse sendUpload(HttpRequest request, EmbeddedChannel nettyChannel) {
+    final byte[] body = request.getBinaryBody().orElse(new byte[0]);
+
+    DefaultHttpHeaders httpHeaders = new DefaultHttpHeaders();
+
+    if (request.getHeaders().isPresent()) {
+      request.getHeaders().get().forEach(header -> httpHeaders.add(header.getKey(), header.getValue()));
+    }
+
+    if (request.getCookie().isPresent()) {
+      httpHeaders.add(HttpHeaderNames.COOKIE, request.getCookie().get());
+    }
+
+    // Always the real byte-array length: BlobController parses this to size the read loop and to
+    // enforce the upload size cap, so it must reflect what is actually written below.
+    httpHeaders.set(HttpHeaderNames.CONTENT_LENGTH, String.valueOf(body.length));
+
+    final DefaultHttpRequest httpRequestHead =
+        new DefaultHttpRequest(
+            HttpVersion.HTTP_1_1,
+            HttpMethod.valueOf(request.getMethod()),
+            request.getEndpoint(),
+            httpHeaders);
+
+    nettyChannel.writeInbound(httpRequestHead);
+    nettyChannel.writeInbound(new DefaultLastHttpContent(Unpooled.wrappedBuffer(body)));
+
+    DefaultHttpResponse defaultHttpResponse = nettyChannel.readOutbound();
+    if (defaultHttpResponse == null) {
+      long deadline = System.currentTimeMillis() + 5000;
+      while (defaultHttpResponse == null && System.currentTimeMillis() < deadline) {
+        try { Thread.sleep(20); } catch (InterruptedException ignored) { break; }
+        nettyChannel.runScheduledPendingTasks();
+        defaultHttpResponse = nettyChannel.readOutbound();
+      }
+    }
+
+    if (defaultHttpResponse instanceof DefaultFullHttpResponse fullHttpResponse) {
+      return HttpResponse.of(
+          fullHttpResponse.status().code(),
+          fullHttpResponse.headers().entries(),
+          fullHttpResponse.content().toString(StandardCharsets.UTF_8));
+    }
+
+    return HttpResponse.of(
+        defaultHttpResponse.status().code(),
+        defaultHttpResponse.headers().entries(),
+        null
+    );
+  }
 }

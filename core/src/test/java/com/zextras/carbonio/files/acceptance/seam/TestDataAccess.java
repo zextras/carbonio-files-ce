@@ -85,4 +85,40 @@ public interface TestDataAccess {
    * PublicFindNodesApiIT}'s "hacked page token with wrong signature" test.
    */
   String forgeTamperedPageTokenWithWrongSignature(String wrongSignature);
+
+  /**
+   * Runs one full {@code PurgeService} cycle (equivalent to what its scheduled {@code Runnable}
+   * does: {@code purgeTombstones()} then {@code purgeTrashedNodes(RETENTION_TRASHED_ITEMS_IN_DAYS)}
+   * — see {@code PurgeService#run()}). There is no HTTP trigger for this in production; this is a
+   * deliberate, APPROVED non-HTTP backdoor (see the acceptance-coverage plan §2.5/§10) — it is the
+   * only way the acceptance suite can cover purge logic at all, since a black-box request can never
+   * reach a cron {@code Runnable}. Effects (tombstones cleared, trashed nodes removed) are asserted
+   * via other backdoor accessors ({@link #tombstoneCount()}, {@link #nodeExists(String)}) and/or
+   * HTTP reads, exactly like the white-box {@code PurgeServiceIT}/{@code PurgeTombstonesJobIT}.
+   */
+  void runPurge();
+
+  /**
+   * Simulates a {@code UserStatusChanged} message-broker event for {@code userId}, mirroring the
+   * white-box {@code UserStatusChangedIT}'s direct {@code new
+   * UserStatusChangedConsumer(nodeRepository).doHandle(new UserStatusChanged(userId, status))}.
+   * The effect — the user's nodes' hidden flag flipped when transitioning to/from CLOSED — is
+   * HTTP-observable (hidden nodes are excluded from {@code findNodes}). A deliberate, APPROVED
+   * non-HTTP backdoor (no RabbitMQ trigger exists in the acceptance suite); see plan §2.5/§10.
+   *
+   * @param status a raw message-broker UM status string (e.g. "ACTIVE", "CLOSED", "MAINTENANCE"),
+   *     matched case-insensitively.
+   */
+  void injectUserStatusChanged(String userId, String status);
+
+  /**
+   * Simulates a {@code KeyValueChanged("carbonio-files/max-number-of-versions", newMax)}
+   * message-broker event, mirroring the white-box {@code MaxVersionNumberChangedIT}'s direct
+   * {@code new KeyValueChangedConsumer(fileVersionRepository).doHandle(...)}. Trims the least
+   * recent file versions (never the current version, never a keptForever one) for every node
+   * whose version count exceeds {@code newMax}. The effect is HTTP-observable via {@link
+   * #remainingVersionNumbers(String)} and/or a subsequent download of a trimmed version (404). A
+   * deliberate, APPROVED non-HTTP backdoor; see plan §2.5/§10.
+   */
+  void injectMaxVersionNumberChanged(int newMax);
 }

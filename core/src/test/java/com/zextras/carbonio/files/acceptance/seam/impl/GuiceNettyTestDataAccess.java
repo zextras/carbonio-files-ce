@@ -19,9 +19,16 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.files.message_broker.consumers.KeyValueChangedConsumer;
+import com.zextras.carbonio.files.message_broker.consumers.UserStatusChangedConsumer;
+import com.zextras.carbonio.files.tasks.PurgeService;
+import com.zextras.carbonio.message_broker.events.services.mailbox.UserStatusChanged;
+import com.zextras.carbonio.message_broker.events.services.mailbox.enums.UserStatus;
+import com.zextras.carbonio.message_broker.events.services.service_discover.KeyValueChanged;
 
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import java.nio.charset.StandardCharsets;
 
@@ -43,6 +50,7 @@ class GuiceNettyTestDataAccess implements TestDataAccess {
   private final ShareRepository shareRepository;
   private final FileVersionRepository fileVersionRepository;
   private final LinkRepository linkRepository;
+  private final PurgeService purgeService;
 
   GuiceNettyTestDataAccess(Simulator simulator) {
     this.simulator = simulator;
@@ -52,6 +60,7 @@ class GuiceNettyTestDataAccess implements TestDataAccess {
     this.shareRepository = injector.getInstance(ShareRepository.class);
     this.fileVersionRepository = injector.getInstance(FileVersionRepository.class);
     this.linkRepository = injector.getInstance(LinkRepository.class);
+    this.purgeService = injector.getInstance(PurgeService.class);
   }
 
   @Override
@@ -122,6 +131,28 @@ class GuiceNettyTestDataAccess implements TestDataAccess {
     return Base64.getEncoder()
         .encodeToString(
             buildTamperedPageTokenJson(wrongSignature).getBytes(StandardCharsets.UTF_8));
+  }
+
+  @Override
+  public void runPurge() {
+    // PurgeService#purgeTombstones()/#purgeTrashedNodes(long) are package-private (only directly
+    // callable from com.zextras.carbonio.files.tasks, as the white-box PurgeServiceIT/
+    // PurgeTombstonesJobIT do). run() — its public Runnable entry point, which invokes both with
+    // the production retention constant — is the sanctioned way to trigger the same behaviour
+    // from this (different) package without a reflection/package-bridge workaround.
+    purgeService.run();
+  }
+
+  @Override
+  public void injectUserStatusChanged(String userId, String status) {
+    new UserStatusChangedConsumer(nodeRepository)
+        .doHandle(new UserStatusChanged(userId, UserStatus.valueOf(status.toUpperCase(Locale.ROOT))));
+  }
+
+  @Override
+  public void injectMaxVersionNumberChanged(int newMax) {
+    new KeyValueChangedConsumer(fileVersionRepository)
+        .doHandle(new KeyValueChanged("carbonio-files/max-number-of-versions", String.valueOf(newMax)));
   }
 
   /**

@@ -9,6 +9,7 @@ import com.zextras.carbonio.files.acceptance.seam.Mocks;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.utilities.MockFilesConfig;
 import com.zextras.carbonio.files.utilities.StoragesMockHelper;
+import com.zextras.carbonio.user_management.sdk.grpc.UserTypeProto;
 import io.netty.handler.codec.http.HttpMethod;
 import org.mockserver.model.BinaryBody;
 import org.mockserver.model.HttpError;
@@ -165,5 +166,93 @@ class GuiceNettyMocks implements Mocks {
   @Override
   public void reset() {
     simulator.reinitializeMocks();
+  }
+
+  @Override
+  public void storagesUploadSucceeds() {
+    storagesMockHelper.uploadSucceeds();
+  }
+
+  @Override
+  public void storagesUploadFails() {
+    storagesMockHelper.uploadFails();
+  }
+
+  @Override
+  public void storagesVerifyMissing() {
+    storagesMockHelper.verifyMissing();
+  }
+
+  @Override
+  public void storagesCopySucceeds() {
+    storagesMockHelper.copySucceeds();
+  }
+
+  @Override
+  public void storagesCopyFails() {
+    storagesMockHelper.copyFails();
+  }
+
+  @Override
+  public void verifyStoragesUploaded(String nodeId, int version) {
+    storagesMockHelper.verifyUploaded(nodeId, version);
+  }
+
+  @Override
+  public void setMaxUploadableSizeMb(Integer maxSizeMb) {
+    ((MockFilesConfig) simulator.getInjector().getInstance(FilesConfig.class))
+        .setMaxUploadableFileSizeInMb(maxSizeMb);
+  }
+
+  @Override
+  public void setMaxDownloadableSizeMb(Integer maxSizeMb) {
+    ((MockFilesConfig) simulator.getInjector().getInstance(FilesConfig.class))
+        .setMaxDownloadableFileSizeInMb(maxSizeMb);
+  }
+
+  @Override
+  public void setMaxNumberOfVersions(Integer maxVersions) {
+    ((MockFilesConfig) simulator.getInjector().getInstance(FilesConfig.class))
+        .setMaxNumberOfFileVersion(maxVersions);
+  }
+
+  @Override
+  public void registerUser(
+      String cookie, String userId, String status, boolean isGuest, boolean filesFeatureEnabled) {
+    simulator
+        .getUserManagementService()
+        .registerToken(
+            cookie,
+            userId,
+            status,
+            isGuest ? UserTypeProto.GUEST : UserTypeProto.INTERNAL,
+            filesFeatureEnabled);
+  }
+
+  @Override
+  public void mailboxAccepts(String attachmentId) {
+    simulator
+        .getMailboxMock()
+        .when(
+            HttpRequest.request()
+                .withMethod(HttpMethod.POST.toString())
+                .withPath("/service/upload")
+                .withQueryStringParameter(Parameter.param("fmt", "raw")))
+        .respond(
+            HttpResponse.response()
+                .withStatusCode(200)
+                .withBody("200,'null','" + attachmentId + "'"));
+  }
+
+  @Override
+  public void mailboxDown() {
+    simulator
+        .getMailboxMock()
+        .when(
+            HttpRequest.request()
+                .withMethod(HttpMethod.POST.toString())
+                .withPath("/service/upload")
+                .withQueryStringParameter(Parameter.param("fmt", "raw")))
+        .respond(HttpResponse.response().withStatusCode(500));
   }
 }

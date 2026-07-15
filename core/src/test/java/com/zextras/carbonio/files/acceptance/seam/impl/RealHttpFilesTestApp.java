@@ -136,6 +136,35 @@ public class RealHttpFilesTestApp implements FilesTestApp {
     return exchange(request, request.getBodyPayload().orElse(""));
   }
 
+  @Override
+  public HttpResponse upload(HttpRequest request) {
+    // Match TestUtils.sendUpload: raw bytes over the wire, custom headers forwarded as-is, NO
+    // queryPayload wrapping. java.net.http.HttpClient computes Content-Length itself from the
+    // BodyPublisher (Content-Length is a restricted header it will not let us set explicitly),
+    // which mirrors the embedded transport's "always computed from the real bytes" behaviour.
+    final byte[] body = request.getBinaryBody().orElse(new byte[0]);
+
+    final java.net.http.HttpRequest.Builder builder =
+        java.net.http.HttpRequest.newBuilder(URI.create("http://localhost:" + port + request.getEndpoint()))
+            .timeout(Duration.ofSeconds(60));
+
+    request
+        .getHeaders()
+        .ifPresent(headers -> headers.forEach(h -> builder.header(h.getKey(), h.getValue())));
+    request.getCookie().ifPresent(cookie -> builder.header("Cookie", cookie));
+
+    builder.method(request.getMethod(), BodyPublishers.ofByteArray(body));
+
+    try {
+      final java.net.http.HttpResponse<String> response =
+          httpClient.send(builder.build(), BodyHandlers.ofString(StandardCharsets.UTF_8));
+      return HttpResponse.of(response.statusCode(), flattenHeaders(response), response.body());
+    } catch (Exception e) {
+      throw new IllegalStateException(
+          "Real-HTTP upload to " + request.getMethod() + " " + request.getEndpoint() + " failed", e);
+    }
+  }
+
   private HttpResponse exchange(HttpRequest request, String body) {
     final java.net.http.HttpRequest.Builder builder =
         java.net.http.HttpRequest.newBuilder(URI.create("http://localhost:" + port + request.getEndpoint()))

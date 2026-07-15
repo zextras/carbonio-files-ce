@@ -92,6 +92,89 @@ public interface Mocks {
   /** Verifies the preview/thumbnail expectation identified by {@code expectationId} was matched, then clears it. */
   void verifyPreviewServed(String expectationId);
 
+  /**
+   * Storages' upload endpoint (both the new-node/new-version POST and the overwrite PUT) succeeds
+   * with a syntactically-valid response, AND the post-upload existence check ({@code
+   * BlobService#verifyBlobExists}, which re-uses a plain {@code GET /download} since there is no
+   * dedicated "exists" endpoint) also succeeds generically for any node id/version. Required by
+   * every upload happy-path scenario. Replaces {@code StoragesMockHelper#uploadSucceeds()}.
+   */
+  void storagesUploadSucceeds();
+
+  /**
+   * Storages' upload endpoint returns an HTTP 500, simulating an upload failure (production maps
+   * this to a {@code DependencyException} -> 500 and rolls back the node/version DB row). Replaces
+   * {@code StoragesMockHelper#uploadFails()}.
+   */
+  void storagesUploadFails();
+
+  /**
+   * The upload itself succeeds but the post-upload existence check reports the blob missing
+   * (production's {@code verifyBlobExists} == false -> {@code DependencyException} -> 500, DB row
+   * rolled back). Replaces {@code StoragesMockHelper#verifyMissing()}.
+   */
+  void storagesVerifyMissing();
+
+  /** Storages' copy endpoint ({@code copyFile}/{@code cloneVersion}) succeeds. Replaces {@code StoragesMockHelper#copySucceeds()}. */
+  void storagesCopySucceeds();
+
+  /** Storages' copy endpoint returns an HTTP 500, simulating a filestore-copy failure. Replaces {@code StoragesMockHelper#copyFails()}. */
+  void storagesCopyFails();
+
+  /** Verifies storages' upload endpoint was hit at least once for this {@code nodeId}/{@code version}. */
+  void verifyStoragesUploaded(String nodeId, int version);
+
+  /**
+   * Overrides {@code FilesConfig#getMaxUploadableFileSizeInMb()} for the lifetime of this app
+   * instance (falls through to the real Service-Discover-backed value when {@code null}). Drives
+   * the 413 upload-size-cap path (both {@code BlobController#isRequestSizeOverLimit} for uploads).
+   */
+  void setMaxUploadableSizeMb(Integer maxSizeMb);
+
+  /**
+   * Overrides {@code FilesConfig#getMaxDownloadableFileSizeInMb()} for the lifetime of this app
+   * instance (falls through to the real Service-Discover-backed value when {@code null}). Drives
+   * the 413 download/zip-size-cap path.
+   */
+  void setMaxDownloadableSizeMb(Integer maxSizeMb);
+
+  /**
+   * Overrides {@code FilesConfig#getMaxNumberOfFileVersion()} for the lifetime of this app
+   * instance (falls through to the real Service-Discover-backed value when {@code null}). Drives
+   * the 405 version-cap check that {@code BlobService#uploadFileVersion} re-reads on every call.
+   *
+   * <p><b>Does NOT affect {@code keepVersions}/{@code cloneVersion}'s cap</b> — {@code
+   * NodeDataFetcher} reads its own keep-cap directly from Service-Discover ONCE at construction,
+   * bypassing {@code FilesConfig} entirely; use the builder's {@code withMaxNumberOfVersions(int)}
+   * (set BEFORE {@code build()}) for that path instead.
+   */
+  void setMaxNumberOfVersions(Integer maxVersions);
+
+  /**
+   * Registers (or overwrites) a user-management fixture with explicit status/type/feature-flag
+   * attributes, so {@code AuthenticationHandler}'s non-happy-path branches (inactive user, guest
+   * user, feature-disabled user) become HTTP-reachable. Requires {@code withUserManagement(...)}
+   * to have already been called on the builder (so the in-process UM gRPC server is running); this
+   * just adds/replaces one token's fixture on it.
+   *
+   * @param status a UM status string (e.g. "active", "maintenance", "closed", "locked", ...),
+   *     matched case-insensitively by the production mapper.
+   * @param isGuest true for a GUEST user, false for INTERNAL.
+   * @param filesFeatureEnabled whether "carbonioFeatureFilesEnabled" is present for this user;
+   *     when false, {@code AuthenticationHandler} sees it as absent and treats it as "FALSE".
+   */
+  void registerUser(String cookie, String userId, String status, boolean isGuest, boolean filesFeatureEnabled);
+
+  /**
+   * Mailbox's upload endpoint ({@code POST /service/upload?fmt=raw}, used by {@code
+   * ProcedureService#uploadToModule} for {@code /upload-to}) accepts the upload and reports back
+   * {@code attachmentId} (mirroring the mailbox's real quirky response format).
+   */
+  void mailboxAccepts(String attachmentId);
+
+  /** Mailbox's upload endpoint is unreachable/erroring, simulating the mailbox being down. */
+  void mailboxDown();
+
   /** Resets all mock expectations to a clean baseline between tests. */
   void reset();
 }

@@ -23,6 +23,14 @@ public interface FilesTestApp extends AutoCloseable {
   /** Multipart/form send (replaces TestUtils.sendFormRequest). */
   HttpResponse sendForm(HttpRequest request);
 
+  /**
+   * Binary/streamed upload send, for the upload routes ({@code /upload}, {@code /upload-version},
+   * {@code /internal/upload}, {@code /upload-to}) whose body {@code BlobController} reads as a raw
+   * byte stream rather than aggregated JSON/form text. Build the request with {@code
+   * HttpRequest#ofUpload}.
+   */
+  HttpResponse upload(HttpRequest request);
+
   /** Seed + inspect state without touching the DI container or the ORM directly. */
   TestDataAccess backdoor();
 
