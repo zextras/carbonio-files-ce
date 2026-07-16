@@ -29,15 +29,34 @@ public class DatabasePopulator {
   static LinkRepository linkRepository;
   static ShareRepository shareRepository;
 
-  public DatabasePopulator(Injector injector) {
-    nodeRepository = injector.getInstance(NodeRepository.class);
-    fileVersionRepository = injector.getInstance(FileVersionRepository.class);
-    linkRepository = injector.getInstance(LinkRepository.class);
-    shareRepository = injector.getInstance(ShareRepository.class);
+  public DatabasePopulator(
+      NodeRepository nodeRepository,
+      FileVersionRepository fileVersionRepository,
+      LinkRepository linkRepository,
+      ShareRepository shareRepository) {
+    DatabasePopulator.nodeRepository = nodeRepository;
+    DatabasePopulator.fileVersionRepository = fileVersionRepository;
+    DatabasePopulator.linkRepository = linkRepository;
+    DatabasePopulator.shareRepository = shareRepository;
   }
 
+  /**
+   * Legacy factory kept for backward compatibility with the white-box ITs that are NOT migrated
+   * to the {@code acceptance/} seam ({@code tasks/PurgeServiceIT}, {@code
+   * tasks/PurgeTombstonesJobIT}, {@code message_broker/it/*}). This is the ONLY place in this
+   * class that touches Guice; every other constructor/method is framework-neutral.
+   *
+   * @deprecated New call sites should use {@link #DatabasePopulator(NodeRepository,
+   *     FileVersionRepository, LinkRepository, ShareRepository)} (e.g. via the {@code
+   *     acceptance/seam} backdoor), which does not depend on {@link Injector}.
+   */
+  @Deprecated
   public static DatabasePopulator aNodePopulator(Injector injector) {
-    return new DatabasePopulator(injector);
+    return new DatabasePopulator(
+        injector.getInstance(NodeRepository.class),
+        injector.getInstance(FileVersionRepository.class),
+        injector.getInstance(LinkRepository.class),
+        injector.getInstance(ShareRepository.class));
   }
 
   public DatabasePopulator addNode(PopulatorNode node) {

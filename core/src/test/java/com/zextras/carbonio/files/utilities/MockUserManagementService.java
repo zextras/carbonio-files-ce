@@ -54,6 +54,40 @@ public class MockUserManagementService extends UserManagementServiceImplBase {
   }
 
   /**
+   * Registers (or OVERWRITES — unlike {@link #registerToken(String, String)}, which is a no-op if
+   * the token already exists) a token-to-userId mapping with explicit account status, type, and
+   * feature-flag presence. Used by acceptance tests that need to drive {@code
+   * AuthenticationHandler}'s non-happy-path branches: inactive user (status != ACTIVE), guest user
+   * (type == GUEST), and feature-disabled user (the "carbonioFeatureFilesEnabled" feature key
+   * absent from the features list, which {@code UserMyself} maps to "FALSE").
+   *
+   * @param status a raw UM status string (e.g. "active", "maintenance", "closed", "locked", ...),
+   *     matched case-insensitively against {@link com.zextras.carbonio.files.dal.dao.UserStatus}
+   *     by the production mapper ({@code UserRepositoryRest#mapStatus}).
+   * @param type INTERNAL or GUEST.
+   * @param filesFeatureEnabled whether "carbonioFeatureFilesEnabled" is present in the features
+   *     list; its absence is mapped to "FALSE" by {@code UserMyself}.
+   */
+  public void registerToken(
+      String token, String userId, String status, UserTypeProto type, boolean filesFeatureEnabled) {
+    UserInfoProto info = UserInfoProto.newBuilder()
+        .setUserId(userId)
+        .setEmail("fake-email@example.com")
+        .setFullName("Fake User")
+        .setDomain("example.com")
+        .setStatus(status)
+        .setType(type)
+        .build();
+    UserMyselfProto.Builder myselfBuilder =
+        UserMyselfProto.newBuilder().setInfo(info).setLocale("en");
+    if (filesFeatureEnabled) {
+      myselfBuilder.addFeatures("carbonioFeatureFilesEnabled");
+    }
+    tokenToMyself.put(token, UserMyselfResponse.newBuilder().setUser(myselfBuilder.build()).build());
+    userIdToInfo.put(userId, info);
+  }
+
+  /**
    * Removes a userId from the {@code getUserById} lookup map so that subsequent
    * {@code getUserById} calls for this user will return NOT_FOUND.
    */
