@@ -11,28 +11,29 @@ library(
     ])
 )
 
-// carbonio-files-ce uses a maven-shade fat JAR (boot/target/carbonio-files-*-jar-with-dependencies.jar),
-// not a Quarkus *-runner.jar. dt3_pipeline's jarBuild copies only *-runner.jar patterns, so we use
-// appModule: 'boot' to enable the Java build stage and handle the JAR + watches copy via
-// packaging.overrides.preBuildScript (runs in the yap container after workspace unstash, before yap build).
-// dt3_buildWithZextrasRepo merges its own preBuildScript (repo injection) before ours, so
-// the order is: [repo setup] → [jar copy + watches copy] → yap build.
+properties(defaultPipelineProperties())
+
+// Quarkus native build. dt3_pipeline provides the Mandrel builder image and passes
+// -Dquarkus.native.march=compatibility (native crashes on v2/QEMU vCPUs without it); do NOT
+// pin march/Mandrel in the pom. mavenPublish ships BOTH the generated gRPC SDK (sdk module,
+// carbonio-files-grpc-sdk) and the app; the *-runner is the native binary consumed by
+// package/PKGBUILD (install to /usr/share/carbonio) and docker/Dockerfile.
 dt3_pipeline(
     repoName: 'carbonio-files-ce',
-    appModule: 'boot',
+    mavenPublish: ['sdk', 'app'],
+    nativeBuild: [runnerName: 'carbonio-files-ce-runner'],
     packaging: [
-        addCarbonioRepos: true,
-        preBuildScript: '''
-                    cp -a boot/target/carbonio-files-*-jar-with-dependencies.jar package/carbonio-files.jar
-                    cp -a package/watches/* package/
-                ''',
+        buildFlags: '-ds',
     ],
-    docker: [[
-        dockerfile: 'docker/Dockerfile',
-        imageName: 'carbonio-files-ce',
-        title: 'Carbonio Files CE',
-        description: 'Carbonio Files Community Edition',
-        platforms: ['linux/amd64', 'linux/arm64'] as Set,
-    ]],
+    docker: [
+        [dockerfile: 'docker/Dockerfile',
+         imageName: 'carbonio-files-ce',
+         title: 'Carbonio Files CE',
+         description: 'Carbonio Files Community Edition',
+         platforms: ['linux/amd64', 'linux/arm64'] as Set],
+    ],
     reuse: [projectType: 'CE'],
+    flywayGuard: [
+        migrationPaths: ['app/src/main/resources/db/migration'],
+    ]
 )

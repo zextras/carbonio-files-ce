@@ -1,16 +1,21 @@
-# Prep stage runs on BUILDPLATFORM (amd64 CI builder) — no QEMU. Creates the
-# arch-independent config dir so the final image needs no RUN step.
-FROM --platform=$BUILDPLATFORM docker.io/library/busybox AS prep
-RUN mkdir -p /staging/etc/carbonio/files
+# SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
 
-FROM docker.io/library/eclipse-temurin:21-jdk-alpine
+FROM --platform=linux/amd64 docker.io/library/ubuntu:noble
+
+LABEL maintainer="Zextras <https://www.zextras.com>"
+LABEL description="Carbonio Files CE - File management service (native binary)"
+
+RUN groupadd -r carbonio-files && useradd -r -g carbonio-files carbonio-files
 
 WORKDIR /app
 
-COPY --from=prep /staging/etc /etc
+COPY app/target/*-runner /app/carbonio-files-ce-runner
+RUN chmod +x /app/carbonio-files-ce-runner
 
-COPY boot/target/carbonio-files-*-jar-with-dependencies.jar .
+USER carbonio-files
 
-COPY docker/entrypoint.sh entrypoint.sh
+EXPOSE 10000
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/app/carbonio-files-ce-runner", "-Djava.net.preferIPv4Stack=true"]

@@ -1,14 +1,8 @@
 #!/bin/bash
 
-# SPDX-FileCopyrightText: 2023 Zextras <https://www.zextras.com>
+# SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-JAVA_HOME="/usr/share/carbonio/files:/opt/zextras/common/lib/jvm/java"
-export JAVA_HOME
-/opt/zextras/common/bin/java \
-  -Djava.net.preferIPv4Stack=true \
-  -Xmx4096m \
-  -Xms4096m \
-  -DFILES_LOG_LEVEL=warn \
-  -jar /usr/share/carbonio/carbonio-files.jar
+exec /usr/share/carbonio/carbonio-files-ce-runner \
+  -Djava.net.preferIPv4Stack=true

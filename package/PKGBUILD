@@ -31,7 +31,6 @@ makedepends__rocky_9=(
   "python3-pip"
 )
 depends=(
-  "carbonio-openjdk"
   "pending-setups"
   "service-discover"
   "service-discover-base"
@@ -39,12 +38,13 @@ depends=(
 
 source=(
   "511-carbonio-files.sh"
+  "carbonio-files"
   "carbonio-files.hcl"
   "carbonio-files.service"
   "carbonio-files-setup"
   "carbonio-files-sidecar.service"
   "carbonio-files-sidecar-legacy.service"
-  "carbonio-files.jar"
+  "carbonio-files-ce-runner"
   "intentions.json"
   "policies.json"
   "service-protocol.json"
@@ -52,15 +52,16 @@ source=(
 )
 sha256sums=(
   '96f4a551909cd061e95fe06175ff3e2f35578af77ac677023174098c8f940ed3'
-  '1b48886989ad379f5c8ef1024f275a3657801c55cd038fe95ac4c9026ce471a7'
-  'a7ee302ad9fbd4b833aaff762434318b1d16fd0dcbf749d44cffa23005a55d4f'
-  'ef9409dc0ff2e5096fefa6b6ee06b0253e7a5005f1600771bf1e1bba36381d20'
+  '2b978ab2baa4fd0c4910c54b7f4089c2448442a8c8561eb7661c59147caf92e2'
+  '509fa25048ad297acbd42db45f4da0037ec93f9d89dcbd2f5c29894a4354b673'
+  '0faa20edd054b5f896d57b77fa53d95a12bd2d3022c6728311ab82b477b66d65'
+  '9ab3fc1ede3c09a106943a90925229e56c249408040adc2a057b6af6a95e3a6d'
   '715f7f726f86cab548fa5e8254cb8096b9e734f186ffb09e94c01470153d8a6a'
   '84750b0b5bc4fd7b35f015de7c970dc8c9a77020ce70b6b87b3e976649e3824d'
   'SKIP'
-  '2f5e8f227d48471e14278068956723ae7dac12c4c6aa0dd6955c00868e1f7ad2'
+  'f137319eb8f23823d75f3a7a7630c6776c11fd470b27237fc60482ef1e94e564'
   'bc4ae477209ec6c64162749a087cd039269bd087647419648bdfee334c87ced3'
-  '419211cf2a57b235eaa96d50c46212897e5731589bef96e5cf898f732208bd66'
+  '407866db47acba0fc7c7c4cec68af6ee4ba380b93b14758dd1cae8149434b6cc'
   '1a1a163fbbca4006ff7951add46d41415fb99948f072a02cd16e408e1fc322da'
 )
 
@@ -69,11 +70,14 @@ backup=(
 )
 
 _package_common() {
+  install -Dm755 "${srcdir}/carbonio-files" \
+    "${pkgdir}/usr/bin/carbonio-files"
+
   install -Dm755 "${srcdir}/carbonio-files-setup" \
     "${pkgdir}/usr/bin/carbonio-files-setup"
 
-  install -Dm755 "${srcdir}/carbonio-files.jar" \
-    "${pkgdir}/usr/share/carbonio/carbonio-files.jar"
+  install -Dm755 "${srcdir}/carbonio-files-ce-runner" \
+    "${pkgdir}/usr/share/carbonio/carbonio-files-ce-runner"
 
   install -Dm644 "${srcdir}/carbonio-files.service" \
     "${pkgdir}/lib/systemd/system/carbonio-files.service"
@@ -109,6 +113,8 @@ _package_systemd() {
     "${pkgdir}/lib/systemd/system/carbonio-files-sidecar.service"
 }
 
+# pika (Python RabbitMQ client) backs the package/watches/ live-config bridge that publishes
+# Consul KV changes to the message broker consumed by the app's KeyValueChangedConsumer.
 build__rocky_8() {
   pip3.8 install \
     --prefix="${pkgdir}/opt/zextras/common" \

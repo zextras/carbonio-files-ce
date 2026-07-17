@@ -10,16 +10,8 @@ After=network-online.target
 PartOf=carbonio.target
 
 [Service]
-Type=notify
-NotifyAccess=main
-ExecStart=/opt/zextras/common/bin/java \
-  --enable-preview \
-  --enable-native-access=ALL-UNNAMED \
-  -Djava.net.preferIPv4Stack=true \
-  -Xmx4096m \
-  -Xms4096m \
-  -DFILES_LOG_LEVEL=warn \
-  -jar /usr/share/carbonio/carbonio-files.jar
+Type=simple
+ExecStart=/usr/bin/carbonio-files
 User=carbonio-files
 Group=carbonio-files
 Restart=on-failure
