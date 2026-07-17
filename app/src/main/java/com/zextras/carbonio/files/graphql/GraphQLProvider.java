@@ -408,8 +408,11 @@ public class GraphQLProvider {
             })
         );
 
-    // P9 CE seam: apply Advanced-contributed wiring AFTER all of CE's base wiring. No-op in CE.
-    wiringContributors.forEach(contributor -> contributor.contribute(builder));
+    // P9 CE seam: apply Advanced-contributed wiring AFTER all of CE's base wiring, scoped to the
+    // authenticated schema only. No-op in CE.
+    wiringContributors.stream()
+        .filter(contributor -> !contributor.appliesToPublicSchema())
+        .forEach(contributor -> contributor.contribute(builder));
 
     return builder.build();
   }
@@ -428,11 +431,13 @@ public class GraphQLProvider {
     Reader schema = new InputStreamReader(inputStream);
 
     // Parse the base schema, then merge any Advanced-contributed SDL fragments into the registry.
-    // CE ships no contributors, so the registry (and thus the schema) is identical to the base one.
+    // Only contributors scoped to the authenticated schema apply here. CE ships no contributors,
+    // so the registry (and thus the schema) is identical to the base one.
     TypeDefinitionRegistry typeRegistry = new SchemaParser().parse(schema);
-    for (GraphQLSchemaContributor contributor : schemaContributors) {
-      typeRegistry.merge(new SchemaParser().parse(contributor.schemaSdl()));
-    }
+    schemaContributors.stream()
+        .filter(contributor -> !contributor.appliesToPublicSchema())
+        .forEach(contributor ->
+            typeRegistry.merge(new SchemaParser().parse(contributor.schemaSdl())));
 
     // Generate the schema
     GraphQLSchema graphQLSchema = new SchemaGenerator().makeExecutableSchema(typeRegistry, wiring);

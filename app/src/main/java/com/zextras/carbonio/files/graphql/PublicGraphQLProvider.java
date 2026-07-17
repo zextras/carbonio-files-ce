@@ -107,8 +107,11 @@ public class PublicGraphQLProvider {
                     Queries.GET_PUBLIC_NODE, publicNodeDataFetchers.getNodeByPublicLinkId())
                 .dataFetcher(Queries.FIND_NODES, publicNodeDataFetchers.findNodes()));
 
-    // P9 CE seam: apply Advanced-contributed wiring AFTER all of CE's base wiring. No-op in CE.
-    wiringContributors.forEach(contributor -> contributor.contribute(builder));
+    // P9 CE seam: apply Advanced-contributed wiring AFTER all of CE's base wiring, scoped to the
+    // public schema only. No-op in CE.
+    wiringContributors.stream()
+        .filter(GraphQLWiringContributor::appliesToPublicSchema)
+        .forEach(contributor -> contributor.contribute(builder));
 
     return builder.build();
   }
@@ -131,12 +134,14 @@ public class PublicGraphQLProvider {
 
     Reader schema = new InputStreamReader(inputStream);
 
-    // Parse the base schema, then merge any Advanced-contributed SDL fragments. CE ships none, so
-    // the registry (and thus the schema) is identical to the base one.
+    // Parse the base schema, then merge any Advanced-contributed SDL fragments. Only contributors
+    // scoped to the public schema apply here. CE ships none, so the registry (and thus the schema)
+    // is identical to the base one.
     TypeDefinitionRegistry typeRegistry = new SchemaParser().parse(schema);
-    for (GraphQLSchemaContributor contributor : schemaContributors) {
-      typeRegistry.merge(new SchemaParser().parse(contributor.schemaSdl()));
-    }
+    schemaContributors.stream()
+        .filter(GraphQLSchemaContributor::appliesToPublicSchema)
+        .forEach(contributor ->
+            typeRegistry.merge(new SchemaParser().parse(contributor.schemaSdl())));
 
     // Create the GraphQLSchema object
     return new SchemaGenerator().makeExecutableSchema(typeRegistry, wiring);
