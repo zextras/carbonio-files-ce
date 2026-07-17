@@ -26,54 +26,36 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <name>carbonio-files-ce</name>
 
+  <!--
+    Quarkus migration: the reactor builds the new `sdk` (generated gRPC SDK, P6a) and
+    `app` modules. The legacy `boot/` and `core/` directories are intentionally kept on
+    disk (out of the reactor) as the source-of-truth to port FROM, package-by-package,
+    during P2-P5. They are NOT built. Do not delete until the port is complete.
+  -->
   <modules>
-    <module>boot</module>
-    <module>core</module>
+    <module>sdk</module>
+    <module>app</module>
   </modules>
 
   <properties>
     <!-- Maven CI Friendly properties -->
     <revision>1.3.8</revision>
-    <!-- Dependencies -->
+
+    <!-- Quarkus migration -->
+    <quarkus.version>3.37.3</quarkus.version>
+    <carbonio-quarkus-extensions.version>1.11.2-1</carbonio-quarkus-extensions.version>
+    <!-- P3a: user-management gRPC client SDK (PermissionsChecker/UserRepository co-requisite). -->
+    <carbonio-user-management-grpc-sdk.version>1.2.5-1</carbonio-user-management-grpc-sdk.version>
+    <flatten-maven.version>1.7.3</flatten-maven.version>
+
+    <!-- Test / build helper dependency versions (non-BOM) -->
     <assertj.version>3.27.7</assertj.version>
-    <caffeine.version>3.2.4</caffeine.version>
-    <carbonio-message-broker-sdk.version>1.1.0-1</carbonio-message-broker-sdk.version>
-    <carbonio-storages-common.version>0.0.15-SNAPSHOT</carbonio-storages-common.version>
-    <carbonio-storages-ce.version>0.0.15-SNAPSHOT</carbonio-storages-ce.version>
-    <carbonio-user-management-grpc-sdk.version>1.2.2-1</carbonio-user-management-grpc-sdk.version>
-    <grpc.version>1.82.2</grpc.version>
-    <carbonio-preview-ce-rest-sdk.version>2.0.2-1</carbonio-preview-ce-rest-sdk.version>
-    <commons-io.version>2.14.0</commons-io.version>
-    <commons-lang3.version>3.20.0</commons-lang3.version>
-    <commons-validator.version>1.10.1</commons-validator.version>
-    <ebean.version>13.26.1</ebean.version>
-    <graphql-java.version>22.4</graphql-java.version>
-    <guice.version>6.0.0</guice.version>
-    <hikaricp.version>5.1.0</hikaricp.version>
-    <hsqldb.version>2.7.4</hsqldb.version>
-    <jackson.version>2.22</jackson.version>
-    <jackson-databind.version>2.22.1</jackson-databind.version>
-    <junit5.version>5.14.4</junit5.version>
-    <logback-classic.version>1.5.38</logback-classic.version>
-    <micrometer.version>1.17.0</micrometer.version>
     <mockito.version>5.23.0</mockito.version>
-    <mock-server.version>5.15.0</mock-server.version>
-    <netty.version>4.2.16.Final</netty.version>
-    <postgresql.version>42.7.11</postgresql.version>
-    <testcontainers.version>2.0.5</testcontainers.version>
-    <testcontainers.junit.jupiter.version>1.21.4</testcontainers.junit.jupiter.version>
-    <testcontainers.postgresql.version>1.21.4</testcontainers.postgresql.version>
-    <testcontainers.rabbitmq.version>1.21.4</testcontainers.rabbitmq.version>
-    <vavr.version>0.11.0</vavr.version>
-    <flyway-database-postgresql.version>11.20.3</flyway-database-postgresql.version>
 
     <!-- Plugins -->
-    <maven-assembly.version>3.6.0</maven-assembly.version>
-    <maven-compiler.version>3.15.0</maven-compiler.version>
     <maven-failsafe.version>3.5.6</maven-failsafe.version>
     <maven-jacoco.version>0.8.15</maven-jacoco.version>
     <maven-surefire.version>3.5.6</maven-surefire.version>
-    <tiles-maven.version>2.44</tiles-maven.version>
 
     <!-- Other properties -->
     <maven.compiler.source>21</maven.compiler.source>
@@ -81,7 +63,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <java-compiler.version>21</java-compiler.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <sonar.coverage.jacoco.xmlReportPaths>
-      ../core/target/jacoco-full-report/jacoco.xml
+      ./app/target/jacoco-full-report/jacoco.xml
     </sonar.coverage.jacoco.xmlReportPaths>
     <sonar.dependencyCheck.htmlReportPath>
       ./dependency-check-report.html
@@ -92,6 +74,51 @@ SPDX-License-Identifier: AGPL-3.0-only
     <skip.unit.tests>true</skip.unit.tests>
     <skip.jacoco.full.report.generation>true</skip.jacoco.full.report.generation>
   </properties>
+
+  <!--
+    NOTE (Quarkus migration): the legacy <dependencyManagement> block (guice/netty/ebean/
+    graphql-java/commons-io/jackson/... pins for the old Guice+Netty stack) was removed. The new
+    `app` module manages all versions via the imported io.quarkus:quarkus-bom plus a few explicit
+    non-BOM pins (extensions, assertj, mockito). Keeping the old pins here leaked incompatible
+    transitive versions onto the Quarkus build classpath (e.g. commons-io 2.14.0 broke the
+    commons-compress jar step in the augmentation). Versions for any legacy lib re-introduced
+    during the port (e.g. graphql-java for the public schema in P3) are declared in `app` at that
+    time, chosen to be Quarkus-BOM-compatible.
+  -->
+
+  <build>
+    <plugins>
+      <!--
+        CI-friendly versioning: resolve ${revision}${changelist} into the installed/published
+        POMs. Bound at `validate` so the resolved version is available to the Quarkus build.
+      -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>flatten-maven-plugin</artifactId>
+        <version>${flatten-maven.version}</version>
+        <configuration>
+          <updatePomFile>true</updatePomFile>
+          <flattenMode>resolveCiFriendliesOnly</flattenMode>
+        </configuration>
+        <executions>
+          <execution>
+            <id>flatten</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>flatten</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>flatten.clean</id>
+            <phase>clean</phase>
+            <goals>
+              <goal>clean</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 
   <profiles>
     <profile>
@@ -110,263 +137,6 @@ SPDX-License-Identifier: AGPL-3.0-only
       </properties>
     </profile>
   </profiles>
-  <dependencyManagement>
-    <dependencies>
-      <!-- Guice dependencies -->
-      <dependency>
-        <groupId>com.google.inject</groupId>
-        <artifactId>guice</artifactId>
-        <version>${guice.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.google.inject.extensions</groupId>
-        <artifactId>guice-assistedinject</artifactId>
-        <version>${guice.version}</version>
-      </dependency>
-
-      <!-- Logger -->
-      <dependency>
-        <groupId>ch.qos.logback</groupId>
-        <artifactId>logback-classic</artifactId>
-        <version>${logback-classic.version}</version>
-      </dependency>
-
-      <!-- Netty -->
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-all</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-
-      <!-- Database -->
-      <dependency>
-        <groupId>org.postgresql</groupId>
-        <artifactId>postgresql</artifactId>
-        <version>${postgresql.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.zaxxer</groupId>
-        <artifactId>HikariCP</artifactId>
-        <version>${hikaricp.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.ebean</groupId>
-        <artifactId>ebean-postgres</artifactId>
-        <version>${ebean.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.flywaydb</groupId>
-        <artifactId>flyway-database-postgresql</artifactId>
-        <version>${flyway-database-postgresql.version}</version>
-      </dependency>
-
-      <!-- GraphQL -->
-      <dependency>
-        <groupId>com.graphql-java</groupId>
-        <artifactId>graphql-java</artifactId>
-        <version>${graphql-java.version}</version>
-      </dependency>
-
-      <!-- Cache -->
-      <dependency>
-        <groupId>com.github.ben-manes.caffeine</groupId>
-        <artifactId>caffeine</artifactId>
-        <version>${caffeine.version}</version>
-      </dependency>
-
-      <!-- Services: storages, authentication, preview -->
-      <dependency>
-        <groupId>com.zextras.carbonio.user-management</groupId>
-        <artifactId>carbonio-user-management-grpc-sdk</artifactId>
-        <version>${carbonio-user-management-grpc-sdk.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-netty-shaded</artifactId>
-        <version>${grpc.version}</version>
-        <scope>runtime</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-inprocess</artifactId>
-        <version>${grpc.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.zextras</groupId>
-        <artifactId>storages-ce-sdk</artifactId>
-        <version>${carbonio-storages-ce.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.zextras.carbonio.preview</groupId>
-        <artifactId>carbonio-preview-ce-rest-sdk</artifactId>
-        <version>${carbonio-preview-ce-rest-sdk.version}</version>
-      </dependency>
-
-      <!--
-        The old carbonio-preview-sdk transitively pulled in commons-io and vavr; the new
-        carbonio-preview-ce-rest-sdk is dependency-lean and does not. Both libraries are used
-        directly across the codebase (io.vavr.control.Try, org.apache.commons.io.IOUtils), so
-        they must now be declared explicitly. Versions match what was previously resolved
-        transitively (commons-io 2.11.0, vavr 0.11.0) to avoid an unintended version bump.
-      -->
-      <dependency>
-        <groupId>commons-io</groupId>
-        <artifactId>commons-io</artifactId>
-        <version>${commons-io.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.vavr</groupId>
-        <artifactId>vavr</artifactId>
-        <version>${vavr.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.zextras.carbonio.message-broker</groupId>
-        <artifactId>carbonio-message-broker-sdk</artifactId>
-        <version>${carbonio-message-broker-sdk.version}</version>
-      </dependency>
-
-      <!-- Utilities: jackson, apache commons-lang and commons-validator -->
-      <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-annotations</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-databind</artifactId>
-        <version>${jackson-databind.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.datatype</groupId>
-        <artifactId>jackson-datatype-jdk8</artifactId>
-        <version>${jackson-databind.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-lang3</artifactId>
-        <version>${commons-lang3.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>commons-validator</groupId>
-        <artifactId>commons-validator</artifactId>
-        <version>${commons-validator.version}</version>
-        <exclusions>
-          <!-- It is excluded because has vulnerabilities, and it is never used -->
-          <exclusion>
-            <groupId>commons-collections</groupId>
-            <artifactId>commons-collections</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <!-- Metrics -->
-      <dependency>
-        <groupId>io.micrometer</groupId>
-        <artifactId>micrometer-registry-prometheus</artifactId>
-        <version>${micrometer.version}</version>
-      </dependency>
-
-      <!-- Testing -->
-      <dependency>
-        <groupId>org.junit.jupiter</groupId>
-        <artifactId>junit-jupiter-api</artifactId>
-        <version>${junit5.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.junit.jupiter</groupId>
-        <artifactId>junit-jupiter-params</artifactId>
-        <version>${junit5.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-core</artifactId>
-        <version>${mockito.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.assertj</groupId>
-        <artifactId>assertj-core</artifactId>
-        <version>${assertj.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>testcontainers</artifactId>
-        <version>${testcontainers.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>junit-jupiter</artifactId>
-        <version>${testcontainers.junit.jupiter.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>postgresql</artifactId>
-        <version>${testcontainers.postgresql.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>rabbitmq</artifactId>
-        <version>${testcontainers.rabbitmq.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.hsqldb</groupId>
-        <artifactId>hsqldb</artifactId>
-        <version>${hsqldb.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>io.ebean</groupId>
-        <artifactId>ebean-platform-hsqldb</artifactId>
-        <version>${ebean.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.mock-server</groupId>
-        <artifactId>mockserver-netty-no-dependencies</artifactId>
-        <version>${mock-server.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.mock-server</groupId>
-        <artifactId>mockserver-client-java-no-dependencies</artifactId>
-        <version>${mock-server.version}</version>
-        <scope>test</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
 
   <repositories>
     <repository>

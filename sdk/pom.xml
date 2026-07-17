@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.zextras.carbonio.quarkus</groupId>
+    <artifactId>carbonio-quarkus-extensions-sdk-parent</artifactId>
+    <version>1.11.2-1</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.zextras.carbonio.files</groupId>
+  <artifactId>carbonio-files-grpc-sdk</artifactId>
+  <version>${revision}${changelist}</version>
+  <name>Carbonio Files - gRPC SDK</name>
+
+  <properties>
+    <revision>0.0.0</revision>
+    <changelist>-SNAPSHOT</changelist>
+  </properties>
+
+  <repositories>
+    <repository>
+      <id>zextras-java-sdk</id>
+      <name>Zextras public maven repo</name>
+      <url>https://zextras.jfrog.io/artifactory/java-sdk</url>
+    </repository>
+  </repositories>
+
+  <build>
+    <plugins>
+      <!--
+        This module is a generated-stub jar with no tests. The sdk-parent binds the failsafe
+        integration-test goal; when the reactor is run with a `-Dit.test=...` filter (e.g. the app's
+        gate ITs) failsafe would otherwise abort here with "No tests matching pattern". Tolerate a
+        no-match so a targeted reactor `verify` reaches the app module.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

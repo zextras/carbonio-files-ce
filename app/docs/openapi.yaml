@@ -1,0 +1,862 @@
+---
+openapi: 3.1.0
+paths:
+  /download-multiple:
+    post:
+      parameters:
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                nodeIds:
+                  type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+        "400":
+          description: Bad Request
+      summary: Download Multiple
+      tags:
+      - Blob Resource
+  /download-multiple/check:
+    post:
+      parameters:
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Check Download Multiple
+      tags:
+      - Blob Resource
+  /download/{nodeId}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Download
+      tags:
+      - Blob Resource
+  /download/{nodeId}/check:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Check Download
+      tags:
+      - Blob Resource
+  /download/{nodeId}/{version}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Download Version
+      tags:
+      - Blob Resource
+  /health:
+    get:
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Health
+      tags:
+      - Health Resource
+  /health/live:
+    get:
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Live
+      tags:
+      - Health Resource
+  /health/ready:
+    get:
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Ready
+      tags:
+      - Health Resource
+  /internal/upload:
+    post:
+      parameters:
+      - name: AccountId
+        in: header
+        schema:
+          type: string
+      - name: Content-Length
+        in: header
+        schema:
+          type: integer
+          format: int64
+      - name: Description
+        in: header
+        schema:
+          type: string
+      - name: Filename
+        in: header
+        schema:
+          type: string
+      - name: ParentId
+        in: header
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Upload Internal
+      tags:
+      - Blob Resource
+  /invite/{invitationId}:
+    get:
+      parameters:
+      - name: invitationId
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: "\\w{8}"
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Invite
+      tags:
+      - Collaboration Link Resource
+  /link/{publicLinkId}:
+    get:
+      parameters:
+      - name: publicLinkId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Download By Public Link
+      tags:
+      - Public Blob Resource
+  /preview/document/{nodeId}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: crop
+        in: query
+        schema:
+          type: boolean
+      - name: first_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - name: last_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - name: output_format
+        in: query
+        schema:
+          type: string
+      - name: quality
+        in: query
+        schema:
+          type: string
+      - name: shape
+        in: query
+        schema:
+          type: string
+      - name: version
+        in: query
+        schema:
+          type: string
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Preview Document
+      tags:
+      - Preview Resource
+  /preview/document/{nodeId}/{area}/thumbnail:
+    get:
+      parameters:
+      - name: area
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: crop
+        in: query
+        schema:
+          type: boolean
+      - name: first_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - name: last_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - name: output_format
+        in: query
+        schema:
+          type: string
+      - name: quality
+        in: query
+        schema:
+          type: string
+      - name: shape
+        in: query
+        schema:
+          type: string
+      - name: version
+        in: query
+        schema:
+          type: string
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Thumbnail Document
+      tags:
+      - Preview Resource
+  /preview/image/{nodeId}/{area}:
+    get:
+      parameters:
+      - name: area
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: crop
+        in: query
+        schema:
+          type: boolean
+      - name: first_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - name: last_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - name: output_format
+        in: query
+        schema:
+          type: string
+      - name: quality
+        in: query
+        schema:
+          type: string
+      - name: shape
+        in: query
+        schema:
+          type: string
+      - name: version
+        in: query
+        schema:
+          type: string
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Preview Image
+      tags:
+      - Preview Resource
+  /preview/image/{nodeId}/{area}/thumbnail:
+    get:
+      parameters:
+      - name: area
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: crop
+        in: query
+        schema:
+          type: boolean
+      - name: first_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - name: last_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - name: output_format
+        in: query
+        schema:
+          type: string
+      - name: quality
+        in: query
+        schema:
+          type: string
+      - name: shape
+        in: query
+        schema:
+          type: string
+      - name: version
+        in: query
+        schema:
+          type: string
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Thumbnail Image
+      tags:
+      - Preview Resource
+  /preview/pdf/{nodeId}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: crop
+        in: query
+        schema:
+          type: boolean
+      - name: first_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - name: last_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - name: output_format
+        in: query
+        schema:
+          type: string
+      - name: quality
+        in: query
+        schema:
+          type: string
+      - name: shape
+        in: query
+        schema:
+          type: string
+      - name: version
+        in: query
+        schema:
+          type: string
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Preview Pdf
+      tags:
+      - Preview Resource
+  /preview/pdf/{nodeId}/{area}/thumbnail:
+    get:
+      parameters:
+      - name: area
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: crop
+        in: query
+        schema:
+          type: boolean
+      - name: first_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - name: last_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - name: output_format
+        in: query
+        schema:
+          type: string
+      - name: quality
+        in: query
+        schema:
+          type: string
+      - name: shape
+        in: query
+        schema:
+          type: string
+      - name: version
+        in: query
+        schema:
+          type: string
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Thumbnail Pdf
+      tags:
+      - Preview Resource
+  /preview/{unmatched}:
+    get:
+      parameters:
+      - name: unmatched
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: .*
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Unmatched Preview Path
+      tags:
+      - Preview Resource
+  /public/download-multiple:
+    post:
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                nodeIds:
+                  type: string
+                nodeLinkId:
+                  type: string
+                accessCode:
+                  type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+        "400":
+          description: Bad Request
+      summary: Download Public Multiple
+      tags:
+      - Public Blob Resource
+  /public/download-multiple/check:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Check Download Public Multiple
+      tags:
+      - Public Blob Resource
+  /public/download/{nodeId}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: access_code
+        in: query
+        schema:
+          type: string
+      - name: node_link_id
+        in: query
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Download Public File
+      tags:
+      - Public Blob Resource
+  /public/download/{nodeId}/check:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: access_code
+        in: query
+        schema:
+          type: string
+      - name: node_link_id
+        in: query
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Check Download Public File
+      tags:
+      - Public Blob Resource
+  /public/link/download/{publicLinkId}:
+    get:
+      parameters:
+      - name: publicLinkId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Download Via Public Link
+      tags:
+      - Public Blob Resource
+  /upload:
+    post:
+      parameters:
+      - name: Content-Length
+        in: header
+        schema:
+          type: integer
+          format: int64
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: Description
+        in: header
+        schema:
+          type: string
+      - name: Filename
+        in: header
+        schema:
+          type: string
+      - name: ParentId
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Upload
+      tags:
+      - Blob Resource
+  /upload-to:
+    post:
+      parameters:
+      - name: Content-Length
+        in: header
+        schema:
+          type: integer
+          format: int64
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Upload To
+      tags:
+      - Procedure Resource
+  /upload-version:
+    post:
+      parameters:
+      - name: Content-Length
+        in: header
+        schema:
+          type: integer
+          format: int64
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: Filename
+        in: header
+        schema:
+          type: string
+      - name: NodeId
+        in: header
+        schema:
+          type: string
+      - name: OverwriteVersion
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: {}
+      summary: Upload Version
+      tags:
+      - Blob Resource
+info:
+  title: carbonio-files-ce-app API
+  version: unversioned
+servers:
+- url: http://localhost:8080
+  description: Auto generated value
+- url: http://0.0.0.0:8080
+  description: Auto generated value

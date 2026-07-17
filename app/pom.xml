@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+
+  <licenses>
+    <license>
+      <comments>Copyright (C) 2022 Zextras, https://www.zextras.com</comments>
+      <name>AGPL-3.0-only</name>
+    </license>
+  </licenses>
+
+  <artifactId>carbonio-files-ce-app</artifactId>
+  <name>Carbonio Files CE - App</name>
+
+  <parent>
+    <groupId>com.zextras.carbonio.files</groupId>
+    <artifactId>carbonio-files-ce</artifactId>
+    <version>${revision}${changelist}</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-bom</artifactId>
+        <version>${quarkus.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <!--
+      P1 skeleton dependency set. Extensions are added phase-by-phase:
+        - database (Panache/Flyway/datasource) : P2
+        - graphql / grpc client (user-management) : P3 / P5
+        - grpc server + SDK module : P6
+      For now the module only needs bootstrap (Consul/health/setup) + rest so it compiles and boots.
+    -->
+    <dependency>
+      <groupId>com.zextras.carbonio.quarkus</groupId>
+      <artifactId>carbonio-quarkus-extensions-bootstrap</artifactId>
+      <version>${carbonio-quarkus-extensions.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.zextras.carbonio.quarkus</groupId>
+      <artifactId>carbonio-quarkus-extensions-rest</artifactId>
+      <version>${carbonio-quarkus-extensions.version}</version>
+    </dependency>
+
+    <!-- Bean validation (jakarta.validation annotations on DTOs) -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-hibernate-validator</artifactId>
+    </dependency>
+
+    <!--
+      P4b: Prometheus scrape endpoint (default /q/metrics; legacy exposed /metrics — path
+      reconciliation with the mesh .hcl prom_port=21500 is a P7 follow-up). Also brings the
+      io.micrometer.core.instrument.MeterRegistry bean used by BlobService's upload counters.
+    -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
+    </dependency>
+
+    <!--
+      P2a: datasource + Flyway foundation. carbonio-quarkus-extensions-database derives the
+      Agroal datasource from Consul KV (db-name/db-username/db-password) + networking-config
+      postgresql host/port at boot; it also provides quarkus.datasource.db-kind, so we don't.
+    -->
+    <dependency>
+      <groupId>com.zextras.carbonio.quarkus</groupId>
+      <artifactId>carbonio-quarkus-extensions-database</artifactId>
+      <version>${carbonio-quarkus-extensions.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-hibernate-orm-panache</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-flyway</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-jdbc-postgresql</artifactId>
+    </dependency>
+
+    <!--
+      P3a: gRPC client for carbonio-user-management (UserRepositoryImpl). Quarkus manages the
+      channel/stub lifecycle via @GrpcClient("user-management"); config in application.properties.
+    -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-grpc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.zextras.carbonio.user-management</groupId>
+      <artifactId>carbonio-user-management-grpc-sdk</artifactId>
+      <version>${carbonio-user-management-grpc-sdk.version}</version>
+    </dependency>
+
+    <!--
+      P6b: trusted-caller gRPC SERVER side.
+        - carbonio-files-grpc-sdk: the sibling module's generated FilesServiceGrpc stubs
+          (files.proto). Reactor-resolved to 0.0.0-SNAPSHOT (its own revision, independent of the
+          app's ${revision}). FilesGrpcService extends its FilesServiceImplBase.
+        - carbonio-quarkus-extensions-grpc-sdk: same server extension carbonio-user-management/app
+          uses. It contributes the shared-port default (quarkus.grpc.server.use-separate-server=false,
+          config_ordinal=260) so the gRPC server runs on the SAME HTTP port (10000) as REST/GraphQL,
+          plus the reflection service (dev/test only). Brings quarkus-grpc transitively (already
+          declared above for the user-management client).
+    -->
+    <dependency>
+      <groupId>com.zextras.carbonio.files</groupId>
+      <artifactId>carbonio-files-grpc-sdk</artifactId>
+      <version>0.0.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>com.zextras.carbonio.quarkus</groupId>
+      <artifactId>carbonio-quarkus-extensions-grpc-sdk</artifactId>
+      <version>${carbonio-quarkus-extensions.version}</version>
+    </dependency>
+
+    <!--
+      Guava: NodeType maps MIME types via com.google.common.net.MediaType. In the old stack Guava
+      came transitively via Guice; declared explicitly now. Only ~3 core files use it.
+      (P7: may need native-image reflection config; revisit at native build.)
+    -->
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>33.4.8-jre</version>
+    </dependency>
+
+    <!--
+      P3b: framework-agnostic GraphQL support layer + DataLoaders (schema-first graphql-java,
+      NOT SmallRye). graphql-java is managed by quarkus-bom (25.0); java-dataloader is not
+      BOM-managed, pinned explicitly. DataFetchers/providers/routes are ported in later phases
+      (P3c-P3e); this only needs the library on the compile classpath.
+    -->
+    <dependency>
+      <groupId>com.graphql-java</groupId>
+      <artifactId>graphql-java</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.graphql-java</groupId>
+      <artifactId>java-dataloader</artifactId>
+      <version>6.0.0</version>
+    </dependency>
+
+    <!--
+      commons-validator: GenericControllerEvaluator uses EmailValidator for GraphQL input
+      validation. Not BOM-managed; version matches the pin used by the old Guice+Netty stack.
+    -->
+    <dependency>
+      <groupId>commons-validator</groupId>
+      <artifactId>commons-validator</artifactId>
+      <version>1.9.0</version>
+    </dependency>
+
+    <!--
+      commons-lang3: repository interfaces (NodeRepository, NotificationRepository) use
+      org.apache.commons.lang3.tuple.ImmutablePair. Version managed by the imported quarkus-bom.
+    -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+    </dependency>
+
+    <!--
+      P3d: storages-ce-sdk provides com.zextras.filestore.api.Filestore + StoragesClient, used by
+      NodeDataFetcher (blob bulkDelete) and produced as a CDI bean by FilestoreProducer. Version
+      pinned to 0.0.15-SNAPSHOT (matches the legacy stack); 0.0.16 is deliberately AVOIDED because
+      its published POM is corrupted (unresolved ${revision}${changelist}).
+    -->
+    <dependency>
+      <groupId>com.zextras</groupId>
+      <artifactId>storages-ce-sdk</artifactId>
+      <version>0.0.15-SNAPSHOT</version>
+    </dependency>
+
+    <!--
+      P3d: vavr Try — NodeDataFetcher wraps the storages copy-blob calls (copyNodeFetcher /
+      cloneVersionFetcher) in io.vavr.control.Try fluent chains. Ported verbatim from the legacy
+      stack rather than rewritten. Not BOM-managed; version matches the legacy Guice stack pin.
+    -->
+    <dependency>
+      <groupId>io.vavr</groupId>
+      <artifactId>vavr</artifactId>
+      <version>0.10.4</version>
+    </dependency>
+
+    <!--
+      P5a: Caffeine — LocalCacheAdapter's backing store for the FileVersion read-through/
+      write-through cache (CacheHandler). Not BOM-managed; version matches the legacy pin.
+    -->
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+      <version>3.2.4</version>
+    </dependency>
+
+    <!--
+      P5a: message-broker SDK — MessageBrokerManagerImpl/consumers (KeyValueChangedConsumer,
+      UserStatusChangedConsumer). Not BOM-managed.
+    -->
+    <dependency>
+      <groupId>com.zextras.carbonio.message-broker</groupId>
+      <artifactId>carbonio-message-broker-sdk</artifactId>
+      <version>1.1.0-1</version>
+    </dependency>
+
+    <!-- P5a: quarkus-scheduler backs PurgeService's @Scheduled purge job. BOM-managed. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-scheduler</artifactId>
+    </dependency>
+
+    <!--
+      P5b: carbonio-preview REST SDK (PreviewClient) — PreviewResource/PreviewService passthrough
+      (/preview/*). Not BOM-managed; version matches the SDK's own release train (2.x = REST,
+      post gRPC->REST pivot, see carbonio-knowledge "Preview SDK — PIVOTED gRPC->REST").
+    -->
+    <dependency>
+      <groupId>com.zextras.carbonio.preview</groupId>
+      <artifactId>carbonio-preview-ce-rest-sdk</artifactId>
+      <version>2.0.2-1</version>
+    </dependency>
+
+    <!--
+      P7 native-image fix. The storages-ce-sdk and carbonio-preview-ce-rest-sdk build their HTTP
+      clients with Retrofit; retrofit2.RequestFactory$Builder references kotlin.coroutines.Continuation
+      (Kotlin suspend-function support) which is absent at runtime. On the JVM that reference is never
+      touched, but GraalVM link-at-build-time (added by Quarkus) eagerly links RequestFactory and
+      fails with NoClassDefFoundError: kotlin/coroutines/Continuation. kotlin-stdlib supplies that
+      type. Version managed by the imported quarkus-bom.
+    -->
+    <dependency>
+      <groupId>org.jetbrains.kotlin</groupId>
+      <artifactId>kotlin-stdlib</artifactId>
+    </dependency>
+    <!--
+      Same native-image root cause as kotlin-stdlib above, one level deeper: once the storages
+      Retrofit proxy is registered (see META-INF/native-image/.../reachability-metadata.json),
+      GraalVM links the proxy dispatch path retrofit2.HttpServiceMethod$SuspendForBody /
+      retrofit2.KotlinExtensions, which references kotlinx.coroutines.CancellableContinuationImpl.
+      This app never calls Retrofit suspend functions, but link-at-build-time resolves the branch
+      anyway; kotlinx-coroutines-core supplies the type. Version managed by the imported quarkus-bom.
+    -->
+    <dependency>
+      <groupId>org.jetbrains.kotlinx</groupId>
+      <artifactId>kotlinx-coroutines-core</artifactId>
+    </dependency>
+
+    <!-- Test -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-junit-mockito</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.zextras.carbonio.quarkus</groupId>
+      <artifactId>carbonio-quarkus-extensions-bootstrap</artifactId>
+      <version>${carbonio-quarkus-extensions.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.rest-assured</groupId>
+      <artifactId>rest-assured</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>${assertj.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>1.21.4</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.wiremock</groupId>
+      <artifactId>wiremock</artifactId>
+      <version>3.13.2</version>
+      <scope>test</scope>
+    </dependency>
+    <!--
+      P3e: in-process/local gRPC stub of carbonio-user-management for the GraphQL auth smoke IT.
+      grpc-netty-shaded provides the ServerBuilder transport used to stand up the stub on a random
+      port (version managed by quarkus-bom). Only the auth filter path needs it.
+    -->
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty-shaded</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!--
+      P5c: ArchUnit backs AcceptanceSuitePurityTest, the guard that keeps the immutable acceptance
+      bodies depending only on the neutral seam (not Guice/MockServer/Netty/Ebean impl types).
+    -->
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit</artifactId>
+      <version>1.4.2</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-maven-plugin</artifactId>
+        <version>${quarkus.version}</version>
+        <extensions>true</extensions>
+        <executions>
+          <execution>
+            <goals>
+              <goal>build</goal>
+              <goal>generate-code</goal>
+              <goal>generate-code-tests</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven-surefire.version}</version>
+        <configuration>
+          <skipTests>${skip.unit.tests}</skipTests>
+          <systemPropertyVariables>
+            <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>${maven-failsafe.version}</version>
+        <configuration>
+          <skipITs>${skip.integration.tests}</skipITs>
+          <systemPropertyVariables>
+            <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+          </systemPropertyVariables>
+        </configuration>
+        <executions>
+          <execution>
+            <goals><goal>integration-test</goal><goal>verify</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>${maven-jacoco.version}</version>
+        <executions>
+          <execution>
+            <id>prepare-agent</id>
+            <goals><goal>prepare-agent</goal></goals>
+          </execution>
+          <execution>
+            <id>report</id><phase>verify</phase>
+            <goals><goal>report</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>flatten-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>native</id>
+      <activation><property><name>native</name></property></activation>
+      <properties><quarkus.native.enabled>true</quarkus.native.enabled></properties>
+    </profile>
+  </profiles>
+</project>
