@@ -13,7 +13,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.notifications.AddedNodeNotificat
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.BaseNotification;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.NewShareNotification;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.RemovedNodeNotification;
-import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationType;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationTypeCodes;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.UserNotificationsInfo;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotNode;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotUser;
@@ -89,12 +89,13 @@ public class NotificationDataFetcher {
   public TypeResolver getNotificationInterfaceResolver() {
     return environment -> {
       Map<String, Object> notification = environment.getObject();
-      NotificationType type = (NotificationType) notification.get(Constants.GraphQL.Notification.NOTIFICATION_TYPE);
+      String type = (String) notification.get(Constants.GraphQL.Notification.NOTIFICATION_TYPE);
 
       return switch (type) {
-        case NEW_SHARE -> environment.getSchema().getObjectType(Constants.GraphQL.Types.NEW_SHARE);
-        case ADDED_NODE -> environment.getSchema().getObjectType(Constants.GraphQL.Types.ADDED_NODE);
-        case REMOVED_NODE -> environment.getSchema().getObjectType(Constants.GraphQL.Types.REMOVED_NODE);
+        case NotificationTypeCodes.NEW_SHARE -> environment.getSchema().getObjectType(Constants.GraphQL.Types.NEW_SHARE);
+        case NotificationTypeCodes.ADDED_NODE -> environment.getSchema().getObjectType(Constants.GraphQL.Types.ADDED_NODE);
+        case NotificationTypeCodes.REMOVED_NODE -> environment.getSchema().getObjectType(Constants.GraphQL.Types.REMOVED_NODE);
+        default -> throw new IllegalStateException("Unknown notification type: " + type);
       };
     };
   }
@@ -107,31 +108,32 @@ public class NotificationDataFetcher {
     Map<String, String> nodeContext = new HashMap<>();
     Optional<GraphQLError> error = Optional.empty();
 
-    NotificationType type = notification.getNotificationType();
+    String type = notification.getNotificationType();
     result.put(Constants.GraphQL.Notification.ID, notification.getNotificationId());
     result.put(Constants.GraphQL.Notification.CREATED_AT, notification.getCreatedAt());
     result.put(Constants.GraphQL.Notification.NOTIFICATION_TYPE, type);
 
     switch (type) {
-      case NEW_SHARE -> {
+      case NotificationTypeCodes.NEW_SHARE -> {
         NewShareNotification newShareNotification = (NewShareNotification) notification;
         result.put(Constants.GraphQL.NewShareNotification.NODE_SNAPSHOT, mapSnapshotNode(newShareNotification.getSnapshotNode()));
         result.put(Constants.GraphQL.NewShareNotification.USER_SNAPSHOT, mapSnapshotUser(newShareNotification.getSnapshotUser()));
       }
-      case ADDED_NODE -> {
+      case NotificationTypeCodes.ADDED_NODE -> {
         AddedNodeNotification addedNodeNotification = (AddedNodeNotification) notification;
         result.put(Constants.GraphQL.AddedNodeNotification.ADDED_NODE_SNAPSHOT, mapSnapshotNode(addedNodeNotification.getAddedNodeSnapshot()));
         result.put(Constants.GraphQL.AddedNodeNotification.ADDED_NODE_TYPE, addedNodeNotification.getAddedNodeType());
         result.put(Constants.GraphQL.AddedNodeNotification.DESTINATION_FOLDER, mapSnapshotNode(addedNodeNotification.getDestinationFolderSnapshot()));
         result.put(Constants.GraphQL.AddedNodeNotification.TRIGGERING_USER, mapSnapshotUser(addedNodeNotification.getTriggeringUserSnapshot()));
       }
-      case REMOVED_NODE -> {
+      case NotificationTypeCodes.REMOVED_NODE -> {
         RemovedNodeNotification removedNodeNotification = (RemovedNodeNotification) notification;
         result.put(Constants.GraphQL.RemovedNodeNotification.REMOVED_NODE_TYPE, removedNodeNotification.getRemovedNodeType());
         result.put(Constants.GraphQL.RemovedNodeNotification.REMOVED_NODE, mapSnapshotNode(removedNodeNotification.getRemovedNodeSnapshot()));
         result.put(Constants.GraphQL.RemovedNodeNotification.ORIGIN_FOLDER, mapSnapshotNode(removedNodeNotification.getOriginFolderSnapshot()));
         result.put(Constants.GraphQL.RemovedNodeNotification.TRIGGERING_USER, mapSnapshotUser(removedNodeNotification.getTriggeringUserSnapshot()));
       }
+      default -> { /* Unknown/Advanced-only type: base fields already populated. */ }
     }
 
     DataFetcherResult.Builder<Map<String, Object>> resultBuilder = new DataFetcherResult

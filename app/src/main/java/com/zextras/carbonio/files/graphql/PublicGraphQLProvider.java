@@ -8,6 +8,8 @@ import static graphql.schema.idl.TypeRuntimeWiring.newTypeWiring;
 
 import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Any;
+import jakarta.enterprise.inject.Instance;
 import com.zextras.carbonio.files.Constants.GraphQL.NodePage;
 import com.zextras.carbonio.files.Constants.GraphQL.Queries;
 import com.zextras.carbonio.files.Constants.GraphQL.Types;
@@ -20,6 +22,7 @@ import graphql.schema.GraphQLSchema;
 import graphql.schema.idl.RuntimeWiring;
 import graphql.schema.idl.SchemaGenerator;
 import graphql.schema.idl.SchemaParser;
+import graphql.schema.idl.TypeDefinitionRegistry;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -42,9 +45,19 @@ public class PublicGraphQLProvider {
   private final GraphQL graphQL;
   private final PublicNodeDataFetchers publicNodeDataFetchers;
 
+  // P9 CE seam: extra SDL fragments and wiring contributed by the Advanced edition. CE ships none,
+  // so the built public schema and wiring are identical to the base ones.
+  private final Instance<GraphQLSchemaContributor> schemaContributors;
+  private final Instance<GraphQLWiringContributor> wiringContributors;
+
   @Inject
-  public PublicGraphQLProvider(PublicNodeDataFetchers publicNodeDataFetchers) {
+  public PublicGraphQLProvider(
+      PublicNodeDataFetchers publicNodeDataFetchers,
+      @Any Instance<GraphQLSchemaContributor> schemaContributors,
+      @Any Instance<GraphQLWiringContributor> wiringContributors) {
     this.publicNodeDataFetchers = publicNodeDataFetchers;
+    this.schemaContributors = schemaContributors;
+    this.wiringContributors = wiringContributors;
     graphQL = this.setup();
   }
 
@@ -78,7 +91,7 @@ public class PublicGraphQLProvider {
    * @return a {@link RuntimeWiring} instance.
    */
   private RuntimeWiring buildWiring() {
-    return RuntimeWiring.newRuntimeWiring()
+    RuntimeWiring.Builder builder = RuntimeWiring.newRuntimeWiring()
         .scalar(new DateTimeScalar().graphQLScalarType())
         .type(
             newTypeWiring(Types.NODE_TYPE).enumValues(publicNodeDataFetchers.getNodeTypeResolver()))
@@ -92,8 +105,12 @@ public class PublicGraphQLProvider {
             newTypeWiring("Query")
                 .dataFetcher(
                     Queries.GET_PUBLIC_NODE, publicNodeDataFetchers.getNodeByPublicLinkId())
-                .dataFetcher(Queries.FIND_NODES, publicNodeDataFetchers.findNodes()))
-        .build();
+                .dataFetcher(Queries.FIND_NODES, publicNodeDataFetchers.findNodes()));
+
+    // P9 CE seam: apply Advanced-contributed wiring AFTER all of CE's base wiring. No-op in CE.
+    wiringContributors.forEach(contributor -> contributor.contribute(builder));
+
+    return builder.build();
   }
 
   /**
@@ -114,8 +131,15 @@ public class PublicGraphQLProvider {
 
     Reader schema = new InputStreamReader(inputStream);
 
+    // Parse the base schema, then merge any Advanced-contributed SDL fragments. CE ships none, so
+    // the registry (and thus the schema) is identical to the base one.
+    TypeDefinitionRegistry typeRegistry = new SchemaParser().parse(schema);
+    for (GraphQLSchemaContributor contributor : schemaContributors) {
+      typeRegistry.merge(new SchemaParser().parse(contributor.schemaSdl()));
+    }
+
     // Create the GraphQLSchema object
-    return new SchemaGenerator().makeExecutableSchema(new SchemaParser().parse(schema), wiring);
+    return new SchemaGenerator().makeExecutableSchema(typeRegistry, wiring);
   }
 
   public GraphQL getGraphQL() {

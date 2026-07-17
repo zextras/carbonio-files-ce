@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files.dal.dao.ebean.notifications;
 
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationType;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationTypeCodes;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotNode;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotUser;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.RemovedNodeType;
@@ -45,7 +45,7 @@ public class RemovedNodeNotification extends BaseNotification {
   private RemovedNodeType removedNodeType;
 
   public RemovedNodeNotification(String notificationId, Long createdAt, String removedNodeSnapshotId, String originFolderSnapshotId, String triggeringUserSnapshotId, RemovedNodeType removedNodeType) {
-    super(notificationId, createdAt, NotificationType.REMOVED_NODE);
+    super(notificationId, createdAt, NotificationTypeCodes.REMOVED_NODE);
     this.removedNodeSnapshotId = removedNodeSnapshotId;
     this.originFolderSnapshotId = originFolderSnapshotId;
     this.triggeringUserSnapshotId = triggeringUserSnapshotId;

@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files.dal.dao.ebean.notifications;
 
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationType;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationTypeCodes;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotNode;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotUser;
 
@@ -33,7 +33,7 @@ public class NewShareNotification extends BaseNotification{
   private SnapshotUser snapshotUser;
 
   public NewShareNotification(String notificationId, Long createdAt, String nodeSnapshotId, String triggeringUserSnapshotId) {
-    super(notificationId, createdAt, NotificationType.NEW_SHARE);
+    super(notificationId, createdAt, NotificationTypeCodes.NEW_SHARE);
     this.nodeSnapshotId = nodeSnapshotId;
     this.triggeringUserSnapshotId = triggeringUserSnapshotId;
   }

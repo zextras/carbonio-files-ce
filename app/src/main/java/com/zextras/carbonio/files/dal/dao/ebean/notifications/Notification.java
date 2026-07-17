@@ -5,7 +5,6 @@
 package com.zextras.carbonio.files.dal.dao.ebean.notifications;
 
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationType;
 
 import jakarta.persistence.*;
 
@@ -30,9 +29,10 @@ public class Notification {
   @Column(name = Constants.Db.Notification.CREATED_AT, nullable = false)
   private Long createdAt;
 
+  // Plain String code (former NotificationType enum name) so the set of notification types is open
+  // for the Advanced edition. On-disk value is unchanged (enum name == descriptor code).
   @Column(name = Constants.Db.Notification.NOTIFICATION_TYPE, length = 36, nullable = false)
-  @Enumerated(EnumType.STRING)
-  private NotificationType notificationType;
+  private String notificationType;
 
   protected Notification() {
     // Default constructor for Ebean
@@ -54,11 +54,11 @@ public class Notification {
     this.createdAt = createdAt;
   }
 
-  public NotificationType getNotificationType() {
+  public String getNotificationType() {
     return notificationType;
   }
 
-  public void setNotificationType(NotificationType notificationType) {
+  public void setNotificationType(String notificationType) {
     this.notificationType = notificationType;
   }
 }

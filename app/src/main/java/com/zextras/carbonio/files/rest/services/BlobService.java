@@ -42,6 +42,8 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.vavr.control.Try;
 import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Any;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -102,6 +104,12 @@ public class BlobService {
   private final FilesConfig filesConfig;
   private final MeterRegistry meterRegistry;
 
+  // P9 CE seams. QuotaChecker: CE ships a NoOpQuotaChecker default; Advanced supplies an
+  // @Alternative @Priority(1) that enforces quota. UploadCompletionListener: CE registers none, so
+  // the fan-out after a service-account upload is a no-op.
+  private final QuotaChecker quotaChecker;
+  private final Instance<UploadCompletionListener> uploadCompletionListeners;
+
   @Inject
   public BlobService(
       NodeRepository nodeRepository,
@@ -113,7 +121,9 @@ public class BlobService {
       MimeTypeUtils mimeTypeUtils,
       Filestore fileStore,
       FilesConfig filesConfig,
-      MeterRegistry meterRegistry
+      MeterRegistry meterRegistry,
+      QuotaChecker quotaChecker,
+      @Any Instance<UploadCompletionListener> uploadCompletionListeners
   ) {
     this.nodeRepository = nodeRepository;
     this.notificationRepository = notificationRepository;
@@ -125,6 +135,8 @@ public class BlobService {
     this.fileStore = fileStore;
     this.filesConfig = filesConfig;
     this.meterRegistry = meterRegistry;
+    this.quotaChecker = quotaChecker;
+    this.uploadCompletionListeners = uploadCompletionListeners;
   }
 
   public Optional<List<Node>> checkDownloadMultiple(
@@ -373,6 +385,9 @@ public class BlobService {
           ? requesterId
           : destinationFolder.getOwnerId();
 
+      // P9 CE seam: quota check before the blob is stored (no-op in CE).
+      quotaChecker.ensureNotOverQuota(nodeOwner, blobLength);
+
       MediaType mediaType = mimeTypeUtils.detectMimeTypeFromFilename(
           filename,
           MediaType.OCTET_STREAM.toString()
@@ -467,6 +482,14 @@ public class BlobService {
       });
 
       meterRegistry.counter(METRIC_UPLOAD, "service", "files", "uri", "/upload").increment();
+
+      // P9 CE seam: notify listeners after a successful service-account upload (no user requester
+      // entity). CE registers none, so this is a no-op fan-out.
+      if (requesterEntity.isEmpty()) {
+        uploadCompletionListeners.forEach(
+            listener -> listener.onUploadCompleted(newNode, destinationFolder, requesterId));
+      }
+
       return Optional.of(nodeId);
     }
 
@@ -507,6 +530,9 @@ public class BlobService {
       // Lock the node row
       Node node = nodeRepository.getNodeForUpdate(nodeId)
           .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+
+      // P9 CE seam: quota check before the new version blob is stored (no-op in CE).
+      quotaChecker.ensureNotOverQuota(node.getOwnerId(), blobLength);
 
       List<FileVersion> allFileVersion = fileVersionRepository
           .getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));

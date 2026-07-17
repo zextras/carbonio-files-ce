@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.notifications.AddedNodeNotificat
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.BaseNotification;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.NewShareNotification;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.RemovedNodeNotification;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationTypeRegistry;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.UserNotificationInterest;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.UserNotificationsInfo;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotNode;
@@ -52,10 +53,13 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 public class NotificationRepositoryImpl implements NotificationRepository {
 
   private final EntityManager entityManager;
+  private final NotificationTypeRegistry notificationTypeRegistry;
 
   @Inject
-  public NotificationRepositoryImpl(EntityManager entityManager) {
+  public NotificationRepositoryImpl(
+      EntityManager entityManager, NotificationTypeRegistry notificationTypeRegistry) {
     this.entityManager = entityManager;
+    this.notificationTypeRegistry = notificationTypeRegistry;
   }
 
   @Override
@@ -109,28 +113,19 @@ public class NotificationRepositoryImpl implements NotificationRepository {
       return List.of();
     }
 
+    // Query each registered notification subtype (CE built-ins + any Advanced additions), driven by
+    // the NotificationTypeRegistry instead of a closed enum -> Class dispatch table.
     Map<String, BaseNotification> notificationsById = new HashMap<>();
-    entityManager
-        .createQuery(
-            "select n from NewShareNotification n where n.notificationId in :ids",
-            NewShareNotification.class)
-        .setParameter("ids", notificationIds)
-        .getResultList()
-        .forEach(n -> notificationsById.put(n.getNotificationId(), n));
-    entityManager
-        .createQuery(
-            "select n from AddedNodeNotification n where n.notificationId in :ids",
-            AddedNodeNotification.class)
-        .setParameter("ids", notificationIds)
-        .getResultList()
-        .forEach(n -> notificationsById.put(n.getNotificationId(), n));
-    entityManager
-        .createQuery(
-            "select n from RemovedNodeNotification n where n.notificationId in :ids",
-            RemovedNodeNotification.class)
-        .setParameter("ids", notificationIds)
-        .getResultList()
-        .forEach(n -> notificationsById.put(n.getNotificationId(), n));
+    for (Class<? extends BaseNotification> notificationClass :
+        notificationTypeRegistry.notificationClasses()) {
+      entityManager
+          .createQuery(
+              "select n from " + notificationClass.getSimpleName() + " n where n.notificationId in :ids",
+              notificationClass)
+          .setParameter("ids", notificationIds)
+          .getResultList()
+          .forEach(n -> notificationsById.put(n.getNotificationId(), n));
+    }
 
     // Keep the original (createdAt-desc) order established by the id query.
     return notificationIds.stream().map(notificationsById::get).filter(Objects::nonNull).toList();

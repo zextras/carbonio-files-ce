@@ -4,8 +4,6 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean.notifications;
 
-import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationType;
-
 import jakarta.persistence.*;
 
 @MappedSuperclass
@@ -23,11 +21,11 @@ public abstract class BaseNotification {
   @JoinColumn(name = "notification_id")
   private Notification notification;
 
-  protected BaseNotification(String notificationId, Long createdAt, NotificationType type) {
+  protected BaseNotification(String notificationId, Long createdAt, String typeCode) {
     this.notification = new Notification();
     this.notification.setNotificationId(notificationId);
     this.notification.setCreatedAt(createdAt);
-    this.notification.setNotificationType(type);
+    this.notification.setNotificationType(typeCode);
   }
 
   public String getNotificationId() {
@@ -46,11 +44,11 @@ public abstract class BaseNotification {
     this.notification.setCreatedAt(createdAt);
   }
 
-  public NotificationType getNotificationType() {
+  public String getNotificationType() {
     return this.notification.getNotificationType();
   }
 
-  public void setNotificationType(NotificationType notificationType) {
+  public void setNotificationType(String notificationType) {
     this.notification.setNotificationType(notificationType);
   }
 }

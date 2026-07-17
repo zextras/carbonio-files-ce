@@ -5,7 +5,7 @@
 package com.zextras.carbonio.files.dal.dao.ebean.notifications;
 
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationType;
+import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationTypeCodes;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotNode;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotUser;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
@@ -45,7 +45,7 @@ public class AddedNodeNotification extends BaseNotification{
   private AddedNodeType addedNodeType;
 
   public AddedNodeNotification(String notificationId, Long createdAt, String addedNodeSnapshotId, String destinationFolderSnapshotId, String triggeringUserSnapshotId, AddedNodeType addedNodeType) {
-    super(notificationId, createdAt, NotificationType.ADDED_NODE);
+    super(notificationId, createdAt, NotificationTypeCodes.ADDED_NODE);
     this.addedNodeSnapshotId = addedNodeSnapshotId;
     this.destinationFolderSnapshotId = destinationFolderSnapshotId;
     this.triggeringUserSnapshotId = triggeringUserSnapshotId;

@@ -6,6 +6,8 @@ package com.zextras.carbonio.files.graphql;
 
 import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Any;
+import jakarta.enterprise.inject.Instance;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.graphql.datafetchers.*;
 import com.zextras.carbonio.files.graphql.validators.InputFieldsController;
@@ -24,6 +26,7 @@ import graphql.schema.GraphQLSchema;
 import graphql.schema.idl.RuntimeWiring;
 import graphql.schema.idl.SchemaGenerator;
 import graphql.schema.idl.SchemaParser;
+import graphql.schema.idl.TypeDefinitionRegistry;
 import graphql.schema.visibility.BlockedFields;
 import graphql.schema.visibility.GraphqlFieldVisibility;
 
@@ -59,6 +62,11 @@ public class GraphQLProvider {
   private final ConfigDataFetcher configDataFetcher;
   private final NotificationDataFetcher notificationDataFetcher;
 
+  // P9 CE seam: extra SDL fragments and wiring contributed by the Advanced edition. CE ships none,
+  // so the built schema and wiring are identical to the base ones.
+  private final Instance<GraphQLSchemaContributor> schemaContributors;
+  private final Instance<GraphQLWiringContributor> wiringContributors;
+
   @Inject
   public GraphQLProvider(
       InputFieldsController inputFieldsController,
@@ -68,7 +76,9 @@ public class GraphQLProvider {
       LinkDataFetcher linkDataFetcher,
       CollaborationLinkDataFetcher collaborationLinkDataFetcher,
       ConfigDataFetcher configDataFetcher,
-      NotificationDataFetcher notificationDataFetcher
+      NotificationDataFetcher notificationDataFetcher,
+      @Any Instance<GraphQLSchemaContributor> schemaContributors,
+      @Any Instance<GraphQLWiringContributor> wiringContributors
   ) {
     this.inputFieldsController = inputFieldsController;
     this.nodeDataFetcher = nodeDataFetcher;
@@ -78,6 +88,8 @@ public class GraphQLProvider {
     this.collaborationLinkDataFetcher = collaborationLinkDataFetcher;
     this.configDataFetcher = configDataFetcher;
     this.notificationDataFetcher = notificationDataFetcher;
+    this.schemaContributors = schemaContributors;
+    this.wiringContributors = wiringContributors;
     graphQL = this.setup();
   }
 
@@ -220,7 +232,7 @@ public class GraphQLProvider {
    * @return a {@link RuntimeWiring} instance.
    */
   private RuntimeWiring buildWiring() {
-    return RuntimeWiring.newRuntimeWiring()
+    RuntimeWiring.Builder builder = RuntimeWiring.newRuntimeWiring()
         .scalar(new DateTimeScalar().graphQLScalarType())
         .type(newTypeWiring(Constants.GraphQL.Types.NODE_SORT)
             .enumValues(nodeDataFetcher.getNodeSortResolver())
@@ -394,8 +406,12 @@ public class GraphQLProvider {
               Map<String, Object> source = (Map<String, Object>) env.getSource();
               return source.get(Constants.GraphQL.RemovedNodeNotification.TRIGGERING_USER);
             })
-        )
-        .build();
+        );
+
+    // P9 CE seam: apply Advanced-contributed wiring AFTER all of CE's base wiring. No-op in CE.
+    wiringContributors.forEach(contributor -> contributor.contribute(builder));
+
+    return builder.build();
   }
 
   /**
@@ -411,8 +427,15 @@ public class GraphQLProvider {
     InputStream inputStream = getClass().getResourceAsStream(SCHEMA_URL);
     Reader schema = new InputStreamReader(inputStream);
 
+    // Parse the base schema, then merge any Advanced-contributed SDL fragments into the registry.
+    // CE ships no contributors, so the registry (and thus the schema) is identical to the base one.
+    TypeDefinitionRegistry typeRegistry = new SchemaParser().parse(schema);
+    for (GraphQLSchemaContributor contributor : schemaContributors) {
+      typeRegistry.merge(new SchemaParser().parse(contributor.schemaSdl()));
+    }
+
     // Generate the schema
-    GraphQLSchema graphQLSchema = new SchemaGenerator().makeExecutableSchema(new SchemaParser().parse(schema), wiring);
+    GraphQLSchema graphQLSchema = new SchemaGenerator().makeExecutableSchema(typeRegistry, wiring);
 
     // Add blocked fields to disable introspection
     GraphQLCodeRegistry existingCodeRegistry = graphQLSchema.getCodeRegistry();
