@@ -1,0 +1,443 @@
+// SPDX-FileCopyrightText: 2023 Zextras <https://www.zextras.com>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package com.zextras.carbonio.files.acceptance;
+
+import com.zextras.carbonio.files.FilesStackTestResource;
+import io.quarkus.test.common.QuarkusTestResource;
+import io.quarkus.test.junit.QuarkusTest;
+
+import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.acceptance.seam.FilesTestApp;
+import com.zextras.carbonio.files.acceptance.seam.impl.QuarkusFilesTestAppBuilder;
+import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
+import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
+import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
+import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
+import com.zextras.carbonio.files.utilities.http.HttpRequest;
+import com.zextras.carbonio.files.utilities.http.HttpResponse;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+@QuarkusTest
+@QuarkusTestResource(FilesStackTestResource.class)
+class GetPublicLinksApiIT {
+
+  static FilesTestApp app;
+
+  @BeforeAll
+  static void init() {
+    app =
+        QuarkusFilesTestAppBuilder.aFilesTestApp()
+            .withDatabase()
+            .withServiceDiscover()
+            .withUserManagement(
+                Map.of(
+                    "fake-token",
+                    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                    "fake-token-account-for-sharing",
+                    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"))
+            .build();
+  }
+
+  @AfterEach
+  void cleanUp() {
+    app.backdoor().resetDatabase();
+  }
+
+  @AfterAll
+  static void cleanUpAll() {
+    app.close();
+  }
+
+  void createFile(String nodeId, String ownerId) {
+    app.backdoor().populator().addNode(new SimplePopulatorTextFile(nodeId, ownerId));
+  }
+
+  void createFolder(String nodeId, String ownerId) {
+    app.backdoor().populator().addNode(new SimplePopulatorFolder(nodeId, ownerId));
+  }
+
+  void createShare(String nodeId, String targetUserId, SharePermission permission) {
+    app.backdoor().populator().addShare(nodeId, targetUserId, permission);
+  }
+
+  @Test
+  void
+      givenAnExistingFileWithTwoExistingLinksTheGetLinksShouldReturnAListOfAssociatedLinksOrderedByCreationDescending()
+          throws InterruptedException {
+    // Given
+    createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    app.backdoor()
+        .populator()
+        .addLink(
+            "06e0f2ae-b128-4d25-9b3b-df84eb7948a9",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
+            Optional.of(5L),
+            Optional.of("super-description"),
+            Optional.empty());
+
+    // These sleep is necessary because some time the creation of the two links is so fast that
+    // causes the same creation timestamp of the two links. When the LinkRepository will have an
+    // injected clock in the LinkRepository, then we will have a better solution for this ugly trick
+    Thread.sleep(500);
+
+    app.backdoor()
+        .populator()
+        .addLink(
+            "0c04783b-bdfb-446f-870c-625f5ae02a0a",
+            "00000000-0000-0000-0000-000000000000",
+            "00001234abcd1234abcd1234abcd1234",
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty());
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .build();
+
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse = app.send(httpRequest);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final List<Map<String, Object>> publicLinks =
+        TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "getLinks");
+
+    Assertions.assertThat(publicLinks).hasSize(2);
+
+    Assertions.assertThat(publicLinks.get(0))
+        .containsEntry("id", "0c04783b-bdfb-446f-870c-625f5ae02a0a")
+        .containsEntry(
+            "url",
+            "example.com/services/files/public/link/download/00001234abcd1234abcd1234abcd1234")
+        .containsEntry("expires_at", null)
+        .containsEntry("description", null);
+    Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node"))
+        .containsEntry("id", "00000000-0000-0000-0000-000000000000");
+
+    Assertions.assertThat(publicLinks.get(1))
+        .containsEntry("id", "06e0f2ae-b128-4d25-9b3b-df84eb7948a9")
+        .containsEntry(
+            "url",
+            "example.com/services/files/public/link/download/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
+        .containsEntry("expires_at", 5)
+        .containsEntry("description", "super-description");
+    Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node"))
+        .containsEntry("id", "00000000-0000-0000-0000-000000000000");
+  }
+
+  @Test
+  void
+  givenAnExistingFolderWithOneExistingLinkTheGetLinksShouldReturnAListContainingTheAssociatedLink() {
+    // Given
+    createFolder("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    app.backdoor()
+        .populator()
+        .addLink(
+            "06e0f2ae-b128-4d25-9b3b-df84eb7948a9",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
+            Optional.of(5L),
+            Optional.of("super-description"),
+            Optional.empty());
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id url expires_at created_at description node { id } }")
+            .build();
+
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse = app.send(httpRequest);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final List<Map<String, Object>> publicLinks =
+        TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "getLinks");
+
+    Assertions.assertThat(publicLinks).hasSize(1);
+
+    Assertions.assertThat(publicLinks.get(0))
+        .containsEntry("id", "06e0f2ae-b128-4d25-9b3b-df84eb7948a9")
+        .containsEntry(
+            "url", "example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
+        .containsEntry("expires_at", 5)
+        .containsEntry("description", "super-description");
+    Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node"))
+        .containsEntry("id", "00000000-0000-0000-0000-000000000000");
+  }
+
+  @Test
+  void
+  givenAnExistingFolderWithOneExistingLinkWithAccessCodeTheGetLinksShouldReturnAListContainingTheAssociatedLink() {
+    // Given
+    createFolder("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    app.backdoor()
+        .populator()
+        .addLink(
+            "06e0f2ae-b128-4d25-9b3b-df84eb7948a9",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
+            Optional.of(5L),
+            Optional.of("super-description"),
+            Optional.of("fake-access-code"));
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
+            .build();
+
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse = app.send(httpRequest);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final List<Map<String, Object>> publicLinks =
+        TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "getLinks");
+
+    Assertions.assertThat(publicLinks).hasSize(1);
+
+    Assertions.assertThat(publicLinks.get(0))
+        .containsEntry("id", "06e0f2ae-b128-4d25-9b3b-df84eb7948a9")
+        .containsEntry(
+            "url", "example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
+        .containsEntry("expires_at", 5)
+        .containsEntry("description", "super-description")
+        .containsEntry("access_code", "fake-access-code");
+    Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node"))
+        .containsEntry("id", "00000000-0000-0000-0000-000000000000");
+  }
+
+  @Test
+  void givenAnExistingNodeWithoutLinksTheGetLinksShouldReturnAnEmptyList() {
+    // Given
+    createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id }")
+            .build();
+
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse = app.send(httpRequest);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "getLinks"))
+        .isEmpty();
+  }
+
+  // TODO it should return an error message
+  @Test
+  void givenANotExistingNodeTheGetLinksShouldReturn200StatusCodeAndNull() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id }")
+            .build();
+
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse = app.send(httpRequest);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "getLinks"))
+        .first()
+        .isNull();
+  }
+
+  // TODO it should return an error message
+  @Test
+  void
+  givenAnExistingNodeALinkAssociatedAndAUserWithoutPermissionsTheGetLinksShouldReturn200StatusCodeAndNull() {
+    // Given
+    createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    app.backdoor()
+        .populator()
+        .addLink(
+            "0c04783b-bdfb-446f-870c-625f5ae02a0a",
+            "00000000-0000-0000-0000-000000000000",
+            "0000aaaa",
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty());
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id }")
+            .build();
+
+    final HttpRequest httpRequest =
+        HttpRequest.of(
+            "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse = app.send(httpRequest);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "getLinks"))
+        .first()
+        .isNull();
+  }
+
+  // TODO it should return an error message
+  @Test
+  void
+  givenAnExistingNodeSharedToAUserWithoutShareRightsAndAnExistingLinkTheGetLinksShouldReturn200CodeAndNull() {
+    // Given
+    createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    app.backdoor()
+        .populator()
+        .addShare(
+            "00000000-0000-0000-0000-000000000000",
+            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            SharePermission.READ_ONLY)
+        .addLink(
+            "0c04783b-bdfb-446f-870c-625f5ae02a0a",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty());
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id }")
+            .build();
+
+    final HttpRequest httpRequest =
+        HttpRequest.of(
+            "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse = app.send(httpRequest);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "getLinks"))
+        .first()
+        .isNull();
+  }
+
+  @Test
+  void
+  givenAnExistingNodeSharedToAUserWithShareRightsAndAnExistingLinkTheGetLinksShouldReturnAListOfAssociatedLinks() {
+    // Given
+    createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    app.backdoor()
+        .populator()
+        .addShare(
+            "00000000-0000-0000-0000-000000000000",
+            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            SharePermission.READ_AND_SHARE)
+        .addLink(
+            "0c04783b-bdfb-446f-870c-625f5ae02a0a",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty());
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id }")
+            .build();
+
+    final HttpRequest httpRequest =
+        HttpRequest.of(
+            "POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-account-for-sharing", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse = app.send(httpRequest);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+    final List<Map<String, Object>> publicLinks =
+        TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "getLinks");
+
+    Assertions.assertThat(publicLinks).hasSize(1);
+    Assertions.assertThat(publicLinks.get(0))
+        .containsEntry("id", "0c04783b-bdfb-446f-870c-625f5ae02a0a");
+  }
+
+  @Test
+  void
+  givenAnExistingFileAndAnAssociatedLegacyPublicLinkWithAn8CharsPublicIdentifierTheGetLinksShouldReturnItCorrectly() {
+    // Given
+    createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    app.backdoor()
+        .populator()
+        .addShare(
+            "00000000-0000-0000-0000-000000000000",
+            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            SharePermission.READ_ONLY)
+        .addLink(
+            "0c04783b-bdfb-446f-870c-625f5ae02a0a",
+            "00000000-0000-0000-0000-000000000000",
+            "abcd1234",
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty());
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withWantedResultFormat("{ id url }")
+            .build();
+
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+
+    // When
+    final HttpResponse httpResponse = app.send(httpRequest);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    final List<Map<String, Object>> publicLinks =
+        TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "getLinks");
+
+    Assertions.assertThat(publicLinks).hasSize(1);
+    Assertions.assertThat(publicLinks.get(0))
+        .containsEntry("id", "0c04783b-bdfb-446f-870c-625f5ae02a0a")
+        .containsEntry("url", "example.com/services/files/public/link/download/abcd1234");
+  }
+}
