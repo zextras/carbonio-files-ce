@@ -1,5 +1,5 @@
 {
   "Kind": "service-defaults",
   "Name": "carbonio-files",
-  "Protocol": "http"
+  "Protocol": "grpc"
 }

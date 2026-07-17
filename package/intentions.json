@@ -43,6 +43,20 @@
     {
       "name": "carbonio-message-broker",
       "action": "allow"
+    },
+    {
+      "Name": "*",
+      "Permissions": [
+        {
+          "Action": "allow",
+          "HTTP": {
+            "PathPrefix": "/files.FilesService/",
+            "Methods": [
+              "POST"
+            ]
+          }
+        }
+      ]
     }
   ]
 }
