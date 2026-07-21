@@ -14,21 +14,15 @@ priority="optional"
 url="https://www.zextras.com/"
 depends__apt=(
   "python3"
+  "python3-pika"
 )
 depends__rocky_8=(
-  "python38"
+  "python3"
+  "python3-pika"
 )
 depends__rocky_9=(
   "python3"
-)
-makedepends__apt=(
-  "python3-pip"
-)
-makedepends__rocky_8=(
-  "python38-pip"
-)
-makedepends__rocky_9=(
-  "python3-pip"
+  "python3-pika"
 )
 depends=(
   "pending-setups"
@@ -129,18 +123,17 @@ _package_systemd() {
 }
 
 # Live-config bridge (matches carbonio-files Advanced): install carbonio-files-start-watches.sh and
-# the pika (Python RabbitMQ client) it needs, then substitute the distro-specific python version and
-# prefix into the start script. pika publishes the Consul KV changes to the message broker consumed
-# by the app's KeyValueChangedConsumer.
+# substitute its python placeholders. The pika (Python RabbitMQ client) it imports at runtime is
+# provided by the system python3-pika package (see depends) instead of being vendored with pip at
+# build time -- the yap-v2 build containers ship no pip3. The handler runs under the distro's
+# default python3, which is exactly the interpreter python3-pika targets (3.6 el8, 3.9 el9, 3.10/3.12
+# ubuntu). pika publishes the Consul KV changes to the message broker consumed by the app's
+# KeyValueChangedConsumer.
 build__ubuntu_focal() {
   install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 
-  pip3 install \
-    --prefix="${pkgdir}/opt/zextras/common" \
-    pika
-
-  sed -i "s/PYTHON_VER/3.8/g" \
+  sed -i "s/PYTHON_VER/3/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
   sed -i "s/PREFIX/common/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
@@ -150,13 +143,9 @@ build__ubuntu_jammy() {
   install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 
-  pip3 install \
-    --prefix="${pkgdir}/opt/zextras/common" \
-    pika
-
-  sed -i "s/PYTHON_VER/3.10/g" \
+  sed -i "s/PYTHON_VER/3/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-  sed -i "s/PREFIX/common\/local/g" \
+  sed -i "s/PREFIX/common/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 }
 
@@ -164,13 +153,9 @@ build__ubuntu_noble() {
   install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 
-  pip3 install \
-    --prefix="${pkgdir}/opt/zextras/common" \
-    pika
-
-  sed -i "s/PYTHON_VER/3.12/g" \
+  sed -i "s/PYTHON_VER/3/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
-  sed -i "s/PREFIX/common\/local/g" \
+  sed -i "s/PREFIX/common/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 }
 
@@ -178,11 +163,7 @@ build__rocky_8() {
   install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 
-  pip3.8 install \
-    --prefix="${pkgdir}/opt/zextras/common" \
-    pika
-
-  sed -i "s/PYTHON_VER/3.8/g" \
+  sed -i "s/PYTHON_VER/3/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
   sed -i "s/PREFIX/common/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
@@ -192,11 +173,7 @@ build__rocky_9() {
   install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 
-  pip3 install \
-    --prefix="${pkgdir}/opt/zextras/common" \
-    pika
-
-  sed -i "s/PYTHON_VER/3.9/g" \
+  sed -i "s/PYTHON_VER/3/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
   sed -i "s/PREFIX/common/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
