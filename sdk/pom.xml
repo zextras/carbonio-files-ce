@@ -22,10 +22,13 @@ SPDX-License-Identifier: AGPL-3.0-only
   <name>Carbonio Files - gRPC SDK</name>
 
   <properties>
-    <!-- Keep <revision> in sync with the root pom: the app depends on this module via
-         ${project.version}, so both must resolve to the same version in a local reactor build.
-         dt3 overrides revision+changelist for both modules identically at CI/release time. -->
-    <revision>1.3.8</revision>
+    <!-- Placeholder version, same as carbonio-user-management's sdk. This module parents on
+         carbonio-quarkus-extensions-sdk-parent (not the files root), and semantic-release's
+         prepareCmd only rewrites the ROOT pom's <revision>, never this one. The real version is
+         injected identically for every module by dt3 (-Drevision/-Dchangelist) at CI/release time,
+         so the app's ${project.version} dependency on this module always resolves. For a bare local
+         reactor build, pass -Drevision/-Dchangelist (as CI does). -->
+    <revision>0.0.0</revision>
     <changelist>-SNAPSHOT</changelist>
   </properties>
 
