@@ -22,7 +22,10 @@ SPDX-License-Identifier: AGPL-3.0-only
   <name>Carbonio Files - gRPC SDK</name>
 
   <properties>
-    <revision>0.0.0</revision>
+    <!-- Keep <revision> in sync with the root pom: the app depends on this module via
+         ${project.version}, so both must resolve to the same version in a local reactor build.
+         dt3 overrides revision+changelist for both modules identically at CI/release time. -->
+    <revision>1.3.8</revision>
     <changelist>-SNAPSHOT</changelist>
   </properties>
 

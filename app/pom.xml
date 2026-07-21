@@ -111,8 +111,9 @@ SPDX-License-Identifier: AGPL-3.0-only
     <!--
       P6b: trusted-caller gRPC SERVER side.
         - carbonio-files-grpc-sdk: the sibling module's generated FilesServiceGrpc stubs
-          (files.proto). Reactor-resolved to 0.0.0-SNAPSHOT (its own revision, independent of the
-          app's ${revision}). FilesGrpcService extends its FilesServiceImplBase.
+          (files.proto), versioned in lockstep with this app via ${project.version} so the reactor
+          resolves it locally and dt3 stamps both modules identically at CI/release time.
+          FilesGrpcService extends its FilesServiceImplBase.
         - carbonio-quarkus-extensions-grpc-sdk: same server extension carbonio-user-management/app
           uses. It contributes the shared-port default (quarkus.grpc.server.use-separate-server=false,
           config_ordinal=260) so the gRPC server runs on the SAME HTTP port (10000) as REST/GraphQL,
@@ -122,7 +123,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>com.zextras.carbonio.files</groupId>
       <artifactId>carbonio-files-grpc-sdk</artifactId>
-      <version>0.0.0-SNAPSHOT</version>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>com.zextras.carbonio.quarkus</groupId>
