@@ -86,6 +86,23 @@ SPDX-License-Identifier: AGPL-3.0-only
     time, chosen to be Quarkus-BOM-compatible.
   -->
 
+  <!-- Publish target for `mvn deploy` (the dt3 "Maven Publish" stage deploys the root pom with -N,
+       and the app module inherits this; the sdk module gets its own from carbonio-quarkus-extensions-
+       sdk-parent). Matches carbonio-user-management: the `zextras-java-sdk` id resolves to the
+       credentials in the dt3-provided settings.xml. -->
+  <distributionManagement>
+    <snapshotRepository>
+      <id>zextras-java-sdk</id>
+      <name>Zextras private repository</name>
+      <url>https://zextras.jfrog.io/artifactory/maven-snapshot</url>
+    </snapshotRepository>
+    <repository>
+      <id>zextras-java-sdk</id>
+      <name>Zextras private repository</name>
+      <url>https://zextras.jfrog.io/artifactory/public-maven-repo</url>
+    </repository>
+  </distributionManagement>
+
   <build>
     <plugins>
       <!--
