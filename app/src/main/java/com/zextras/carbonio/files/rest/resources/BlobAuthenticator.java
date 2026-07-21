@@ -10,8 +10,6 @@ import com.zextras.carbonio.files.dal.dao.UserStatus;
 import com.zextras.carbonio.files.dal.dao.UserType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Any;
-import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
@@ -35,16 +33,9 @@ public class BlobAuthenticator {
 
   private final UserRepository userRepository;
 
-  // P9 CE seam: additional auth schemes (e.g. Advanced JWT), tried before the cookie path. CE
-  // registers none, so the resolution below is unchanged.
-  private final Instance<SupplementaryAuthenticator> supplementaryAuthenticators;
-
   @Inject
-  public BlobAuthenticator(
-      UserRepository userRepository,
-      @Any Instance<SupplementaryAuthenticator> supplementaryAuthenticators) {
+  public BlobAuthenticator(UserRepository userRepository) {
     this.userRepository = userRepository;
-    this.supplementaryAuthenticators = supplementaryAuthenticators;
   }
 
   /**
@@ -58,15 +49,6 @@ public class BlobAuthenticator {
    * @throws WebApplicationException with status 401 if authentication fails
    */
   public UserMyself requireUser(String cookieHeader, String zmAuthToken) {
-    // Try any supplementary authenticator first; the first one that resolves a user short-circuits
-    // the standard cookie path. CE registers none, so this loop is a no-op.
-    for (SupplementaryAuthenticator authenticator : supplementaryAuthenticators) {
-      Optional<UserMyself> resolved = authenticator.authenticate(cookieHeader, zmAuthToken);
-      if (resolved.isPresent()) {
-        return resolved.get();
-      }
-    }
-
     if (zmAuthToken == null || zmAuthToken.isBlank()) {
       throw unauthorized("Missing cookies");
     }
