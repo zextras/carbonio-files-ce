@@ -11,9 +11,6 @@ import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
 import com.zextras.carbonio.files.rest.types.UploadAttachmentResponse;
 import com.zextras.carbonio.files.rest.types.UploadToRequest;
 import com.zextras.carbonio.files.rest.types.UploadVersionResponse;
-import com.zextras.carbonio.files.rest.types.health.DependencyType;
-import com.zextras.carbonio.files.rest.types.health.HealthResponse;
-import com.zextras.carbonio.files.rest.types.health.ServiceHealth;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 /**
@@ -27,11 +24,10 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
  *       PublicNode} / {@link Permissions} POJOs (rather than {@code Map<String,Object>}); graphql's
  *       default {@code PropertyDataFetcher} reads their fields reflectively. (Most other fetchers
  *       already return Maps, which need no reflection.)</li>
- *   <li><b>Jackson JSON DTOs serialized/deserialized manually (not through a JAX-RS body)</b> — most
- *       notably {@link HealthResponse}/{@link ServiceHealth}/{@link DependencyType}, which {@code
- *       HealthResource#health} writes with {@code ObjectMapper.writeValueAsString(...)} and returns
- *       through an opaque {@code jakarta.ws.rs.core.Response}, so Quarkus REST cannot infer the type.
- *       The upload/blob/preview REST DTOs are registered defensively for the same reason.</li>
+ *   <li><b>Jackson JSON DTOs serialized/deserialized manually (not through a JAX-RS body)</b> — the
+ *       upload/blob/preview REST DTOs are returned through an opaque {@code
+ *       jakarta.ws.rs.core.Response} or serialized manually, so Quarkus REST cannot infer the type
+ *       and they are registered defensively.</li>
  * </ul>
  */
 @RegisterForReflection(
@@ -40,9 +36,6 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
       PublicNode.class,
       Permissions.class,
       // Jackson JSON DTOs returned/consumed via an opaque Response or serialized manually
-      HealthResponse.class,
-      ServiceHealth.class,
-      DependencyType.class,
       BlobResponse.class,
       UploadAttachmentResponse.class,
       UploadVersionResponse.class,

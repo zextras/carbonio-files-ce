@@ -24,9 +24,9 @@ import org.slf4j.LoggerFactory;
  * networking-config.carbonio.docs-connector.*}, defaulting to the mesh IP/port from {@code
  * package/carbonio-files.hcl}: {@code 127.78.0.2:20005}).
  *
- * <p><b>Informational only</b> (see {@code HealthService}'s self-only house pattern): the result
- * feeds the {@code /health} JSON payload's {@code dependencies} list only — it never gates {@code
- * /health/live}/{@code /health/ready}'s HTTP status.
+ * <p><b>Informational only:</b> the result reports whether docs-connector is reachable; it must
+ * never gate carbonio-files' own mesh health (self-only house pattern — a downstream dependency
+ * being down cannot flip this service's {@code /q/health/live}).
  */
 @ApplicationScoped
 public class DocsConnectorHttpClient {

@@ -1052,11 +1052,6 @@ public final class Constants {
       public static final String COLLABORATION_LINK_URL = "/services/files/invite/";
 
       public static final Pattern METRICS             = Pattern.compile(SERVICE + "metrics/?$");
-      public static final Pattern HEALTH              = Pattern.compile(
-        SERVICE + "health/?(live|ready)?/?$");
-      public static final Pattern HEALTH_LIVE         = Pattern.compile(SERVICE + "health/live/?$");
-      public static final Pattern HEALTH_READY        = Pattern.compile(
-        SERVICE + "health/ready/?$");
       public static final Pattern GRAPHQL             = Pattern.compile(SERVICE + "graphql/?$");
       public static final Pattern UPLOAD_FILE         = Pattern.compile(SERVICE + "upload/?$");
       public static final Pattern UPLOAD_FILE_INTERNAL= Pattern.compile(SERVICE + "internal/upload/?$");

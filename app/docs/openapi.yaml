@@ -139,39 +139,6 @@ paths:
       summary: Download Version
       tags:
       - Blob Resource
-  /health:
-    get:
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
-      summary: Health
-      tags:
-      - Health Resource
-  /health/live:
-    get:
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
-      summary: Live
-      tags:
-      - Health Resource
-  /health/ready:
-    get:
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
-      summary: Ready
-      tags:
-      - Health Resource
   /internal/upload:
     post:
       parameters:
