@@ -49,6 +49,9 @@ source=(
   "policies.json"
   "service-protocol.json"
   "service-router.json"
+  "carbonio-files-watches.service"
+  "carbonio-files-start-watches.sh"
+  "carbonio-files-handle-kv-changes.py"
 )
 sha256sums=(
   '96f4a551909cd061e95fe06175ff3e2f35578af77ac677023174098c8f940ed3'
@@ -59,10 +62,13 @@ sha256sums=(
   '715f7f726f86cab548fa5e8254cb8096b9e734f186ffb09e94c01470153d8a6a'
   '84750b0b5bc4fd7b35f015de7c970dc8c9a77020ce70b6b87b3e976649e3824d'
   'SKIP'
-  'f137319eb8f23823d75f3a7a7630c6776c11fd470b27237fc60482ef1e94e564'
+  'e7d35a03c24c766ee4eacaf6f2ce3e81938bb743587b4394bc36c93a74c7ef9f'
   'bc4ae477209ec6c64162749a087cd039269bd087647419648bdfee334c87ced3'
   '407866db47acba0fc7c7c4cec68af6ee4ba380b93b14758dd1cae8149434b6cc'
   '1a1a163fbbca4006ff7951add46d41415fb99948f072a02cd16e408e1fc322da'
+  '28b19e0eadf4afc64bb097878abf666ca4594168c53d03fdb13213e33a31c967'
+  '2fc8cb3533d4a14c7666a91ca5092431ceee469f845feccc20b0b505262da6ec'
+  '6bc85f53bf4470e3251dcb477085336f7e0a674b789f64bb883a4b70603495b4'
 )
 
 backup=(
@@ -99,6 +105,15 @@ _package_common() {
 
   install -Dm644 "${srcdir}/service-router.json" \
     "${pkgdir}/etc/carbonio/files/service-discover/service-router.json"
+
+  # Live-config bridge: republishes Consul KV changes to the message broker consumed by the app's
+  # KeyValueChangedConsumer. carbonio-files-start-watches.sh is installed (with the distro-specific
+  # python version/prefix substituted) in the per-distro build__* functions below.
+  install -Dm644 "${srcdir}/carbonio-files-watches.service" \
+    "${pkgdir}/lib/systemd/system/carbonio-files-watches.service"
+
+  install -Dm755 "${srcdir}/carbonio-files-handle-kv-changes.py" \
+    "${pkgdir}/usr/bin/carbonio-files-handle-kv-changes.py"
 }
 
 _package_legacy() {
@@ -113,30 +128,78 @@ _package_systemd() {
     "${pkgdir}/lib/systemd/system/carbonio-files-sidecar.service"
 }
 
-# pika (Python RabbitMQ client) backs the package/watches/ live-config bridge that publishes
-# Consul KV changes to the message broker consumed by the app's KeyValueChangedConsumer.
-build__rocky_8() {
-  pip3.8 install \
-    --prefix="${pkgdir}/opt/zextras/common" \
-    pika
-}
+# Live-config bridge (matches carbonio-files Advanced): install carbonio-files-start-watches.sh and
+# the pika (Python RabbitMQ client) it needs, then substitute the distro-specific python version and
+# prefix into the start script. pika publishes the Consul KV changes to the message broker consumed
+# by the app's KeyValueChangedConsumer.
+build__ubuntu_focal() {
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 
-build__rocky_9() {
   pip3 install \
     --prefix="${pkgdir}/opt/zextras/common" \
     pika
+
+  sed -i "s/PYTHON_VER/3.8/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 }
 
 build__ubuntu_jammy() {
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+
   pip3 install \
     --prefix="${pkgdir}/opt/zextras/common" \
     pika
+
+  sed -i "s/PYTHON_VER/3.10/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common\/local/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 }
 
 build__ubuntu_noble() {
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+
   pip3 install \
     --prefix="${pkgdir}/opt/zextras/common" \
     pika
+
+  sed -i "s/PYTHON_VER/3.12/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common\/local/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+}
+
+build__rocky_8() {
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+
+  pip3.8 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+
+  sed -i "s/PYTHON_VER/3.8/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+}
+
+build__rocky_9() {
+  install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+
+  pip3 install \
+    --prefix="${pkgdir}/opt/zextras/common" \
+    pika
+
+  sed -i "s/PYTHON_VER/3.9/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
+  sed -i "s/PREFIX/common/g" \
+    "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 }
 
 package() {
@@ -163,6 +226,7 @@ postinst() {
   if [ -d /run/systemd/system ]; then
     systemctl daemon-reload >/dev/null 2>&1 || :
     systemctl enable carbonio-files.service >/dev/null 2>&1 || :
+    systemctl enable carbonio-files-watches.service >/dev/null 2>&1 || :
     systemctl enable carbonio-files-sidecar.service >/dev/null 2>&1 || :
   fi
 
@@ -175,6 +239,7 @@ postinst() {
 prerm() {
   if [ -d /run/systemd/system ]; then
     systemctl disable --now carbonio-files.service >/dev/null 2>&1 || :
+    systemctl disable --now carbonio-files-watches.service >/dev/null 2>&1 || :
     systemctl disable --now carbonio-files-sidecar.service >/dev/null 2>&1 || :
   fi
 }

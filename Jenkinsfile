@@ -24,6 +24,11 @@ dt3_pipeline(
     nativeBuild: [runnerName: 'carbonio-files-ce-runner'],
     packaging: [
         buildFlags: '-ds',
+        // Stage the live-config watch bridge (package/watches/*, the pika Consul-KV ->
+        // message-broker republisher) into package/ before yap runs, so the PKGBUILD can install
+        // carbonio-files-watches.service / -start-watches.sh / -handle-kv-changes.py. Mirrors
+        // carbonio-files (Advanced); the native *-runner is staged automatically from runnerName.
+        preBuildScript: 'cp -a package/watches/* package/',
     ],
     docker: [
         [dockerfile: 'docker/Dockerfile',

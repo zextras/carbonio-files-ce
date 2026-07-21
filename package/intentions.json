@@ -25,6 +25,12 @@
           }
         },
         {
+          "Action": "deny",
+          "HTTP": {
+            "PathPrefix": "/files.FilesService/"
+          }
+        },
+        {
           "Action": "allow",
           "HTTP": {
             "PathPrefix": "/"
@@ -41,8 +47,8 @@
       "Action": "allow"
     },
     {
-      "name": "carbonio-message-broker",
-      "action": "allow"
+      "Name": "carbonio-message-broker",
+      "Action": "allow"
     },
     {
       "Name": "*",
