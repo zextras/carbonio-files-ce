@@ -173,6 +173,30 @@ class NodeRepositoryIT {
     assertThat(nodeRepository.getNode(keep)).isPresent();
   }
 
+  // Regression for the dead @ManyToOne "node" shadow field on NodeCustomAttributes: before the fix,
+  // removing a node that had a flag row loaded in the same persistence context made Hibernate's
+  // flush-time transient-reference check throw TransientPropertyValueException instead of letting
+  // the DB-level ON DELETE CASCADE clean up the custom-attributes row.
+  @Test
+  @TestTransaction
+  void deleteNodesRemovesAFlaggedNodeWithoutThrowing() {
+    String nodeId = id();
+    String userId = id();
+    nodeRepository.createNewNode(
+        nodeId, "creator", "owner", "LOCAL_ROOT", "flagged", "desc", NodeType.FOLDER,
+        "LOCAL_ROOT", 0L);
+
+    nodeRepository.flagForUser(nodeId, userId, true);
+    // Reads the flag row back into the same persistence context — this is what previously
+    // populated the shadow association and triggered the flush-time failure on delete.
+    assertThat(nodeRepository.isFlaggedForUser(nodeId, userId)).isTrue();
+
+    int deleted = nodeRepository.deleteNodes(List.of(nodeId));
+
+    assertThat(deleted).isEqualTo(1);
+    assertThat(nodeRepository.getNode(nodeId)).isEmpty();
+  }
+
   @Test
   @TestTransaction
   void getNodeForUpdateReturnsLockedNode() {

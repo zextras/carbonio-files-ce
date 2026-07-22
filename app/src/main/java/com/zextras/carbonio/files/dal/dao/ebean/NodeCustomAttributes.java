@@ -8,8 +8,6 @@ import com.zextras.carbonio.files.Constants;
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 /**
@@ -45,9 +43,13 @@ public class NodeCustomAttributes {
   @Column(name = Constants.Db.NodeCustomAttributes.EXTRA, nullable = false)
   private String mExtra;
 
-  @ManyToOne
-  @JoinColumn(name = Constants.Db.NodeCustomAttributes.NODE_ID, referencedColumnName = Constants.Db.Node.ID, insertable = false, updatable = false)
-  private Node node;
+  // NOTE: no @ManyToOne "node" shadow association here — same trap that was removed from FileVersion
+  // (see its "P5a fix" note). When a flagged Node is deleted, its NodeCustomAttributes row is loaded
+  // in the same persistence context (the flag row exists only for flagged nodes); a back-reference
+  // to the Node being removed made Hibernate's flush-time transient-reference check throw
+  // TransientPropertyValueException, so deleting any flagged node failed with NODE_WRITE_ERROR. The
+  // FK is expressed solely via the composite id (node_id); row cleanup is handled by the DB-level
+  // ON DELETE CASCADE on custom.node_id (V1__init.sql), exactly like link/activity/trashed.
 
   public NodeCustomAttributes(
     String nodeId,

@@ -286,4 +286,67 @@ class DeleteNodesApiIT {
         .as("Tombstone must remain when PowerStore returns null/empty response (NOT a success signal)")
         .isEqualTo(1);
   }
+
+  // --- Test 7/8: Regression — deleting a FLAGGED node must succeed. ---
+  // Before the fix, the dead @ManyToOne "node" shadow field on NodeCustomAttributes made Hibernate's
+  // flush-time transient-reference check throw TransientPropertyValueException when a flagged node
+  // was removed, surfacing to GraphQL as errorCode NODE_WRITE_ERROR.
+
+  @Test
+  void givenAFlaggedFileWhenDeleteNodesThenItSucceeds() {
+    // Given
+    String fileId = "00000000-0000-0000-0000-100000000010";
+
+    app.backdoor()
+        .populator()
+        .addNode(new SimplePopulatorTextFile(fileId, OWNER_ID, "flagged-file.txt"))
+        .addFlag(fileId, OWNER_ID);
+
+    app.mocks().storagesBulkDeleteSucceeds(List.of());
+
+    // When
+    HttpResponse httpResponse = executeDeleteNodes(fileId);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    List<String> deletedIds =
+        (List<String>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteNodes")
+            .orElse(List.of());
+    Assertions.assertThat(deletedIds).containsExactly(fileId);
+
+    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(errors).isEmpty();
+
+    Assertions.assertThat(app.backdoor().nodeExists(fileId)).isFalse();
+  }
+
+  @Test
+  void givenAFlaggedFolderWhenDeleteNodesThenItSucceeds() {
+    // Given
+    String folderId = "00000000-0000-0000-0000-100000000011";
+
+    app.backdoor()
+        .populator()
+        .addNode(new SimplePopulatorFolder(folderId, OWNER_ID, "flagged-folder"))
+        .addFlag(folderId, OWNER_ID);
+
+    app.mocks().storagesBulkDeleteSucceeds(List.of());
+
+    // When
+    HttpResponse httpResponse = executeDeleteNodes(folderId);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+
+    List<String> deletedIds =
+        (List<String>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteNodes")
+            .orElse(List.of());
+    Assertions.assertThat(deletedIds).containsExactly(folderId);
+
+    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(errors).isEmpty();
+
+    Assertions.assertThat(app.backdoor().nodeExists(folderId)).isFalse();
+  }
 }
