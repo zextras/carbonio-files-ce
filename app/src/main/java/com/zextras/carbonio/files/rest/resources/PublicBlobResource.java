@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.Constants.API.BodyAttributes;
+import com.zextras.carbonio.files.config.TransferPool;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.exceptions.AccessCodeRequiredException;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
@@ -15,6 +16,8 @@ import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.services.BlobService.ZipDownload;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import io.smallrye.common.annotation.Blocking;
+import io.smallrye.mutiny.Uni;
+import io.vertx.core.http.HttpServerResponse;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -25,6 +28,7 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
@@ -41,8 +45,12 @@ import java.util.Optional;
  * solely by a valid, non-expired public link (plus an optional access code); permission enforcement
  * is delegated to {@link BlobService}, which validates the link against each node.
  *
- * <p>Served at ROOT (no {@code quarkus.rest.path}). All methods are {@code @Blocking} (blocking JDBC
- * + streamed blob download on a worker thread).
+ * <p>Served at ROOT (no {@code quarkus.rest.path}). The download endpoints are {@code @Blocking} and
+ * return a Mutiny {@code Uni}: link/permission resolution and opening the storages stream / ZIP plan
+ * run in the method body on a worker thread (so a 404, or the access-code redirect, is produced
+ * before any byte is written), then only the blob/ZIP byte pump is offloaded to the dedicated {@link
+ * TransferPool} (see {@link TransferStreaming}). The {@code .../check} endpoints stay plain {@code
+ * @Blocking} on the default worker pool.
  */
 @Path("/")
 @ApplicationScoped
@@ -51,10 +59,12 @@ public class PublicBlobResource {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final BlobService blobService;
+  private final TransferPool transferPool;
 
   @Inject
-  public PublicBlobResource(BlobService blobService) {
+  public PublicBlobResource(BlobService blobService, TransferPool transferPool) {
     this.blobService = blobService;
+    this.transferPool = transferPool;
   }
 
   // --------------------------------------------------------------------- download via public link
@@ -62,18 +72,20 @@ public class PublicBlobResource {
   @GET
   @Path("/link/{publicLinkId}")
   @Blocking
-  public Response downloadByPublicLink(@PathParam("publicLinkId") String publicLinkId) {
-    return doDownloadByPublicLink(publicLinkId);
+  public Uni<Void> downloadByPublicLink(
+      @PathParam("publicLinkId") String publicLinkId, @Context HttpServerResponse resp) {
+    return doDownloadByPublicLink(publicLinkId, resp);
   }
 
   @GET
   @Path("/public/link/download/{publicLinkId}")
   @Blocking
-  public Response downloadViaPublicLink(@PathParam("publicLinkId") String publicLinkId) {
-    return doDownloadByPublicLink(publicLinkId);
+  public Uni<Void> downloadViaPublicLink(
+      @PathParam("publicLinkId") String publicLinkId, @Context HttpServerResponse resp) {
+    return doDownloadByPublicLink(publicLinkId, resp);
   }
 
-  private Response doDownloadByPublicLink(String publicLinkId) {
+  private Uni<Void> doDownloadByPublicLink(String publicLinkId, HttpServerResponse resp) {
     Optional<BlobResponse> blobResponse;
     try {
       blobResponse = blobService.downloadFileByLink(publicLinkId);
@@ -82,18 +94,21 @@ public class PublicBlobResource {
       // Legacy parity: the legacy HttpResponseBuilder#createRedirectHttpResponse writes the
       // Location header value VERBATIM (a relative path). Response.temporaryRedirect(URI)/
       // .location(URI) instead resolve a non-absolute URI against the request's base URI,
-      // producing an absolute Location -- use a raw header() to keep it relative.
-      return Response.status(Response.Status.TEMPORARY_REDIRECT)
-          .header(HttpHeaders.LOCATION, "/files/public/link/access/" + publicLinkId)
-          .build();
+      // producing an absolute Location -- use a raw header() to keep it relative. Thrown as a
+      // WebApplicationException so BlobExceptionMapper passes the redirect response through verbatim
+      // (this method now returns Uni<Void>, streaming directly to the Vert.x response otherwise).
+      throw new WebApplicationException(
+          Response.status(Response.Status.TEMPORARY_REDIRECT)
+              .header(HttpHeaders.LOCATION, "/files/public/link/access/" + publicLinkId)
+              .build());
     }
 
-    return blobResponse
-        .map(BlobHttpResponses::streamBlob)
-        .orElseThrow(
+    BlobResponse blob =
+        blobResponse.orElseThrow(
             () ->
                 new NoSuchElementException(
                     "The link and/or the node associated to it does not exist: " + publicLinkId));
+    return TransferStreaming.streamBlob(blob, resp, transferPool.get());
   }
 
   // ----------------------------------------------------------------- download public file by node
@@ -101,18 +116,21 @@ public class PublicBlobResource {
   @GET
   @Path("/public/download/{nodeId}")
   @Blocking
-  public Response downloadPublicFile(
+  public Uni<Void> downloadPublicFile(
       @PathParam("nodeId") String nodeId,
       @QueryParam("node_link_id") String nodeLinkId,
-      @QueryParam("access_code") String accessCode) {
+      @QueryParam("access_code") String accessCode,
+      @Context HttpServerResponse resp) {
 
-    return blobService
-        .downloadPublicFileById(nodeId, nodeLinkId, accessCode)
-        .map(BlobHttpResponses::streamBlob)
-        .orElseThrow(
-            () ->
-                new NoSuchElementException(
-                    "The file does not exist or it is not contained on a public folder: " + nodeId));
+    BlobResponse blob =
+        blobService
+            .downloadPublicFileById(nodeId, nodeLinkId, accessCode)
+            .orElseThrow(
+                () ->
+                    new NoSuchElementException(
+                        "The file does not exist or it is not contained on a public folder: "
+                            + nodeId));
+    return TransferStreaming.streamBlob(blob, resp, transferPool.get());
   }
 
   @GET
@@ -139,10 +157,11 @@ public class PublicBlobResource {
   @Path("/public/download-multiple")
   @Blocking
   @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
-  public Response downloadPublicMultiple(
+  public Uni<Void> downloadPublicMultiple(
       @FormParam(BodyAttributes.NODE_IDS) String nodeIdsJson,
       @FormParam(BodyAttributes.NODE_LINK_ID) String nodeLinkId,
-      @FormParam(BodyAttributes.ACCESS_CODE) String accessCode) {
+      @FormParam(BodyAttributes.ACCESS_CODE) String accessCode,
+      @Context HttpServerResponse resp) {
 
     if (nodeIdsJson == null || nodeLinkId == null) {
       throw new IllegalArgumentException("Missing required parameters");
@@ -154,7 +173,7 @@ public class PublicBlobResource {
             .downloadPublicMultiple(nodeIds, nodeLinkId, accessCode)
             .orElseThrow(
                 () -> new NoSuchElementException("Nodes not accessible with provided link"));
-    return BlobHttpResponses.streamZip(zip, blobService);
+    return TransferStreaming.streamZip(zip, blobService, resp, transferPool.get());
   }
 
   @POST

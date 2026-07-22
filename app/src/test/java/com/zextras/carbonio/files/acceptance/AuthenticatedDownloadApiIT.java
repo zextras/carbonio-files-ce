@@ -14,6 +14,7 @@ import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
+import io.restassured.response.Response;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -207,6 +208,49 @@ class AuthenticatedDownloadApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
     assertBodyMatchesWhenObservable(httpResponse, blobBytesFor(nodeId, 1));
     app.mocks().verifyStoragesDownloaded(nodeId, 1);
+  }
+
+  // -------------------------------------------------------- Content-Length vs chunked (decision B)
+
+  /**
+   * Locks decision B: the single-file download is sent fixed-length (a {@code Content-Length}
+   * computed from the DB-recorded size, set before the first byte — see {@code TransferStreaming
+   * #streamBlob}), never as {@code Transfer-Encoding: chunked}. Driven directly with RestAssured
+   * (rather than {@code app.send}) so the exact wire header set can be asserted precisely; the node
+   * is seeded with the same {@code PopulatorNode} helper the rest of this class uses.
+   */
+  @Test
+  void givenAnExistingFileTheDownloadResponseShouldBeFixedLengthNotChunked() {
+    String nodeId = "10000000-0000-0000-0000-000000000007";
+    app.backdoor()
+        .populator()
+        .addNode(
+            new PopulatorNode(
+                nodeId,
+                REQUESTER_ID,
+                REQUESTER_ID,
+                "LOCAL_ROOT",
+                "fake.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT",
+                sizeFor(nodeId, 1),
+                "text/plain"));
+    app.mocks().storagesServesBlob(nodeId, 1);
+
+    Response response =
+        io.restassured.RestAssured.given()
+            .cookie("ZM_AUTH_TOKEN", "fake-token")
+            .when()
+            .get("/download/" + nodeId);
+
+    response.then().statusCode(200);
+    Assertions.assertThat(response.getHeader("Content-Length"))
+        .as("single download must advertise a fixed Content-Length")
+        .isEqualTo(String.valueOf(sizeFor(nodeId, 1)));
+    Assertions.assertThat(response.getHeader("Transfer-Encoding"))
+        .as("single download must NOT be chunked")
+        .isNull();
   }
 
   @Test

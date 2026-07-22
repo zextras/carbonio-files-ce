@@ -17,6 +17,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
+import io.restassured.response.Response;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -155,6 +156,87 @@ public class DownloadMultipleApiIT {
 
     // Verify storages was called for each file
     app.mocks().verifyStoragesDownloaded(fileId1, 1);
+  }
+
+  // -------------------------------------------------------- Content-Length vs chunked (decision B)
+
+  /**
+   * Locks decision B: a ZIP/multi-download response has no known length up front, so {@code
+   * TransferStreaming#streamZip} enables chunked mode explicitly and never sets {@code
+   * Content-Length} — the mirror image of {@link AuthenticatedDownloadApiIT}'s single-download
+   * fixed-length assertion. Driven directly with RestAssured (rather than {@code app.sendForm}) so
+   * the exact wire header set can be asserted precisely.
+   */
+  @Test
+  void givenMultipleFilesTheDownloadMultipleResponseShouldBeChunkedNotFixedLength()
+      throws Exception {
+    // Given
+    String folderId = "11111111-1111-1111-1111-111111111601";
+    String fileId1 = "00000000-0000-0000-0000-000000000601";
+    String fileId2 = "00000000-0000-0000-0000-000000000602";
+
+    app.backdoor()
+        .populator()
+        .addNode(
+            new PopulatorNode(
+                folderId,
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                Constants.Db.RootId.LOCAL_ROOT,
+                "chunked-test-folder",
+                "",
+                NodeType.FOLDER,
+                Constants.Db.RootId.LOCAL_ROOT,
+                0L,
+                null))
+        .addNode(
+            new PopulatorNode(
+                fileId1,
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                folderId,
+                "file1.txt",
+                "",
+                NodeType.TEXT,
+                Constants.Db.RootId.LOCAL_ROOT + "," + folderId,
+                10L,
+                "text/plain"))
+        .addNode(
+            new PopulatorNode(
+                fileId2,
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                folderId,
+                "file2.txt",
+                "",
+                NodeType.TEXT,
+                Constants.Db.RootId.LOCAL_ROOT + "," + folderId,
+                20L,
+                "text/plain"));
+
+    app.mocks().storagesServesBlob(fileId1, 1);
+    app.mocks().storagesServesBlob(fileId2, 1);
+
+    List<String> nodeIds = List.of(fileId1, fileId2);
+    String jsonArray = objectMapper.writeValueAsString(nodeIds);
+
+    // When
+    Response response =
+        io.restassured.RestAssured.given()
+            .cookie("ZM_AUTH_TOKEN", "fake-token")
+            .contentType("application/x-www-form-urlencoded")
+            .formParam("nodeIds", jsonArray)
+            .when()
+            .post("/download-multiple");
+
+    // Then
+    response.then().statusCode(200);
+    Assertions.assertThat(response.getHeader("Content-Length"))
+        .as("a streamed ZIP has no fixed Content-Length")
+        .isNull();
+    Assertions.assertThat(response.getHeader("Transfer-Encoding"))
+        .as("a streamed ZIP must be chunked")
+        .isEqualToIgnoringCase("chunked");
   }
 
   @Test

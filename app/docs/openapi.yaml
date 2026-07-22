@@ -22,11 +22,8 @@ paths:
                   type: string
         required: true
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "201":
+          description: Created
         "400":
           description: Bad Request
       summary: Download Multiple
@@ -75,11 +72,8 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "204":
+          description: No Content
       summary: Download
       tags:
       - Blob Resource
@@ -131,11 +125,8 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "204":
+          description: No Content
       summary: Download Version
       tags:
       - Blob Resource
@@ -174,8 +165,7 @@ paths:
         "200":
           description: OK
           content:
-            application/json:
-              schema: {}
+            application/json: {}
       summary: Upload Internal
       tags:
       - Blob Resource
@@ -214,11 +204,8 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "204":
+          description: No Content
       summary: Download By Public Link
       tags:
       - Public Blob Resource
@@ -606,11 +593,8 @@ paths:
                   type: string
         required: true
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "201":
+          description: Created
         "400":
           description: Bad Request
       summary: Download Public Multiple
@@ -650,11 +634,8 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "204":
+          description: No Content
       summary: Download Public File
       tags:
       - Public Blob Resource
@@ -692,11 +673,8 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "204":
+          description: No Content
       summary: Download Via Public Link
       tags:
       - Public Blob Resource
@@ -739,8 +717,7 @@ paths:
         "200":
           description: OK
           content:
-            application/json:
-              schema: {}
+            application/json: {}
       summary: Upload
       tags:
       - Blob Resource
@@ -814,8 +791,7 @@ paths:
         "200":
           description: OK
           content:
-            application/json:
-              schema: {}
+            application/json: {}
       summary: Upload Version
       tags:
       - Blob Resource

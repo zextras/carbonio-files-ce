@@ -20,6 +20,7 @@ import jakarta.ws.rs.core.UriInfo;
 import jakarta.ws.rs.ext.ExceptionMapper;
 import jakarta.ws.rs.ext.Provider;
 import java.util.NoSuchElementException;
+import java.util.concurrent.RejectedExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,6 +89,14 @@ public class BlobExceptionMapper implements ExceptionMapper<Throwable> {
     } else if (cause instanceof ZipGenerationException) {
       status = Response.Status.INTERNAL_SERVER_ERROR;
       payload = cause.getMessage();
+    } else if (cause instanceof RejectedExecutionException) {
+      // The dedicated TransferPool (see com.zextras.carbonio.files.config.TransferPool) is bounded
+      // (fixed threads + bounded queue, AbortPolicy): once BOTH are saturated, a burst of large
+      // transfers must surface as a transient "the server is overloaded, retry" signal rather than
+      // as a generic, retry-discouraging 500 -- 503 Service Unavailable is the correct HTTP status
+      // for "temporarily cannot handle the request due to load".
+      status = Response.Status.SERVICE_UNAVAILABLE;
+      payload = statusLine(status);
     } else {
       status = Response.Status.INTERNAL_SERVER_ERROR;
       payload = statusLine(status);

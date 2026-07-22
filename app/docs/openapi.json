@@ -32,13 +32,8 @@
           "required" : true
         },
         "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
-            }
+          "201" : {
+            "description" : "Created"
           },
           "400" : {
             "description" : "Bad Request"
@@ -110,13 +105,8 @@
           }
         } ],
         "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
-            }
+          "204" : {
+            "description" : "No Content"
           }
         },
         "summary" : "Download",
@@ -190,13 +180,8 @@
           }
         } ],
         "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
-            }
+          "204" : {
+            "description" : "No Content"
           }
         },
         "summary" : "Download Version",
@@ -252,9 +237,7 @@
           "200" : {
             "description" : "OK",
             "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
+              "application/json" : { }
             }
           }
         },
@@ -310,13 +293,8 @@
           }
         } ],
         "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
-            }
+          "204" : {
+            "description" : "No Content"
           }
         },
         "summary" : "Download By Public Link",
@@ -880,13 +858,8 @@
           "required" : true
         },
         "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
-            }
+          "201" : {
+            "description" : "Created"
           },
           "400" : {
             "description" : "Bad Request"
@@ -945,13 +918,8 @@
           }
         } ],
         "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
-            }
+          "204" : {
+            "description" : "No Content"
           }
         },
         "summary" : "Download Public File",
@@ -1005,13 +973,8 @@
           }
         } ],
         "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
-            }
+          "204" : {
+            "description" : "No Content"
           }
         },
         "summary" : "Download Via Public Link",
@@ -1073,9 +1036,7 @@
           "200" : {
             "description" : "OK",
             "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
+              "application/json" : { }
             }
           }
         },
@@ -1184,9 +1145,7 @@
           "200" : {
             "description" : "OK",
             "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
+              "application/json" : { }
             }
           }
         },

@@ -18,7 +18,10 @@ import com.zextras.carbonio.files.rest.services.BlobService.ZipDownload;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.UploadVersionResponse;
 import com.zextras.carbonio.files.config.FilesConfig;
+import com.zextras.carbonio.files.config.TransferPool;
 import io.smallrye.common.annotation.Blocking;
+import io.smallrye.mutiny.Uni;
+import io.vertx.core.http.HttpServerResponse;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -31,6 +34,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -49,20 +53,27 @@ import org.slf4j.LoggerFactory;
  * BlobController}: same endpoint set, same headers, same permission enforcement.
  *
  * <p>Resources are served at ROOT (carbonio-proxy strips its {@code /services/files} prefix), so no
- * {@code quarkus.rest.path} is set. All methods are {@code @Blocking}: they read/stream the request
- * body, run blocking gRPC auth and blocking JDBC, so they must execute on a worker thread where the
- * CDI request context and the request-scoped {@code EntityManager} are active.
+ * {@code quarkus.rest.path} is set. The heavy byte-transfer endpoints return a Mutiny {@code Uni}
+ * and offload the byte transfer to the dedicated {@link TransferPool}, keeping it off the shared
+ * worker pool.
  *
  * <p>Streaming:
  *
  * <ul>
- *   <li><b>upload</b> — the raw request body is consumed as an {@link InputStream} straight from
- *       RESTEasy Reactive and passed through to {@link BlobService}/Filestore without buffering the
- *       whole file in memory.
- *   <li><b>download</b> — a single blob is returned as an {@link InputStream} entity (RESTEasy
- *       Reactive streams and closes it); the ZIP multi-download is returned as a {@link
- *       StreamingOutput} that pulls each planned blob from {@link Filestore} lazily.
+ *   <li><b>upload</b> (non-{@code @Blocking}) — the method body only builds the {@code Uni}; auth,
+ *       the streamed request-body consume ({@link InputStream}, no whole-file buffering) and the
+ *       JDBC/JTA write all run on the transfer pool via {@code runSubscriptionOn} (request context
+ *       propagated by SmallRye context propagation).
+ *   <li><b>download</b> ({@code @Blocking}) — auth + node metadata / ZIP plan resolution and opening
+ *       the storages {@link InputStream} run in the method body on a WORKER thread (request context
+ *       + {@code EntityManager} active), so 404/403 is thrown before any header/byte is written; the
+ *       worker is then released and only the byte pump (already-open storages stream → Vert.x {@code
+ *       HttpServerResponse}, with real backpressure, no {@code EntityManager} access) runs on the
+ *       transfer pool. See {@link TransferStreaming}.
  * </ul>
+ *
+ * <p>The lightweight {@code .../check} endpoints stay plain {@code @Blocking} on the default worker
+ * pool.
  */
 @Path("/")
 @ApplicationScoped
@@ -76,27 +87,29 @@ public class BlobResource {
   private final FilesConfig filesConfig;
   private final BlobAuthenticator authenticator;
   private final NodeRepository nodeRepository;
+  private final TransferPool transferPool;
 
   @Inject
   public BlobResource(
       BlobService blobService,
       FilesConfig filesConfig,
       BlobAuthenticator authenticator,
-      NodeRepository nodeRepository) {
+      NodeRepository nodeRepository,
+      TransferPool transferPool) {
     this.blobService = blobService;
     this.filesConfig = filesConfig;
     this.authenticator = authenticator;
     this.nodeRepository = nodeRepository;
+    this.transferPool = transferPool;
   }
 
   // -------------------------------------------------------------------------------------- uploads
 
   @POST
   @Path("/upload")
-  @Blocking
   @Consumes(MediaType.WILDCARD)
   @Produces(MediaType.APPLICATION_JSON)
-  public Response upload(
+  public Uni<Response> upload(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
       @HeaderParam(Headers.UPLOAD_FILENAME) String encodedFilename,
@@ -105,27 +118,35 @@ public class BlobResource {
       @HeaderParam(HttpHeaders.CONTENT_LENGTH) Long contentLength,
       InputStream body) {
 
-    UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
-    if (isRequestSizeOverLimit(contentLength)) {
-      throw new FileSizeException("File size exceeds the maximum allowed");
-    }
-    return doUploadFile(
-        requester.getId().getUserId(),
-        Optional.of(requester),
-        body,
-        contentLength,
-        parentId,
-        encodedFilename,
-        description);
+    // Offloaded to the transfer pool: the whole upload (auth + size check + streamed body consume +
+    // JDBC/JTA) runs on a transfer thread, off the event loop. A thrown FileSizeException /
+    // IllegalArgumentException / NoSuchElementException surfaces as a Uni failure and is mapped by
+    // BlobExceptionMapper exactly as before.
+    return Uni.createFrom()
+        .item(
+            () -> {
+              UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
+              if (isRequestSizeOverLimit(contentLength)) {
+                throw new FileSizeException("File size exceeds the maximum allowed");
+              }
+              return doUploadFile(
+                  requester.getId().getUserId(),
+                  Optional.of(requester),
+                  body,
+                  contentLength,
+                  parentId,
+                  encodedFilename,
+                  description);
+            })
+        .runSubscriptionOn(transferPool.get());
   }
 
   /** Internal upload: no auth, uses the {@code AccountId} header, and does NOT enforce a size limit. */
   @POST
   @Path("/internal/upload")
-  @Blocking
   @Consumes(MediaType.WILDCARD)
   @Produces(MediaType.APPLICATION_JSON)
-  public Response uploadInternal(
+  public Uni<Response> uploadInternal(
       @HeaderParam(Headers.UPLOAD_ACCOUNT_ID) String accountId,
       @HeaderParam(Headers.UPLOAD_FILENAME) String encodedFilename,
       @HeaderParam(Headers.UPLOAD_DESCRIPTION) String description,
@@ -133,16 +154,25 @@ public class BlobResource {
       @HeaderParam(HttpHeaders.CONTENT_LENGTH) Long contentLength,
       InputStream body) {
 
-    return doUploadFile(
-        accountId, Optional.empty(), body, contentLength, parentId, encodedFilename, description);
+    return Uni.createFrom()
+        .item(
+            () ->
+                doUploadFile(
+                    accountId,
+                    Optional.empty(),
+                    body,
+                    contentLength,
+                    parentId,
+                    encodedFilename,
+                    description))
+        .runSubscriptionOn(transferPool.get());
   }
 
   @POST
   @Path("/upload-version")
-  @Blocking
   @Consumes(MediaType.WILDCARD)
   @Produces(MediaType.APPLICATION_JSON)
-  public Response uploadVersion(
+  public Uni<Response> uploadVersion(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
       @HeaderParam(Headers.UPLOAD_NODE_ID) String nodeId,
@@ -151,30 +181,41 @@ public class BlobResource {
       @HeaderParam(HttpHeaders.CONTENT_LENGTH) Long contentLength,
       InputStream body) {
 
-    UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
+    return Uni.createFrom()
+        .item(
+            () -> {
+              UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
 
-    String decodedFilename = decodeFilename(encodedFilename);
-    if (nodeId == null
-        || decodedFilename == null
-        || decodedFilename.trim().isEmpty()
-        || decodedFilename.trim().length() > 1024) {
-      throw new IllegalArgumentException("Missing or invalid nodeId/filename headers");
-    }
+              String decodedFilename = decodeFilename(encodedFilename);
+              if (nodeId == null
+                  || decodedFilename == null
+                  || decodedFilename.trim().isEmpty()
+                  || decodedFilename.trim().length() > 1024) {
+                throw new IllegalArgumentException("Missing or invalid nodeId/filename headers");
+              }
 
-    boolean overwrite = Boolean.parseBoolean(overwriteHeader);
-    if (isRequestSizeOverLimit(contentLength)) {
-      throw new FileSizeException("File size exceeds the maximum allowed");
-    }
+              boolean overwrite = Boolean.parseBoolean(overwriteHeader);
+              if (isRequestSizeOverLimit(contentLength)) {
+                throw new FileSizeException("File size exceeds the maximum allowed");
+              }
 
-    logger.debug("Uploading new version of node with id: {}, overwrite: {}", nodeId, overwrite);
+              logger.debug(
+                  "Uploading new version of node with id: {}, overwrite: {}", nodeId, overwrite);
 
-    Optional<Integer> version =
-        blobService.uploadFileVersion(
-            requester, body, contentLength == null ? -1L : contentLength, nodeId, decodedFilename, overwrite);
-    if (version.isEmpty()) {
-      throw notFoundOrForbidden(nodeId);
-    }
-    return uploadResponse(nodeId, version.get());
+              Optional<Integer> version =
+                  blobService.uploadFileVersion(
+                      requester,
+                      body,
+                      contentLength == null ? -1L : contentLength,
+                      nodeId,
+                      decodedFilename,
+                      overwrite);
+              if (version.isEmpty()) {
+                throw notFoundOrForbidden(nodeId);
+              }
+              return uploadResponse(nodeId, version.get());
+            })
+        .runSubscriptionOn(transferPool.get());
   }
 
   private Response doUploadFile(
@@ -216,31 +257,38 @@ public class BlobResource {
   @GET
   @Path("/download/{nodeId}")
   @Blocking
-  public Response download(
+  public Uni<Void> download(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
-      @PathParam("nodeId") String nodeId) {
-    return doDownload(cookieHeader, zmToken, nodeId, null);
+      @PathParam("nodeId") String nodeId,
+      @Context HttpServerResponse resp) {
+    return doDownload(cookieHeader, zmToken, nodeId, null, resp);
   }
 
   @GET
   @Path("/download/{nodeId}/{version:\\d+}")
   @Blocking
-  public Response downloadVersion(
+  public Uni<Void> downloadVersion(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
       @PathParam("nodeId") String nodeId,
-      @PathParam("version") int version) {
-    return doDownload(cookieHeader, zmToken, nodeId, version);
+      @PathParam("version") int version,
+      @Context HttpServerResponse resp) {
+    return doDownload(cookieHeader, zmToken, nodeId, version, resp);
   }
 
-  private Response doDownload(String cookieHeader, String zmToken, String nodeId, Integer version) {
+  private Uni<Void> doDownload(
+      String cookieHeader, String zmToken, String nodeId, Integer version, HttpServerResponse resp) {
+    // @Blocking: this runs on a worker thread (request context + EntityManager active). Auth +
+    // metadata resolution + opening the storages InputStream happen here, throwing 404/403 BEFORE
+    // any byte or header is written (so BlobExceptionMapper sets the status). Only the byte pump of
+    // the already-open storages stream is offloaded to the transfer pool (no EntityManager there).
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
-    Optional<BlobResponse> blob = blobService.downloadFileById(nodeId, version, requester);
-    if (blob.isEmpty()) {
-      throw notFoundOrForbidden(nodeId);
-    }
-    return BlobHttpResponses.streamBlob(blob.get());
+    BlobResponse blob =
+        blobService
+            .downloadFileById(nodeId, version, requester)
+            .orElseThrow(() -> notFoundOrForbidden(nodeId));
+    return TransferStreaming.streamBlob(blob, resp, transferPool.get());
   }
 
   @GET
@@ -262,10 +310,15 @@ public class BlobResource {
   @Path("/download-multiple")
   @Blocking
   @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
-  public Response downloadMultiple(
+  public Uni<Void> downloadMultiple(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
-      @FormParam(NODE_IDS) String nodeIdsJson) {
+      @FormParam(NODE_IDS) String nodeIdsJson,
+      @Context HttpServerResponse resp) {
+    // @Blocking (worker thread): auth + the ZIP plan (buildZipPlan tree walk, EntityManager active)
+    // are resolved here so a 404 for missing/forbidden nodes is thrown before any archive byte is
+    // written. Only the ZIP byte streaming is offloaded to the transfer pool, where each entry's
+    // blob is opened via storages (openZipEntryStream) — no EntityManager access on that thread.
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
     List<String> nodeIds = parseNodeIdsArray(nodeIdsJson);
     ZipDownload zip =
@@ -275,7 +328,7 @@ public class BlobResource {
                 () ->
                     new NoSuchElementException(
                         "Some nodes do not exist or the user lacks permission: " + nodeIds));
-    return BlobHttpResponses.streamZip(zip, blobService);
+    return TransferStreaming.streamZip(zip, blobService, resp, transferPool.get());
   }
 
   @POST
