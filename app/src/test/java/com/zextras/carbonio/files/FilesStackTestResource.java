@@ -13,18 +13,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
-import com.zextras.carbonio.user_management.sdk.grpc.GetUserMyselfRequest;
-import com.zextras.carbonio.user_management.sdk.grpc.UserInfoProto;
-import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc.UserManagementServiceImplBase;
-import com.zextras.carbonio.user_management.sdk.grpc.UserMyselfProto;
-import com.zextras.carbonio.user_management.sdk.grpc.UserMyselfResponse;
-import com.zextras.carbonio.user_management.sdk.grpc.UserTypeProto;
-import io.grpc.Server;
-import io.grpc.Status;
-import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
-import io.grpc.stub.StreamObserver;
 import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
@@ -62,12 +51,12 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
   private static final String DB_PASSWORD = "test";
 
   /**
-   * Fixed {@code ZM_AUTH_TOKEN} recognised by the in-process user-management gRPC stub. Any other
-   * token → {@code UNAUTHENTICATED} → the auth filter returns HTTP 401.
+   * Fixed {@code ZM_AUTH_TOKEN} recognised by the in-process user-management REST fake. Any other
+   * token → {@code 401} from {@code GET /internal/users/myself} → the auth filter returns HTTP 401.
    */
   public static final String AUTH_TOKEN = "test-auth-token-files-ce";
 
-  /** Fixed account id returned by the gRPC stub for the {@link #AUTH_TOKEN} test user. */
+  /** Fixed account id returned by the REST fake for the {@link #AUTH_TOKEN} test user. */
   public static final String TEST_USER_ID = "00000000-0000-0000-0000-000000000001";
 
   private static volatile boolean started = false;
@@ -76,7 +65,6 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
   private static WireMockServer consulMock;
   private static WireMockServer previewMailboxMock;
   private static PostgreSQLContainer<?> postgres;
-  private static Server userManagementGrpc;
   private static com.zextras.carbonio.files.utilities.MockUserManagementService userManagementService;
 
   @Override
@@ -107,7 +95,11 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
     previewMailboxMock.start();
     setupPreviewAndMailboxStubs(previewMailboxMock);
 
-    userManagementGrpc = startUserManagementGrpcStub();
+    userManagementService = new com.zextras.carbonio.files.utilities.MockUserManagementService();
+    // Default fixture: the fixed AUTH_TOKEN resolves to an ACTIVE, INTERNAL user with the files
+    // feature enabled (same contract the previous fixed stub honoured, so existing @QuarkusTest
+    // ITs keep working). The acceptance seam adds/overwrites more tokens at runtime.
+    userManagementService.registerToken(AUTH_TOKEN, TEST_USER_ID);
 
     String jdbcUrl =
         String.format(
@@ -129,19 +121,11 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
             Map.entry("quarkus.datasource.jdbc.url", jdbcUrl),
             Map.entry("quarkus.datasource.username", DB_USER),
             Map.entry("quarkus.datasource.password", DB_PASSWORD),
-            // user-management gRPC client → in-process stub. In @QuarkusTest mode the gRPC client
-            // uses `test-port` (default 9001), NOT `port`, so BOTH must be pointed at the stub.
+            // user-management REST client (UserResourceApi) → the dedicated in-process WireMock fake.
             Map.entry("networking-config.carbonio.user-management.host", "localhost"),
             Map.entry(
                 "networking-config.carbonio.user-management.port",
-                String.valueOf(userManagementGrpc.getPort())),
-            Map.entry("quarkus.grpc.clients.user-management.host", "localhost"),
-            Map.entry(
-                "quarkus.grpc.clients.user-management.port",
-                String.valueOf(userManagementGrpc.getPort())),
-            Map.entry(
-                "quarkus.grpc.clients.user-management.test-port",
-                String.valueOf(userManagementGrpc.getPort())),
+                String.valueOf(userManagementService.getPort())),
             // P5b: carbonio-preview / carbonio-mailbox upstreams → the dedicated WireMock instance
             // (see the comment on previewMailboxMock's construction above for why it's separate
             // from consulMock).
@@ -171,11 +155,12 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
   }
 
   /**
-   * Exposes the mutable in-process user-management gRPC stub so the acceptance seam ({@code
-   * QuarkusMocks}/{@code QuarkusFilesTestAppBuilder}) can register per-token fixtures ({@code
-   * withUserManagement}/{@code registerUser}) and flip the reversible "down" switch ({@code
-   * userManagementDown}). The default {@link #AUTH_TOKEN} → {@link #TEST_USER_ID} fixture is always
-   * registered at boot.
+   * Exposes the mutable in-process user-management REST fake (a dedicated {@link WireMockServer}
+   * wrapped by {@link com.zextras.carbonio.files.utilities.MockUserManagementService}) so the
+   * acceptance seam ({@code QuarkusMocks}/{@code QuarkusFilesTestAppBuilder}) can register
+   * per-token fixtures ({@code withUserManagement}/{@code registerUser}) and flip the reversible
+   * "down" switch ({@code userManagementDown}). The default {@link #AUTH_TOKEN} → {@link
+   * #TEST_USER_ID} fixture is always registered at boot.
    */
   public static com.zextras.carbonio.files.utilities.MockUserManagementService
       getUserManagementService() {
@@ -321,25 +306,6 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
                 aResponse()
                     .withStatus(200)
                     .withBody("200,'null','fallback-attachment-id'\n")));
-  }
-
-  /**
-   * Starts an in-process/local gRPC server on a random port exposing a canned {@code
-   * UserManagementService}. It returns an ACTIVE, INTERNAL {@code UserMyself} with {@code
-   * carbonioFeatureFilesEnabled} for {@link #AUTH_TOKEN}, and {@code UNAUTHENTICATED} for any other
-   * token — enough to exercise both the success and failure branches of the GraphQL auth filter.
-   */
-  private static Server startUserManagementGrpcStub() {
-    try {
-      userManagementService = new com.zextras.carbonio.files.utilities.MockUserManagementService();
-      // Default fixture: the fixed AUTH_TOKEN resolves to an ACTIVE, INTERNAL user with the files
-      // feature enabled (same contract the previous fixed stub honoured, so existing @QuarkusTest
-      // ITs keep working). The acceptance seam adds/overwrites more tokens at runtime.
-      userManagementService.registerToken(AUTH_TOKEN, TEST_USER_ID);
-      return NettyServerBuilder.forPort(0).addService(userManagementService).build().start();
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to start the in-process user-management gRPC stub", e);
-    }
   }
 
   /**

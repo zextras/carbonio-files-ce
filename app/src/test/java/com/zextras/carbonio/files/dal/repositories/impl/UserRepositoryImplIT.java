@@ -5,6 +5,8 @@
 package com.zextras.carbonio.files.dal.repositories.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -12,65 +14,54 @@ import com.zextras.carbonio.files.dal.dao.UserInfo;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.UserStatus;
 import com.zextras.carbonio.files.dal.dao.UserType;
-import com.zextras.carbonio.user_management.sdk.grpc.GetUserByEmailRequest;
-import com.zextras.carbonio.user_management.sdk.grpc.GetUserByIdRequest;
-import com.zextras.carbonio.user_management.sdk.grpc.GetUserMyselfRequest;
-import com.zextras.carbonio.user_management.sdk.grpc.UserInfoProto;
-import com.zextras.carbonio.user_management.sdk.grpc.UserInfoResponse;
-import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc.UserManagementServiceBlockingStub;
-import com.zextras.carbonio.user_management.sdk.grpc.UserMyselfProto;
-import com.zextras.carbonio.user_management.sdk.grpc.UserMyselfResponse;
-import com.zextras.carbonio.user_management.sdk.grpc.UserTypeProto;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import com.zextras.carbonio.user_management.sdk.rest.ApiException;
+import com.zextras.carbonio.user_management.sdk.rest.api.UserResourceApi;
+import com.zextras.carbonio.user_management.sdk.rest.model.MyselfDto;
+import com.zextras.carbonio.user_management.sdk.rest.model.UserInfoDto;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * P3a: validates {@link UserRepositoryImpl} response-to-DTO mapping and the empty-Optional-on-error
- * contract of {@link com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository}.
+ * P6e: validates {@link UserRepositoryImpl} response-to-DTO mapping and the empty-Optional-on-error
+ * contract of {@link com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository} against
+ * the carbonio-user-management-rest-sdk client.
  *
- * <p>No CDI container / gRPC server is started: the {@code @GrpcClient}-injected blocking stub is
- * a plain Mockito mock assigned directly to the package-private field, mirroring the pattern used
- * by carbonio-tasks-ce's {@code AuthenticationFilterTest} for the same SDK. Named {@code *IT} so it
- * runs under failsafe alongside the other P3a integration tests; it does not require any
- * Testcontainers/WireMock stack.
+ * <p>No CDI container / HTTP server is started: the {@link UserResourceApi} is a plain Mockito
+ * mock passed directly to the constructor. Named {@code *IT} so it runs under failsafe alongside
+ * the other P3a/P6e integration tests; it does not require any Testcontainers/WireMock stack.
  */
 class UserRepositoryImplIT {
 
-  private UserManagementServiceBlockingStub stubMock;
+  private UserResourceApi userResourceApiMock;
   private UserRepositoryImpl userRepository;
 
   @BeforeEach
   void setUp() {
-    stubMock = mock(UserManagementServiceBlockingStub.class);
-    userRepository = new UserRepositoryImpl();
-    userRepository.userManagementStub = stubMock;
+    userResourceApiMock = mock(UserResourceApi.class);
+    userRepository = new UserRepositoryImpl(userResourceApiMock);
   }
 
   @Test
-  void getUserMyselfByCookieNotCachedShouldExtractTokenAndMapResponse() {
-    UserInfoProto info =
-        UserInfoProto.newBuilder()
-            .setUserId("user-1")
-            .setEmail("user1@example.com")
-            .setFullName("User One")
-            .setDomain("example.com")
-            .setStatus("active")
-            .setType(UserTypeProto.INTERNAL)
-            .build();
-    UserMyselfProto myself =
-        UserMyselfProto.newBuilder()
-            .setInfo(info)
-            .setLocale("en_US")
-            .addFeatures("carbonioFeatureFilesEnabled")
-            .build();
-    UserMyselfResponse response = UserMyselfResponse.newBuilder().setUser(myself).build();
+  void getUserMyselfByCookieNotCachedShouldExtractTokenAndMapResponse() throws Exception {
+    UserInfoDto info =
+        new UserInfoDto()
+            .userId("user-1")
+            .email("user1@example.com")
+            .fullName("User One")
+            .domain("example.com")
+            .status("active")
+            .type("INTERNAL");
+    MyselfDto myself =
+        new MyselfDto()
+            .info(info)
+            .locale("en_US")
+            .features(List.of("carbonioFeatureFilesEnabled"));
 
-    GetUserMyselfRequest expectedRequest =
-        GetUserMyselfRequest.newBuilder().setToken("abc123").build();
-    when(stubMock.getUserMyself(expectedRequest)).thenReturn(response);
+    when(userResourceApiMock.internalUsersMyselfGet(eq(Map.of("Cookie", "ZM_AUTH_TOKEN=abc123"))))
+        .thenReturn(myself);
 
     Optional<UserMyself> result =
         userRepository.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=abc123; other=xyz");
@@ -88,33 +79,27 @@ class UserRepositoryImplIT {
   }
 
   @Test
-  void getUserMyselfByCookieNotCachedShouldUseRawCookiesAsTokenWhenPrefixMissing() {
-    UserInfoProto info =
-        UserInfoProto.newBuilder()
-            .setUserId("user-2")
-            .setStatus("active")
-            .setType(UserTypeProto.GUEST)
-            .build();
-    UserMyselfProto myself = UserMyselfProto.newBuilder().setInfo(info).build();
-    UserMyselfResponse response = UserMyselfResponse.newBuilder().setUser(myself).build();
+  void getUserMyselfByCookieNotCachedShouldUseRawCookiesAsTokenWhenPrefixMissing() throws Exception {
+    UserInfoDto info = new UserInfoDto().userId("user-2").status("active").type("GUEST");
+    MyselfDto myself = new MyselfDto().info(info);
 
-    GetUserMyselfRequest expectedRequest =
-        GetUserMyselfRequest.newBuilder().setToken("raw-token-value").build();
-    when(stubMock.getUserMyself(expectedRequest)).thenReturn(response);
+    when(userResourceApiMock.internalUsersMyselfGet(
+            eq(Map.of("Cookie", "ZM_AUTH_TOKEN=raw-token-value"))))
+        .thenReturn(myself);
 
     Optional<UserMyself> result =
         userRepository.getUserMyselfByCookieNotCached("raw-token-value");
 
     assertThat(result).isPresent();
     assertThat(result.get().getType()).isEqualTo(UserType.GUEST);
-    // No locale set on the proto -> falls back to English.
+    // No locale set on the DTO -> falls back to English.
     assertThat(result.get().getLocale()).isEqualTo(java.util.Locale.ENGLISH);
   }
 
   @Test
-  void getUserMyselfByCookieNotCachedShouldReturnEmptyOnUnauthenticated() {
-    when(stubMock.getUserMyself(org.mockito.ArgumentMatchers.any()))
-        .thenThrow(new StatusRuntimeException(Status.UNAUTHENTICATED));
+  void getUserMyselfByCookieNotCachedShouldReturnEmptyOnUnauthenticated() throws Exception {
+    when(userResourceApiMock.internalUsersMyselfGet(any()))
+        .thenThrow(new ApiException(401, "Unauthorized"));
 
     Optional<UserMyself> result =
         userRepository.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=invalid");
@@ -123,21 +108,17 @@ class UserRepositoryImplIT {
   }
 
   @Test
-  void getUserByIdShouldMapResponse() {
-    UserInfoProto info =
-        UserInfoProto.newBuilder()
-            .setUserId("user-3")
-            .setEmail("user3@example.com")
-            .setFullName("User Three")
-            .setDomain("example.com")
-            .setStatus("locked")
-            .setType(UserTypeProto.INTERNAL)
-            .build();
-    UserInfoResponse response = UserInfoResponse.newBuilder().setUser(info).build();
+  void getUserByIdShouldMapResponse() throws Exception {
+    UserInfoDto info =
+        new UserInfoDto()
+            .userId("user-3")
+            .email("user3@example.com")
+            .fullName("User Three")
+            .domain("example.com")
+            .status("locked")
+            .type("INTERNAL");
 
-    GetUserByIdRequest expectedRequest =
-        GetUserByIdRequest.newBuilder().setUserId("user-3").build();
-    when(stubMock.getUserById(expectedRequest)).thenReturn(response);
+    when(userResourceApiMock.internalUsersIdUserIdGet(eq("user-3"))).thenReturn(info);
 
     Optional<UserInfo> result = userRepository.getUserById("any-cookie", "user-3");
 
@@ -147,12 +128,10 @@ class UserRepositoryImplIT {
   }
 
   @Test
-  void getUserByIdShouldFallBackToClosedOnUnknownStatus() {
-    UserInfoProto info =
-        UserInfoProto.newBuilder().setUserId("user-4").setStatus("not-a-real-status").build();
-    UserInfoResponse response = UserInfoResponse.newBuilder().setUser(info).build();
+  void getUserByIdShouldFallBackToClosedOnUnknownStatus() throws Exception {
+    UserInfoDto info = new UserInfoDto().userId("user-4").status("not-a-real-status");
 
-    when(stubMock.getUserById(org.mockito.ArgumentMatchers.any())).thenReturn(response);
+    when(userResourceApiMock.internalUsersIdUserIdGet(any())).thenReturn(info);
 
     Optional<UserInfo> result = userRepository.getUserById("any-cookie", "user-4");
 
@@ -161,9 +140,9 @@ class UserRepositoryImplIT {
   }
 
   @Test
-  void getUserByIdShouldReturnEmptyOnNotFound() {
-    when(stubMock.getUserById(org.mockito.ArgumentMatchers.any()))
-        .thenThrow(new StatusRuntimeException(Status.NOT_FOUND));
+  void getUserByIdShouldReturnEmptyOnNotFound() throws Exception {
+    when(userResourceApiMock.internalUsersIdUserIdGet(any()))
+        .thenThrow(new ApiException(404, "Not Found"));
 
     Optional<UserInfo> result = userRepository.getUserById("any-cookie", "missing-user");
 
@@ -171,19 +150,11 @@ class UserRepositoryImplIT {
   }
 
   @Test
-  void getUserByEmailShouldMapResponse() {
-    UserInfoProto info =
-        UserInfoProto.newBuilder()
-            .setUserId("user-5")
-            .setEmail("user5@example.com")
-            .setType(UserTypeProto.GUEST)
-            .setStatus("active")
-            .build();
-    UserInfoResponse response = UserInfoResponse.newBuilder().setUser(info).build();
+  void getUserByEmailShouldMapResponse() throws Exception {
+    UserInfoDto info =
+        new UserInfoDto().userId("user-5").email("user5@example.com").type("GUEST").status("active");
 
-    GetUserByEmailRequest expectedRequest =
-        GetUserByEmailRequest.newBuilder().setUserEmail("user5@example.com").build();
-    when(stubMock.getUserByEmail(expectedRequest)).thenReturn(response);
+    when(userResourceApiMock.internalUsersEmailEmailGet(eq("user5@example.com"))).thenReturn(info);
 
     Optional<UserInfo> result = userRepository.getUserByEmail("any-cookie", "user5@example.com");
 
@@ -193,9 +164,9 @@ class UserRepositoryImplIT {
   }
 
   @Test
-  void getUserByEmailShouldReturnEmptyOnError() {
-    when(stubMock.getUserByEmail(org.mockito.ArgumentMatchers.any()))
-        .thenThrow(new StatusRuntimeException(Status.UNAVAILABLE));
+  void getUserByEmailShouldReturnEmptyOnError() throws Exception {
+    when(userResourceApiMock.internalUsersEmailEmailGet(any()))
+        .thenThrow(new ApiException(503, "Unavailable"));
 
     Optional<UserInfo> result = userRepository.getUserByEmail("any-cookie", "missing@example.com");
 

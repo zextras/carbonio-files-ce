@@ -95,11 +95,20 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <!--
-      P3a: gRPC CLIENT for carbonio-user-management (UserRepositoryImpl / cookie auth via
-      getUserMyselfByCookieNotCached), STILL NEEDED after the P6 gRPC->REST swap below:
-      UserRepositoryImpl uses @GrpcClient("user-management") (io.quarkus.grpc.GrpcClient), which
-      requires the quarkus-grpc extension regardless of whether this app also runs a gRPC SERVER.
-      config in application.properties.
+      P6e: REST CLIENT for carbonio-user-management (UserRepositoryImpl / cookie auth via
+      getUserMyselfByCookieNotCached, getUserById, getUserByEmail), calling the /internal/users/*
+      endpoints via the OpenAPI-generated carbonio-user-management-rest-sdk.
+    -->
+    <dependency>
+      <groupId>com.zextras.carbonio.user-management</groupId>
+      <artifactId>carbonio-user-management-rest-sdk</artifactId>
+      <version>${carbonio-user-management-rest-sdk.version}</version>
+    </dependency>
+
+    <!--
+      P3a: gRPC CLIENT for carbonio-user-management — now unused (UserRepositoryImpl was ported to
+      the REST SDK above); kept as a dead dependency for one more commit so this one stays a pure
+      source-level refactor, then dropped in the next commit alongside grpc-netty-shaded below.
     -->
     <dependency>
       <groupId>io.quarkus</groupId>
@@ -284,12 +293,9 @@ SPDX-License-Identifier: AGPL-3.0-only
       <scope>test</scope>
     </dependency>
     <!--
-      P3e: in-process/local gRPC stub of carbonio-user-management, used across the whole IT
-      acceptance suite (FilesStackTestResource, ~97 IT classes) to fake the UM gRPC server the
-      cookie-auth filter calls. grpc-netty-shaded provides the NettyServerBuilder transport used to
-      stand up that stub on a random port (version managed by quarkus-bom). STILL NEEDED after the
-      P6 gRPC->REST swap: unrelated to the (now-retired) Files gRPC SERVER, this is purely test
-      infrastructure for the UM gRPC CLIENT kept above.
+      P3e: in-process/local gRPC stub of carbonio-user-management — now unused (the acceptance
+      seam's fake was ported to a WireMock REST fake, see MockUserManagementService); kept as a
+      dead dependency for one more commit, then dropped in the next commit.
     -->
     <dependency>
       <groupId>io.grpc</groupId>

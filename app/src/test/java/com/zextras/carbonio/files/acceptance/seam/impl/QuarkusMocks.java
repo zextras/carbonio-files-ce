@@ -19,7 +19,6 @@ import com.zextras.carbonio.files.acceptance.seam.Mocks;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.TestFilesConfig;
 import com.zextras.carbonio.files.rest.InMemoryFilestore;
-import com.zextras.carbonio.user_management.sdk.grpc.UserTypeProto;
 import com.zextras.filestore.api.Filestore;
 import io.quarkus.arc.Arc;
 import java.nio.charset.StandardCharsets;
@@ -33,7 +32,7 @@ import java.util.Map;
  *
  * <ul>
  *   <li>storages → the in-memory {@link InMemoryFilestore} CDI bean (flags/seed/verify);
- *   <li>user-management → the mutable in-process gRPC stub ({@link
+ *   <li>user-management → the mutable in-process REST fake ({@link
  *       FilesStackTestResource#getUserManagementService()});
  *   <li>preview / mailbox → the dedicated preview/mailbox WireMock ({@link
  *       FilesStackTestResource#getPreviewMailboxWireMock()});
@@ -191,12 +190,7 @@ class QuarkusMocks implements Mocks {
   public void registerUser(
       String cookie, String userId, String status, boolean isGuest, boolean filesFeatureEnabled) {
     FilesStackTestResource.getUserManagementService()
-        .registerToken(
-            cookie,
-            userId,
-            status,
-            isGuest ? UserTypeProto.GUEST : UserTypeProto.INTERNAL,
-            filesFeatureEnabled);
+        .registerToken(cookie, userId, status, isGuest, filesFeatureEnabled);
   }
 
   // --------------------------------------------------------------------------------- preview / mailbox
