@@ -97,27 +97,14 @@ SPDX-License-Identifier: AGPL-3.0-only
     <!--
       P6e: REST CLIENT for carbonio-user-management (UserRepositoryImpl / cookie auth via
       getUserMyselfByCookieNotCached, getUserById, getUserByEmail), calling the /internal/users/*
-      endpoints via the OpenAPI-generated carbonio-user-management-rest-sdk.
+      endpoints via the OpenAPI-generated carbonio-user-management-rest-sdk. Replaces the P3a
+      gRPC client (quarkus-grpc + carbonio-user-management-grpc-sdk) now that user-management
+      publishes a REST SDK — files-ce no longer needs gRPC anywhere.
     -->
     <dependency>
       <groupId>com.zextras.carbonio.user-management</groupId>
       <artifactId>carbonio-user-management-rest-sdk</artifactId>
       <version>${carbonio-user-management-rest-sdk.version}</version>
-    </dependency>
-
-    <!--
-      P3a: gRPC CLIENT for carbonio-user-management — now unused (UserRepositoryImpl was ported to
-      the REST SDK above); kept as a dead dependency for one more commit so this one stays a pure
-      source-level refactor, then dropped in the next commit alongside grpc-netty-shaded below.
-    -->
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-grpc</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.zextras.carbonio.user-management</groupId>
-      <artifactId>carbonio-user-management-grpc-sdk</artifactId>
-      <version>${carbonio-user-management-grpc-sdk.version}</version>
     </dependency>
 
     <!--
@@ -290,16 +277,6 @@ SPDX-License-Identifier: AGPL-3.0-only
       <groupId>org.wiremock</groupId>
       <artifactId>wiremock</artifactId>
       <version>3.13.2</version>
-      <scope>test</scope>
-    </dependency>
-    <!--
-      P3e: in-process/local gRPC stub of carbonio-user-management — now unused (the acceptance
-      seam's fake was ported to a WireMock REST fake, see MockUserManagementService); kept as a
-      dead dependency for one more commit, then dropped in the next commit.
-    -->
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-netty-shaded</artifactId>
       <scope>test</scope>
     </dependency>
     <!--

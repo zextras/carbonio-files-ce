@@ -44,10 +44,8 @@ SPDX-License-Identifier: AGPL-3.0-only
     <!-- Quarkus migration -->
     <quarkus.version>3.37.3</quarkus.version>
     <carbonio-quarkus-extensions.version>1.11.2-1</carbonio-quarkus-extensions.version>
-    <!-- P3a: user-management gRPC client SDK (PermissionsChecker/UserRepository co-requisite). -->
-    <carbonio-user-management-grpc-sdk.version>1.2.5-1</carbonio-user-management-grpc-sdk.version>
-    <!-- P6e: user-management REST client SDK (UserRepositoryImpl co-requisite). Will replace the
-         gRPC one above once every gRPC caller is ported (next commit). -->
+    <!-- P6e: user-management REST client SDK (UserRepositoryImpl co-requisite). Replaces the
+         retired carbonio-user-management-grpc-sdk now that files-ce is 100% gRPC-free. -->
     <carbonio-user-management-rest-sdk.version>1.2.5-SNAPSHOT.161.d4c8d51b</carbonio-user-management-rest-sdk.version>
     <flatten-maven.version>1.7.3</flatten-maven.version>
 
