@@ -2480,35 +2480,11 @@ public class NodeDataFetcher {
     });
   }
 
-  public DataFetcher<CompletableFuture<DataFetcherResult<Boolean>>> deleteAllNodesAndBlobs() {
-    return environment -> SyncCompletableFuture.supplyAsync(() -> {
-      String internalHeader = environment.getGraphQlContext().get(Constants.GraphQL.Context.INTERNAL);
-
-      if (internalHeader == null) {
-        throw new AbortExecutionException("This operation is internal and thus requires the 'Internal' header set");
-      }
-
-      ResultPath resultPath = environment.getExecutionStepInfo().getPath();
-      String userId = (String) environment.getArgument(InputParameters.DeleteAllNodesAndBlobs.USER_ID);
-
-      try {
-        deleteAllNodesAndBlobsForUser(userId);
-      } catch (RuntimeException e) {
-        logger.error("DB error during deleteAllNodesAndBlobs, rolling back: {}", e.getMessage());
-        return new Builder<Boolean>()
-          .error(GraphQLResultErrors.deleteAllNodesAndBlobsError(resultPath))
-          .build();
-      }
-
-      return new Builder<Boolean>().data(true).build();
-    });
-  }
-
   /**
-   * Reusable core of the {@code deleteAllNodesAndBlobs} mutation: purges every non-root node owned
-   * by {@code userId}. Shared verbatim by the GraphQL {@link #deleteAllNodesAndBlobs()} DataFetcher
-   * and the trusted-caller gRPC {@code DeleteAllNodesAndBlobs} RPC ({@code FilesGrpcService}), so the
-   * (data-loss-sensitive) delete ordering lives in one place.
+   * Purges every non-root node owned by {@code userId}, including their blobs on Storages. Shared
+   * verbatim by the trusted-caller gRPC {@code DeleteAllNodesAndBlobs} RPC ({@code
+   * FilesGrpcService}) and the {@code DELETE /internal/nodes} REST endpoint ({@code
+   * InternalNodeResource}), so the (data-loss-sensitive) delete ordering lives in one place.
    *
    * <p><strong>DB-before-blob ordering is preserved:</strong> the DB rows (tombstones + node/version
    * deletes + folder cascade) are committed in a single transaction FIRST; only AFTER commit is the

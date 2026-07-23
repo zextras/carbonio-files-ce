@@ -210,10 +210,6 @@ public class GraphQLProvider {
         .addRule(
             ResultPath.parse("/" + Constants.GraphQL.Mutations.DELETE_COLLABORATION_LINKS),
             inputFieldsController.deleteCollaborationLinksValidation()
-        )
-        .addRule(
-            ResultPath.parse("/" + Constants.GraphQL.Mutations.DELETE_ALL_NODES_AND_BLOBS),
-            inputFieldsController.deleteAllNodesAndBlobsValidation()
         );
 
     return new FieldValidationInstrumentation(fieldValidation);
@@ -283,7 +279,6 @@ public class GraphQLProvider {
             .dataFetcher(Constants.GraphQL.Mutations.RESTORE_NODES, nodeDataFetcher.restoreNodes())
             .dataFetcher(Constants.GraphQL.Mutations.MOVE_NODES, nodeDataFetcher.moveNodesFetcher())
             .dataFetcher(Constants.GraphQL.Mutations.DELETE_NODES, nodeDataFetcher.deleteNodesFetcher())
-            .dataFetcher(Constants.GraphQL.Mutations.DELETE_ALL_NODES_AND_BLOBS, nodeDataFetcher.deleteAllNodesAndBlobs())
             .dataFetcher(
                 Constants.GraphQL.Mutations.DELETE_VERSIONS,
                 nodeDataFetcher.deleteVersionsFetcher()

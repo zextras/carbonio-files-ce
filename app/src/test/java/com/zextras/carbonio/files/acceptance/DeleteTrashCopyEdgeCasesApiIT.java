@@ -14,14 +14,12 @@ import com.zextras.carbonio.files.acceptance.seam.impl.QuarkusFilesTestAppBuilde
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorFolder;
-import com.zextras.carbonio.files.api.utilities.entities.SimplePopulatorTextFile;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -29,11 +27,10 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Deepens {@code NodeDataFetcher} JaCoCo branch coverage for {@code trashNodes}, {@code
- * flagNodes}, and {@code deleteAllNodesAndBlobs} beyond Waves 0-6, per the measurement loop. Picked
- * from a line-by-line read of {@code core/target/jacoco-it-report/jacoco.xml}'s missed branches,
- * cross-checked against {@code TrashNodesApiIT}/{@code FlagNodesApiIT}/{@code
- * DeleteAllNodesAndBlobsApiIT} to avoid duplicating existing coverage.
+ * Deepens {@code NodeDataFetcher} JaCoCo branch coverage for {@code trashNodes} and {@code
+ * flagNodes} beyond Waves 0-6, per the measurement loop. Picked from a line-by-line read of
+ * {@code core/target/jacoco-it-report/jacoco.xml}'s missed branches, cross-checked against {@code
+ * TrashNodesApiIT}/{@code FlagNodesApiIT} to avoid duplicating existing coverage.
  *
  * <ul>
  *   <li>{@code trashNodes}: the truster ≠ the trashed node's CURRENT parent's owner — same shape
@@ -43,11 +40,14 @@ import org.junit.jupiter.api.Test;
  *       duplicate) outcomes of {@code !usersToNotify.contains(parent.getOwnerId())}.
  *   <li>{@code flagNodes}: a ROOT id in the request — the {@code getNodeType() != ROOT} filter
  *       (every existing {@code FlagNodesApiIT} test uses a plain file, never a root).
- *   <li>{@code deleteAllNodesAndBlobs}: PowerStore returns a null/empty bulk-delete response
- *       (neither success nor a thrown exception) — {@code DeleteNodesApiIT} already covers this
- *       exact shape for {@code deleteNodes}, but {@code deleteAllNodesAndBlobs} has its own,
- *       separate copy of the same null-check that no existing test reaches.
  * </ul>
+ *
+ * <p>A {@code deleteAllNodesAndBlobs} null/empty-PowerStore-response case previously lived here,
+ * exercised through the now-removed {@code Internal}-header GraphQL mutation (see
+ * refactor(graphql): remove Internal-header backend hack). The mutation is gone — the underlying
+ * bean it drove, {@code NodeDataFetcher#deleteAllNodesAndBlobsForUser}, is now reached only via
+ * gRPC and {@code DELETE /internal/nodes}, neither of which is exercised at the acceptance-IT
+ * level for this specific null-response branch.
  *
  * <p><b>Explicitly SKIPPED as unreachable (not attempted):</b> {@code createFolderFetcher}'s
  * analogous {@code !usersToNotify.contains(parent.getOwnerId())} check (line ~617) can NEVER
@@ -197,39 +197,5 @@ class DeleteTrashCopyEdgeCasesApiIT {
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly("There was a problem while executing requested operation on node: LOCAL_ROOT");
-  }
-
-  // ---------------------------------------------------------------------------------------------
-  // deleteAllNodesAndBlobs
-  // ---------------------------------------------------------------------------------------------
-
-  @Test
-  void givenNullResponseFromPowerStoreDeleteAllNodesAndBlobsShouldStillReturnTrueButKeepTheTombstone() {
-    // Given
-    String fileId = "b1000000-0000-0000-0000-000000000021";
-    app.backdoor().populator().addNode(new SimplePopulatorTextFile(fileId, OWNER_ID, "file.txt"));
-    app.mocks().storagesBulkDeleteReturnsNullResponse();
-
-    String bodyPayload =
-        GraphqlCommandBuilder.aMutationBuilder("deleteAllNodesAndBlobs")
-            .withString("user_id", OWNER_ID)
-            .withWantedResultFormat("")
-            .build();
-    List<Map.Entry<String, String>> headers = List.of(Map.entry("Internal", ""));
-
-    // When
-    HttpResponse httpResponse =
-        app.send(HttpRequest.of("POST", "/graphql/", OWNER_COOKIE, headers, bodyPayload));
-
-    // Then — DB-first: node deleted, mutation reports true, but a null/empty PowerStore response is
-    // NOT treated as a success signal so the tombstone is kept for the purge retry loop
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    Optional<Object> result =
-        TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteAllNodesAndBlobs");
-    Assertions.assertThat(result).contains(true);
-    Assertions.assertThat(app.backdoor().nodeExists(fileId)).isFalse();
-    Assertions.assertThat(app.backdoor().tombstoneCount())
-        .as("null/empty PowerStore response must NOT be treated as success")
-        .isEqualTo(1);
   }
 }

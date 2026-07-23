@@ -338,15 +338,4 @@ public class InputFieldsController {
         .checkLinkIds(DeleteCollaborationLinks.COLLABORATION_LINK_IDS)
         .evaluate();
   }
-
-  /**
-   * @return a {@link BiFunction} rule bound with the
-   * {@link Constants.GraphQL.Mutations#DELETE_ALL_NODES_AND_BLOBS} to check if the user id is not empty or null.
-   */
-  public BiFunction<FieldAndArguments, FieldValidationEnvironment, Optional<GraphQLError>> deleteAllNodesAndBlobsValidation() {
-    return (fieldAndArguments, environment) ->
-      new GenericControllerEvaluator(fieldAndArguments, environment)
-        .checkUserId(Constants.GraphQL.InputParameters.DeleteAllNodesAndBlobs.USER_ID)
-        .evaluate();
-  }
 }

@@ -404,27 +404,6 @@ public class GraphQLResultErrors {
       .build();
   }
 
-  /**
-   * This method generates an error when creating a Link with a nodeId that has already reached the maximum
-   * number of links.
-   *
-   * @param path the graphQl resultPath extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened
-   *
-   * @return
-   */
-  public static GraphQLError deleteAllNodesAndBlobsError(
-    ResultPath path
-  ) {
-    Map<String, Object> errorData = new HashMap<>();
-    errorData.put("errorCode", ErrorCodes.DELETE_ALL_NODES_AND_BLOBS_ERROR);
-    return GraphqlErrorException.newErrorException()
-      .message("Storages returned an error while trying to delete all blobs")
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
-  }
-
   public static GraphQLError deleteAllNodesAndBlobsPartialFailure(
     String nodeId,
     ResultPath path

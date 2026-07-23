@@ -86,8 +86,7 @@ public class FilesGraphQLRoutes {
   /**
    * Handles an authenticated GraphQL request. The requester and cookies were validated and stashed
    * by {@link FilesAuthenticationFilter}; they are copied into the graphql-java context together
-   * with an optional {@code Internal} header passthrough and a fresh per-request data-loader
-   * registry.
+   * with a fresh per-request data-loader registry.
    */
   private void handleAuthenticatedRequest(RoutingContext ctx) {
     // Custom Vert.x routes registered via @Observes Router do NOT get Quarkus' automatic CDI
@@ -105,11 +104,6 @@ public class FilesGraphQLRoutes {
       UserMyself requester = ctx.get(Context.REQUESTER);
       graphQLContext.put(Context.REQUESTER, requester);
       graphQLContext.put(Context.COOKIES, ctx.<String>get(Context.COOKIES));
-
-      String internalHeader = ctx.request().getHeader("Internal");
-      if (internalHeader != null) {
-        graphQLContext.put(Context.INTERNAL, internalHeader);
-      }
 
       GraphQLRequest request = parseRequest(ctx);
       ExecutionInput input =
