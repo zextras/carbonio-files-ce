@@ -51,6 +51,16 @@
       "Destination": {
         "RequestTimeout": "3600s"
       }
+    },
+    {
+      "Match": {
+        "HTTP": {
+          "PathPrefix": "/internal/accounts"
+        }
+      },
+      "Destination": {
+        "RequestTimeout": "3600s"
+      }
     }
   ]
 }

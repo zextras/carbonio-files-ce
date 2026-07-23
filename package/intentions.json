@@ -8,26 +8,7 @@
         {
           "Action": "deny",
           "HTTP": {
-            "PathPrefix": "/graphql",
-            "Methods": [
-              "POST"
-            ],
-            "Header": {
-              "Name": "Internal",
-              "Present": true
-            }
-          }
-        },
-        {
-          "Action": "deny",
-          "HTTP": {
             "PathPrefix": "/internal"
-          }
-        },
-        {
-          "Action": "deny",
-          "HTTP": {
-            "PathPrefix": "/files.FilesService/"
           }
         },
         {
@@ -39,27 +20,12 @@
       ]
     },
     {
-      "Name": "carbonio-docs-connector",
-      "Action": "allow"
-    },
-    {
-      "Name": "carbonio-mailbox",
-      "Action": "allow"
-    },
-    {
-      "Name": "carbonio-message-broker",
-      "Action": "allow"
-    },
-    {
       "Name": "*",
       "Permissions": [
         {
           "Action": "allow",
           "HTTP": {
-            "PathPrefix": "/files.FilesService/",
-            "Methods": [
-              "POST"
-            ]
+            "PathPrefix": "/internal"
           }
         }
       ]
