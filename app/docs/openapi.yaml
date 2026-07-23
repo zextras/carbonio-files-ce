@@ -130,11 +130,79 @@ paths:
       summary: Download Version
       tags:
       - Blob Resource
-  /internal/upload:
+  /internal/accounts/{userId}/download/{nodeId}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+      summary: Download
+      tags:
+      - Internal Blob Resource
+  /internal/accounts/{userId}/download/{nodeId}/{version}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "204":
+          description: No Content
+      summary: Download Version
+      tags:
+      - Internal Blob Resource
+  /internal/accounts/{userId}/nodes/{nodeId}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalNodeDto"
+      summary: Get Node
+      tags:
+      - Internal Node Resource
+  /internal/accounts/{userId}/upload:
     post:
       parameters:
-      - name: AccountId
-        in: header
+      - name: userId
+        in: path
+        required: true
         schema:
           type: string
       - name: Content-Length
@@ -166,9 +234,107 @@ paths:
           description: OK
           content:
             application/json: {}
-      summary: Upload Internal
+      summary: Upload
       tags:
-      - Blob Resource
+      - Internal Blob Resource
+  /internal/accounts/{userId}/upload-version:
+    post:
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Content-Length
+        in: header
+        schema:
+          type: integer
+          format: int64
+      - name: Filename
+        in: header
+        schema:
+          type: string
+      - name: NodeId
+        in: header
+        schema:
+          type: string
+      - name: OverwriteVersion
+        in: header
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json: {}
+      summary: Upload Version
+      tags:
+      - Internal Blob Resource
+  /internal/folders:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFolderRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalNodeIdDto"
+        "400":
+          description: Bad Request
+      summary: Create Folder
+      tags:
+      - Internal Node Resource
+  /internal/links:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePublicLinkRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicLinkDto"
+        "400":
+          description: Bad Request
+      summary: Create Public Link
+      tags:
+      - Internal Node Resource
+  /internal/nodes:
+    delete:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteAllRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteAllResponse"
+      summary: Delete All Nodes And Blobs
+      tags:
+      - Internal Node Resource
   /invite/{invitationId}:
     get:
       parameters:
@@ -795,6 +961,85 @@ paths:
       summary: Upload Version
       tags:
       - Blob Resource
+components:
+  schemas:
+    CreateFolderRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        destinationId:
+          type: string
+        name:
+          type: string
+    CreatePublicLinkRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        nodeId:
+          type: string
+    DeleteAllRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+    DeleteAllResponse:
+      type: object
+      properties:
+        deleted:
+          type: boolean
+    InternalNodeDto:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        extension:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+          format: int64
+        version:
+          type: integer
+          format: int32
+        updatedAt:
+          type: integer
+          format: int64
+        owner:
+          $ref: "#/components/schemas/OwnerDto"
+        parent:
+          $ref: "#/components/schemas/ParentDto"
+        permissions:
+          $ref: "#/components/schemas/PermissionsDto"
+    InternalNodeIdDto:
+      type: object
+      properties:
+        nodeId:
+          type: string
+    OwnerDto:
+      type: object
+      properties:
+        id:
+          type: string
+    ParentDto:
+      type: object
+      properties:
+        id:
+          type: string
+    PermissionsDto:
+      type: object
+      properties:
+        canWriteFile:
+          type: boolean
+    PublicLinkDto:
+      type: object
+      properties:
+        url:
+          type: string
 info:
   title: carbonio-files-ce-app API
   version: unversioned
