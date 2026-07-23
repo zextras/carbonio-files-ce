@@ -46,8 +46,7 @@ import org.mockito.ArgumentCaptor;
 /**
  * Plain JUnit (NOT {@code @QuarkusTest}) unit test for {@link InternalNodeResource}: every
  * dependency is mocked, so these tests exercise only the resource's own delegation/assembly/status
- * -mapping logic, exactly like {@link com.zextras.carbonio.files.grpc.FilesGrpcServiceIT} does for
- * the gRPC twin (but without a container, since the REST beans are reused as-is, not re-derived).
+ * -mapping logic, without a container, since the REST beans are reused as-is, not re-derived.
  */
 class InternalNodeResourceTest {
 

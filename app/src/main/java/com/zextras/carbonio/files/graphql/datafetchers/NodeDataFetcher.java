@@ -2481,10 +2481,10 @@ public class NodeDataFetcher {
   }
 
   /**
-   * Purges every non-root node owned by {@code userId}, including their blobs on Storages. Shared
-   * verbatim by the trusted-caller gRPC {@code DeleteAllNodesAndBlobs} RPC ({@code
-   * FilesGrpcService}) and the {@code DELETE /internal/nodes} REST endpoint ({@code
-   * InternalNodeResource}), so the (data-loss-sensitive) delete ordering lives in one place.
+   * Purges every non-root node owned by {@code userId}, including their blobs on Storages. Extracted
+   * as its own reusable core (the same shape as the GraphQL mutation DataFetchers in this class) so
+   * the trusted-caller {@code DELETE /internal/nodes} REST endpoint ({@code InternalNodeResource})
+   * has a single, (data-loss-sensitive) delete-ordering implementation to call.
    *
    * <p><strong>DB-before-blob ordering is preserved:</strong> the DB rows (tombstones + node/version
    * deletes + folder cascade) are committed in a single transaction FIRST; only AFTER commit is the

@@ -42,9 +42,9 @@ import java.util.Optional;
  * /internal/accounts/{userId}/upload}, {@code POST /internal/accounts/{userId}/upload-version} and
  * {@code GET /internal/accounts/{userId}/download/{nodeId}[/{version}]}. The {@code userId} PATH
  * segment is the ONLY thing that determines whose ACLs are checked / who owns a newly-created node —
- * exactly the same trusted-caller contract {@link com.zextras.carbonio.files.grpc.FilesGrpcService}
- * uses for its {@code UploadFile}/{@code UploadFileVersion}/{@code DownloadFile} RPCs, reached here
- * over REST instead of gRPC.
+ * the same trusted-caller contract the retired WIP gRPC surface (formerly {@code FilesGrpcService})
+ * used for its {@code UploadFile}/{@code UploadFileVersion}/{@code DownloadFile} RPCs, now reached
+ * here over REST instead.
  *
  * <p>Reuses the EXACT same proven streaming machinery as the authenticated {@link BlobResource}: raw
  * body {@link InputStream} in, a Vert.x {@link HttpServerResponse} out via {@link

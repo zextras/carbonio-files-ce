@@ -77,8 +77,8 @@ public class LinkDataFetcher {
   /**
    * Builds the public URL of a {@link Link}, exactly as the GraphQL {@code createLink}/{@code
    * getLinks} responses do: {@code <domain>/<access-or-download-endpoint>/<publicId>}. Extracted so
-   * both the GraphQL layer and the trusted-caller gRPC {@code CreatePublicLink} RPC ({@code
-   * FilesGrpcService}) format the URL identically, from a single source of truth.
+   * both the GraphQL layer and the trusted-caller REST {@code POST /internal/links} endpoint
+   * ({@code InternalNodeResource}) format the URL identically, from a single source of truth.
    *
    * @param link the created/loaded link
    * @param requesterDomain the requester's domain (URL prefix)
@@ -148,8 +148,8 @@ public class LinkDataFetcher {
    * Reusable core of the {@code createLink} mutation: enforces the READ_AND_SHARE permission,
    * checks the node exists and is not a {@link NodeType#ROOT}, enforces the per-node link cap, then
    * creates the public link and returns it. Shared verbatim by the GraphQL {@link #createLink()}
-   * DataFetcher and the trusted-caller gRPC {@code CreatePublicLink} RPC ({@code FilesGrpcService}),
-   * so the link-creation business logic lives in one place.
+   * DataFetcher and the trusted-caller REST {@code POST /internal/links} endpoint ({@code
+   * InternalNodeResource}), so the link-creation business logic lives in one place.
    *
    * <p>The three optional link attributes (expiration, description, access code) are always empty
    * here — the GraphQL mutation supplies them via the overload below; the gRPC RPC never sets them.

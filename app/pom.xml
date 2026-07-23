@@ -41,7 +41,7 @@ SPDX-License-Identifier: AGPL-3.0-only
       P1 skeleton dependency set. Extensions are added phase-by-phase:
         - database (Panache/Flyway/datasource) : P2
         - graphql / grpc client (user-management) : P3 / P5
-        - grpc server + SDK module : P6
+        - trusted-caller /internal REST surface : P6 (originally a gRPC server, see below)
       For now the module only needs bootstrap (Consul/health/setup) + rest so it compiles and boots.
     -->
     <dependency>
@@ -95,8 +95,11 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <!--
-      P3a: gRPC client for carbonio-user-management (UserRepositoryImpl). Quarkus manages the
-      channel/stub lifecycle via @GrpcClient("user-management"); config in application.properties.
+      P3a: gRPC CLIENT for carbonio-user-management (UserRepositoryImpl / cookie auth via
+      getUserMyselfByCookieNotCached), STILL NEEDED after the P6 gRPC->REST swap below:
+      UserRepositoryImpl uses @GrpcClient("user-management") (io.quarkus.grpc.GrpcClient), which
+      requires the quarkus-grpc extension regardless of whether this app also runs a gRPC SERVER.
+      config in application.properties.
     -->
     <dependency>
       <groupId>io.quarkus</groupId>
@@ -106,29 +109,6 @@ SPDX-License-Identifier: AGPL-3.0-only
       <groupId>com.zextras.carbonio.user-management</groupId>
       <artifactId>carbonio-user-management-grpc-sdk</artifactId>
       <version>${carbonio-user-management-grpc-sdk.version}</version>
-    </dependency>
-
-    <!--
-      P6b: trusted-caller gRPC SERVER side.
-        - carbonio-files-grpc-sdk: the sibling module's generated FilesServiceGrpc stubs
-          (files.proto), versioned in lockstep with this app via ${project.version} so the reactor
-          resolves it locally and dt3 stamps both modules identically at CI/release time.
-          FilesGrpcService extends its FilesServiceImplBase.
-        - carbonio-quarkus-extensions-grpc-sdk: same server extension carbonio-user-management/app
-          uses. It contributes the shared-port default (quarkus.grpc.server.use-separate-server=false,
-          config_ordinal=260) so the gRPC server runs on the SAME HTTP port (10000) as REST/GraphQL,
-          plus the reflection service (dev/test only). Brings quarkus-grpc transitively (already
-          declared above for the user-management client).
-    -->
-    <dependency>
-      <groupId>com.zextras.carbonio.files</groupId>
-      <artifactId>carbonio-files-grpc-sdk</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.zextras.carbonio.quarkus</groupId>
-      <artifactId>carbonio-quarkus-extensions-grpc-sdk</artifactId>
-      <version>${carbonio-quarkus-extensions.version}</version>
     </dependency>
 
     <!--
@@ -304,9 +284,12 @@ SPDX-License-Identifier: AGPL-3.0-only
       <scope>test</scope>
     </dependency>
     <!--
-      P3e: in-process/local gRPC stub of carbonio-user-management for the GraphQL auth smoke IT.
-      grpc-netty-shaded provides the ServerBuilder transport used to stand up the stub on a random
-      port (version managed by quarkus-bom). Only the auth filter path needs it.
+      P3e: in-process/local gRPC stub of carbonio-user-management, used across the whole IT
+      acceptance suite (FilesStackTestResource, ~97 IT classes) to fake the UM gRPC server the
+      cookie-auth filter calls. grpc-netty-shaded provides the NettyServerBuilder transport used to
+      stand up that stub on a random port (version managed by quarkus-bom). STILL NEEDED after the
+      P6 gRPC->REST swap: unrelated to the (now-retired) Files gRPC SERVER, this is purely test
+      infrastructure for the UM gRPC CLIENT kept above.
     -->
     <dependency>
       <groupId>io.grpc</groupId>

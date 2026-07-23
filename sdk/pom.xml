@@ -9,27 +9,40 @@ SPDX-License-Identifier: AGPL-3.0-only
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
+  <!--
+    TODO re-pin to a newer extensions snapshot once the sdk-support-removal is published. This
+    snapshot's rest-sdk-parent still declares a dependency on the now-(locally)-removed
+    carbonio-quarkus-extensions-rest-sdk-support; it still resolves fine from the Zextras repo (the
+    artifact was published before the removal), and is harmless here: this module ships its OWN
+    streaming helper in the com.zextras.carbonio.files.sdk.streaming package instead of using it.
+  -->
   <parent>
     <groupId>com.zextras.carbonio.quarkus</groupId>
-    <artifactId>carbonio-quarkus-extensions-sdk-parent</artifactId>
-    <version>1.11.2-1</version>
+    <artifactId>carbonio-quarkus-extensions-rest-sdk-parent</artifactId>
+    <version>1.11.2-SNAPSHOT.139.8431ab3c</version>
     <relativePath/>
   </parent>
 
   <groupId>com.zextras.carbonio.files</groupId>
-  <artifactId>carbonio-files-grpc-sdk</artifactId>
+  <artifactId>carbonio-files-ce-rest-sdk</artifactId>
   <version>${revision}${changelist}</version>
-  <name>Carbonio Files - gRPC SDK</name>
+  <name>Carbonio Files - REST SDK</name>
 
   <properties>
     <!-- Placeholder version, same as carbonio-user-management's sdk. This module parents on
-         carbonio-quarkus-extensions-sdk-parent (not the files root), and semantic-release's
+         carbonio-quarkus-extensions-rest-sdk-parent (not the files root), and semantic-release's
          prepareCmd only rewrites the ROOT pom's <revision>, never this one. The real version is
          injected identically for every module by dt3 (-Drevision/-Dchangelist) at CI/release time,
          so the app's ${project.version} dependency on this module always resolves. For a bare local
          reactor build, pass -Drevision/-Dchangelist (as CI does). -->
     <revision>0.0.0</revision>
     <changelist>-SNAPSHOT</changelist>
+
+    <!-- The committed OpenAPI spec to generate the /internal client from (FILTER=path:/internal is
+         applied by the inherited openapi-generator execution), and the base Java package for the
+         generated api/model/invoker sub-packages. -->
+    <sdk.openapi.spec>${project.basedir}/../app/docs/openapi.yaml</sdk.openapi.spec>
+    <sdk.base.package>com.zextras.carbonio.files.sdk</sdk.base.package>
   </properties>
 
   <repositories>
@@ -40,13 +53,23 @@ SPDX-License-Identifier: AGPL-3.0-only
     </repository>
   </repositories>
 
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
   <build>
     <plugins>
       <!--
-        This module is a generated-stub jar with no tests. The sdk-parent binds the failsafe
-        integration-test goal; when the reactor is run with a `-Dit.test=...` filter (e.g. the app's
-        gate ITs) failsafe would otherwise abort here with "No tests matching pattern". Tolerate a
-        no-match so a targeted reactor `verify` reaches the app module.
+        This module's ONLY tests are the hand-written, real-HttpServer RestStreamingSupportTest
+        (unit tests, no *IT.java/*IntegrationTest.java present). The sdk-parent's inherited parent
+        (carbonio-quarkus-extensions-parent) unconditionally binds maven-failsafe-plugin; when the
+        reactor is run with a `-Dit.test=...` filter (e.g. the app's gate ITs) failsafe would
+        otherwise abort here with "No tests matching pattern". Tolerate a no-match so a targeted
+        reactor `verify` reaches the app module.
       -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

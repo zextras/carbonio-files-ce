@@ -43,17 +43,17 @@ import java.util.Optional;
 import org.jboss.resteasy.reactive.RestResponse;
 
 /**
- * Trusted-caller JSON REST surface of carbonio-files: {@code /internal/**}, the REST twin of the
- * WIP gRPC surface ({@link com.zextras.carbonio.files.grpc.FilesGrpcService}). Every endpoint
- * carries the acting {@code userId} explicitly (path for {@code GET}, body for {@code
- * POST}/{@code DELETE}): the caller is assumed already authenticated — mesh mTLS/intentions
- * restrict who may reach {@code /internal/**}, so NO cookie/token auth filter runs here — but the
- * given user's node ACLs are still enforced (via {@link PermissionsChecker}, reached through the
- * reused business beans), exactly as the cookie-authenticated REST/GraphQL paths do.
+ * Trusted-caller JSON REST surface of carbonio-files: {@code /internal/**}, the sole trusted-caller
+ * entry point after the WIP gRPC surface (formerly {@code FilesGrpcService}) was retired in favor
+ * of this REST-only design. Every endpoint carries the acting {@code userId} explicitly (path for
+ * {@code GET}, body for {@code POST}/{@code DELETE}): the caller is assumed already authenticated —
+ * mesh mTLS/intentions restrict who may reach {@code /internal/**}, so NO cookie/token auth filter
+ * runs here — but the given user's node ACLs are still enforced (via {@link PermissionsChecker},
+ * reached through the reused business beans), exactly as the cookie-authenticated REST/GraphQL
+ * paths do.
  *
- * <p>Every endpoint delegates to the same beans {@link
- * com.zextras.carbonio.files.grpc.FilesGrpcService}, the REST resources and the GraphQL
- * DataFetchers use — no business logic is duplicated here:
+ * <p>Every endpoint delegates to the same beans the REST resources and the GraphQL DataFetchers
+ * use — no business logic is duplicated here:
  *
  * <ul>
  *   <li>{@code GET /internal/accounts/{userId}/nodes/{nodeId}} → {@link NodeRepository#getNode}
