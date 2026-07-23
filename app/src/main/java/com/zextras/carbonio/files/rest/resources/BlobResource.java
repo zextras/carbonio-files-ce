@@ -48,9 +48,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Authenticated blob REST endpoints (upload / upload-version / internal upload / single download +
- * check / multi ZIP download + check). Quarkus/RESTEasy Reactive port of the legacy Netty {@code
- * BlobController}: same endpoint set, same headers, same permission enforcement.
+ * Authenticated blob REST endpoints (upload / upload-version / single download + check / multi ZIP
+ * download + check). Quarkus/RESTEasy Reactive port of the legacy Netty {@code BlobController}:
+ * same endpoint set, same headers, same permission enforcement.
+ *
+ * <p>The trusted, UNAUTHENTICATED counterpart (no cookie, acting user id passed explicitly) lives in
+ * {@link InternalBlobResource} under {@code /internal/accounts/{userId}/...} — it replaced the
+ * former header-based {@code POST /internal/upload} that used to live here.
  *
  * <p>Resources are served at ROOT (carbonio-proxy strips its {@code /services/files} prefix), so no
  * {@code quarkus.rest.path} is set. The heavy byte-transfer endpoints return a Mutiny {@code Uni}
@@ -138,33 +142,6 @@ public class BlobResource {
                   encodedFilename,
                   description);
             })
-        .runSubscriptionOn(transferPool.get());
-  }
-
-  /** Internal upload: no auth, uses the {@code AccountId} header, and does NOT enforce a size limit. */
-  @POST
-  @Path("/internal/upload")
-  @Consumes(MediaType.WILDCARD)
-  @Produces(MediaType.APPLICATION_JSON)
-  public Uni<Response> uploadInternal(
-      @HeaderParam(Headers.UPLOAD_ACCOUNT_ID) String accountId,
-      @HeaderParam(Headers.UPLOAD_FILENAME) String encodedFilename,
-      @HeaderParam(Headers.UPLOAD_DESCRIPTION) String description,
-      @HeaderParam(Headers.UPLOAD_PARENT_ID) String parentId,
-      @HeaderParam(HttpHeaders.CONTENT_LENGTH) Long contentLength,
-      InputStream body) {
-
-    return Uni.createFrom()
-        .item(
-            () ->
-                doUploadFile(
-                    accountId,
-                    Optional.empty(),
-                    body,
-                    contentLength,
-                    parentId,
-                    encodedFilename,
-                    description))
         .runSubscriptionOn(transferPool.get());
   }
 
