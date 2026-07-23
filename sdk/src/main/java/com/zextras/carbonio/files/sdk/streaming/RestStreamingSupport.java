@@ -31,8 +31,12 @@ import java.util.function.Supplier;
  * <p>Neither {@link #uploadStreamRaw} nor {@link #downloadStream} ever buffers the whole file in
  * memory: upload streams a fresh {@link InputStream} (obtained per attempt from a caller-supplied
  * {@link Supplier}) straight into the request body via {@link
- * HttpRequest.BodyPublishers#ofInputStream(Supplier)}, and download hands back the live response
- * {@link InputStream} unread.
+ * HttpRequest.BodyPublishers#ofInputStream(Supplier)}, wrapped with {@link
+ * HttpRequest.BodyPublishers#fromPublisher(java.util.concurrent.Flow.Publisher, long)} so the
+ * caller-declared length is advertised to {@link java.net.http.HttpClient} (which then emits a real
+ * {@code Content-Length} request header on its own — {@code Content-Length} is a restricted header
+ * a caller may never set manually, see {@link #uploadStreamRaw} javadoc), and download hands back
+ * the live response {@link InputStream} unread.
  */
 public final class RestStreamingSupport {
 
@@ -96,13 +100,25 @@ public final class RestStreamingSupport {
    *
    * <p>{@code bodyStreamSupplier} is invoked exactly once per send attempt, so it must return a
    * fresh, unread {@link InputStream} each time it is called (this makes the upload
-   * re-subscription-safe: e.g. safe to retry).
+   * re-subscription-safe: e.g. safe to retry); the stream it returns MUST yield EXACTLY {@code
+   * contentLength} bytes: {@link HttpRequest.BodyPublishers#ofInputStream(Supplier)} reports an
+   * unknown ({@code -1}) length on its own (so it would otherwise stream chunked, with no {@code
+   * Content-Length} at all — {@link java.net.http.HttpClient} forbids callers from setting that
+   * restricted header manually), so it is wrapped with {@link
+   * HttpRequest.BodyPublishers#fromPublisher(java.util.concurrent.Flow.Publisher, long)} to
+   * advertise {@code contentLength}. This makes the JDK client itself emit a real {@code
+   * Content-Length} request header and enforce it: it fails the request if the stream yields more
+   * or fewer bytes than declared. The body is still streamed byte-for-byte from the supplied {@link
+   * InputStream} — nothing is buffered in memory or on disk.
    *
    * <p>The {@code Content-Type} header is set from {@code contentType} first, then every entry of
    * {@code headers} is applied on top. Per {@link HttpRequest.Builder#header(String, String)}
    * semantics, this adds rather than replaces, so a caller-supplied {@code Content-Type} entry (if
    * any) is added alongside instead of silently clobbering the one set here.
    *
+   * @param contentLength the exact number of bytes the {@code bodyStreamSupplier}-provided stream
+   *     will yield; advertised to the JDK HTTP client so it sends a real {@code Content-Length}
+   *     header (see above).
    * @param requestTimeout overall request timeout applied via {@link
    *     HttpRequest.Builder#timeout(Duration)}, or {@code null} for no timeout (recommended for
    *     very large transfers where an arbitrarily long duration is expected).
@@ -116,12 +132,15 @@ public final class RestStreamingSupport {
       Map<String, String> headers,
       String contentType,
       Supplier<InputStream> bodyStreamSupplier,
+      long contentLength,
       Duration requestTimeout)
       throws IOException, InterruptedException {
     HttpRequest.Builder requestBuilder =
         HttpRequest.newBuilder(uri)
             .header("Content-Type", contentType)
-            .POST(HttpRequest.BodyPublishers.ofInputStream(bodyStreamSupplier));
+            .POST(
+                HttpRequest.BodyPublishers.fromPublisher(
+                    HttpRequest.BodyPublishers.ofInputStream(bodyStreamSupplier), contentLength));
     headers.forEach(requestBuilder::header);
     if (requestTimeout != null) {
       requestBuilder.timeout(requestTimeout);

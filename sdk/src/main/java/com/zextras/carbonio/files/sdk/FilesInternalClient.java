@@ -53,13 +53,14 @@ import java.util.regex.Pattern;
  *
  * <p>Blob metadata (filename, parent id, node id, overwrite-version) is carried in HTTP headers,
  * exactly as {@code InternalBlobResource} on the server side expects. {@code Content-Length} is
- * deliberately NOT one of them: {@link java.net.http.HttpClient} treats it as a restricted header
- * that callers may not set directly (it throws {@link IllegalArgumentException} if attempted), and
- * {@link java.net.http.HttpRequest.BodyPublishers#ofInputStream} always streams via chunked
- * transfer-encoding regardless, so an explicit length could never be honored anyway. The server
- * tolerates a missing {@code Content-Length} (treats it as unknown, {@code -1}), so this is a
- * documented no-op rather than a workaround; the {@code length} parameter each upload method
- * accepts exists purely for call-site symmetry with the retired SDKs.
+ * NOT one of them &mdash; and never set directly &mdash; because {@link java.net.http.HttpClient}
+ * treats it as a restricted header that callers may not set manually (it throws {@link
+ * IllegalArgumentException} if attempted). Instead, the {@code length} each upload method accepts
+ * is passed down to {@link RestStreamingSupport#uploadStreamRaw}, which advertises it to the
+ * {@link java.net.http.HttpRequest.BodyPublishers#ofInputStream} publisher via {@link
+ * java.net.http.HttpRequest.BodyPublishers#fromPublisher(java.util.concurrent.Flow.Publisher,
+ * long)}; the JDK HTTP client then emits a real {@code Content-Length} request header on its own
+ * and streams the body straight from the caller-supplied {@link InputStream}, never buffering it.
  */
 public final class FilesInternalClient {
 
@@ -171,9 +172,11 @@ public final class FilesInternalClient {
   /**
    * Uploads a new file under {@code parentId}, on behalf of {@code userId}. {@code
    * fileStreamSupplier} is invoked exactly once (no retry is attempted by this client) and must
-   * return a fresh, unread {@link InputStream}; the body is streamed straight from it, never
-   * buffered whole in memory. {@code length} is accepted for parity with the retired SDKs but is
-   * NOT sent as a header (see the class javadoc).
+   * return a fresh, unread {@link InputStream} yielding EXACTLY {@code length} bytes; the body is
+   * streamed straight from it, never buffered whole in memory. {@code length} is not sent as a
+   * header, but IS honored: it is advertised to the underlying JDK {@link
+   * java.net.http.HttpClient} so it emits a real {@code Content-Length} request header on its own
+   * (see the class javadoc).
    *
    * @return the id of the newly-created file node.
    */
@@ -190,7 +193,7 @@ public final class FilesInternalClient {
 
     URI uri = URI.create(baseUrl + INTERNAL_ACCOUNTS_PATH + encodePathSegment(userId) + "/upload");
     HttpResponse<String> response =
-        sendRawUpload("uploadFile", uri, headers, mimeType, fileStreamSupplier);
+        sendRawUpload("uploadFile", uri, headers, mimeType, fileStreamSupplier, length);
     return readNodeId(response.body());
   }
 
@@ -218,7 +221,7 @@ public final class FilesInternalClient {
     URI uri =
         URI.create(baseUrl + INTERNAL_ACCOUNTS_PATH + encodePathSegment(userId) + "/upload-version");
     HttpResponse<String> response =
-        sendRawUpload("uploadFileVersion", uri, headers, mimeType, fileStreamSupplier);
+        sendRawUpload("uploadFileVersion", uri, headers, mimeType, fileStreamSupplier, length);
     return readVersion(response.body());
   }
 
@@ -256,10 +259,11 @@ public final class FilesInternalClient {
       URI uri,
       Map<String, String> headers,
       String contentType,
-      Supplier<InputStream> bodyStreamSupplier) {
+      Supplier<InputStream> bodyStreamSupplier,
+      long contentLength) {
     try {
       return RestStreamingSupport.uploadStreamRaw(
-          blobHttpClient, uri, headers, contentType, bodyStreamSupplier, null);
+          blobHttpClient, uri, headers, contentType, bodyStreamSupplier, contentLength, null);
     } catch (IOException e) {
       throw mapStreamingException(operation, e);
     } catch (InterruptedException e) {

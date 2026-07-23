@@ -131,6 +131,7 @@ class RestStreamingSupportTest {
                   Map.of(),
                   "application/octet-stream",
                   () -> new ByteArrayInputStream(payload),
+                  payload.length,
                   Duration.ofSeconds(10));
           assertEquals(200, response.statusCode());
         },
@@ -147,6 +148,71 @@ class RestStreamingSupportTest {
             + ", length received="
             + (receivedBody.get() == null ? -1 : receivedBody.get().length)
             + ")");
+  }
+
+  @Test
+  void uploadStreamRawSendsRealContentLengthHeaderInsteadOfChunkedEncoding() throws Exception {
+    byte[] payload = randomBytes(PAYLOAD_SIZE);
+    AtomicReference<String> receivedContentLength = new AtomicReference<>();
+    AtomicReference<String> receivedTransferEncoding = new AtomicReference<>();
+    AtomicReference<byte[]> receivedBody = new AtomicReference<>();
+    CountDownLatch requestHandled = new CountDownLatch(1);
+
+    server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+    server.createContext(
+        "/upload-raw-content-length",
+        exchange -> {
+          try {
+            receivedContentLength.set(exchange.getRequestHeaders().getFirst("Content-Length"));
+            receivedTransferEncoding.set(
+                exchange.getRequestHeaders().getFirst("Transfer-Encoding"));
+            receivedBody.set(exchange.getRequestBody().readAllBytes());
+            exchange.sendResponseHeaders(200, -1);
+          } finally {
+            exchange.close();
+            requestHandled.countDown();
+          }
+        });
+    server.start();
+
+    HttpClient client = RestStreamingSupport.http1Client();
+    URI uri =
+        URI.create(
+            "http://localhost:" + server.getAddress().getPort() + "/upload-raw-content-length");
+
+    assertTimeoutPreemptively(
+        Duration.ofSeconds(10),
+        () -> {
+          var response =
+              RestStreamingSupport.uploadStreamRaw(
+                  client,
+                  uri,
+                  Map.of(),
+                  "application/octet-stream",
+                  () -> new ByteArrayInputStream(payload),
+                  payload.length,
+                  Duration.ofSeconds(10));
+          assertEquals(200, response.statusCode());
+        },
+        "uploadStreamRaw hung: the body was never fully sent/acknowledged");
+
+    assertTrue(
+        requestHandled.await(5, TimeUnit.SECONDS),
+        "server handler never completed processing the request");
+    // This is the crux of the fix: the JDK HTTP client must advertise a real, known
+    // Content-Length (derived from the contentLength parameter) rather than falling back to
+    // chunked transfer-encoding (which is what a bare BodyPublishers.ofInputStream would do,
+    // since it reports an unknown length of -1).
+    assertEquals(
+        String.valueOf(payload.length),
+        receivedContentLength.get(),
+        "server should have received a Content-Length header matching the declared contentLength");
+    assertTrue(
+        receivedTransferEncoding.get() == null
+            || !receivedTransferEncoding.get().toLowerCase().contains("chunked"),
+        "request must not use chunked transfer-encoding when a Content-Length is known");
+    assertArrayEquals(
+        payload, receivedBody.get(), "server-received body bytes must match the uploaded payload");
   }
 
   @Test
@@ -188,6 +254,7 @@ class RestStreamingSupportTest {
                   Map.of("Filename", "report.pdf", "ParentId", "LOCAL_ROOT"),
                   "application/pdf",
                   () -> new ByteArrayInputStream(payload),
+                  payload.length,
                   Duration.ofSeconds(10));
           assertEquals(200, response.statusCode());
         },
@@ -239,6 +306,7 @@ class RestStreamingSupportTest {
                             Map.of(),
                             "application/octet-stream",
                             () -> new ByteArrayInputStream(payload),
+                            payload.length,
                             Duration.ofSeconds(10))),
             "uploadStreamRaw hung instead of failing fast on a 500 response");
 
@@ -295,6 +363,7 @@ class RestStreamingSupportTest {
                     Map.of(),
                     "application/octet-stream",
                     countingSupplier,
+                    payload.length,
                     Duration.ofSeconds(10));
             assertEquals(200, response.statusCode());
             assertArrayEquals(
