@@ -534,6 +534,122 @@ public class NodeDataFetcher {
   }
 
   /**
+   * Reusable core of the {@code createFolder} mutation: enforces the READ_AND_WRITE permission on
+   * the parent, requires the parent to be a {@link NodeType#FOLDER} or {@link NodeType#ROOT},
+   * computes the new folder's owner (the requester if the parent is a ROOT or the requester
+   * already owns the parent, otherwise the parent's owner), de-duplicates the requested name
+   * against existing siblings, creates the folder, propagates inherited shares onto it, and fires
+   * the added-node notification (gated on {@link FilesConfig#areNotificationsEnabled()}). Shared
+   * verbatim by the GraphQL {@link #createFolderFetcher()} DataFetcher and (in a later phase) the
+   * {@code /internal/folders} REST endpoint, so the folder-creation business logic lives in one
+   * place.
+   *
+   * @param requesterId the id of the user creating the folder
+   * @param parentId the id of the parent folder (or root) under which to create the new folder
+   * @param name the requested name of the new folder (leading/trailing whitespace is trimmed; a
+   *     numeric suffix is appended if a sibling with the same name already exists)
+   * @param requester the full {@link UserMyself} of the requester, used to attribute the
+   *     added-node notification
+   * @return the created {@link Node} (of type {@link NodeType#FOLDER})
+   * @throws NodeAccessException if the requester lacks READ_AND_WRITE on the parent
+   * @throws NodeNotFoundException if the parent does not exist, or is neither a FOLDER nor a ROOT
+   */
+  public Node createFolder(
+    String requesterId,
+    String parentId,
+    String name,
+    UserMyself requester
+  ) {
+    if (!permissionsChecker
+      .getPermissions(parentId, requesterId)
+      .has(SharePermission.READ_AND_WRITE)
+    ) {
+      throw new NodeAccessException(parentId);
+    }
+
+    Node parent = nodeRepository
+      .getNode(parentId)
+      .filter(p -> NodeType.FOLDER.equals(p.getNodeType())
+        || NodeType.ROOT.equals(p.getNodeType())
+      )
+      .orElseThrow(() -> new NodeNotFoundException(parentId));
+
+    String ownerId = (
+      NodeType.ROOT.equals(parent.getNodeType())
+        || requesterId.equals(parent.getOwnerId())
+    )
+      ? requesterId
+      : parent.getOwnerId();
+
+    String folderName = searchAlternativeName(
+      nodeRepository,
+      name.trim(),
+      parent.getId(),
+      ownerId
+    );
+
+    final Node createdFolder = nodeRepository.createNewNode(
+      UUID.randomUUID().toString(),
+      requesterId,
+      ownerId,
+      parent.getId(),
+      folderName,
+      "",
+      NodeType.FOLDER,
+      NodeType.ROOT.equals(parent.getNodeType())
+        ? parentId
+        : parent.getAncestorIds() + "," + parentId,
+      0L
+    );
+
+    // Add new inherited shares for the new folder.
+    // Create share also for the requester if it is not the owner of the parent folder
+    List<String> usersToNotify = createIndirectShare(parentId, createdFolder);
+    usersToNotify.remove(requesterId); // Remove requesterId from the list if present
+
+    // If the requester is the owner of the parent folder, do not notify him since he did the upload himself
+    // Also exclude uploads on root, since root can't be shared and does not have an owner
+    if (!parent.getNodeType().equals(NodeType.ROOT) &&
+        !requesterId.equals(parent.getOwnerId()) &&
+        !usersToNotify.contains(parent.getOwnerId())) {
+      usersToNotify.add(parent.getOwnerId());
+    }
+
+    if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled())
+      notificationRepository.createAddedNodeNotification(
+        createdFolder,
+        parent,
+        requester,
+        AddedNodeType.CREATE,
+        usersToNotify
+      );
+
+    return createdFolder;
+  }
+
+  /**
+   * Thrown by {@link #createFolder} when the requester lacks the READ_AND_WRITE permission on the
+   * parent (mirrors the GraphQL {@code nodeWriteError}).
+   */
+  public static class NodeAccessException extends RuntimeException {
+    public NodeAccessException(String parentId) {
+      super("Cannot create folder under node " + parentId
+        + ": missing READ_AND_WRITE permission");
+    }
+  }
+
+  /**
+   * Thrown by {@link #createFolder} when the parent does not exist, or is neither a {@link
+   * NodeType#FOLDER} nor a {@link NodeType#ROOT} (mirrors the GraphQL {@code nodeNotFound}).
+   */
+  public static class NodeNotFoundException extends RuntimeException {
+    public NodeNotFoundException(String parentId) {
+      super("Cannot create folder: parent node " + parentId
+        + " not found, or not a folder/root");
+    }
+  }
+
+  /**
    * <p>This {@link DataFetcher} must be used for the {@link Constants.GraphQL.Mutations#CREATE_FOLDER}
    * mutation.</p>
    * <p>The request must have the following parameters in input:</p>
@@ -570,83 +686,26 @@ public class NodeDataFetcher {
           .getGraphQlContext()
           .get(Constants.GraphQL.Context.REQUESTER);
         String requesterId = requester.getId().getUserId();
+        String name = environment.getArgument(InputParameters.CreateFolder.NAME);
 
-        if (permissionsChecker
-          .getPermissions(parentId, requesterId)
-          .has(SharePermission.READ_AND_WRITE)
-        ) {
-          return nodeRepository
-            .getNode(parentId)
-            .filter(parent -> NodeType.FOLDER.equals(parent.getNodeType())
-              || NodeType.ROOT.equals(parent.getNodeType())
-            )
-            .map(parent -> {
-              String ownerId = (
-                NodeType.ROOT.equals(parent.getNodeType())
-                  || requesterId.equals(parent.getOwnerId())
-              )
-                ? requesterId
-                : parent.getOwnerId();
-
-              String folderName = searchAlternativeName(
-                nodeRepository,
-                ((String) environment.getArgument(InputParameters.CreateFolder.NAME)).trim(),
-                parent.getId(),
-                ownerId
-              );
-
-              final Node createdFolder = nodeRepository.createNewNode(
-                UUID.randomUUID().toString(),
-                requesterId,
-                ownerId,
-                parent.getId(),
-                folderName,
-                "",
-                NodeType.FOLDER,
-                NodeType.ROOT.equals(parent.getNodeType())
-                  ? parentId
-                  : parent.getAncestorIds() + "," + parentId,
-                0L
-              );
-
-              // Add new inherited shares for the new folder.
-              // Create share also for the requester if it is not the owner of the parent folder
-              List<String> usersToNotify = createIndirectShare(parentId, createdFolder);
-              usersToNotify.remove(requesterId); // Remove requesterId from the list if present
-
-              // If the requester is the owner of the parent folder, do not notify him since he did the upload himself
-              // Also exclude uploads on root, since root can't be shared and does not have an owner
-              if (!parent.getNodeType().equals(NodeType.ROOT) &&
-                  !requesterId.equals(parent.getOwnerId()) &&
-                  !usersToNotify.contains(parent.getOwnerId())) {
-                usersToNotify.add(parent.getOwnerId());
-              }
-
-              if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled())
-                notificationRepository.createAddedNodeNotification(
-                  createdFolder,
-                  parent,
-                  requester,
-                  AddedNodeType.CREATE,
-                  usersToNotify
-                );
-
-              return convertNodeToDataFetcherResult(
-                createdFolder,
-                requesterId,
-                resultPath
-              );
-            })
-            .orElse(new DataFetcherResult
-              .Builder<Map<String, Object>>()
-              .error(GraphQLResultErrors.nodeNotFound(parentId.trim(), resultPath))
-              .build()
-            );
+        try {
+          Node createdFolder = createFolder(requesterId, parentId, name, requester);
+          return convertNodeToDataFetcherResult(
+            createdFolder,
+            requesterId,
+            resultPath
+          );
+        } catch (NodeNotFoundException e) {
+          return new DataFetcherResult
+            .Builder<Map<String, Object>>()
+            .error(GraphQLResultErrors.nodeNotFound(parentId.trim(), resultPath))
+            .build();
+        } catch (NodeAccessException e) {
+          return new DataFetcherResult
+            .Builder<Map<String, Object>>()
+            .error(GraphQLResultErrors.nodeWriteError(parentId.trim(), resultPath))
+            .build();
         }
-        return new DataFetcherResult
-          .Builder<Map<String, Object>>()
-          .error(GraphQLResultErrors.nodeWriteError(parentId.trim(), resultPath))
-          .build();
       }
     );
   }
