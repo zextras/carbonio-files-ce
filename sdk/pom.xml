@@ -10,16 +10,14 @@ SPDX-License-Identifier: AGPL-3.0-only
   <modelVersion>4.0.0</modelVersion>
 
   <!--
-    TODO re-pin to a newer extensions snapshot once the sdk-support-removal is published. This
-    snapshot's rest-sdk-parent still declares a dependency on the now-(locally)-removed
-    carbonio-quarkus-extensions-rest-sdk-support; it still resolves fine from the Zextras repo (the
-    artifact was published before the removal), and is harmless here: this module ships its OWN
-    streaming helper in the com.zextras.carbonio.files.sdk.streaming package instead of using it.
+    Pinned to the extensions snapshot published AFTER rest/sdk-support was removed, so its
+    rest-sdk-parent no longer drags in carbonio-quarkus-extensions-rest-sdk-support. This module
+    ships its OWN raw streaming helper in the com.zextras.carbonio.files.sdk.streaming package.
   -->
   <parent>
     <groupId>com.zextras.carbonio.quarkus</groupId>
     <artifactId>carbonio-quarkus-extensions-rest-sdk-parent</artifactId>
-    <version>1.11.2-SNAPSHOT.139.8431ab3c</version>
+    <version>1.11.2-SNAPSHOT.140.0a7b8a41</version>
     <relativePath/>
   </parent>
 
