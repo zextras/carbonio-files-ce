@@ -80,6 +80,12 @@ public abstract class AbstractFilesIT {
    * QuarkusTestDataAccess#resetDatabase} verbatim (same statements) since {@code @Inject}/Arc
    * repositories are not available out-of-process. Also resets the shared storages fake so
    * upload/download/failure-injection state never leaks into the next test.
+   *
+   * <p><b>Tombstones</b> are NOT FK-linked to {@code node} either (mirrors the seam's explicit
+   * {@code clearTombstones()} call, which classes exercising {@code deleteNodes}'
+   * tombstone-retention behaviour — e.g. {@code DeleteNodesApiIT} — used to call themselves in
+   * their own {@code @AfterEach}); truncated here instead so EVERY class gets a clean tombstone
+   * table without having to remember to do so itself.
    */
   @AfterEach
   void resetDb() throws SQLException {
@@ -88,10 +94,11 @@ public abstract class AbstractFilesIT {
       // Delete test nodes but preserve ROOT nodes (LOCAL_ROOT/TRASH_ROOT, null owner_id). FK
       // cascades wipe activity/custom/link/revision/share/trashed.
       statement.execute("DELETE FROM node WHERE owner_id IS NOT NULL");
-      // Notification + snapshot tables are not FK-linked to node, so the cascade above misses them.
+      // Notification + snapshot + tombstone tables are not FK-linked to node, so the cascade
+      // above misses them.
       statement.execute(
           "TRUNCATE user_notification_interest, notification, snapshot_node, snapshot_user,"
-              + " user_notifications_info CASCADE");
+              + " user_notifications_info, tombstone CASCADE");
     }
     FilesStackTestResource.getStoragesService().reset();
     FilesStackTestResource.getStoragesService().clearAll();
