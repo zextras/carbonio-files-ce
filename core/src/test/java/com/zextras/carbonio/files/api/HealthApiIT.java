@@ -60,8 +60,9 @@ class HealthApiIT {
 
     try (Simulator simulator = simulatorBuilder.build().start()) {
 
-      // UserManagement health: the InProcess gRPC server is running, so the channel
-      // will be in READY/IDLE state and isUserManagementLive() returns true.
+      // UserManagement health: HealthService#isUserManagementLive() unconditionally returns true
+      // (UM is internal-only, its mesh intention correctly denies a direct health probe from
+      // files -- see the TODO on HealthService/HealthController).
 
       // Storages
       MockServerClient storagesMock = simulator.getStoragesMock();
@@ -144,25 +145,24 @@ class HealthApiIT {
 
   @Test
   void
-      givenUserManagementUnreachableAndOtherDependenciesHealthyTheHealthShouldReturn500CodeWithTheHealthStatusOfEachDependency()
+      givenUserManagementUnreachableAndOtherDependenciesHealthyTheHealthShouldReturn200CodeAndReportUserManagementAsHealthy()
           throws Exception {
-    // Given: UM gRPC InProcess server is started then shut down to simulate UM being unreachable
+    // Given: user-management is intentionally NOT started (withUserManagement() is not called),
+    // so any call through UserResourceApi would fail with a connection-refused error -- simulating
+    // UM being completely unreachable, exactly like the real mesh-intention-blocked scenario this
+    // fix addresses. HealthService#isUserManagementLive() unconditionally returns true regardless,
+    // so the aggregate health must stay 200 and still report "carbonio-user-management" as healthy.
     SimulatorBuilder simulatorBuilder =
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
             .withMessageBroker()
             .withServiceDiscover()
-            .withUserManagement(Collections.emptyMap())
             .withStorages()
             .withPreview()
             .withDocsConnector();
 
     try (Simulator simulator = simulatorBuilder.build().start()) {
-
-      // Shut down the UM gRPC server to simulate UM being unreachable.
-      // The channel will transition to TRANSIENT_FAILURE state.
-      simulator.shutdownUserManagementServer();
 
       // Storages
       MockServerClient storagesMock = simulator.getStoragesMock();
@@ -199,12 +199,12 @@ class HealthApiIT {
           TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
       // Then
-      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(500);
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
       HealthResponse healthStatus =
           new ObjectMapper().readValue(httpResponse.getBodyPayload(), HealthResponse.class);
 
-      Assertions.assertThat(healthStatus.isReady()).isFalse();
+      Assertions.assertThat(healthStatus.isReady()).isTrue();
       List<ServiceHealth> dependenciesHealth = healthStatus.getDependencies();
       Assertions.assertThat(dependenciesHealth).hasSize(6);
 
@@ -215,8 +215,8 @@ class HealthApiIT {
 
       Assertions.assertThat(dependenciesHealth.get(1).getName())
           .isEqualTo("carbonio-user-management");
-      Assertions.assertThat(dependenciesHealth.get(1).isLive()).isFalse();
-      Assertions.assertThat(dependenciesHealth.get(1).isReady()).isFalse();
+      Assertions.assertThat(dependenciesHealth.get(1).isLive()).isTrue();
+      Assertions.assertThat(dependenciesHealth.get(1).isReady()).isTrue();
       Assertions.assertThat(dependenciesHealth.get(1).getType()).isEqualTo(DependencyType.REQUIRED);
 
       Assertions.assertThat(dependenciesHealth.get(2).getName()).isEqualTo("carbonio-storages");
@@ -257,8 +257,7 @@ class HealthApiIT {
 
     try (Simulator simulator = simulatorBuilder.build().start()) {
 
-      // UserManagement health: the InProcess gRPC server is running, so the channel
-      // will be in READY/IDLE state and isUserManagementLive() returns true.
+      // UserManagement health: HealthService#isUserManagementLive() unconditionally returns true.
 
       // Storages
       MockServerClient storagesMock = simulator.getStoragesMock();
@@ -284,21 +283,19 @@ class HealthApiIT {
 
   @Test
   void
-      givenUserManagementUnreachableAndOtherMandatoryDependenciesReachableTheHealthReadyShouldReturn500StatusCode() {
-    // Given: UM gRPC InProcess server is started then shut down to simulate UM being unreachable
+      givenUserManagementUnreachableAndOtherMandatoryDependenciesReachableTheHealthReadyShouldReturn204StatusCode() {
+    // Given: user-management is intentionally NOT started (withUserManagement() is not called),
+    // simulating UM being completely unreachable. Since HealthService#isUserManagementLive()
+    // unconditionally returns true, /health/ready must stay 204 regardless.
     SimulatorBuilder simulatorBuilder =
         SimulatorBuilder.aSimulator()
             .init()
             .withDatabase()
             .withMessageBroker()
             .withServiceDiscover()
-            .withUserManagement(Collections.emptyMap())
             .withStorages();
 
     try (Simulator simulator = simulatorBuilder.build().start()) {
-
-      // Shut down the UM gRPC server to simulate UM being unreachable
-      simulator.shutdownUserManagementServer();
 
       // Storages
       MockServerClient storagesMock = simulator.getStoragesMock();
@@ -317,7 +314,7 @@ class HealthApiIT {
           TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
       // Then
-      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(500);
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(204);
       Assertions.assertThat(httpResponse.getBodyPayload()).isEmpty();
     }
   }
@@ -336,9 +333,6 @@ class HealthApiIT {
             .withStorages();
 
     try (Simulator simulator = simulatorBuilder.build().start()) {
-
-      // UserManagement health: the InProcess gRPC server is running, so the channel
-      // will be in READY/IDLE state and isUserManagementLive() returns true.
 
       // Storages
       MockServerClient storagesMock = simulator.getStoragesMock();
@@ -375,9 +369,6 @@ class HealthApiIT {
             .withStorages();
 
     try (Simulator simulator = simulatorBuilder.build().start()) {
-
-      // UserManagement health: the InProcess gRPC server is running, so the channel
-      // will be in READY/IDLE state and isUserManagementLive() returns true.
 
       // Storages
       MockServerClient storagesMock = simulator.getStoragesMock();

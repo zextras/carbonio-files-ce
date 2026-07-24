@@ -32,6 +32,13 @@ import java.util.regex.Matcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// TODO: health-check design -- files should report only its OWN liveness/readiness. If
+// dependency health is genuinely needed, it should be read from Consul (which already
+// health-checks every service), NOT by probing each dependency's HTTP endpoint directly. The
+// current per-dependency probes (user-management, docs-connector, preview, storages,
+// message-broker) are the wrong approach: they only work when a dependency happens to expose a
+// health endpoint AND the mesh intention allows it (e.g. user-management is internal-only and
+// correctly does not), and gating readiness on remote deps causes cascading flaps.
 @ChannelHandler.Sharable
 public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
 

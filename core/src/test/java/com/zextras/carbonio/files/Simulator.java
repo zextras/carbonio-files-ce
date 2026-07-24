@@ -280,11 +280,6 @@ public class Simulator implements AutoCloseable {
     MockServerClient client =
         new MockServerClient("localhost", Constants.Config.UserManagement.DEFAULT_PORT);
     mockUmService = new MockUserManagementService(client);
-    // UserManagementHttpClient (used by HealthService) reads host/port from FilesConfig (unlike
-    // userManagementApi, which is overridden directly via Guice), so it needs the same redirect
-    // storages/preview/docsConnector rely on.
-    setManagedProperty(Constants.Config.UserManagement.HOST_PROPERTY, "localhost");
-    stubUserManagementHealthLive(client, 200);
     userManagementStarted = true;
 
     return this;
@@ -297,13 +292,6 @@ public class Simulator implements AutoCloseable {
             ClientAndServer.startClientAndServer(Constants.Config.UserManagement.DEFAULT_PORT);
       }
     }
-  }
-
-  private void stubUserManagementHealthLive(MockServerClient client, int statusCode) {
-    HttpRequest healthRequest =
-        HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/q/health/live");
-    client.clear(healthRequest);
-    client.when(healthRequest).respond(HttpResponse.response().withStatusCode(statusCode));
   }
 
   private Simulator startStorages() {
@@ -442,19 +430,6 @@ public class Simulator implements AutoCloseable {
    */
   public MockUserManagementService getUserManagementService() {
     return mockUmService;
-  }
-
-  /**
-   * Simulates user-management being unreachable: re-stubs {@code GET /q/health/live} on the UM
-   * MockServer to a non-2xx status, causing {@code UserManagementHttpClient#healthLiveCheck()}
-   * (and therefore {@code HealthService#isUserManagementLive()}) to report UM as unhealthy.
-   */
-  public void shutdownUserManagementServer() {
-    if (userManagementStarted) {
-      MockServerClient client =
-          new MockServerClient("localhost", Constants.Config.UserManagement.DEFAULT_PORT);
-      stubUserManagementHealthLive(client, 503);
-    }
   }
 
   public MockServerClient getStoragesMock() {
