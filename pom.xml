@@ -40,8 +40,9 @@ SPDX-License-Identifier: AGPL-3.0-only
     <carbonio-message-broker-sdk.version>1.1.0-1</carbonio-message-broker-sdk.version>
     <carbonio-storages-common.version>0.0.15-SNAPSHOT</carbonio-storages-common.version>
     <carbonio-storages-ce.version>0.0.15-SNAPSHOT</carbonio-storages-ce.version>
-    <carbonio-user-management-grpc-sdk.version>1.2.2-1</carbonio-user-management-grpc-sdk.version>
-    <grpc.version>1.82.2</grpc.version>
+    <!-- bump-um-sdk: replaces the retired carbonio-user-management-grpc-sdk now that
+         user-management publishes a REST SDK (files-ce is now gRPC-free). -->
+    <carbonio-user-management-rest-sdk.version>1.2.5-SNAPSHOT.161.d4c8d51b</carbonio-user-management-rest-sdk.version>
     <carbonio-preview-ce-rest-sdk.version>2.0.2-1</carbonio-preview-ce-rest-sdk.version>
     <commons-io.version>2.14.0</commons-io.version>
     <commons-lang3.version>3.20.0</commons-lang3.version>
@@ -181,22 +182,8 @@ SPDX-License-Identifier: AGPL-3.0-only
       <!-- Services: storages, authentication, preview -->
       <dependency>
         <groupId>com.zextras.carbonio.user-management</groupId>
-        <artifactId>carbonio-user-management-grpc-sdk</artifactId>
-        <version>${carbonio-user-management-grpc-sdk.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-netty-shaded</artifactId>
-        <version>${grpc.version}</version>
-        <scope>runtime</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-inprocess</artifactId>
-        <version>${grpc.version}</version>
-        <scope>test</scope>
+        <artifactId>carbonio-user-management-rest-sdk</artifactId>
+        <version>${carbonio-user-management-rest-sdk.version}</version>
       </dependency>
 
       <dependency>

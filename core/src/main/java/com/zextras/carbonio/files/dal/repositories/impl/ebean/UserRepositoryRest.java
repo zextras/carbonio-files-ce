@@ -11,47 +11,54 @@ import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.UserStatus;
 import com.zextras.carbonio.files.dal.dao.UserType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
-import com.zextras.carbonio.user_management.sdk.grpc.GetUserByEmailRequest;
-import com.zextras.carbonio.user_management.sdk.grpc.GetUserByIdRequest;
-import com.zextras.carbonio.user_management.sdk.grpc.GetUserMyselfRequest;
-import com.zextras.carbonio.user_management.sdk.grpc.UserInfoProto;
-import com.zextras.carbonio.user_management.sdk.grpc.UserInfoResponse;
-import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc.UserManagementServiceBlockingStub;
-import com.zextras.carbonio.user_management.sdk.grpc.UserMyselfProto;
-import com.zextras.carbonio.user_management.sdk.grpc.UserMyselfResponse;
-import com.zextras.carbonio.user_management.sdk.grpc.UserTypeProto;
-import io.grpc.StatusRuntimeException;
+import com.zextras.carbonio.user_management.sdk.rest.ApiException;
+import com.zextras.carbonio.user_management.sdk.rest.api.UserResourceApi;
+import com.zextras.carbonio.user_management.sdk.rest.model.MyselfDto;
+import com.zextras.carbonio.user_management.sdk.rest.model.UserInfoDto;
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Fetches user data from the User Management gRPC service.
+ * Fetches user data from the User Management REST service ({@code /internal/users/*}), via the
+ * OpenAPI-generated {@link UserResourceApi} (carbonio-user-management-rest-sdk).
+ *
+ * <p>Replaces the previous gRPC-based implementation (a {@code UserManagementServiceBlockingStub}
+ * injected by {@link com.zextras.carbonio.files.config.FilesModule}). Behavior is ported 1:1 from
+ * it: same token-extraction rule, same response-to-domain-type mapping, same
+ * empty-{@link Optional}-on-failure contract — only the transport changed.
+ *
+ * <p>Per user-management's REST contract, only {@code GET /internal/users/myself} requires the
+ * caller's token (forwarded as the {@code ZM_AUTH_TOKEN} cookie); {@code GET .../id/{userId}} and
+ * {@code GET .../email/{email}} are trusted forwards that need no auth (mirroring the gRPC
+ * contract, whose {@code GetUserByIdRequest}/{@code GetUserByEmailRequest} never carried a token
+ * either).
  */
 public class UserRepositoryRest implements UserRepository {
 
   private static final Logger logger = LoggerFactory.getLogger(UserRepositoryRest.class);
   private static final String ZM_AUTH_TOKEN_COOKIE = "ZM_AUTH_TOKEN";
+  private static final String COOKIE_HEADER = "Cookie";
 
-  private final UserManagementServiceBlockingStub userManagementStub;
+  private final UserResourceApi userResourceApi;
 
   @Inject
-  public UserRepositoryRest(UserManagementServiceBlockingStub userManagementStub) {
-    this.userManagementStub = userManagementStub;
+  public UserRepositoryRest(UserResourceApi userResourceApi) {
+    this.userResourceApi = userResourceApi;
   }
 
   @Override
   public Optional<UserMyself> getUserMyselfByCookieNotCached(String cookies) {
     try {
       String token = extractToken(cookies);
-      GetUserMyselfRequest request =
-          GetUserMyselfRequest.newBuilder().setToken(token).build();
-      UserMyselfResponse response = userManagementStub.getUserMyself(request);
-      return Optional.of(mapToUserMyself(response.getUser()));
-    } catch (StatusRuntimeException e) {
-      logger.error("Failed to get user myself via gRPC: {}", e.getMessage());
+      Map<String, String> headers = Map.of(COOKIE_HEADER, ZM_AUTH_TOKEN_COOKIE + "=" + token);
+      MyselfDto response = userResourceApi.internalUsersMyselfGet(headers);
+      return Optional.of(mapToUserMyself(response));
+    } catch (ApiException e) {
+      logger.error("Failed to get user myself via REST: {}", e.getMessage());
       return Optional.empty();
     }
   }
@@ -59,14 +66,10 @@ public class UserRepositoryRest implements UserRepository {
   @Override
   public Optional<UserInfo> getUserById(String cookies, String userId) {
     try {
-      GetUserByIdRequest request =
-          GetUserByIdRequest.newBuilder()
-              .setUserId(userId)
-              .build();
-      UserInfoResponse response = userManagementStub.getUserById(request);
-      return Optional.of(mapToUserInfo(response.getUser()));
-    } catch (StatusRuntimeException e) {
-      logger.error("Failed to get user by id via gRPC: {}", e.getMessage());
+      UserInfoDto response = userResourceApi.internalUsersIdUserIdGet(userId);
+      return Optional.of(mapToUserInfo(response));
+    } catch (ApiException e) {
+      logger.error("Failed to get user by id via REST: {}", e.getMessage());
       return Optional.empty();
     }
   }
@@ -74,14 +77,10 @@ public class UserRepositoryRest implements UserRepository {
   @Override
   public Optional<UserInfo> getUserByEmail(String cookies, String userEmail) {
     try {
-      GetUserByEmailRequest request =
-          GetUserByEmailRequest.newBuilder()
-              .setUserEmail(userEmail)
-              .build();
-      UserInfoResponse response = userManagementStub.getUserByEmail(request);
-      return Optional.of(mapToUserInfo(response.getUser()));
-    } catch (StatusRuntimeException e) {
-      logger.error("Failed to get user by email via gRPC: {}", e.getMessage());
+      UserInfoDto response = userResourceApi.internalUsersEmailEmailGet(userEmail);
+      return Optional.of(mapToUserInfo(response));
+    } catch (ApiException e) {
+      logger.error("Failed to get user by email via REST: {}", e.getMessage());
       return Optional.empty();
     }
   }
@@ -102,42 +101,42 @@ public class UserRepositoryRest implements UserRepository {
         .orElse(cookies);
   }
 
-  /**
-   * Maps a {@link UserMyselfProto} to the local {@link UserMyself} domain type.
-   */
-  private UserMyself mapToUserMyself(UserMyselfProto proto) {
-    UserInfoProto info = proto.getInfo();
+  /** Maps a {@link MyselfDto} to the local {@link UserMyself} domain type. */
+  private UserMyself mapToUserMyself(MyselfDto response) {
+    UserInfoDto info = response.getInfo();
     return new UserMyself(
         new UserId(info.getUserId()),
         info.getEmail(),
         info.getFullName(),
         info.getDomain(),
         mapStatus(info.getStatus()),
-        parseLocale(proto.getLocale()),
+        parseLocale(response.getLocale()),
         mapType(info.getType()),
-        proto.getFeaturesList());
+        response.getFeatures());
   }
 
-  /**
-   * Maps a {@link UserInfoProto} to the local {@link UserInfo} domain type.
-   */
-  private UserInfo mapToUserInfo(UserInfoProto proto) {
+  /** Maps a {@link UserInfoDto} to the local {@link UserInfo} domain type. */
+  private UserInfo mapToUserInfo(UserInfoDto info) {
     return new UserInfo(
-        new UserId(proto.getUserId()),
-        proto.getEmail(),
-        proto.getFullName(),
-        proto.getDomain(),
-        mapStatus(proto.getStatus()),
-        mapType(proto.getType()));
+        new UserId(info.getUserId()),
+        info.getEmail(),
+        info.getFullName(),
+        info.getDomain(),
+        mapStatus(info.getStatus()),
+        mapType(info.getType()));
   }
 
   /**
-   * Maps a proto status string to the local {@link UserStatus} enum. Falls back to
-   * {@link UserStatus#CLOSED} if the status string is not recognized.
+   * Maps a status string to the local {@link UserStatus} enum. Falls back to
+   * {@link UserStatus#CLOSED} if the status string is missing or not recognized.
    */
   private UserStatus mapStatus(String status) {
+    if (status == null) {
+      logger.warn("Missing user status, defaulting to CLOSED");
+      return UserStatus.CLOSED;
+    }
     try {
-      return UserStatus.valueOf(status.toUpperCase());
+      return UserStatus.valueOf(status.toUpperCase(Locale.ROOT));
     } catch (IllegalArgumentException e) {
       logger.warn("Unknown user status '{}', defaulting to CLOSED", status);
       return UserStatus.CLOSED;
@@ -145,17 +144,14 @@ public class UserRepositoryRest implements UserRepository {
   }
 
   /**
-   * Maps a proto {@link UserTypeProto} to the local {@link UserType} enum.
+   * Maps a type string ({@code "INTERNAL"}/{@code "GUEST"}, case-insensitive) to {@link UserType}.
+   * Falls back to {@link UserType#INTERNAL} if the string is missing or not recognized.
    */
-  private UserType mapType(UserTypeProto protoType) {
-    switch (protoType) {
-      case INTERNAL:
-        return UserType.INTERNAL;
-      case GUEST:
-        return UserType.GUEST;
-      default:
-        return UserType.INTERNAL;
+  private UserType mapType(String type) {
+    if (type != null && type.equalsIgnoreCase("GUEST")) {
+      return UserType.GUEST;
     }
+    return UserType.INTERNAL;
   }
 
   /**

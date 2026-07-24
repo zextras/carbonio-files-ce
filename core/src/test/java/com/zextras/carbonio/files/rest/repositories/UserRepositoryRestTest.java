@@ -7,64 +7,73 @@ package com.zextras.carbonio.files.rest.repositories;
 import com.zextras.carbonio.files.dal.dao.UserInfo;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.UserRepositoryRest;
-import com.zextras.carbonio.user_management.sdk.grpc.GetUserByIdRequest;
-import com.zextras.carbonio.user_management.sdk.grpc.GetUserMyselfRequest;
-import com.zextras.carbonio.user_management.sdk.grpc.UserInfoProto;
-import com.zextras.carbonio.user_management.sdk.grpc.UserInfoResponse;
-import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc;
-import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc.UserManagementServiceBlockingStub;
-import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc.UserManagementServiceImplBase;
-import com.zextras.carbonio.user_management.sdk.grpc.UserMyselfProto;
-import com.zextras.carbonio.user_management.sdk.grpc.UserMyselfResponse;
-import com.zextras.carbonio.user_management.sdk.grpc.UserTypeProto;
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
-import io.grpc.Status;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.inprocess.InProcessServerBuilder;
-import io.grpc.stub.StreamObserver;
+import com.zextras.carbonio.user_management.sdk.rest.ApiClient;
+import com.zextras.carbonio.user_management.sdk.rest.api.UserResourceApi;
+import java.net.http.HttpClient;
+import java.util.Optional;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.io.IOException;
-import java.util.Optional;
+import org.mockserver.integration.ClientAndServer;
+import org.mockserver.model.HttpRequest;
+import org.mockserver.model.HttpResponse;
 
 class UserRepositoryRestTest {
 
-    private static final String SERVER_NAME = "um-repo-test";
-
+    private ClientAndServer mockServer;
     private UserRepositoryRest userRepositoryRest;
-    private Server grpcServer;
-    private ManagedChannel channel;
 
     @BeforeEach
-    void setup() throws IOException {
-        // Start an in-process gRPC server with a fake UM service
-        grpcServer = InProcessServerBuilder.forName(SERVER_NAME)
-            .directExecutor()
-            .addService(new FakeUserManagementService())
-            .build()
-            .start();
+    void setup() {
+        // Start a MockServer fake of carbonio-user-management on an ephemeral port and stub its
+        // /internal/users/* REST endpoints (replaces the old in-process gRPC fake).
+        mockServer = ClientAndServer.startClientAndServer();
+        int port = mockServer.getLocalPort();
 
-        channel = InProcessChannelBuilder.forName(SERVER_NAME)
-            .directExecutor()
-            .build();
+        HttpClient.Builder httpClientBuilder =
+            HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1);
+        ApiClient apiClient = new ApiClient(
+            httpClientBuilder, ApiClient.createDefaultObjectMapper(), "http://localhost:" + port);
+        UserResourceApi userResourceApi = new UserResourceApi(apiClient);
 
-        UserManagementServiceBlockingStub stub =
-            UserManagementServiceGrpc.newBlockingStub(channel);
+        userRepositoryRest = new UserRepositoryRest(userResourceApi);
 
-        userRepositoryRest = new UserRepositoryRest(stub);
+        mockServer
+            .when(
+                HttpRequest.request()
+                    .withMethod("GET")
+                    .withPath("/internal/users/myself")
+                    .withCookie("ZM_AUTH_TOKEN", "valid-token"))
+            .respond(
+                HttpResponse.response()
+                    .withStatusCode(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(
+                        "{\"info\":{\"userId\":\"fake-user-id\",\"email\":\"fake@example.com\","
+                            + "\"fullName\":\"Fake User\",\"domain\":\"example.com\","
+                            + "\"status\":\"active\",\"type\":\"INTERNAL\"},\"locale\":\"en\","
+                            + "\"features\":[\"carbonioFeatureFilesEnabled\"],\"capabilities\":{}}"));
+
+        mockServer
+            .when(
+                HttpRequest.request()
+                    .withMethod("GET")
+                    .withPath("/internal/users/id/fake-user-id"))
+            .respond(
+                HttpResponse.response()
+                    .withStatusCode(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(
+                        "{\"userId\":\"fake-user-id\",\"email\":\"fake@example.com\","
+                            + "\"fullName\":\"Fake User\",\"domain\":\"example.com\","
+                            + "\"status\":\"active\",\"type\":\"INTERNAL\"}"));
     }
 
     @AfterEach
     void tearDown() {
-        if (channel != null) {
-            channel.shutdownNow();
-        }
-        if (grpcServer != null) {
-            grpcServer.shutdownNow();
+        if (mockServer != null) {
+            mockServer.stop();
         }
     }
 
@@ -106,58 +115,13 @@ class UserRepositoryRestTest {
         Assertions.assertThat(userInfo.getEmail()).isEqualTo("fake@example.com");
     }
 
-    /**
-     * Fake gRPC service implementation for testing.
-     */
-    private static class FakeUserManagementService extends UserManagementServiceImplBase {
+    @Test
+    void givenUnknownUserIdGetUserByIdShouldReturnEmpty() {
+        // When
+        Optional<UserInfo> returnedUserInfoOpt =
+            userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "unknown-user-id");
 
-        @Override
-        public void getUserMyself(GetUserMyselfRequest request,
-            StreamObserver<UserMyselfResponse> responseObserver) {
-            if ("valid-token".equals(request.getToken())) {
-                UserInfoProto info = UserInfoProto.newBuilder()
-                    .setUserId("fake-user-id")
-                    .setEmail("fake@example.com")
-                    .setFullName("Fake User")
-                    .setDomain("example.com")
-                    .setStatus("active")
-                    .setType(UserTypeProto.INTERNAL)
-                    .build();
-                UserMyselfProto myself = UserMyselfProto.newBuilder()
-                    .setInfo(info)
-                    .setLocale("en")
-                    .addFeatures("carbonioFeatureFilesEnabled")
-                    .build();
-                responseObserver.onNext(
-                    UserMyselfResponse.newBuilder().setUser(myself).build());
-                responseObserver.onCompleted();
-            } else {
-                responseObserver.onError(
-                    Status.UNAUTHENTICATED.withDescription("Invalid token")
-                        .asRuntimeException());
-            }
-        }
-
-        @Override
-        public void getUserById(GetUserByIdRequest request,
-            StreamObserver<UserInfoResponse> responseObserver) {
-            if ("fake-user-id".equals(request.getUserId())) {
-                UserInfoProto info = UserInfoProto.newBuilder()
-                    .setUserId("fake-user-id")
-                    .setEmail("fake@example.com")
-                    .setFullName("Fake User")
-                    .setDomain("example.com")
-                    .setStatus("active")
-                    .setType(UserTypeProto.INTERNAL)
-                    .build();
-                responseObserver.onNext(
-                    UserInfoResponse.newBuilder().setUser(info).build());
-                responseObserver.onCompleted();
-            } else {
-                responseObserver.onError(
-                    Status.NOT_FOUND.withDescription("User not found")
-                        .asRuntimeException());
-            }
-        }
+        // Then
+        Assertions.assertThat(returnedUserInfoOpt).isEmpty();
     }
 }

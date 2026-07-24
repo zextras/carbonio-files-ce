@@ -30,15 +30,14 @@ import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
 import com.zextras.carbonio.message_broker.config.enums.Service;
 import com.zextras.carbonio.preview.sdk.PreviewClient;
-import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc;
-import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc.UserManagementServiceBlockingStub;
+import com.zextras.carbonio.user_management.sdk.rest.ApiClient;
+import com.zextras.carbonio.user_management.sdk.rest.api.UserResourceApi;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.storages.api.StoragesClient;
 import io.ebean.Database;
 import io.ebean.DatabaseFactory;
 import io.ebean.config.DatabaseConfig;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import java.net.http.HttpClient;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Properties;
@@ -201,19 +200,21 @@ public class FilesModule extends AbstractModule {
 
   @Provides
   @Singleton
-  public ManagedChannel provideUserManagementChannel(FilesConfig config) {
-    String host = config.getUserManagementHost();
-    int port = Integer.parseInt(config.getUserManagementPort());
-    return ManagedChannelBuilder.forAddress(host, port)
-        .usePlaintext()
-        .build();
-  }
+  public UserResourceApi provideUserManagementApi(FilesConfig config) {
+    final String userManagementUrl = String.format(
+        "%s://%s:%s",
+        Constants.Config.UserManagement.DEFAULT_PROTOCOL,
+        config.getUserManagementHost(),
+        config.getUserManagementPort());
 
-  @Provides
-  @Singleton
-  public UserManagementServiceBlockingStub provideUserManagementStub(
-      ManagedChannel userManagementChannel) {
-    return UserManagementServiceGrpc.newBlockingStub(userManagementChannel);
+    // Pin HTTP/1.1: carbonio-user-management is plain HTTP/1.1, and the JDK client's default
+    // (HTTP/2 with an HTTP/1.1 upgrade attempt) trips plaintext HTTP/1.1-only servers into a
+    // protocol error/hang (same reasoning as DocsConnectorHttpClient/MailboxHttpClient).
+    HttpClient.Builder httpClientBuilder =
+        HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1);
+    ApiClient apiClient =
+        new ApiClient(httpClientBuilder, ApiClient.createDefaultObjectMapper(), userManagementUrl);
+    return new UserResourceApi(apiClient);
   }
 
   @Provides
