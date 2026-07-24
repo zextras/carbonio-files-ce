@@ -42,7 +42,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <carbonio-storages-ce.version>0.0.15-SNAPSHOT</carbonio-storages-ce.version>
     <!-- bump-um-sdk: replaces the retired carbonio-user-management-grpc-sdk now that
          user-management publishes a REST SDK (files-ce is now gRPC-free). -->
-    <carbonio-user-management-rest-sdk.version>1.2.5-SNAPSHOT.161.d4c8d51b</carbonio-user-management-rest-sdk.version>
+    <carbonio-user-management-rest-sdk.version>1.2.5-SNAPSHOT.163.1b809e66</carbonio-user-management-rest-sdk.version>
     <carbonio-preview-ce-rest-sdk.version>2.0.2-1</carbonio-preview-ce-rest-sdk.version>
     <commons-io.version>2.14.0</commons-io.version>
     <commons-lang3.version>3.20.0</commons-lang3.version>

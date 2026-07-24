@@ -17,7 +17,6 @@ import com.zextras.carbonio.user_management.sdk.rest.model.MyselfDto;
 import com.zextras.carbonio.user_management.sdk.rest.model.UserInfoDto;
 import java.util.Arrays;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +31,7 @@ import org.slf4j.LoggerFactory;
  * empty-{@link Optional}-on-failure contract — only the transport changed.
  *
  * <p>Per user-management's REST contract, only {@code GET /internal/users/myself} requires the
- * caller's token (forwarded as the {@code ZM_AUTH_TOKEN} cookie); {@code GET .../id/{userId}} and
+ * caller's token (forwarded as the {@code ZM_AUTH_TOKEN} header); {@code GET .../id/{userId}} and
  * {@code GET .../email/{email}} are trusted forwards that need no auth (mirroring the gRPC
  * contract, whose {@code GetUserByIdRequest}/{@code GetUserByEmailRequest} never carried a token
  * either).
@@ -41,7 +40,6 @@ public class UserRepositoryRest implements UserRepository {
 
   private static final Logger logger = LoggerFactory.getLogger(UserRepositoryRest.class);
   private static final String ZM_AUTH_TOKEN_COOKIE = "ZM_AUTH_TOKEN";
-  private static final String COOKIE_HEADER = "Cookie";
 
   private final UserResourceApi userResourceApi;
 
@@ -54,8 +52,7 @@ public class UserRepositoryRest implements UserRepository {
   public Optional<UserMyself> getUserMyselfByCookieNotCached(String cookies) {
     try {
       String token = extractToken(cookies);
-      Map<String, String> headers = Map.of(COOKIE_HEADER, ZM_AUTH_TOKEN_COOKIE + "=" + token);
-      MyselfDto response = userResourceApi.internalUsersMyselfGet(headers);
+      MyselfDto response = userResourceApi.internalUsersMyselfGet(token);
       return Optional.of(mapToUserMyself(response));
     } catch (ApiException e) {
       logger.error("Failed to get user myself via REST: {}", e.getMessage());

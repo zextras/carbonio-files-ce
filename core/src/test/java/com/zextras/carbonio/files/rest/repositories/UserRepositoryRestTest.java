@@ -44,7 +44,7 @@ class UserRepositoryRestTest {
                 HttpRequest.request()
                     .withMethod("GET")
                     .withPath("/internal/users/myself")
-                    .withCookie("ZM_AUTH_TOKEN", "valid-token"))
+                    .withHeader("ZM_AUTH_TOKEN", "valid-token"))
             .respond(
                 HttpResponse.response()
                     .withStatusCode(200)

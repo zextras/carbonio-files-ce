@@ -21,12 +21,12 @@ import org.mockserver.model.HttpResponse;
  *
  * <p>Replaces the old in-process gRPC fake ({@code UserManagementServiceImplBase}) now that
  * files-ce talks REST to user-management. Supports {@code getUserMyself} (token lookup via the
- * {@code ZM_AUTH_TOKEN} cookie), {@code getUserById} (userId lookup), and {@code getUserByEmail}
+ * {@code ZM_AUTH_TOKEN} header), {@code getUserById} (userId lookup), and {@code getUserByEmail}
  * (email lookup).
  */
 public class MockUserManagementService {
 
-  private static final String ZM_AUTH_TOKEN_COOKIE = "ZM_AUTH_TOKEN";
+  private static final String ZM_AUTH_TOKEN_HEADER = "ZM_AUTH_TOKEN";
   private static final String MYSELF_PATH = "/internal/users/myself";
   private static final String ID_PATH_PREFIX = "/internal/users/id/";
   private static final String EMAIL_PATH_PREFIX = "/internal/users/email/";
@@ -118,7 +118,7 @@ public class MockUserManagementService {
     return HttpRequest.request()
         .withMethod("GET")
         .withPath(MYSELF_PATH)
-        .withCookie(ZM_AUTH_TOKEN_COOKIE, token);
+        .withHeader(ZM_AUTH_TOKEN_HEADER, token);
   }
 
   private static HttpRequest idRequest(String userId) {
