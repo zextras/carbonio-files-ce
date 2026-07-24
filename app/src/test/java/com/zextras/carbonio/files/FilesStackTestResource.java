@@ -60,6 +60,16 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
   /** Fixed account id returned by the REST fake for the {@link #AUTH_TOKEN} test user. */
   public static final String TEST_USER_ID = "00000000-0000-0000-0000-000000000001";
 
+  /**
+   * JDBC URL for the shared Postgres Testcontainer, exposed so {@code @QuarkusIntegrationTest}
+   * classes (out-of-process: no {@code @Inject}/Arc available) can open a raw JDBC connection for
+   * cleanup ({@code @AfterEach} DELETE/TRUNCATE, mirroring {@code
+   * QuarkusTestDataAccess#resetDatabase}) and for the rare API-observable-not-creatable read-back
+   * (tombstone/version rows). Mirrors {@code carbonio-tasks-ce}'s {@code StackTestResource
+   * .POSTGRES_JDBC_URL}. Credentials are the fixed {@link #DB_USER}/{@link #DB_PASSWORD} test values.
+   */
+  public static volatile String POSTGRES_JDBC_URL;
+
   private static volatile boolean started = false;
   private static Map<String, String> cachedConfig;
 
@@ -112,9 +122,22 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
         String.format(
             "jdbc:postgresql://%s:%d/%s?sslmode=disable",
             postgres.getHost(), postgres.getFirstMappedPort(), DB_NAME);
+    POSTGRES_JDBC_URL = jdbcUrl;
 
     cachedConfig =
         Map.ofEntries(
+            // Phase 1 (@QuarkusIntegrationTest support): the bootstrap extension's
+            // CarbonioBootstrapFactory derives the ACTUAL Vert.x HTTP bind host/port from
+            // networking-config.carbonio.service.host/port (default 127.78.0.2, the production mesh
+            // IP; see application.properties:16). Under @QuarkusTest this is masked by the
+            // %test.networking-config.carbonio.service.host=localhost override in
+            // application.properties, but @QuarkusIntegrationTest launches the PACKAGED artifact
+            // under quarkus.profile=prod (confirmed empirically: the launch command carries
+            // "-Dquarkus.profile=prod"), where that %test.-scoped line never applies -> the app binds
+            // to 127.78.0.2 and RestAssured's default localhost connection is refused. Force
+            // quarkus.http.host directly (same channel/precedence the test framework itself already
+            // uses for quarkus.http.port) so the launched app is reachable regardless of profile.
+            Map.entry("quarkus.http.host", "localhost"),
             // Consul (files service discovery / KV) → WireMock
             Map.entry("networking-config.carbonio.service-discover.host", "localhost"),
             Map.entry(
