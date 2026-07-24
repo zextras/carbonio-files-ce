@@ -354,6 +354,41 @@ public abstract class AbstractFilesIT {
   }
 
   /**
+   * API-observable existence check replacing the seam's backdoor {@code
+   * TestDataAccess#shareExists(String, String)}. Deliberately does NOT use the {@code
+   * Node.share(share_target_id)} singular field: that field has NO bound resolver anywhere in
+   * {@code GraphQLProvider} (confirmed/pinned by {@code DeadFieldsDocumentingApiIT}) and always
+   * returns {@code null} regardless of arguments. The plural {@code shares(limit, cursor, sorts)}
+   * field IS bound ({@code ShareDataFetcher#getSharesFetcher}), so existence is checked by fetching
+   * the node's share list and matching {@code share_target}'s id (a {@code User}/{@code
+   * DistributionList} union — targets in this suite are always {@code User}).
+   */
+  @SuppressWarnings("unchecked")
+  protected static boolean shareExists(String nodeId, String targetUserId, String cookie) {
+    String query =
+        GraphqlCommandBuilder.aQueryBuilder("getNode")
+            .withString("node_id", nodeId)
+            .withWantedResultFormat(
+                "{ shares(limit: 200) { share_target { ... on User { id } } } }")
+            .build();
+    Response response = graphql(query, cookie);
+    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    if (node == null) {
+      return false;
+    }
+    List<Map<String, Object>> shares = (List<Map<String, Object>>) node.get("shares");
+    if (shares == null) {
+      return false;
+    }
+    return shares.stream()
+        .anyMatch(
+            share -> {
+              Map<String, Object> target = (Map<String, Object>) share.get("share_target");
+              return target != null && targetUserId.equals(target.get("id"));
+            });
+  }
+
+  /**
    * Waits until the system clock advances by at least 1ms. Ports {@code
    * DatabasePopulator#delay()}'s rationale verbatim: consecutive API-seeding calls must land on
    * distinct {@code creation_timestamp}/{@code updated_timestamp} millis for time-ordering
@@ -464,6 +499,27 @@ public abstract class AbstractFilesIT {
       statement.setShort(2, permission.encode());
       statement.setLong(3, System.currentTimeMillis());
       statement.setString(4, targetUserId);
+      statement.executeUpdate();
+    }
+  }
+
+  /**
+   * Raw-JDBC override of an already-recorded {@code trashed.parent_id} (the "original parent"
+   * column). The node must ALREADY be genuinely trashed via the real {@code trashNodes} mutation
+   * (which always records the node's TRUE current parent at the moment of trashing) — there is no
+   * public mutation that lets a caller record an ARBITRARY/inconsistent original-parent value, so
+   * forcing it to a never-existed id (or to another real, itself-trashed node's id) to build the
+   * {@code restoreNodes} "fatherless" pre-states is the rare API-observable-but-not-API-creatable
+   * case (D1 rule 4). Mirrors {@code TrashedNode}'s schema exactly (table {@code trashed}, PK
+   * {@code node_id}, {@code CHARACTER(36)} columns).
+   */
+  protected static void forceTrashedOldParentId(String nodeId, String forcedOldParentId)
+      throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("UPDATE trashed SET parent_id = ? WHERE node_id = ?")) {
+      statement.setString(1, forcedOldParentId);
+      statement.setString(2, nodeId);
       statement.executeUpdate();
     }
   }
