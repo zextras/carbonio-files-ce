@@ -8,6 +8,7 @@ import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.exceptions.AuthenticationException;
+import com.zextras.carbonio.files.exceptions.ForbiddenException;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.UserStatus;
 import com.zextras.carbonio.files.dal.dao.UserType;
@@ -29,6 +30,7 @@ import java.util.Set;
 public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpRequest> {
 
   private static final String UNAUTHORIZED_ERROR_MESSAGE = "Failed to authenticate request %s: %s";
+  private static final String FORBIDDEN_ERROR_MESSAGE = "Failed to authorize request %s: %s";
 
   private final UserRepository userRepository;
 
@@ -107,9 +109,9 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
               // If user is not active we block interaction with Files
               if (!user.getStatus().equals(UserStatus.ACTIVE)) {
                 context.fireExceptionCaught(
-                    new AuthenticationException(
+                    new ForbiddenException(
                         String.format(
-                            UNAUTHORIZED_ERROR_MESSAGE,
+                            FORBIDDEN_ERROR_MESSAGE,
                             httpRequest.uri(),
                             "User is not active")));
                 return;
@@ -117,9 +119,9 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
               // If user is a guest we block interaction with Files
               if (user.getType().equals(UserType.GUEST)) {
                 context.fireExceptionCaught(
-                    new AuthenticationException(
+                    new ForbiddenException(
                         String.format(
-                            UNAUTHORIZED_ERROR_MESSAGE,
+                            FORBIDDEN_ERROR_MESSAGE,
                             httpRequest.uri(),
                             "User is not internal")));
                 return;
@@ -128,11 +130,11 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
               String carbonioFeatureFilesEnabled = user.getCarbonioAttributes().getOrDefault("carbonioFeatureFilesEnabled", "FALSE");
               if (carbonioFeatureFilesEnabled.equals("FALSE")) {
                 context.fireExceptionCaught(
-                    new AuthenticationException(
+                    new ForbiddenException(
                         String.format(
-                            UNAUTHORIZED_ERROR_MESSAGE,
+                            FORBIDDEN_ERROR_MESSAGE,
                             httpRequest.uri(),
-                            "User is not internal")));
+                            "Files feature is not enabled for user")));
                 return;
               }
 

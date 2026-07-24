@@ -72,6 +72,10 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
       responseStatus = HttpResponseStatus.UNAUTHORIZED;
       payload = cause.getMessage();
     }
+    else if (cause instanceof ForbiddenException) {
+      responseStatus = HttpResponseStatus.FORBIDDEN;
+      payload = cause.getMessage();
+    }
     else if (cause instanceof MaxNumberOfFileVersionsException) {
       responseStatus = HttpResponseStatus.METHOD_NOT_ALLOWED;
       payload = cause.getMessage();
