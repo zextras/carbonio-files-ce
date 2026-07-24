@@ -51,6 +51,20 @@ import org.junit.jupiter.api.AfterEach;
  * seam's {@code QuarkusTestDataAccess#resetDatabase} exactly (same DELETE/TRUNCATE statements), plus
  * resetting the shared {@code MockStoragesService} fake so blob-presence assertions do not leak
  * across tests.
+ *
+ * <p><b>GOTCHA — the cookie/token convention is GLOBAL, not per-class.</b> Unlike the old seam
+ * (one fresh in-process {@code FilesTestApp}/user-management fake PER TEST CLASS), {@link
+ * FilesStackTestResource#getUserManagementService()} is a single static singleton shared by the
+ * ENTIRE out-of-process test run. Its {@code registerToken(token, userId)} 2-arg overload is a
+ * NO-OP if the token is already registered — so whichever class runs FIRST in the suite "wins" a
+ * given cookie label for every class that reuses it afterward. ALL subclasses MUST reuse the SAME
+ * fixed convention for the standard fixture users: {@code "fake-token"} →
+ * {@code aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa}, {@code "fake-token-b"} →
+ * {@code bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb}, {@code "fake-token-c"} →
+ * {@code cccccccc-cccc-cccc-cccc-cccccccccccc}. Deviating (e.g. mapping {@code "fake-token-b"} to
+ * a different id in just one class) silently binds that cookie to WHICHEVER id some other class
+ * registered first, corrupting ownership/permission assertions in a way that only reproduces when
+ * the whole suite (or an unlucky subset) runs together — see the fix in {@code FlagNodesApiIT}.
  */
 @QuarkusIntegrationTest
 @WithTestResource(FilesStackTestResource.class)
