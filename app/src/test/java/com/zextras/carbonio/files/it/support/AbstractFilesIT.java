@@ -531,6 +531,55 @@ public abstract class AbstractFilesIT {
     }
   }
 
+  /**
+   * Raw-JDBC {@code link} row insert for a pre-state whose {@code public_id} the public API cannot
+   * produce: {@code LinkDataFetcher#createLinkFetcher} always generates a random 50-char {@code
+   * publicId} (see {@code createLink}'s javadoc on the migrated {@code CreatePublicLinkApiIT}), so
+   * a legacy-format short public id (the {@code link} table's original {@code CHARACTER(8)} column
+   * width, widened to {@code VARCHAR(255)} by migration {@code V6__migration.sql} for backward
+   * compatibility with links created before that widening) is the rare API-observable-but-not-API-
+   * creatable pre-state (D1 rule 4) — {@code getLinks}/{@code getPublicNode} must still resolve it
+   * correctly. Mirrors {@code LinkRepositoryImpl#createLink}'s persisted row shape exactly (table
+   * {@code link}, columns {@code id}/{@code node_id}/{@code public_id}/{@code created_at}/{@code
+   * expire_at}/{@code description}/{@code access_code}).
+   */
+  protected static void seedLinkRawJdbc(
+      String linkId,
+      String nodeId,
+      String publicId,
+      Long expiresAt,
+      String description,
+      String accessCode)
+      throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "INSERT INTO link (id, node_id, public_id, created_at, expire_at, description,"
+                    + " access_code) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+      statement.setString(1, linkId);
+      statement.setString(2, nodeId);
+      statement.setString(3, publicId);
+      statement.setLong(4, System.currentTimeMillis());
+      if (expiresAt != null) {
+        statement.setLong(5, expiresAt);
+      } else {
+        statement.setNull(5, Types.BIGINT);
+      }
+      if (description != null) {
+        statement.setString(6, description);
+      } else {
+        statement.setNull(6, Types.VARCHAR);
+      }
+      if (accessCode != null) {
+        statement.setString(7, accessCode);
+      } else {
+        statement.setNull(7, Types.VARCHAR);
+      }
+      statement.executeUpdate();
+    }
+    tickClock();
+  }
+
   // ------------------------------------------------------------------------------ page tokens
 
   /**
