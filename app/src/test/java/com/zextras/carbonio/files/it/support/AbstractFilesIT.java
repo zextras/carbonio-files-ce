@@ -487,6 +487,55 @@ public abstract class AbstractFilesIT {
   }
 
   /**
+   * Raw-JDBC {@code revision} row insert for an EXISTING node, plus the matching {@code
+   * node.current_version}/{@code size}/{@code editor_id}/{@code updated_timestamp} update — the
+   * rare API-observable-but-not-API-creatable pre-state (D1 rule 4) of "this node already has MORE
+   * versions than the currently-configured cap allows". Unlike every other fixture on this class,
+   * this one is NOT reachable by simply calling {@link #seedVersion} repeatedly under an ACTIVE
+   * {@code VersionCapResource}: {@code BlobService#uploadFileVersion} evicts the oldest surviving
+   * version as soon as the existing count reaches the cap (see its {@code allFileVersion.size() >=
+   * maxNumberOfVersions} eviction branch), so the API is SELF-CORRECTING and can never produce more
+   * than {@code maxNumberOfVersions} concurrently-existing rows while the cap is continuously in
+   * effect — exactly the real-world case this seeds (an admin LOWERING the cap after a node already
+   * accumulated more versions under a higher/no cap). Mirrors {@code
+   * FileVersionRepositoryImpl#createNewFileVersion}'s persisted {@code revision} row shape and
+   * {@code NodeRepositoryImpl#updateNode}'s node-side mutation exactly (see {@code BlobService
+   * #uploadFileVersionOperationLocked}, lines ~729-742): {@code is_autosave=false}, {@code
+   * keep_forever=false}, {@code cloned_from_version=NULL}.
+   */
+  protected static void seedVersionRawJdbc(
+      String nodeId, int version, String mimeType, long size, String editorId) throws SQLException {
+    long now = System.currentTimeMillis();
+    try (Connection connection = jdbcConnection()) {
+      try (PreparedStatement revision =
+          connection.prepareStatement(
+              "INSERT INTO revision (node_id, version, mime_type, size, digest, editor_id,"
+                  + " timestamp, is_autosave, keep_forever, cloned_from_version)"
+                  + " VALUES (?, ?, ?, ?, '', ?, ?, false, false, NULL)")) {
+        revision.setString(1, nodeId);
+        revision.setInt(2, version);
+        revision.setString(3, mimeType);
+        revision.setLong(4, size);
+        revision.setString(5, editorId);
+        revision.setLong(6, now);
+        revision.executeUpdate();
+      }
+      try (PreparedStatement node =
+          connection.prepareStatement(
+              "UPDATE node SET current_version = ?, size = ?, editor_id = ?, updated_timestamp = ?"
+                  + " WHERE node_id = ?")) {
+        node.setInt(1, version);
+        node.setLong(2, size);
+        node.setString(3, editorId);
+        node.setLong(4, now);
+        node.setString(5, nodeId);
+        node.executeUpdate();
+      }
+    }
+    tickClock();
+  }
+
+  /**
    * Raw-JDBC {@code share} row insert for a target-equals-owner "share with myself" pre-state:
    * {@code createShareFetcher} explicitly REJECTS {@code targetUserId.equals(ownerId)} with a
    * {@code shareCreationError} (see {@code ShareDataFetcher#createShareFetcher}), so a node shared
