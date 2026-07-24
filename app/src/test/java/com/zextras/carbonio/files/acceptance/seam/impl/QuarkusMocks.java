@@ -18,8 +18,7 @@ import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.acceptance.seam.Mocks;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.TestFilesConfig;
-import com.zextras.carbonio.files.rest.InMemoryFilestore;
-import com.zextras.filestore.api.Filestore;
+import com.zextras.carbonio.files.it.support.MockStoragesService;
 import io.quarkus.arc.Arc;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -31,7 +30,10 @@ import java.util.Map;
  * {@link Mocks} implementation mapping the neutral seam calls onto the Quarkus test stack:
  *
  * <ul>
- *   <li>storages → the in-memory {@link InMemoryFilestore} CDI bean (flags/seed/verify);
+ *   <li>storages → the HTTP {@link MockStoragesService} fake ({@link
+ *       FilesStackTestResource#getStoragesService()}), reached by the app's REAL {@code
+ *       FilestoreProducer}/{@code StoragesClient} over real HTTP (Phase 0: no in-process {@code
+ *       @io.quarkus.test.Mock Filestore} CDI double survives);
  *   <li>user-management → the mutable in-process REST fake ({@link
  *       FilesStackTestResource#getUserManagementService()});
  *   <li>preview / mailbox → the dedicated preview/mailbox WireMock ({@link
@@ -48,8 +50,8 @@ class QuarkusMocks implements Mocks {
   /** id -> request pattern, so {@link #verifyPreviewServed} can verify the matching preview call. */
   private final Map<String, RequestPatternBuilder> previewExpectations = new HashMap<>();
 
-  private InMemoryFilestore filestore() {
-    return (InMemoryFilestore) Arc.container().instance(Filestore.class).get();
+  private MockStoragesService storages() {
+    return FilesStackTestResource.getStoragesService();
   }
 
   private TestFilesConfig filesConfig() {
@@ -64,21 +66,21 @@ class QuarkusMocks implements Mocks {
 
   @Override
   public void storagesBulkDeleteSucceeds(List<String> failedIds) {
-    InMemoryFilestore fs = filestore();
-    fs.resetBulkDeleteFailures();
+    MockStoragesService storages = storages();
+    storages.resetBulkDeleteFailures();
     if (failedIds != null && !failedIds.isEmpty()) {
-      fs.failBulkDeleteFor(failedIds.toArray(new String[0]));
+      storages.failBulkDeleteFor(failedIds.toArray(new String[0]));
     }
   }
 
   @Override
   public void storagesBulkDeleteFails() {
-    filestore().setBulkDeleteAlwaysThrows(true);
+    storages().setBulkDeleteAlwaysThrows(true);
   }
 
   @Override
   public void storagesBulkDeleteReturnsNullResponse() {
-    filestore().setBulkDeleteReturnsNull(true);
+    storages().setBulkDeleteReturnsNull(true);
   }
 
   @Override
@@ -87,74 +89,66 @@ class QuarkusMocks implements Mocks {
     // size the acceptance tests seed on the node (sizeFor == (nodeId+version).length). A mismatched
     // length would make the download's Content-Length disagree with the streamed body and hang the
     // client until timeout.
-    filestore().seedBlob(nodeId, version, (nodeId + version).getBytes(StandardCharsets.UTF_8));
+    storages().seed(nodeId, version, (nodeId + version).getBytes(StandardCharsets.UTF_8));
   }
 
   @Override
   public void storagesDownloadConnectionDrops() {
-    filestore().setDownloadFails(true);
+    storages().setDownloadFails(true);
   }
 
   @Override
   public void verifyStoragesDownloaded(String nodeId, int version) {
-    if (!filestore().wasDownloaded(nodeId, version)) {
-      throw new AssertionError(
-          "Expected storages download for node=" + nodeId + " version=" + version + " but none");
-    }
+    storages().verifyDownloaded(nodeId, version);
   }
 
   @Override
   public void verifyStoragesNeverDownloaded() {
-    if (filestore().downloadCount() != 0) {
-      throw new AssertionError("Expected no storages download but got " + filestore().downloadCount());
-    }
+    storages().verifyNeverDownloaded();
   }
 
   @Override
   public void storagesUploadSucceeds() {
-    InMemoryFilestore fs = filestore();
-    fs.setUploadFails(false);
-    fs.setUploadSkipsStore(false);
+    MockStoragesService storages = storages();
+    storages.setUploadFails(false);
+    storages.setUploadSkipsStore(false);
   }
 
   @Override
   public void storagesUploadFails() {
-    filestore().setUploadFails(true);
+    storages().setUploadFails(true);
   }
 
   @Override
   public void storagesVerifyMissing() {
-    filestore().setUploadSkipsStore(true);
+    storages().setUploadSkipsStore(true);
   }
 
   @Override
   public void storagesCopySucceeds() {
-    filestore().setCopyFails(false);
+    storages().setCopyFails(false);
   }
 
   @Override
   public void storagesCopyFails() {
-    filestore().setCopyFails(true);
+    storages().setCopyFails(true);
   }
 
   @Override
   public void verifyStoragesUploaded(String nodeId, int version) {
-    if (!filestore().has(nodeId, version)) {
-      throw new AssertionError(
-          "Expected storages upload for node=" + nodeId + " version=" + version + " but none");
-    }
+    storages().verifyUploaded(nodeId, version);
   }
 
   // --------------------------------------------------------------------------------- storages: health
 
   @Override
   public void storagesLive() {
-    filestore().setLiveness(Filestore.Liveness.OK);
+    storages().setLive(true);
   }
 
   @Override
   public void storagesUnreachable() {
-    filestore().setLiveness(Filestore.Liveness.ERROR);
+    storages().setLive(false);
   }
 
   // ------------------------------------------------------------------------------- config tunables
@@ -315,7 +309,7 @@ class QuarkusMocks implements Mocks {
     // (storages == filestore controls, preview/mailbox + consul WireMock stubs). Does NOT clear
     // user-management fixtures or FilesConfig overrides (those, like the old MockFilesConfig/gRPC
     // server, live for the app instance and are cleared on close()).
-    filestore().resetAcceptanceControls();
+    storages().reset();
     FilesStackTestResource.resetPreviewMailboxStubs();
     FilesStackTestResource.resetConsulStubs();
     previewExpectations.clear();

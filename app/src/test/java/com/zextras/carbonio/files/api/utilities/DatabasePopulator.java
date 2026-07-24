@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.api.utilities;
 
 import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.api.utilities.entities.PopulatorNode;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
@@ -15,9 +16,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionReposit
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
-import com.zextras.carbonio.files.rest.InMemoryFilestore;
-import com.zextras.filestore.api.Filestore;
-import io.quarkus.arc.Arc;
+import com.zextras.carbonio.files.it.support.MockStoragesService;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import org.apache.commons.lang3.RandomStringUtils;
 
@@ -69,20 +68,16 @@ public class DatabasePopulator {
   /**
    * Seeds deterministic placeholder bytes for a freshly-created file version's blob (version 1 via
    * {@link #addNode}, or any later version via {@link #addVersion}) into the shared {@link
-   * InMemoryFilestore} bean, keyed the same way it (and {@code BlobService}) resolve blobs (node id
-   * + version) and using the same {@code (nodeId + version)} byte convention as {@code
-   * Mocks#storagesServesBlob}. The legacy GuiceNetty acceptance suite drove a MockServer
-   * carbonio-storages that implicitly served bytes for ANY seeded node; the in-memory Filestore fake
-   * instead requires an actual entry, so copy/download of a node/version seeded ONLY through this
-   * populator (i.e. without an explicit {@code storagesServesBlob} call) would otherwise fail with
-   * "Blob not found". A test that DOES call {@code storagesServesBlob} afterwards simply overwrites
-   * this placeholder with the identical convention, so nothing changes for those scenarios. Folders
-   * have no blob and are never passed here.
+   * MockStoragesService} HTTP fake, keyed the same way it (and {@code BlobService}, via the app's
+   * REAL {@code StoragesClient}) resolve blobs (node id + version) and using the same {@code (nodeId
+   * + version)} byte convention as {@code Mocks#storagesServesBlob}. {@code MockStoragesService}
+   * itself falls back to this exact convention for any never-explicitly-seeded node/version, so this
+   * call is a belt-and-braces seed (kept for parity/clarity), not strictly required. Folders have no
+   * blob and are never passed here.
    */
   private static void seedBlob(String nodeId, int version) {
-    Filestore filestore = Arc.container().instance(Filestore.class).get();
-    ((InMemoryFilestore) filestore)
-        .seedBlob(nodeId, version, (nodeId + version).getBytes(StandardCharsets.UTF_8));
+    FilesStackTestResource.getStoragesService()
+        .seed(nodeId, version, (nodeId + version).getBytes(StandardCharsets.UTF_8));
   }
 
   public DatabasePopulator addShare(

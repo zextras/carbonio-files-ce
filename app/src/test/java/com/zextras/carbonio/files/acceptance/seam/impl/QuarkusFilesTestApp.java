@@ -11,10 +11,8 @@ import com.zextras.carbonio.files.acceptance.seam.Mocks;
 import com.zextras.carbonio.files.acceptance.seam.TestDataAccess;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.TestFilesConfig;
-import com.zextras.carbonio.files.rest.InMemoryFilestore;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
-import com.zextras.filestore.api.Filestore;
 import io.quarkus.arc.Arc;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -156,9 +154,8 @@ public class QuarkusFilesTestApp implements FilesTestApp {
   public void close() {
     // Shared @QuarkusTest app: never stop it. Roll back all shared mutable state so the next
     // acceptance class starts from a clean baseline.
-    InMemoryFilestore filestore = (InMemoryFilestore) Arc.container().instance(Filestore.class).get();
-    filestore.resetAcceptanceControls();
-    filestore.clearAllBlobs();
+    FilesStackTestResource.getStoragesService().reset();
+    FilesStackTestResource.getStoragesService().clearAll();
 
     ((TestFilesConfig) Arc.container().instance(FilesConfig.class).get()).reset();
 

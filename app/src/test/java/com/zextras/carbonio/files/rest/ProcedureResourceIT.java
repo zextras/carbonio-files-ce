@@ -27,8 +27,9 @@ import org.junit.jupiter.api.Test;
  * com.zextras.carbonio.files.rest.resources.ProcedureResource} + {@code ProcedureService} +
  * {@code MailboxHttpClient} against a WireMock-stubbed carbonio-mailbox (see {@code
  * FilesStackTestResource#setupPreviewAndMailboxStubs}, which serves a canned success CSV response
- * for any {@code POST service/upload}). Real Postgres + the in-memory {@code InMemoryFilestore}
- * fake, no real carbonio-mailbox.
+ * for any {@code POST service/upload}). Real Postgres + the app's REAL {@code Filestore}/{@code
+ * StoragesClient} talking real HTTP to the {@link
+ * com.zextras.carbonio.files.it.support.MockStoragesService} fake, no real carbonio-mailbox.
  *
  * <p>Status-code assertions match the legacy Netty {@code ProcedureController} semantics: a folder
  * target is 400; node-not-found and no-permission both collapse to 404.

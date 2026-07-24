@@ -13,7 +13,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
-import com.zextras.carbonio.files.rest.InMemoryFilestore;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.FilesIdentifier;
 import io.quarkus.narayana.jta.QuarkusTransaction;
@@ -30,10 +29,11 @@ import org.junit.jupiter.api.Test;
  * P5a: integration test for {@link PurgeService}, invoking {@link PurgeService#purgeTrashedNodes}
  * / {@link PurgeService#purgeTombstones} directly (not via the {@code @Scheduled} entry point —
  * {@code %test.quarkus.scheduler.enabled=false} keeps the real timer from firing during the test
- * run anyway). Uses a real Postgres Testcontainer ({@link FilesStackTestResource}) and the
- * in-memory {@link InMemoryFilestore} fake, extended with failure-injection controls
- * ({@code failBulkDeleteFor}/{@code throwOnNextBulkDelete}) so the partial-failure / outage paths
- * can be exercised without a real PowerStore.
+ * run anyway). Uses a real Postgres Testcontainer ({@link FilesStackTestResource}) and the app's
+ * REAL {@code Filestore}/{@code StoragesClient} talking real HTTP to the {@link
+ * com.zextras.carbonio.files.it.support.MockStoragesService} fake, whose failure-injection controls
+ * ({@code failBulkDeleteFor}/{@code setBulkDeleteAlwaysThrows}) let the partial-failure / outage
+ * paths be exercised without a real PowerStore.
  *
  * <p>Every test uses a fresh owner id and fresh node ids so bulk-delete batching never mixes
  * between tests, and asserts are always scoped to the ids the test itself created (rows left
@@ -56,7 +56,7 @@ class PurgeServiceIT {
 
   @AfterEach
   void resetFilestoreFailures() {
-    ((InMemoryFilestore) filestore).resetBulkDeleteFailures();
+    FilesStackTestResource.getStoragesService().resetBulkDeleteFailures();
   }
 
   /** Creates a TRASHED text-file node (ancestorIds/parentId = TRASH_ROOT) with one FileVersion. */
@@ -97,7 +97,7 @@ class PurgeServiceIT {
     boolean nodeStillPresent =
         QuarkusTransaction.requiringNew().call(() -> nodeRepository.getNode(nodeId).isPresent());
     assertThat(nodeStillPresent).as("node row removed after successful blob delete").isFalse();
-    assertThat(((InMemoryFilestore) filestore).has(nodeId, 1))
+    assertThat(FilesStackTestResource.getStoragesService().has(nodeId, 1))
         .as("blob removed after successful delete")
         .isFalse();
   }
@@ -112,7 +112,7 @@ class PurgeServiceIT {
         seedTrashedFileWithVersion(
             ownerId, "removed.txt", "removed".getBytes(StandardCharsets.UTF_8));
 
-    ((InMemoryFilestore) filestore).failBulkDeleteFor(keptNodeId);
+    FilesStackTestResource.getStoragesService().failBulkDeleteFor(keptNodeId);
 
     purgeService.purgeTrashedNodes(0);
 
@@ -123,7 +123,7 @@ class PurgeServiceIT {
         QuarkusTransaction.requiringNew()
             .call(() -> nodeRepository.getNode(keptNodeId).isPresent());
     assertThat(keptNodePresent).as("row kept when blob delete failed").isTrue();
-    assertThat(((InMemoryFilestore) filestore).has(keptNodeId, 1))
+    assertThat(FilesStackTestResource.getStoragesService().has(keptNodeId, 1))
         .as("blob kept when its delete failed")
         .isTrue();
 
@@ -132,7 +132,7 @@ class PurgeServiceIT {
         QuarkusTransaction.requiringNew()
             .call(() -> nodeRepository.getNode(removedNodeId).isPresent());
     assertThat(removedNodePresent).as("unrelated row removed normally").isFalse();
-    assertThat(((InMemoryFilestore) filestore).has(removedNodeId, 1))
+    assertThat(FilesStackTestResource.getStoragesService().has(removedNodeId, 1))
         .as("unrelated blob removed normally")
         .isFalse();
   }
@@ -156,7 +156,7 @@ class PurgeServiceIT {
         .filteredOn(t -> t.getNodeId().equals(nodeId))
         .as("tombstone removed after successful blob delete")
         .isEmpty();
-    assertThat(((InMemoryFilestore) filestore).has(nodeId, 1))
+    assertThat(FilesStackTestResource.getStoragesService().has(nodeId, 1))
         .as("blob removed after successful delete")
         .isFalse();
   }
@@ -170,7 +170,7 @@ class PurgeServiceIT {
     filestore.uploadPut(
         FilesIdentifier.of(nodeId, 1, ownerId), new ByteArrayInputStream(content), content.length);
     tombstoneRepository.createNewTombstone(nodeId, ownerId, 1);
-    ((InMemoryFilestore) filestore).failBulkDeleteFor(nodeId);
+    FilesStackTestResource.getStoragesService().failBulkDeleteFor(nodeId);
 
     purgeService.purgeTombstones();
 
@@ -182,7 +182,7 @@ class PurgeServiceIT {
     assertThat(remaining.get(0).getAttempts())
         .as("attempts incremented on a genuine per-blob failure")
         .isEqualTo(1);
-    assertThat(((InMemoryFilestore) filestore).has(nodeId, 1))
+    assertThat(FilesStackTestResource.getStoragesService().has(nodeId, 1))
         .as("blob kept when its delete failed")
         .isTrue();
   }

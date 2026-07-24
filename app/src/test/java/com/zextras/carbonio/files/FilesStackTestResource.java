@@ -13,6 +13,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.zextras.carbonio.files.it.support.MockStoragesService;
 import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -66,6 +67,7 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
   private static WireMockServer previewMailboxMock;
   private static PostgreSQLContainer<?> postgres;
   private static com.zextras.carbonio.files.utilities.MockUserManagementService userManagementService;
+  private static MockStoragesService storagesService;
 
   @Override
   public Map<String, String> start() {
@@ -100,6 +102,11 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
     // feature enabled (same contract the previous fixed stub honoured, so existing @QuarkusTest
     // ITs keep working). The acceptance seam adds/overwrites more tokens at runtime.
     userManagementService.registerToken(AUTH_TOKEN, TEST_USER_ID);
+
+    // Phase 0 (storages cutover): a dedicated in-process WireMock fake for carbonio-storages, so the
+    // app's REAL FilestoreProducer/StoragesClient talks to it over real HTTP instead of relying on an
+    // in-process @io.quarkus.test.Mock Filestore CDI double (see MockStoragesService's javadoc).
+    storagesService = new MockStoragesService();
 
     String jdbcUrl =
         String.format(
@@ -143,7 +150,13 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
             Map.entry("networking-config.carbonio.docs-connector.host", "localhost"),
             Map.entry(
                 "networking-config.carbonio.docs-connector.port",
-                String.valueOf(previewMailboxMock.port())));
+                String.valueOf(previewMailboxMock.port())),
+            // Phase 0: carbonio-storages (Filestore/StoragesClient) -> the dedicated MockStoragesService
+            // WireMock fake, replacing the in-process InMemoryFilestore @Mock CDI double.
+            Map.entry("networking-config.carbonio.storages.host", "localhost"),
+            Map.entry(
+                "networking-config.carbonio.storages.port",
+                String.valueOf(storagesService.getPort())));
 
     started = true;
     return cachedConfig;
@@ -165,6 +178,16 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
   public static com.zextras.carbonio.files.utilities.MockUserManagementService
       getUserManagementService() {
     return userManagementService;
+  }
+
+  /**
+   * Exposes the mutable in-process carbonio-storages REST fake (a dedicated {@link WireMockServer}
+   * wrapped by {@link MockStoragesService}) so the acceptance seam ({@code QuarkusMocks}/{@code
+   * DatabasePopulator}/{@code QuarkusFilesTestApp}) and component ITs can seed blobs, flip
+   * failure-injection switches, and verify upload/download activity.
+   */
+  public static MockStoragesService getStoragesService() {
+    return storagesService;
   }
 
   /**

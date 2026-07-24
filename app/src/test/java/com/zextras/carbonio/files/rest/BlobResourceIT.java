@@ -14,7 +14,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.filestore.api.Filestore;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -34,9 +33,11 @@ import org.junit.jupiter.api.Test;
 /**
  * End-to-end integration test for the P4a blob REST core on Quarkus/RESTEasy Reactive: it proves
  * streaming upload and download work through the full stack (auth filter -&gt; resource -&gt;
- * {@link com.zextras.carbonio.files.rest.services.BlobService} -&gt; Panache DAL + the in-memory
- * {@link InMemoryFilestore} fake), that a new version can be uploaded, that a multi-download returns
- * a valid ZIP, and that permission and public-link paths behave.
+ * {@link com.zextras.carbonio.files.rest.services.BlobService} -&gt; Panache DAL + the app's REAL
+ * {@code FilestoreProducer}/{@code StoragesClient} talking real HTTP to the {@link
+ * com.zextras.carbonio.files.it.support.MockStoragesService} fake), that a new version can be
+ * uploaded, that a multi-download returns a valid ZIP, and that permission and public-link paths
+ * behave.
  *
  * <p>Uses {@code @QuarkusTest} + {@link FilesStackTestResource} (real Postgres testcontainer, Consul
  * WireMock, in-process user-management gRPC stub). Prerequisite folders are seeded in-JVM via the
@@ -49,7 +50,6 @@ class BlobResourceIT {
   @Inject NodeRepository nodeRepository;
   @Inject FileVersionRepository fileVersionRepository;
   @Inject LinkRepository linkRepository;
-  @Inject Filestore filestore;
 
   private String authFolderId;
   private String otherFolderId;
@@ -102,8 +102,8 @@ class BlobResourceIT {
             .call(() -> fileVersionRepository.getFileVersion(nodeId, 1).isPresent());
     assertThat(fileVersionExists).isTrue();
 
-    // Blob physically stored in the fake filestore.
-    assertThat(((InMemoryFilestore) filestore).has(nodeId, 1)).isTrue();
+    // Blob physically stored in the fake storages service.
+    assertThat(FilesStackTestResource.getStoragesService().has(nodeId, 1)).isTrue();
 
     // Download and compare bytes.
     byte[] downloaded =
@@ -142,7 +142,7 @@ class BlobResourceIT {
             .path("version");
     assertThat(version).isEqualTo(2);
 
-    assertThat(((InMemoryFilestore) filestore).has(nodeId, 2)).isTrue();
+    assertThat(FilesStackTestResource.getStoragesService().has(nodeId, 2)).isTrue();
 
     // Latest download returns v2.
     byte[] downloaded =
