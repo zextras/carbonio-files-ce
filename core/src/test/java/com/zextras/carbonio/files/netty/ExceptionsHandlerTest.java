@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.netty;
 
 import com.zextras.carbonio.files.exceptions.AuthenticationException;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
+import com.zextras.carbonio.files.exceptions.ForbiddenException;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
 import com.zextras.carbonio.files.exceptions.RequestEntityTooLargeException;
@@ -120,5 +121,36 @@ class ExceptionsHandlerTest {
     Assertions
       .assertThat(httpResponse.content().toString(StandardCharsets.UTF_8))
       .isEqualTo("Missing cookie");
+  }
+
+  @Test
+  void givenAForbiddenExceptionExceptionsHandlerShouldReturn403HttpResponse() {
+    // Given
+    ForbiddenException exception = new ForbiddenException("User is not active");
+    ArgumentCaptor<DefaultFullHttpResponse> captorHttpResponse = ArgumentCaptor.forClass(
+      DefaultFullHttpResponse.class
+    );
+
+    // When
+    exceptionsHandler.exceptionCaught(channelHandlerContextMock, exception);
+
+    // Then
+    Mockito
+      .verify(channelHandlerContextMock, Mockito.times(1))
+      .writeAndFlush(captorHttpResponse.capture());
+    Mockito
+      .verify(channelFutureMock, Mockito.times(1))
+      .addListener(ChannelFutureListener.CLOSE);
+
+    DefaultFullHttpResponse httpResponse = captorHttpResponse.getValue();
+    Assertions
+      .assertThat(httpResponse.protocolVersion())
+      .isEqualTo(HttpVersion.HTTP_1_1);
+    Assertions
+      .assertThat(httpResponse.status())
+      .isEqualTo(HttpResponseStatus.FORBIDDEN);
+    Assertions
+      .assertThat(httpResponse.content().toString(StandardCharsets.UTF_8))
+      .isEqualTo("User is not active");
   }
 }
