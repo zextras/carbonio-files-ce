@@ -13,6 +13,9 @@ import io.quarkus.test.common.WithTestResource;
 import io.quarkus.test.junit.QuarkusIntegrationTest;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -23,8 +26,13 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import org.junit.jupiter.api.AfterEach;
 
 /**
@@ -223,6 +231,69 @@ public abstract class AbstractFilesIT {
 
   private static String base64(String value) {
     return Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8));
+  }
+
+  /**
+   * {@code POST /download-multiple} (form-encoded {@code nodeIds=<url-encoded JSON array>}):
+   * downloads a ZIP of the given node ids. Node ids are plain UUIDs (never containing a quote), so
+   * the JSON array is built by hand rather than pulling in Jackson for this one call site.
+   */
+  protected static Response downloadMultiple(List<String> nodeIds, String cookie) {
+    String jsonArray =
+        "[" + nodeIds.stream().map(id -> "\"" + id + "\"").collect(Collectors.joining(",")) + "]";
+    String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8);
+    return downloadMultipleRaw(requestBody, cookie);
+  }
+
+  /**
+   * {@code POST /download-multiple} with an already-built (or deliberately malformed/absent) raw
+   * form body — for the missing-body/invalid-JSON/wrong-parameter edge cases {@link
+   * #downloadMultiple} cannot express. {@code rawFormBody == null} sends NO body at all.
+   */
+  protected static Response downloadMultipleRaw(String rawFormBody, String cookie) {
+    var request = RestAssured.given().contentType("application/x-www-form-urlencoded");
+    if (cookie != null) {
+      request = request.header("Cookie", cookie);
+    }
+    if (rawFormBody != null) {
+      request = request.body(rawFormBody);
+    }
+    return request.post("/download-multiple");
+  }
+
+  /**
+   * {@code POST /download-multiple/check} with a raw JSON body (or {@code null} for none — the
+   * missing-body edge case). Callers build the {@code {"nodeIds":[...]}} payload themselves.
+   */
+  protected static Response checkDownloadMultiple(String jsonBody, String cookie) {
+    var request = RestAssured.given().contentType("application/json");
+    if (cookie != null) {
+      request = request.header("Cookie", cookie);
+    }
+    if (jsonBody != null) {
+      request = request.body(jsonBody);
+    }
+    return request.post("/download-multiple/check");
+  }
+
+  /**
+   * Parses a downloaded ZIP archive's bytes into its entry names (folder entries end with {@code
+   * "/"}, matching {@code TransferStreaming#writeZip}'s {@code ZipEntry} naming exactly). Used to
+   * assert ZIP contents precisely now that {@code @QuarkusIntegrationTest} drives real HTTP end to
+   * end — the old seam's embedded transport could never fully drain a streamed multi-frame body
+   * (see the deleted {@code MultiDownloadZipApiIT}'s class-level FINDING), forcing lossy substring
+   * matching over a partially-decoded body; RestAssured's real socket client has no such limitation.
+   */
+  protected static Set<String> zipEntryNames(byte[] zipBytes) throws IOException {
+    Set<String> names = new LinkedHashSet<>();
+    try (ZipInputStream zipInputStream = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
+      ZipEntry entry;
+      while ((entry = zipInputStream.getNextEntry()) != null) {
+        names.add(entry.getName());
+        zipInputStream.closeEntry();
+      }
+    }
+    return names;
   }
 
   // ----------------------------------------------------------------------------- API seeding
