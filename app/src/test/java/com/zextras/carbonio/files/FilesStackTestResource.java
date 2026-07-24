@@ -179,7 +179,14 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
             Map.entry("networking-config.carbonio.storages.host", "localhost"),
             Map.entry(
                 "networking-config.carbonio.storages.port",
-                String.valueOf(storagesService.getPort())));
+                String.valueOf(storagesService.getPort())),
+            // Defensive infra fix: under @QuarkusIntegrationTest the launched app runs on the PROD
+            // profile, so the seam's %test.quarkus.scheduler.enabled=false override never applies.
+            // Without this, the @Scheduled purge job runs LIVE against the shared Postgres
+            // Testcontainer during trash/version/delete ITs, causing cross-test flakiness (rows
+            // disappearing out from under an assertion mid-test). Disable the scheduler outright via
+            // the same config channel.
+            Map.entry("quarkus.scheduler.enabled", "false"));
 
     started = true;
     return cachedConfig;

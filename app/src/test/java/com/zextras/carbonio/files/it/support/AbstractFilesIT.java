@@ -8,6 +8,7 @@ import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import io.quarkus.test.common.WithTestResource;
 import io.quarkus.test.junit.QuarkusIntegrationTest;
 import io.restassured.RestAssured;
@@ -19,6 +20,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -335,6 +337,121 @@ public abstract class AbstractFilesIT {
     Response response = graphql(query, cookie);
     Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     return node != null && node.get("id") != null;
+  }
+
+  /**
+   * Waits until the system clock advances by at least 1ms. Ports {@code
+   * DatabasePopulator#delay()}'s rationale verbatim: consecutive API-seeding calls must land on
+   * distinct {@code creation_timestamp}/{@code updated_timestamp} millis for time-ordering
+   * assertions (sort-by-updated-at, pagination-by-time) to be deterministic.
+   */
+  protected static void tickClock() {
+    long start = System.currentTimeMillis();
+    while (System.currentTimeMillis() == start) {
+      Thread.onSpinWait();
+    }
+  }
+
+  // ------------------------------------------------------------------ rare JDBC-only seeding
+
+  /**
+   * Raw-JDBC seed for a node (+ matching version-1 {@code revision} row for non-folder types)
+   * whose creator/owner topology is NOT producible via the public API — e.g. a child whose owner
+   * differs from its structural parent's owner (the real {@code createFolder}/{@code upload}
+   * mutations always inherit the parent's owner), or a ghost creator/owner id never registered
+   * with user-management (the real API always stamps the AUTHENTICATED caller as creator/owner).
+   * Mirrors exactly what {@code NodeRepositoryImpl#createNewNode} + {@code
+   * FileVersionRepositoryImpl#createNewFileVersion} (the production code the old seam's {@code
+   * DatabasePopulator#addNode} drove via Arc) persist for a freshly-created node: {@code
+   * index_status=1}, {@code hidden=false}, {@code current_version=1} for non-{@code FOLDER}/{@code
+   * ROOT} types (left {@code NULL} otherwise), one {@code revision} row (version 1, {@code
+   * editor_id = ownerId}, empty digest, {@code keep_forever=false}) for any non-folder type.
+   *
+   * <p>Use ONLY for the rare API-observable-but-not-API-creatable pre-state (D1 rule 4 of the
+   * acceptance-to-Quarkus-tests plan); every other fixture must go through the {@code seedXxx} API
+   * helpers above.
+   */
+  protected static void seedInconsistentNode(
+      String nodeId,
+      String creatorId,
+      String ownerId,
+      String parentId,
+      String name,
+      NodeType type,
+      String ancestorIds,
+      long size,
+      String mimeType)
+      throws SQLException {
+    long now = System.currentTimeMillis();
+    boolean isFolderLike = type == NodeType.FOLDER || type == NodeType.ROOT;
+    short nodeCategory = type == NodeType.ROOT ? (short) 0 : isFolderLike ? (short) 1 : (short) 2;
+
+    try (Connection connection = jdbcConnection()) {
+      try (PreparedStatement node =
+          connection.prepareStatement(
+              "INSERT INTO node (owner_id, node_id, folder_id, name, node_type, node_category,"
+                  + " description, index_status, creation_timestamp, updated_timestamp,"
+                  + " creator_id, editor_id, current_version, ancestor_ids, size, hidden)"
+                  + " VALUES (?, ?, ?, ?, ?, ?, '', 1, ?, ?, ?, NULL, ?, ?, ?, false)")) {
+        node.setString(1, ownerId);
+        node.setString(2, nodeId);
+        node.setString(3, parentId);
+        node.setString(4, name);
+        node.setString(5, type.name());
+        node.setShort(6, nodeCategory);
+        node.setLong(7, now);
+        node.setLong(8, now);
+        node.setString(9, creatorId);
+        if (isFolderLike) {
+          node.setNull(10, Types.INTEGER);
+        } else {
+          node.setInt(10, 1);
+        }
+        node.setString(11, ancestorIds);
+        node.setLong(12, size);
+        node.executeUpdate();
+      }
+
+      if (!isFolderLike) {
+        try (PreparedStatement revision =
+            connection.prepareStatement(
+                "INSERT INTO revision (node_id, version, mime_type, size, digest, editor_id,"
+                    + " timestamp, is_autosave, keep_forever, cloned_from_version)"
+                    + " VALUES (?, 1, ?, ?, '', ?, ?, false, false, NULL)")) {
+          revision.setString(1, nodeId);
+          revision.setString(2, mimeType);
+          revision.setLong(3, size);
+          revision.setString(4, ownerId);
+          revision.setLong(5, now);
+          revision.executeUpdate();
+        }
+      }
+    }
+    tickClock();
+  }
+
+  /**
+   * Raw-JDBC {@code share} row insert for a target-equals-owner "share with myself" pre-state:
+   * {@code createShareFetcher} explicitly REJECTS {@code targetUserId.equals(ownerId)} with a
+   * {@code shareCreationError} (see {@code ShareDataFetcher#createShareFetcher}), so a node shared
+   * with its own owner is NOT producible via the public API. Mirrors {@code
+   * ShareRepository#upsertShare(nodeId, targetUserId, ACL.decode(permission), true, false,
+   * Optional.empty())}'s persisted row shape exactly (direct=true, created_via_link=false, no
+   * expiry).
+   */
+  protected static void seedShareRawJdbc(String nodeId, String targetUserId, ACL.SharePermission permission)
+      throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "INSERT INTO share (node_id, rights, timestamp, target_uuid, expire_date, direct,"
+                    + " created_via_link) VALUES (?, ?, ?, ?, NULL, true, false)")) {
+      statement.setString(1, nodeId);
+      statement.setShort(2, permission.encode());
+      statement.setLong(3, System.currentTimeMillis());
+      statement.setString(4, targetUserId);
+      statement.executeUpdate();
+    }
   }
 
   // ------------------------------------------------------------------------------ page tokens
