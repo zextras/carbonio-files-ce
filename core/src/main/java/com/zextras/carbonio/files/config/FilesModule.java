@@ -39,6 +39,7 @@ import io.ebean.DatabaseFactory;
 import io.ebean.config.DatabaseConfig;
 import java.net.http.HttpClient;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Properties;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -49,6 +50,13 @@ import org.slf4j.LoggerFactory;
 public class FilesModule extends AbstractModule {
 
   private static final Logger logger = LoggerFactory.getLogger(FilesModule.class);
+
+  // 5s connect + read timeout: this codebase's existing convention for a shared client calling
+  // another Carbonio service over the mesh (see HttpClientProvider.TIMEOUT_MILLIS, also 5000ms,
+  // in carbonio-ws-collaboration and carbonio-notification-push). Without it, the generated
+  // ApiClient defaults to null timeouts, i.e. no request timeout at the JDK HttpClient level
+  // and an OS-default (~2 min) TCP connect timeout.
+  private static final Duration USER_MANAGEMENT_TIMEOUT = Duration.ofMillis(5000);
 
   @Override
   public void configure() {
@@ -214,6 +222,10 @@ public class FilesModule extends AbstractModule {
         HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1);
     ApiClient apiClient =
         new ApiClient(httpClientBuilder, ApiClient.createDefaultObjectMapper(), userManagementUrl);
+    // Must be set before constructing UserResourceApi: its constructor snapshots the ApiClient's
+    // timeouts into final fields, so setting them afterwards would be a silent no-op.
+    apiClient.setConnectTimeout(USER_MANAGEMENT_TIMEOUT);
+    apiClient.setReadTimeout(USER_MANAGEMENT_TIMEOUT);
     return new UserResourceApi(apiClient);
   }
 
