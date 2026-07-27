@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.rest.services;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.clients.DocsConnectorHttpClient;
+import com.zextras.carbonio.files.clients.UserManagementHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
@@ -15,13 +16,6 @@ import com.zextras.carbonio.preview.sdk.PreviewClient;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.Filestore.Liveness;
 
-// TODO: health-check design -- files should report only its OWN liveness/readiness. If
-// dependency health is genuinely needed, it should be read from Consul (which already
-// health-checks every service), NOT by probing each dependency's HTTP endpoint directly. The
-// current per-dependency probes (user-management, docs-connector, preview, storages,
-// message-broker) are the wrong approach: they only work when a dependency happens to expose a
-// health endpoint AND the mesh intention allows it (e.g. user-management is internal-only and
-// correctly does not), and gating readiness on remote deps causes cascading flaps.
 public class HealthService {
 
   private final DatabaseManager databaseManagerFlyway;
@@ -29,6 +23,7 @@ public class HealthService {
   private final DocsConnectorHttpClient docsConnectorHttpClient;
   private final MessageBrokerManager messageBrokerManager;
   private final PreviewClient previewClient;
+  private final UserManagementHttpClient userManagementHttpClient;
   private final Filestore storagesClient;
 
   @Inject
@@ -38,12 +33,14 @@ public class HealthService {
       DocsConnectorHttpClient docsConnectorHttpClient,
       MessageBrokerManager messageBrokerManager,
       PreviewClient previewClient,
+      UserManagementHttpClient userManagementHttpClient,
       Filestore storagesClient) {
     this.databaseManagerFlyway = databaseManagerFlyway;
     this.filesConfig = filesConfig;
     this.docsConnectorHttpClient = docsConnectorHttpClient;
     this.messageBrokerManager = messageBrokerManager;
     this.previewClient = previewClient;
+    this.userManagementHttpClient = userManagementHttpClient;
     this.storagesClient = storagesClient;
   }
 
@@ -55,17 +52,10 @@ public class HealthService {
   }
 
   /**
-   * carbonio-user-management is internal-only: its Consul mesh intention correctly exposes only
-   * {@code /internal} and denies everything else, so carbonio-files has no allowed path to probe
-   * its liveness (e.g. {@code /q/health/live} is blocked by the mesh -&gt; 403). Rather than
-   * misreport UM as down whenever the mesh intention is (correctly) doing its job, this dependency
-   * is unconditionally considered live here; a real UM outage still surfaces per-request as 401 on
-   * authenticated calls, which is where it belongs -- not in files' readiness.
-   *
-   * @return always {@code true}.
+   * @return true if the carbonio-user-management service is reachable, false otherwise.
    */
   public boolean isUserManagementLive() {
-    return true;
+    return userManagementHttpClient.healthLiveCheck();
   }
 
   /**
