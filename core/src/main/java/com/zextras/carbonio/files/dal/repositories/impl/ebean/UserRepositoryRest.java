@@ -54,7 +54,7 @@ public class UserRepositoryRest implements UserRepository {
   public Optional<UserMyself> getUserMyselfByCookieNotCached(String cookies) {
     try {
       String token = extractToken(cookies);
-      MyselfDto response = userResourceApi.internalUsersMyselfGet(token);
+      MyselfDto response = userResourceApi.internalUsersMyselfGet(null, token);
       // The generated client returns null (rather than throwing) for a 2xx response with a
       // blank body, so response can be null even though no ApiException was raised.
       return Optional.ofNullable(response).flatMap(this::mapToUserMyself);
