@@ -21,12 +21,8 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.netty.HttpRoutingHandler;
 import com.zextras.carbonio.files.utilities.MockFilesConfig;
 import com.zextras.carbonio.files.utilities.MockUserManagementService;
-import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc;
-import com.zextras.carbonio.user_management.sdk.grpc.UserManagementServiceGrpc.UserManagementServiceBlockingStub;
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.inprocess.InProcessServerBuilder;
+import com.zextras.carbonio.user_management.sdk.rest.ApiClient;
+import com.zextras.carbonio.user_management.sdk.rest.api.UserResourceApi;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.HttpMethod;
 import org.mockserver.client.MockServerClient;
@@ -39,20 +35,14 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.shaded.com.trilead.ssh2.crypto.Base64;
 
-import java.io.IOException;
+import java.net.http.HttpClient;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class Simulator implements AutoCloseable {
 
   private static final Logger logger = LoggerFactory.getLogger(Simulator.class);
-  private static final String UM_INPROCESS_BASE_NAME = "um-files-test";
-  private static final AtomicInteger UM_COUNTER =
-      new AtomicInteger();
-  private String umInProcessName;
 
   // Singleton containers: started once per JVM, reused across all test classes.
   // Testcontainers' Ryuk will clean them up when the JVM exits.
@@ -67,6 +57,16 @@ public class Simulator implements AutoCloseable {
   private static volatile ClientAndServer sharedMockServer;
   private static final Object MOCK_SERVER_LOCK = new Object();
 
+  // Dedicated MockServer instance for the UM REST fake, bound only to
+  // Constants.Config.UserManagement.DEFAULT_PORT. It is NOT folded into sharedMockServer: that
+  // instance answers on multiple fixed ports (storages/preview/docs-connector) but MockServer
+  // matches expectations by path across ALL of an instance's bound ports regardless of which port
+  // the request physically arrived on, so a shared "/q/health/live" path (used by both
+  // docs-connector and user-management) would collide between the two fakes. A separate instance
+  // avoids that entirely.
+  private static volatile ClientAndServer sharedUserManagementMockServer;
+  private static final Object UM_MOCK_SERVER_LOCK = new Object();
+
   private final Set<String> managedProperties = new HashSet<>();
 
   private Injector injector;
@@ -76,10 +76,10 @@ public class Simulator implements AutoCloseable {
   private MockServerClient previewServiceMock;
   private MockServerClient docsConnectorServiceMock;
 
-  // gRPC in-process UM mock
+  // REST UM mock (MockServer-backed) + the UserResourceApi override pointed at it.
   private MockUserManagementService mockUmService;
-  private ManagedChannel umChannel;
-  private Server umGrpcServer;
+  private UserResourceApi userManagementApi;
+  private boolean userManagementStarted;
 
   //
   // Private methods
@@ -91,17 +91,24 @@ public class Simulator implements AutoCloseable {
   }
 
   private Simulator createInjector() {
-    // Always create the InProcess channel so Guice can inject ManagedChannel and BlockingStub.
-    // The InProcess server is only started when withUserManagement() is called; without it,
-    // the channel will be in TRANSIENT_FAILURE state (simulating UM being unreachable).
-    if (umChannel == null) {
-      if (umInProcessName == null) {
-        umInProcessName = UM_INPROCESS_BASE_NAME + "-" + UM_COUNTER.incrementAndGet();
-      }
-      umChannel = InProcessChannelBuilder.forName(umInProcessName).directExecutor().build();
+    // Always create the UserResourceApi override so Guice can inject it. The MockServer instance
+    // it points at is only started when withUserManagement() is called; without it, every call
+    // through userManagementApi fails with a connection-refused ApiException, simulating UM being
+    // unreachable — same intent as the old gRPC InProcess channel left without a server behind it.
+    if (userManagementApi == null) {
+      HttpClient.Builder httpClientBuilder =
+          HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1);
+      ApiClient apiClient =
+          new ApiClient(
+              httpClientBuilder,
+              ApiClient.createDefaultObjectMapper(),
+              "http://localhost:" + Constants.Config.UserManagement.DEFAULT_PORT);
+      userManagementApi = new UserResourceApi(apiClient);
     }
     if (mockUmService == null) {
-      mockUmService = new MockUserManagementService();
+      mockUmService =
+          new MockUserManagementService(
+              new MockServerClient("localhost", Constants.Config.UserManagement.DEFAULT_PORT));
     }
 
     Module overrideModule = new AbstractModule() {
@@ -114,7 +121,7 @@ public class Simulator implements AutoCloseable {
         }
     };
 
-    Module umOverride = new UmOverrideModule(umChannel);
+    Module umOverride = new UmOverrideModule(userManagementApi);
     Module finalOverride = Modules.combine(overrideModule, umOverride);
 
     injector = Guice.createInjector(
@@ -268,22 +275,35 @@ public class Simulator implements AutoCloseable {
   }
 
   private Simulator startUserManagement() {
-    mockUmService = new MockUserManagementService();
-    umInProcessName = UM_INPROCESS_BASE_NAME + "-" + UM_COUNTER.incrementAndGet();
-    umChannel = InProcessChannelBuilder.forName(umInProcessName).directExecutor().build();
+    startUserManagementMockServer();
 
-    try {
-      umGrpcServer =
-          InProcessServerBuilder.forName(umInProcessName)
-              .directExecutor()
-              .addService(mockUmService)
-              .build()
-              .start();
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to start gRPC InProcessServer for UM", e);
-    }
+    MockServerClient client =
+        new MockServerClient("localhost", Constants.Config.UserManagement.DEFAULT_PORT);
+    mockUmService = new MockUserManagementService(client);
+    // UserManagementHttpClient (used by HealthService) reads host/port from FilesConfig (unlike
+    // userManagementApi, which is overridden directly via Guice), so it needs the same redirect
+    // storages/preview/docsConnector rely on.
+    setManagedProperty(Constants.Config.UserManagement.HOST_PROPERTY, "localhost");
+    stubUserManagementHealthLive(client, 200);
+    userManagementStarted = true;
 
     return this;
+  }
+
+  private void startUserManagementMockServer() {
+    synchronized (UM_MOCK_SERVER_LOCK) {
+      if (sharedUserManagementMockServer == null || !sharedUserManagementMockServer.isRunning()) {
+        sharedUserManagementMockServer =
+            ClientAndServer.startClientAndServer(Constants.Config.UserManagement.DEFAULT_PORT);
+      }
+    }
+  }
+
+  private void stubUserManagementHealthLive(MockServerClient client, int statusCode) {
+    HttpRequest healthRequest =
+        HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/q/health/live");
+    client.clear(healthRequest);
+    client.when(healthRequest).respond(HttpResponse.response().withStatusCode(statusCode));
   }
 
   private Simulator startStorages() {
@@ -349,14 +369,16 @@ public class Simulator implements AutoCloseable {
   }
 
   private void stopUserManagement() {
-    if (umGrpcServer != null) {
-      umGrpcServer.shutdownNow();
-      umGrpcServer = null;
+    // The shared MockServer instance is JVM-scoped (like sharedMockServer) and is NOT stopped
+    // here; only per-Simulator state (expectations registered via mockUmService) is reset. Guard
+    // on userManagementStarted: if withUserManagement() was never called, mockUmService's
+    // MockServerClient points at a port nothing is listening on, and resetting it would attempt a
+    // real admin HTTP call and throw.
+    if (userManagementStarted && mockUmService != null) {
+      mockUmService.clearAll();
     }
-    if (umChannel != null) {
-      umChannel.shutdownNow();
-      umChannel = null;
-    }
+    mockUmService = null;
+    userManagementStarted = false;
   }
 
   private void resetStoragesMock() {
@@ -391,10 +413,10 @@ public class Simulator implements AutoCloseable {
   }
 
   public void stopAll() {
-    // Container lifecycle (PostgreSQL, RabbitMQ) and the shared MockServer are JVM-scoped
-    // singletons managed by Testcontainers' Ryuk — they are NOT stopped here.
-    // This method only tears down per-Simulator resources: Ebean/HikariCP, gRPC UM server,
-    // and MockServer expectations (reset, not stopped).
+    // Container lifecycle (PostgreSQL, RabbitMQ) and the shared MockServer instances are
+    // JVM-scoped singletons managed by Testcontainers' Ryuk — they are NOT stopped here.
+    // This method only tears down per-Simulator resources: Ebean/HikariCP and MockServer
+    // expectations (reset, not stopped).
     resetDocsConnectorMock();
     resetPreviewMock();
     resetStoragesMock();
@@ -415,7 +437,7 @@ public class Simulator implements AutoCloseable {
   }
 
   /**
-   * Returns the mock UM gRPC service, allowing tests to register additional users
+   * Returns the mock UM REST service, allowing tests to register additional users
    * (e.g. for getUserById lookups in transfer ownership scenarios).
    */
   public MockUserManagementService getUserManagementService() {
@@ -423,24 +445,15 @@ public class Simulator implements AutoCloseable {
   }
 
   /**
-   * Shuts down the UM gRPC InProcess server (but keeps the channel alive) to simulate
-   * user-management being unreachable. After this call, the ManagedChannel will transition
-   * to TRANSIENT_FAILURE state, causing health checks to report UM as unhealthy.
+   * Simulates user-management being unreachable: re-stubs {@code GET /q/health/live} on the UM
+   * MockServer to a non-2xx status, causing {@code UserManagementHttpClient#healthLiveCheck()}
+   * (and therefore {@code HealthService#isUserManagementLive()}) to report UM as unhealthy.
    */
   public void shutdownUserManagementServer() {
-    if (umGrpcServer != null) {
-      umGrpcServer.shutdownNow();
-      try {
-        umGrpcServer.awaitTermination(5, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-      umGrpcServer = null;
-    }
-    // Shut down the channel so getState() returns SHUTDOWN,
-    // which the HealthService treats as unhealthy.
-    if (umChannel != null) {
-      umChannel.shutdownNow();
+    if (userManagementStarted) {
+      MockServerClient client =
+          new MockServerClient("localhost", Constants.Config.UserManagement.DEFAULT_PORT);
+      stubUserManagementHealthLive(client, 503);
     }
   }
 
@@ -492,27 +505,21 @@ public class Simulator implements AutoCloseable {
   }
 
   /**
-   * Guice module that overrides the ManagedChannel and BlockingStub bindings
-   * to use the gRPC InProcess transport for testing.
+   * Guice module that overrides the {@link UserResourceApi} binding to point at the MockServer
+   * fake used for testing.
    */
   private static class UmOverrideModule extends AbstractModule {
 
-    private final ManagedChannel channel;
+    private final UserResourceApi userResourceApi;
 
-    UmOverrideModule(ManagedChannel channel) {
-      this.channel = channel;
+    UmOverrideModule(UserResourceApi userResourceApi) {
+      this.userResourceApi = userResourceApi;
     }
 
     @Provides
     @Singleton
-    public ManagedChannel provideUserManagementChannel() {
-      return channel;
-    }
-
-    @Provides
-    @Singleton
-    public UserManagementServiceBlockingStub provideUserManagementStub() {
-      return UserManagementServiceGrpc.newBlockingStub(channel);
+    public UserResourceApi provideUserManagementApi() {
+      return userResourceApi;
     }
   }
 
