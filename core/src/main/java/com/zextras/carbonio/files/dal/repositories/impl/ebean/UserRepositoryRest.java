@@ -16,6 +16,8 @@ import com.zextras.carbonio.user_management.sdk.rest.api.UserResourceApi;
 import com.zextras.carbonio.user_management.sdk.rest.model.MyselfDto;
 import com.zextras.carbonio.user_management.sdk.rest.model.UserInfoDto;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -53,9 +55,11 @@ public class UserRepositoryRest implements UserRepository {
     try {
       String token = extractToken(cookies);
       MyselfDto response = userResourceApi.internalUsersMyselfGet(token);
-      return Optional.of(mapToUserMyself(response));
+      // The generated client returns null (rather than throwing) for a 2xx response with a
+      // blank body, so response can be null even though no ApiException was raised.
+      return Optional.ofNullable(response).flatMap(this::mapToUserMyself);
     } catch (ApiException e) {
-      logger.error("Failed to get user myself via REST: {}", e.getMessage());
+      logger.error("Failed to get user myself via REST: {}", e.getMessage(), e);
       return Optional.empty();
     }
   }
@@ -64,9 +68,9 @@ public class UserRepositoryRest implements UserRepository {
   public Optional<UserInfo> getUserById(String cookies, String userId) {
     try {
       UserInfoDto response = userResourceApi.internalUsersIdUserIdGet(userId);
-      return Optional.of(mapToUserInfo(response));
+      return Optional.ofNullable(response).map(this::mapToUserInfo);
     } catch (ApiException e) {
-      logger.error("Failed to get user by id via REST: {}", e.getMessage());
+      logger.error("Failed to get user by id via REST: {}", e.getMessage(), e);
       return Optional.empty();
     }
   }
@@ -75,9 +79,9 @@ public class UserRepositoryRest implements UserRepository {
   public Optional<UserInfo> getUserByEmail(String cookies, String userEmail) {
     try {
       UserInfoDto response = userResourceApi.internalUsersEmailEmailGet(userEmail);
-      return Optional.of(mapToUserInfo(response));
+      return Optional.ofNullable(response).map(this::mapToUserInfo);
     } catch (ApiException e) {
-      logger.error("Failed to get user by email via REST: {}", e.getMessage());
+      logger.error("Failed to get user by email via REST: {}", e.getMessage(), e);
       return Optional.empty();
     }
   }
@@ -98,18 +102,29 @@ public class UserRepositoryRest implements UserRepository {
         .orElse(cookies);
   }
 
-  /** Maps a {@link MyselfDto} to the local {@link UserMyself} domain type. */
-  private UserMyself mapToUserMyself(MyselfDto response) {
+  /**
+   * Maps a {@link MyselfDto} to the local {@link UserMyself} domain type. Returns {@link
+   * Optional#empty()} if the nested {@code info} is missing, since a myself response without
+   * user info cannot be resolved to a domain user (the field is {@code @Nullable} in the
+   * generated DTO, unlike the old protobuf message where it was always populated).
+   */
+  private Optional<UserMyself> mapToUserMyself(MyselfDto response) {
     UserInfoDto info = response.getInfo();
-    return new UserMyself(
-        new UserId(info.getUserId()),
-        info.getEmail(),
-        info.getFullName(),
-        info.getDomain(),
-        mapStatus(info.getStatus()),
-        parseLocale(response.getLocale()),
-        mapType(info.getType()),
-        response.getFeatures());
+    if (info == null) {
+      logger.warn("Missing user info in myself response, treating user as unresolvable");
+      return Optional.empty();
+    }
+    List<String> features = response.getFeatures();
+    return Optional.of(
+        new UserMyself(
+            new UserId(info.getUserId()),
+            info.getEmail(),
+            info.getFullName(),
+            info.getDomain(),
+            mapStatus(info.getStatus()),
+            parseLocale(response.getLocale()),
+            mapType(info.getType()),
+            features != null ? features : Collections.emptyList()));
   }
 
   /** Maps a {@link UserInfoDto} to the local {@link UserInfo} domain type. */
@@ -142,13 +157,28 @@ public class UserRepositoryRest implements UserRepository {
 
   /**
    * Maps a type string ({@code "INTERNAL"}/{@code "GUEST"}, case-insensitive) to {@link UserType}.
-   * Falls back to {@link UserType#INTERNAL} if the string is missing or not recognized.
+   * Falls back to {@link UserType#GUEST} if the string is missing or not recognized.
+   *
+   * <p>This fails <b>closed</b>, deliberately mirroring {@link #mapStatus(String)}: {@link
+   * UserType#GUEST} is the access-denying value ({@link
+   * com.zextras.carbonio.files.netty.AuthenticationHandler} blocks guests), so an unresolvable
+   * type must land on the deny side rather than defaulting to {@link UserType#INTERNAL}. With the
+   * old protobuf {@code UserTypeProto} this was a closed enum and only genuine
+   * {@code INTERNAL}/{@code GUEST} values were reachable; now that user-management reports
+   * {@code type} as a plain {@code @Nullable} string, a missing field, a {@code null}, or a
+   * UM-side typo must not silently grant internal access.
    */
   private UserType mapType(String type) {
-    if (type != null && type.equalsIgnoreCase("GUEST")) {
+    if (type == null) {
+      logger.warn("Missing user type, defaulting to GUEST (deny)");
       return UserType.GUEST;
     }
-    return UserType.INTERNAL;
+    try {
+      return UserType.valueOf(type.toUpperCase(Locale.ROOT));
+    } catch (IllegalArgumentException e) {
+      logger.warn("Unknown user type '{}', defaulting to GUEST (deny)", type);
+      return UserType.GUEST;
+    }
   }
 
   /**
