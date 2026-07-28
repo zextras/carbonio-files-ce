@@ -28,7 +28,8 @@ import org.slf4j.LoggerFactory;
  * <p>It runs BEFORE the GraphQL route (registered with {@code order(-100)} vs. the default {@code 0}
  * of the POST handlers). On success it stores the authenticated {@link UserMyself} and the raw
  * cookie string in the {@link RoutingContext} so the GraphQL route can copy them into the graphql-java
- * context; on failure it short-circuits the request with HTTP 401.
+ * context; on failure it short-circuits the request with HTTP 401 (genuine auth failure) or HTTP 403
+ * (authenticated but not entitled: inactive, guest, or feature disabled -- CO-3482).
  *
  * <p>It is deliberately attached ONLY to {@code /graphql} (and {@code /graphql/}). The public
  * endpoint {@code /public/graphql} is intentionally NOT filtered — it is reachable without a token.
@@ -60,18 +61,20 @@ public class FilesAuthenticationFilter {
    * Core auth logic, ported from the legacy {@code AuthenticationHandler}:
    *
    * <ul>
-   *   <li>the {@code ZM_AUTH_TOKEN} cookie must be present;
-   *   <li>the resolved user must exist, be {@link UserStatus#ACTIVE}, not a {@link UserType#GUEST}
-   *       and have {@code carbonioFeatureFilesEnabled} enabled.
+   *   <li>the {@code ZM_AUTH_TOKEN} cookie must be present and resolve to a real user (otherwise
+   *       401 -- genuine authentication failure);
+   *   <li>the resolved user must be {@link UserStatus#ACTIVE}, not a {@link UserType#GUEST} and
+   *       have {@code carbonioFeatureFilesEnabled} enabled (otherwise 403 -- authenticated but not
+   *       entitled; CO-3482).
    * </ul>
    *
-   * On any failure the response is ended with HTTP 401; on success the requester and cookie string
-   * are stored in the {@link RoutingContext} and the request proceeds via {@link RoutingContext#next()}.
+   * On success the requester and cookie string are stored in the {@link RoutingContext} and the
+   * request proceeds via {@link RoutingContext#next()}.
    */
   void filter(RoutingContext ctx) {
     Cookie zmCookie = ctx.request().getCookie(Headers.COOKIE_ZM_AUTH_TOKEN);
     if (zmCookie == null) {
-      reject(ctx, "Missing cookies");
+      rejectUnauthorized(ctx, "Missing cookies");
       return;
     }
 
@@ -85,26 +88,26 @@ public class FilesAuthenticationFilter {
 
     Optional<UserMyself> optUser = userRepository.getUserMyselfByCookieNotCached(cookies);
     if (optUser.isEmpty()) {
-      reject(ctx, "Unable to find requested user");
+      rejectUnauthorized(ctx, "Unable to find requested user");
       return;
     }
 
     UserMyself user = optUser.get();
 
     if (!user.getStatus().equals(UserStatus.ACTIVE)) {
-      reject(ctx, "User is not active");
+      rejectForbidden(ctx, "User is not active");
       return;
     }
 
     if (user.getType().equals(UserType.GUEST)) {
-      reject(ctx, "User is not internal");
+      rejectForbidden(ctx, "User is not internal");
       return;
     }
 
     String carbonioFeatureFilesEnabled =
         user.getCarbonioAttributes().getOrDefault("carbonioFeatureFilesEnabled", "FALSE");
     if (carbonioFeatureFilesEnabled.equals("FALSE")) {
-      reject(ctx, "User is not internal");
+      rejectForbidden(ctx, "Files feature is not enabled for user");
       return;
     }
 
@@ -116,13 +119,27 @@ public class FilesAuthenticationFilter {
   /**
    * Ends the request with HTTP 401 and the exact legacy body shape produced by the Netty {@code
    * ExceptionsHandler} for an {@code AuthenticationException}: {@code "Failed to authenticate request
-   * <uri>: <reason>"}. The acceptance suite ({@code AuthApiIT}) asserts the response body contains
-   * these reason fragments, so the body must not be empty.
+   * <uri>: <reason>"}. Reserved for genuine auth failures (missing/invalid credentials, unresolvable
+   * user). The acceptance suite ({@code AuthApiIT}) asserts the response body contains these reason
+   * fragments, so the body must not be empty.
    */
-  private void reject(RoutingContext ctx, String reason) {
+  private void rejectUnauthorized(RoutingContext ctx, String reason) {
     String message =
         String.format("Failed to authenticate request %s: %s", ctx.request().uri(), reason);
     logger.error(message);
     ctx.response().setStatusCode(401).end(message);
+  }
+
+  /**
+   * Ends the request with HTTP 403 and the body shape produced by the Netty {@code
+   * ExceptionsHandler} for a {@code ForbiddenException}: {@code "Failed to authorize request
+   * <uri>: <reason>"}. Used for authenticated-but-not-entitled users: inactive account, guest
+   * user, or {@code carbonioFeatureFilesEnabled} disabled (CO-3482, ported from devel #301).
+   */
+  private void rejectForbidden(RoutingContext ctx, String reason) {
+    String message =
+        String.format("Failed to authorize request %s: %s", ctx.request().uri(), reason);
+    logger.error(message);
+    ctx.response().setStatusCode(403).end(message);
   }
 }

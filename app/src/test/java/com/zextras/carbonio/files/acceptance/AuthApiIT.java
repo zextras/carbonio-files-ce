@@ -27,8 +27,16 @@ import org.junit.jupiter.params.provider.MethodSource;
  * Covers every non-happy branch of {@code AuthenticationHandler} (Task 1.1 of the acceptance
  * coverage-expansion plan): missing cookie, cookie without {@code ZM_AUTH_TOKEN}, an unresolvable
  * token, an inactive user, a guest user, and a user with the Files feature flag disabled. All six
- * are driven through the same authenticated GraphQL route ({@code POST /graphql/}); a seventh test
- * confirms the same handler also guards {@code GET /download/{id}}.
+ * are driven through the same authenticated GraphQL route ({@code POST /graphql/}).
+ *
+ * <p>CO-3482 (devel #301, ported to Quarkus): a genuine auth failure (missing/invalid credentials,
+ * unresolvable user) returns 401, while an authenticated-but-not-entitled user (inactive account,
+ * guest, or Files feature disabled) returns 403 instead. The two response families are covered by
+ * separate parameterized tests below.
+ *
+ * <p>{@code GET /download/{id}} is guarded by an equivalent-but-distinct JAX-RS handler ({@code
+ * BlobAuthenticator}, the REST counterpart of the GraphQL {@code FilesAuthenticationFilter}); it
+ * applies the identical checks and status codes, verified by the trailing tests.
  */
 @QuarkusTest
 @QuarkusTestResource(FilesStackTestResource.class)
@@ -68,14 +76,18 @@ class AuthApiIT {
     app.close();
   }
 
-  static Stream<Arguments> nonHappyAuthScenarios() {
+  static Stream<Arguments> unauthorizedAuthScenarios() {
     return Stream.of(
         Arguments.of("missing Cookie header entirely", null, "Missing cookies"),
         Arguments.of("Cookie header without ZM_AUTH_TOKEN", "other=1", "Missing cookies"),
         Arguments.of(
             "token not resolvable by user-management",
             "ZM_AUTH_TOKEN=unknown-token",
-            "Unable to find requested user"),
+            "Unable to find requested user"));
+  }
+
+  static Stream<Arguments> forbiddenAuthScenarios() {
+    return Stream.of(
         Arguments.of(
             "user status is not ACTIVE (MAINTENANCE)",
             "ZM_AUTH_TOKEN=maintenance-token",
@@ -84,14 +96,14 @@ class AuthApiIT {
         Arguments.of(
             "carbonioFeatureFilesEnabled is off",
             "ZM_AUTH_TOKEN=flag-off-token",
-            "User is not internal"));
+            "Files feature is not enabled for user"));
   }
 
   @ParameterizedTest(name = "{0}")
-  @MethodSource("nonHappyAuthScenarios")
-  void givenNonHappyAuthBranchOnGraphqlThenRequestIsRejectedWith401(
+  @MethodSource("unauthorizedAuthScenarios")
+  void givenUnauthorizedAuthBranchOnGraphqlThenRequestIsRejectedWith401(
       String scenarioName, String cookie, String expectedMessageFragment) {
-    // Given
+    // Given — genuine auth failure: missing/invalid credentials or unresolvable user.
     HttpRequest httpRequest = HttpRequest.of("POST", "/graphql/", cookie, TRIVIAL_QUERY);
 
     // When
@@ -102,9 +114,25 @@ class AuthApiIT {
     Assertions.assertThat(httpResponse.getBodyPayload()).contains(expectedMessageFragment);
   }
 
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("forbiddenAuthScenarios")
+  void givenForbiddenAuthBranchOnGraphqlThenRequestIsRejectedWith403(
+      String scenarioName, String cookie, String expectedMessageFragment) {
+    // Given — authenticated but not entitled: inactive, guest, or feature disabled (CO-3482).
+    HttpRequest httpRequest = HttpRequest.of("POST", "/graphql/", cookie, TRIVIAL_QUERY);
+
+    // When
+    HttpResponse httpResponse = app.send(httpRequest);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(403);
+    Assertions.assertThat(httpResponse.getBodyPayload()).contains(expectedMessageFragment);
+  }
+
   @Test
-  void givenMissingCookieOnDownloadRouteThenRequestIsRejectedWith401BySameHandler() {
-    // Given — /download/{id} is routed through the same auth-handler as /graphql/.
+  void givenMissingCookieOnDownloadRouteThenRequestIsRejectedWith401ByBlobAuthenticator() {
+    // Given — /download/{id} is routed through BlobAuthenticator, the JAX-RS counterpart of
+    // FilesAuthenticationFilter; missing credentials is a genuine auth failure.
     HttpRequest httpRequest =
         HttpRequest.of("GET", "/download/00000000-0000-0000-0000-000000000000", null, null);
 
@@ -114,5 +142,23 @@ class AuthApiIT {
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(401);
     Assertions.assertThat(httpResponse.getBodyPayload()).contains("Missing cookies");
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("forbiddenAuthScenarios")
+  void givenForbiddenAuthBranchOnDownloadRouteThenRequestIsRejectedWith403ByBlobAuthenticator(
+      String scenarioName, String cookie, String expectedMessageFragment) {
+    // Given — BlobAuthenticator applies the identical status/type/feature-flag checks as
+    // FilesAuthenticationFilter (CO-3482): authenticated but not entitled -> 403.
+    HttpRequest httpRequest =
+        HttpRequest.of(
+            "GET", "/download/00000000-0000-0000-0000-000000000000", cookie, null);
+
+    // When
+    HttpResponse httpResponse = app.send(httpRequest);
+
+    // Then
+    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(403);
+    Assertions.assertThat(httpResponse.getBodyPayload()).contains(expectedMessageFragment);
   }
 }
