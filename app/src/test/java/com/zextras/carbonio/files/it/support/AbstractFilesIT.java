@@ -4,6 +4,14 @@
 
 package com.zextras.carbonio.files.it.support;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+
+import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
+import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
@@ -30,6 +38,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -294,6 +303,90 @@ public abstract class AbstractFilesIT {
       }
     }
     return names;
+  }
+
+  // ------------------------------------------------------------------------- preview / mailbox
+
+  /** id -> request pattern, so {@link #verifyPreviewServed} can verify the matching preview call. */
+  private static final Map<String, RequestPatternBuilder> PREVIEW_EXPECTATIONS =
+      new ConcurrentHashMap<>();
+
+  /**
+   * {@code GET} a {@code /preview/...}/{@code /preview/.../thumbnail} path against the launched
+   * app, with an optional {@code If-None-Match} header (pass {@code null} to omit it).
+   */
+  protected static Response previewGet(String path, String cookie, String ifNoneMatch) {
+    var request = RestAssured.given();
+    if (cookie != null) {
+      request = request.header("Cookie", cookie);
+    }
+    if (ifNoneMatch != null) {
+      request = request.header("If-None-Match", ifNoneMatch);
+    }
+    return request.get(path);
+  }
+
+
+  /**
+   * Stubs the shared carbonio-preview/carbonio-mailbox WireMock ({@link
+   * FilesStackTestResource#getPreviewMailboxWireMock()}) to serve {@code content}/{@code
+   * mediaType} for the given preview/thumbnail {@code pathEndpoint}, matching the {@code
+   * service_type=files} query param and {@code FileOwnerId} header {@code PreviewClient} always
+   * sends (plus, for {@code document} paths, the {@code lang_tag=en} query param). Returns an
+   * expectation id for {@link #verifyPreviewServed}. Ports the seam's {@code
+   * QuarkusMocks#previewServes} verbatim (same stub/verify shape), replacing its in-process
+   * per-app-instance map with a static one (out-of-process, no per-class app instance).
+   */
+  protected static String previewServes(
+      String pathEndpoint, String fileOwnerId, byte[] content, String mediaType) {
+    var mappingBuilder =
+        get(urlPathEqualTo(pathEndpoint))
+            .atPriority(5)
+            .withQueryParam("service_type", equalTo("files"))
+            .withHeader("FileOwnerId", equalTo(fileOwnerId));
+    if (pathEndpoint.contains("document")) {
+      mappingBuilder = mappingBuilder.withQueryParam("lang_tag", equalTo("en"));
+    }
+    mappingBuilder =
+        mappingBuilder.willReturn(
+            aResponse().withStatus(200).withHeader("Content-Type", mediaType).withBody(content));
+    StubMapping stub = FilesStackTestResource.getPreviewMailboxWireMock().stubFor(mappingBuilder);
+
+    RequestPatternBuilder verify =
+        getRequestedFor(urlPathEqualTo(pathEndpoint))
+            .withQueryParam("service_type", equalTo("files"))
+            .withHeader("FileOwnerId", equalTo(fileOwnerId));
+    if (pathEndpoint.contains("document")) {
+      verify = verify.withQueryParam("lang_tag", equalTo("en"));
+    }
+    String id = stub.getId().toString();
+    PREVIEW_EXPECTATIONS.put(id, verify);
+    return id;
+  }
+
+  /** Verifies the preview/mailbox request matching {@code expectationId}'s stub was made. */
+  protected static void verifyPreviewServed(String expectationId) {
+    RequestPatternBuilder pattern = PREVIEW_EXPECTATIONS.remove(expectationId);
+    if (pattern == null) {
+      throw new AssertionError("Unknown preview expectation id: " + expectationId);
+    }
+    FilesStackTestResource.getPreviewMailboxWireMock().verify(pattern);
+  }
+
+  /**
+   * Stubs {@code pathEndpoint} on the preview/mailbox WireMock to fail with an HTTP 500,
+   * simulating a carbonio-preview outage. Ports {@code QuarkusMocks#previewFails} verbatim.
+   */
+  protected static void previewFails(String pathEndpoint) {
+    var mappingBuilder =
+        get(urlPathEqualTo(pathEndpoint))
+            .atPriority(5)
+            .withQueryParam("service_type", equalTo("files"));
+    if (pathEndpoint.contains("document")) {
+      mappingBuilder = mappingBuilder.withQueryParam("lang_tag", equalTo("en"));
+    }
+    FilesStackTestResource.getPreviewMailboxWireMock()
+        .stubFor(mappingBuilder.willReturn(aResponse().withStatus(500)));
   }
 
   // ----------------------------------------------------------------------------- API seeding
