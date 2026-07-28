@@ -18,7 +18,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.Arrays;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,17 +33,20 @@ import org.slf4j.LoggerFactory;
  * empty-{@link Optional}-on-failure contract — only the transport changed.
  *
  * <p>Per user-management's REST contract, only {@code GET /internal/users/myself} requires the
- * caller's token (forwarded as the {@code ZM_AUTH_TOKEN} cookie); {@code GET .../id/{userId}} and
+ * caller's token (forwarded as the {@code ZM_AUTH_TOKEN} header); {@code GET .../id/{userId}} and
  * {@code GET .../email/{email}} are trusted forwards that need no auth (mirroring the gRPC
  * contract, whose {@code GetUserByIdRequest}/{@code GetUserByEmailRequest} never carried a token
  * either).
+ *
+ * <p>bump-um-sdk (1.3.0-1): {@code internalUsersMyselfGet} gained a leading {@code bypassCache}
+ * query parameter and now takes the raw token as a plain {@code ZM_AUTH_TOKEN} header argument
+ * (the generated client sets the header itself) instead of a caller-built {@code Map} of headers.
  */
 @ApplicationScoped
 public class UserRepositoryImpl implements UserRepository {
 
   private static final Logger logger = LoggerFactory.getLogger(UserRepositoryImpl.class);
   private static final String ZM_AUTH_TOKEN_COOKIE = "ZM_AUTH_TOKEN";
-  private static final String COOKIE_HEADER = "Cookie";
 
   private final UserResourceApi userResourceApi;
 
@@ -57,8 +59,8 @@ public class UserRepositoryImpl implements UserRepository {
   public Optional<UserMyself> getUserMyselfByCookieNotCached(String cookies) {
     try {
       String token = extractToken(cookies);
-      Map<String, String> headers = Map.of(COOKIE_HEADER, ZM_AUTH_TOKEN_COOKIE + "=" + token);
-      MyselfDto response = userResourceApi.internalUsersMyselfGet(headers);
+      // bypassCache=null (unset): mirrors the pre-1.3.0 behavior of not sending the query param.
+      MyselfDto response = userResourceApi.internalUsersMyselfGet(null, token);
       // The generated client returns null (rather than throwing) for a 2xx response with a
       // blank body, so response can be null even though no ApiException was raised.
       return Optional.ofNullable(response).flatMap(this::mapToUserMyself);

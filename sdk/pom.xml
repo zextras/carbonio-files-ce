@@ -17,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
   <parent>
     <groupId>com.zextras.carbonio.quarkus</groupId>
     <artifactId>carbonio-quarkus-extensions-rest-sdk-parent</artifactId>
-    <version>1.11.2-SNAPSHOT.140.0a7b8a41</version>
+    <version>1.12.0-1</version>
     <relativePath/>
   </parent>
 

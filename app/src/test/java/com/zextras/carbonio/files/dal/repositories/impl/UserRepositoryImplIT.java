@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.dal.repositories.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -19,7 +20,6 @@ import com.zextras.carbonio.user_management.sdk.rest.api.UserResourceApi;
 import com.zextras.carbonio.user_management.sdk.rest.model.MyselfDto;
 import com.zextras.carbonio.user_management.sdk.rest.model.UserInfoDto;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,8 +60,7 @@ class UserRepositoryImplIT {
             .locale("en_US")
             .features(List.of("carbonioFeatureFilesEnabled"));
 
-    when(userResourceApiMock.internalUsersMyselfGet(eq(Map.of("Cookie", "ZM_AUTH_TOKEN=abc123"))))
-        .thenReturn(myself);
+    when(userResourceApiMock.internalUsersMyselfGet(isNull(), eq("abc123"))).thenReturn(myself);
 
     Optional<UserMyself> result =
         userRepository.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=abc123; other=xyz");
@@ -83,8 +82,7 @@ class UserRepositoryImplIT {
     UserInfoDto info = new UserInfoDto().userId("user-2").status("active").type("GUEST");
     MyselfDto myself = new MyselfDto().info(info);
 
-    when(userResourceApiMock.internalUsersMyselfGet(
-            eq(Map.of("Cookie", "ZM_AUTH_TOKEN=raw-token-value"))))
+    when(userResourceApiMock.internalUsersMyselfGet(isNull(), eq("raw-token-value")))
         .thenReturn(myself);
 
     Optional<UserMyself> result =
@@ -98,7 +96,7 @@ class UserRepositoryImplIT {
 
   @Test
   void getUserMyselfByCookieNotCachedShouldReturnEmptyOnUnauthenticated() throws Exception {
-    when(userResourceApiMock.internalUsersMyselfGet(any()))
+    when(userResourceApiMock.internalUsersMyselfGet(any(), any()))
         .thenThrow(new ApiException(401, "Unauthorized"));
 
     Optional<UserMyself> result =
@@ -234,7 +232,7 @@ class UserRepositoryImplIT {
    */
   @Test
   void getUserMyselfByCookieNotCachedShouldReturnEmptyOnBlankBodyResponse() throws Exception {
-    when(userResourceApiMock.internalUsersMyselfGet(any())).thenReturn(null);
+    when(userResourceApiMock.internalUsersMyselfGet(any(), any())).thenReturn(null);
 
     Optional<UserMyself> result =
         userRepository.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=abc123");
@@ -246,7 +244,7 @@ class UserRepositoryImplIT {
   void getUserMyselfByCookieNotCachedShouldReturnEmptyOnMissingNestedInfo() throws Exception {
     MyselfDto myself = new MyselfDto().info(null).locale("en_US");
 
-    when(userResourceApiMock.internalUsersMyselfGet(any())).thenReturn(myself);
+    when(userResourceApiMock.internalUsersMyselfGet(any(), any())).thenReturn(myself);
 
     Optional<UserMyself> result =
         userRepository.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=abc123");
