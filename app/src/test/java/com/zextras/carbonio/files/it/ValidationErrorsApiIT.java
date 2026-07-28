@@ -2,70 +2,46 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package com.zextras.carbonio.files.acceptance;
+package com.zextras.carbonio.files.it;
 
 import com.zextras.carbonio.files.FilesStackTestResource;
-import io.quarkus.test.common.QuarkusTestResource;
-import io.quarkus.test.junit.QuarkusTest;
-
 import com.zextras.carbonio.files.TestUtils;
-import com.zextras.carbonio.files.acceptance.seam.FilesTestApp;
-import com.zextras.carbonio.files.acceptance.seam.impl.QuarkusFilesTestAppBuilder;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
-import com.zextras.carbonio.files.utilities.http.HttpRequest;
-import com.zextras.carbonio.files.utilities.http.HttpResponse;
+import com.zextras.carbonio.files.it.support.AbstractFilesIT;
+import io.restassured.response.Response;
 import java.util.List;
-import java.util.Map;
 import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Covers {@code GenericControllerEvaluator}'s field-validation error paths (Task 1.2 of the
- * acceptance coverage-expansion plan). Each test sends a GraphQL operation with exactly one
- * invalid field and asserts exactly one validation error with the exact message text produced by
- * {@code GenericControllerEvaluator}.
+ * {@code com.zextras.carbonio.files.acceptance.ValidationErrorsApiIT} rewritten as an
+ * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. Covers {@code
+ * GenericControllerEvaluator}'s field-validation error paths. Each test sends a GraphQL operation
+ * with exactly one invalid field and asserts exactly one validation error with the exact message
+ * text produced by {@code GenericControllerEvaluator}.
  *
  * <p>Validation runs in a {@code FieldValidationInstrumentation} that fires BEFORE any resolver
  * executes (it aborts the whole operation via {@code AbortExecutionException} as soon as any
  * bound rule fails), so none of these scenarios need any node/share/link to actually exist in the
- * database — only argument shape matters.
+ * database — only argument shape matters; {@code VALID_NODE_ID} is a syntactically-valid-length
+ * placeholder that is never actually resolved. Doubles as a native-smoke surface under {@code
+ * -Dnative}. All 11 methods and their assertions are preserved verbatim; only the transport
+ * changed.
  */
-@QuarkusTest
-@QuarkusTestResource(FilesStackTestResource.class)
-class ValidationErrorsApiIT {
-
-  static FilesTestApp app;
+class ValidationErrorsApiIT extends AbstractFilesIT {
 
   private static final String REQUESTER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  private static final String REQUESTER_COOKIE = "ZM_AUTH_TOKEN=fake-token";
   private static final String VALID_NODE_ID = "00000000-0000-0000-0000-000000000042";
 
   @BeforeAll
-  static void init() {
-    app =
-        QuarkusFilesTestAppBuilder.aFilesTestApp()
-            .withDatabase()
-            .withServiceDiscover()
-            .withUserManagement(Map.of("fake-token", REQUESTER_ID))
-            .build();
+  static void registerUsers() {
+    FilesStackTestResource.getUserManagementService().registerToken("fake-token", REQUESTER_ID);
   }
 
-  @AfterEach
-  void cleanUp() {
-    app.backdoor().resetDatabase();
-  }
-
-  @AfterAll
-  static void cleanUpAll() {
-    app.close();
-  }
-
-  private HttpResponse execute(String bodyPayload) {
-    HttpRequest httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
-    return app.send(httpRequest);
+  private static Response execute(String bodyPayload) {
+    return graphql(bodyPayload, REQUESTER_COOKIE);
   }
 
   @Test
@@ -78,22 +54,21 @@ class ValidationErrorsApiIT {
             .build();
 
     // When
-    HttpResponse httpResponse = execute(bodyPayload);
+    Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors).hasSize(1).containsExactly("Invalid Email");
   }
 
   /**
    * FINDING: {@code GenericControllerEvaluator#checkLinkPassword} is dead code — it is never
    * wired into any {@code InputFieldsController} rule, AND the {@code createLink} schema field has
-   * no {@code password} argument at all (confirmed against {@code schema.graphql}). The plan's
-   * table row ("link password &lt; 8 chars on createLink password" -&gt; "Invalid link password...")
-   * describes a scenario that cannot happen through the real API. The closest honest behaviour to
-   * pin down is: passing an unrecognised {@code password} argument to {@code createLink} fails
-   * standard GraphQL document validation (unknown argument), NOT the advertised custom message.
+   * no {@code password} argument at all (confirmed against {@code schema.graphql}). The closest
+   * honest behaviour to pin down is: passing an unrecognised {@code password} argument to {@code
+   * createLink} fails standard GraphQL document validation (unknown argument), NOT the advertised
+   * custom message.
    */
   @Test
   void givenPasswordArgumentOnCreateLinkThenFailsSchemaValidationNotCustomPasswordCheck() {
@@ -105,11 +80,11 @@ class ValidationErrorsApiIT {
             + "\\\", password: \\\"short\\\") { id } }";
 
     // When
-    HttpResponse httpResponse = execute(bodyPayload);
+    Response response = execute(bodyPayload);
 
     // Then — a standard GraphQL "unknown argument" validation error, not our custom validator.
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors).hasSize(1);
     Assertions.assertThat(errors.get(0))
         .as("createLink has no password argument in schema.graphql; checkLinkPassword is dead code")
@@ -118,12 +93,11 @@ class ValidationErrorsApiIT {
   }
 
   /**
-   * FINDING: the plan's table describes this as "on findNodes", but {@code findNodes}' top-level
-   * {@code limit} argument has NO bound {@code FieldValidationInstrumentation} rule at all — only
-   * {@code getNode.children}'s {@code limit} is validated (see {@code
-   * GraphQLProvider#buildValidationInstrumentation}, which binds {@code childrenArgumentValidation}
-   * to {@code "/getNode/children"}, and has no rule for {@code "/findNodes"}). The reachable path
-   * is exercised here instead.
+   * FINDING: {@code findNodes}' top-level {@code limit} argument has NO bound {@code
+   * FieldValidationInstrumentation} rule at all — only {@code getNode.children}'s {@code limit} is
+   * validated (see {@code GraphQLProvider#buildValidationInstrumentation}, which binds {@code
+   * childrenArgumentValidation} to {@code "/getNode/children"}, and has no rule for {@code
+   * "/findNodes"}). The reachable path is exercised here instead.
    */
   @Test
   void givenOutOfRangeLimitOnGetNodeChildrenThenExactlyOneValidationError() {
@@ -136,11 +110,11 @@ class ValidationErrorsApiIT {
             .build();
 
     // When
-    HttpResponse httpResponse = execute(bodyPayload);
+    Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly("Invalid limit value. The allowed range is between 0 and 50.");
@@ -158,11 +132,11 @@ class ValidationErrorsApiIT {
             .build();
 
     // When
-    HttpResponse httpResponse = execute(bodyPayload);
+    Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly(
@@ -180,11 +154,11 @@ class ValidationErrorsApiIT {
             .build();
 
     // When
-    HttpResponse httpResponse = execute(bodyPayload);
+    Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly(
@@ -202,11 +176,11 @@ class ValidationErrorsApiIT {
             .build();
 
     // When
-    HttpResponse httpResponse = execute(bodyPayload);
+    Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly("Invalid node ID: \"short-id\". Length must be 36 characters");
@@ -222,11 +196,11 @@ class ValidationErrorsApiIT {
             .build();
 
     // When
-    HttpResponse httpResponse = execute(bodyPayload);
+    Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly("Invalid link ID: \"short-link-id\". Length must be 36 characters");
@@ -244,11 +218,11 @@ class ValidationErrorsApiIT {
             .build();
 
     // When
-    HttpResponse httpResponse = execute(bodyPayload);
+    Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly(
@@ -259,8 +233,8 @@ class ValidationErrorsApiIT {
    * Closes {@code GenericControllerEvaluator#checkNodeName}'s missing branch: the sibling test
    * above ({@code givenEmptyNameOnUpdateNodeThenExactlyOneValidationError}) only exercises the
    * {@code trim().isEmpty()} direction; every happy-path test elsewhere in the suite exercises
-   * {@code length &lt;= 1024}. The {@code length &gt; 1024} direction (non-blank but too long) was
-   * never exercised.
+   * {@code length <= 1024}. The {@code length > 1024} direction (non-blank but too long) was never
+   * exercised.
    */
   @Test
   void givenTooLongNameOnUpdateNodeThenExactlyOneValidationError() {
@@ -274,11 +248,11 @@ class ValidationErrorsApiIT {
             .build();
 
     // When
-    HttpResponse httpResponse = execute(bodyPayload);
+    Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly(
@@ -289,8 +263,8 @@ class ValidationErrorsApiIT {
   /**
    * Closes {@code GenericControllerEvaluator#checkLimitPagination}'s missing branch: every other
    * test in this suite either omits {@code limit} (default) or passes a negative value (covering
-   * the {@code limit &gt;= 0} false direction); the {@code limit &gt; LIMIT_ELEMENTS_FOR_PAGE}
-   * direction (a value that's non-negative but over the page-size cap) was never exercised.
+   * the {@code limit >= 0} false direction); the {@code limit > LIMIT_ELEMENTS_FOR_PAGE} direction
+   * (a value that's non-negative but over the page-size cap) was never exercised.
    */
   @Test
   void givenOverTheCapLimitOnGetNodeChildrenThenExactlyOneValidationError() {
@@ -303,11 +277,11 @@ class ValidationErrorsApiIT {
             .build();
 
     // When
-    HttpResponse httpResponse = execute(bodyPayload);
+    Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly("Invalid limit value. The allowed range is between 0 and 50.");
@@ -324,13 +298,11 @@ class ValidationErrorsApiIT {
             .build();
 
     // When
-    HttpResponse httpResponse = execute(bodyPayload);
+    Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Invalid user ID. Length cannot be empty");
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
+    Assertions.assertThat(errors).hasSize(1).containsExactly("Invalid user ID. Length cannot be empty");
   }
 }
