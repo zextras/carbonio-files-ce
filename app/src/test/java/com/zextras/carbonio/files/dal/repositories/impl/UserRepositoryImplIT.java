@@ -172,4 +172,85 @@ class UserRepositoryImplIT {
 
     assertThat(result).isEmpty();
   }
+
+  /**
+   * mapType MUST fail closed: a null, unrecognized, or otherwise unresolvable type must map to
+   * {@link UserType#GUEST} (the access-denying value), never to {@link UserType#INTERNAL}. See
+   * carbonio-files-ce#301 / CO-3482 and the legacy {@code UserRepositoryRest#mapType} it was
+   * ported from.
+   */
+  @Test
+  void getUserByIdShouldFailClosedToGuestOnNullType() throws Exception {
+    UserInfoDto info = new UserInfoDto().userId("user-6").status("active").type(null);
+
+    when(userResourceApiMock.internalUsersIdUserIdGet(any())).thenReturn(info);
+
+    Optional<UserInfo> result = userRepository.getUserById("any-cookie", "user-6");
+
+    assertThat(result).isPresent();
+    assertThat(result.get().getType()).isEqualTo(UserType.GUEST);
+  }
+
+  @Test
+  void getUserByIdShouldFailClosedToGuestOnUnknownType() throws Exception {
+    UserInfoDto info = new UserInfoDto().userId("user-7").status("active").type("not-a-real-type");
+
+    when(userResourceApiMock.internalUsersIdUserIdGet(any())).thenReturn(info);
+
+    Optional<UserInfo> result = userRepository.getUserById("any-cookie", "user-7");
+
+    assertThat(result).isPresent();
+    assertThat(result.get().getType()).isEqualTo(UserType.GUEST);
+  }
+
+  @Test
+  void getUserByIdShouldMapLowercaseGuestType() throws Exception {
+    UserInfoDto info = new UserInfoDto().userId("user-8").status("active").type("guest");
+
+    when(userResourceApiMock.internalUsersIdUserIdGet(any())).thenReturn(info);
+
+    Optional<UserInfo> result = userRepository.getUserById("any-cookie", "user-8");
+
+    assertThat(result).isPresent();
+    assertThat(result.get().getType()).isEqualTo(UserType.GUEST);
+  }
+
+  @Test
+  void getUserByIdShouldMapUppercaseInternalType() throws Exception {
+    UserInfoDto info = new UserInfoDto().userId("user-9").status("active").type("INTERNAL");
+
+    when(userResourceApiMock.internalUsersIdUserIdGet(any())).thenReturn(info);
+
+    Optional<UserInfo> result = userRepository.getUserById("any-cookie", "user-9");
+
+    assertThat(result).isPresent();
+    assertThat(result.get().getType()).isEqualTo(UserType.INTERNAL);
+  }
+
+  /**
+   * The generated client returns null (rather than throwing) for a 2xx response with a blank
+   * body. getUserMyselfByCookieNotCached must not NPE in that case, and must instead treat the
+   * user as unresolvable (empty Optional), same as a missing nested {@code info}.
+   */
+  @Test
+  void getUserMyselfByCookieNotCachedShouldReturnEmptyOnBlankBodyResponse() throws Exception {
+    when(userResourceApiMock.internalUsersMyselfGet(any())).thenReturn(null);
+
+    Optional<UserMyself> result =
+        userRepository.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=abc123");
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void getUserMyselfByCookieNotCachedShouldReturnEmptyOnMissingNestedInfo() throws Exception {
+    MyselfDto myself = new MyselfDto().info(null).locale("en_US");
+
+    when(userResourceApiMock.internalUsersMyselfGet(any())).thenReturn(myself);
+
+    Optional<UserMyself> result =
+        userRepository.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=abc123");
+
+    assertThat(result).isEmpty();
+  }
 }

@@ -59,7 +59,9 @@ public class UserRepositoryImpl implements UserRepository {
       String token = extractToken(cookies);
       Map<String, String> headers = Map.of(COOKIE_HEADER, ZM_AUTH_TOKEN_COOKIE + "=" + token);
       MyselfDto response = userResourceApi.internalUsersMyselfGet(headers);
-      return Optional.of(mapToUserMyself(response));
+      // The generated client returns null (rather than throwing) for a 2xx response with a
+      // blank body, so response can be null even though no ApiException was raised.
+      return Optional.ofNullable(response).flatMap(this::mapToUserMyself);
     } catch (ApiException e) {
       logger.error("Failed to get user myself via REST: {}", e.getMessage());
       return Optional.empty();
@@ -104,18 +106,28 @@ public class UserRepositoryImpl implements UserRepository {
         .orElse(cookies);
   }
 
-  /** Maps a {@link MyselfDto} to the local {@link UserMyself} domain type. */
-  private UserMyself mapToUserMyself(MyselfDto response) {
+  /**
+   * Maps a {@link MyselfDto} to the local {@link UserMyself} domain type. Returns {@link
+   * Optional#empty()} if the nested {@code info} is missing, since a myself response without
+   * user info cannot be resolved to a domain user (the field is {@code @Nullable} in the
+   * generated DTO).
+   */
+  private Optional<UserMyself> mapToUserMyself(MyselfDto response) {
     UserInfoDto info = response.getInfo();
-    return new UserMyself(
-        new UserId(info.getUserId()),
-        info.getEmail(),
-        info.getFullName(),
-        info.getDomain(),
-        mapStatus(info.getStatus()),
-        parseLocale(response.getLocale()),
-        mapType(info.getType()),
-        response.getFeatures());
+    if (info == null) {
+      logger.warn("Missing user info in myself response, treating user as unresolvable");
+      return Optional.empty();
+    }
+    return Optional.of(
+        new UserMyself(
+            new UserId(info.getUserId()),
+            info.getEmail(),
+            info.getFullName(),
+            info.getDomain(),
+            mapStatus(info.getStatus()),
+            parseLocale(response.getLocale()),
+            mapType(info.getType()),
+            response.getFeatures()));
   }
 
   /** Maps a {@link UserInfoDto} to the local {@link UserInfo} domain type. */
@@ -146,12 +158,28 @@ public class UserRepositoryImpl implements UserRepository {
     }
   }
 
-  /** Maps a type string ({@code "INTERNAL"}/{@code "GUEST"}, case-insensitive) to {@link UserType}. */
+  /**
+   * Maps a type string ({@code "INTERNAL"}/{@code "GUEST"}, case-insensitive) to {@link UserType}.
+   * Falls back to {@link UserType#GUEST} if the string is missing or not recognized.
+   *
+   * <p>This fails <b>closed</b>, deliberately mirroring {@link #mapStatus(String)}: {@link
+   * UserType#GUEST} is the access-denying value ({@link
+   * com.zextras.carbonio.files.graphql.FilesAuthenticationFilter} blocks guests), so an
+   * unresolvable type must land on the deny side rather than defaulting to {@link
+   * UserType#INTERNAL}. A missing field, a {@code null}, or a UM-side typo must not silently
+   * grant internal access.
+   */
   private UserType mapType(String type) {
-    if (type != null && type.equalsIgnoreCase("GUEST")) {
+    if (type == null) {
+      logger.warn("Missing user type, defaulting to GUEST (deny)");
       return UserType.GUEST;
     }
-    return UserType.INTERNAL;
+    try {
+      return UserType.valueOf(type.toUpperCase(Locale.ROOT));
+    } catch (IllegalArgumentException e) {
+      logger.warn("Unknown user type '{}', defaulting to GUEST (deny)", type);
+      return UserType.GUEST;
+    }
   }
 
   /**
