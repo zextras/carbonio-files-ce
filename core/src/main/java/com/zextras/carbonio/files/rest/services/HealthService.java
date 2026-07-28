@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.rest.services;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.clients.DocsConnectorHttpClient;
+import com.zextras.carbonio.files.clients.UserManagementHttpClient;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
@@ -14,8 +15,6 @@ import com.zextras.carbonio.files.rest.types.health.ServiceHealth;
 import com.zextras.carbonio.preview.sdk.PreviewClient;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.Filestore.Liveness;
-import io.grpc.ConnectivityState;
-import io.grpc.ManagedChannel;
 
 public class HealthService {
 
@@ -24,7 +23,7 @@ public class HealthService {
   private final DocsConnectorHttpClient docsConnectorHttpClient;
   private final MessageBrokerManager messageBrokerManager;
   private final PreviewClient previewClient;
-  private final ManagedChannel userManagementChannel;
+  private final UserManagementHttpClient userManagementHttpClient;
   private final Filestore storagesClient;
 
   @Inject
@@ -34,14 +33,14 @@ public class HealthService {
       DocsConnectorHttpClient docsConnectorHttpClient,
       MessageBrokerManager messageBrokerManager,
       PreviewClient previewClient,
-      ManagedChannel userManagementChannel,
+      UserManagementHttpClient userManagementHttpClient,
       Filestore storagesClient) {
     this.databaseManagerFlyway = databaseManagerFlyway;
     this.filesConfig = filesConfig;
     this.docsConnectorHttpClient = docsConnectorHttpClient;
     this.messageBrokerManager = messageBrokerManager;
     this.previewClient = previewClient;
-    this.userManagementChannel = userManagementChannel;
+    this.userManagementHttpClient = userManagementHttpClient;
     this.storagesClient = storagesClient;
   }
 
@@ -56,8 +55,7 @@ public class HealthService {
    * @return true if the carbonio-user-management service is reachable, false otherwise.
    */
   public boolean isUserManagementLive() {
-    ConnectivityState state = userManagementChannel.getState(true);
-    return state == ConnectivityState.READY || state == ConnectivityState.IDLE;
+    return userManagementHttpClient.healthLiveCheck();
   }
 
   /**

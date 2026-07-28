@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.netty;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.exceptions.AuthenticationException;
+import com.zextras.carbonio.files.exceptions.ForbiddenException;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.UserStatus;
 import com.zextras.carbonio.files.dal.dao.UserType;
@@ -184,8 +185,8 @@ class AuthenticationHandlerTest {
         .when(channelMock.attr(AttributeKey.valueOf("cookies")))
         .thenReturn(cookiesChannelAttributeMock);
 
-    ArgumentCaptor<AuthenticationException> captorException = ArgumentCaptor.forClass(
-        AuthenticationException.class);
+    ArgumentCaptor<ForbiddenException> captorException = ArgumentCaptor.forClass(
+        ForbiddenException.class);
 
     AuthenticationHandler authenticationHandler = new AuthenticationHandler(userRepositoryMock);
 
@@ -202,7 +203,7 @@ class AuthenticationHandlerTest {
 
     Assertions
         .assertThat(captorException.getValue().getMessage())
-        .isEqualTo("Failed to authenticate request /test/: User is not active");
+        .isEqualTo("Failed to authorize request /test/: User is not active");
   }
 
   @Test
@@ -290,8 +291,8 @@ class AuthenticationHandlerTest {
         .when(channelMock.attr(AttributeKey.valueOf("cookies")))
         .thenReturn(cookiesChannelAttributeMock);
 
-    ArgumentCaptor<AuthenticationException> captorException = ArgumentCaptor.forClass(
-        AuthenticationException.class);
+    ArgumentCaptor<ForbiddenException> captorException = ArgumentCaptor.forClass(
+        ForbiddenException.class);
 
     AuthenticationHandler authenticationHandler = new AuthenticationHandler(userRepositoryMock);
 
@@ -308,7 +309,53 @@ class AuthenticationHandlerTest {
 
     Assertions
         .assertThat(captorException.getValue().getMessage())
-        .isEqualTo("Failed to authenticate request /test/: User is not internal");
+        .isEqualTo("Failed to authorize request /test/: User is not internal");
+  }
+
+  @Test
+  void givenARequestWithValidZM_AUTH_TOKENAndFilesFeatureDisabledAuthenticationHandlerShouldThrow() {
+    // Given
+    UserMyself userMock = Mockito.mock(UserMyself.class);
+    Attribute<Object> requesterChannelAttributeMock = Mockito.mock(Attribute.class);
+    Attribute<Object> cookiesChannelAttributeMock = Mockito.mock(Attribute.class);
+
+    Mockito.when(userMock.getStatus()).thenReturn(UserStatus.ACTIVE);
+    Mockito.when(userMock.getType()).thenReturn(UserType.INTERNAL);
+    Mockito.when(userMock.getCarbonioAttributes())
+        .thenReturn(Map.of("carbonioFeatureFilesEnabled", "FALSE"));
+    Mockito.when(httpHeadersMock.contains(HttpHeaderNames.COOKIE)).thenReturn(true);
+    Mockito
+        .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
+        .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=no-feature-token");
+    Mockito
+        .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=no-feature-token"))
+        .thenReturn(Optional.of(userMock));
+    Mockito
+        .when(channelMock.attr(AttributeKey.valueOf("requester")))
+        .thenReturn(requesterChannelAttributeMock);
+    Mockito
+        .when(channelMock.attr(AttributeKey.valueOf("cookies")))
+        .thenReturn(cookiesChannelAttributeMock);
+
+    ArgumentCaptor<ForbiddenException> captorException = ArgumentCaptor.forClass(
+        ForbiddenException.class);
+
+    AuthenticationHandler authenticationHandler = new AuthenticationHandler(userRepositoryMock);
+
+    // When
+    authenticationHandler.channelRead0(channelHandlerContextMock, httpRequestMock);
+
+    // Then
+    Mockito
+        .verify(channelHandlerContextMock, Mockito.times(0))
+        .fireChannelRead(httpRequestMock);
+    Mockito
+        .verify(channelHandlerContextMock, Mockito.times(1))
+        .fireExceptionCaught(captorException.capture());
+
+    Assertions
+        .assertThat(captorException.getValue().getMessage())
+        .isEqualTo("Failed to authorize request /test/: Files feature is not enabled for user");
   }
 
   @Test
