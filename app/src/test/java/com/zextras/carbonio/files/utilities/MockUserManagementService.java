@@ -21,12 +21,17 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * In-memory REST fake for carbonio-user-management, backed by a dedicated {@link WireMockServer}.
  * Stubs the {@code /internal/users/*} endpoints ({@code getUserMyself} by {@code ZM_AUTH_TOKEN}
- * cookie, {@code getUserById}/{@code getUserByEmail} lookups) exactly like the real REST SDK
+ * header, {@code getUserById}/{@code getUserByEmail} lookups) exactly like the real REST SDK
  * (carbonio-user-management-rest-sdk) contract that {@code UserRepositoryImpl} calls.
  *
  * <p>Replaces the P3a in-process gRPC stub ({@code UserManagementServiceImplBase} over
  * grpc-netty-shaded): same public API (registerToken/registerUserById/unregisterUserById/setDown/
  * clearAll) and the same test DATA/expectations, only the transport changed.
+ *
+ * <p>bump-um-sdk (1.3.0-1): {@code UserResourceApi#internalUsersMyselfGet} switched from a
+ * caller-built {@code Cookie} header to sending the token as a plain {@code ZM_AUTH_TOKEN} HTTP
+ * header directly (see the generated client's request builder); the {@code myself} stub below is
+ * matched on that header, not a cookie.
  */
 public class MockUserManagementService {
 
@@ -143,7 +148,7 @@ public class MockUserManagementService {
     StubMapping myselfStub =
         server.stubFor(
             get(urlPathEqualTo("/internal/users/myself"))
-                .withCookie(ZM_AUTH_TOKEN_COOKIE, equalTo(token))
+                .withHeader(ZM_AUTH_TOKEN_COOKIE, equalTo(token))
                 .atPriority(5)
                 .willReturn(
                     aResponse()
