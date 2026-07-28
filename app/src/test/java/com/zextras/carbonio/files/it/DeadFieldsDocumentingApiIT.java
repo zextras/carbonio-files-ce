@@ -60,7 +60,11 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
   private static final String REQUESTER_COOKIE = "ZM_AUTH_TOKEN=fake-token";
   private static final String TARGET_B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
   private static final String TARGET_C = "cccccccc-cccc-cccc-cccc-cccccccccccc";
-  private static final String TARGET_D = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+  // NOTE: NOT "dddd...dddd"/"eeee...eeee" — those two ids are deliberately claimed elsewhere in
+  // the suite (UserResolversApiIT's ghost creator/owner ids, which must stay UNREGISTERED with
+  // user-management for the whole suite run, since MockUserManagementService is a global
+  // singleton); registering either here as a real user broke that class's "unresolvable" fixture.
+  private static final String TARGET_D = "66666666-6666-6666-6666-666666666666";
 
   @BeforeAll
   static void registerUsers() {
