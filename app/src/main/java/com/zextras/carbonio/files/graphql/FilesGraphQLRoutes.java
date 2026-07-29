@@ -54,6 +54,17 @@ public class FilesGraphQLRoutes {
   private static final String APPLICATION_JSON = "application/json";
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
+  /**
+   * Legacy parity: {@code core/.../HttpRoutingHandler#channelRead0} installed {@code new
+   * HttpObjectAggregator(256 * 1024)} ahead of BOTH GraphQL controllers (lines ~99-108 for the
+   * authenticated route, ~199-207 for the public one). The Quarkus port kept the Vert.x {@code
+   * BodyHandler} but never set a body limit on it (Vert.x's default is unlimited), silently
+   * dropping the cap. {@code BodyHandler} tracks the running byte count as data actually arrives
+   * (not just a Content-Length pre-check), so this also holds for a chunked request with no
+   * Content-Length header at all.
+   */
+  private static final long GRAPHQL_MAX_BODY_BYTES = 256L * 1024;
+
   private final GraphQL graphQL;
   private final GraphQL publicGraphQL;
   private final NodeBatchLoader nodeBatchLoader;
@@ -75,11 +86,11 @@ public class FilesGraphQLRoutes {
   public void routes(@Observes Router router) {
     router
         .post("/graphql")
-        .handler(BodyHandler.create())
+        .handler(BodyHandler.create().setBodyLimit(GRAPHQL_MAX_BODY_BYTES))
         .blockingHandler(this::handleAuthenticatedRequest);
     router
         .post("/public/graphql")
-        .handler(BodyHandler.create())
+        .handler(BodyHandler.create().setBodyLimit(GRAPHQL_MAX_BODY_BYTES))
         .blockingHandler(this::handlePublicRequest);
   }
 

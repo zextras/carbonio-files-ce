@@ -21,7 +21,6 @@ import io.vertx.core.http.HttpServerResponse;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.POST;
@@ -34,6 +33,7 @@ import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -157,11 +157,17 @@ public class PublicBlobResource {
   @Path("/public/download-multiple")
   @Blocking
   @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
-  public Uni<Void> downloadPublicMultiple(
-      @FormParam(BodyAttributes.NODE_IDS) String nodeIdsJson,
-      @FormParam(BodyAttributes.NODE_LINK_ID) String nodeLinkId,
-      @FormParam(BodyAttributes.ACCESS_CODE) String accessCode,
-      @Context HttpServerResponse resp) {
+  public Uni<Void> downloadPublicMultiple(InputStream requestBody, @Context HttpServerResponse resp) {
+    // Legacy parity: restores the 1MB HttpObjectAggregator cap (see RequestBodyLimits) dropped by
+    // the Quarkus port. The entity is read as a raw InputStream (not @FormParam) so the size bound
+    // is enforced against actual bytes read, not a trusted Content-Length header.
+    String rawFormBody =
+        RequestBodyLimits.readBoundedUtf8(
+            requestBody, RequestBodyLimits.DOWNLOAD_MULTIPLE_MAX_BODY_BYTES);
+    Map<String, String> formFields = RequestBodyLimits.parseFormUrlEncoded(rawFormBody);
+    String nodeIdsJson = formFields.get(BodyAttributes.NODE_IDS);
+    String nodeLinkId = formFields.get(BodyAttributes.NODE_LINK_ID);
+    String accessCode = formFields.get(BodyAttributes.ACCESS_CODE);
 
     if (nodeIdsJson == null || nodeLinkId == null) {
       throw new IllegalArgumentException("Missing required parameters");
@@ -180,8 +186,13 @@ public class PublicBlobResource {
   @Path("/public/download-multiple/check")
   @Blocking
   @Consumes(MediaType.APPLICATION_JSON)
-  public Response checkDownloadPublicMultiple(String jsonBody) throws BadRequestException {
-    if (jsonBody == null || jsonBody.isBlank()) {
+  public Response checkDownloadPublicMultiple(InputStream requestBody) throws BadRequestException {
+    // See downloadPublicMultiple's comment: bounded raw-InputStream read (legacy 1MB cap), in
+    // place of trusting Content-Length.
+    String jsonBody =
+        RequestBodyLimits.readBoundedUtf8(
+            requestBody, RequestBodyLimits.DOWNLOAD_MULTIPLE_MAX_BODY_BYTES);
+    if (jsonBody.isBlank()) {
       throw new BadRequestException();
     }
     List<String> nodeIds;

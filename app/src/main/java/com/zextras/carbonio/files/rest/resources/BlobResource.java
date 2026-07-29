@@ -26,7 +26,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.CookieParam;
-import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
@@ -290,13 +289,22 @@ public class BlobResource {
   public Uni<Void> downloadMultiple(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
-      @FormParam(NODE_IDS) String nodeIdsJson,
+      InputStream requestBody,
       @Context HttpServerResponse resp) {
     // @Blocking (worker thread): auth + the ZIP plan (buildZipPlan tree walk, EntityManager active)
     // are resolved here so a 404 for missing/forbidden nodes is thrown before any archive byte is
     // written. Only the ZIP byte streaming is offloaded to the transfer pool, where each entry's
     // blob is opened via storages (openZipEntryStream) — no EntityManager access on that thread.
+    //
+    // Legacy parity: restores the 1MB HttpObjectAggregator cap (see RequestBodyLimits); the entity
+    // is read as a raw InputStream (not @FormParam) precisely so the size bound is enforced against
+    // actual bytes read, not a trusted Content-Length header -- and, matching the legacy pipeline
+    // order (aggregator before auth-handler), BEFORE authentication.
+    String rawFormBody =
+        RequestBodyLimits.readBoundedUtf8(
+            requestBody, RequestBodyLimits.DOWNLOAD_MULTIPLE_MAX_BODY_BYTES);
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
+    String nodeIdsJson = RequestBodyLimits.parseFormUrlEncoded(rawFormBody).get(NODE_IDS);
     List<String> nodeIds = parseNodeIdsArray(nodeIdsJson);
     ZipDownload zip =
         blobService
@@ -315,7 +323,12 @@ public class BlobResource {
   public Response checkDownloadMultiple(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
-      String jsonBody) {
+      InputStream requestBody) {
+    // See downloadMultiple's javadoc comment: bounded raw-InputStream read (legacy 1MB cap),
+    // before authentication, in place of trusting Content-Length.
+    String jsonBody =
+        RequestBodyLimits.readBoundedUtf8(
+            requestBody, RequestBodyLimits.DOWNLOAD_MULTIPLE_MAX_BODY_BYTES);
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
     List<String> nodeIds = parseNodeIdsFromJsonBody(jsonBody);
     blobService
@@ -329,9 +342,18 @@ public class BlobResource {
 
   // --------------------------------------------------------------------------------------- shared
 
+  /**
+   * Legacy parity: {@code core/.../BlobController#isRequestSizeOverLimit} did {@code
+   * Long.parseLong(httpRequest.headers().get(CONTENT_LENGTH))} as its very first act, so a request
+   * with no {@code Content-Length} header at all (e.g. chunked transfer-encoding) threw a {@code
+   * NumberFormatException} (an {@link IllegalArgumentException} subtype) -&gt; 400, independent of
+   * whether {@code max-uploadable-size-in-mb} was even configured. A missing/unparseable {@code
+   * Content-Length} must be REFUSED, not treated as "no cap applies" (which is what returning
+   * {@code false} here used to do).
+   */
   private boolean isRequestSizeOverLimit(Long contentLength) {
     if (contentLength == null) {
-      return false;
+      throw new IllegalArgumentException("Missing or invalid Content-Length header");
     }
     double blobLengthInMB = contentLength / (1024.0 * 1024.0);
     Optional<Integer> maxFileSize = filesConfig.getMaxUploadableFileSizeInMb();
