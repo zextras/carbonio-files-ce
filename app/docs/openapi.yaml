@@ -16,16 +16,12 @@ paths:
         content:
           application/x-www-form-urlencoded:
             schema:
-              type: object
-              properties:
-                nodeIds:
-                  type: string
+              type: string
+              format: binary
         required: true
       responses:
         "201":
           description: Created
-        "400":
-          description: Bad Request
       summary: Download Multiple
       tags:
       - Blob Resource
@@ -45,6 +41,7 @@ paths:
           application/json:
             schema:
               type: string
+              format: binary
         required: true
       responses:
         "200":
@@ -438,6 +435,7 @@ paths:
         required: true
         schema:
           type: string
+          pattern: "[\\d]*x[\\d]*"
       - name: nodeId
         in: path
         required: true
@@ -498,6 +496,7 @@ paths:
         required: true
         schema:
           type: string
+          pattern: "[\\d]*x[\\d]*"
       - name: nodeId
         in: path
         required: true
@@ -558,6 +557,7 @@ paths:
         required: true
         schema:
           type: string
+          pattern: "[\\d]*x[\\d]*"
       - name: nodeId
         in: path
         required: true
@@ -673,6 +673,7 @@ paths:
         required: true
         schema:
           type: string
+          pattern: "[\\d]*x[\\d]*"
       - name: nodeId
         in: path
         required: true
@@ -734,6 +735,14 @@ paths:
         schema:
           type: string
           pattern: .*
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
       responses:
         "200":
           description: OK
@@ -749,20 +758,12 @@ paths:
         content:
           application/x-www-form-urlencoded:
             schema:
-              type: object
-              properties:
-                nodeIds:
-                  type: string
-                nodeLinkId:
-                  type: string
-                accessCode:
-                  type: string
+              type: string
+              format: binary
         required: true
       responses:
         "201":
           description: Created
-        "400":
-          description: Bad Request
       summary: Download Public Multiple
       tags:
       - Public Blob Resource
@@ -773,6 +774,7 @@ paths:
           application/json:
             schema:
               type: string
+              format: binary
         required: true
       responses:
         "200":

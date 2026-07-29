@@ -99,7 +99,7 @@ public class PreviewResource {
   // ------------------------------------------------------------------------------------- image
 
   @GET
-  @Path("/image/{nodeId}/{area}")
+  @Path("/image/{nodeId}/{area: [\\d]*x[\\d]*}")
   @Blocking
   public Response previewImage(
       @HeaderParam("Cookie") String cookieHeader,
@@ -138,7 +138,7 @@ public class PreviewResource {
   }
 
   @GET
-  @Path("/image/{nodeId}/{area}/thumbnail")
+  @Path("/image/{nodeId}/{area: [\\d]*x[\\d]*}/thumbnail")
   @Blocking
   public Response thumbnailImage(
       @HeaderParam("Cookie") String cookieHeader,
@@ -216,7 +216,7 @@ public class PreviewResource {
   }
 
   @GET
-  @Path("/pdf/{nodeId}/{area}/thumbnail")
+  @Path("/pdf/{nodeId}/{area: [\\d]*x[\\d]*}/thumbnail")
   @Blocking
   public Response thumbnailPdf(
       @HeaderParam("Cookie") String cookieHeader,
@@ -298,7 +298,7 @@ public class PreviewResource {
   }
 
   @GET
-  @Path("/document/{nodeId}/{area}/thumbnail")
+  @Path("/document/{nodeId}/{area: [\\d]*x[\\d]*}/thumbnail")
   @Blocking
   public Response thumbnailDocument(
       @HeaderParam("Cookie") String cookieHeader,
@@ -350,11 +350,22 @@ public class PreviewResource {
    * router, never reaching {@link BlobExceptionMapper}. This wildcard template is strictly LESS
    * specific (fewer literal characters) than every {@code image/pdf/document} template above, so
    * per the JAX-RS matching algorithm it is only ever selected once none of them match the path.
+   *
+   * <p>Legacy parity (restored): {@code HttpRoutingHandler#channelRead0} placed {@code
+   * auth-handler} before {@code preview-handler} for the WHOLE {@code /preview/**} family (lines
+   * ~179-186), so even a request that falls through to this generic 400 was authenticated FIRST.
+   * This was the only method in the class that never called {@link
+   * BlobAuthenticator#requireUser}, so an unauthenticated request reached the 400 without ever
+   * being challenged — restored below.
    */
   @GET
   @Path("/{unmatched: .*}")
-  public Response unmatchedPreviewPath(@PathParam("unmatched") String unmatched)
+  public Response unmatchedPreviewPath(
+      @HeaderParam("Cookie") String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @PathParam("unmatched") String unmatched)
       throws BadRequestException {
+    authenticator.requireUser(cookieHeader, zmToken);
     throw new BadRequestException();
   }
 
