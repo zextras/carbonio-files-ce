@@ -404,18 +404,4 @@ public class GraphQLResultErrors {
       .build();
   }
 
-  public static GraphQLError deleteAllNodesAndBlobsPartialFailure(
-    String nodeId,
-    ResultPath path
-  ) {
-    Map<String, Object> errorData = new HashMap<>();
-    errorData.put("errorCode", ErrorCodes.DELETE_ALL_NODES_AND_BLOBS_PARTIAL_FAILURE);
-    errorData.put("nodeId", nodeId);
-    return GraphqlErrorException.newErrorException()
-      .message("Failed to delete blob for node " + nodeId + ", node was not removed from database")
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
-  }
-
 }

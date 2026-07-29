@@ -74,12 +74,6 @@ public class LinkRepositoryImpl implements LinkRepository, PanacheRepositoryBase
 
   @Override
   @Transactional
-  public void deleteLink(String linkId) {
-    deleteById(linkId);
-  }
-
-  @Override
-  @Transactional
   public void deleteLinksBulk(Collection<String> linkIds) {
     // Fetch-then-remove (rather than a bulk "delete ... where id in" JPQL statement) so entities
     // already managed in the current persistence context are correctly evicted; JPA bulk

@@ -301,18 +301,6 @@ public class Node {
     return fileVersions;
   }
 
-  public Object getSortingValueFromColumn(String columnName) {
-    return switch (columnName) {
-      case Constants.Db.Node.ID -> getId();
-      case Constants.Db.Node.CATEGORY -> getNodeCategory().getValue();
-      case Constants.Db.Node.CREATED_AT -> getCreatedAt();
-      case Constants.Db.Node.UPDATED_AT -> getUpdatedAt();
-      case Constants.Db.Node.NAME -> getName();
-      case Constants.Db.Node.SIZE -> getSize();
-      default -> throw new IllegalArgumentException("Column not supported");
-    };
-  }
-
   public boolean isHidden() {
     return mHidden;
   }

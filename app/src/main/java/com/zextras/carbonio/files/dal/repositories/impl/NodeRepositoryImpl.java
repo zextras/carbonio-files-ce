@@ -135,16 +135,6 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   @Override
-  public List<Node> findAllNodesFiles() {
-    return entityManager
-        .createQuery(
-            "select n from Node n where n.mNodeType <> :folder and n.mNodeType <> :root", Node.class)
-        .setParameter("folder", NodeType.FOLDER)
-        .setParameter("root", NodeType.ROOT)
-        .getResultList();
-  }
-
-  @Override
   public Stream<Node> getNodes(List<String> nodeIds, Optional<NodeSort> sort) {
     if (nodeIds.isEmpty()) {
       return Stream.empty();
@@ -300,11 +290,6 @@ public class NodeRepositoryImpl implements NodeRepository {
                     new NodeCustomAttributes(normalizeId(nodeId), userId, flag)));
   }
 
-  @Override
-  public boolean isFlaggedForUser(String nodeId, String userId) {
-    return getCustomAttributes(nodeId, userId).map(NodeCustomAttributes::getFlag).orElse(false);
-  }
-
   private Optional<NodeCustomAttributes> getCustomAttributes(String nodeId, String userId) {
     return entityManager
         .createQuery(
@@ -363,22 +348,6 @@ public class NodeRepositoryImpl implements NodeRepository {
         .setParameter("trash", "%" + RootId.TRASH_ROOT + "%")
         .setParameter("ts", retentionTimestamp)
         .getResultList();
-  }
-
-  @Override
-  @Transactional
-  public int deleteTrashedNodesOlderThan(Long retentionTimestamp) {
-    // Fetch-then-remove (see deleteNodes) so the L1 cache stays consistent and DB cascades fire.
-    List<Node> nodes =
-        entityManager
-            .createQuery(
-                "select n from Node n where n.mAncestorIds like :trash and n.mUpdatedAt < :ts",
-                Node.class)
-            .setParameter("trash", "%" + RootId.TRASH_ROOT + "%")
-            .setParameter("ts", retentionTimestamp)
-            .getResultList();
-    nodes.forEach(entityManager::remove);
-    return nodes.size();
   }
 
   // ---------------------------------------------------------------------------------------------

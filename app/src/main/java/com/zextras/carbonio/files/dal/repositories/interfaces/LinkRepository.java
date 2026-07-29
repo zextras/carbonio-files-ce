@@ -89,16 +89,6 @@ public interface LinkRepository {
   Link updateLink(Link link);
 
   /**
-   * Given a link identifier, it deletes the existing {@link Link} from the database.
-   *
-   * <p>if the link identifier is not associated to a {@link Link} then the delete operation does
-   * nothing.
-   *
-   * @param linkId is a {@link String} representing the unique identifier of the link to delete
-   */
-  void deleteLink(String linkId);
-
-  /**
    * Given a collection of identifiers, it deletes the existing {@link Link}s from the database.
    *
    * <p>if a link identifier is not associated to a {@link Link} then the delete operation for that

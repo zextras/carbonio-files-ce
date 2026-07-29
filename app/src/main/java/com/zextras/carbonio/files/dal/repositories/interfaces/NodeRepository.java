@@ -215,18 +215,6 @@ public interface NodeRepository {
   );
 
   /**
-   * <p>Returns the flag value for the couple {@link Node} and user.</p>
-   *
-   * @param nodeId is a {@link String} representing the id of the node to flag
-   * @param userId is a {@link String} representing the id of the user for which we have to flag the
-   * node
-   */
-  boolean isFlaggedForUser(
-    String nodeId,
-    String userId
-  );
-
-  /**
    * Gets the detail of a trashed node
    *
    * @param nodeId is a {@link String} representing the id of the trashed node
@@ -281,18 +269,6 @@ public interface NodeRepository {
   Node updateNode(Node node);
 
   /**
-   * <p>Deletes from the database all nodes marked for deletion whose retention time exceeded the
-   * value passed as parameter.</p>
-   *
-   * @param retentionTimestamp represents the number of milliseconds that a {@link Node} can pass in
-   * trash before being deleted
-   *
-   * @return a boolean which is <code>true</code> if the deletion was performed correctly,
-   * <code>false</code> otherwise
-   */
-  int deleteTrashedNodesOlderThan(Long retentionTimestamp);
-
-  /**
    * <p>Returns all Nodes trashed.</p>
    *
    * @return the list of all Nodes trashed.
@@ -338,11 +314,6 @@ public interface NodeRepository {
    * @param nodesToFlag is the list of the nodes to show/hide.
    */
   void invertHiddenFlagNodes(List<Node> nodesToFlag);
-
-  /**
-   * <p>Returns a {@link List<Node>} with absolutely all the nodes ever saved.</p>
-   */
-  List<Node> findAllNodesFiles();
 
   /*
     Calculates the absolute size of a folder by performing a sum of the sizes of all files that have that folder
