@@ -15,9 +15,18 @@ import org.junit.jupiter.api.Test;
 /**
  * {@code com.zextras.carbonio.files.acceptance.PublicGraphQLIntrospectionApiIT} rewritten as an
  * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: covers {@code POST
- * /public/graphql/} introspection. Also folds {@code graphql/GraphQLWiringIT} (schema
- * introspection is HTTP-level and fully overlaps this class). Doubles as a native-smoke surface
- * under {@code -Dnative}.
+ * /public/graphql/} introspection. Doubles as a native-smoke surface under {@code -Dnative}.
+ *
+ * <p><b>{@code graphql/GraphQLWiringIT} (Phase 7b judgment, deleted, not folded here):</b> its
+ * schema-introspection overlap is with this class, but its actual content was three OTHER things,
+ * each already redundant with an existing black-box IT: (a) {@code getPublicNode} resolving real
+ * seeded data via {@code /public/graphql} — covered exhaustively by {@link GetPublicNodeApiIT}'s 7
+ * methods; (b) {@code getNode} resolving via the request-scoped DataLoader without {@code
+ * ContextNotActiveException} — implied by every successful {@code getNode} query in this whole
+ * suite (a broken DataLoader would fail all of them, not just this one); (c) missing/invalid-cookie
+ * {@code /graphql} returning 401 — covered by {@link AuthApiIT}'s {@code
+ * unauthorizedAuthScenarios} (a superset: missing cookie, cookie without the token, unresolvable
+ * token). No unique coverage was lost.
  *
  * <p><b>SECURITY FINDING (carried over, not fixed — test-only task, no {@code src/main}
  * changes):</b> unlike the authenticated {@code /graphql/} endpoint ({@link IntrospectionApiIT}

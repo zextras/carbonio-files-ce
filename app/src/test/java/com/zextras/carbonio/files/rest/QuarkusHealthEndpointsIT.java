@@ -7,27 +7,23 @@ package com.zextras.carbonio.files.rest;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 
-import com.zextras.carbonio.files.FilesStackTestResource;
-import io.quarkus.test.common.QuarkusTestResource;
-import io.quarkus.test.junit.QuarkusTest;
+import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import org.junit.jupiter.api.Test;
 
 /**
- * End-to-end integration test for the health surface carbonio-files exposes: the built-in Quarkus
- * SmallRye endpoints under {@code /q/health/*} (provided by {@code
- * carbonio-quarkus-extensions-bootstrap} -> {@code quarkus-smallrye-health}). The legacy custom
- * JAX-RS {@code /health/*} routes were removed so files serves ONLY {@code /q/health/*} (plus
- * {@code /metrics}), matching carbonio-tasks.
+ * Out-of-process {@code @QuarkusIntegrationTest} (via {@link AbstractFilesIT}) for the health
+ * surface carbonio-files exposes: the built-in Quarkus SmallRye endpoints under {@code
+ * /q/health/*} (provided by {@code carbonio-quarkus-extensions-bootstrap} -> {@code
+ * quarkus-smallrye-health}). The legacy custom JAX-RS {@code /health/*} routes were removed so
+ * files serves ONLY {@code /q/health/*} (plus {@code /metrics}), matching carbonio-tasks.
  *
- * <p><b>SELF-ONLY liveness (house pattern):</b> {@code FilesStackTestResource} stands up only
- * Postgres + WireMock + an in-process gRPC stub — no real storages, message-broker or preview.
- * {@code /q/health/live} still reports {@code UP} because no dependency readiness check is wired
- * into liveness (liveness has no custom checks; dependency checks belong to readiness). This proves
- * a downstream dependency being down can never fail the mesh liveness probe.
+ * <p><b>SELF-ONLY liveness (house pattern):</b> the launched app's only reachable dependencies are
+ * Postgres + WireMock fakes — no real storages, message-broker or preview. {@code /q/health/live}
+ * still reports {@code UP} because no dependency readiness check is wired into liveness (liveness
+ * has no custom checks; dependency checks belong to readiness). This proves a downstream dependency
+ * being down can never fail the mesh liveness probe.
  */
-@QuarkusTest
-@QuarkusTestResource(FilesStackTestResource.class)
-class QuarkusHealthEndpointsIT {
+class QuarkusHealthEndpointsIT extends AbstractFilesIT {
 
   @Test
   void healthLiveReturnsUpAndIsSelfOnly() {

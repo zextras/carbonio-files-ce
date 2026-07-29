@@ -30,10 +30,12 @@ import org.junit.jupiter.api.Test;
  * the carbonio-user-management-rest-sdk client.
  *
  * <p>No CDI container / HTTP server is started: the {@link UserResourceApi} is a plain Mockito
- * mock passed directly to the constructor. Named {@code *IT} so it runs under failsafe alongside
- * the other P3a/P6e integration tests; it does not require any Testcontainers/WireMock stack.
+ * mock passed directly to the constructor; it does not require any Testcontainers/WireMock stack.
+ * Renamed from {@code UserRepositoryImplIT} to {@code *Test} (Phase 7b convention alignment) so
+ * Surefire runs it as a unit test instead of Failsafe running it alongside the real integration
+ * tests it never needed to be grouped with.
  */
-class UserRepositoryImplIT {
+class UserRepositoryImplTest {
 
   private UserResourceApi userResourceApiMock;
   private UserRepositoryImpl userRepository;
