@@ -4,11 +4,13 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.Constants.Config.Pagination;
 import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.Constants.Db.RootId;
+import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
@@ -26,6 +28,10 @@ import jakarta.persistence.LockModeType;
 import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -34,6 +40,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 /**
@@ -77,6 +85,7 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Inject EntityManager entityManager;
   @Inject CollationRepository collationRepository;
+  @Inject FilesConfig filesConfig;
 
   // ---------------------------------------------------------------------------------------------
   // Simple finders
@@ -471,12 +480,17 @@ public class NodeRepositoryImpl implements NodeRepository {
 
     if (pageToken.isPresent()) {
       PageToken token = decodeToken(pageToken.get());
+      // Clamp exactly like the non-token path below: a page token is client-supplied data (even
+      // once signed, the CONTENT is still whatever the server itself put there on a previous
+      // page), and the cap must hold on every page of a paginated search, not just the first.
+      int tokenLimit =
+          token.limit != null ? Math.min(token.limit, Pagination.LIMIT) : Pagination.LIMIT;
       Optional<NodeSort> tokenSort = Optional.ofNullable(token.sort).map(NodeSort::valueOf);
       List<NodeSort> realSorts = getRealSortingsToApply(tokenSort);
       List<Node> nodes =
           doFind(
               userId,
-              token.limit,
+              tokenLimit,
               realSorts,
               Optional.ofNullable(token.flagged),
               Optional.ofNullable(token.folderId),
@@ -490,7 +504,7 @@ public class NodeRepositoryImpl implements NodeRepository {
               Optional.of(token.cursor));
       return withNextToken(
           nodes,
-          token.limit,
+          tokenLimit,
           tokenSort,
           Optional.ofNullable(token.flagged),
           Optional.ofNullable(token.folderId),
@@ -580,23 +594,32 @@ public class NodeRepositoryImpl implements NodeRepository {
     // Public browsing has NO visibility filter: it lists the direct children of the (public) folder,
     // ordered category-then-name-then-id, and keeps the same keyset-token machinery.
     List<NodeSort> realSorts = List.of(NodeSort.TYPE_ASC, NodeSort.NAME_ASC, NodeSort.ID_ASC);
-    String scopeFolderId;
     int pageLimit;
     Optional<List<Object>> cursor;
     if (pageToken != null) {
       PageToken token = decodeToken(pageToken);
-      scopeFolderId = token.folderId != null ? token.folderId : RootId.LOCAL_ROOT;
-      pageLimit = token.limit;
+      // The caller (PublicNodeDataFetchers#findNodes) has ALREADY validated `folderId` against the
+      // public link and its access code before this method is ever invoked. Scoping MUST use that
+      // validated argument, never a value carried inside the token: the token is round-tripped
+      // through the client, so trusting a folderId out of it for the actual DB scope (as the
+      // pre-fix code did, falling back to the shared RootId.LOCAL_ROOT when absent) let a token
+      // dictate what subtree gets queried, independent of which link/folder was authorized for
+      // THIS request. If the token still carries a folderId, it must match the validated argument
+      // exactly, or it is either stale (minted while browsing a different, unrelated link) or
+      // tampered — reject outright rather than silently ignoring the mismatch.
+      if (token.folderId != null && !token.folderId.trim().equals(folderId.trim())) {
+        throw new IllegalArgumentException("Page token does not match the requested folder");
+      }
+      pageLimit = token.limit != null ? Math.min(token.limit, Pagination.LIMIT) : Pagination.LIMIT;
       cursor = Optional.of(token.cursor);
     } else {
-      scopeFolderId = folderId != null ? folderId : RootId.LOCAL_ROOT;
       pageLimit = realLimit;
       cursor = Optional.empty();
     }
 
     Map<String, Object> params = new HashMap<>();
     StringBuilder hql = new StringBuilder("select n from Node n where n.mParentId = :parentId");
-    params.put("parentId", normalizeId(scopeFolderId));
+    params.put("parentId", normalizeId(folderId));
     cursor.ifPresent(c -> hql.append(" and ").append(keysetPredicate(realSorts, c, params)));
     hql.append(" order by ")
         .append(
@@ -608,10 +631,11 @@ public class NodeRepositoryImpl implements NodeRepository {
     params.forEach(query::setParameter);
     query.setMaxResults(pageLimit);
 
-    String trimmedFolderId = scopeFolderId.trim();
+    String trimmedFolderId = folderId.trim();
     List<Node> nodes =
         query.getResultList().stream()
-            // Defensive: only nodes that actually descend from the requested public folder.
+            // Defensive: only nodes that actually descend from the requested (validated) public
+            // folder — the ARGUMENT, matching the legacy belt-and-braces check.
             .filter(node -> node.getAncestorsList().contains(trimmedFolderId))
             .toList();
 
@@ -623,7 +647,7 @@ public class NodeRepositoryImpl implements NodeRepository {
                 pageLimit,
                 Optional.of(NodeSort.NAME_ASC),
                 Optional.empty(),
-                Optional.of(scopeFolderId),
+                Optional.of(folderId),
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
@@ -936,24 +960,84 @@ public class NodeRepositoryImpl implements NodeRepository {
     return id + " ".repeat(36 - id.length());
   }
 
-  private static String encodeToken(PageToken token) throws JsonProcessingException {
+  private static final String HMAC_ALGORITHM = "HmacSHA256";
+
+  /**
+   * Serialises the token AND signs it: an HMAC-SHA256 over the JSON of every field EXCEPT {@link
+   * PageToken#signature} itself (excluded via {@link PageTokenSignatureMixIn}), keyed by {@link
+   * FilesConfig#getPageTokenSecretKey()}. Ports legacy {@code PageQuery#toToken} faithfully onto
+   * this class's field-based (not getter-based) shape.
+   */
+  private String encodeToken(PageToken token) throws JsonProcessingException {
+    token.signature = computeSignature(token);
     return Base64.getUrlEncoder().withoutPadding().encodeToString(MAPPER.writeValueAsBytes(token));
   }
 
-  private static PageToken decodeToken(String token) {
+  /**
+   * Decodes AND verifies a page token, distinguishing two failure modes that legacy also kept
+   * separate (its {@code fromToken} threw a different message for a deserialisation failure than
+   * for a signature mismatch): a token that fails to Base64/JSON-decode is MALFORMED — no signature
+   * was ever checked, so the message must not claim one was; a token that decodes fine but whose
+   * signature does not match the recomputed one is a genuine {@code InvalidTokenSignature} failure
+   * — a tampered, forged, or replayed-under-a-stale-key token. Both are rejected, but conflating
+   * the messages (as the pre-fix code did, labelling every failure "Invalid token signature") is
+   * exactly the kind of misleading signal that let this vulnerability go unnoticed: a reader would
+   * reasonably assume a signature was actually being verified.
+   */
+  private PageToken decodeToken(String token) {
+    PageToken pageToken;
     try {
-      return MAPPER.readValue(Base64.getUrlDecoder().decode(token), PageToken.class);
+      pageToken = MAPPER.readValue(Base64.getUrlDecoder().decode(token), PageToken.class);
     } catch (IllegalArgumentException | IOException e) {
-      throw new IllegalArgumentException("Invalid token signature", e);
+      throw new IllegalArgumentException("Malformed page token", e);
     }
+    String expectedSignature;
+    try {
+      expectedSignature = computeSignature(pageToken);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Malformed page token", e);
+    }
+    byte[] expectedBytes = expectedSignature.getBytes(StandardCharsets.UTF_8);
+    byte[] actualBytes =
+        (pageToken.signature == null ? "" : pageToken.signature).getBytes(StandardCharsets.UTF_8);
+    if (pageToken.signature == null || !MessageDigest.isEqual(expectedBytes, actualBytes)) {
+      throw new IllegalArgumentException("Invalid page token signature");
+    }
+    return pageToken;
+  }
+
+  /** HMAC-SHA256 over the token's fields (excluding {@link PageToken#signature}), Base64-encoded. */
+  private String computeSignature(PageToken token) throws JsonProcessingException {
+    ObjectMapper signingMapper = new ObjectMapper();
+    signingMapper.addMixIn(PageToken.class, PageTokenSignatureMixIn.class);
+    String dataToSign = signingMapper.writeValueAsString(token);
+    try {
+      Mac mac = Mac.getInstance(HMAC_ALGORITHM);
+      mac.init(
+          new SecretKeySpec(
+              filesConfig.getPageTokenSecretKey().getBytes(StandardCharsets.UTF_8),
+              HMAC_ALGORITHM));
+      return Base64.getEncoder().encodeToString(mac.doFinal(dataToSign.getBytes(StandardCharsets.UTF_8)));
+    } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+      throw new IllegalStateException("Unable to compute page token signature", e);
+    }
+  }
+
+  /** Jackson mix-in excluding {@link PageToken#signature} from the bytes that get signed. */
+  private abstract static class PageTokenSignatureMixIn {
+    @JsonIgnore public String signature;
   }
 
   /**
    * Opaque, JSON-serialised page cursor. Carries the full search criteria (so the next page re-runs
    * the identical query) plus {@link #cursor}: the last returned row's value for every applied sort
-   * column, in {@link NodeRepositoryImpl#getRealSortingsToApply} order.
+   * column, in {@link NodeRepositoryImpl#getRealSortingsToApply} order. {@link #signature} is an
+   * HMAC-SHA256 (see {@link #computeSignature}) over every OTHER field, verified on decode so the
+   * token is tamper-evident — restoring the property the legacy {@code PageQuery} had and the
+   * Quarkus port had silently dropped.
    */
   public static final class PageToken {
+    public String signature;
     public Integer limit;
     public String sort;
     public Boolean flagged;

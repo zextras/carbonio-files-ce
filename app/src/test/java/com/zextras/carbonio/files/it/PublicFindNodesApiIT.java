@@ -29,11 +29,14 @@ import org.junit.jupiter.api.Test;
  * design.</b> {@link #forgeTamperedPageTokenMissingSignature()}/{@link
  * #forgeTamperedPageTokenWithWrongSignature(String)} always embed the SAME hard-coded {@code
  * "77777777-7777-7777-7777-777777777777"} (ported verbatim from the deleted seam's {@code
- * QuarkusTestDataAccess}) regardless of what real data exists — the server rejects the token at
- * SIGNATURE-verification time, before that embedded value is ever consulted. The two
- * tampered-token tests still seed a small decoy "not public folder" tree for scenario fidelity
- * (an unrelated, non-public folder a hacker might try to pivot into), even though it is not
- * required for the assertion to hold.
+ * QuarkusTestDataAccess}) regardless of what real data exists — this legacy {@code PageQuery}-shaped
+ * JSON (keySet/signature fields foreign to the port's actual {@code PageToken}) fails to
+ * Jackson-deserialize at all, so the server rejects it as MALFORMED before that embedded value —
+ * or any signature — is ever consulted. The two tampered-token tests still seed a small decoy "not
+ * public folder" tree for scenario fidelity (an unrelated, non-public folder a hacker might try to
+ * pivot into), even though it is not required for the assertion to hold. For tests that exercise
+ * the REAL signature/scope/limit enforcement with tokens in the port's actual shape, see {@code
+ * PageTokenAuthorizationApiIT}.
  *
  * <p><b>Access codes must satisfy the schema's 10-254 char bound.</b> {@code createLink}'s {@code
  * access_code} argument is validated ({@code schema.graphql}: "must be equal or longer than 10 and
@@ -307,9 +310,13 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
+    // The forged JSON is the LEGACY PageQuery shape (keySet/signature fields foreign to the port's
+    // actual PageToken), so it fails to Jackson-deserialize at all: a MALFORMED token, not a
+    // signature mismatch — the message must say so (see NodeRepositoryImpl#decodeToken), not claim
+    // a signature check ran when none did.
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("Exception while fetching data (/findNodes) : Invalid token signature");
+        .containsExactly("Exception while fetching data (/findNodes) : Malformed page token");
   }
 
   @Test
@@ -329,9 +336,12 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
+    // Same as above: this is still the legacy PageQuery JSON shape (now WITH a signature field,
+    // but also still WITH the legacy keySet field, foreign to the port's PageToken) — it fails to
+    // deserialize, so it is MALFORMED, not a signature mismatch.
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("Exception while fetching data (/findNodes) : Invalid token signature");
+        .containsExactly("Exception while fetching data (/findNodes) : Malformed page token");
   }
 
   @Test

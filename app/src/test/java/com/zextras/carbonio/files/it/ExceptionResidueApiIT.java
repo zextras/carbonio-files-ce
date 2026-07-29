@@ -101,10 +101,11 @@ class ExceptionResidueApiIT extends AbstractFilesIT {
    * PublicFindNodesApiIT}'s "hacked page token without signature" test, but states the STATUS-code
    * mapping explicitly (this class's stated purpose), rather than only the GraphQL error message.
    * The forged token's embedded {@code folderId} is a fixed, unrelated literal by design (see {@code
-   * PublicFindNodesApiIT}'s class javadoc): the server rejects the token at SIGNATURE-verification
-   * time, before that embedded value is ever consulted, so the seeded nodes below need not (and
-   * structurally cannot, since API-seeding cannot choose a caller ID) share the forged token's
-   * hard-coded ids.
+   * PublicFindNodesApiIT}'s class javadoc): this legacy-shaped JSON fails to Jackson-deserialize
+   * against the port's actual {@code PageToken} shape at all (a MALFORMED token — see {@code
+   * NodeRepositoryImpl#decodeToken}), before that embedded value — or any signature — is ever
+   * consulted, so the seeded nodes below need not (and structurally cannot, since API-seeding
+   * cannot choose a caller ID) share the forged token's hard-coded ids.
    */
   @Test
   void givenATamperedPageTokenTheActualStatusIs200WithAGraphQLErrorNotAnHttp401() {
@@ -134,8 +135,12 @@ class ExceptionResidueApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
 
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
+    // The forged JSON is the LEGACY PageQuery shape (keySet/signature fields foreign to the
+    // port's actual PageToken), so it fails to Jackson-deserialize at all: a MALFORMED token, not
+    // a signature mismatch (see NodeRepositoryImpl#decodeToken) — the message must not claim a
+    // signature was checked when the failure never got that far.
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("Exception while fetching data (/findNodes) : Invalid token signature");
+        .containsExactly("Exception while fetching data (/findNodes) : Malformed page token");
   }
 }

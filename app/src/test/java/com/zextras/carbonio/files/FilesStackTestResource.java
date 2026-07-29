@@ -13,6 +13,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.http.RequestMethod;
 import com.zextras.carbonio.files.it.support.MockStoragesService;
 import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
 import java.nio.charset.StandardCharsets;
@@ -50,6 +51,10 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
   private static final String DB_NAME = "carbonio-files-db";
   private static final String DB_USER = "test";
   private static final String DB_PASSWORD = "test";
+
+  /** The Consul KV path {@code FilesConfig}'s page-token HMAC secret key lives at. */
+  private static final String PAGE_TOKEN_SECRET_KEY_PATH =
+      "/v1/kv/carbonio-files/page-token-secret-key";
 
   /**
    * Fixed {@code ZM_AUTH_TOKEN} recognised by the in-process user-management REST fake. Any other
@@ -288,6 +293,39 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
         get(urlPathMatching("/v1/kv/.*"))
             .atPriority(10)
             .willReturn(aResponse().withStatus(404)));
+
+    // FilesConfig#initializePageTokenSecretKey's ?cas=0 write: absent this stub, a cold "cluster"
+    // (this single test instance, on its very first boot) gets a 404 on the catch-all above and
+    // falls through to a generated key that is never persisted — every request would still sign
+    // consistently WITHIN one app process, but a relaunched packaged app (a fresh
+    // @QuarkusIntegrationTest class run) would then generate and use a DIFFERENT key, invalidating
+    // every page token minted by a previous relaunch. Accepting the CAS write (as Consul's real
+    // cas=0-against-an-absent-key semantics would) and echoing the SAME value back on every
+    // subsequent GET for that one key — via the request listener below — reproduces "first writer
+    // wins, everyone converges" across the whole shared, static WireMock instance/test run.
+    server.stubFor(
+        put(urlPathEqualTo(PAGE_TOKEN_SECRET_KEY_PATH))
+            .atPriority(1)
+            .willReturn(aResponse().withStatus(200).withBody("true")));
+    server.addMockServiceRequestListener(
+        (request, response) -> {
+          if (request.getMethod() == RequestMethod.PUT
+              && request.getUrl().startsWith(PAGE_TOKEN_SECRET_KEY_PATH)) {
+            String storedValue = request.getBodyAsString();
+            server.stubFor(
+                get(urlPathEqualTo(PAGE_TOKEN_SECRET_KEY_PATH))
+                    .atPriority(1)
+                    .willReturn(
+                        aResponse()
+                            .withStatus(200)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody(
+                                buildKvArrayJson(
+                                    new String[][] {
+                                      {"carbonio-files/page-token-secret-key", storedValue}
+                                    }))));
+          }
+        });
 
     // Service registration / deregistration → 200
     for (String pattern :
