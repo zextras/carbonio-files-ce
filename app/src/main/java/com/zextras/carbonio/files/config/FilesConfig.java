@@ -8,9 +8,17 @@ import com.zextras.carbonio.files.Constants.ServiceDiscover;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.quarkus.extensions.bootstrap.ApplicationConfigService;
 import com.zextras.carbonio.quarkus.extensions.bootstrap.NetworkingConfigService;
+import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.Optional;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Runtime accessor for the carbonio-files application tunables consumed by the GraphQL
@@ -33,6 +41,8 @@ import java.util.Optional;
 @ApplicationScoped
 public class FilesConfig {
 
+  private static final Logger logger = LoggerFactory.getLogger(FilesConfig.class);
+
   private final ApplicationConfigService applicationConfig;
   private final NetworkingConfigService networkingConfig;
   private final ServiceDiscoverHttpClient serviceDiscoverHttpClient;
@@ -45,6 +55,68 @@ public class FilesConfig {
     this.applicationConfig = applicationConfig;
     this.networkingConfig = networkingConfig;
     this.serviceDiscoverHttpClient = serviceDiscoverHttpClient;
+  }
+
+  /**
+   * Boot-time hook (mirrors {@code MessageBrokerManagerImpl#onStart}'s {@code @Observes
+   * StartupEvent} pattern): ensures the {@code page-token-secret-key} Consul KV entry exists
+   * before the app starts serving traffic. Ports legacy {@code FilesConfig#initializeSecretKey()}.
+   */
+  void onStart(@Observes StartupEvent event) {
+    initializePageTokenSecretKey();
+  }
+
+  /**
+   * Generates a random HmacSHA256 key and stores it in Consul KV at {@code
+   * carbonio-files/page-token-secret-key} via a {@code ?cas=0} write, so the FIRST instance of a
+   * cluster to boot wins and every instance converges on the SAME key (subsequent instances' own
+   * generated candidate is simply discarded — {@link #getPageTokenSecretKey()} always re-reads the
+   * winning value live from Consul, never caching what THIS instance tried to write). On a cold
+   * cluster this is exactly what makes page tokens minted by one node verifiable by any other node,
+   * and what makes them survive a restart. Wrapped in try/catch: if Consul is unreachable or the
+   * ACL token is rejected (403), the app must still boot — {@link #getPageTokenSecretKey()} falls
+   * back to the well-known default key in that case, same trade-off the legacy code documented
+   * (signing degrades to a shared-but-public key rather than taking the app down).
+   */
+  private void initializePageTokenSecretKey() {
+    try {
+      String configKey = ServiceDiscover.Config.PAGE_TOKEN_SECRET_KEY;
+      if (serviceDiscoverHttpClient.getConfig(configKey).isEmpty()) {
+        String newSecretKey = generateHmacSha256Key();
+        boolean created = serviceDiscoverHttpClient.createConfigIfAbsent(configKey, newSecretKey);
+        logger.debug(
+            created
+                ? "Page token secret key created"
+                : "Page token secret key already existed (or Consul write failed); another"
+                    + " instance's key (or the default) will be used");
+      }
+    } catch (Exception e) {
+      logger.error("Exception while trying to create the page token secret key", e);
+    }
+  }
+
+  private static String generateHmacSha256Key() {
+    try {
+      KeyGenerator keyGen = KeyGenerator.getInstance("HmacSHA256");
+      SecretKey secretKey = keyGen.generateKey();
+      return Base64.getEncoder().encodeToString(secretKey.getEncoded());
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException("Failed to generate HMAC key", e);
+    }
+  }
+
+  /**
+   * The HMAC-SHA256 key used to sign/verify {@code findNodes} keyset page tokens, read LIVE from
+   * Consul on every call (never cached), exactly like {@link #getMaxNumberOfVersionsRaw()} above.
+   * Falls back to a well-known, public default when Consul has no value yet (or is unreachable) —
+   * the same intentional trade-off the legacy code made: a page token is not a capability grant on
+   * its own (an unsigned/default-keyed one only replays what its own fields already say), so a
+   * temporarily-shared-but-public key is preferable to refusing to serve requests.
+   */
+  public String getPageTokenSecretKey() {
+    return serviceDiscoverHttpClient
+        .getConfig(ServiceDiscover.Config.PAGE_TOKEN_SECRET_KEY)
+        .orElse(ServiceDiscover.Config.DEFAULT_PAGE_TOKEN_SECRET_KEY);
   }
 
   /**

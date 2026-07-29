@@ -67,7 +67,12 @@ public class ServiceDiscoverHttpClient {
    */
   public Optional<String> getConfig(String key) {
     try {
-      HttpRequest request = HttpRequest.newBuilder().uri(URI.create(kvBaseUrl + key)).GET().build();
+      HttpRequest request =
+          HttpRequest.newBuilder()
+              .uri(URI.create(kvBaseUrl + key))
+              .header("X-Consul-Token", consulToken())
+              .GET()
+              .build();
       HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
       if (response.statusCode() != 200) {
         return Optional.empty();
@@ -80,10 +85,48 @@ public class ServiceDiscoverHttpClient {
       if (base64Value == null) {
         return Optional.empty();
       }
-      return Optional.of(new String(Base64.getDecoder().decode(base64Value), StandardCharsets.UTF_8));
+      // .trim(): a KV value written with a trailing newline (e.g. by an operator via `consul kv
+      // put -` or a shell redirect) must not break a caller that parses it as a number/enum.
+      return Optional.of(
+          new String(Base64.getDecoder().decode(base64Value), StandardCharsets.UTF_8).trim());
     } catch (Exception e) {
       logger.warn("Live Consul KV read failed for carbonio-files/{}: {}", key, e.getMessage());
       return Optional.empty();
     }
+  }
+
+  /**
+   * Writes a single {@code carbonio-files/<key>} Consul KV entry ONLY IF IT DOES NOT ALREADY
+   * EXIST, using Consul's {@code ?cas=0} check-and-set semantics (a CAS write against index 0
+   * succeeds only when the key is currently absent). Used at boot to converge every instance of a
+   * cluster on ONE shared value (e.g. the page-token HMAC secret): the first instance to reach
+   * Consul wins and every other instance's write is rejected, so they all subsequently read back
+   * the winner's value via {@link #getConfig(String)}. Returns {@code true} only when THIS call
+   * created the key; {@code false} for a losing race, a non-200 response (including an
+   * ACL-rejected/403 write), or any transport failure — callers must not treat {@code false} as
+   * fatal.
+   */
+  public boolean createConfigIfAbsent(String key, String value) {
+    try {
+      HttpRequest request =
+          HttpRequest.newBuilder()
+              .uri(URI.create(kvBaseUrl + key + "?cas=0"))
+              .header("X-Consul-Token", consulToken())
+              .PUT(HttpRequest.BodyPublishers.ofString(value, StandardCharsets.UTF_8))
+              .build();
+      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      if (response.statusCode() != 200) {
+        return false;
+      }
+      return Boolean.parseBoolean(response.body().trim());
+    } catch (Exception e) {
+      logger.warn("Consul KV cas=0 write failed for carbonio-files/{}: {}", key, e.getMessage());
+      return false;
+    }
+  }
+
+  private static String consulToken() {
+    String token = System.getenv("CONSUL_HTTP_TOKEN");
+    return token == null ? "" : token;
   }
 }
