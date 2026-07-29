@@ -1144,7 +1144,6 @@ public final class Constants {
       private Config() {
       }
 
-      public static final String COLLATION = "collation";
       public static final String MAX_UPLOADABLE_SIZE_IN_MB = "max-uploadable-size-in-mb";
       public static final String MAX_DOWNLOADABLE_SIZE_IN_MB = "max-downloadable-size-in-mb";
       public static final String PAGE_TOKEN_SECRET_KEY = "page-token-secret-key";

@@ -16,6 +16,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SortOrder;
+import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -75,6 +76,7 @@ public class NodeRepositoryImpl implements NodeRepository {
           Db.Node.SIZE, "mSize");
 
   @Inject EntityManager entityManager;
+  @Inject CollationRepository collationRepository;
 
   // ---------------------------------------------------------------------------------------------
   // Simple finders
@@ -168,7 +170,7 @@ public class NodeRepositoryImpl implements NodeRepository {
     hql.append(" order by ")
         .append(
             expandSorts(sort).stream()
-                .map(NodeRepositoryImpl::orderFragment)
+                .map(this::orderFragment)
                 .collect(Collectors.joining(", ")));
 
     TypedQuery<String> query = entityManager.createQuery(hql.toString(), String.class);
@@ -599,7 +601,7 @@ public class NodeRepositoryImpl implements NodeRepository {
     hql.append(" order by ")
         .append(
             realSorts.stream()
-                .map(NodeRepositoryImpl::orderFragment)
+                .map(this::orderFragment)
                 .collect(Collectors.joining(", ")));
 
     TypedQuery<Node> query = entityManager.createQuery(hql.toString(), Node.class);
@@ -734,7 +736,7 @@ public class NodeRepositoryImpl implements NodeRepository {
 
     String orderBy =
         realSorts.stream()
-            .map(NodeRepositoryImpl::orderFragment)
+            .map(this::orderFragment)
             .collect(Collectors.joining(", "));
 
     TypedQuery<Node> query =
@@ -790,16 +792,23 @@ public class NodeRepositoryImpl implements NodeRepository {
    * <pre>(cat &gt; :ks0) or (cat = :ks0 and name &gt; :ks1) or (cat = :ks0 and name = :ks1 and id &gt; :ks2)</pre>
    *
    * The cursor values are bound into {@code params} under {@code ks0..ksN}.
+   *
+   * <p>Every term uses {@link #collatedFieldPath}, NOT the plain {@link #fieldPath} — the same
+   * expression {@link #orderFragment} puts in the {@code ORDER BY}. A collated column compared
+   * with a plain (default-collation) predicate would walk a DIFFERENT total order than the one
+   * {@code ORDER BY} actually produced, silently skipping or repeating rows across a page
+   * boundary; keeping both call sites funnelled through the identical helper is what rules that
+   * out.
    */
   private String keysetPredicate(List<NodeSort> sorts, List<Object> cursor, Map<String, Object> params) {
     List<String> orParts = new ArrayList<>();
     for (int j = 0; j < sorts.size(); j++) {
       List<String> andParts = new ArrayList<>();
       for (int i = 0; i < j; i++) {
-        andParts.add(fieldPath(sorts.get(i)) + " = :ks" + i);
+        andParts.add(collatedFieldPath(sorts.get(i)) + " = :ks" + i);
       }
       String op = sorts.get(j).getOrder() == SortOrder.ASCENDING ? ">" : "<";
-      andParts.add(fieldPath(sorts.get(j)) + " " + op + " :ks" + j);
+      andParts.add(collatedFieldPath(sorts.get(j)) + " " + op + " :ks" + j);
       orParts.add("(" + String.join(" and ", andParts) + ")");
     }
     for (int i = 0; i < sorts.size(); i++) {
@@ -849,8 +858,60 @@ public class NodeRepositoryImpl implements NodeRepository {
     return "n." + FIELD_BY_COLUMN.get(sort.getName());
   }
 
-  private static String orderFragment(NodeSort sort) {
-    return fieldPath(sort) + (sort.getOrder() == SortOrder.ASCENDING ? " asc" : " desc");
+  /**
+   * Whether {@code sort}'s column is one where the resolved database collation actually changes
+   * comparison/ordering semantics. Mirrors the legacy {@code NodeSort#getOrderEbeanQuery}
+   * per-value behaviour exactly: {@code NAME}/{@code OWNER}/{@code LAST_EDITOR} (all free-text
+   * {@code VARCHAR} identity columns) honoured a supplied collate; {@code ID} (always a fixed-format
+   * UUID, and never itself collation-ambiguous), {@code TYPE} (an integer category), and the
+   * timestamp/size numeric columns ignored it.
+   */
+  private static boolean isCollatable(NodeSort sort) {
+    return switch (sort) {
+      case NAME_ASC, NAME_DESC, OWNER_ASC, OWNER_DESC, LAST_EDITOR_ASC, LAST_EDITOR_DESC -> true;
+      case ID_ASC,
+          TYPE_ASC,
+          TYPE_DESC,
+          UPDATED_AT_ASC,
+          UPDATED_AT_DESC,
+          CREATED_AT_ASC,
+          CREATED_AT_DESC,
+          SIZE_ASC,
+          SIZE_DESC ->
+          false;
+    };
+  }
+
+  /**
+   * {@link #fieldPath}, wrapped in Hibernate's HQL {@code collate(x as name)} function when (a)
+   * {@link #isCollatable} and (b) {@link CollationRepository} resolved a non-default collation to
+   * apply (i.e. the database's own default collation is the locale-less {@code C}/{@code C.UTF-8}
+   * — see {@link CollationRepositoryImpl}). Used for BOTH the {@code ORDER BY} term ({@link
+   * #orderFragment}) and the matching keyset cursor comparison ({@link #keysetPredicate}) — see
+   * that method's javadoc for why they must render the identical expression.
+   *
+   * <p>{@link CollationRepository} returns the raw-SQL, already-double-quoted identifier form
+   * (legacy's contract, e.g. {@code "en_US.utf8"}, ready to drop into a native query). Hibernate's
+   * HQL {@code collate(x as name)} function instead parses {@code name} as an identifier and
+   * expects it backtick-quoted when (as here) it contains characters — the dot — that are not
+   * legal in a bare HQL identifier; Hibernate then re-quotes it correctly for the target dialect
+   * ("Some PostgreSQL collation names may require quoting with backticks" — Hibernate ORM
+   * reference docs). So the outer double quotes {@link CollationRepository} adds for its raw-SQL
+   * contract are stripped here and the bare name is re-wrapped in backticks instead.
+   */
+  private String collatedFieldPath(NodeSort sort) {
+    String field = fieldPath(sort);
+    if (!isCollatable(sort)) {
+      return field;
+    }
+    return collationRepository
+        .getValidCollateForQuery()
+        .map(quoted -> "collate(" + field + " as `" + quoted.substring(1, quoted.length() - 1) + "`)")
+        .orElse(field);
+  }
+
+  private String orderFragment(NodeSort sort) {
+    return collatedFieldPath(sort) + (sort.getOrder() == SortOrder.ASCENDING ? " asc" : " desc");
   }
 
   /** Extracts the value of a node for the column a given sort orders by (the keyset cursor value). */
