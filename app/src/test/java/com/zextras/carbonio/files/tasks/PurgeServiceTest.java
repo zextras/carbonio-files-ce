@@ -130,6 +130,38 @@ class PurgeServiceTest {
   }
 
   @Test
+  void purgeTrashedNodesKeepsOnlyTheNodeWhoseBlobDeleteFailedFromAPartialFailureList()
+      throws Exception {
+    // Two file nodes owned by the same user land in ONE bulk-delete batch; PowerStore answers
+    // 200 WITH a partial-failure list naming only one of them. The service must selectively keep
+    // exactly that node's row (it goes into failedFileNodeIds via the
+    // failedItems.stream()...forEach(failedFileNodeIds::add) branch) while purging the other.
+    Node kept = trashedNode("node-kept", "owner-8", NodeType.TEXT, "TRASH_ROOT");
+    Node removed = trashedNode("node-removed", "owner-8", NodeType.TEXT, "TRASH_ROOT");
+    when(nodeRepository.getAllTrashedNodes(anyLong())).thenReturn(List.of(kept, removed));
+    when(fileVersionRepository.getFileVersions("node-kept", List.of(FileVersionSort.VERSION_ASC)))
+        .thenReturn(
+            List.of(new FileVersion("node-kept", "owner-8", 1L, 1, "text/plain", 1L, "d", false)));
+    when(fileVersionRepository.getFileVersions(
+            "node-removed", List.of(FileVersionSort.VERSION_ASC)))
+        .thenReturn(
+            List.of(
+                new FileVersion("node-removed", "owner-8", 1L, 1, "text/plain", 1L, "d", false)));
+    List<BulkDeleteResponseItem> partialFailure = List.of(failedItem("node-kept"));
+    when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-8"), anyList()))
+        .thenReturn(partialFailure);
+
+    purgeService.purgeTrashedNodes(30);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<String>> deletedIdsCaptor = ArgumentCaptor.forClass(List.class);
+    verify(nodeRepository).deleteNodes(deletedIdsCaptor.capture());
+    assertThat(deletedIdsCaptor.getValue())
+        .as("only the node whose blob delete succeeded is purged")
+        .containsExactly("node-removed");
+  }
+
+  @Test
   void purgeTrashedNodesDoesNothingWhenThereAreNoTrashedNodes() {
     when(nodeRepository.getAllTrashedNodes(anyLong())).thenReturn(List.of());
 
