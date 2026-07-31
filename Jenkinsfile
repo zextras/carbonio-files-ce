@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 library(
-    identifier: 'jenkins-lib-common@v4.1.4',
+    identifier: 'jenkins-lib-common@feat/verify-only',
     retriever: modernSCM([
         $class: 'GitSCMSource',
         credentialsId: 'jenkins-integration-with-github-account',
@@ -35,4 +35,7 @@ dt3_pipeline(
         platforms: ['linux/amd64', 'linux/arm64'] as Set,
     ]],
     reuse: [projectType: 'CE'],
+    flywayGuard: [
+        migrationPaths: ['core/src/main/resources/db/migration'],
+    ],
 )
