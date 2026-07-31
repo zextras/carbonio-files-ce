@@ -19,14 +19,13 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.MockFilesConfig;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
+import java.util.List;
+import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.Map;
 
 class AddedNodeNotificationMoveApiIT {
 
@@ -76,7 +75,9 @@ class AddedNodeNotificationMoveApiIT {
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
             new SimplePopulatorFolder(
-                "00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "folder"));
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "folder"));
 
     // Share it with second user
     String bodyPayload =
@@ -100,8 +101,7 @@ class AddedNodeNotificationMoveApiIT {
             .withWantedResultFormat("{ id }")
             .build();
 
-    httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+    httpRequest = HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
@@ -118,8 +118,7 @@ class AddedNodeNotificationMoveApiIT {
             .withWantedResultFormat("{ id }")
             .build();
 
-    httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+    httpRequest = HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
   }
@@ -132,15 +131,16 @@ class AddedNodeNotificationMoveApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("getNotifications")
             .withBoolean("update_last_seen", true)
-            .withWantedResultFormat("{ notifications { ... on AddedNode { created_at }, ... on NewShare { created_at } } }")
+            .withWantedResultFormat(
+                "{ notifications { ... on AddedNode { created_at }, ... on NewShare { created_at }"
+                    + " } }")
             .build();
 
     HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-2", bodyPayload);
 
     // When
-    HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -148,33 +148,33 @@ class AddedNodeNotificationMoveApiIT {
     Map<String, Object> page =
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "getNotifications");
 
-    final List<Map<String, Object>> notifications = (List<Map<String, Object>>) page.get("notifications");
+    final List<Map<String, Object>> notifications =
+        (List<Map<String, Object>>) page.get("notifications");
 
     Assertions.assertThat(notifications).hasSize(2); // One newShare and one addedNode
   }
 
   @Test
-  void givenANodeMoveOnASharedDirectoryAndDisabledNotificationsNoNotificationShouldBeSavedOrReturned() {
+  void
+      givenANodeMoveOnASharedDirectoryAndDisabledNotificationsNoNotificationShouldBeSavedOrReturned() {
     // Given
-    ((MockFilesConfig)
-        simulator
-            .getInjector()
-            .getInstance(FilesConfig.class))
+    ((MockFilesConfig) simulator.getInjector().getInstance(FilesConfig.class))
         .setAreNotificationsEnabled(false);
     createBaseScenario();
 
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("getNotifications")
             .withBoolean("update_last_seen", true)
-            .withWantedResultFormat("{ notifications { ... on AddedNode { created_at }, ... on NewShare { created_at } } }")
+            .withWantedResultFormat(
+                "{ notifications { ... on AddedNode { created_at }, ... on NewShare { created_at }"
+                    + " } }")
             .build();
 
     HttpRequest httpRequest =
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-2", bodyPayload);
 
     // When
-    HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -182,15 +182,13 @@ class AddedNodeNotificationMoveApiIT {
     Map<String, Object> page =
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "getNotifications");
 
-    final List<Map<String, Object>> notifications = (List<Map<String, Object>>) page.get("notifications");
+    final List<Map<String, Object>> notifications =
+        (List<Map<String, Object>>) page.get("notifications");
 
     Assertions.assertThat(notifications).hasSize(0);
 
-    //reset
-    ((MockFilesConfig)
-        simulator
-            .getInjector()
-            .getInstance(FilesConfig.class))
+    // reset
+    ((MockFilesConfig) simulator.getInjector().getInstance(FilesConfig.class))
         .setAreNotificationsEnabled(true);
   }
 }

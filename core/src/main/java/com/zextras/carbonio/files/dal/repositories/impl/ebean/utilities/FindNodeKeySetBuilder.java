@@ -34,9 +34,10 @@ public class FindNodeKeySetBuilder {
   private NodeSQLCondition createSQLCondition(NodeSort sort, SortOrder order) {
     String columnNameToCompare = sort.getName();
     // Special case: if sorting by name -> compare the lowercase of the fullName
-    Object parameterToCompare = Constants.Db.Node.NAME.equals(columnNameToCompare)
-      ? node.getFullName().toLowerCase()
-      : node.getSortingValueFromColumn(columnNameToCompare);
+    Object parameterToCompare =
+        Constants.Db.Node.NAME.equals(columnNameToCompare)
+            ? node.getFullName().toLowerCase()
+            : node.getSortingValueFromColumn(columnNameToCompare);
 
     return new NodeSQLCondition(columnNameToCompare, order, parameterToCompare);
   }

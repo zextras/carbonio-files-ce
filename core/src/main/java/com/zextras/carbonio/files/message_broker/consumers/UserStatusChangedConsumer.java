@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 package com.zextras.carbonio.files.message_broker.consumers;
+
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -11,11 +12,10 @@ import com.zextras.carbonio.message_broker.consumer.BaseConsumer;
 import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
 import com.zextras.carbonio.message_broker.events.services.mailbox.UserStatusChanged;
 import com.zextras.carbonio.message_broker.events.services.mailbox.enums.UserStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class UserStatusChangedConsumer extends BaseConsumer {
 
@@ -36,8 +36,11 @@ public class UserStatusChangedConsumer extends BaseConsumer {
   @Override
   public void doHandle(BaseEvent baseMessageBrokerEvent) {
     UserStatusChanged userStatusChanged = (UserStatusChanged) baseMessageBrokerEvent;
-    logger.info("Received UserStatusChanged({}, {})", userStatusChanged.getUserId(), userStatusChanged.getUserStatus());
-    if(shouldChangeHiddenFlag(userStatusChanged)){
+    logger.info(
+        "Received UserStatusChanged({}, {})",
+        userStatusChanged.getUserId(),
+        userStatusChanged.getUserStatus());
+    if (shouldChangeHiddenFlag(userStatusChanged)) {
       logger.info("Setting hidden flag for every node of given user");
       List<Node> nodesToProcess = nodeRepository.findNodesByOwner(userStatusChanged.getUserId());
       nodeRepository.invertHiddenFlagNodes(nodesToProcess);
@@ -45,17 +48,19 @@ public class UserStatusChangedConsumer extends BaseConsumer {
   }
 
   /**
-   * An operation is useless if all nodes already have the same flag that the operation would set. Since
-   * setting this flag is transactional for all nodes owned by a user, checking a single node is sufficient.
-   * Once obtaining the first node's hidden flag value we can check if is already correctly set or otherwise.
-   * This is useful because if we catch an userstatuschanged, but it is from a non-closed status (like active)
-   * to another non-closed status (like maintenance) we do not want to perform a useless update operation for
-   * every node owned by user.
+   * An operation is useless if all nodes already have the same flag that the operation would set.
+   * Since setting this flag is transactional for all nodes owned by a user, checking a single node
+   * is sufficient. Once obtaining the first node's hidden flag value we can check if is already
+   * correctly set or otherwise. This is useful because if we catch an userstatuschanged, but it is
+   * from a non-closed status (like active) to another non-closed status (like maintenance) we do
+   * not want to perform a useless update operation for every node owned by user.
    */
-  private boolean shouldChangeHiddenFlag(UserStatusChanged userStatusChanged){
-    Optional<Node> firstNodeToCheckOpt = nodeRepository.findFirstByOwner(userStatusChanged.getUserId());
-    return firstNodeToCheckOpt.isPresent() &&
-        firstNodeToCheckOpt.get().isHidden() != shouldNodesHideByUserStatus(userStatusChanged.getUserStatus());
+  private boolean shouldChangeHiddenFlag(UserStatusChanged userStatusChanged) {
+    Optional<Node> firstNodeToCheckOpt =
+        nodeRepository.findFirstByOwner(userStatusChanged.getUserId());
+    return firstNodeToCheckOpt.isPresent()
+        && firstNodeToCheckOpt.get().isHidden()
+            != shouldNodesHideByUserStatus(userStatusChanged.getUserStatus());
   }
 
   /**

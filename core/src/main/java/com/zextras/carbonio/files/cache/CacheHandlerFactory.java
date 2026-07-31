@@ -10,8 +10,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 public interface CacheHandlerFactory {
 
   LocalCacheAdapter<FileVersion> createFileVersionCache(
-    String cacheName,
-    @Assisted("defaultCacheSize") long defaultCacheSize,
-    @Assisted("defaultItemLifetimeInMillis") long defaultItemLifetimeInMillis
-  );
+      String cacheName,
+      @Assisted("defaultCacheSize") long defaultCacheSize,
+      @Assisted("defaultItemLifetimeInMillis") long defaultItemLifetimeInMillis);
 }

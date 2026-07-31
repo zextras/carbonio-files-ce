@@ -13,14 +13,13 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
+import java.util.List;
+import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.Map;
 
 class IntrospectionApiIT {
 
@@ -37,9 +36,7 @@ class IntrospectionApiIT {
             .withDatabase()
             .withServiceDiscover()
             .withUserManagement( // create a fake token to use in cookie for auth
-                Map.of(
-                    "fake-token",
-                    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+                Map.of("fake-token", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
             .build()
             .start();
 
@@ -74,8 +71,7 @@ class IntrospectionApiIT {
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
-    final List<String> responseBody =
-        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    final List<String> responseBody = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
 
     Assertions.assertThat(responseBody).isNotEmpty();
     Assertions.assertThat(responseBody.get(0)).contains("Validation error");

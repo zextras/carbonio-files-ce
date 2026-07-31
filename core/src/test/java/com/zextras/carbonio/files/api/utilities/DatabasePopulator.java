@@ -16,12 +16,11 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionReposit
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
-import org.apache.commons.lang3.RandomStringUtils;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.apache.commons.lang3.RandomStringUtils;
 
 public class DatabasePopulator {
   static NodeRepository nodeRepository;
@@ -68,7 +67,7 @@ public class DatabasePopulator {
     return this;
   }
 
-  public DatabasePopulator addVersion(String nodeId){
+  public DatabasePopulator addVersion(String nodeId) {
     return addVersion(nodeId, false);
   }
 
@@ -76,23 +75,25 @@ public class DatabasePopulator {
     Optional<Node> optionalNode = nodeRepository.getNode(nodeId);
     if (optionalNode.isEmpty()) throw new IllegalArgumentException("Node does not exist");
 
-    List<FileVersion> versions = fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
+    List<FileVersion> versions =
+        fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
     Collections.reverse(versions);
     if (versions.isEmpty())
       throw new IllegalArgumentException("No initial version found for this node");
     FileVersion lastVersion = versions.get(versions.size() - 1);
 
     Node node = optionalNode.get();
-    Optional<FileVersion> version = fileVersionRepository.createNewFileVersion(
-        node.getId(),
-        node.getOwnerId(),
-        lastVersion.getVersion() + 1,
-        lastVersion.getMimeType(),
-        node.getSize(),
-        "",
-        false);
+    Optional<FileVersion> version =
+        fileVersionRepository.createNewFileVersion(
+            node.getId(),
+            node.getOwnerId(),
+            lastVersion.getVersion() + 1,
+            lastVersion.getMimeType(),
+            node.getSize(),
+            "",
+            false);
 
-    if(keepForever) {
+    if (keepForever) {
       fileVersionRepository.updateFileVersion(version.get().keepForever(true));
     }
 
@@ -118,8 +119,8 @@ public class DatabasePopulator {
   }
 
   /**
-   * Creates multiple links on a node without the per-insert delay.
-   * Use this when testing link count limits where link timestamps are irrelevant.
+   * Creates multiple links on a node without the per-insert delay. Use this when testing link count
+   * limits where link timestamps are irrelevant.
    */
   public DatabasePopulator addLinks(String nodeId, int count) {
     Optional<Node> optionalNode = nodeRepository.getNode(nodeId);
@@ -154,8 +155,8 @@ public class DatabasePopulator {
   }
 
   /**
-   * Waits until the system clock advances by at least 1ms so that consecutive
-   * inserts get distinct epoch-millis timestamps (needed for sort-by-time tests).
+   * Waits until the system clock advances by at least 1ms so that consecutive inserts get distinct
+   * epoch-millis timestamps (needed for sort-by-time tests).
    */
   private void delay() {
     long start = System.currentTimeMillis();

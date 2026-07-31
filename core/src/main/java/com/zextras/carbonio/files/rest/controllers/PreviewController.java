@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.rest.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants.API.Endpoints;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -22,7 +23,6 @@ import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
 import com.zextras.carbonio.files.utilities.MimeTypeUtils;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
-import com.zextras.carbonio.files.dal.dao.UserMyself;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -30,14 +30,12 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
 import io.netty.util.AttributeKey;
 import io.vavr.control.Try;
-
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -95,7 +93,8 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
       Matcher previewDocumentMatcher = Endpoints.PREVIEW_DOCUMENT.matcher((uriRequest));
       Matcher thumbnailDocumentMatcher = Endpoints.THUMBNAIL_DOCUMENT.matcher((uriRequest));
 
-      UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
+      UserMyself requester =
+          (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
       logger.debug("Requester locale: {}", requester.getLocale());
 
@@ -154,12 +153,16 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    * This method handles extraction of metadata from uri and fetching of image's preview. The result
    * is sent through the netty channel
    *
-   * @param context     is a {@link ChannelHandlerContext} object in which to write the results.
+   * @param context is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester   is a {@link UserMyself}, to check if the requester has the permission to view file.
+   * @param requester is a {@link UserMyself}, to check if the requester has the permission to view
+   *     file.
    */
   private void previewImage(
-      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, UserMyself requester) {
+      ChannelHandlerContext context,
+      HttpRequest httpRequest,
+      Matcher uriMatched,
+      UserMyself requester) {
 
     String nodeId = uriMatched.group(1);
     String previewArea = uriMatched.group(2);
@@ -198,12 +201,16 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    * This method handles extraction of metadata from uri and fetching of image's thumbnail. The
    * result is sent through the netty channel
    *
-   * @param context     is a {@link ChannelHandlerContext} object in which to write the results.
+   * @param context is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester   is a {@link UserMyself}, to check if the requester has the permission to view file.
+   * @param requester is a {@link UserMyself}, to check if the requester has the permission to view
+   *     file.
    */
   private void thumbnailImage(
-      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, UserMyself requester) {
+      ChannelHandlerContext context,
+      HttpRequest httpRequest,
+      Matcher uriMatched,
+      UserMyself requester) {
     String nodeId = uriMatched.group(1);
     String previewArea = uriMatched.group(2);
 
@@ -241,12 +248,16 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    * This method handles extraction of metadata from uri and fetching of pdf's preview. The result
    * is sent through the netty channel
    *
-   * @param context     is a {@link ChannelHandlerContext} object in which to write the results.
+   * @param context is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester   is a {@link UserMyself}, to check if the requester has the permission to view file.
+   * @param requester is a {@link UserMyself}, to check if the requester has the permission to view
+   *     file.
    */
   private void previewPdf(
-      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, UserMyself requester) {
+      ChannelHandlerContext context,
+      HttpRequest httpRequest,
+      Matcher uriMatched,
+      UserMyself requester) {
 
     String nodeId = uriMatched.group(1);
 
@@ -283,12 +294,16 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    * This method handles extraction of metadata from uri and fetching of pdf's thumbnail. The result
    * is sent through the netty channel
    *
-   * @param context     is a {@link ChannelHandlerContext} object in which to write the results.
+   * @param context is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester   is a {@link UserMyself}, to check if the requester has the permission to view file.
+   * @param requester is a {@link UserMyself}, to check if the requester has the permission to view
+   *     file.
    */
   private void thumbnailPdf(
-      ChannelHandlerContext context, HttpRequest httpRequest, Matcher uriMatched, UserMyself requester) {
+      ChannelHandlerContext context,
+      HttpRequest httpRequest,
+      Matcher uriMatched,
+      UserMyself requester) {
 
     String nodeId = uriMatched.group(1);
     String area = uriMatched.group(2);
@@ -327,9 +342,10 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    * This method handles extraction of metadata from uri and fetching of document's preview. The
    * result is sent through the netty channel
    *
-   * @param context     is a {@link ChannelHandlerContext} object in which to write the results.
+   * @param context is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester   is a {@link UserMyself}, to check if the requester has the permission to view file.
+   * @param requester is a {@link UserMyself}, to check if the requester has the permission to view
+   *     file.
    */
   private void previewDocument(
       ChannelHandlerContext context,
@@ -352,7 +368,8 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
             documentAllowedTypes);
 
     if (tryCheckNode.isSuccess()) {
-      String fileDigestWithLanguage = tryCheckNode.get().getRight().getDigest() + requester.getLocale().toLanguageTag();
+      String fileDigestWithLanguage =
+          tryCheckNode.get().getRight().getDigest() + requester.getLocale().toLanguageTag();
 
       if (isPreviewChanged(httpRequest, fileDigestWithLanguage)) {
         previewService
@@ -375,9 +392,10 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    * This method handles extraction of metadata from uri and fetching of document's thumbnail. The
    * result is sent through the netty channel
    *
-   * @param context     is a {@link ChannelHandlerContext} object in which to write the results.
+   * @param context is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param requester   is a {@link UserMyself}, to check if the requester has the permission to view file.
+   * @param requester is a {@link UserMyself}, to check if the requester has the permission to view
+   *     file.
    */
   private void thumbnailDocument(
       ChannelHandlerContext context,
@@ -401,7 +419,8 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
             documentAllowedTypes);
 
     if (tryCheckNode.isSuccess()) {
-      String fileDigestWithLanguage = tryCheckNode.get().getRight().getDigest() + requester.getLocale().toLanguageTag();
+      String fileDigestWithLanguage =
+          tryCheckNode.get().getRight().getDigest() + requester.getLocale().toLanguageTag();
 
       if (isPreviewChanged(httpRequest, fileDigestWithLanguage)) {
         previewService
@@ -443,8 +462,8 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    * This method writes to the netty channel a successful response with metadata found in
    * blobResponse
    *
-   * @param context      is a {@link ChannelHandlerContext} object in which to write the results.
-   * @param httpRequest  is a {@link HttpRequest}.
+   * @param context is a {@link ChannelHandlerContext} object in which to write the results.
+   * @param httpRequest is a {@link HttpRequest}.
    * @param blobResponse is a {@link BlobResponse} containing the metadata to write to context.
    */
   private void successResponse(
@@ -497,9 +516,9 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    *   <li>{@link HttpHeaderNames#ETAG} set to {@param fileDigest}
    * </ul>
    *
-   * @param context     is a {@link ChannelHandlerContext} object in which to write the results.
+   * @param context is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param fileDigest  is a {@link String} representing the digest of the blob to preview
+   * @param fileDigest is a {@link String} representing the digest of the blob to preview
    */
   private void unchangedPreviewResponse(
       ChannelHandlerContext context, HttpRequest httpRequest, String fileDigest) {
@@ -530,9 +549,9 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
   /**
    * This method writes to the netty channel a failure response.
    *
-   * @param context     is a {@link ChannelHandlerContext} object in which to write the results.
+   * @param context is a {@link ChannelHandlerContext} object in which to write the results.
    * @param httpRequest is a {@link HttpRequest}.
-   * @param failure     is a {@link Throwable} containing the cause of the failure.
+   * @param failure is a {@link Throwable} containing the cause of the failure.
    */
   private void failureResponse(
       ChannelHandlerContext context, HttpRequest httpRequest, Throwable failure) {
@@ -550,26 +569,27 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    * This checks if the requested node can be accessed by the requester and if the node mimetype is
    * supported by the system.
    *
-   * @param requesterId           is a {@link String} representing the id of the requester.
-   * @param nodeId                is a {@link String } representing the nodeId of the node.
-   * @param version               is a <code> integer </code> representing the version of the node.
+   * @param requesterId is a {@link String} representing the id of the requester.
+   * @param nodeId is a {@link String } representing the nodeId of the node.
+   * @param version is a <code> integer </code> representing the version of the node.
    * @param supportedMimeTypeList is a {@link Set} representing the allowed list or instance of
-   *                              mimetype that the calling methods allow (for instance a method may want only mimetype that
-   *                              are of "image" so "image/something" while another method "application" so
-   *                              "application/something".
+   *     mimetype that the calling methods allow (for instance a method may want only mimetype that
+   *     are of "image" so "image/something" while another method "application" so
+   *     "application/something".
    * @return a {@link Try#success} containing a {@link Pair} of the checked @{link Node} and the
-   * {@link FileVersion} or, a {@link Try#failure} containing the specific error.
+   *     {@link FileVersion} or, a {@link Try#failure} containing the specific error.
    */
   private Try<Pair<Node, FileVersion>> checkNodePermissionAndExistence(
       String requesterId, String nodeId, Integer version, Set<String> supportedMimeTypeList) {
-    Optional<FileVersion> optFileVersion = (version == null)
-        ? fileVersionRepository.getLastFileVersion(nodeId)
-        : fileVersionRepository.getFileVersion(nodeId, version);
+    Optional<FileVersion> optFileVersion =
+        (version == null)
+            ? fileVersionRepository.getLastFileVersion(nodeId)
+            : fileVersionRepository.getFileVersion(nodeId, version);
 
     if (permissionsChecker.getPermissions(nodeId, requesterId).has(SharePermission.READ_ONLY)
         && optFileVersion.isPresent()) {
       return (mimeTypeUtils.isMimeTypeAllowed(
-          optFileVersion.get().getMimeType(), supportedMimeTypeList))
+              optFileVersion.get().getMimeType(), supportedMimeTypeList))
           ? Try.success(Pair.of(nodeRepository.getNode(nodeId).get(), optFileVersion.get()))
           : Try.failure(new BadRequestException());
     }
@@ -581,10 +601,10 @@ public class PreviewController extends SimpleChannelInboundHandler<HttpRequest> 
    * specified in the etag {@param httpRequest} header.
    *
    * @param httpRequest is a {@link HttpRequest}.
-   * @param fileDigest  is a {@link String} representing the digest of the blob to preview.
+   * @param fileDigest is a {@link String} representing the digest of the blob to preview.
    * @return true if the {@link HttpHeaderNames#IF_NONE_MATCH} header is not present (it means this
-   * is the first time the preview of this blob is requested) or if the etag specified differs
-   * from the digest of the requested blob. Otherwise, it returns false.
+   *     is the first time the preview of this blob is requested) or if the etag specified differs
+   *     from the digest of the requested blob. Otherwise, it returns false.
    */
   private boolean isPreviewChanged(HttpRequest httpRequest, String fileDigest) {
     // The Etag header does not handle the comma character. For this reason we must encode

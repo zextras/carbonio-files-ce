@@ -4,7 +4,7 @@
 
 package com.zextras.carbonio.files.exceptions;
 
-public class RequestEntityTooLargeException extends Exception{
+public class RequestEntityTooLargeException extends Exception {
   public RequestEntityTooLargeException(String message) {
     super(message);
   }

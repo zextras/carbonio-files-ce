@@ -31,7 +31,8 @@ public class HttpResponse {
     return headers;
   }
 
-  public static HttpResponse of(int status, List<Map.Entry<String, String>> headers, String bodyPayload) {
+  public static HttpResponse of(
+      int status, List<Map.Entry<String, String>> headers, String bodyPayload) {
     return new HttpResponse(status, headers, bodyPayload);
   }
 }

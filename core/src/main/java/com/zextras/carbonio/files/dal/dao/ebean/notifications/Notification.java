@@ -7,19 +7,18 @@ package com.zextras.carbonio.files.dal.dao.ebean.notifications;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationType;
 import io.ebean.annotation.Cache;
-
 import javax.persistence.*;
 
 /*
-* Why didn't I use inheritance? It wouldn't work with Ebean, trying to insert everything in base table.
-* No idea why. Wrapped my way around it.
-* We have a "notification" table with IDs and shared information (createdAt, type).
-* The entity for this table though is not extended by the other entities, even if it logically
-* should be. Instead, since Ebean complains, I created a BaseNotification abstract class
-* that contains a Notification object and getters/setters for it.
-* This does not represent a table, but is used to extend the other entities so the
-* "feeling" of using inheritance is there, instead of manipulating objects and making manual joins.
-* */
+ * Why didn't I use inheritance? It wouldn't work with Ebean, trying to insert everything in base table.
+ * No idea why. Wrapped my way around it.
+ * We have a "notification" table with IDs and shared information (createdAt, type).
+ * The entity for this table though is not extended by the other entities, even if it logically
+ * should be. Instead, since Ebean complains, I created a BaseNotification abstract class
+ * that contains a Notification object and getters/setters for it.
+ * This does not represent a table, but is used to extend the other entities so the
+ * "feeling" of using inheritance is there, instead of manipulating objects and making manual joins.
+ * */
 @Cache
 @Entity
 @Table(name = Constants.Db.Tables.NOTIFICATION)

@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
@@ -25,39 +24,29 @@ public class TombstoneRepositoryEbean implements TombstoneRepository {
 
   @Override
   public List<Tombstone> getTombstones() {
-    return dbManager.getEbeanDatabase()
-      .find(Tombstone.class)
-      //.setMaxRows(50) TODO: consider pagination
-      .findList();
+    return dbManager
+        .getEbeanDatabase()
+        .find(Tombstone.class)
+        // .setMaxRows(50) TODO: consider pagination
+        .findList();
   }
 
   @Override
-  public Optional<Tombstone> createNewTombstone(
-    String nodeId,
-    String ownerId,
-    Integer version
-  ) {
+  public Optional<Tombstone> createNewTombstone(String nodeId, String ownerId, Integer version) {
 
     // Check if the same Tombstone already exists
-    if (
-      dbManager
+    if (dbManager
         .getEbeanDatabase()
         .find(Tombstone.class)
         .where()
         .eq(Constants.Db.Tombstone.NODE_ID, nodeId)
         .eq(Constants.Db.Tombstone.VERSION, version)
-        .exists()
-    ) {
+        .exists()) {
       return Optional.empty();
     }
 
     // The specified Tombstone does not exist, so let's create it
-    Tombstone tombstone = new Tombstone(
-      nodeId,
-      ownerId,
-      System.currentTimeMillis(),
-      version
-    );
+    Tombstone tombstone = new Tombstone(nodeId, ownerId, System.currentTimeMillis(), version);
 
     // Save the newly created Tombstone in the DB and return its Optional
     dbManager.getEbeanDatabase().save(tombstone);
@@ -65,29 +54,25 @@ public class TombstoneRepositoryEbean implements TombstoneRepository {
   }
 
   /**
-   * Creates tombstones for each FileVersion WITHOUT opening its own transaction.
-   * This method participates in the caller's transaction.
+   * Creates tombstones for each FileVersion WITHOUT opening its own transaction. This method
+   * participates in the caller's transaction.
    */
   @Override
-  public void createTombstonesBulk(
-    List<FileVersion> fileVersions,
-    String ownerId
-  ) {
-    fileVersions.forEach(fileVersion -> createNewTombstone(
-      fileVersion.getNodeId(),
-      ownerId,
-      fileVersion.getVersion()
-    ));
+  public void createTombstonesBulk(List<FileVersion> fileVersions, String ownerId) {
+    fileVersions.forEach(
+        fileVersion ->
+            createNewTombstone(fileVersion.getNodeId(), ownerId, fileVersion.getVersion()));
   }
 
   @Override
   public void deleteTombstonesByNodeAndVersion(String nodeId, Integer version) {
-    dbManager.getEbeanDatabase()
-      .find(Tombstone.class)
-      .where()
-      .eq(Constants.Db.Tombstone.NODE_ID, nodeId)
-      .eq(Constants.Db.Tombstone.VERSION, version)
-      .delete();
+    dbManager
+        .getEbeanDatabase()
+        .find(Tombstone.class)
+        .where()
+        .eq(Constants.Db.Tombstone.NODE_ID, nodeId)
+        .eq(Constants.Db.Tombstone.VERSION, version)
+        .delete();
   }
 
   @Override

@@ -16,14 +16,13 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
+import java.util.List;
+import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.Map;
 
 class FlagNodesApiIT {
 
@@ -40,9 +39,7 @@ class FlagNodesApiIT {
             .withDatabase()
             .withServiceDiscover()
             .withUserManagement( // create a fake token to use in cookie for auth
-                Map.of(
-                    "fake-token",
-                    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+                Map.of("fake-token", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
             .build()
             .start();
 
@@ -72,7 +69,7 @@ class FlagNodesApiIT {
 
     String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("flagNodes")
-            .withListOfStrings("node_ids", new String[]{"00000000-0000-0000-0000-000000000000"})
+            .withListOfStrings("node_ids", new String[] {"00000000-0000-0000-0000-000000000000"})
             .withBoolean("flag", true)
             .withWantedResultFormat("")
             .build();
@@ -101,7 +98,7 @@ class FlagNodesApiIT {
     // Given
     String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("flagNodes")
-            .withListOfStrings("node_ids", new String[]{"00000000-0000-0000-0000-000000000001"})
+            .withListOfStrings("node_ids", new String[] {"00000000-0000-0000-0000-000000000001"})
             .withBoolean("flag", true)
             .withWantedResultFormat("")
             .build();
@@ -117,12 +114,13 @@ class FlagNodesApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     final List<String> errorResponse =
-      TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
 
     Assertions.assertThat(errorResponse)
-      .hasSize(1)
-      .containsExactly(
-        "There was a problem while executing requested operation on node: 00000000-0000-0000-0000-000000000001");
+        .hasSize(1)
+        .containsExactly(
+            "There was a problem while executing requested operation on node:"
+                + " 00000000-0000-0000-0000-000000000001");
   }
 
   @Test
@@ -135,7 +133,7 @@ class FlagNodesApiIT {
 
     String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("flagNodes")
-            .withListOfStrings("node_ids", new String[]{"00000000-0000-0000-0000-000000000002"})
+            .withListOfStrings("node_ids", new String[] {"00000000-0000-0000-0000-000000000002"})
             .withBoolean("flag", true)
             .withWantedResultFormat("")
             .build();
@@ -151,12 +149,13 @@ class FlagNodesApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     final List<String> errorResponse =
-      TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
 
     Assertions.assertThat(errorResponse)
-      .hasSize(1)
-      .containsExactly(
-        "There was a problem while executing requested operation on node: 00000000-0000-0000-0000-000000000002");
+        .hasSize(1)
+        .containsExactly(
+            "There was a problem while executing requested operation on node:"
+                + " 00000000-0000-0000-0000-000000000002");
   }
 
   @Test
@@ -169,7 +168,11 @@ class FlagNodesApiIT {
 
     String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("flagNodes")
-            .withListOfStrings("node_ids", new String[]{"00000000-0000-0000-0000-000000000003", "00000000-0000-0000-0000-000000000004"})
+            .withListOfStrings(
+                "node_ids",
+                new String[] {
+                  "00000000-0000-0000-0000-000000000003", "00000000-0000-0000-0000-000000000004"
+                })
             .withBoolean("flag", true)
             .withWantedResultFormat("")
             .build();
@@ -185,11 +188,12 @@ class FlagNodesApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     final List<String> errorResponse =
-      TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
 
     Assertions.assertThat(errorResponse)
-      .hasSize(1)
-      .containsExactly(
-        "There was a problem while executing requested operation on node: 00000000-0000-0000-0000-000000000004");
+        .hasSize(1)
+        .containsExactly(
+            "There was a problem while executing requested operation on node:"
+                + " 00000000-0000-0000-0000-000000000004");
   }
 }

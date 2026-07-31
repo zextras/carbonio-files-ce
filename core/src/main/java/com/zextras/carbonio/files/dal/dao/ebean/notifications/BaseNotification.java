@@ -5,7 +5,6 @@
 package com.zextras.carbonio.files.dal.dao.ebean.notifications;
 
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationType;
-
 import javax.persistence.*;
 
 @MappedSuperclass

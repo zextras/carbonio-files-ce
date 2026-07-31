@@ -4,9 +4,7 @@
 
 package com.zextras.carbonio.files;
 
-
 import com.zextras.carbonio.files.Constants.Config.Pagination;
-
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -17,31 +15,28 @@ import java.util.regex.Pattern;
  */
 public final class Constants {
 
-  private Constants() {
-  }
+  private Constants() {}
 
   public static final class Files {
 
-    private Files() {
-    }
+    private Files() {}
 
     public static final String DEFAULT_HOST = "127.78.0.2";
     public static final int DEFAULT_PORT = 10_000;
     public static final String HOST_PROPERTY = "carbonio.files.host";
     public static final String PORT_PROPERTY = "carbonio.files.port";
-    public static final String ENABLE_NOTIFICATIONS_PROPERTY = "carbonio.files.enable-notifications";
+    public static final String ENABLE_NOTIFICATIONS_PROPERTY =
+        "carbonio.files.enable-notifications";
     public static final Boolean DEFAULT_ENABLE_NOTIFICATIONS = true;
   }
 
   public static final class Config {
 
-    private Config() {
-    }
+    private Config() {}
 
     public static final class Database {
 
-      private Database() {
-      }
+      private Database() {}
 
       public static final String HOST_PROPERTY = "carbonio.postgresql.host";
       public static final String PORT_PROPERTY = "carbonio.postgresql.port";
@@ -53,8 +48,7 @@ public final class Constants {
 
     public static final class UserManagement {
 
-      private UserManagement() {
-      }
+      private UserManagement() {}
 
       public static final String HOST_PROPERTY = "carbonio.user-management.host";
       public static final String PORT_PROPERTY = "carbonio.user-management.port";
@@ -65,21 +59,18 @@ public final class Constants {
 
     public static final class Storages {
 
-      private Storages() {
-      }
+      private Storages() {}
 
       public static final String HOST_PROPERTY = "carbonio.storages.host";
       public static final String PORT_PROPERTY = "carbonio.storages.port";
       public static final String DEFAULT_HOST = "127.78.0.2";
       public static final String DEFAULT_PROTOCOL = "http";
       public static final Integer DEFAULT_PORT = 20002;
-
     }
 
     public static final class Preview {
 
-      private Preview() {
-      }
+      private Preview() {}
 
       public static final String HOST_PROPERTY = "carbonio.preview.host";
       public static final String PORT_PROPERTY = "carbonio.preview.port";
@@ -90,8 +81,7 @@ public final class Constants {
 
     public static final class Mailbox {
 
-      private Mailbox() {
-      }
+      private Mailbox() {}
 
       public static final String HOST_PROPERTY = "carbonio.mailbox.host";
       public static final String PORT_PROPERTY = "carbonio.mailbox.port";
@@ -102,8 +92,7 @@ public final class Constants {
 
     public static final class DocsConnector {
 
-      private DocsConnector() {
-      }
+      private DocsConnector() {}
 
       public static final String HOST_PROPERTY = "carbonio.docs-connector.host";
       public static final String PORT_PROPERTY = "carbonio.docs-connector.port";
@@ -114,8 +103,7 @@ public final class Constants {
 
     public static final class MessageBroker {
 
-      private MessageBroker() {
-      }
+      private MessageBroker() {}
 
       public static final String HOST_PROPERTY = "carbonio.message-broker.host";
       public static final String PORT_PROPERTY = "carbonio.message-broker.port";
@@ -126,16 +114,14 @@ public final class Constants {
 
     public static final class Pagination {
 
-      private Pagination() {
-      }
+      private Pagination() {}
 
       public static final int LIMIT = 50;
     }
 
     public static final class Link {
 
-      private Link() {
-      }
+      private Link() {}
 
       public static final int MAX_LINKS_PER_NODE = 50;
     }
@@ -148,8 +134,7 @@ public final class Constants {
       public static final int LEAK_DETECTION_THRESHOLD = 5_000;
       public static final int MAX_LIFETIME = 600_000;
 
-      private Hikari() {
-      }
+      private Hikari() {}
     }
 
     public static final class PurgeService {
@@ -157,25 +142,20 @@ public final class Constants {
       public static final long RETENTION_TRASHED_ITEMS_IN_DAYS = 30L;
       public static final long JOB_EXECUTION_INTERVAL_IN_MINUTES = 30L;
 
-      private PurgeService() {
-      }
+      private PurgeService() {}
     }
   }
 
   public static final class Db {
 
-    private Db() {
-    }
+    private Db() {}
 
     public static final short DB_VERSION = 9;
 
-    /**
-     * Names of Files tables
-     */
+    /** Names of Files tables */
     public static final class Tables {
 
-      private Tables() {
-      }
+      private Tables() {}
 
       public static final String DB_INFO = "DB_INFO";
       public static final String NODE = "NODE";
@@ -196,13 +176,10 @@ public final class Constants {
       public static final String USER_NOTIFICATIONS_INFO = "USER_NOTIFICATIONS_INFO";
     }
 
-    /**
-     * Attributes name for the FILES.NODE table
-     */
+    /** Attributes name for the FILES.NODE table */
     public static final class Node {
 
-      private Node() {
-      }
+      private Node() {}
 
       public static final String ID = "node_id";
       public static final String OWNER_ID = "owner_id";
@@ -221,14 +198,12 @@ public final class Constants {
       public static final String SIZE = "size";
       public static final String HIDDEN = "hidden";
 
-      public static final List<String> ALLOWED_CONDITIONAL_COLUMN_NAMES = List.of(
-          ID, EDITOR_ID, NAME, OWNER_ID, CATEGORY, UPDATED_AT, CREATED_AT, SIZE
-      );
+      public static final List<String> ALLOWED_CONDITIONAL_COLUMN_NAMES =
+          List.of(ID, EDITOR_ID, NAME, OWNER_ID, CATEGORY, UPDATED_AT, CREATED_AT, SIZE);
     }
 
     public static final class SnapshotNode {
-      private SnapshotNode() {
-      }
+      private SnapshotNode() {}
 
       public static final String SNAPSHOT_NODE_ID = "snapshot_node_id";
       public static final String OWNER_ID = "owner_id";
@@ -243,8 +218,7 @@ public final class Constants {
     }
 
     public static final class SnapshotUser {
-      private SnapshotUser() {
-      }
+      private SnapshotUser() {}
 
       public static final String SNAPSHOT_USER_ID = "snapshot_user_id";
       public static final String USER_ID = "user_id";
@@ -254,8 +228,7 @@ public final class Constants {
     }
 
     public static final class Notification {
-      private Notification() {
-      }
+      private Notification() {}
 
       public static final String NOTIFICATION_ID = "notification_id";
       public static final String CREATED_AT = "created_at";
@@ -263,8 +236,7 @@ public final class Constants {
     }
 
     public static final class NewShareNotification {
-      private NewShareNotification() {
-      }
+      private NewShareNotification() {}
 
       public static final String NOTIFICATION_ID = "notification_id";
       public static final String NODE_SNAPSHOT_ID = "node_snapshot_id";
@@ -272,8 +244,7 @@ public final class Constants {
     }
 
     public static final class AddedNodeNotification {
-      private AddedNodeNotification() {
-      }
+      private AddedNodeNotification() {}
 
       public static final String NOTIFICATION_ID = "notification_id";
       public static final String ADDED_NODE_SNAPSHOT_ID = "added_node_snapshot_id";
@@ -283,8 +254,7 @@ public final class Constants {
     }
 
     public static final class RemovedNodeNotification {
-      private RemovedNodeNotification() {
-      }
+      private RemovedNodeNotification() {}
 
       public static final String NOTIFICATION_ID = "notification_id";
       public static final String REMOVED_NODE_SNAPSHOT_ID = "removed_node_snapshot_id";
@@ -294,8 +264,7 @@ public final class Constants {
     }
 
     public static final class UserNotificationsInfo {
-      private UserNotificationsInfo() {
-      }
+      private UserNotificationsInfo() {}
 
       public static final String USER_ID = "user_id";
       public static final String LAST_SEEN = "last_seen";
@@ -303,8 +272,7 @@ public final class Constants {
     }
 
     public static final class UserNotificationInterest {
-      private UserNotificationInterest() {
-      }
+      private UserNotificationInterest() {}
 
       public static final String INTEREST_ID = "interest_id";
       public static final String USER_ID = "user_id";
@@ -314,38 +282,31 @@ public final class Constants {
 
     public static final class Trashed {
 
-      private Trashed() {
-      }
+      private Trashed() {}
 
       public static final String NODE_ID = "node_id";
       public static final String PARENT_ID = "parent_id";
     }
 
-    /**
-     * Attributes name for the FILES.CUSTOM table
-     */
+    /** Attributes name for the FILES.CUSTOM table */
     public static final class NodeCustomAttributes {
 
-      private NodeCustomAttributes() {
-      }
+      private NodeCustomAttributes() {}
 
       public static final String NODE_ID = "node_id";
       public static final String USER_ID = "user_id";
 
-      //The value remains "star" to preserve compatibility with old versions of DB
+      // The value remains "star" to preserve compatibility with old versions of DB
       public static final String FLAG = "star";
 
       public static final String COLOR = "color";
       public static final String EXTRA = "extra";
     }
 
-    /**
-     * Attributes name for the FILES.REVISION table
-     */
+    /** Attributes name for the FILES.REVISION table */
     public static final class FileVersion {
 
-      private FileVersion() {
-      }
+      private FileVersion() {}
 
       public static final String NODE_ID = "node_id";
       public static final String LAST_EDITOR_ID = "editor_id";
@@ -359,25 +320,19 @@ public final class Constants {
       public static final String AUTOSAVE = "is_autosave";
     }
 
-    /**
-     * Names of all the existing roots saved in the database.
-     */
+    /** Names of all the existing roots saved in the database. */
     public static final class RootId {
 
-      private RootId() {
-      }
+      private RootId() {}
 
       public static final String LOCAL_ROOT = "LOCAL_ROOT";
       public static final String TRASH_ROOT = "TRASH_ROOT";
     }
 
-    /**
-     * Attributes name for the FILES.SHARE table
-     */
+    /** Attributes name for the FILES.SHARE table */
     public static final class Share {
 
-      private Share() {
-      }
+      private Share() {}
 
       public static final String NODE_ID = "node_id";
       public static final String SHARE_TARGET_UUID = "target_uuid";
@@ -388,13 +343,10 @@ public final class Constants {
       public static final String CREATED_VIA_LINK = "created_via_link";
     }
 
-    /**
-     * Attributes name for the FILES.LINK table
-     */
+    /** Attributes name for the FILES.LINK table */
     public static final class Link {
 
-      private Link() {
-      }
+      private Link() {}
 
       public static final String ID = "id";
       public static final String NODE_ID = "node_id";
@@ -405,13 +357,10 @@ public final class Constants {
       public static final String ACCESS_CODE = "access_code";
     }
 
-    /**
-     * Attributes' names for the FILES.TOMBSTONE table
-     */
+    /** Attributes' names for the FILES.TOMBSTONE table */
     public static final class Tombstone {
 
-      private Tombstone() {
-      }
+      private Tombstone() {}
 
       public static final String NODE_ID = "node_id";
       public static final String OWNER_ID = "owner_id";
@@ -420,13 +369,10 @@ public final class Constants {
       public static final String ATTEMPTS = "attempts";
     }
 
-    /**
-     * Attributes' names for the FILES.COLLABORATION_LINK table
-     */
+    /** Attributes' names for the FILES.COLLABORATION_LINK table */
     public static final class CollaborationLink {
 
-      private CollaborationLink() {
-      }
+      private CollaborationLink() {}
 
       public static final String ID = "id";
       public static final String NODE_ID = "node_id";
@@ -438,16 +384,14 @@ public final class Constants {
 
   public static final class Cache {
 
-    private Cache() {
-    }
+    private Cache() {}
 
     public static final long DEFAULT_ITEM_LIFETIME_IN_MILLIS = 60_000;
     public static final long DEFAULT_SIZE = 1000;
 
-    /**
-     * Names of Files caches
-     */
+    /** Names of Files caches */
     public static final String NODE = "Node";
+
     public static final String FILE_VERSION = "FileVersion";
     public static final String SHARE = "Share";
     public static final String LINK = "Link";
@@ -455,29 +399,24 @@ public final class Constants {
 
   public static final class GraphQL {
 
-    private GraphQL() {
-    }
+    private GraphQL() {}
 
     public static final int LIMIT_ELEMENTS_FOR_PAGE = Pagination.LIMIT;
     public static final String ENTITY_TYPE = "type";
 
     public static final class Context {
 
-      private Context() {
-      }
+      private Context() {}
 
       public static final String REQUESTER = "requester";
       public static final String COOKIES = "cookies";
       public static final String INTERNAL = "internal";
     }
 
-    /**
-     * Names of Files GraphQL interfaces/types
-     */
+    /** Names of Files GraphQL interfaces/types */
     public static final class Types {
 
-      private Types() {
-      }
+      private Types() {}
 
       public static final String NODE_INTERFACE = "Node";
       public static final String FILE = "File";
@@ -505,25 +444,19 @@ public final class Constants {
       public static final String REMOVED_NODE = "RemovedNode";
     }
 
-    /**
-     * Names of GraphQL data loaders
-     */
+    /** Names of GraphQL data loaders */
     public static final class DataLoaders {
 
-      private DataLoaders() {
-      }
+      private DataLoaders() {}
 
       public static final String NODE_BATCH_LOADER = "NodeBatchLoader";
       public static final String SHARE_BATCH_LOADER = "ShareBatchLoader";
     }
 
-    /**
-     * Names of queries
-     */
+    /** Names of queries */
     public static final class Queries {
 
-      private Queries() {
-      }
+      private Queries() {}
 
       public static final String GET_NODE = "getNode";
       public static final String GET_USER = "getUser";
@@ -541,13 +474,10 @@ public final class Constants {
       public static final String GET_NOTIFICATIONS = "getNotifications";
     }
 
-    /**
-     * Names of mutations
-     */
+    /** Names of mutations */
     public static final class Mutations {
 
-      private Mutations() {
-      }
+      private Mutations() {}
 
       public static final String CREATE_FOLDER = "createFolder";
       public static final String UPDATE_NODE = "updateNode";
@@ -571,13 +501,10 @@ public final class Constants {
       public static final String DELETE_ALL_NODES_AND_BLOBS = "deleteAllNodesAndBlobs";
     }
 
-    /**
-     * Names of all GraphQL input parameters divided by queries
-     */
+    /** Names of all GraphQL input parameters divided by queries */
     public static final class InputParameters {
 
-      private InputParameters() {
-      }
+      private InputParameters() {}
 
       public static final String NODE_ID = "node_id";
       public static final String LIMIT = "limit";
@@ -589,8 +516,7 @@ public final class Constants {
 
       public static final class CreateFolder {
 
-        private CreateFolder() {
-        }
+        private CreateFolder() {}
 
         public static final String PARENT_ID = "destination_id";
         public static final String NAME = "name";
@@ -598,8 +524,7 @@ public final class Constants {
 
       public static final class UpdateNode {
 
-        private UpdateNode() {
-        }
+        private UpdateNode() {}
 
         public static final String NODE_ID = InputParameters.NODE_ID;
         public static final String NAME = "name";
@@ -610,8 +535,7 @@ public final class Constants {
 
       public static final class FlagNodes {
 
-        private FlagNodes() {
-        }
+        private FlagNodes() {}
 
         public static final String NODE_IDS = "node_ids";
         public static final String FLAG = "flag";
@@ -619,8 +543,7 @@ public final class Constants {
 
       public static final class FindNodes {
 
-        private FindNodes() {
-        }
+        private FindNodes() {}
 
         public static final String FLAGGED = "flagged";
         public static final String SHARED_BY_ME = "shared_by_me";
@@ -641,8 +564,7 @@ public final class Constants {
 
       public static final class GetVersions {
 
-        private GetVersions() {
-        }
+        private GetVersions() {}
 
         public static final String NODE_ID = "node_id";
         public static final String VERSIONS = "versions";
@@ -650,8 +572,7 @@ public final class Constants {
 
       public static final class CopyNodes {
 
-        private CopyNodes() {
-        }
+        private CopyNodes() {}
 
         public static final String NODE_IDS = "node_ids";
         public static final String DESTINATION_ID = "destination_id";
@@ -659,8 +580,7 @@ public final class Constants {
 
       public static final class MoveNodes {
 
-        private MoveNodes() {
-        }
+        private MoveNodes() {}
 
         public static final String NODE_IDS = "node_ids";
         public static final String DESTINATION_ID = "destination_id";
@@ -668,25 +588,21 @@ public final class Constants {
 
       public static final class DeleteNodes {
 
-        private DeleteNodes() {
-        }
+        private DeleteNodes() {}
 
         public static final String NODE_IDS = "node_ids";
       }
 
       public static final class KeepVersions {
 
-        private KeepVersions() {
-        }
+        private KeepVersions() {}
 
         public static final String KEEP_FOREVER = "keep_forever";
-
       }
 
       public static final class CloneVersion {
 
-        private CloneVersion() {
-        }
+        private CloneVersion() {}
 
         public static final String NODE_ID = "node_id";
         public static final String VERSION = "version";
@@ -694,8 +610,7 @@ public final class Constants {
 
       public static final class Share {
 
-        private Share() {
-        }
+        private Share() {}
 
         public static final String NODE_ID = "node_id";
         public static final String SHARE_TARGET_ID = "share_target_id";
@@ -707,8 +622,7 @@ public final class Constants {
 
       public static final class Link {
 
-        private Link() {
-        }
+        private Link() {}
 
         public static final String LINK_ID = "link_id";
         public static final String NODE_ID = "node_id";
@@ -720,24 +634,21 @@ public final class Constants {
 
       public static final class TrashNodes {
 
-        private TrashNodes() {
-        }
+        private TrashNodes() {}
 
         public static final String NODE_IDS = "node_ids";
       }
 
       public static final class RestoreNodes {
 
-        private RestoreNodes() {
-        }
+        private RestoreNodes() {}
 
         public static final String NODE_IDS = "node_ids";
       }
 
       public static final class GetUser {
 
-        private GetUser() {
-        }
+        private GetUser() {}
 
         public static final String USER_ID = "user_id";
         public static final String EMAIL = "email";
@@ -745,16 +656,14 @@ public final class Constants {
 
       public static final class GetAccountsByEmail {
 
-        private GetAccountsByEmail() {
-        }
+        private GetAccountsByEmail() {}
 
         public static final String EMAILS = "emails";
       }
 
       public static final class CreateCollaborationLink {
 
-        private CreateCollaborationLink() {
-        }
+        private CreateCollaborationLink() {}
 
         public static final String NODE_ID = InputParameters.NODE_ID;
         public static final String PERMISSION = "permission";
@@ -762,24 +671,21 @@ public final class Constants {
 
       public static final class GetCollaborationLink {
 
-        private GetCollaborationLink() {
-        }
+        private GetCollaborationLink() {}
 
         public static final String NODE_ID = InputParameters.NODE_ID;
       }
 
       public static final class DeleteCollaborationLinks {
 
-        private DeleteCollaborationLinks() {
-        }
+        private DeleteCollaborationLinks() {}
 
         public static final String COLLABORATION_LINK_IDS = "collaboration_link_ids";
       }
 
       public static final class GetPublicNode {
 
-        private GetPublicNode() {
-        }
+        private GetPublicNode() {}
 
         public static final String NODE_LINK_ID = "node_link_id";
         public static final String ACCESS_CODE = "access_code";
@@ -787,33 +693,26 @@ public final class Constants {
 
       public static final class DeleteAllNodesAndBlobs {
 
-        private DeleteAllNodesAndBlobs() {
-        }
+        private DeleteAllNodesAndBlobs() {}
 
         public static final String USER_ID = "user_id";
       }
     }
 
-    /**
-     * Attributes name for the type User
-     */
+    /** Attributes name for the type User */
     public static final class User {
 
-      private User() {
-      }
+      private User() {}
 
       public static final String ID = "id";
       public static final String EMAIL = "email";
       public static final String FULL_NAME = "full_name";
     }
 
-    /**
-     * Attributes name for the type Distribution List
-     */
+    /** Attributes name for the type Distribution List */
     public static final class DistributionList {
 
-      private DistributionList() {
-      }
+      private DistributionList() {}
 
       public static final String ID = "id";
       public static final String NAME = "name";
@@ -821,8 +720,7 @@ public final class Constants {
     }
 
     public static class Notification {
-      private Notification() {
-      }
+      private Notification() {}
 
       public static final String ID = "id";
       public static final String NOTIFICATION_TYPE = "notification_type";
@@ -830,16 +728,14 @@ public final class Constants {
     }
 
     public static class NewShareNotification {
-      private NewShareNotification() {
-      }
+      private NewShareNotification() {}
 
       public static final String NODE_SNAPSHOT = "node";
       public static final String USER_SNAPSHOT = "triggering_user";
     }
 
     public static final class AddedNodeNotification {
-      private AddedNodeNotification() {
-      }
+      private AddedNodeNotification() {}
 
       public static final String ADDED_NODE_SNAPSHOT = "added_node";
       public static final String DESTINATION_FOLDER = "destination_folder";
@@ -848,8 +744,7 @@ public final class Constants {
     }
 
     public static final class RemovedNodeNotification {
-      private RemovedNodeNotification() {
-      }
+      private RemovedNodeNotification() {}
 
       public static final String REMOVED_NODE = "removed_node";
       public static final String ORIGIN_FOLDER = "origin_folder";
@@ -858,8 +753,7 @@ public final class Constants {
     }
 
     public static final class SnapshotNode {
-      private SnapshotNode() {
-      }
+      private SnapshotNode() {}
 
       public static final String SNAPSHOT_NODE_ID = "snapshot_node_id";
       public static final String NODE_ID = "node_id";
@@ -870,8 +764,7 @@ public final class Constants {
     }
 
     public static final class SnapshotUser {
-      private SnapshotUser() {
-      }
+      private SnapshotUser() {}
 
       public static final String SNAPSHOT_USER_ID = "snapshot_user_id";
       public static final String USER_ID = "user_id";
@@ -879,13 +772,10 @@ public final class Constants {
       public static final String EMAIL = "email";
     }
 
-    /**
-     * Attributes name for the type Node/File/Folder
-     */
+    /** Attributes name for the type Node/File/Folder */
     public static class Node {
 
-      private Node() {
-      }
+      private Node() {}
 
       public static final String ID = "id";
       public static final String CREATED_AT = "created_at";
@@ -906,13 +796,10 @@ public final class Constants {
       public static final String COLLABORATION_LINKS = "collaboration_links";
     }
 
-    /**
-     * Attributes name specific for the type File
-     */
+    /** Attributes name specific for the type File */
     public static final class FileVersion extends Node {
 
-      private FileVersion() {
-      }
+      private FileVersion() {}
 
       public static final String LAST_EDITOR = "last_editor";
       public static final String UPDATED_AT = "updated_at";
@@ -924,36 +811,27 @@ public final class Constants {
       public static final String DIGEST = "digest";
     }
 
-    /**
-     * Attributes name specific for the type Folder
-     */
+    /** Attributes name specific for the type Folder */
     public static final class Folder extends Node {
 
-      private Folder() {
-      }
+      private Folder() {}
 
       public static final String CHILDREN = "children";
     }
 
-    /**
-     * Attributes name specific for the type NodePage
-     */
+    /** Attributes name specific for the type NodePage */
     public static final class NodePage {
 
-      private NodePage() {
-      }
+      private NodePage() {}
 
       public static final String NODES = "nodes";
       public static final String PAGE_TOKEN = "page_token";
     }
 
-    /**
-     * Attributes name specific for the type NotificationPage
-     */
+    /** Attributes name specific for the type NotificationPage */
     public static final class NotificationPage {
 
-      private NotificationPage() {
-      }
+      private NotificationPage() {}
 
       public static final String NOTIFICATIONS = "notifications";
       public static final String PAGE_TOKEN = "page_token";
@@ -961,13 +839,10 @@ public final class Constants {
       public static final String LAST_SEEN = "last_seen";
     }
 
-    /**
-     * Attributes name for the type Share
-     */
+    /** Attributes name for the type Share */
     public static final class Share {
 
-      private Share() {
-      }
+      private Share() {}
 
       public static final String CREATED_AT = "created_at";
       public static final String NODE = "node";
@@ -976,13 +851,10 @@ public final class Constants {
       public static final String EXPIRES_AT = "expires_at";
     }
 
-    /**
-     * Attributes name for the type Link
-     */
+    /** Attributes name for the type Link */
     public static final class Link {
 
-      private Link() {
-      }
+      private Link() {}
 
       public static final String ID = "id";
       public static final String URL = "url";
@@ -993,13 +865,10 @@ public final class Constants {
       public static final String ACCESS_CODE = "access_code";
     }
 
-    /**
-     * Attributes name for the type Collaboration Link
-     */
+    /** Attributes name for the type Collaboration Link */
     public static final class CollaborationLink {
 
-      private CollaborationLink() {
-      }
+      private CollaborationLink() {}
 
       public static final String ID = "id";
       public static final String FULL_URL = "url";
@@ -1010,20 +879,16 @@ public final class Constants {
 
     public static final class Config {
 
-      private Config() {
-      }
+      private Config() {}
 
       public static final String NAME = "name";
       public static final String VALUE = "value";
     }
 
-    /**
-     * Attributes name for the type Node exposed by Public API
-     */
+    /** Attributes name for the type Node exposed by Public API */
     public static final class PublicNode {
 
-      private PublicNode() {
-      }
+      private PublicNode() {}
 
       public static final String ID = "id";
       public static final String CREATED_AT = "created_at";
@@ -1038,103 +903,102 @@ public final class Constants {
 
   public static final class API {
 
-    private API() {
-    }
+    private API() {}
 
     public static final class Endpoints {
 
-      private Endpoints() {
-      }
+      private Endpoints() {}
 
       public static final String SERVICE = "/";
       public static final String PUBLIC_LINK_ACCESS_URL = "/files/public/link/access/";
       public static final String PUBLIC_LINK_DOWNLOAD_URL = "/services/files/public/link/download/";
       public static final String COLLABORATION_LINK_URL = "/services/files/invite/";
 
-      public static final Pattern METRICS             = Pattern.compile(SERVICE + "metrics/?$");
-      public static final Pattern HEALTH              = Pattern.compile(
-        SERVICE + "health/?(live|ready)?/?$");
-      public static final Pattern HEALTH_LIVE         = Pattern.compile(SERVICE + "health/live/?$");
-      public static final Pattern HEALTH_READY        = Pattern.compile(
-        SERVICE + "health/ready/?$");
-      public static final Pattern GRAPHQL             = Pattern.compile(SERVICE + "graphql/?$");
-      public static final Pattern UPLOAD_FILE         = Pattern.compile(SERVICE + "upload/?$");
-      public static final Pattern UPLOAD_FILE_INTERNAL= Pattern.compile(SERVICE + "internal/upload/?$");
-      public static final Pattern UPLOAD_FILE_VERSION = Pattern.compile(
-          SERVICE + "upload-version/?$");
+      public static final Pattern METRICS = Pattern.compile(SERVICE + "metrics/?$");
+      public static final Pattern HEALTH = Pattern.compile(SERVICE + "health/?(live|ready)?/?$");
+      public static final Pattern HEALTH_LIVE = Pattern.compile(SERVICE + "health/live/?$");
+      public static final Pattern HEALTH_READY = Pattern.compile(SERVICE + "health/ready/?$");
+      public static final Pattern GRAPHQL = Pattern.compile(SERVICE + "graphql/?$");
+      public static final Pattern UPLOAD_FILE = Pattern.compile(SERVICE + "upload/?$");
+      public static final Pattern UPLOAD_FILE_INTERNAL =
+          Pattern.compile(SERVICE + "internal/upload/?$");
+      public static final Pattern UPLOAD_FILE_VERSION =
+          Pattern.compile(SERVICE + "upload-version/?$");
       public static final Pattern UPLOAD_FILE_TO = Pattern.compile(SERVICE + "upload-to/?$");
-      public static final Pattern DOWNLOAD_FILE = Pattern.compile(
-          SERVICE + "download/([a-f\\d\\-]*)/?([\\d]+)?/?$");
-      public static final Pattern DOWNLOAD_MULTIPLE = Pattern.compile(
-          SERVICE + "download-multiple/?$");
-      public static final Pattern DOWNLOAD_FILE_CHECK = Pattern.compile(
-          SERVICE + "download/([a-f\\d\\-]*)/check/?$");
-      public static final Pattern DOWNLOAD_MULTIPLE_CHECK = Pattern.compile(
-          SERVICE + "download-multiple/check/?$");
+      public static final Pattern DOWNLOAD_FILE =
+          Pattern.compile(SERVICE + "download/([a-f\\d\\-]*)/?([\\d]+)?/?$");
+      public static final Pattern DOWNLOAD_MULTIPLE =
+          Pattern.compile(SERVICE + "download-multiple/?$");
+      public static final Pattern DOWNLOAD_FILE_CHECK =
+          Pattern.compile(SERVICE + "download/([a-f\\d\\-]*)/check/?$");
+      public static final Pattern DOWNLOAD_MULTIPLE_CHECK =
+          Pattern.compile(SERVICE + "download-multiple/check/?$");
       public static final Pattern PUBLIC_LINK =
           Pattern.compile(SERVICE + "link/([\\w]{8}|[\\w]{32}|[\\w]{50})/?$");
       public static final Pattern DOWNLOAD_VIA_PUBLIC_LINK =
           Pattern.compile(SERVICE + "public/link/download/([\\w]{8}|[\\w]{32}|[\\w]{50})/?$");
-      public static final Pattern DOWNLOAD_PUBLIC_FILE = Pattern.compile(
-          SERVICE + "public/download/([a-f\\d\\-]*)/?\\?node_link_id=([a-zA-Z\\d\\-]*)(?:&access_code=([a-zA-Z\\d]*))?/?");
-      public static final Pattern COLLABORATION_LINK = Pattern.compile(
-          SERVICE + "invite/([\\w]{8})/?$");
-      public static final Pattern DOWNLOAD_PUBLIC_FILE_CHECK = Pattern.compile(
-          SERVICE + "public/download/([a-f\\d\\-]*)/check/?\\?node_link_id=([a-zA-Z\\d\\-]*)(?:&access_code=([a-zA-Z\\d]*))?/?");
-      public static final Pattern DOWNLOAD_PUBLIC_MULTIPLE = Pattern.compile(
-          SERVICE + "public/download-multiple/?$");
-      public static final Pattern DOWNLOAD_PUBLIC_MULTIPLE_CHECK = Pattern.compile(
-          SERVICE + "public/download-multiple/check/?$");
+      public static final Pattern DOWNLOAD_PUBLIC_FILE =
+          Pattern.compile(
+              SERVICE
+                  + "public/download/([a-f\\d\\-]*)/?\\?node_link_id=([a-zA-Z\\d\\-]*)(?:&access_code=([a-zA-Z\\d]*))?/?");
+      public static final Pattern COLLABORATION_LINK =
+          Pattern.compile(SERVICE + "invite/([\\w]{8})/?$");
+      public static final Pattern DOWNLOAD_PUBLIC_FILE_CHECK =
+          Pattern.compile(
+              SERVICE
+                  + "public/download/([a-f\\d\\-]*)/check/?\\?node_link_id=([a-zA-Z\\d\\-]*)(?:&access_code=([a-zA-Z\\d]*))?/?");
+      public static final Pattern DOWNLOAD_PUBLIC_MULTIPLE =
+          Pattern.compile(SERVICE + "public/download-multiple/?$");
+      public static final Pattern DOWNLOAD_PUBLIC_MULTIPLE_CHECK =
+          Pattern.compile(SERVICE + "public/download-multiple/check/?$");
 
       public static final Pattern PREVIEW = Pattern.compile(SERVICE + "preview/(.*)");
-      public static final Pattern PREVIEW_IMAGE = Pattern.compile(
-          SERVICE
-              + "preview/image/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
-      );
-      public static final Pattern THUMBNAIL_IMAGE = Pattern.compile(
-          SERVICE + "preview/image/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
-      );
-      public static final Pattern PREVIEW_PDF = Pattern.compile(
-          SERVICE + "preview/pdf/([a-f\\d\\-]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
-      );
-      public static final Pattern THUMBNAIL_PDF = Pattern.compile(
-          SERVICE + "preview/pdf/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
-      );
-      public static final Pattern PREVIEW_DOCUMENT = Pattern.compile(
-          SERVICE + "preview/document/([a-f\\d\\-]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))"
-      );
-      public static final Pattern THUMBNAIL_DOCUMENT = Pattern.compile(
-          SERVICE + "preview/document/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)"
-      );
+      public static final Pattern PREVIEW_IMAGE =
+          Pattern.compile(
+              SERVICE
+                  + "preview/image/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/?((?=(?!thumbnail))(?=([^/\\n"
+                  + " ]*)))");
+      public static final Pattern THUMBNAIL_IMAGE =
+          Pattern.compile(
+              SERVICE + "preview/image/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)");
+      public static final Pattern PREVIEW_PDF =
+          Pattern.compile(
+              SERVICE + "preview/pdf/([a-f\\d\\-]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))");
+      public static final Pattern THUMBNAIL_PDF =
+          Pattern.compile(
+              SERVICE + "preview/pdf/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)");
+      public static final Pattern PREVIEW_DOCUMENT =
+          Pattern.compile(
+              SERVICE + "preview/document/([a-f\\d\\-]*)/?((?=(?!thumbnail))(?=([^/\\n ]*)))");
+      public static final Pattern THUMBNAIL_DOCUMENT =
+          Pattern.compile(
+              SERVICE + "preview/document/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)");
       public static final Pattern PUBLIC_GRAPHQL = Pattern.compile(SERVICE + "public/graphql/?$");
     }
 
     public static final class Headers {
 
-      private Headers() {
-      }
+      private Headers() {}
 
-      public static final String UPLOAD_FILENAME          = "Filename";
-      public static final String UPLOAD_DESCRIPTION       = "Description";
-      public static final String UPLOAD_PARENT_ID         = "ParentId";
-      public static final String UPLOAD_ACCOUNT_ID        = "AccountId";
-      public static final String UPLOAD_NODE_ID           = "NodeId";
+      public static final String UPLOAD_FILENAME = "Filename";
+      public static final String UPLOAD_DESCRIPTION = "Description";
+      public static final String UPLOAD_PARENT_ID = "ParentId";
+      public static final String UPLOAD_ACCOUNT_ID = "AccountId";
+      public static final String UPLOAD_NODE_ID = "NodeId";
       public static final String UPLOAD_OVERWRITE_VERSION = "OverwriteVersion";
       public static final String COOKIE_ZM_AUTH_TOKEN = "ZM_AUTH_TOKEN";
     }
 
     public static final class ContextAttribute {
 
-      private ContextAttribute() {
-      }
+      private ContextAttribute() {}
 
       public static final String REQUESTER = "requester";
       public static final String COOKIES = "cookies";
     }
 
     public static final class BodyAttributes {
-      private BodyAttributes() {
-      }
+      private BodyAttributes() {}
 
       public static final String NODE_IDS = "nodeIds";
       public static final String ACCESS_CODE = "accessCode";
@@ -1144,8 +1008,7 @@ public final class Constants {
 
   public static final class ServiceDiscover {
 
-    private ServiceDiscover() {
-    }
+    private ServiceDiscover() {}
 
     public static final String SERVICE_NAME = "carbonio-files";
     public static final String MESSAGE_BROKER_SERVICE_NAME = "carbonio-message-broker";
@@ -1156,8 +1019,7 @@ public final class Constants {
 
     public static final class Config {
 
-      private Config() {
-      }
+      private Config() {}
 
       public static final String COLLATION = "collation";
       public static final String MAX_UPLOADABLE_SIZE_IN_MB = "max-uploadable-size-in-mb";
@@ -1174,8 +1036,7 @@ public final class Constants {
 
       public static final class Key {
 
-        private Key() {
-        }
+        private Key() {}
 
         public static final String DB_NAME = "db-name";
         public static final String DB_USERNAME = "db-username";
@@ -1183,24 +1044,22 @@ public final class Constants {
         public static final String HIKARI_MAX_POOL_SIZE = "hikari-max-pool-size";
         public static final String HIKARI_MIN_IDLE_CONNECTIONS = "hikari-min-idle-connections";
         public static final String HIKARI_IDLE_TIMEOUT = "hikari-idle-timeout";
-        public static final String HIKARI_LEAK_DETECTION_THRESHOLD = "hikari-leak-detection-threshold";
+        public static final String HIKARI_LEAK_DETECTION_THRESHOLD =
+            "hikari-leak-detection-threshold";
         public static final String HIKARI_MAX_LIFETIME = "hikari-max-lifetime";
       }
     }
   }
 
   public static final class MessageBroker {
-    private MessageBroker() {
-    }
+    private MessageBroker() {}
 
     public static final class Config {
 
-      private Config() {
-      }
+      private Config() {}
 
       public static final String DEFAULT_USERNAME = "carbonio-message-broker";
       public static final String DEFAULT_PASSWORD = "";
-
     }
   }
 }

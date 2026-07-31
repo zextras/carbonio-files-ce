@@ -34,21 +34,26 @@ class NettyBufferWriterTest {
     Mockito.when(allocatorMock.buffer(64 * 1024)).thenReturn(buffer);
 
     // Simulate Netty: release the buffer by 1 after writeAndFlush, then return a failed future
-    Mockito.when(contextMock.writeAndFlush(Mockito.any(ByteBuf.class))).thenAnswer(inv -> {
-      ((ByteBuf) inv.getArgument(0)).release();
-      return failedFutureMock;
-    });
+    Mockito.when(contextMock.writeAndFlush(Mockito.any(ByteBuf.class)))
+        .thenAnswer(
+            inv -> {
+              ((ByteBuf) inv.getArgument(0)).release();
+              return failedFutureMock;
+            });
 
     Mockito.when(failedFutureMock.isSuccess()).thenReturn(false);
     Mockito.when(failedFutureMock.cause()).thenReturn(new RuntimeException("write failed"));
 
     // Invoke the listener synchronously when addListener is called
-    Mockito.doAnswer(inv -> {
-      @SuppressWarnings("unchecked")
-      GenericFutureListener<ChannelFuture> listener = inv.getArgument(0);
-      listener.operationComplete(failedFutureMock);
-      return failedFutureMock;
-    }).when(failedFutureMock).addListener(Mockito.any(GenericFutureListener.class));
+    Mockito.doAnswer(
+            inv -> {
+              @SuppressWarnings("unchecked")
+              GenericFutureListener<ChannelFuture> listener = inv.getArgument(0);
+              listener.operationComplete(failedFutureMock);
+              return failedFutureMock;
+            })
+        .when(failedFutureMock)
+        .addListener(Mockito.any(GenericFutureListener.class));
 
     InputStream inputStream =
         new ByteArrayInputStream("test data".getBytes(StandardCharsets.UTF_8));

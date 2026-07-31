@@ -30,8 +30,8 @@ public interface ShareRepository {
   Optional<Share> getShare(String nodeId, String userId);
 
   /**
-   * Creates a new {@link Share} or updates an existing one, saves it in the database, then returns an {@link Optional} of the
-   * {@link Share} just created or updated.
+   * Creates a new {@link Share} or updates an existing one, saves it in the database, then returns
+   * an {@link Optional} of the {@link Share} just created or updated.
    *
    * <p>This method returns an optional because creation can fail when it tries to create a share
    * that already exists for a user on a particular node.

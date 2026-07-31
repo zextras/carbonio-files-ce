@@ -7,12 +7,11 @@ package com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import io.ebean.annotation.Cache;
-
+import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
-import java.util.Objects;
 
 @Cache
 @Entity
@@ -35,7 +34,8 @@ public class SnapshotUser {
   @Column(name = Constants.Db.SnapshotUser.EMAIL, length = 1024, nullable = false)
   private String email;
 
-  public SnapshotUser(String snapshotUserId, Long snapshotTimestamp, String userId, String fullName, String email) {
+  public SnapshotUser(
+      String snapshotUserId, Long snapshotTimestamp, String userId, String fullName, String email) {
     this.snapshotUserId = snapshotUserId;
     this.snapshotTimestamp = snapshotTimestamp;
     this.userId = userId;

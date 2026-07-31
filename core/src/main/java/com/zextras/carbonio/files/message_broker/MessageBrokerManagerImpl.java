@@ -12,12 +12,11 @@ import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
 import com.zextras.carbonio.message_broker.consumer.BaseConsumer;
 import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
 public class MessageBrokerManagerImpl implements MessageBrokerManager {
@@ -33,20 +32,17 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
   public MessageBrokerManagerImpl(
       MessageBrokerClient messageBrokerClient,
       UserStatusChangedConsumer userStatusChangedConsumer,
-      KeyValueChangedConsumer keyValueChangedConsumer)
-  {
+      KeyValueChangedConsumer keyValueChangedConsumer) {
     this.allConsumers = new ArrayList<>();
     this.messageBrokerClient = messageBrokerClient;
     this.userStatusChangedConsumer = userStatusChangedConsumer;
     this.keyValueChangedConsumer = keyValueChangedConsumer;
   }
 
-  /**
-   * Here one can add a consumer to listen to an event published for files
-   */
+  /** Here one can add a consumer to listen to an event published for files */
   @Override
   public void startAllConsumers() {
-    if(messageBrokerClient.healthCheck()) {
+    if (messageBrokerClient.healthCheck()) {
       allConsumers.add(userStatusChangedConsumer);
       allConsumers.add(keyValueChangedConsumer);
 
@@ -58,7 +54,7 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
 
   @Override
   public void publishEvent(BaseEvent event) {
-    if(messageBrokerClient.healthCheck()) {
+    if (messageBrokerClient.healthCheck()) {
       messageBrokerClient.publish(event);
     } else {
       logger.warn("Message broker health check failed, not publishing event");
@@ -77,7 +73,7 @@ public class MessageBrokerManagerImpl implements MessageBrokerManager {
 
   @Override
   public void close() {
-    for(BaseConsumer consumer : allConsumers) {
+    for (BaseConsumer consumer : allConsumers) {
       try {
         consumer.close();
       } catch (IOException e) {

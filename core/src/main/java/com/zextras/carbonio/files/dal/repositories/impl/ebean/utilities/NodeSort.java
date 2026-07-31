@@ -8,14 +8,13 @@ import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import io.ebean.Query;
-
 import java.util.Optional;
 
 /**
  * Represents all applicable sort types of a list of {@link Node}s. Each of them implements the
- * {@link SortingEntityEbean#getOrderEbeanQuery(Query, Optional<String>)} method that returns a query with the related
- * sort applied. These implementations can be useful to concatenate multiple sorts to a single
- * {@link Query}.
+ * {@link SortingEntityEbean#getOrderEbeanQuery(Query, Optional<String>)} method that returns a
+ * query with the related sort applied. These implementations can be useful to concatenate multiple
+ * sorts to a single {@link Query}.
  */
 public enum NodeSort implements SortingEntityEbean<Node>, GenericSort {
 

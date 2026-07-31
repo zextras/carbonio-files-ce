@@ -7,13 +7,9 @@ package com.zextras.carbonio.files.graphql.validators;
 import graphql.execution.instrumentation.fieldvalidation.FieldAndArguments;
 import graphql.execution.instrumentation.fieldvalidation.FieldValidationEnvironment;
 
-/**
- * Guice's factory to create a {@link GenericControllerEvaluator}.
- */
+/** Guice's factory to create a {@link GenericControllerEvaluator}. */
 public interface GenericControllerEvaluatorFactory {
 
   GenericControllerEvaluator create(
-    FieldAndArguments fieldAndArguments,
-    FieldValidationEnvironment environment
-  );
+      FieldAndArguments fieldAndArguments, FieldValidationEnvironment environment);
 }

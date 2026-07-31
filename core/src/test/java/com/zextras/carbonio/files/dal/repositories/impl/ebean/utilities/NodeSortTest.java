@@ -7,11 +7,10 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import io.ebean.OrderBy;
 import io.ebean.Query;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-
-import java.util.Optional;
 
 class NodeSortTest {
 
@@ -209,4 +208,3 @@ class NodeSortTest {
     Mockito.verifyNoMoreInteractions(orderByNodeMock);
   }
 }
-

@@ -7,7 +7,6 @@ package com.zextras.carbonio.files.netty.utilities;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import io.netty.handler.codec.http.*;
 import io.vavr.control.Try;
-
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
@@ -24,7 +23,7 @@ public class HttpResponseBuilder {
    * </ul>
    *
    * @param blobResponse is a {@link BlobResponse} containing all the related attributes of the blob
-   *                     to download.
+   *     to download.
    * @return a {@link HttpResponse} containing all the necessary headers of the blob to download.
    */
   public static HttpResponse createSuccessDownloadHttpResponse(BlobResponse blobResponse) {
@@ -69,7 +68,8 @@ public class HttpResponseBuilder {
     DefaultHttpHeaders headers = new DefaultHttpHeaders(true);
     headers.add(HttpHeaderNames.LOCATION, redirectUrl);
 
-    return new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.TEMPORARY_REDIRECT, headers);
+    return new DefaultHttpResponse(
+        HttpVersion.HTTP_1_1, HttpResponseStatus.TEMPORARY_REDIRECT, headers);
   }
 
   public static HttpResponse createNoContentResponse() {

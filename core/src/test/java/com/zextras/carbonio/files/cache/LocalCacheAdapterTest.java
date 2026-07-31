@@ -25,12 +25,7 @@ class LocalCacheAdapterTest {
     fakeClock = Mockito.mock(Clock.class);
     Mockito.when(fakeClock.millis()).thenReturn(50L);
 
-    cache = new LocalCacheAdapter<>(
-      "Testing",
-      100,
-      100,
-      fakeClock
-    );
+    cache = new LocalCacheAdapter<>("Testing", 100, 100, fakeClock);
   }
 
   @AfterEach
@@ -46,12 +41,8 @@ class LocalCacheAdapterTest {
     long itemLifetimeInMillis = 5L;
 
     // When
-    Cache<String> cache = new LocalCacheAdapter<>(
-      cacheName,
-      cacheSize,
-      itemLifetimeInMillis,
-      fakeClock
-    );
+    Cache<String> cache =
+        new LocalCacheAdapter<>(cacheName, cacheSize, itemLifetimeInMillis, fakeClock);
 
     // Then
     Assertions.assertThat(cache.getName()).isEqualTo(cacheName);
@@ -103,10 +94,9 @@ class LocalCacheAdapterTest {
     Map<String, String> result = cache.getAll(keys);
 
     // Then
-    Assertions
-      .assertThat(result)
-      .hasSize(2)
-      .contains(Map.entry("one", "first item"), Map.entry("three", "third item"));
+    Assertions.assertThat(result)
+        .hasSize(2)
+        .contains(Map.entry("one", "first item"), Map.entry("three", "third item"));
   }
 
   @Test

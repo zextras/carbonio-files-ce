@@ -10,9 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 
-/**
- * Class with Mime type taken from /etc/mime.types
- */
+/** Class with Mime type taken from /etc/mime.types */
 public class MimeTypeUtils {
 
   private static final Map<String, String> mimeTypes = new HashMap<>();
@@ -598,17 +596,17 @@ public class MimeTypeUtils {
     mimeTypes.put("oeb", "application/vnd.openeye.oeb");
     mimeTypes.put("oxt", "application/vnd.openofficeorg.extension");
     mimeTypes.put("osm", "application/vnd.openstreetmap.data+xml");
-    mimeTypes.put("pptx",
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+    mimeTypes.put(
+        "pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
     mimeTypes.put("sldx", "application/vnd.openxmlformats-officedocument.presentationml.slide");
     mimeTypes.put("ppsx", "application/vnd.openxmlformats-officedocument.presentationml.slideshow");
     mimeTypes.put("potx", "application/vnd.openxmlformats-officedocument.presentationml.template");
     mimeTypes.put("xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     mimeTypes.put("xltx", "application/vnd.openxmlformats-officedocument.spreadsheetml.template");
-    mimeTypes.put("docx",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-    mimeTypes.put("dotx",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.template");
+    mimeTypes.put(
+        "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    mimeTypes.put(
+        "dotx", "application/vnd.openxmlformats-officedocument.wordprocessingml.template");
     mimeTypes.put("ndc", "application/vnd.osa.netdeploy");
     mimeTypes.put("mgp", "application/vnd.osgeo.mapguide.package");
     mimeTypes.put("dp", "application/vnd.osgi.dp");
@@ -1212,10 +1210,7 @@ public class MimeTypeUtils {
     mimeTypes.put("sisx", "x-epoc/x-sisx-app");
   }
 
-  public MediaType detectMimeTypeFromFilename(
-    String name,
-    String fallbackMimeType
-  ) {
+  public MediaType detectMimeTypeFromFilename(String name, String fallbackMimeType) {
     String filenameSanitized = StringUtils.lowerCase(name.trim());
     String extension = StringUtils.substringAfterLast(filenameSanitized, ".");
     return MediaType.parse(MimeTypeUtils.mimeTypes.getOrDefault(extension, fallbackMimeType));
@@ -1224,24 +1219,18 @@ public class MimeTypeUtils {
   /**
    * {@inheritDoc}
    *
-   * <p>This method checks if the allowedMimeType is in the list of mimetypes handled by the
-   * system. If it is then it filters the list so that it contains only the allowed mimetype and
-   * then checks if the given mimeType is in the final list.
+   * <p>This method checks if the allowedMimeType is in the list of mimetypes handled by the system.
+   * If it is then it filters the list so that it contains only the allowed mimetype and then checks
+   * if the given mimeType is in the final list.
    *
    * @param mimeType is a {@link String} representing the mimetype to check.
    * @param allowedMimeType is a {@link Collection} used to filter the mimetype list that will be
-   * compared with the given mimetype.
-   *
+   *     compared with the given mimetype.
    * @return True if the check was successful, otherwise False
    */
-  public boolean isMimeTypeAllowed(
-    String mimeType,
-    Collection<String> allowedMimeType
-  ) {
-    return mimeTypes
-      .values()
-      .stream()
-      .filter(value -> allowedMimeType.stream().anyMatch(value::contains))
-      .anyMatch(value -> value.contains(mimeType));
+  public boolean isMimeTypeAllowed(String mimeType, Collection<String> allowedMimeType) {
+    return mimeTypes.values().stream()
+        .filter(value -> allowedMimeType.stream().anyMatch(value::contains))
+        .anyMatch(value -> value.contains(mimeType));
   }
 }

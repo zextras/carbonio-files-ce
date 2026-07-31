@@ -20,14 +20,13 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepositor
 import com.zextras.carbonio.files.utilities.StoragesMockHelper;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
+import java.util.List;
+import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.Map;
 
 class DeleteNodesApiIT {
 
@@ -62,8 +61,12 @@ class DeleteNodesApiIT {
   void cleanUp() {
     simulator.resetDatabase();
     // Tombstones are not FK-linked to NODE so resetDatabase() doesn't clean them.
-    tombstoneRepository.getTombstones().forEach(t ->
-        tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion()));
+    tombstoneRepository
+        .getTombstones()
+        .forEach(
+            t ->
+                tombstoneRepository.deleteTombstonesByNodeAndVersion(
+                    t.getNodeId(), t.getVersion()));
     simulator.reinitializeMocks();
   }
 
@@ -105,8 +108,9 @@ class DeleteNodesApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     List<String> deletedIds =
-        (List<String>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteNodes")
-            .orElse(List.of());
+        (List<String>)
+            TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteNodes")
+                .orElse(List.of());
     Assertions.assertThat(deletedIds).containsExactlyInAnyOrder(file1Id, file2Id);
 
     List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
@@ -143,8 +147,9 @@ class DeleteNodesApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     List<String> deletedIds =
-        (List<String>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteNodes")
-            .orElse(List.of());
+        (List<String>)
+            TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteNodes")
+                .orElse(List.of());
     Assertions.assertThat(deletedIds).containsExactlyInAnyOrder(file1Id, file2Id);
 
     List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
@@ -164,13 +169,22 @@ class DeleteNodesApiIT {
   void givenFolderWithFileAndBlobSucceedsThenBothFolderAndFileAreDeleted() {
     // Given
     String folderId = "00000000-0000-0000-0000-100000000007";
-    String fileId   = "00000000-0000-0000-0000-100000000008";
+    String fileId = "00000000-0000-0000-0000-100000000008";
 
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(new SimplePopulatorFolder(folderId, OWNER_ID, "folder"))
-        .addNode(new PopulatorNode(
-            fileId, OWNER_ID, OWNER_ID, folderId, "file.txt", "",
-            NodeType.TEXT, "LOCAL_ROOT," + folderId, 1L, "text/plain"));
+        .addNode(
+            new PopulatorNode(
+                fileId,
+                OWNER_ID,
+                OWNER_ID,
+                folderId,
+                "file.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT," + folderId,
+                1L,
+                "text/plain"));
 
     storagesMockHelper.bulkDelete(List.of());
 
@@ -181,8 +195,9 @@ class DeleteNodesApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     List<String> deletedIds =
-        (List<String>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteNodes")
-            .orElse(List.of());
+        (List<String>)
+            TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteNodes")
+                .orElse(List.of());
     Assertions.assertThat(deletedIds).containsExactly(folderId);
 
     List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
@@ -194,19 +209,29 @@ class DeleteNodesApiIT {
     Assertions.assertThat(tombstoneRepository.getTombstones()).isEmpty();
   }
 
-  // --- Test 4: Folder with file, PowerStore fails — both folder AND file still deleted (DB-first) ---
+  // --- Test 4: Folder with file, PowerStore fails — both folder AND file still deleted (DB-first)
+  // ---
 
   @Test
   void givenFolderWithFileAndPowerStoreFailsThenBothFolderAndFileAreDeletedAndTombstonesRemain() {
     // Given
     String folderId = "00000000-0000-0000-0000-100000000005";
-    String fileId   = "00000000-0000-0000-0000-100000000006";
+    String fileId = "00000000-0000-0000-0000-100000000006";
 
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(new SimplePopulatorFolder(folderId, OWNER_ID, "folder"))
-        .addNode(new PopulatorNode(
-            fileId, OWNER_ID, OWNER_ID, folderId, "file.txt", "",
-            NodeType.TEXT, "LOCAL_ROOT," + folderId, 1L, "text/plain"));
+        .addNode(
+            new PopulatorNode(
+                fileId,
+                OWNER_ID,
+                OWNER_ID,
+                folderId,
+                "file.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT," + folderId,
+                1L,
+                "text/plain"));
 
     storagesMockHelper.bulkDeleteError();
 
@@ -217,8 +242,9 @@ class DeleteNodesApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     List<String> deletedIds =
-        (List<String>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteNodes")
-            .orElse(List.of());
+        (List<String>)
+            TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteNodes")
+                .orElse(List.of());
     Assertions.assertThat(deletedIds).containsExactly(folderId);
 
     List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
@@ -238,7 +264,7 @@ class DeleteNodesApiIT {
   void givenMissingNodeIdThenNodeNotFoundErrorReturnedAndPresentNodeStillDeleted() {
     // Given
     String presentFileId = "00000000-0000-0000-0000-100000000009";
-    String missingId     = "00000000-0000-0000-0000-100000000099";
+    String missingId = "00000000-0000-0000-0000-100000000099";
 
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(new SimplePopulatorTextFile(presentFileId, OWNER_ID, "file.txt"));
@@ -252,8 +278,9 @@ class DeleteNodesApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     List<String> deletedIds =
-        (List<String>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteNodes")
-            .orElse(List.of());
+        (List<String>)
+            TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteNodes")
+                .orElse(List.of());
     Assertions.assertThat(deletedIds).containsExactly(presentFileId);
 
     List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
@@ -262,7 +289,8 @@ class DeleteNodesApiIT {
     Assertions.assertThat(nodeRepository.getNode(presentFileId)).isEmpty();
   }
 
-  // --- Test 6: Null/empty JSON response from PowerStore — CORRECTED: null is NOT success, tombstone KEPT ---
+  // --- Test 6: Null/empty JSON response from PowerStore — CORRECTED: null is NOT success,
+  // tombstone KEPT ---
 
   @Test
   void givenNullResponseFromPowerStoreThenNodeDeletedButTombstoneKeptForRetry() {
@@ -272,7 +300,8 @@ class DeleteNodesApiIT {
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(new SimplePopulatorTextFile(file1Id, OWNER_ID, "file1.txt"));
 
-    // {"ids":null} / "{}" — SDK may return null or throw NPE; BOTH are treated as connection failure.
+    // {"ids":null} / "{}" — SDK may return null or throw NPE; BOTH are treated as connection
+    // failure.
     storagesMockHelper.bulkDeleteNullResponse();
 
     // When
@@ -282,15 +311,18 @@ class DeleteNodesApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     List<String> deletedIds =
-        (List<String>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteNodes")
-            .orElse(List.of());
+        (List<String>)
+            TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteNodes")
+                .orElse(List.of());
     Assertions.assertThat(deletedIds).containsExactly(file1Id);
 
     // Node deleted from DB (DB-first design).
     Assertions.assertThat(nodeRepository.getNode(file1Id)).isEmpty();
     // CORRECTED: tombstone must REMAIN — null/empty response is NOT a success signal.
     Assertions.assertThat(tombstoneRepository.getTombstones())
-        .as("Tombstone must remain when PowerStore returns null/empty response (NOT a success signal)")
+        .as(
+            "Tombstone must remain when PowerStore returns null/empty response (NOT a success"
+                + " signal)")
         .hasSize(1);
   }
 }

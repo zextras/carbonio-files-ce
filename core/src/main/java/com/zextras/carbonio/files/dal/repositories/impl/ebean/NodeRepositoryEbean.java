@@ -19,17 +19,16 @@ import io.ebean.Query;
 import io.ebean.SqlQuery;
 import io.ebean.SqlRow;
 import io.ebean.annotation.Transactional;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NodeRepositoryEbean implements NodeRepository {
 
@@ -40,7 +39,10 @@ public class NodeRepositoryEbean implements NodeRepository {
   private CollationRepository collationRepository;
 
   @Inject
-  public NodeRepositoryEbean(DatabaseManager databaseManagerFlyway, FilesConfig filesConfig, CollationRepository collationRepository) {
+  public NodeRepositoryEbean(
+      DatabaseManager databaseManagerFlyway,
+      FilesConfig filesConfig,
+      CollationRepository collationRepository) {
     mDB = databaseManagerFlyway;
     this.filesConfig = filesConfig;
     this.collationRepository = collationRepository;
@@ -50,9 +52,9 @@ public class NodeRepositoryEbean implements NodeRepository {
    * This method creates a new pageToken based on the find params and the data of a node, used to
    * creating the cursor to the nextPage
    *
-   * @param node    a {@link Node} that MUST be the last node of the previous page
-   * @param limit   the number of nodes to retrieve
-   * @param sort    the sort used for ordering the dataset
+   * @param node a {@link Node} that MUST be the last node of the previous page
+   * @param limit the number of nodes to retrieve
+   * @param sort the sort used for ordering the dataset
    * @param flagged the value of the flag
    * @return a {@link String} containing the next pageToken
    */
@@ -144,7 +146,9 @@ public class NodeRepositoryEbean implements NodeRepository {
       Optional<NodeType> optNodeType,
       Optional<String> optOwnerId) {
 
-    SearchBuilder search = new SearchBuilder(mDB.getEbeanDatabase(), userId, collationRepository.getValidCollateForQuery());
+    SearchBuilder search =
+        new SearchBuilder(
+            mDB.getEbeanDatabase(), userId, collationRepository.getValidCollateForQuery());
 
     long startTime = java.lang.System.nanoTime();
 
@@ -348,7 +352,8 @@ public class NodeRepositoryEbean implements NodeRepository {
               .setMaxRows(pageQuery.getLimit())
               .findList()
               .stream()
-              // This filter is tricky because it denies the access of nodes that are not children of
+              // This filter is tricky because it denies the access of nodes that are not children
+              // of
               // the
               // requested public folder
               .filter(node -> node.getAncestorsList().contains(folderId))
@@ -363,7 +368,8 @@ public class NodeRepositoryEbean implements NodeRepository {
               .setMaxRows(pageQuery.getLimit())
               .findList()
               .stream()
-              // This filter is tricky because it denies the access of nodes that are not children of
+              // This filter is tricky because it denies the access of nodes that are not children
+              // of
               // the
               // requested public folder
               .filter(node -> node.getAncestorsList().contains(folderId))
@@ -400,7 +406,7 @@ public class NodeRepositoryEbean implements NodeRepository {
    * Directly retrieves from DB a list of nodes
    *
    * @param nodeIds the list of nodes to retrieve
-   * @param sort    the sorting for the list of nodes
+   * @param sort the sorting for the list of nodes
    * @return
    */
   private List<Node> getRealNodes(List<String> nodeIds, Optional<NodeSort> sort) {
@@ -434,19 +440,26 @@ public class NodeRepositoryEbean implements NodeRepository {
     sort.ifPresentOrElse(
         s -> {
           if (s.equals(NodeSort.SIZE_ASC)) {
-            NodeSort.TYPE_ASC.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
+            NodeSort.TYPE_ASC.getOrderEbeanQuery(
+                query, collationRepository.getValidCollateForQuery());
             s.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
-            NodeSort.NAME_ASC.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
+            NodeSort.NAME_ASC.getOrderEbeanQuery(
+                query, collationRepository.getValidCollateForQuery());
           } else if (s.equals(NodeSort.SIZE_DESC)) {
-            NodeSort.TYPE_DESC.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
+            NodeSort.TYPE_DESC.getOrderEbeanQuery(
+                query, collationRepository.getValidCollateForQuery());
             s.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
-            NodeSort.NAME_ASC.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
+            NodeSort.NAME_ASC.getOrderEbeanQuery(
+                query, collationRepository.getValidCollateForQuery());
           } else {
-            NodeSort.TYPE_ASC.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
+            NodeSort.TYPE_ASC.getOrderEbeanQuery(
+                query, collationRepository.getValidCollateForQuery());
             s.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery());
           }
         },
-        () -> NodeSort.TYPE_ASC.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery()));
+        () ->
+            NodeSort.TYPE_ASC.getOrderEbeanQuery(
+                query, collationRepository.getValidCollateForQuery()));
 
     return query.findIds();
   }
@@ -488,7 +501,11 @@ public class NodeRepositoryEbean implements NodeRepository {
 
   @Override
   public int deleteNodes(List<String> nodesIds) {
-    return mDB.getEbeanDatabase().find(Node.class).where().in(Constants.Db.Node.ID, nodesIds).delete();
+    return mDB.getEbeanDatabase()
+        .find(Node.class)
+        .where()
+        .in(Constants.Db.Node.ID, nodesIds)
+        .delete();
   }
 
   @Override
@@ -516,7 +533,7 @@ public class NodeRepositoryEbean implements NodeRepository {
    * @param nodeId the id of the node to retrieve the custom attributes
    * @param userId the id of the user which to retrieve the custom attributes
    * @return {@link NodeCustomAttributes} if there are custom attributes saved for the user,
-   * otherwise it returns Optional.empty();
+   *     otherwise it returns Optional.empty();
    */
   private Optional<NodeCustomAttributes> getCustomAttributesForUser(String nodeId, String userId) {
     return mDB.getEbeanDatabase()
@@ -619,7 +636,12 @@ public class NodeRepositoryEbean implements NodeRepository {
 
   @Override
   public Optional<Node> findFirstByOwner(String ownerId) {
-    return mDB.getEbeanDatabase().find(Node.class).where().eq(Db.Node.OWNER_ID, ownerId).setMaxRows(1).findOneOrEmpty();
+    return mDB.getEbeanDatabase()
+        .find(Node.class)
+        .where()
+        .eq(Db.Node.OWNER_ID, ownerId)
+        .setMaxRows(1)
+        .findOneOrEmpty();
   }
 
   @Override
@@ -630,7 +652,13 @@ public class NodeRepositoryEbean implements NodeRepository {
 
   @Override
   public List<Node> findAllNodesFiles() {
-    return mDB.getEbeanDatabase().find(Node.class).where().ne(Db.Node.TYPE, NodeType.FOLDER).and().ne(Db.Node.TYPE, NodeType.ROOT).findList();
+    return mDB.getEbeanDatabase()
+        .find(Node.class)
+        .where()
+        .ne(Db.Node.TYPE, NodeType.FOLDER)
+        .and()
+        .ne(Db.Node.TYPE, NodeType.ROOT)
+        .findList();
   }
 
   /*
@@ -644,15 +672,16 @@ public class NodeRepositoryEbean implements NodeRepository {
       throw new RuntimeException("Node is not a folder or does not exists");
     }
 
-    Long totalSize = mDB.getEbeanDatabase()
-        .find(Node.class)
-        .where()
-        .contains(Db.Node.ANCESTOR_IDS, folderId)
-        .ne(Db.Node.TYPE, NodeType.FOLDER)
-        .ne(Db.Node.TYPE, NodeType.ROOT)
-        .ne(Db.Node.HIDDEN, true)
-        .select("coalesce(sum(size), 0)::Long")
-        .findSingleAttribute();
+    Long totalSize =
+        mDB.getEbeanDatabase()
+            .find(Node.class)
+            .where()
+            .contains(Db.Node.ANCESTOR_IDS, folderId)
+            .ne(Db.Node.TYPE, NodeType.FOLDER)
+            .ne(Db.Node.TYPE, NodeType.ROOT)
+            .ne(Db.Node.HIDDEN, true)
+            .select("coalesce(sum(size), 0)::Long")
+            .findSingleAttribute();
 
     return Optional.ofNullable(totalSize);
   }
@@ -678,9 +707,10 @@ public class NodeRepositoryEbean implements NodeRepository {
       return Optional.empty();
     }
 
-    String sql = """
+    String sql =
+        """
         WITH RECURSIVE visible_hierarchy AS (
-            SELECT 
+            SELECT
                 n.node_id,
                 n.folder_id,
                 n.node_type,
@@ -691,21 +721,21 @@ public class NodeRepositoryEbean implements NodeRepository {
               AND (
                   n.owner_id = ?
                   OR EXISTS (
-                      SELECT 1 
+                      SELECT 1
                       FROM share s
                       WHERE s.node_id = n.node_id
                         AND s.target_uuid = ?
                         AND s.rights >= ?
                   )
               )
-        
+
             UNION ALL
-        
-            SELECT 
+
+            SELECT
                 n.node_id,
                 n.folder_id,
                 n.node_type,
-                CASE 
+                CASE
                     WHEN n.node_type IN ('FOLDER', 'ROOT') THEN 0
                     ELSE COALESCE(n.size, 0)
                 END as size
@@ -714,7 +744,7 @@ public class NodeRepositoryEbean implements NodeRepository {
             WHERE (
                   n.owner_id = ?
                   OR EXISTS (
-                      SELECT 1 
+                      SELECT 1
                       FROM share s
                       WHERE s.node_id = n.node_id
                         AND s.target_uuid = ?
@@ -750,8 +780,12 @@ public class NodeRepositoryEbean implements NodeRepository {
       return Optional.empty();
 
     } catch (Exception e) {
-      logger.error("Error calculating relative folder size for folder {} and user {}: {}",
-          folderId, userId, e.getMessage(), e);
+      logger.error(
+          "Error calculating relative folder size for folder {} and user {}: {}",
+          folderId,
+          userId,
+          e.getMessage(),
+          e);
       return Optional.empty();
     }
   }

@@ -13,10 +13,9 @@ import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 
 /**
- * Fake carbonio-user-management REST service, backed by MockServer, stubbing the
- * {@code /internal/users/*} endpoints ({@code myself}, {@code id/{userId}},
- * {@code email/{email}}) that {@link
- * com.zextras.carbonio.files.dal.repositories.impl.ebean.UserRepositoryRest} calls via the
+ * Fake carbonio-user-management REST service, backed by MockServer, stubbing the {@code
+ * /internal/users/*} endpoints ({@code myself}, {@code id/{userId}}, {@code email/{email}}) that
+ * {@link com.zextras.carbonio.files.dal.repositories.impl.ebean.UserRepositoryRest} calls via the
  * generated {@code UserResourceApi}.
  *
  * <p>Replaces the old in-process gRPC fake ({@code UserManagementServiceImplBase}) now that
@@ -62,9 +61,9 @@ public class MockUserManagementService {
   }
 
   /**
-   * Registers a user profile for lookup by userId via {@code getUserById} (and by email via
-   * {@code getUserByEmail}). This is used by integration tests that need to look up users other
-   * than the requester (e.g. transfer ownership target user).
+   * Registers a user profile for lookup by userId via {@code getUserById} (and by email via {@code
+   * getUserByEmail}). This is used by integration tests that need to look up users other than the
+   * requester (e.g. transfer ownership target user).
    */
   public void registerUserById(
       String userId, String email, String fullName, String domain, String status) {
@@ -97,9 +96,9 @@ public class MockUserManagementService {
   }
 
   /**
-   * Removes a userId from the {@code getUserById}/{@code getUserByEmail} lookup so that
-   * subsequent calls for this user will return NOT_FOUND (404). Mirrors the old fake: the
-   * token-based "myself" registration (if any) is left untouched.
+   * Removes a userId from the {@code getUserById}/{@code getUserByEmail} lookup so that subsequent
+   * calls for this user will return NOT_FOUND (404). Mirrors the old fake: the token-based "myself"
+   * registration (if any) is left untouched.
    */
   public void unregisterUserById(String userId) {
     mockServerClient.clear(idRequest(userId));

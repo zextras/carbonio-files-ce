@@ -206,7 +206,8 @@ public class DownloadByPublicLinkApiIT {
             Optional.empty(),
             Optional.empty());
 
-    final String publicDownloadUrl = "/public/link/download/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
+    final String publicDownloadUrl =
+        "/public/link/download/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
@@ -327,7 +328,11 @@ public class DownloadByPublicLinkApiIT {
         .error(HttpError.error().withDropConnection(true));
 
     final HttpRequest httpRequest =
-        HttpRequest.of("GET", "/public/link/download/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab", null, null);
+        HttpRequest.of(
+            "GET",
+            "/public/link/download/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab",
+            null,
+            null);
 
     // When
     final HttpResponse httpResponse =

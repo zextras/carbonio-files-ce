@@ -4,7 +4,6 @@
 
 package com.zextras.carbonio.files.graphql.errors;
 
-
 import graphql.GraphQLError;
 import graphql.GraphqlErrorException;
 import graphql.execution.DataFetcherResult;
@@ -25,18 +24,17 @@ public class GraphQLResultErrors {
    * the context), indicating some error on data on db or wrong usage of datafetchers.
    *
    * @param path the graphQl resultPath extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened
-   *
+   *     to know in which part of the tree the error happened
    * @return
    */
   public static GraphQLError missingField(ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.MISSING_FIELD);
     return GraphqlErrorException.newErrorException()
-      .message("Could not find data to retrieve for requested field")
-      .path(path.toList())
-      .extensions(errorData)
-      .build();
+        .message("Could not find data to retrieve for requested field")
+        .path(path.toList())
+        .extensions(errorData)
+        .build();
   }
 
   /**
@@ -46,22 +44,18 @@ public class GraphQLResultErrors {
    *
    * @param accountIdentifier the accountId/email of the zimbra User or Distribution list not found
    * @param path the graphQl resultPath extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened
-   *
+   *     to know in which part of the tree the error happened
    * @return
    */
-  public static GraphQLError accountNotFound(
-    String accountIdentifier,
-    ResultPath path
-  ) {
+  public static GraphQLError accountNotFound(String accountIdentifier, ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.ACCOUNT_NOT_FOUND);
     errorData.put("identifier", accountIdentifier);
     return GraphqlErrorException.newErrorException()
-      .message("Could not find user with identifier " + accountIdentifier)
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
+        .message("Could not find user with identifier " + accountIdentifier)
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
   }
 
   /**
@@ -71,22 +65,18 @@ public class GraphQLResultErrors {
    *
    * @param nodeId the nodeId of the requested node
    * @param path the graphQl resultPath extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened
-   *
+   *     to know in which part of the tree the error happened
    * @return
    */
-  public static GraphQLError nodeNotFound(
-    String nodeId,
-    ResultPath path
-  ) {
+  public static GraphQLError nodeNotFound(String nodeId, ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.NODE_NOT_FOUND);
     errorData.put("nodeId", nodeId);
     return GraphqlErrorException.newErrorException()
-      .message("Could not find node with id " + nodeId)
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
+        .message("Could not find node with id " + nodeId)
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
   }
 
   /**
@@ -98,22 +88,18 @@ public class GraphQLResultErrors {
    *
    * @param nodeId the nodeId of the requested node
    * @param path the graphQl resultPath extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened
-   *
+   *     to know in which part of the tree the error happened
    * @return
    */
-  public static GraphQLError nodeWriteError(
-    String nodeId,
-    ResultPath path
-  ) {
+  public static GraphQLError nodeWriteError(String nodeId, ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.NODE_WRITE_ERROR);
     errorData.put("nodeId", nodeId);
     return GraphqlErrorException.newErrorException()
-      .message("There was a problem while executing requested operation on node: " + nodeId)
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
+        .message("There was a problem while executing requested operation on node: " + nodeId)
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
   }
 
   /**
@@ -124,28 +110,24 @@ public class GraphQLResultErrors {
    * @param nodeId the nodeId of the requested node
    * @param destinationFolderId the folder in which there is a duplicate of the Node
    * @param path the graphQl resultPath extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened
-   *
+   *     to know in which part of the tree the error happened
    * @return the error indicating that the Node is a duplicate
    */
   public static GraphQLError duplicateNode(
-    String nodeId,
-    String destinationFolderId,
-    ResultPath path
-  ) {
+      String nodeId, String destinationFolderId, ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.NODE_DUPLICATED);
     errorData.put("nodeId", nodeId);
     errorData.put("destinationFolderId", destinationFolderId);
     return GraphqlErrorException.newErrorException()
-      .message("Trying to create a duplicate for the node "
-        + nodeId
-        + " in destination folder "
-        + destinationFolderId
-      )
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
+        .message(
+            "Trying to create a duplicate for the node "
+                + nodeId
+                + " in destination folder "
+                + destinationFolderId)
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
   }
 
   /**
@@ -156,24 +138,20 @@ public class GraphQLResultErrors {
    * @param nodeId the id of the node for which the version was requested
    * @param fileVersion the number of the version requested
    * @param path the graphQl resultPath extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened
-   *
+   *     to know in which part of the tree the error happened
    * @return
    */
   public static GraphQLError fileVersionNotFound(
-    String nodeId,
-    Integer fileVersion,
-    ResultPath path
-  ) {
+      String nodeId, Integer fileVersion, ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.FILE_VERSION_NOT_FOUND);
     errorData.put("nodeId", nodeId);
     errorData.put("fileVersion", fileVersion);
     return GraphqlErrorException.newErrorException()
-      .message("Could not find version: " + fileVersion + " for node with id " + nodeId)
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
+        .message("Could not find version: " + fileVersion + " for node with id " + nodeId)
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
   }
 
   /**
@@ -183,24 +161,19 @@ public class GraphQLResultErrors {
    *
    * @param nodeId the id of the share not found
    * @param path the graphQl resultPath extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened
-   *
+   *     to know in which part of the tree the error happened
    * @return
    */
-  public static GraphQLError shareNotfound(
-    String nodeId,
-    String userId,
-    ResultPath path
-  ) {
+  public static GraphQLError shareNotfound(String nodeId, String userId, ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.SHARE_NOT_FOUND);
     errorData.put("nodeId", nodeId);
     errorData.put("userId", userId);
     return GraphqlErrorException.newErrorException()
-      .message("Could not find share for node: " + nodeId + " and user " + userId)
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
+        .message("Could not find share for node: " + nodeId + " and user " + userId)
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
   }
 
   /**
@@ -211,232 +184,205 @@ public class GraphQLResultErrors {
    * @param nodeId the id of the node where i was creating the share
    * @param targetUserId the id of the user for which i was creating the share
    * @param path the graphQl resultPath extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened
-   *
+   *     to know in which part of the tree the error happened
    * @return
    */
   public static GraphQLError shareCreationError(
-    String nodeId,
-    String targetUserId,
-    ResultPath path
-  ) {
+      String nodeId, String targetUserId, ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.SHARE_CREATION_ERROR);
     errorData.put("nodeId", nodeId);
     errorData.put("userId", targetUserId);
     return GraphqlErrorException.newErrorException()
-      .message("Could not create share for node: " + nodeId + " and user: " + targetUserId)
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
+        .message("Could not create share for node: " + nodeId + " and user: " + targetUserId)
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
   }
 
   /**
    * This method generates an error when a requested link was not found. Besides from standard data,
    * it adds the following custom fields in the extensions attribute:
+   *
    * <ul>
-   *   <li>the errorCode for easily discriminating</li>
-   *   <li>the id of the link not found</li>
+   *   <li>the errorCode for easily discriminating
+   *   <li>the id of the link not found
    * </ul>
+   *
    * .
    *
    * @param linkId the link identifier of the requested link.
    * @param path the graphQl resultPath extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened
-   *
+   *     to know in which part of the tree the error happened
    * @return
    */
-  public static GraphQLError linkNotFound(
-    String linkId,
-    ResultPath path
-  ) {
+  public static GraphQLError linkNotFound(String linkId, ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.LINK_NOT_FOUND);
     errorData.put("linkId", linkId);
     return GraphqlErrorException.newErrorException()
-      .message("Could not find link with id " + linkId)
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
+        .message("Could not find link with id " + linkId)
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
   }
 
   /**
    * This method generates an error when a requested node has reached the maximum number of
    * versions. Besides from standard data, it adds the following custom fields in the extensions
-   * attribute:
-   * * <ul>
-   * *   <li>the errorCode for easily discriminating</li>
-   * *   <li>the id of the link not found</li>
-   * * </ul>
+   * attribute: *
+   *
+   * <ul>
+   *   *
+   *   <li>the errorCode for easily discriminating *
+   *   <li>the id of the link not found *
+   * </ul>
    *
    * @param nodeId the nodeId of the requested node
    * @param path the graphQl resultPath extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened
-   *
+   *     to know in which part of the tree the error happened
    * @return
    */
-  public static GraphQLError tooManyVersionsError(
-    String nodeId,
-    ResultPath path
-  ) {
+  public static GraphQLError tooManyVersionsError(String nodeId, ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.VERSIONS_LIMIT_REACHED);
     errorData.put("nodeId", nodeId);
     return GraphqlErrorException.newErrorException()
-      .message("There was a problem while executing requested operation on node: " + nodeId)
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
+        .message("There was a problem while executing requested operation on node: " + nodeId)
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
   }
+
   /**
    * This method generates an error when a copy of a node fails. In addition to the usual data, it
-   * adds custom fields on extensions, mainly <code>errorCode</code>, for easily discriminating
-   * the error type by who called the API.
+   * adds custom fields on extensions, mainly <code>errorCode</code>, for easily discriminating the
+   * error type by who called the API.
    *
    * @param nodeId is a {@link String} representing the id of the requested node.
    * @param version is an {@link Integer} representing the version of the requested node.
    * @param path is a {@link ResultPath } extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened.
-   *
+   *     to know in which part of the tree the error happened.
    * @return a {@link GraphQLError} containing info about the error.
    */
-  public static GraphQLError nodeCopyError(
-    String nodeId,
-    Integer version,
-    ResultPath path
-  ) {
+  public static GraphQLError nodeCopyError(String nodeId, Integer version, ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.NODE_COPY_ERROR);
     errorData.put("nodeId", nodeId);
     errorData.put("version", version);
 
-    String errorMessage = MessageFormat.format(
-      "There was a problem while copying the node {0} with version {1}",
-      nodeId,
-      version
-    );
+    String errorMessage =
+        MessageFormat.format(
+            "There was a problem while copying the node {0} with version {1}", nodeId, version);
 
-    return GraphqlErrorException
-      .newErrorException()
-      .message(errorMessage)
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
+    return GraphqlErrorException.newErrorException()
+        .message(errorMessage)
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
   }
 
   /**
-   * This method generates an error when a requested node from its public link requires an access code that was
-   * not included in the request:
-   * * <ul>
-   * *   <li>the errorCode for easily discriminating</li>
-   * *   <li>the id of the link that requires an access code to be accessed</li>
-   * * </ul>
+   * This method generates an error when a requested node from its public link requires an access
+   * code that was not included in the request: *
+   *
+   * <ul>
+   *   *
+   *   <li>the errorCode for easily discriminating *
+   *   <li>the id of the link that requires an access code to be accessed *
+   * </ul>
    *
    * @param publicLinkId the public link id of the used link
    * @param path the graphQl resultPath extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened
-   *
+   *     to know in which part of the tree the error happened
    * @return
    */
-  public static GraphQLError accessCodeRequired(
-    String publicLinkId,
-    ResultPath path
-  ) {
+  public static GraphQLError accessCodeRequired(String publicLinkId, ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.ACCESS_CODE_REQUIRED);
     errorData.put("publicLinkId", publicLinkId);
     return GraphqlErrorException.newErrorException()
-      .message("Access code is required for accessing the resource with public link id: " + publicLinkId)
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
+        .message(
+            "Access code is required for accessing the resource with public link id: "
+                + publicLinkId)
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
   }
 
   /**
-   * This method generates an error when a requested node from its public link requires an access code, and it was
-   * passed a wrong access code with the request:
-   * * <ul>
-   * *   <li>the errorCode for easily discriminating</li>
-   * *   <li>the id of the link that requires a correct access code to be accessed</li>
-   * * </ul>
+   * This method generates an error when a requested node from its public link requires an access
+   * code, and it was passed a wrong access code with the request: *
+   *
+   * <ul>
+   *   *
+   *   <li>the errorCode for easily discriminating *
+   *   <li>the id of the link that requires a correct access code to be accessed *
+   * </ul>
    *
    * @param publicLinkId the public link id of the used link
    * @param path the graphQl resultPath extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened
-   *
+   *     to know in which part of the tree the error happened
    * @return
    */
-  public static GraphQLError wrongAccessCode(
-    String publicLinkId,
-    ResultPath path
-  ) {
+  public static GraphQLError wrongAccessCode(String publicLinkId, ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.WRONG_ACCESS_CODE);
     errorData.put("publicLinkId", publicLinkId);
     return GraphqlErrorException.newErrorException()
-      .message("The access code for link with public id " + publicLinkId + " is not correct")
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
+        .message("The access code for link with public id " + publicLinkId + " is not correct")
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
   }
 
   /**
-   * This method generates an error when creating a Link with a nodeId that has already reached the maximum
-   * number of links.
+   * This method generates an error when creating a Link with a nodeId that has already reached the
+   * maximum number of links.
    *
    * @param nodeId the nodeId of the node
    * @param path the graphQl resultPath extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened
-   *
+   *     to know in which part of the tree the error happened
    * @return
    */
-  public static GraphQLError linkLimitExceeded(
-    String nodeId,
-    ResultPath path
-  ) {
+  public static GraphQLError linkLimitExceeded(String nodeId, ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.LINK_LIMIT_EXCEEDED);
     errorData.put("nodeId", nodeId);
     return GraphqlErrorException.newErrorException()
-      .message("The limit for links has been reached for this node: " + nodeId)
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
+        .message("The limit for links has been reached for this node: " + nodeId)
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
   }
 
   /**
-   * This method generates an error when creating a Link with a nodeId that has already reached the maximum
-   * number of links.
+   * This method generates an error when creating a Link with a nodeId that has already reached the
+   * maximum number of links.
    *
    * @param path the graphQl resultPath extrapolated from the environment to insert into the error
-   * to know in which part of the tree the error happened
-   *
+   *     to know in which part of the tree the error happened
    * @return
    */
-  public static GraphQLError deleteAllNodesAndBlobsError(
-    ResultPath path
-  ) {
+  public static GraphQLError deleteAllNodesAndBlobsError(ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.DELETE_ALL_NODES_AND_BLOBS_ERROR);
     return GraphqlErrorException.newErrorException()
-      .message("Storages returned an error while trying to delete all blobs")
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
+        .message("Storages returned an error while trying to delete all blobs")
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
   }
 
-  public static GraphQLError deleteAllNodesAndBlobsPartialFailure(
-    String nodeId,
-    ResultPath path
-  ) {
+  public static GraphQLError deleteAllNodesAndBlobsPartialFailure(String nodeId, ResultPath path) {
     Map<String, Object> errorData = new HashMap<>();
     errorData.put("errorCode", ErrorCodes.DELETE_ALL_NODES_AND_BLOBS_PARTIAL_FAILURE);
     errorData.put("nodeId", nodeId);
     return GraphqlErrorException.newErrorException()
-      .message("Failed to delete blob for node " + nodeId + ", node was not removed from database")
-      .extensions(errorData)
-      .path(path.toList())
-      .build();
+        .message(
+            "Failed to delete blob for node " + nodeId + ", node was not removed from database")
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
   }
-
 }

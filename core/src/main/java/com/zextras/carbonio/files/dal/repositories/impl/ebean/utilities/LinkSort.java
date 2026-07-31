@@ -7,14 +7,13 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import io.ebean.Query;
-
 import java.util.Optional;
 
 /**
  * Represents all applicable sort types of a list of {@link Link}s. Each of them implements the
- * {@link SortingEntityEbean#getOrderEbeanQuery(Query, Optional<String>)} method that returns a query with the related
- * sort applied. These implementations can be useful to concatenate multiple sorts to a single
- * {@link Query}.
+ * {@link SortingEntityEbean#getOrderEbeanQuery(Query, Optional<String>)} method that returns a
+ * query with the related sort applied. These implementations can be useful to concatenate multiple
+ * sorts to a single {@link Query}.
  */
 public enum LinkSort implements SortingEntityEbean<Link> {
   CREATED_AT_ASC {

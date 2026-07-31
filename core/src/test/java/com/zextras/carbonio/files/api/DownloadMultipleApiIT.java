@@ -21,6 +21,10 @@ import com.zextras.carbonio.files.utilities.StoragesMockHelper;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import io.netty.handler.codec.http.HttpMethod;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -28,11 +32,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockserver.model.Parameter;
 import org.mockserver.verify.VerificationTimes;
-
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
 
 public class DownloadMultipleApiIT {
 
@@ -139,17 +138,12 @@ public class DownloadMultipleApiIT {
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
     String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8);
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/download-multiple",
-        "ZM_AUTH_TOKEN=fake-token",
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of(
+            "POST", "/download-multiple", "ZM_AUTH_TOKEN=fake-token", headers, requestBody);
 
     // When
     final HttpResponse httpResponse =
@@ -158,16 +152,16 @@ public class DownloadMultipleApiIT {
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
     Assertions.assertThat(httpResponse.getHeaders())
-        .anyMatch(header ->
-            header.getKey().equalsIgnoreCase("content-type") &&
-                header.getValue().contains("application/zip")
-        );
+        .anyMatch(
+            header ->
+                header.getKey().equalsIgnoreCase("content-type")
+                    && header.getValue().contains("application/zip"));
     Assertions.assertThat(httpResponse.getHeaders())
-        .anyMatch(header ->
-            header.getKey().equalsIgnoreCase("content-disposition") &&
-                header.getValue().contains("attachment") &&
-                header.getValue().contains("Files.zip")
-        );
+        .anyMatch(
+            header ->
+                header.getKey().equalsIgnoreCase("content-disposition")
+                    && header.getValue().contains("attachment")
+                    && header.getValue().contains("Files.zip"));
 
     // Verify storages was called for each file
     simulator
@@ -248,17 +242,12 @@ public class DownloadMultipleApiIT {
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
     String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8);
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/download-multiple",
-        "ZM_AUTH_TOKEN=fake-token",
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of(
+            "POST", "/download-multiple", "ZM_AUTH_TOKEN=fake-token", headers, requestBody);
 
     // When
     final HttpResponse httpResponse =
@@ -321,17 +310,12 @@ public class DownloadMultipleApiIT {
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
     String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8);
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/download-multiple",
-        "ZM_AUTH_TOKEN=fake-token",
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of(
+            "POST", "/download-multiple", "ZM_AUTH_TOKEN=fake-token", headers, requestBody);
 
     // When
     final HttpResponse httpResponse =
@@ -340,10 +324,10 @@ public class DownloadMultipleApiIT {
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
     Assertions.assertThat(httpResponse.getHeaders())
-        .anyMatch(header ->
-            header.getKey().equalsIgnoreCase("content-type") &&
-                header.getValue().contains("application/zip")
-        );
+        .anyMatch(
+            header ->
+                header.getKey().equalsIgnoreCase("content-type")
+                    && header.getValue().contains("application/zip"));
   }
 
   @Test
@@ -369,17 +353,12 @@ public class DownloadMultipleApiIT {
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
     String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8);
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/download-multiple",
-        "ZM_AUTH_TOKEN=fake-token",
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of(
+            "POST", "/download-multiple", "ZM_AUTH_TOKEN=fake-token", headers, requestBody);
 
     // When
     final HttpResponse httpResponse =
@@ -396,17 +375,12 @@ public class DownloadMultipleApiIT {
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
     String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8);
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/download-multiple",
-        "ZM_AUTH_TOKEN=fake-token",
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of(
+            "POST", "/download-multiple", "ZM_AUTH_TOKEN=fake-token", headers, requestBody);
 
     // When
     final HttpResponse httpResponse =
@@ -419,17 +393,11 @@ public class DownloadMultipleApiIT {
   @Test
   void givenMissingRequestBodyTheDownloadMultipleShouldReturn400() {
     // Given
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/download-multiple",
-        "ZM_AUTH_TOKEN=fake-token",
-        headers,
-        null
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of("POST", "/download-multiple", "ZM_AUTH_TOKEN=fake-token", headers, null);
 
     // When
     final HttpResponse httpResponse =
@@ -444,17 +412,12 @@ public class DownloadMultipleApiIT {
     // Given
     String requestBody = "nodeIds=invalid-json";
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/download-multiple",
-        "ZM_AUTH_TOKEN=fake-token",
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of(
+            "POST", "/download-multiple", "ZM_AUTH_TOKEN=fake-token", headers, requestBody);
 
     // When
     final HttpResponse httpResponse =
@@ -467,19 +430,17 @@ public class DownloadMultipleApiIT {
   @Test
   void givenMissingNodeIdsParameterTheDownloadMultipleShouldReturn400() throws Exception {
     // Given
-    String requestBody = "wrongParam=" + URLEncoder.encode("[\"00000000-0000-0000-0000-000000000001\"]", StandardCharsets.UTF_8);
+    String requestBody =
+        "wrongParam="
+            + URLEncoder.encode(
+                "[\"00000000-0000-0000-0000-000000000001\"]", StandardCharsets.UTF_8);
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/download-multiple",
-        "ZM_AUTH_TOKEN=fake-token",
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of(
+            "POST", "/download-multiple", "ZM_AUTH_TOKEN=fake-token", headers, requestBody);
 
     // When
     final HttpResponse httpResponse =
@@ -531,17 +492,12 @@ public class DownloadMultipleApiIT {
     String jsonArray = objectMapper.writeValueAsString(nodeIds);
     String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8);
 
-    List<Map.Entry<String, String>> headers = List.of(
-        Map.entry("Content-Type", "application/x-www-form-urlencoded")
-    );
+    List<Map.Entry<String, String>> headers =
+        List.of(Map.entry("Content-Type", "application/x-www-form-urlencoded"));
 
-    final HttpRequest httpRequest = HttpRequest.of(
-        "POST",
-        "/download-multiple",
-        "ZM_AUTH_TOKEN=fake-token",
-        headers,
-        requestBody
-    );
+    final HttpRequest httpRequest =
+        HttpRequest.of(
+            "POST", "/download-multiple", "ZM_AUTH_TOKEN=fake-token", headers, requestBody);
 
     // When
     final HttpResponse httpResponse =

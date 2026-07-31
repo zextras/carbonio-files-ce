@@ -5,7 +5,6 @@
 package com.zextras.carbonio.files.rest.services;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.Constants.Config.Preview;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
@@ -17,7 +16,6 @@ import com.zextras.carbonio.preview.sdk.QueryBuilder;
 import io.vavr.control.Try;
 import java.text.MessageFormat;
 import java.util.Optional;
-import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +27,8 @@ public class PreviewService {
   private final PreviewClient previewClient;
 
   @Inject
-  public PreviewService(FilesConfig filesConfig, NodeRepository nodeRepository, PreviewClient previewClient) {
+  public PreviewService(
+      FilesConfig filesConfig, NodeRepository nodeRepository, PreviewClient previewClient) {
     this.nodeRepository = nodeRepository;
     this.previewClient = previewClient;
   }
@@ -185,19 +184,18 @@ public class PreviewService {
       Optional<String> optArea,
       PreviewQueryParameters queryParameters) {
     QueryBuilder parameterBuilder =
-        new QueryBuilder()
-            .serviceType("files")
-            .fileId(nodeId)
-            .version(version)
-            .ownerId(ownerId);
+        new QueryBuilder().serviceType("files").fileId(nodeId).version(version).ownerId(ownerId);
 
     optArea.ifPresent(parameterBuilder::area);
     // The REST SDK forwards these values verbatim as query-string parameters, so they must
     // already be in the lower-case form the carbonio-preview server expects (the old gRPC SDK
     // lower-cased its enums internally; PreviewQueryParameters still exposes the upper-case
     // enum names, so we lower-case them here instead).
-    queryParameters.getQuality().ifPresent(quality -> parameterBuilder.quality(quality.toLowerCase()));
-    queryParameters.getOutputFormat()
+    queryParameters
+        .getQuality()
+        .ifPresent(quality -> parameterBuilder.quality(quality.toLowerCase()));
+    queryParameters
+        .getOutputFormat()
         .ifPresent(outputFormat -> parameterBuilder.outputFormat(outputFormat.toLowerCase()));
     parameterBuilder.crop(queryParameters.getCrop().orElse(false));
     queryParameters.getShape().ifPresent(shape -> parameterBuilder.shape(shape.toLowerCase()));
@@ -209,8 +207,8 @@ public class PreviewService {
   }
 
   /**
-   * This method maps all fields of a {@link PreviewResponse} object to the corresponding fields
-   * of a {@link BlobResponse} object.
+   * This method maps all fields of a {@link PreviewResponse} object to the corresponding fields of
+   * a {@link BlobResponse} object.
    *
    * @param response is a {@link PreviewResponse} object to convert.
    * @param nodeId is a {@link String} representing the node id.

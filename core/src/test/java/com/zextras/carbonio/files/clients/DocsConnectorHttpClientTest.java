@@ -5,9 +5,8 @@
 package com.zextras.carbonio.files.clients;
 
 import com.zextras.carbonio.files.config.FilesConfig;
-import java.io.IOException;
-
 import com.zextras.carbonio.files.utilities.MockFilesConfig;
+import java.io.IOException;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;

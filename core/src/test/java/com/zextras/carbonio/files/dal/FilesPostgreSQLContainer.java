@@ -12,11 +12,10 @@ import org.testcontainers.utility.DockerImageName;
 
 public class FilesPostgreSQLContainer extends PostgreSQLContainer<FilesPostgreSQLContainer> {
 
-  private final static Logger logger = LoggerFactory.getLogger(FilesPostgreSQLContainer.class);
+  private static final Logger logger = LoggerFactory.getLogger(FilesPostgreSQLContainer.class);
 
-  private final static DockerImageName POSTGRESQL_IMAGE_NAME = DockerImageName
-    .parse(PostgreSQLContainer.IMAGE)
-    .withTag(PostgreSQLContainer.DEFAULT_TAG);
+  private static final DockerImageName POSTGRESQL_IMAGE_NAME =
+      DockerImageName.parse(PostgreSQLContainer.IMAGE).withTag(PostgreSQLContainer.DEFAULT_TAG);
 
   private final FilesConfig filesConfig;
 
@@ -31,9 +30,9 @@ public class FilesPostgreSQLContainer extends PostgreSQLContainer<FilesPostgreSQ
     try (FilesPostgreSQLContainer databaseContainer = self()) {
       // Avoid hardcoded values. Must be replaced after the refactor of FilesConfig
       databaseContainer
-        .withDatabaseName("carbonio-files-db")
-        .withUsername("carbonio-files-db")
-        .withPassword("password");
+          .withDatabaseName("carbonio-files-db")
+          .withUsername("carbonio-files-db")
+          .withPassword("password");
     }
   }
 

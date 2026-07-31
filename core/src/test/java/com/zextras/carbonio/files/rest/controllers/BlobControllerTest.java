@@ -4,11 +4,11 @@
 
 package com.zextras.carbonio.files.rest.controllers;
 
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.tasks.PrometheusService;
 import com.zextras.carbonio.files.utilities.MockFilesConfig;
-import com.zextras.carbonio.files.dal.dao.UserMyself;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -43,77 +43,64 @@ public class BlobControllerTest {
 
   static Stream<Arguments> downloadURLProvider() {
     return Stream.of(
-      Arguments.of("/download/53d6fd97-a933-409f-b9f3-156690a64476", null),
-      Arguments.of("/download/53d6fd97-a933-409f-b9f3-156690a64476/", null),
-      Arguments.of("/download/53d6fd97-a933-409f-b9f3-156690a64476/1", 1),
-      Arguments.of("/download/53d6fd97-a933-409f-b9f3-156690a64476/1/", 1)
-    );
+        Arguments.of("/download/53d6fd97-a933-409f-b9f3-156690a64476", null),
+        Arguments.of("/download/53d6fd97-a933-409f-b9f3-156690a64476/", null),
+        Arguments.of("/download/53d6fd97-a933-409f-b9f3-156690a64476/1", 1),
+        Arguments.of("/download/53d6fd97-a933-409f-b9f3-156690a64476/1/", 1));
   }
 
   @ParameterizedTest
   @MethodSource("downloadURLProvider")
   void givenARightURLTheBlobControllerDownloadShouldReturnTheRequestedFileBlob(
-    String uri,
-    Integer version
-  ) {
+      String uri, Integer version) {
     // Given
     UserMyself userMock = Mockito.mock(UserMyself.class);
 
-    ChannelHandlerContext contextMock = Mockito.mock(
-      ChannelHandlerContext.class,
-      Mockito.RETURNS_DEEP_STUBS
-    );
-    Mockito
-      .when(contextMock.channel().attr(AttributeKey.valueOf("requester")).get())
-      .thenReturn(userMock);
+    ChannelHandlerContext contextMock =
+        Mockito.mock(ChannelHandlerContext.class, Mockito.RETURNS_DEEP_STUBS);
+    Mockito.when(contextMock.channel().attr(AttributeKey.valueOf("requester")).get())
+        .thenReturn(userMock);
 
     HttpRequest httpRequestMock = Mockito.mock(HttpRequest.class);
     Mockito.when(httpRequestMock.uri()).thenReturn(uri);
 
     BlobResponse blobResponseMock = Mockito.mock(BlobResponse.class);
-    Mockito
-      .when(blobResponseMock.getBlobStream())
-      .thenReturn(new ByteArrayInputStream("test".getBytes(StandardCharsets.UTF_8)));
+    Mockito.when(blobResponseMock.getBlobStream())
+        .thenReturn(new ByteArrayInputStream("test".getBytes(StandardCharsets.UTF_8)));
     Mockito.when(blobResponseMock.getMimeType()).thenReturn("text/plain");
     Mockito.when(blobResponseMock.getSize()).thenReturn(Long.valueOf("test".length()));
     Mockito.when(blobResponseMock.getFilename()).thenReturn("document.txt");
 
-    Mockito
-      .when(blobServiceMock.downloadFileById(
-        "53d6fd97-a933-409f-b9f3-156690a64476",
-        version,
-        userMock
-      ))
-      .thenReturn(Optional.of(blobResponseMock));
+    Mockito.when(
+            blobServiceMock.downloadFileById(
+                "53d6fd97-a933-409f-b9f3-156690a64476", version, userMock))
+        .thenReturn(Optional.of(blobResponseMock));
 
-    BlobController blobController = new BlobController(new MockFilesConfig(), blobServiceMock, prometheusServiceMock);
+    BlobController blobController =
+        new BlobController(new MockFilesConfig(), blobServiceMock, prometheusServiceMock);
 
     // When
     blobController.channelRead0(contextMock, httpRequestMock);
 
     // Then
     ArgumentCaptor<DefaultHttpResponse> httpResponseCaptor =
-      ArgumentCaptor.forClass(DefaultHttpResponse.class);
+        ArgumentCaptor.forClass(DefaultHttpResponse.class);
 
     Mockito.verify(contextMock, Mockito.times(1)).write(httpResponseCaptor.capture());
 
     DefaultHttpResponse httpResponse = httpResponseCaptor.getValue();
     Assertions.assertThat(httpResponse.status()).isEqualTo(HttpResponseStatus.OK);
     Assertions.assertThat(httpResponse.protocolVersion()).isEqualTo(HttpVersion.HTTP_1_1);
-    Assertions
-      .assertThat(httpResponse.headers().get(HttpHeaderNames.CONNECTION))
-      .isEqualTo(HttpHeaderValues.CLOSE.toString());
-    Assertions
-      .assertThat(httpResponse.headers().get(HttpHeaderNames.CONTENT_LENGTH))
-      .isEqualTo("4");
-    Assertions
-      .assertThat(httpResponse.headers().get(HttpHeaderNames.CONTENT_TYPE))
-      .isEqualTo("text/plain");
-    Assertions
-      .assertThat(httpResponse.headers().get(HttpHeaderNames.CONTENT_DISPOSITION))
-      .isEqualTo(
-        "attachment; filename*=UTF-8''" + URLEncoder.encode("document.txt", StandardCharsets.UTF_8)
-      );
+    Assertions.assertThat(httpResponse.headers().get(HttpHeaderNames.CONNECTION))
+        .isEqualTo(HttpHeaderValues.CLOSE.toString());
+    Assertions.assertThat(httpResponse.headers().get(HttpHeaderNames.CONTENT_LENGTH))
+        .isEqualTo("4");
+    Assertions.assertThat(httpResponse.headers().get(HttpHeaderNames.CONTENT_TYPE))
+        .isEqualTo("text/plain");
+    Assertions.assertThat(httpResponse.headers().get(HttpHeaderNames.CONTENT_DISPOSITION))
+        .isEqualTo(
+            "attachment; filename*=UTF-8''"
+                + URLEncoder.encode("document.txt", StandardCharsets.UTF_8));
 
     Mockito.verifyNoInteractions(contextMock.fireExceptionCaught(Mockito.any(Throwable.class)));
   }

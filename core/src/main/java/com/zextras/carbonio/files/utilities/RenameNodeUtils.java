@@ -12,32 +12,34 @@ public class RenameNodeUtils {
    * This method is used to search an alternative name if the filename is already present in the
    * destination folder.
    *
-   * @param filename            a {@link String} representing the filename of the node I have to
-   *                            upload.
+   * @param filename a {@link String} representing the filename of the node I have to upload.
    * @param destinationFolderId is a {@link String } representing the id of the destination folder.
    * @param nodeOwner is a {@link String } representing the id of the owner of the node.
    * @return a {@link String} of the alternative name if the filename is already taken or the chosen
-   * filename.
+   *     filename.
    */
   public static String searchAlternativeName(
-    NodeRepository nodeRepository,
-    String filename,
-    String destinationFolderId,
-    String nodeOwner
-  ) {
+      NodeRepository nodeRepository,
+      String filename,
+      String destinationFolderId,
+      String nodeOwner) {
 
     int level = 1;
     String finalFilename = filename;
 
     while (nodeRepository
-      .getNodeByName(finalFilename, destinationFolderId, nodeOwner)
-      .isPresent()
-    ) {
+        .getNodeByName(finalFilename, destinationFolderId, nodeOwner)
+        .isPresent()) {
       int dotPosition = filename.lastIndexOf('.');
 
-      finalFilename = (dotPosition != -1)
-        ? filename.substring(0, dotPosition) + " (" + level + ")" + filename.substring(dotPosition)
-        : filename + " (" + level + ")";
+      finalFilename =
+          (dotPosition != -1)
+              ? filename.substring(0, dotPosition)
+                  + " ("
+                  + level
+                  + ")"
+                  + filename.substring(dotPosition)
+              : filename + " (" + level + ")";
 
       ++level;
     }

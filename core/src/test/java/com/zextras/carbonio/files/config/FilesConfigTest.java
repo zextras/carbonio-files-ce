@@ -23,9 +23,8 @@ class FilesConfigTest {
   // uses also the System.getEnv() to retrieve the configuration values.
   @Disabled("Disabled until a refactor on the FilesConfig is done")
   @Test
-  void
-      givenAMailboxUrlAndAPortSetInPropertiesTheGetMailboxUrlShouldReturnTheFullMailboxUrlString()
-			throws IOException {
+  void givenAMailboxUrlAndAPortSetInPropertiesTheGetMailboxUrlShouldReturnTheFullMailboxUrlString()
+      throws IOException {
     // Given
     System.setProperty("carbonio.mailbox.url", "1.2.3.4");
     System.setProperty("carbonio.mailbox.port", "9999");
@@ -41,12 +40,13 @@ class FilesConfigTest {
 
   @Test
   void givenEmptyPropertiesTheGetMailboxUrlShouldReturnTheDefaultFullMailboxUrlString()
-			throws IOException {
+      throws IOException {
     // Given
     FilesConfig filesConfig = getLoadedConfig();
 
     // When
-    String mailboxUrl = "http://" + filesConfig.getMailboxHost() + ":" + filesConfig.getMailboxPort() + "/";
+    String mailboxUrl =
+        "http://" + filesConfig.getMailboxHost() + ":" + filesConfig.getMailboxPort() + "/";
 
     // Then
     Assertions.assertThat(mailboxUrl).isEqualTo("http://127.78.0.2:20004/");
@@ -56,16 +56,19 @@ class FilesConfigTest {
   void givenEmptyPropertiesTheServiceDiscoverEndpointShouldReturnTheDefault() throws IOException {
     FilesConfig filesConfig = getLoadedConfig();
 
-    Assertions.assertThat(filesConfig.getServiceDiscoverEndpoint()).isEqualTo("http://localhost:8500");
+    Assertions.assertThat(filesConfig.getServiceDiscoverEndpoint())
+        .isEqualTo("http://localhost:8500");
   }
+
   @Test
   void givenServiceDiscoverPropertiesTheServiceDiscoverEndpointShouldReturnProvidedValues()
-			throws IOException {
+      throws IOException {
     System.setProperty(ServiceDiscover.HOST_PROPERTY, "service-discover-endpoint");
     System.setProperty(ServiceDiscover.PORT_PROPERTY, "19000");
     final FilesConfig filesConfig = getLoadedConfig();
 
-    Assertions.assertThat(filesConfig.getServiceDiscoverEndpoint()).isEqualTo("http://service-discover-endpoint:19000");
+    Assertions.assertThat(filesConfig.getServiceDiscoverEndpoint())
+        .isEqualTo("http://service-discover-endpoint:19000");
   }
 
   private static FilesConfig getLoadedConfig() throws IOException {

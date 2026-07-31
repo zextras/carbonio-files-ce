@@ -21,21 +21,15 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.codec.http.QueryStringDecoder;
-
-import io.netty.util.AttributeKey;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.regex.Matcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @ChannelHandler.Sharable
 public class PublicBlobController extends SimpleChannelInboundHandler<HttpRequest> {
@@ -102,9 +96,7 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
     }
   }
 
-  void checkDownloadPublicMultiple(
-      ChannelHandlerContext context,
-      HttpRequest request) {
+  void checkDownloadPublicMultiple(ChannelHandlerContext context, HttpRequest request) {
 
     if (!(request instanceof FullHttpRequest fullRequest)) {
       context.fireExceptionCaught(
@@ -121,36 +113,34 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
 
     try {
       ObjectMapper mapper = new ObjectMapper();
-      Map<String, Object> jsonBody = mapper.readValue(
-          bodyContent, new TypeReference<Map<String, Object>>() {});
+      Map<String, Object> jsonBody =
+          mapper.readValue(bodyContent, new TypeReference<Map<String, Object>>() {});
 
-      nodeIds = mapper.convertValue(
-          jsonBody.get(Constants.API.BodyAttributes.NODE_IDS), new TypeReference<List<String>>() {});
+      nodeIds =
+          mapper.convertValue(
+              jsonBody.get(Constants.API.BodyAttributes.NODE_IDS),
+              new TypeReference<List<String>>() {});
       nodeLinkId = (String) jsonBody.get(Constants.API.BodyAttributes.NODE_LINK_ID);
       accessCode = (String) jsonBody.get(Constants.API.BodyAttributes.ACCESS_CODE);
 
     } catch (JsonProcessingException e) {
-      context.fireExceptionCaught(
-          new IllegalArgumentException("Invalid JSON body", e));
+      context.fireExceptionCaught(new IllegalArgumentException("Invalid JSON body", e));
       return;
     }
 
-    Optional<List<Node>> optNodes = blobService.checkDownloadPublicMultiple(
-        nodeIds, nodeLinkId, accessCode);
+    Optional<List<Node>> optNodes =
+        blobService.checkDownloadPublicMultiple(nodeIds, nodeLinkId, accessCode);
 
     if (optNodes.isPresent()) {
-      ChannelFuture future = context.writeAndFlush(
-          HttpResponseBuilder.createNoContentResponse());
+      ChannelFuture future = context.writeAndFlush(HttpResponseBuilder.createNoContentResponse());
       future.addListener(ChannelFutureListener.CLOSE);
     } else {
-      context.fireExceptionCaught(new NoSuchElementException(
-          "Some nodes not accessible with provided link"));
+      context.fireExceptionCaught(
+          new NoSuchElementException("Some nodes not accessible with provided link"));
     }
   }
 
-  void downloadPublicMultiple(
-      ChannelHandlerContext context,
-      HttpRequest request) {
+  void downloadPublicMultiple(ChannelHandlerContext context, HttpRequest request) {
 
     if (!(request instanceof FullHttpRequest fullRequest)) {
       context.fireExceptionCaught(
@@ -169,8 +159,7 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
     List<String> accessCodeParam = parameters.get(Constants.API.BodyAttributes.ACCESS_CODE);
 
     if (nodeIdsParam == null || nodeLinkIdParam == null) {
-      context.fireExceptionCaught(
-          new IllegalArgumentException("Missing required parameters"));
+      context.fireExceptionCaught(new IllegalArgumentException("Missing required parameters"));
       return;
     }
 
@@ -180,25 +169,24 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
 
     List<String> nodeIds;
     try {
-      nodeIds = new ObjectMapper().readValue(
-          nodeIdsJson, new TypeReference<>() {
-          });
+      nodeIds = new ObjectMapper().readValue(nodeIdsJson, new TypeReference<>() {});
     } catch (JsonProcessingException e) {
-      context.fireExceptionCaught(
-          new IllegalArgumentException("Invalid nodeIds JSON", e));
+      context.fireExceptionCaught(new IllegalArgumentException("Invalid nodeIds JSON", e));
       return;
     }
 
-    BlobResponse blobResponse = blobService.downloadPublicMultiple(
-            nodeIds, nodeLinkId, accessCode)
-        .orElseThrow(() -> new NoSuchElementException(
-            "Nodes not accessible with provided link"));
+    BlobResponse blobResponse =
+        blobService
+            .downloadPublicMultiple(nodeIds, nodeLinkId, accessCode)
+            .orElseThrow(
+                () -> new NoSuchElementException("Nodes not accessible with provided link"));
 
     context.write(HttpResponseBuilder.createSuccessDownloadHttpResponse(blobResponse));
-    new NettyBufferWriter(context).writePipedStream(
-        blobResponse.getPipedStream(),
-        blobResponse.getProducerDone(),
-        blobResponse.getCancelled());
+    new NettyBufferWriter(context)
+        .writePipedStream(
+            blobResponse.getPipedStream(),
+            blobResponse.getProducerDone(),
+            blobResponse.getCancelled());
   }
 
   void downloadByPublicLink(
@@ -212,7 +200,9 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
       blobResponse = blobService.downloadFileByLink(publicLinkId);
     } catch (AccessCodeRequiredException e) {
       String newRedirectUrl = "/files/public/link/access/" + publicLinkId;
-      context.writeAndFlush(HttpResponseBuilder.createRedirectHttpResponse(newRedirectUrl)).addListener(ChannelFutureListener.CLOSE);
+      context
+          .writeAndFlush(HttpResponseBuilder.createRedirectHttpResponse(newRedirectUrl))
+          .addListener(ChannelFutureListener.CLOSE);
       return;
     }
 
@@ -232,24 +222,22 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
   }
 
   void checkDownloadPublicFile(
-      ChannelHandlerContext context,
-      HttpRequest request,
-      Matcher uriMatched) {
+      ChannelHandlerContext context, HttpRequest request, Matcher uriMatched) {
 
     String nodeId = uriMatched.group(1);
     String nodeLinkId = uriMatched.group(2);
     String accessCode = uriMatched.group(3);
 
-    Optional<Node> optNode = blobService.checkDownloadPublicFileById(
-        nodeId, nodeLinkId, accessCode);
+    Optional<Node> optNode =
+        blobService.checkDownloadPublicFileById(nodeId, nodeLinkId, accessCode);
 
     if (optNode.isPresent()) {
-      ChannelFuture future = context.writeAndFlush(
-          HttpResponseBuilder.createNoContentResponse());
+      ChannelFuture future = context.writeAndFlush(HttpResponseBuilder.createNoContentResponse());
       future.addListener(ChannelFutureListener.CLOSE);
     } else {
-      context.fireExceptionCaught(new NoSuchElementException(
-          String.format("Node %s not accessible with provided link", nodeId)));
+      context.fireExceptionCaught(
+          new NoSuchElementException(
+              String.format("Node %s not accessible with provided link", nodeId)));
     }
   }
 
@@ -260,7 +248,8 @@ public class PublicBlobController extends SimpleChannelInboundHandler<HttpReques
     final String nodeLinkId = uriMatched.group(2);
     final String accessCode = uriMatched.group(3);
 
-    final Optional<BlobResponse> blobResponse = blobService.downloadPublicFileById(nodeId, nodeLinkId, accessCode);
+    final Optional<BlobResponse> blobResponse =
+        blobService.downloadPublicFileById(nodeId, nodeLinkId, accessCode);
 
     if (blobResponse.isPresent()) {
       context.write(HttpResponseBuilder.createSuccessDownloadHttpResponse(blobResponse.get()));

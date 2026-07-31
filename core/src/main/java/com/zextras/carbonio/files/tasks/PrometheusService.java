@@ -12,19 +12,22 @@ import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 @Singleton
 public class PrometheusService {
 
-  private final PrometheusMeterRegistry prometheusRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
-  private final Counter uploadCounter = prometheusRegistry.counter("files.upload","service","files","uri","/upload");
-  private final Counter uploadVersionCounter = prometheusRegistry.counter("files.upload","service","files","uri","/upload/version");
+  private final PrometheusMeterRegistry prometheusRegistry =
+      new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+  private final Counter uploadCounter =
+      prometheusRegistry.counter("files.upload", "service", "files", "uri", "/upload");
+  private final Counter uploadVersionCounter =
+      prometheusRegistry.counter("files.upload", "service", "files", "uri", "/upload/version");
 
-
-  public PrometheusMeterRegistry getRegistry(){
+  public PrometheusMeterRegistry getRegistry() {
     return prometheusRegistry;
   }
 
-  public Counter getUploadCounter(){
+  public Counter getUploadCounter() {
     return uploadCounter;
   }
-  public Counter getUploadVersionCounter(){
+
+  public Counter getUploadVersionCounter() {
     return uploadVersionCounter;
   }
 }

@@ -21,11 +21,12 @@ class CacheHandlerTest {
     fileVersionCache = Mockito.mock(LocalCacheAdapter.class);
     cacheHandlerFactory = Mockito.mock(CacheHandlerFactory.class);
 
-    Mockito.when(cacheHandlerFactory.createFileVersionCache(
-      Constants.Cache.FILE_VERSION,
-      Constants.Cache.DEFAULT_SIZE,
-      Constants.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
-    )).thenReturn(fileVersionCache);
+    Mockito.when(
+            cacheHandlerFactory.createFileVersionCache(
+                Constants.Cache.FILE_VERSION,
+                Constants.Cache.DEFAULT_SIZE,
+                Constants.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS))
+        .thenReturn(fileVersionCache);
   }
 
   @Test

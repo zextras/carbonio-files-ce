@@ -19,11 +19,10 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
-import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.*;
-
 import java.util.List;
 import java.util.Map;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.*;
 
 class MoveNodesApiIT {
 
@@ -40,9 +39,7 @@ class MoveNodesApiIT {
             .withDatabase()
             .withServiceDiscover()
             .withUserManagement( // create a fake token to use in cookie for auth
-                Map.of(
-                    "fake-token",
-                    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+                Map.of("fake-token", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
             .build()
             .start();
 
@@ -63,17 +60,20 @@ class MoveNodesApiIT {
   }
 
   @Test
-  void givenANodeInRootAndANodeInAnotherFolderWithSameNameMovingThemInTheSameFolderShouldRenameTheMovedOne() {
+  void
+      givenANodeInRootAndANodeInAnotherFolderWithSameNameMovingThemInTheSameFolderShouldRenameTheMovedOne() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
             new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "name.txt"))
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "name.txt"))
         .addNode(
             new SimplePopulatorFolder(
-                "00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "folder"
-            )
-        )
+                "00000000-0000-0000-0000-000000000001",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "folder"))
         .addNode(
             new PopulatorNode(
                 "00000000-0000-0000-0000-000000000002",
@@ -89,7 +89,7 @@ class MoveNodesApiIT {
 
     String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("moveNodes")
-            .withListOfStrings("node_ids", new String[]{"00000000-0000-0000-0000-000000000002"})
+            .withListOfStrings("node_ids", new String[] {"00000000-0000-0000-0000-000000000002"})
             .withString("destination_id", "LOCAL_ROOT")
             .withWantedResultFormat("{ id name }")
             .build();
@@ -122,11 +122,13 @@ class MoveNodesApiIT {
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
             new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000003", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "second.txt"));
+                "00000000-0000-0000-0000-000000000003",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "second.txt"));
 
     String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("moveNodes")
-            .withListOfStrings("node_ids", new String[]{"00000000-0000-0000-0000-000000000003"})
+            .withListOfStrings("node_ids", new String[] {"00000000-0000-0000-0000-000000000003"})
             .withString("destination_id", "LOCAL_ROOT")
             .withWantedResultFormat("{ id name }")
             .build();

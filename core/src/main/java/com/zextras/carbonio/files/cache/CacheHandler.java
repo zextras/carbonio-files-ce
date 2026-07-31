@@ -13,13 +13,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Initializes and handles all the caches necessary to store in memory objects for a future use.
- * <p>
- * Every cache must be created in the {@link CacheHandler} constructor and they must be stored into
- * the {@link ConcurrentHashMap}.
- * <p>
- * Every cache is created using the {@link CacheHandlerFactory}.
- * <p>
- * This class is marked as a {@link Singleton} to be sure that only one cache instance for each
+ *
+ * <p>Every cache must be created in the {@link CacheHandler} constructor and they must be stored
+ * into the {@link ConcurrentHashMap}.
+ *
+ * <p>Every cache is created using the {@link CacheHandlerFactory}.
+ *
+ * <p>This class is marked as a {@link Singleton} to be sure that only one cache instance for each
  * object exists
  */
 @Singleton
@@ -35,13 +35,11 @@ public class CacheHandler {
 
     /* Creation of the cache that will contain file version elements */
     caches.put(
-      Constants.Cache.FILE_VERSION,
-      this.cacheHandlerFactory.createFileVersionCache(
         Constants.Cache.FILE_VERSION,
-        Constants.Cache.DEFAULT_SIZE,
-        Constants.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS
-      )
-    );
+        this.cacheHandlerFactory.createFileVersionCache(
+            Constants.Cache.FILE_VERSION,
+            Constants.Cache.DEFAULT_SIZE,
+            Constants.Cache.DEFAULT_ITEM_LIFETIME_IN_MILLIS));
   }
 
   /**

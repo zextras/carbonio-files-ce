@@ -4,5 +4,4 @@
 
 package com.zextras.carbonio.files.exceptions;
 
-public class DuplicateShareException extends Exception {
-}
+public class DuplicateShareException extends Exception {}

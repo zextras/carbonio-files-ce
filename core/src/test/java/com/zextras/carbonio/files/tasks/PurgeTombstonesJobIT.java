@@ -16,27 +16,27 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepositor
 import com.zextras.carbonio.files.utilities.StoragesMockHelper;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
+import java.util.List;
+import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-import java.util.Map;
-
 /**
  * Integration tests for {@link PurgeService#purgeTombstones()}.
  *
  * <p>Scenario:
+ *
  * <ol>
- *   <li>Delete a node while the storages mock fails → node gone, tombstone REMAINS.</li>
- *   <li>Fix the mock to succeed and invoke {@code purgeTombstones()} directly → tombstone REMOVED.</li>
- *   <li>A second node whose blob still fails → its tombstone KEPT after the same job run.</li>
+ *   <li>Delete a node while the storages mock fails → node gone, tombstone REMAINS.
+ *   <li>Fix the mock to succeed and invoke {@code purgeTombstones()} directly → tombstone REMOVED.
+ *   <li>A second node whose blob still fails → its tombstone KEPT after the same job run.
  * </ol>
  *
- * <p>{@link PurgeService#purgeTombstones()} is package-private and therefore directly callable
- * from this test (same package: {@code com.zextras.carbonio.files.tasks}).
+ * <p>{@link PurgeService#purgeTombstones()} is package-private and therefore directly callable from
+ * this test (same package: {@code com.zextras.carbonio.files.tasks}).
  */
 class PurgeTombstonesJobIT {
 
@@ -71,8 +71,12 @@ class PurgeTombstonesJobIT {
   void cleanUp() {
     simulator.resetDatabase();
     // TOMBSTONE is not FK-linked to NODE → not cascade-deleted above.
-    tombstoneRepository.getTombstones().forEach(t ->
-        tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion()));
+    tombstoneRepository
+        .getTombstones()
+        .forEach(
+            t ->
+                tombstoneRepository.deleteTombstonesByNodeAndVersion(
+                    t.getNodeId(), t.getVersion()));
     simulator.reinitializeMocks();
   }
 
@@ -93,10 +97,9 @@ class PurgeTombstonesJobIT {
   }
 
   /**
-   * Full lifecycle:
-   * (a) delete node while storages fails → tombstone stranded
-   * (b) fix mock to succeed → purgeTombstones() removes it
-   * (c) a second node whose blob still fails → tombstone kept after same run
+   * Full lifecycle: (a) delete node while storages fails → tombstone stranded (b) fix mock to
+   * succeed → purgeTombstones() removes it (c) a second node whose blob still fails → tombstone
+   * kept after same run
    */
   @Test
   void givenStrandedTombstoneWhenJobRunsWithSuccessThenTombstoneRemovedAndFailedOneKept() {
@@ -137,27 +140,31 @@ class PurgeTombstonesJobIT {
 
     // --- (c) Assertions ---
     // node1's tombstone must be gone (its blob succeeded this time).
-    long node1Tombstones = tombstoneRepository.getTombstones().stream()
-        .filter(t -> t.getNodeId().equals(node1Id))
-        .count();
+    long node1Tombstones =
+        tombstoneRepository.getTombstones().stream()
+            .filter(t -> t.getNodeId().equals(node1Id))
+            .count();
     Assertions.assertThat(node1Tombstones)
         .as("tombstone for node1 should have been removed after successful blob delete")
         .isZero();
 
     // node2's tombstone must still be present (blob still failing).
-    long node2Tombstones = tombstoneRepository.getTombstones().stream()
-        .filter(t -> t.getNodeId().equals(node2Id))
-        .count();
+    long node2Tombstones =
+        tombstoneRepository.getTombstones().stream()
+            .filter(t -> t.getNodeId().equals(node2Id))
+            .count();
     Assertions.assertThat(node2Tombstones)
-        .as("tombstone for node2 should remain because its blob delete was still reported as failed")
+        .as(
+            "tombstone for node2 should remain because its blob delete was still reported as"
+                + " failed")
         .isEqualTo(1);
   }
 
   /**
-   * When purgeTombstones() runs and PowerStore is completely down (exception / HTTP 500),
-   * all tombstones are preserved for the next cycle with NO increment to attempts.
-   * Even after 3 consecutive outage runs the tombstone must still be there with attempts==0,
-   * proving that an outage never drains the retry budget.
+   * When purgeTombstones() runs and PowerStore is completely down (exception / HTTP 500), all
+   * tombstones are preserved for the next cycle with NO increment to attempts. Even after 3
+   * consecutive outage runs the tombstone must still be there with attempts==0, proving that an
+   * outage never drains the retry budget.
    */
   @Test
   void givenStrandedTombstoneWhenJobRunsWithOutageThenTombstoneKeptAndAttemptsNeverIncrement() {
@@ -188,27 +195,30 @@ class PurgeTombstonesJobIT {
       Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getNodeId())
           .isEqualTo(nodeId);
       Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getAttempts())
-          .as("attempts must remain 0 after outage run " + run + " (outage must not burn retry budget)")
+          .as(
+              "attempts must remain 0 after outage run "
+                  + run
+                  + " (outage must not burn retry budget)")
           .isEqualTo(0);
     }
   }
 
   /**
-   * Retry-cap scenario: a blob that keeps failing (per-blob partial failure, HTTP 200 with
-   * the node listed in the failed-ids list) is dropped after the 3rd job run.
+   * Retry-cap scenario: a blob that keeps failing (per-blob partial failure, HTTP 200 with the node
+   * listed in the failed-ids list) is dropped after the 3rd job run.
    *
-   * <p>This test intentionally uses the PARTIAL-FAILURE path (bulkDelete returns HTTP 200
-   * with the node id in the failed list), NOT the outage/exception path (HTTP 500).
-   * Only genuine per-blob PowerStore rejections count toward the retry cap; outages do not.
+   * <p>This test intentionally uses the PARTIAL-FAILURE path (bulkDelete returns HTTP 200 with the
+   * node id in the failed list), NOT the outage/exception path (HTTP 500). Only genuine per-blob
+   * PowerStore rejections count toward the retry cap; outages do not.
    *
-   * <p>
-   * Run 1: PowerStore responds 200, blob in failed list → attempts=1, tombstone kept.
-   * Run 2: PowerStore responds 200, blob in failed list → attempts=2, tombstone kept.
-   * Run 3: PowerStore responds 200, blob in failed list → attempts+1==3==MAX → tombstone REMOVED.
+   * <p>Run 1: PowerStore responds 200, blob in failed list → attempts=1, tombstone kept. Run 2:
+   * PowerStore responds 200, blob in failed list → attempts=2, tombstone kept. Run 3: PowerStore
+   * responds 200, blob in failed list → attempts+1==3==MAX → tombstone REMOVED.
    */
   @Test
   void givenBlobAlwaysFailsWithPartialFailureThenTombstoneRemovedAfterThirdJobRun() {
-    // Given: delete node while storages returns a partial failure → tombstone seeded with attempts=0.
+    // Given: delete node while storages returns a partial failure → tombstone seeded with
+    // attempts=0.
     String nodeId = "00000000-0000-0000-0000-400000000004";
 
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -244,7 +254,8 @@ class PurgeTombstonesJobIT {
         .as("attempts should be 2 after run 2")
         .isEqualTo(2);
 
-    // Run 3: cap hit (attempts=2, +1==3==MAX_TOMBSTONE_RETRIES) → tombstone REMOVED (orphan accepted).
+    // Run 3: cap hit (attempts=2, +1==3==MAX_TOMBSTONE_RETRIES) → tombstone REMOVED (orphan
+    // accepted).
     simulator.reinitializeMocks();
     storagesMockHelper.bulkDelete(List.of(nodeId));
     purgeService.purgeTombstones();
@@ -256,8 +267,8 @@ class PurgeTombstonesJobIT {
 
   /**
    * Retry-and-recover scenario: a blob fails on the first job run but succeeds on the second.
-   * <p>
-   * Run 1: purgeTombstones reports the blob as failed → tombstone kept, attempts incremented.
+   *
+   * <p>Run 1: purgeTombstones reports the blob as failed → tombstone kept, attempts incremented.
    * Run 2: purgeTombstones succeeds → tombstone REMOVED normally (never hits the cap).
    */
   @Test
@@ -296,11 +307,12 @@ class PurgeTombstonesJobIT {
   }
 
   /**
-   * Null/empty JSON response from PowerStore ({"ids":null} or {}) during purgeTombstones()
-   * must be treated the same as an outage: ALL tombstones kept, attempts NOT incremented.
+   * Null/empty JSON response from PowerStore ({"ids":null} or {}) during purgeTombstones() must be
+   * treated the same as an outage: ALL tombstones kept, attempts NOT incremented.
    */
   @Test
-  void givenStrandedTombstoneWhenPurgeRunsWithNullResponseThenTombstoneKeptAndAttemptsNeverIncrement() {
+  void
+      givenStrandedTombstoneWhenPurgeRunsWithNullResponseThenTombstoneKeptAndAttemptsNeverIncrement() {
     // Given: a stranded tombstone.
     String nodeId = "00000000-0000-0000-0000-400000000006";
 
@@ -316,7 +328,8 @@ class PurgeTombstonesJobIT {
         .as("attempts must start at 0")
         .isEqualTo(0);
 
-    // Run purgeTombstones() with a null/empty response — must NOT remove tombstone or increment attempts.
+    // Run purgeTombstones() with a null/empty response — must NOT remove tombstone or increment
+    // attempts.
     simulator.reinitializeMocks();
     storagesMockHelper.bulkDeleteNullResponse();
     purgeService.purgeTombstones();

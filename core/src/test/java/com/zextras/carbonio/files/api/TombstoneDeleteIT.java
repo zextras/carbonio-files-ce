@@ -16,24 +16,24 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepositor
 import com.zextras.carbonio.files.utilities.StoragesMockHelper;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
+import java.util.List;
+import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-import java.util.Map;
-
 /**
  * Integration tests covering the tombstone sync-path lifecycle:
+ *
  * <ol>
- *   <li>tombstone created on delete then removed after a successful bulkDelete</li>
- *   <li>tombstone remains when bulkDelete reports the blob as failed</li>
- *   <li>tombstone remains when PowerStore is completely unavailable (500 outage)</li>
+ *   <li>tombstone created on delete then removed after a successful bulkDelete
+ *   <li>tombstone remains when bulkDelete reports the blob as failed
+ *   <li>tombstone remains when PowerStore is completely unavailable (500 outage)
  * </ol>
  *
- * <p>These tests mirror the Advanced TombstoneDeleteIT to ensure CE parity.</p>
+ * <p>These tests mirror the Advanced TombstoneDeleteIT to ensure CE parity.
  */
 class TombstoneDeleteIT {
 
@@ -66,8 +66,12 @@ class TombstoneDeleteIT {
   void cleanUp() {
     simulator.resetDatabase();
     // TOMBSTONE is not FK-linked to NODE, so resetDatabase() does not cascade into it.
-    tombstoneRepository.getTombstones().forEach(t ->
-        tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion()));
+    tombstoneRepository
+        .getTombstones()
+        .forEach(
+            t ->
+                tombstoneRepository.deleteTombstonesByNodeAndVersion(
+                    t.getNodeId(), t.getVersion()));
     simulator.reinitializeMocks();
   }
 
@@ -134,8 +138,7 @@ class TombstoneDeleteIT {
 
     // Tombstone remains so PurgeService can retry blob deletion.
     Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
-    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getNodeId())
-        .isEqualTo(fileId);
+    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getNodeId()).isEqualTo(fileId);
   }
 
   // --- Test 3: tombstone remains on complete PowerStore outage (HTTP 500) ---
@@ -159,7 +162,6 @@ class TombstoneDeleteIT {
 
     // Tombstone remains for PurgeService retry.
     Assertions.assertThat(tombstoneRepository.getTombstones()).hasSize(1);
-    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getNodeId())
-        .isEqualTo(fileId);
+    Assertions.assertThat(tombstoneRepository.getTombstones().get(0).getNodeId()).isEqualTo(fileId);
   }
 }

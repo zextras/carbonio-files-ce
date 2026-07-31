@@ -16,25 +16,24 @@ import java.util.Optional;
 
 /**
  * {@inheritDoc}
- * <p>
- * This implementation stores all the elements of <code>T</code> type locally in RAM.
- * <p>
- * This is an adapter for the <a href="https://github.com/ben-manes/caffeine">Caffeine cache</a>.
+ *
+ * <p>This implementation stores all the elements of <code>T</code> type locally in RAM.
+ *
+ * <p>This is an adapter for the <a href="https://github.com/ben-manes/caffeine">Caffeine cache</a>.
  */
 public class LocalCacheAdapter<T> implements Cache<T> {
 
-  private final String                                              cacheName;
-  private final long                                                defaultCacheSize;
-  private final long                                                defaultItemLifetimeInMillis;
+  private final String cacheName;
+  private final long defaultCacheSize;
+  private final long defaultItemLifetimeInMillis;
   private final com.github.benmanes.caffeine.cache.Cache<String, T> cache;
 
   @Inject
   public LocalCacheAdapter(
-    @Assisted String cacheName,
-    @Assisted("defaultCacheSize") long defaultCacheSize,
-    @Assisted("defaultItemLifetimeInMillis") long defaultItemLifetimeInMillis,
-    Clock clock
-  ) {
+      @Assisted String cacheName,
+      @Assisted("defaultCacheSize") long defaultCacheSize,
+      @Assisted("defaultItemLifetimeInMillis") long defaultItemLifetimeInMillis,
+      Clock clock) {
     this.cacheName = cacheName;
     this.defaultCacheSize = defaultCacheSize;
     this.defaultItemLifetimeInMillis = defaultItemLifetimeInMillis;
@@ -44,12 +43,12 @@ public class LocalCacheAdapter<T> implements Cache<T> {
      * The implementation returns the current timestamp of the Clock.millis() converted in
      * nanoseconds.
      */
-    cache = Caffeine
-      .newBuilder()
-      .maximumSize(defaultCacheSize)
-      .expireAfterWrite(Duration.ofMillis(defaultItemLifetimeInMillis))
-      .ticker(() -> clock.millis() * 1000000)
-      .build();
+    cache =
+        Caffeine.newBuilder()
+            .maximumSize(defaultCacheSize)
+            .expireAfterWrite(Duration.ofMillis(defaultItemLifetimeInMillis))
+            .ticker(() -> clock.millis() * 1000000)
+            .build();
   }
 
   @Override
@@ -78,10 +77,7 @@ public class LocalCacheAdapter<T> implements Cache<T> {
   }
 
   @Override
-  public void add(
-    String key,
-    T value
-  ) {
+  public void add(String key, T value) {
     cache.put(key, value);
   }
 
@@ -109,9 +105,9 @@ public class LocalCacheAdapter<T> implements Cache<T> {
 
   /**
    * {@inheritDoc}
-   * <p>
-   * This implementation adds the same element again in the cache if it already exists otherwise it
-   * does nothing.
+   *
+   * <p>This implementation adds the same element again in the cache if it already exists otherwise
+   * it does nothing.
    *
    * @param key of the related element
    */

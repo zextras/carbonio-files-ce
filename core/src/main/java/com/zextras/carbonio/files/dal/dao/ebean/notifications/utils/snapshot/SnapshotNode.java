@@ -8,9 +8,8 @@ import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import io.ebean.annotation.Cache;
-
-import javax.persistence.*;
 import java.util.Objects;
+import javax.persistence.*;
 
 @Cache
 @Entity
@@ -40,7 +39,14 @@ public class SnapshotNode {
   @Column(name = Constants.Db.SnapshotNode.NAME, length = 1024, nullable = false)
   private String name;
 
-  public SnapshotNode(String snapshotNodeId, Long snapshotTimestamp, String nodeId, String ownerId, Long createdAt, NodeType nodeType, String name) {
+  public SnapshotNode(
+      String snapshotNodeId,
+      Long snapshotTimestamp,
+      String nodeId,
+      String ownerId,
+      Long createdAt,
+      NodeType nodeType,
+      String name) {
     this.snapshotNodeId = snapshotNodeId;
     this.snapshotTimestamp = snapshotTimestamp;
     this.nodeId = nodeId;

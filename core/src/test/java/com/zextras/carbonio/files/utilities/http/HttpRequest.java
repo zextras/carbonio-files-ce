@@ -18,7 +18,11 @@ public class HttpRequest {
   @Nullable private final List<Map.Entry<String, String>> headers;
 
   private HttpRequest(
-      String method, String endpoint, @Nullable String cookie, @Nullable List<Map.Entry<String, String>> headers, @Nullable String bodyPayload) {
+      String method,
+      String endpoint,
+      @Nullable String cookie,
+      @Nullable List<Map.Entry<String, String>> headers,
+      @Nullable String bodyPayload) {
     this.method = method;
     this.endpoint = endpoint;
     this.cookie = cookie;
@@ -52,7 +56,11 @@ public class HttpRequest {
   }
 
   public static HttpRequest of(
-      String method, String endpoint, @Nullable String cookie, @Nullable List<Map.Entry<String, String>> headers, @Nullable String bodyPayload) {
+      String method,
+      String endpoint,
+      @Nullable String cookie,
+      @Nullable List<Map.Entry<String, String>> headers,
+      @Nullable String bodyPayload) {
     return new HttpRequest(method, endpoint, cookie, headers, bodyPayload);
   }
 }

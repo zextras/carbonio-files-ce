@@ -159,12 +159,12 @@ class HttpRoutingHandlerTest {
   @ParameterizedTest
   @ValueSource(strings = {"/public/graphql/", "/public/graphql"})
   void givenAPublicGraphqlRequestHttpRoutingHandlerShouldAddTheRightHandlersInTheChannelPipeline(
-    String uri) {
+      String uri) {
     // Given
     Mockito.when(channelPipelineMock.addLast(Mockito.any(HttpObjectAggregator.class)))
-      .thenReturn(channelPipelineMock);
+        .thenReturn(channelPipelineMock);
     Mockito.when(channelPipelineMock.addLast(Mockito.any(ChunkedWriteHandler.class)))
-      .thenReturn(channelPipelineMock);
+        .thenReturn(channelPipelineMock);
     Mockito.when(httpRequestMock.uri()).thenReturn(uri);
 
     // When
@@ -172,13 +172,13 @@ class HttpRoutingHandlerTest {
 
     // Then
     Mockito.verify(channelPipelineMock, Mockito.times(1))
-      .addLast(Mockito.any(HttpObjectAggregator.class));
+        .addLast(Mockito.any(HttpObjectAggregator.class));
     Mockito.verify(channelPipelineMock, Mockito.times(1))
-      .addLast(Mockito.any(ChunkedWriteHandler.class));
+        .addLast(Mockito.any(ChunkedWriteHandler.class));
     Mockito.verify(channelPipelineMock, Mockito.times(1))
-      .addLast("public-graphql-handler", publicGraphQLControllerMock);
+        .addLast("public-graphql-handler", publicGraphQLControllerMock);
     Mockito.verify(channelPipelineMock, Mockito.times(1))
-      .addLast("exceptions-handler", exceptionsHandlerMock);
+        .addLast("exceptions-handler", exceptionsHandlerMock);
     Mockito.verify(channelHandlerContextMock, Mockito.times(1)).fireChannelRead(httpRequestMock);
   }
 

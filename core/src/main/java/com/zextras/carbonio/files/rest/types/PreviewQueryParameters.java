@@ -33,7 +33,6 @@ public class PreviewQueryParameters {
   @JsonProperty("version")
   private Integer nodeVersion;
 
-
   public Optional<String> getQuality() {
     return Optional.ofNullable(quality == null ? null : quality.name());
   }

@@ -1,187 +1,210 @@
-AGPL-3.0-only (https://spdx.org/licenses/AGPL-3.0-only.html) applies to:
 
-  Carbonio Systemd Notify (com.zextras.carbonio:carbonio-systemd-notify:1.0.1)
-  Carbonio User Management - REST SDK (com.zextras.carbonio.user-management:carbonio-user-management-rest-sdk:1.3.0-1)
-  carbonio-message-broker-sdk (com.zextras.carbonio.message-broker:carbonio-message-broker-sdk:1.1.0-1)
-  filestore-sdk-common (com.zextras:filestore-sdk-common:0.0.15-20251106.164324-4)
-  storages-ce-sdk (com.zextras:storages-ce-sdk:0.0.15-20251106.164324-4)
+List of third-party dependencies grouped by their license type.
 
-Apache-2.0 (https://spdx.org/licenses/Apache-2.0.html) applies to:
+    AGPL-3.0-only:
 
-  Apache Commons BeanUtils (commons-beanutils:commons-beanutils:1.11.0)
-  Apache Commons Codec (commons-codec:commons-codec:1.11)
-  Apache Commons IO (commons-io:commons-io:2.14.0)
-  Apache Commons Lang (org.apache.commons:commons-lang3:3.20.0)
-  Apache Commons Logging (commons-logging:commons-logging:1.3.5)
-  Apache Commons Validator (commons-validator:commons-validator:1.10.1)
-  Apache HttpClient (org.apache.httpcomponents:httpclient:4.5.14)
-  Apache HttpClient Mime (org.apache.httpcomponents:httpmime:4.5.14)
-  Apache HttpCore (org.apache.httpcomponents:httpcore:4.4.16)
-  avaje-applog (io.avaje:avaje-applog:1.0)
-  avaje-applog-slf4j (io.avaje:avaje-applog-slf4j:1.0)
-  avaje-config (io.avaje:avaje-config:3.10)
-  avaje-lang (io.avaje:avaje-lang:1.1)
-  Caffeine cache (com.github.ben-manes.caffeine:caffeine:3.2.4)
-  classpath-scanner (io.avaje:classpath-scanner:7.1)
-  classpath-scanner-api (io.avaje:classpath-scanner-api:7.1)
-  Commons Digester (commons-digester:commons-digester:2.1)
-  Converter: Gson (com.squareup.retrofit2:converter-gson:2.9.0)
-  ebean api (io.ebean:ebean-api:13.26.1)
-  ebean core (io.ebean:ebean-core:13.26.1)
-  ebean core type (io.ebean:ebean-core-type:13.26.1)
-  ebean datasource (io.ebean:ebean-datasource:8.11)
-  ebean datasource api (io.ebean:ebean-datasource-api:8.11)
-  ebean ddl runner (io.ebean:ebean-ddl-runner:2.3)
-  ebean external mapping api (io.ebean:ebean-externalmapping-api:13.18.0)
-  ebean querybean (io.ebean:ebean-querybean:13.26.1)
-  ebean-annotation (io.ebean:ebean-annotation:8.4)
-  ebean-migration (io.ebean:ebean-migration:13.11.1)
-  ebean-migration-auto (io.ebean:ebean-migration-auto:1.2)
-  ebean-platform-postgres (io.ebean:ebean-platform-postgres:13.26.1)
-  ebean-postgres (io.ebean:ebean-postgres:13.26.1)
-  ebean-types (io.ebean:ebean-types:3.0)
-  error-prone annotations (com.google.errorprone:error_prone_annotations:2.18.0)
-  FindBugs-jsr305 (com.google.code.findbugs:jsr305:3.0.2)
-  flyway-core (org.flywaydb:flyway-core:11.20.3)
-  flyway-database-postgresql (org.flywaydb:flyway-database-postgresql:11.20.3)
-  Google Guice - Core Library (com.google.inject:guice:6.0.0)
-  Google Guice - Extensions - AssistedInject (com.google.inject.extensions:guice-assistedinject:6.0.0)
-  Gson (com.google.code.gson:gson:2.8.5)
-  Guava InternalFutureFailureAccess and InternalFutures (com.google.guava:failureaccess:1.0.1)
-  Guava ListenableFuture only (com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava)
-  Guava: Google Core Libraries for Java (com.google.guava:guava:31.0.1-jre)
-  HikariCP (com.zaxxer:HikariCP:5.1.0)
-  J2ObjC Annotations (com.google.j2objc:j2objc-annotations:1.3)
-  Jackson datatype: jdk8 (com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.22.1)
-  Jackson datatype: JSR310 (com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.0)
-  Jackson-annotations (com.fasterxml.jackson.core:jackson-annotations:2.22)
-  Jackson-core (com.fasterxml.jackson.core:jackson-core:2.22.1)
-  jackson-databind (com.fasterxml.jackson.core:jackson-databind:2.22.1)
-  Jakarta Dependency Injection (jakarta.inject:jakarta.inject-api:2.0.1)
-  Java Concurrency Tools Core Library (org.jctools:jctools-core:4.0.6)
-  java-dataloader (com.graphql-java:java-dataloader:3.3.0)
-  javax.inject (javax.inject:javax.inject:1)
-  micrometer-commons (io.micrometer:micrometer-commons:1.17.0)
-  micrometer-core (io.micrometer:micrometer-core:1.17.0)
-  micrometer-observation (io.micrometer:micrometer-observation:1.17.0)
-  micrometer-registry-prometheus (io.micrometer:micrometer-registry-prometheus:1.17.0)
-  Netty/All-in-One (io.netty:netty-all:4.2.16.Final)
-  Netty/Buffer (io.netty:netty-buffer:4.2.16.Final)
-  Netty/Codec (io.netty:netty-codec:4.2.16.Final)
-  Netty/Codec/Base (io.netty:netty-codec-base:4.2.16.Final)
-  Netty/Codec/Classes/Quic (io.netty:netty-codec-classes-quic:4.2.16.Final)
-  Netty/Codec/Compression (io.netty:netty-codec-compression:4.2.16.Final)
-  Netty/Codec/DNS (io.netty:netty-codec-dns:4.2.16.Final)
-  Netty/Codec/HAProxy (io.netty:netty-codec-haproxy:4.2.16.Final)
-  Netty/Codec/HTTP (io.netty:netty-codec-http:4.2.16.Final)
-  Netty/Codec/HTTP2 (io.netty:netty-codec-http2:4.2.16.Final)
-  Netty/Codec/Http3 (io.netty:netty-codec-http3:4.2.16.Final)
-  Netty/Codec/Marshalling (io.netty:netty-codec-marshalling:4.2.16.Final)
-  Netty/Codec/Memcache (io.netty:netty-codec-memcache:4.2.16.Final)
-  Netty/Codec/MQTT (io.netty:netty-codec-mqtt:4.2.16.Final)
-  Netty/Codec/Native/Quic (io.netty:netty-codec-native-quic:4.2.16.Final)
-  Netty/Codec/Protobuf (io.netty:netty-codec-protobuf:4.2.16.Final)
-  Netty/Codec/Redis (io.netty:netty-codec-redis:4.2.16.Final)
-  Netty/Codec/SMTP (io.netty:netty-codec-smtp:4.2.16.Final)
-  Netty/Codec/Socks (io.netty:netty-codec-socks:4.2.16.Final)
-  Netty/Codec/Stomp (io.netty:netty-codec-stomp:4.2.16.Final)
-  Netty/Codec/XML (io.netty:netty-codec-xml:4.2.16.Final)
-  Netty/Common (io.netty:netty-common:4.2.16.Final)
-  Netty/Handler (io.netty:netty-handler:4.2.16.Final)
-  Netty/Handler/Proxy (io.netty:netty-handler-proxy:4.2.16.Final)
-  Netty/Handler/Ssl/Ocsp (io.netty:netty-handler-ssl-ocsp:4.2.16.Final)
-  Netty/Resolver (io.netty:netty-resolver:4.2.16.Final)
-  Netty/Resolver/DNS (io.netty:netty-resolver-dns:4.2.16.Final)
-  Netty/Resolver/DNS/Classes/MacOS (io.netty:netty-resolver-dns-classes-macos:4.2.16.Final)
-  Netty/Resolver/DNS/Native/MacOS (io.netty:netty-resolver-dns-native-macos:4.2.16.Final)
-  Netty/Transport (io.netty:netty-transport:4.2.16.Final)
-  Netty/Transport/Classes/Epoll (io.netty:netty-transport-classes-epoll:4.2.16.Final)
-  Netty/Transport/Classes/io_uring (io.netty:netty-transport-classes-io_uring:4.2.16.Final)
-  Netty/Transport/Classes/KQueue (io.netty:netty-transport-classes-kqueue:4.2.16.Final)
-  Netty/Transport/Native/Epoll (io.netty:netty-transport-native-epoll:4.2.16.Final)
-  Netty/Transport/Native/io_uring (io.netty:netty-transport-native-io_uring:4.2.16.Final)
-  Netty/Transport/Native/KQueue (io.netty:netty-transport-native-kqueue:4.2.16.Final)
-  Netty/Transport/Native/Unix/Common (io.netty:netty-transport-native-unix-common:4.2.16.Final)
-  Netty/Transport/RXTX (io.netty:netty-transport-rxtx:4.2.16.Final)
-  Netty/Transport/SCTP (io.netty:netty-transport-sctp:4.2.16.Final)
-  Netty/Transport/UDT (io.netty:netty-transport-udt:4.2.16.Final)
-  OkHttp (com.squareup.okhttp3:okhttp:3.14.9)
-  Okio (com.squareup.okio:okio:1.17.2)
-  Prometheus Metrics Config (io.prometheus:prometheus-metrics-config:1.7.0)
-  Prometheus Metrics Core (io.prometheus:prometheus-metrics-core:1.7.0)
-  Prometheus Metrics Exposition Formats (io.prometheus:prometheus-metrics-exposition-formats:1.7.0)
-  Prometheus Metrics Exposition Text Formats (io.prometheus:prometheus-metrics-exposition-textformats:1.7.0)
-  Prometheus Metrics Model (io.prometheus:prometheus-metrics-model:1.7.0)
-  Prometheus Metrics Tracer Common (io.prometheus:prometheus-metrics-tracer-common:1.7.0)
-  RabbitMQ Java Client (com.rabbitmq:amqp-client:5.21.0)
-  Retrofit (com.squareup.retrofit2:retrofit:2.9.0)
-  swagger-annotations-jakarta (io.swagger.core.v3:swagger-annotations-jakarta:2.2.22)
-  Vavr (io.vavr:vavr:0.11.0)
-  Vavr Match (io.vavr:vavr-match:0.11.0)
+        * Carbonio Systemd Notify (com.zextras.carbonio:carbonio-systemd-notify:1.0.1 - https://github.com/zextras/carbonio-systemd-notify)
+        * Carbonio User Management - REST SDK (com.zextras.carbonio.user-management:carbonio-user-management-rest-sdk:1.3.0-1 - no url defined)
+        * carbonio-message-broker-sdk (com.zextras.carbonio.message-broker:carbonio-message-broker-sdk:1.1.0-1 - no url defined)
+        * filestore-sdk-common (com.zextras:filestore-sdk-common:0.0.15-20251106.164324-4 - https://github.com/Zextras/carbonio-storages-ce-java-sdk/filestore-sdk-common/)
+        * storages-ce-sdk (com.zextras:storages-ce-sdk:0.0.15-20251106.164324-4 - https://github.com/Zextras/carbonio-storages-ce-java-sdk/storages-ce-sdk/)
 
-BSD-2-Clause (https://spdx.org/licenses/BSD-2-Clause.html) applies to:
+    AL 2.0:
 
-  HdrHistogram (org.hdrhistogram:HdrHistogram:2.2.2)
-  PostgreSQL JDBC Driver (org.postgresql:postgresql:42.7.11)
+        * RabbitMQ Java Client (com.rabbitmq:amqp-client:5.21.0 - https://www.rabbitmq.com)
 
-BSD-3-Clause (https://spdx.org/licenses/BSD-3-Clause.html) applies to:
+    Apache 2.0:
 
-  ANTLR 4 Runtime (org.antlr:antlr4-runtime:4.13.1)
+        * error-prone annotations (com.google.errorprone:error_prone_annotations:2.18.0 - https://errorprone.info/error_prone_annotations)
+        * Gson (com.google.code.gson:gson:2.8.5 - https://github.com/google/gson/gson)
+        * OkHttp (com.squareup.okhttp3:okhttp:3.14.9 - https://github.com/square/okhttp/okhttp)
+        * Okio (com.squareup.okio:okio:1.17.2 - https://github.com/square/okio/okio)
 
-CC0 (https://spdx.org/licenses/CC0.html) applies to:
+    Apache License 2.0:
 
-  reactive-streams (org.reactivestreams:reactive-streams:1.0.3)
+        * swagger-annotations-jakarta (io.swagger.core.v3:swagger-annotations-jakarta:2.2.22 - https://github.com/swagger-api/swagger-core/modules/swagger-annotations-jakarta)
 
-CDDL + GPLv2 with classpath exception (https://spdx.org/licenses/CDDL + GPLv2 with classpath exception.html) applies to:
+    Apache License, Version 2.0:
 
-  javax.annotation API (javax.annotation:javax.annotation-api:1.3.2)
+        * Apache Commons Codec (commons-codec:commons-codec:1.11 - http://commons.apache.org/proper/commons-codec/)
+        * Apache HttpClient (org.apache.httpcomponents:httpclient:4.5.14 - http://hc.apache.org/httpcomponents-client-ga)
+        * Apache HttpClient Mime (org.apache.httpcomponents:httpmime:4.5.14 - http://hc.apache.org/httpcomponents-client-ga)
+        * Apache HttpCore (org.apache.httpcomponents:httpcore:4.4.16 - http://hc.apache.org/httpcomponents-core-ga)
+        * Caffeine cache (com.github.ben-manes.caffeine:caffeine:3.2.4 - https://github.com/ben-manes/caffeine)
+        * flyway-core (org.flywaydb:flyway-core:11.20.3 - https://flywaydb.org/flyway-core)
+        * flyway-database-postgresql (org.flywaydb:flyway-database-postgresql:11.20.3 - https://flywaydb.org/flyway-database-postgresql)
+        * Guava: Google Core Libraries for Java (com.google.guava:guava:31.0.1-jre - https://github.com/google/guava)
+        * Java Concurrency Tools Core Library (org.jctools:jctools-core:4.0.6 - https://github.com/JCTools)
+        * Netty/All-in-One (io.netty:netty-all:4.2.16.Final - https://netty.io/netty-all/)
+        * Netty/Buffer (io.netty:netty-buffer:4.2.16.Final - https://netty.io/netty-buffer/)
+        * Netty/Codec (io.netty:netty-codec:4.2.16.Final - https://netty.io/netty-codec/)
+        * Netty/Codec/Base (io.netty:netty-codec-base:4.2.16.Final - https://netty.io/netty-codec-base/)
+        * Netty/Codec/Classes/Quic (io.netty:netty-codec-classes-quic:4.2.16.Final - https://netty.io/netty-codec-classes-quic/)
+        * Netty/Codec/Compression (io.netty:netty-codec-compression:4.2.16.Final - https://netty.io/netty-codec-compression/)
+        * Netty/Codec/DNS (io.netty:netty-codec-dns:4.2.16.Final - https://netty.io/netty-codec-dns/)
+        * Netty/Codec/HAProxy (io.netty:netty-codec-haproxy:4.2.16.Final - https://netty.io/netty-codec-haproxy/)
+        * Netty/Codec/HTTP (io.netty:netty-codec-http:4.2.16.Final - https://netty.io/netty-codec-http/)
+        * Netty/Codec/HTTP2 (io.netty:netty-codec-http2:4.2.16.Final - https://netty.io/netty-codec-http2/)
+        * Netty/Codec/Http3 (io.netty:netty-codec-http3:4.2.16.Final - https://netty.io/netty-codec-http3/)
+        * Netty/Codec/Marshalling (io.netty:netty-codec-marshalling:4.2.16.Final - https://netty.io/netty-codec-marshalling/)
+        * Netty/Codec/Memcache (io.netty:netty-codec-memcache:4.2.16.Final - https://netty.io/netty-codec-memcache/)
+        * Netty/Codec/MQTT (io.netty:netty-codec-mqtt:4.2.16.Final - https://netty.io/netty-codec-mqtt/)
+        * Netty/Codec/Native/Quic (io.netty:netty-codec-native-quic:4.2.16.Final - https://netty.io/netty-codec-native-quic/)
+        * Netty/Codec/Protobuf (io.netty:netty-codec-protobuf:4.2.16.Final - https://netty.io/netty-codec-protobuf/)
+        * Netty/Codec/Redis (io.netty:netty-codec-redis:4.2.16.Final - https://netty.io/netty-codec-redis/)
+        * Netty/Codec/SMTP (io.netty:netty-codec-smtp:4.2.16.Final - https://netty.io/netty-codec-smtp/)
+        * Netty/Codec/Socks (io.netty:netty-codec-socks:4.2.16.Final - https://netty.io/netty-codec-socks/)
+        * Netty/Codec/Stomp (io.netty:netty-codec-stomp:4.2.16.Final - https://netty.io/netty-codec-stomp/)
+        * Netty/Codec/XML (io.netty:netty-codec-xml:4.2.16.Final - https://netty.io/netty-codec-xml/)
+        * Netty/Common (io.netty:netty-common:4.2.16.Final - https://netty.io/netty-common/)
+        * Netty/Handler (io.netty:netty-handler:4.2.16.Final - https://netty.io/netty-handler/)
+        * Netty/Handler/Proxy (io.netty:netty-handler-proxy:4.2.16.Final - https://netty.io/netty-handler-proxy/)
+        * Netty/Handler/Ssl/Ocsp (io.netty:netty-handler-ssl-ocsp:4.2.16.Final - https://netty.io/netty-handler-ssl-ocsp/)
+        * Netty/Resolver (io.netty:netty-resolver:4.2.16.Final - https://netty.io/netty-resolver/)
+        * Netty/Resolver/DNS (io.netty:netty-resolver-dns:4.2.16.Final - https://netty.io/netty-resolver-dns/)
+        * Netty/Resolver/DNS/Classes/MacOS (io.netty:netty-resolver-dns-classes-macos:4.2.16.Final - https://netty.io/netty-resolver-dns-classes-macos/)
+        * Netty/Resolver/DNS/Native/MacOS (io.netty:netty-resolver-dns-native-macos:4.2.16.Final - https://netty.io/netty-resolver-dns-native-macos/)
+        * Netty/Transport (io.netty:netty-transport:4.2.16.Final - https://netty.io/netty-transport/)
+        * Netty/Transport/Classes/Epoll (io.netty:netty-transport-classes-epoll:4.2.16.Final - https://netty.io/netty-transport-classes-epoll/)
+        * Netty/Transport/Classes/io_uring (io.netty:netty-transport-classes-io_uring:4.2.16.Final - https://netty.io/netty-transport-classes-io_uring/)
+        * Netty/Transport/Classes/KQueue (io.netty:netty-transport-classes-kqueue:4.2.16.Final - https://netty.io/netty-transport-classes-kqueue/)
+        * Netty/Transport/Native/Epoll (io.netty:netty-transport-native-epoll:4.2.16.Final - https://netty.io/netty-transport-native-epoll/)
+        * Netty/Transport/Native/io_uring (io.netty:netty-transport-native-io_uring:4.2.16.Final - https://netty.io/netty-transport-native-io_uring/)
+        * Netty/Transport/Native/KQueue (io.netty:netty-transport-native-kqueue:4.2.16.Final - https://netty.io/netty-transport-native-kqueue/)
+        * Netty/Transport/Native/Unix/Common (io.netty:netty-transport-native-unix-common:4.2.16.Final - https://netty.io/netty-transport-native-unix-common/)
+        * Netty/Transport/RXTX (io.netty:netty-transport-rxtx:4.2.16.Final - https://netty.io/netty-transport-rxtx/)
+        * Netty/Transport/SCTP (io.netty:netty-transport-sctp:4.2.16.Final - https://netty.io/netty-transport-sctp/)
+        * Netty/Transport/UDT (io.netty:netty-transport-udt:4.2.16.Final - https://netty.io/netty-transport-udt/)
 
-EPL-1.0 (https://spdx.org/licenses/EPL-1.0.html) applies to:
+    Apache-2.0:
 
-  persistence-api (io.ebean:persistence-api:3.0)
+        * Apache Commons BeanUtils (commons-beanutils:commons-beanutils:1.11.0 - https://commons.apache.org/proper/commons-beanutils)
+        * Apache Commons IO (commons-io:commons-io:2.14.0 - https://commons.apache.org/proper/commons-io/)
+        * Apache Commons Lang (org.apache.commons:commons-lang3:3.20.0 - https://commons.apache.org/proper/commons-lang/)
+        * Apache Commons Logging (commons-logging:commons-logging:1.3.5 - https://commons.apache.org/proper/commons-logging/)
+        * Apache Commons Validator (commons-validator:commons-validator:1.10.1 - https://commons.apache.org/proper/commons-validator/)
 
-EPL-2.0 (https://spdx.org/licenses/EPL-2.0.html) applies to:
+    BSD-2-Clause:
 
-  Jakarta Annotations API (jakarta.annotation:jakarta.annotation-api:3.0.0)
-  Logback Classic Module (ch.qos.logback:logback-classic:1.5.38)
-  Logback Core Module (ch.qos.logback:logback-core:1.5.38)
+        * HdrHistogram (org.hdrhistogram:HdrHistogram:2.2.2 - http://hdrhistogram.github.io/HdrHistogram/)
+        * PostgreSQL JDBC Driver (org.postgresql:postgresql:42.7.11 - https://jdbc.postgresql.org)
 
-GPL v2 (https://spdx.org/licenses/GPL v2.html) applies to:
+    BSD-3-Clause:
 
-  RabbitMQ Java Client (com.rabbitmq:amqp-client:5.21.0)
+        * ANTLR 4 Runtime (org.antlr:antlr4-runtime:4.13.1 - https://www.antlr.org/antlr4-runtime/)
 
-GPL2 w/ CPE (https://spdx.org/licenses/GPL2 w/ CPE.html) applies to:
+    CC0:
 
-  Jakarta Annotations API (jakarta.annotation:jakarta.annotation-api:3.0.0)
+        * reactive-streams (org.reactivestreams:reactive-streams:1.0.3 - http://www.reactive-streams.org/)
 
-LGPL-2.1-only (https://spdx.org/licenses/LGPL-2.1-only.html) applies to:
+    CDDL + GPLv2 with classpath exception:
 
-  Logback Classic Module (ch.qos.logback:logback-classic:1.5.38)
-  Logback Core Module (ch.qos.logback:logback-core:1.5.38)
+        * javax.annotation API (javax.annotation:javax.annotation-api:1.3.2 - http://jcp.org/en/jsr/detail?id=250)
 
-MIT (https://spdx.org/licenses/MIT.html) applies to:
+    EPL 2.0:
 
-  Checker Qual (org.checkerframework:checker-qual:3.12.0)
-  graphql-java (com.graphql-java:graphql-java:22.4)
-  SLF4J API Module (org.slf4j:slf4j-api:2.0.17)
+        * Jakarta Annotations API (jakarta.annotation:jakarta.annotation-api:3.0.0 - https://projects.eclipse.org/projects/ee4j.ca)
 
-MPL-2.0 (https://spdx.org/licenses/MPL-2.0.html) applies to:
+    EPL-2.0:
 
-  RabbitMQ Java Client (com.rabbitmq:amqp-client:5.21.0)
+        * Logback Classic Module (ch.qos.logback:logback-classic:1.5.38 - http://logback.qos.ch/logback-classic)
+        * Logback Core Module (ch.qos.logback:logback-core:1.5.38 - http://logback.qos.ch/logback-core)
 
-Public Domain (https://spdx.org/licenses/Public Domain.html) applies to:
+    Eclipse Public License - v 1.0:
 
-  AOP alliance (aopalliance:aopalliance:1.0)
+        * persistence-api (io.ebean:persistence-api:3.0 - https://avaje.io/persistence-api)
 
-Public Domain, per Creative Commons CC0 (https://spdx.org/licenses/Public Domain, per Creative Commons CC0.html) applies to:
+    GPL v2:
 
-  HdrHistogram (org.hdrhistogram:HdrHistogram:2.2.2)
+        * RabbitMQ Java Client (com.rabbitmq:amqp-client:5.21.0 - https://www.rabbitmq.com)
 
-The Apache License, Version 2.0 (https://spdx.org/licenses/The Apache License, Version 2.0.html) applies to:
+    GPL2 w/ CPE:
 
-  JSpecify annotations (org.jspecify:jspecify:1.0.0)
+        * Jakarta Annotations API (jakarta.annotation:jakarta.annotation-api:3.0.0 - https://projects.eclipse.org/projects/ee4j.ca)
 
-Unknown license (https://spdx.org/licenses/Unknown license.html) applies to:
+    LGPL-2.1-only:
 
-  Carbonio Preview CE - REST SDK (com.zextras.carbonio.preview:carbonio-preview-ce-rest-sdk:2.0.2-1)
+        * Logback Classic Module (ch.qos.logback:logback-classic:1.5.38 - http://logback.qos.ch/logback-classic)
+        * Logback Core Module (ch.qos.logback:logback-core:1.5.38 - http://logback.qos.ch/logback-core)
 
+    MIT:
+
+        * graphql-java (com.graphql-java:graphql-java:22.4 - https://github.com/graphql-java/graphql-java)
+        * SLF4J API Module (org.slf4j:slf4j-api:2.0.17 - http://www.slf4j.org)
+
+    MPL 2.0:
+
+        * RabbitMQ Java Client (com.rabbitmq:amqp-client:5.21.0 - https://www.rabbitmq.com)
+
+    Public Domain:
+
+        * AOP alliance (aopalliance:aopalliance:1.0 - http://aopalliance.sourceforge.net)
+
+    Public Domain, per Creative Commons CC0:
+
+        * HdrHistogram (org.hdrhistogram:HdrHistogram:2.2.2 - http://hdrhistogram.github.io/HdrHistogram/)
+
+    The Apache License, Version 2.0:
+
+        * JSpecify annotations (org.jspecify:jspecify:1.0.0 - http://jspecify.org/)
+
+    The Apache Software License, Version 2.0:
+
+        * avaje-applog (io.avaje:avaje-applog:1.0 - https://avaje.io/avaje-applog)
+        * avaje-applog-slf4j (io.avaje:avaje-applog-slf4j:1.0 - https://avaje.io/avaje-applog-slf4j)
+        * avaje-config (io.avaje:avaje-config:3.10 - https://avaje.io/avaje-config)
+        * avaje-lang (io.avaje:avaje-lang:1.1 - https://avaje.io/avaje-lang)
+        * classpath-scanner (io.avaje:classpath-scanner:7.1 - http://www.avaje.org/classpath-scanner)
+        * classpath-scanner-api (io.avaje:classpath-scanner-api:7.1 - http://www.avaje.org/classpath-scanner-api)
+        * Commons Digester (commons-digester:commons-digester:2.1 - http://commons.apache.org/digester/)
+        * Converter: Gson (com.squareup.retrofit2:converter-gson:2.9.0 - https://github.com/square/retrofit)
+        * ebean api (io.ebean:ebean-api:13.26.1 - https://ebean.io/ebean-api/)
+        * ebean core (io.ebean:ebean-core:13.26.1 - https://ebean.io/)
+        * ebean core type (io.ebean:ebean-core-type:13.26.1 - https://ebean.io/ebean-core-type/)
+        * ebean datasource (io.ebean:ebean-datasource:8.11 - https://avaje.io/ebean-datasource-parent/ebean-datasource)
+        * ebean datasource api (io.ebean:ebean-datasource-api:8.11 - https://avaje.io/ebean-datasource-parent/ebean-datasource-api)
+        * ebean ddl runner (io.ebean:ebean-ddl-runner:2.3 - https://ebean.io/)
+        * ebean external mapping api (io.ebean:ebean-externalmapping-api:13.18.0 - https://ebean.io/ebean-externalmapping-api/)
+        * ebean querybean (io.ebean:ebean-querybean:13.26.1 - https://ebean.io/ebean-querybean/)
+        * ebean-annotation (io.ebean:ebean-annotation:8.4 - https://avaje.io/ebean-annotation)
+        * ebean-migration (io.ebean:ebean-migration:13.11.1 - https://avaje.io/ebean-migration)
+        * ebean-migration-auto (io.ebean:ebean-migration-auto:1.2 - https://avaje.io/ebean-migration-auto)
+        * ebean-platform-postgres (io.ebean:ebean-platform-postgres:13.26.1 - https://ebean.io/ebean-platform-postgres/)
+        * ebean-postgres (io.ebean:ebean-postgres:13.26.1 - https://ebean.io/ebean-postgres/)
+        * ebean-types (io.ebean:ebean-types:3.0 - https://avaje.io/ebean-types)
+        * FindBugs-jsr305 (com.google.code.findbugs:jsr305:3.0.2 - http://findbugs.sourceforge.net/)
+        * Google Guice - Core Library (com.google.inject:guice:6.0.0 - https://github.com/google/guice/guice)
+        * Google Guice - Extensions - AssistedInject (com.google.inject.extensions:guice-assistedinject:6.0.0 - https://github.com/google/guice/extensions-parent/guice-assistedinject)
+        * Guava InternalFutureFailureAccess and InternalFutures (com.google.guava:failureaccess:1.0.1 - https://github.com/google/guava/failureaccess)
+        * Guava ListenableFuture only (com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava - https://github.com/google/guava/listenablefuture)
+        * HikariCP (com.zaxxer:HikariCP:5.1.0 - https://github.com/brettwooldridge/HikariCP)
+        * J2ObjC Annotations (com.google.j2objc:j2objc-annotations:1.3 - https://github.com/google/j2objc/)
+        * Jackson datatype: jdk8 (com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.22.1 - https://github.com/FasterXML/jackson-modules-java8/jackson-datatype-jdk8)
+        * Jackson datatype: JSR310 (com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.0 - https://github.com/FasterXML/jackson-modules-java8/jackson-datatype-jsr310)
+        * Jackson-annotations (com.fasterxml.jackson.core:jackson-annotations:2.22 - https://github.com/FasterXML/jackson)
+        * Jackson-core (com.fasterxml.jackson.core:jackson-core:2.22.1 - https://github.com/FasterXML/jackson-core)
+        * jackson-databind (com.fasterxml.jackson.core:jackson-databind:2.22.1 - https://github.com/FasterXML/jackson)
+        * Jakarta Dependency Injection (jakarta.inject:jakarta.inject-api:2.0.1 - https://github.com/eclipse-ee4j/injection-api)
+        * java-dataloader (com.graphql-java:java-dataloader:3.3.0 - https://github.com/graphql-java/java-dataloader)
+        * javax.inject (javax.inject:javax.inject:1 - http://code.google.com/p/atinject/)
+        * micrometer-commons (io.micrometer:micrometer-commons:1.17.0 - https://github.com/micrometer-metrics/micrometer)
+        * micrometer-core (io.micrometer:micrometer-core:1.17.0 - https://github.com/micrometer-metrics/micrometer)
+        * micrometer-observation (io.micrometer:micrometer-observation:1.17.0 - https://github.com/micrometer-metrics/micrometer)
+        * micrometer-registry-prometheus (io.micrometer:micrometer-registry-prometheus:1.17.0 - https://github.com/micrometer-metrics/micrometer)
+        * Prometheus Metrics Config (io.prometheus:prometheus-metrics-config:1.7.0 - http://github.com/prometheus/client_java/client_java/prometheus-metrics-config)
+        * Prometheus Metrics Core (io.prometheus:prometheus-metrics-core:1.7.0 - http://github.com/prometheus/client_java/client_java/prometheus-metrics-core)
+        * Prometheus Metrics Exposition Formats (io.prometheus:prometheus-metrics-exposition-formats:1.7.0 - http://github.com/prometheus/client_java/client_java/prometheus-metrics-exposition-formats)
+        * Prometheus Metrics Exposition Text Formats (io.prometheus:prometheus-metrics-exposition-textformats:1.7.0 - http://github.com/prometheus/client_java/client_java/prometheus-metrics-exposition-textformats)
+        * Prometheus Metrics Model (io.prometheus:prometheus-metrics-model:1.7.0 - http://github.com/prometheus/client_java/client_java/prometheus-metrics-model)
+        * Prometheus Metrics Tracer Common (io.prometheus:prometheus-metrics-tracer-common:1.7.0 - http://github.com/prometheus/client_java/client_java/prometheus-metrics-tracer/prometheus-metrics-tracer-common)
+        * Retrofit (com.squareup.retrofit2:retrofit:2.9.0 - https://github.com/square/retrofit)
+        * Vavr (io.vavr:vavr:0.11.0 - https://vavr.io)
+        * Vavr Match (io.vavr:vavr-match:0.11.0 - https://vavr.io)
+
+    The MIT License:
+
+        * Checker Qual (org.checkerframework:checker-qual:3.12.0 - https://checkerframework.org)
+
+    Unknown license:
+
+        * Carbonio Preview CE - REST SDK (com.zextras.carbonio.preview:carbonio-preview-ce-rest-sdk:2.0.2-1 - no url defined)

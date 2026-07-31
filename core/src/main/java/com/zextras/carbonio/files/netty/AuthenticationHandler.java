@@ -6,12 +6,11 @@ package com.zextras.carbonio.files.netty;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
+import com.zextras.carbonio.files.dal.dao.UserStatus;
+import com.zextras.carbonio.files.dal.dao.UserType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.exceptions.AuthenticationException;
 import com.zextras.carbonio.files.exceptions.ForbiddenException;
-import com.zextras.carbonio.files.dal.dao.UserMyself;
-import com.zextras.carbonio.files.dal.dao.UserStatus;
-import com.zextras.carbonio.files.dal.dao.UserType;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -22,7 +21,6 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
-
 import java.util.Optional;
 import java.util.Set;
 
@@ -45,12 +43,12 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
    * <ul>
    *   <li>{@link Constants.API.Headers#COOKIE_ZM_AUTH_TOKEN}
    * </ul>
-   * <p>
-   * If the cookie is valid, it fetches the User that made the request, saves some info in the
+   *
+   * <p>If the cookie is valid, it fetches the User that made the request, saves some info in the
    * {@link ChannelHandlerContext} so they can be used by other channels and fires the http request
    * in the next channel of the netty pipeline.
    *
-   * @param context     is a {@link ChannelHandlerContext} representing the context of this channel.
+   * @param context is a {@link ChannelHandlerContext} representing the context of this channel.
    * @param httpRequest is a {@link HttpRequest} representing the request in input.
    */
   @Override
@@ -73,8 +71,7 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
     if (optCookie.isPresent()) {
       switch (optCookie.get().name()) {
         case Constants.API.Headers.COOKIE_ZM_AUTH_TOKEN:
-          validateAuthTokenAndFetchAccount(
-              context, httpRequest, cookiesString);
+          validateAuthTokenAndFetchAccount(context, httpRequest, cookiesString);
           break;
         default: // The execution will never reach this point
           break;
@@ -97,11 +94,12 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
    *   <li>Fire the http request in the next channel of the netty pipeline
    * </ul>
    *
-   * @param context     is a {@link ChannelHandlerContext} representing the context of this channel.
+   * @param context is a {@link ChannelHandlerContext} representing the context of this channel.
    * @param httpRequest is a {@link HttpRequest} representing the request in input.
-   * @param cookies     is a {@link String} representing all the received cookies
+   * @param cookies is a {@link String} representing all the received cookies
    */
-  private void validateAuthTokenAndFetchAccount(ChannelHandlerContext context, HttpRequest httpRequest, String cookies) {
+  private void validateAuthTokenAndFetchAccount(
+      ChannelHandlerContext context, HttpRequest httpRequest, String cookies) {
     userRepository
         .getUserMyselfByCookieNotCached(cookies)
         .ifPresentOrElse(
@@ -111,9 +109,7 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
                 context.fireExceptionCaught(
                     new ForbiddenException(
                         String.format(
-                            FORBIDDEN_ERROR_MESSAGE,
-                            httpRequest.uri(),
-                            "User is not active")));
+                            FORBIDDEN_ERROR_MESSAGE, httpRequest.uri(), "User is not active")));
                 return;
               }
               // If user is a guest we block interaction with Files
@@ -121,13 +117,13 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
                 context.fireExceptionCaught(
                     new ForbiddenException(
                         String.format(
-                            FORBIDDEN_ERROR_MESSAGE,
-                            httpRequest.uri(),
-                            "User is not internal")));
+                            FORBIDDEN_ERROR_MESSAGE, httpRequest.uri(), "User is not internal")));
                 return;
               }
-              // If user doesn't have the Files' feature enabled we block interaction with Files (if not present default on FALSE)
-              String carbonioFeatureFilesEnabled = user.getCarbonioAttributes().getOrDefault("carbonioFeatureFilesEnabled", "FALSE");
+              // If user doesn't have the Files' feature enabled we block interaction with Files (if
+              // not present default on FALSE)
+              String carbonioFeatureFilesEnabled =
+                  user.getCarbonioAttributes().getOrDefault("carbonioFeatureFilesEnabled", "FALSE");
               if (carbonioFeatureFilesEnabled.equals("FALSE")) {
                 context.fireExceptionCaught(
                     new ForbiddenException(

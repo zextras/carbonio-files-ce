@@ -44,11 +44,7 @@ public class PublicFindNodesApiIT {
   @BeforeAll
   static void init() {
     simulator =
-        SimulatorBuilder.aSimulator().init()
-            .withDatabase()
-            .withServiceDiscover()
-            .build()
-            .start();
+        SimulatorBuilder.aSimulator().init().withDatabase().withServiceDiscover().build().start();
 
     final Injector injector = simulator.getInjector();
     nodeRepository = injector.getInstance(NodeRepository.class);
@@ -122,9 +118,10 @@ public class PublicFindNodesApiIT {
 
   @DisplayName(
       """
-    Given an existing folder with five nodes inside, a valid public link associated, a limit of
-    three elements per page: the findNodes should return the first page containing three nodes
-    ordered by category and alphabetically and the page_token for the next page""")
+      Given an existing folder with five nodes inside, a valid public link associated, a limit of
+      three elements per page: the findNodes should return the first page containing three nodes
+      ordered by category and alphabetically and the page_token for the next page\
+      """)
   @Test
   void givenAnExistingFolderAndAValidPublicLinkTheFindNodesShouldReturnTheFirstPage() {
     // Given
@@ -176,9 +173,10 @@ public class PublicFindNodesApiIT {
 
   @DisplayName(
       """
-    Given an existing folder with five nodes inside, a valid public link associated, a limit of
-    three elements per page and a page token for the second page: the findNodes should return the
-    second page containing two nodes and a null page_token""")
+      Given an existing folder with five nodes inside, a valid public link associated, a limit of
+      three elements per page and a page token for the second page: the findNodes should return the
+      second page containing two nodes and a null page_token\
+      """)
   @Test
   void givenAnExistingFolderAndAValidLinkTheFindNodesShouldReturnTheSecondPage() {
     // Given
@@ -247,9 +245,10 @@ public class PublicFindNodesApiIT {
 
   @DisplayName(
       """
-    Given an existing folder with five nodes inside, a valid public link associated, a limit of
-    six elements per page: the findNodes should return the first page containing five nodes ordered
-    by category and alphabetically and a null page_token since there is no more pages to fetch""")
+      Given an existing folder with five nodes inside, a valid public link associated, a limit of
+      six elements per page: the findNodes should return the first page containing five nodes ordered
+      by category and alphabetically and a null page_token since there is no more pages to fetch\
+      """)
   @Test
   void givenAnExistingFolderAndAValidPublicLinkTheFindNodesShouldReturnTheOnlyPageExisting() {
     // Given
@@ -307,8 +306,9 @@ public class PublicFindNodesApiIT {
 
   @DisplayName(
       """
-    Given an existing folder without nodes inside, a valid public link associated: the findNodes
-    should return an empty first page and a null page_token""")
+      Given an existing folder without nodes inside, a valid public link associated: the findNodes
+      should return an empty first page and a null page_token\
+      """)
   @Test
   void givenAnExistingEmptyFolderAndAValidPublicLinkTheFindNodesShouldReturnAnEmptyFirstPage() {
     // Given
@@ -361,8 +361,9 @@ public class PublicFindNodesApiIT {
 
   @DisplayName(
       """
-    Given an existing folder without nodes inside, a valid public link associated: the findNodes
-    should return an empty first page and a null page_token""")
+      Given an existing folder without nodes inside, a valid public link associated: the findNodes
+      should return an empty first page and a null page_token\
+      """)
   @Test
   void
       givenAnExistingFolderAndAnExpiredPublicLinkTheFindNodesShouldReturn200CodeAndAnErrorMessage() {
@@ -413,8 +414,9 @@ public class PublicFindNodesApiIT {
 
   @DisplayName(
       """
-    Given an existing folder with five nodes inside, a not existing public link associated: the
-    findNodes should return 200 status code and an error message""")
+      Given an existing folder with five nodes inside, a not existing public link associated: the
+      findNodes should return 200 status code and an error message\
+      """)
   @Test
   void
       givenAnExistingFolderAndANotExistingPublicLinkTheFindNodesShouldReturnAn200StatusWithAnErrorMessage() {
@@ -472,11 +474,13 @@ public class PublicFindNodesApiIT {
 
   @DisplayName(
       """
-    Given an existing folder with five nodes inside, a valid public link associated, another folder
-    not public and an hacked page token that is formed to try access a private node: the findNodes
-    should return an empty page""")
+      Given an existing folder with five nodes inside, a valid public link associated, another folder
+      not public and an hacked page token that is formed to try access a private node: the findNodes
+      should return an empty page\
+      """)
   @Test
-  void givenAnHackedPageTokenWithoutSignatureTheFindNodesShouldReturnAnError() throws JsonProcessingException {
+  void givenAnHackedPageTokenWithoutSignatureTheFindNodesShouldReturnAnError()
+      throws JsonProcessingException {
     // Given
     createFolderTree();
 
@@ -525,36 +529,43 @@ public class PublicFindNodesApiIT {
                 0L,
                 null));
 
-    SQLExpression keySet = SQLExpression.or(List.of(
-      new NodeSQLCondition("node_category", SortOrder.ASCENDING, 1),
-      SQLExpression.and(List.of(
-        new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
-        new NodeSQLCondition("name", SortOrder.ASCENDING, "folder child")
-      )),
-        SQLExpression.and(List.of(
-          new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
-          new NodeSQLCondition("name", SortOrder.EQUAL, "folder child"),
-          new NodeSQLCondition("node_id", SortOrder.ASCENDING, "88888888-8888-8888-8888-888888888888")
-        ))
-      ));
+    SQLExpression keySet =
+        SQLExpression.or(
+            List.of(
+                new NodeSQLCondition("node_category", SortOrder.ASCENDING, 1),
+                SQLExpression.and(
+                    List.of(
+                        new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
+                        new NodeSQLCondition("name", SortOrder.ASCENDING, "folder child"))),
+                SQLExpression.and(
+                    List.of(
+                        new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
+                        new NodeSQLCondition("name", SortOrder.EQUAL, "folder child"),
+                        new NodeSQLCondition(
+                            "node_id",
+                            SortOrder.ASCENDING,
+                            "88888888-8888-8888-8888-888888888888")))));
     String jsonKeySet = new ObjectMapper().writeValueAsString(keySet);
 
-      String pageTokenHacked = String.format(
-        """
-    {
-      "limit": 1,
-      "keywords": [],
-      "keySet": %s,
-      "sort": "NAME_ASC",
-      "flagged": null,
-      "folderId": "77777777-7777-7777-7777-777777777777",
-      "cascade": null,
-      "sharedWithMe": null,
-      "sharedByMe": null,
-      "directShare": null,
-      "nodeType": null,
-      "ownerId": null
-    }""", jsonKeySet);
+    String pageTokenHacked =
+        String.format(
+            """
+            {
+              "limit": 1,
+              "keywords": [],
+              "keySet": %s,
+              "sort": "NAME_ASC",
+              "flagged": null,
+              "folderId": "77777777-7777-7777-7777-777777777777",
+              "cascade": null,
+              "sharedWithMe": null,
+              "sharedByMe": null,
+              "directShare": null,
+              "nodeType": null,
+              "ownerId": null
+            }\
+            """,
+            jsonKeySet);
 
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
@@ -583,7 +594,8 @@ public class PublicFindNodesApiIT {
   }
 
   @Test
-  void givenAnHackedPageTokenWithWrongSignatureTheFindNodesShouldReturnAnError() throws JsonProcessingException {
+  void givenAnHackedPageTokenWithWrongSignatureTheFindNodesShouldReturnAnError()
+      throws JsonProcessingException {
     // Given
     createFolderTree();
 
@@ -632,37 +644,44 @@ public class PublicFindNodesApiIT {
                 0L,
                 null));
 
-    SQLExpression keySet = SQLExpression.or(List.of(
-      new NodeSQLCondition("node_category", SortOrder.ASCENDING, 1),
-      SQLExpression.and(List.of(
-        new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
-        new NodeSQLCondition("name", SortOrder.ASCENDING, "folder child")
-      )),
-        SQLExpression.and(List.of(
-          new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
-          new NodeSQLCondition("name", SortOrder.EQUAL, "folder child"),
-          new NodeSQLCondition("node_id", SortOrder.ASCENDING, "88888888-8888-8888-8888-888888888888")
-        ))
-      ));
+    SQLExpression keySet =
+        SQLExpression.or(
+            List.of(
+                new NodeSQLCondition("node_category", SortOrder.ASCENDING, 1),
+                SQLExpression.and(
+                    List.of(
+                        new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
+                        new NodeSQLCondition("name", SortOrder.ASCENDING, "folder child"))),
+                SQLExpression.and(
+                    List.of(
+                        new NodeSQLCondition("node_category", SortOrder.EQUAL, 1),
+                        new NodeSQLCondition("name", SortOrder.EQUAL, "folder child"),
+                        new NodeSQLCondition(
+                            "node_id",
+                            SortOrder.ASCENDING,
+                            "88888888-8888-8888-8888-888888888888")))));
     String jsonKeySet = new ObjectMapper().writeValueAsString(keySet);
 
-      String pageTokenHacked = String.format(
-        """
-    {
-      "signature": "wrong_signature",
-      "limit": 1,
-      "keywords": [],
-      "keySet": %s,
-      "sort": "NAME_ASC",
-      "flagged": null,
-      "folderId": "77777777-7777-7777-7777-777777777777",
-      "cascade": null,
-      "sharedWithMe": null,
-      "sharedByMe": null,
-      "directShare": null,
-      "nodeType": null,
-      "ownerId": null
-    }""", jsonKeySet);
+    String pageTokenHacked =
+        String.format(
+            """
+            {
+              "signature": "wrong_signature",
+              "limit": 1,
+              "keywords": [],
+              "keySet": %s,
+              "sort": "NAME_ASC",
+              "flagged": null,
+              "folderId": "77777777-7777-7777-7777-777777777777",
+              "cascade": null,
+              "sharedWithMe": null,
+              "sharedByMe": null,
+              "directShare": null,
+              "nodeType": null,
+              "ownerId": null
+            }\
+            """,
+            jsonKeySet);
 
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
@@ -691,7 +710,8 @@ public class PublicFindNodesApiIT {
   }
 
   @Test
-  void givenAnExistingFolderAndAValidPublicLinkNotPassedInQueryTheFindNodesShouldReturn200AndAnErrorCode() {
+  void
+      givenAnExistingFolderAndAValidPublicLinkNotPassedInQueryTheFindNodesShouldReturn200AndAnErrorCode() {
     // Given
     createFolderTree();
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -771,7 +791,9 @@ public class PublicFindNodesApiIT {
 
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("Access code is required for accessing the resource with public link id: abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab");
+        .containsExactly(
+            "Access code is required for accessing the resource with public link id:"
+                + " abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab");
   }
 
   @Test

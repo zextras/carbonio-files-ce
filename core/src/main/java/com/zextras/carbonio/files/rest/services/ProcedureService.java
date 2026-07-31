@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.rest.services;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.clients.MailboxHttpClient;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
@@ -14,7 +15,6 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.exceptions.InternalServerErrorException;
 import com.zextras.carbonio.files.rest.types.UploadToRequest.TargetModule;
-import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.FilesIdentifier;
 import io.vavr.control.Try;

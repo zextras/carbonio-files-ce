@@ -14,14 +14,14 @@ import graphql.schema.GraphQLScalarType;
 
 /**
  * {@inheritDoc}
- * <p>
- * This implementation aims to serialize and parse the scalar type Date into a timestamp EPOCH
+ *
+ * <p>This implementation aims to serialize and parse the scalar type Date into a timestamp EPOCH
  * format.
- * <p>
- * It is necessary because, by default, there is not a GraphQL primitive type representing a {@link
- * Long}.
- * <p>
- * It allows to create a {@link GraphQLScalarType} of Date that can be bound during the GraphQL
+ *
+ * <p>It is necessary because, by default, there is not a GraphQL primitive type representing a
+ * {@link Long}.
+ *
+ * <p>It allows to create a {@link GraphQLScalarType} of Date that can be bound during the GraphQL
  * wiring (see {@link GraphQLProvider}).
  */
 public class DateTimeScalar implements Coercing<Long, Long> {
@@ -63,10 +63,9 @@ public class DateTimeScalar implements Coercing<Long, Long> {
    */
   public GraphQLScalarType graphQLScalarType() {
     return GraphQLScalarType.newScalar()
-      .name("DateTime")
-      .description("A custom scalar representing a date in a timestamp format")
-      .coercing(this)
-      .build();
+        .name("DateTime")
+        .description("A custom scalar representing a date in a timestamp format")
+        .coercing(this)
+        .build();
   }
 }
-

@@ -5,5 +5,8 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
 public enum AddedNodeType {
-  UPLOAD, CREATE, COPY, MOVE;
+  UPLOAD,
+  CREATE,
+  COPY,
+  MOVE;
 }

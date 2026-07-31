@@ -15,31 +15,27 @@ class SQLExpressionTest {
 
   private SQLExpression createAComplexSQLExpression() {
     return SQLExpression.or(
-      List.of(
-        new NodeSQLCondition(Node.CATEGORY, SortOrder.ASCENDING, 1),
-        SQLExpression.and(
-          List.of(
-            new NodeSQLCondition(Node.CATEGORY, SortOrder.EQUAL, 1),
-            new NodeSQLCondition(Node.NAME, SortOrder.ASCENDING, "f.txt"))
-        ),
-        SQLExpression.and(
-          List.of(
-            new NodeSQLCondition(Node.CATEGORY, SortOrder.EQUAL, 1),
-            new NodeSQLCondition(Node.NAME, SortOrder.EQUAL, "f.txt"),
-            new NodeSQLCondition(Node.ID, SortOrder.ASCENDING, "00000000"))
-        )
-      )
-    );
+        List.of(
+            new NodeSQLCondition(Node.CATEGORY, SortOrder.ASCENDING, 1),
+            SQLExpression.and(
+                List.of(
+                    new NodeSQLCondition(Node.CATEGORY, SortOrder.EQUAL, 1),
+                    new NodeSQLCondition(Node.NAME, SortOrder.ASCENDING, "f.txt"))),
+            SQLExpression.and(
+                List.of(
+                    new NodeSQLCondition(Node.CATEGORY, SortOrder.EQUAL, 1),
+                    new NodeSQLCondition(Node.NAME, SortOrder.EQUAL, "f.txt"),
+                    new NodeSQLCondition(Node.ID, SortOrder.ASCENDING, "00000000")))));
   }
 
   @Test
   void givenALogicalOperatorAndAListOfSqlPartsTheConstructorShouldCreateASqlExpression() {
     // Given
     final LogicalOperator logicalOperator = LogicalOperator.AND;
-    final List<SQLPart> sqlParts = List.of(
-      new SQLCondition("field", SortOrder.ASCENDING, "test"),
-      new SQLCondition("field2", SortOrder.EQUAL, "test2")
-    );
+    final List<SQLPart> sqlParts =
+        List.of(
+            new SQLCondition("field", SortOrder.ASCENDING, "test"),
+            new SQLCondition("field2", SortOrder.EQUAL, "test2"));
 
     // When
     SQLExpression sqlExpression = new SQLExpression(logicalOperator, sqlParts);
@@ -90,26 +86,24 @@ class SQLExpressionTest {
     // Given & When
     ObjectMapper mapper = new ObjectMapper();
 
-    SQLExpression sqlExpression = SQLExpression.or(
-      List.of(
-        new SQLCondition("field1", SortOrder.ASCENDING, 1),
-        SQLExpression.and(
-          List.of(
-            new SQLCondition("field3", SortOrder.DESCENDING, "test"),
-            new SQLCondition("field4", SortOrder.EQUAL, (short) 2)
-          )
-        )
-      )
-    );
+    SQLExpression sqlExpression =
+        SQLExpression.or(
+            List.of(
+                new SQLCondition("field1", SortOrder.ASCENDING, 1),
+                SQLExpression.and(
+                    List.of(
+                        new SQLCondition("field3", SortOrder.DESCENDING, "test"),
+                        new SQLCondition("field4", SortOrder.EQUAL, (short) 2)))));
 
     // Then
-    Assertions.assertThatNoException().isThrownBy(() -> {
-        // Serialize
-        String serializedExpression = mapper.writeValueAsString(sqlExpression);
-        // Deserialize
-        mapper.readValue(serializedExpression, SQLExpression.class);
-      }
-    );
+    Assertions.assertThatNoException()
+        .isThrownBy(
+            () -> {
+              // Serialize
+              String serializedExpression = mapper.writeValueAsString(sqlExpression);
+              // Deserialize
+              mapper.readValue(serializedExpression, SQLExpression.class);
+            });
   }
 
   @Test
@@ -121,10 +115,10 @@ class SQLExpressionTest {
     String sqlExpressionAsString = sqlExpression.toExpression();
 
     // Then
-    Assertions
-      .assertThat(sqlExpressionAsString)
-      .isEqualTo("(node_category > ? OR (node_category = ? AND LOWER(name) > ?) OR (node_category"
-        + " = ? AND LOWER(name) = ? AND t0.node_id > ?))");
+    Assertions.assertThat(sqlExpressionAsString)
+        .isEqualTo(
+            "(node_category > ? OR (node_category = ? AND LOWER(name) > ?) OR (node_category"
+                + " = ? AND LOWER(name) = ? AND t0.node_id > ?))");
   }
 
   @Test

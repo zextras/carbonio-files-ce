@@ -4,14 +4,13 @@
 
 package com.zextras.carbonio.files.rest.types;
 
-
 import java.util.Objects;
 import java.util.UUID;
 
 public class UploadNodeResponse {
 
   public static final String SERIALIZED_NAME_NODE_ID = "nodeId";
-  private             UUID   nodeId;
+  private UUID nodeId;
 
   public UUID getNodeId() {
     return nodeId;
@@ -20,7 +19,6 @@ public class UploadNodeResponse {
   public void setNodeId(UUID nodeId) {
     this.nodeId = nodeId;
   }
-
 
   @Override
   public boolean equals(java.lang.Object o) {
@@ -39,14 +37,11 @@ public class UploadNodeResponse {
     return Objects.hash(nodeId);
   }
 
-
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class UploadNode {\n");
-    sb.append("    nodeIdId: ")
-      .append(toIndentedString(nodeId))
-      .append("\n");
+    sb.append("    nodeIdId: ").append(toIndentedString(nodeId)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -61,5 +56,4 @@ public class UploadNodeResponse {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
 }

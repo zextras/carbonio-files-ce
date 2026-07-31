@@ -21,7 +21,6 @@ public class MethodNameTransformer extends Standard {
    * and every character is lower case.
    *
    * @param name is a {@link String} to transform.
-   *
    * @return a {@link String} transformed in a readable sentence.
    */
   private String transformCamelCaseToSentence(String name) {
@@ -36,10 +35,7 @@ public class MethodNameTransformer extends Standard {
   }
 
   @Override
-  public String generateDisplayNameForMethod(
-    Class<?> aClass,
-    Method method
-  ) {
+  public String generateDisplayNameForMethod(Class<?> aClass, Method method) {
     return transformCamelCaseToSentence(super.generateDisplayNameForMethod(aClass, method));
   }
 }

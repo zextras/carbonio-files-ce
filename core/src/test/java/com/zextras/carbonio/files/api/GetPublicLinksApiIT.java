@@ -19,11 +19,9 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -159,7 +157,7 @@ class GetPublicLinksApiIT {
 
   @Test
   void
-  givenAnExistingFolderWithOneExistingLinkTheGetLinksShouldReturnAListContainingTheAssociatedLink() {
+      givenAnExistingFolderWithOneExistingLinkTheGetLinksShouldReturnAListContainingTheAssociatedLink() {
     // Given
     createFolder("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -195,7 +193,8 @@ class GetPublicLinksApiIT {
     Assertions.assertThat(publicLinks.get(0))
         .containsEntry("id", "06e0f2ae-b128-4d25-9b3b-df84eb7948a9")
         .containsEntry(
-            "url", "example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
+            "url",
+            "example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
         .containsEntry("expires_at", 5)
         .containsEntry("description", "super-description");
     Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node"))
@@ -204,7 +203,7 @@ class GetPublicLinksApiIT {
 
   @Test
   void
-  givenAnExistingFolderWithOneExistingLinkWithAccessCodeTheGetLinksShouldReturnAListContainingTheAssociatedLink() {
+      givenAnExistingFolderWithOneExistingLinkWithAccessCodeTheGetLinksShouldReturnAListContainingTheAssociatedLink() {
     // Given
     createFolder("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -219,7 +218,8 @@ class GetPublicLinksApiIT {
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("getLinks")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
-            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
+            .withWantedResultFormat(
+                "{ id url expires_at created_at description access_code node { id } }")
             .build();
 
     final HttpRequest httpRequest =
@@ -240,7 +240,8 @@ class GetPublicLinksApiIT {
     Assertions.assertThat(publicLinks.get(0))
         .containsEntry("id", "06e0f2ae-b128-4d25-9b3b-df84eb7948a9")
         .containsEntry(
-            "url", "example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
+            "url",
+            "example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab")
         .containsEntry("expires_at", 5)
         .containsEntry("description", "super-description")
         .containsEntry("access_code", "fake-access-code");
@@ -299,7 +300,7 @@ class GetPublicLinksApiIT {
   // TODO it should return an error message
   @Test
   void
-  givenAnExistingNodeALinkAssociatedAndAUserWithoutPermissionsTheGetLinksShouldReturn200StatusCodeAndNull() {
+      givenAnExistingNodeALinkAssociatedAndAUserWithoutPermissionsTheGetLinksShouldReturn200StatusCodeAndNull() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -335,7 +336,7 @@ class GetPublicLinksApiIT {
   // TODO it should return an error message
   @Test
   void
-  givenAnExistingNodeSharedToAUserWithoutShareRightsAndAnExistingLinkTheGetLinksShouldReturn200CodeAndNull() {
+      givenAnExistingNodeSharedToAUserWithoutShareRightsAndAnExistingLinkTheGetLinksShouldReturn200CodeAndNull() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -374,7 +375,7 @@ class GetPublicLinksApiIT {
 
   @Test
   void
-  givenAnExistingNodeSharedToAUserWithShareRightsAndAnExistingLinkTheGetLinksShouldReturnAListOfAssociatedLinks() {
+      givenAnExistingNodeSharedToAUserWithShareRightsAndAnExistingLinkTheGetLinksShouldReturnAListOfAssociatedLinks() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -416,7 +417,7 @@ class GetPublicLinksApiIT {
 
   @Test
   void
-  givenAnExistingFileAndAnAssociatedLegacyPublicLinkWithAn8CharsPublicIdentifierTheGetLinksShouldReturnItCorrectly() {
+      givenAnExistingFileAndAnAssociatedLegacyPublicLinkWithAn8CharsPublicIdentifierTheGetLinksShouldReturnItCorrectly() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     DatabasePopulator.aNodePopulator(simulator.getInjector())

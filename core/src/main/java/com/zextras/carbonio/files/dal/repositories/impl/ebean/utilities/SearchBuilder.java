@@ -218,8 +218,8 @@ public class SearchBuilder {
   }
 
   /**
-   * Allows to set the {@link Constants.Db.Node#TYPE} attribute in the <code>where</code>clause of the
-   * query.
+   * Allows to set the {@link Constants.Db.Node#TYPE} attribute in the <code>where</code>clause of
+   * the query.
    *
    * @param nodeType is a {@link NodeType} representing the node type that needs to be searched.
    * @return the {@link SearchBuilder} for adding other options if necessary.

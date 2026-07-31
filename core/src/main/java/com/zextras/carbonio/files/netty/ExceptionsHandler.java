@@ -27,72 +27,55 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
   /**
    * {@inheritDoc}
    *
-   * <p>This method handles the exception thrown If something goes wrong during the execution of
-   * the request. It creates a response containing a status code based on the type of the
-   * {@link Throwable} and it returns it to the client instead of forwarding the exception to the
-   * next ChannelHandler in the ChannelPipeline.
+   * <p>This method handles the exception thrown If something goes wrong during the execution of the
+   * request. It creates a response containing a status code based on the type of the {@link
+   * Throwable} and it returns it to the client instead of forwarding the exception to the next
+   * ChannelHandler in the ChannelPipeline.
    *
    * @param context is a {@link ChannelHandlerContext}.
    * @param cause is a {@link Throwable} containing the cause of the exception.
    */
   @Override
-  public void exceptionCaught(
-    ChannelHandlerContext context,
-    Throwable cause
-  ) {
+  public void exceptionCaught(ChannelHandlerContext context, Throwable cause) {
     cause = cause.getCause() == null ? cause : cause.getCause();
     HttpResponseStatus responseStatus;
     String payload;
 
-    if ( cause instanceof RequestEntityTooLargeException) {
+    if (cause instanceof RequestEntityTooLargeException) {
       responseStatus = HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE;
       payload = HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE.toString();
-    }
-    else if (cause instanceof JsonProcessingException
-      || cause instanceof InternalServerErrorException
-    ) {
+    } else if (cause instanceof JsonProcessingException
+        || cause instanceof InternalServerErrorException) {
       responseStatus = HttpResponseStatus.INTERNAL_SERVER_ERROR;
       payload = HttpResponseStatus.INTERNAL_SERVER_ERROR.toString();
-    }
-    else if( cause instanceof BadRequestException
-      || cause instanceof FileTypeMismatchException
-      || cause instanceof IllegalArgumentException
-      || cause instanceof AliasNotAloneInDownload
-    ) {
+    } else if (cause instanceof BadRequestException
+        || cause instanceof FileTypeMismatchException
+        || cause instanceof IllegalArgumentException
+        || cause instanceof AliasNotAloneInDownload) {
       responseStatus = HttpResponseStatus.BAD_REQUEST;
       payload = HttpResponseStatus.BAD_REQUEST.toString();
-    }
-    else if( cause instanceof NodeNotFoundException
-      || cause instanceof NoSuchElementException
-    ) {
+    } else if (cause instanceof NodeNotFoundException || cause instanceof NoSuchElementException) {
       responseStatus = HttpResponseStatus.NOT_FOUND;
       payload = HttpResponseStatus.NOT_FOUND.toString();
-    }
-    else if(cause instanceof AuthenticationException) {
+    } else if (cause instanceof AuthenticationException) {
       responseStatus = HttpResponseStatus.UNAUTHORIZED;
       payload = cause.getMessage();
-    }
-    else if (cause instanceof ForbiddenException) {
+    } else if (cause instanceof ForbiddenException) {
       responseStatus = HttpResponseStatus.FORBIDDEN;
       payload = cause.getMessage();
-    }
-    else if (cause instanceof MaxNumberOfFileVersionsException) {
+    } else if (cause instanceof MaxNumberOfFileVersionsException) {
       responseStatus = HttpResponseStatus.METHOD_NOT_ALLOWED;
       payload = cause.getMessage();
-    }
-    else if (cause instanceof InvalidTokenSignException) {
+    } else if (cause instanceof InvalidTokenSignException) {
       responseStatus = HttpResponseStatus.UNAUTHORIZED;
       payload = cause.getMessage();
-    }
-    else if (cause instanceof FileSizeException) {
+    } else if (cause instanceof FileSizeException) {
       responseStatus = HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE;
       payload = HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE.toString();
-    }
-    else if (cause instanceof ZipGenerationException) {
+    } else if (cause instanceof ZipGenerationException) {
       responseStatus = HttpResponseStatus.INTERNAL_SERVER_ERROR;
       payload = cause.getMessage();
-    }
-    else {
+    } else {
       responseStatus = HttpResponseStatus.INTERNAL_SERVER_ERROR;
       payload = HttpResponseStatus.INTERNAL_SERVER_ERROR.toString();
     }
@@ -100,12 +83,11 @@ public class ExceptionsHandler extends ChannelInboundHandlerAdapter {
     logger.error(String.format("Failed to execute the request. %s", payload), cause);
 
     context
-      .writeAndFlush(new DefaultFullHttpResponse(
-        HttpVersion.HTTP_1_1,
-        responseStatus,
-        Unpooled.wrappedBuffer(payload.getBytes(StandardCharsets.UTF_8))
-      ))
-      .addListener(ChannelFutureListener.CLOSE);
+        .writeAndFlush(
+            new DefaultFullHttpResponse(
+                HttpVersion.HTTP_1_1,
+                responseStatus,
+                Unpooled.wrappedBuffer(payload.getBytes(StandardCharsets.UTF_8))))
+        .addListener(ChannelFutureListener.CLOSE);
   }
-
 }

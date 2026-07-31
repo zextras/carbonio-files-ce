@@ -25,7 +25,8 @@ public class ShareRepositoryEbean implements ShareRepository {
   private CollationRepository collationRepository;
 
   @Inject
-  public ShareRepositoryEbean(DatabaseManager databaseManagerFlyway, CollationRepository collationRepository) {
+  public ShareRepositoryEbean(
+      DatabaseManager databaseManagerFlyway, CollationRepository collationRepository) {
     this.databaseManagerFlyway = databaseManagerFlyway;
     this.collationRepository = collationRepository;
   }
@@ -199,7 +200,8 @@ public class ShareRepositoryEbean implements ShareRepository {
             .eq(Constants.Db.Share.NODE_ID, nodeId)
             .query();
 
-    sorts.forEach(sort -> sort.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery()));
+    sorts.forEach(
+        sort -> sort.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery()));
     return query.findList().stream().map(Share::getTargetUserId).toList();
   }
 }

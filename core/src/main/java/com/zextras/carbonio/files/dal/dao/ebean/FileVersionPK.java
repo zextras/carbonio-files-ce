@@ -11,17 +11,17 @@ import javax.persistence.Column;
 import javax.persistence.Embeddable;
 
 /**
- * <p>This class represents the primary key of the {@link Constants.Db.Tables#FILE_VERSION}. It is
+ * This class represents the primary key of the {@link Constants.Db.Tables#FILE_VERSION}. It is
  * composed by two fields:
- *  <ul>
- *    <li>{@link Constants.Db.FileVersion#NODE_ID}: the foreign key of the node identifier</li>
- *    <li>{@link Constants.Db.FileVersion#VERSION}: an integer representing the version of the file</li>
- *  </ul>
- * </p>
- * <p>
- *   This class is necessary to specify the primary key for the {@link FileVersion} and it is useful to performs
- *   queries containing joins between {@link Constants.Db.Tables#FILE_VERSION} and {@link Constants.Db.Tables#NODE} tables.
- * </p>
+ *
+ * <ul>
+ *   <li>{@link Constants.Db.FileVersion#NODE_ID}: the foreign key of the node identifier
+ *   <li>{@link Constants.Db.FileVersion#VERSION}: an integer representing the version of the file
+ * </ul>
+ *
+ * <p>This class is necessary to specify the primary key for the {@link FileVersion} and it is
+ * useful to performs queries containing joins between {@link Constants.Db.Tables#FILE_VERSION} and
+ * {@link Constants.Db.Tables#NODE} tables.
  */
 @Embeddable
 public class FileVersionPK implements Serializable {
@@ -32,10 +32,7 @@ public class FileVersionPK implements Serializable {
   @Column(name = Constants.Db.FileVersion.VERSION, nullable = false)
   private Integer mVersion;
 
-  public FileVersionPK(
-    String nodeId,
-    Integer mVersion
-  ) {
+  public FileVersionPK(String nodeId, Integer mVersion) {
     this.mNodeId = nodeId;
     this.mVersion = mVersion;
   }

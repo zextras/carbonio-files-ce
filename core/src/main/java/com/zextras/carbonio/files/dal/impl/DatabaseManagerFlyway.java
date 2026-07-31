@@ -12,7 +12,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Optional;
-
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.slf4j.Logger;
@@ -35,16 +34,20 @@ public class DatabaseManagerFlyway implements DatabaseManager {
   public void initialize() {
     Optional<Integer> legacyVersion = getLegacyDatabaseVersion();
 
-    FluentConfiguration config = Flyway.configure()
-      .dataSource(dataSource)
-      .locations("classpath:db/migration")
-      .configuration(Map.of("flyway.postgresql.transactional.lock", "false"));
+    FluentConfiguration config =
+        Flyway.configure()
+            .dataSource(dataSource)
+            .locations("classpath:db/migration")
+            .configuration(Map.of("flyway.postgresql.transactional.lock", "false"));
 
     // The idea here is to use legacy version (if present) to set baseline.
-    // Both empty db and post-Flyway db will have no legacy version so Flyway can handle migration without issues;
-    // if the database is in a legacy version but already initialized we set the baseline so it can be migrated by Flyway
+    // Both empty db and post-Flyway db will have no legacy version so Flyway can handle migration
+    // without issues;
+    // if the database is in a legacy version but already initialized we set the baseline so it can
+    // be migrated by Flyway
     // only from where needed.
-    legacyVersion.ifPresent(integer -> config.baselineVersion(String.valueOf(integer)).baselineOnMigrate(true));
+    legacyVersion.ifPresent(
+        integer -> config.baselineVersion(String.valueOf(integer)).baselineOnMigrate(true));
 
     flyway = config.load();
     flyway.migrate();
@@ -57,7 +60,7 @@ public class DatabaseManagerFlyway implements DatabaseManager {
           .findOneOrEmpty()
           .map(row -> row.getInteger("version"));
     } catch (Exception e) {
-        return Optional.empty();
+      return Optional.empty();
     }
   }
 

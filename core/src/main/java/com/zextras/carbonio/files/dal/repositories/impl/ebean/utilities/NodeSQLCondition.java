@@ -11,7 +11,7 @@ public class NodeSQLCondition extends SQLCondition {
   public NodeSQLCondition(String field, SortOrder operator, Object parameter) {
     super(field, operator, parameter);
     setField(field);
- }
+  }
 
   @Override
   public void setField(String field) {

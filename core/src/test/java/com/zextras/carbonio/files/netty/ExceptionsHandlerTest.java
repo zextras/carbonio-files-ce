@@ -32,125 +32,94 @@ class ExceptionsHandlerTest {
 
   private static Stream<Arguments> generateExceptions() {
     return Stream.of(
-      Arguments.of(
-        new RequestEntityTooLargeException(""),
-        HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE
-      ),
-      Arguments.of(new JsonParseException(null, ""), HttpResponseStatus.INTERNAL_SERVER_ERROR),
-      Arguments.of(new InternalServerErrorException(""), HttpResponseStatus.INTERNAL_SERVER_ERROR),
-      Arguments.of(new BadRequestException(), HttpResponseStatus.BAD_REQUEST),
-      Arguments.of(new NodeNotFoundException(), HttpResponseStatus.NOT_FOUND),
-      Arguments.of(new RuntimeException(), HttpResponseStatus.INTERNAL_SERVER_ERROR)
-    );
+        Arguments.of(
+            new RequestEntityTooLargeException(""), HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE),
+        Arguments.of(new JsonParseException(null, ""), HttpResponseStatus.INTERNAL_SERVER_ERROR),
+        Arguments.of(
+            new InternalServerErrorException(""), HttpResponseStatus.INTERNAL_SERVER_ERROR),
+        Arguments.of(new BadRequestException(), HttpResponseStatus.BAD_REQUEST),
+        Arguments.of(new NodeNotFoundException(), HttpResponseStatus.NOT_FOUND),
+        Arguments.of(new RuntimeException(), HttpResponseStatus.INTERNAL_SERVER_ERROR));
   }
 
   private ChannelHandlerContext channelHandlerContextMock;
-  private ChannelFuture         channelFutureMock;
-  private ExceptionsHandler     exceptionsHandler;
+  private ChannelFuture channelFutureMock;
+  private ExceptionsHandler exceptionsHandler;
 
   @BeforeEach
   void initTest() {
     channelHandlerContextMock = Mockito.mock(ChannelHandlerContext.class);
     channelFutureMock = Mockito.mock(ChannelFuture.class);
     exceptionsHandler = new ExceptionsHandler();
-    Mockito
-      .when(channelHandlerContextMock.writeAndFlush(Mockito.any(DefaultFullHttpResponse.class)))
-      .thenReturn(channelFutureMock);
+    Mockito.when(
+            channelHandlerContextMock.writeAndFlush(Mockito.any(DefaultFullHttpResponse.class)))
+        .thenReturn(channelFutureMock);
   }
 
   @ParameterizedTest
   @MethodSource("generateExceptions")
   void givenAThrowableExceptionsHandlerShouldReturnSpecificHttpResponseStatus(
-    Throwable throwable, HttpResponseStatus httpResponseStatus
-  ) {
+      Throwable throwable, HttpResponseStatus httpResponseStatus) {
     // Given
-    ArgumentCaptor<DefaultFullHttpResponse> captorHttpResponse = ArgumentCaptor.forClass(
-      DefaultFullHttpResponse.class
-    );
+    ArgumentCaptor<DefaultFullHttpResponse> captorHttpResponse =
+        ArgumentCaptor.forClass(DefaultFullHttpResponse.class);
 
     // When
     exceptionsHandler.exceptionCaught(channelHandlerContextMock, throwable);
 
     // Then
-    Mockito
-      .verify(channelHandlerContextMock, Mockito.times(1))
-      .writeAndFlush(captorHttpResponse.capture());
-    Mockito
-      .verify(channelFutureMock, Mockito.times(1))
-      .addListener(ChannelFutureListener.CLOSE);
+    Mockito.verify(channelHandlerContextMock, Mockito.times(1))
+        .writeAndFlush(captorHttpResponse.capture());
+    Mockito.verify(channelFutureMock, Mockito.times(1)).addListener(ChannelFutureListener.CLOSE);
 
     DefaultFullHttpResponse httpResponse = captorHttpResponse.getValue();
-    Assertions
-      .assertThat(httpResponse.protocolVersion())
-      .isEqualTo(HttpVersion.HTTP_1_1);
-    Assertions
-      .assertThat(httpResponse.status())
-      .isEqualTo(httpResponseStatus);
-    Assertions
-      .assertThat(httpResponse.content().toString(StandardCharsets.UTF_8))
-      .isEqualTo(httpResponseStatus.toString());
+    Assertions.assertThat(httpResponse.protocolVersion()).isEqualTo(HttpVersion.HTTP_1_1);
+    Assertions.assertThat(httpResponse.status()).isEqualTo(httpResponseStatus);
+    Assertions.assertThat(httpResponse.content().toString(StandardCharsets.UTF_8))
+        .isEqualTo(httpResponseStatus.toString());
   }
-
 
   @Test
   void givenAnAuthenticationExceptionExceptionsHandlerShouldReturn401HttpResponse() {
     // Given
     AuthenticationException exception = new AuthenticationException("Missing cookie");
-    ArgumentCaptor<DefaultFullHttpResponse> captorHttpResponse = ArgumentCaptor.forClass(
-      DefaultFullHttpResponse.class
-    );
+    ArgumentCaptor<DefaultFullHttpResponse> captorHttpResponse =
+        ArgumentCaptor.forClass(DefaultFullHttpResponse.class);
 
     // When
     exceptionsHandler.exceptionCaught(channelHandlerContextMock, exception);
 
     // Then
-    Mockito
-      .verify(channelHandlerContextMock, Mockito.times(1))
-      .writeAndFlush(captorHttpResponse.capture());
-    Mockito
-      .verify(channelFutureMock, Mockito.times(1))
-      .addListener(ChannelFutureListener.CLOSE);
+    Mockito.verify(channelHandlerContextMock, Mockito.times(1))
+        .writeAndFlush(captorHttpResponse.capture());
+    Mockito.verify(channelFutureMock, Mockito.times(1)).addListener(ChannelFutureListener.CLOSE);
 
     DefaultFullHttpResponse httpResponse = captorHttpResponse.getValue();
-    Assertions
-      .assertThat(httpResponse.protocolVersion())
-      .isEqualTo(HttpVersion.HTTP_1_1);
-    Assertions
-      .assertThat(httpResponse.status())
-      .isEqualTo(HttpResponseStatus.UNAUTHORIZED);
-    Assertions
-      .assertThat(httpResponse.content().toString(StandardCharsets.UTF_8))
-      .isEqualTo("Missing cookie");
+    Assertions.assertThat(httpResponse.protocolVersion()).isEqualTo(HttpVersion.HTTP_1_1);
+    Assertions.assertThat(httpResponse.status()).isEqualTo(HttpResponseStatus.UNAUTHORIZED);
+    Assertions.assertThat(httpResponse.content().toString(StandardCharsets.UTF_8))
+        .isEqualTo("Missing cookie");
   }
 
   @Test
   void givenAForbiddenExceptionExceptionsHandlerShouldReturn403HttpResponse() {
     // Given
     ForbiddenException exception = new ForbiddenException("User is not active");
-    ArgumentCaptor<DefaultFullHttpResponse> captorHttpResponse = ArgumentCaptor.forClass(
-      DefaultFullHttpResponse.class
-    );
+    ArgumentCaptor<DefaultFullHttpResponse> captorHttpResponse =
+        ArgumentCaptor.forClass(DefaultFullHttpResponse.class);
 
     // When
     exceptionsHandler.exceptionCaught(channelHandlerContextMock, exception);
 
     // Then
-    Mockito
-      .verify(channelHandlerContextMock, Mockito.times(1))
-      .writeAndFlush(captorHttpResponse.capture());
-    Mockito
-      .verify(channelFutureMock, Mockito.times(1))
-      .addListener(ChannelFutureListener.CLOSE);
+    Mockito.verify(channelHandlerContextMock, Mockito.times(1))
+        .writeAndFlush(captorHttpResponse.capture());
+    Mockito.verify(channelFutureMock, Mockito.times(1)).addListener(ChannelFutureListener.CLOSE);
 
     DefaultFullHttpResponse httpResponse = captorHttpResponse.getValue();
-    Assertions
-      .assertThat(httpResponse.protocolVersion())
-      .isEqualTo(HttpVersion.HTTP_1_1);
-    Assertions
-      .assertThat(httpResponse.status())
-      .isEqualTo(HttpResponseStatus.FORBIDDEN);
-    Assertions
-      .assertThat(httpResponse.content().toString(StandardCharsets.UTF_8))
-      .isEqualTo("User is not active");
+    Assertions.assertThat(httpResponse.protocolVersion()).isEqualTo(HttpVersion.HTTP_1_1);
+    Assertions.assertThat(httpResponse.status()).isEqualTo(HttpResponseStatus.FORBIDDEN);
+    Assertions.assertThat(httpResponse.content().toString(StandardCharsets.UTF_8))
+        .isEqualTo("User is not active");
   }
 }

@@ -15,6 +15,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import io.netty.handler.codec.http.HttpMethod;
+import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -26,8 +27,6 @@ import org.mockserver.client.MockServerClient;
 import org.mockserver.model.BinaryBody;
 import org.mockserver.model.MediaType;
 import org.mockserver.model.Parameter;
-
-import java.util.Map;
 
 class ThumbnailApiIT {
 
@@ -42,10 +41,7 @@ class ThumbnailApiIT {
             .withDatabase()
             .withServiceDiscover()
             .withPreview()
-            .withUserManagement(
-                Map.of(
-                    "fake-token",
-                    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+            .withUserManagement(Map.of("fake-token", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
             .build()
             .start();
 
@@ -66,21 +62,26 @@ class ThumbnailApiIT {
 
   static String mockSuccessThumbnailResponse(String thumbnailPathEndpoint) {
 
-    org.mockserver.model.HttpRequest request = org.mockserver.model.HttpRequest.request()
-        .withMethod(HttpMethod.GET.toString())
-        .withPath(thumbnailPathEndpoint)
-        .withQueryStringParameter(new Parameter("service_type", "files"))
-        .withHeader("FileOwnerId", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    org.mockserver.model.HttpRequest request =
+        org.mockserver.model.HttpRequest.request()
+            .withMethod(HttpMethod.GET.toString())
+            .withPath(thumbnailPathEndpoint)
+            .withQueryStringParameter(new Parameter("service_type", "files"))
+            .withHeader("FileOwnerId", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     if (thumbnailPathEndpoint.contains("document")) {
       request.withQueryStringParameter(new Parameter("lang_tag", "en"));
     }
 
-    return simulator.getPreviewMock()
+    return simulator
+        .getPreviewMock()
         .when(request)
-        .respond(org.mockserver.model.HttpResponse.response()
-            .withStatusCode(200)
-            .withBody(new BinaryBody("0".getBytes())).withContentType(MediaType.JPEG))[0].getId();
+        .respond(
+            org.mockserver.model.HttpResponse.response()
+                .withStatusCode(200)
+                .withBody(new BinaryBody("0".getBytes()))
+                .withContentType(MediaType.JPEG))[0]
+        .getId();
   }
 
   static void verifyAndClearExpectationInThumbnailMockService(String expectationId) {
@@ -103,21 +104,22 @@ class ThumbnailApiIT {
                 NodeType.SPREADSHEET,
                 "LOCAL_ROOT",
                 7L,
-                "application/vnd.ms-excel")
-        );
+                "application/vnd.ms-excel"));
 
-    String callThumbnailExpectationId = mockSuccessThumbnailResponse(
-        "/preview/document/00000000-0000-0000-0000-000000000000/1/5x5/thumbnail/"
-    );
+    String callThumbnailExpectationId =
+        mockSuccessThumbnailResponse(
+            "/preview/document/00000000-0000-0000-0000-000000000000/1/5x5/thumbnail/");
 
     final HttpRequest httpRequest =
-        HttpRequest.of("GET",
+        HttpRequest.of(
+            "GET",
             "/preview/document/00000000-0000-0000-0000-000000000000/5x5/thumbnail",
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
     // When
-    final HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -131,8 +133,7 @@ class ThumbnailApiIT {
   @ParameterizedTest
   @ValueSource(strings = {"", "?version=2"})
   void givenTwoVersionsOfAnExistingDocumentTheGetThumbnailApiShouldReturnTheJpegOfTheLatestVersion(
-      String versionQueryParam
-  ) {
+      String versionQueryParam) {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -146,21 +147,24 @@ class ThumbnailApiIT {
                 NodeType.PRESENTATION,
                 "LOCAL_ROOT",
                 10L,
-                "application/vnd.oasis.opendocument.presentation")
-        ).addVersion("00000000-0000-0000-0000-000000000000");
+                "application/vnd.oasis.opendocument.presentation"))
+        .addVersion("00000000-0000-0000-0000-000000000000");
 
-    String callThumbnailExpectationId = mockSuccessThumbnailResponse(
-        "/preview/document/00000000-0000-0000-0000-000000000000/2/5x5/thumbnail/"
-    );
+    String callThumbnailExpectationId =
+        mockSuccessThumbnailResponse(
+            "/preview/document/00000000-0000-0000-0000-000000000000/2/5x5/thumbnail/");
 
     final HttpRequest httpRequest =
-        HttpRequest.of("GET",
-            "/preview/document/00000000-0000-0000-0000-000000000000/5x5/thumbnail" + versionQueryParam,
+        HttpRequest.of(
+            "GET",
+            "/preview/document/00000000-0000-0000-0000-000000000000/5x5/thumbnail"
+                + versionQueryParam,
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
     // When
-    final HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -168,7 +172,8 @@ class ThumbnailApiIT {
   }
 
   @Test
-  void givenTwoVersionsOfAnExistingDocumentTheGetThumbnailApiShouldReturnTheJpegOfTheFirstVersion() {
+  void
+      givenTwoVersionsOfAnExistingDocumentTheGetThumbnailApiShouldReturnTheJpegOfTheFirstVersion() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -182,21 +187,23 @@ class ThumbnailApiIT {
                 NodeType.PRESENTATION,
                 "LOCAL_ROOT",
                 10L,
-                "application/vnd.oasis.opendocument.presentation")
-        ).addVersion("00000000-0000-0000-0000-000000000000");
+                "application/vnd.oasis.opendocument.presentation"))
+        .addVersion("00000000-0000-0000-0000-000000000000");
 
-    String callThumbnailExpectationId = mockSuccessThumbnailResponse(
-        "/preview/document/00000000-0000-0000-0000-000000000000/1/5x5/thumbnail/"
-    );
+    String callThumbnailExpectationId =
+        mockSuccessThumbnailResponse(
+            "/preview/document/00000000-0000-0000-0000-000000000000/1/5x5/thumbnail/");
 
     final HttpRequest httpRequest =
-        HttpRequest.of("GET",
+        HttpRequest.of(
+            "GET",
             "/preview/document/00000000-0000-0000-0000-000000000000/5x5/thumbnail?version=1",
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
     // When
-    final HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -206,8 +213,7 @@ class ThumbnailApiIT {
   @ParameterizedTest
   @ValueSource(strings = {"", "?version=3"})
   void givenThreeVersionsOfAnExistingPdfTheGetPreviewApiShouldReturnTheJpegOfTheLatestVersion(
-      String versionQueryParam
-  ) {
+      String versionQueryParam) {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -221,22 +227,24 @@ class ThumbnailApiIT {
                 NodeType.APPLICATION,
                 "LOCAL_ROOT",
                 100L,
-                "application/pdf")
-        ).addVersion("00000000-0000-0000-0000-000000000000")
+                "application/pdf"))
+        .addVersion("00000000-0000-0000-0000-000000000000")
         .addVersion("00000000-0000-0000-0000-000000000000");
 
-    String callThumbnailExpectationId = mockSuccessThumbnailResponse(
-        "/preview/pdf/00000000-0000-0000-0000-000000000000/3/5x5/thumbnail/"
-    );
+    String callThumbnailExpectationId =
+        mockSuccessThumbnailResponse(
+            "/preview/pdf/00000000-0000-0000-0000-000000000000/3/5x5/thumbnail/");
 
     final HttpRequest httpRequest =
-        HttpRequest.of("GET",
+        HttpRequest.of(
+            "GET",
             "/preview/pdf/00000000-0000-0000-0000-000000000000/5x5/thumbnail/" + versionQueryParam,
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
     // When
-    final HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -258,22 +266,24 @@ class ThumbnailApiIT {
                 NodeType.APPLICATION,
                 "LOCAL_ROOT",
                 100L,
-                "application/pdf")
-        ).addVersion("00000000-0000-0000-0000-000000000000")
+                "application/pdf"))
+        .addVersion("00000000-0000-0000-0000-000000000000")
         .addVersion("00000000-0000-0000-0000-000000000000");
 
-    String callThumbnailExpectationId = mockSuccessThumbnailResponse(
-        "/preview/pdf/00000000-0000-0000-0000-000000000000/2/5x5/thumbnail/"
-    );
+    String callThumbnailExpectationId =
+        mockSuccessThumbnailResponse(
+            "/preview/pdf/00000000-0000-0000-0000-000000000000/2/5x5/thumbnail/");
 
     final HttpRequest httpRequest =
-        HttpRequest.of("GET",
+        HttpRequest.of(
+            "GET",
             "/preview/pdf/00000000-0000-0000-0000-000000000000/5x5/thumbnail?version=2",
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
     // When
-    final HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -283,8 +293,7 @@ class ThumbnailApiIT {
   @ParameterizedTest
   @ValueSource(strings = {"", "?version=2"})
   void givenTwoVersionsOfAnExistingPngImageTheGetThumbnailApiShouldReturnTheJpegOfTheLatestVersion(
-      String versionQueryParam
-  ) {
+      String versionQueryParam) {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -298,21 +307,23 @@ class ThumbnailApiIT {
                 NodeType.IMAGE,
                 "LOCAL_ROOT",
                 1L,
-                "image/png")
-        ).addVersion("00000000-0000-0000-0000-000000000000");
+                "image/png"))
+        .addVersion("00000000-0000-0000-0000-000000000000");
 
-    String callThumbnailExpectationId = mockSuccessThumbnailResponse(
-        "/preview/image/00000000-0000-0000-0000-000000000000/2/5x5/thumbnail/"
-    );
+    String callThumbnailExpectationId =
+        mockSuccessThumbnailResponse(
+            "/preview/image/00000000-0000-0000-0000-000000000000/2/5x5/thumbnail/");
 
     final HttpRequest httpRequest =
-        HttpRequest.of("GET",
+        HttpRequest.of(
+            "GET",
             "/preview/image/00000000-0000-0000-0000-000000000000/5x5/thumbnail" + versionQueryParam,
             "ZM_AUTH_TOKEN=fake-token",
             null);
 
     // When
-    final HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    final HttpResponse httpResponse =
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
@@ -320,7 +331,8 @@ class ThumbnailApiIT {
   }
 
   @Test
-  void givenTwoVersionsOfAnExistingJpegImageTheGetThumbnailApiShouldReturnTheJpegOfTheFirstVersion() {
+  void
+      givenTwoVersionsOfAnExistingJpegImageTheGetThumbnailApiShouldReturnTheJpegOfTheFirstVersion() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -334,15 +346,16 @@ class ThumbnailApiIT {
                 NodeType.IMAGE,
                 "LOCAL_ROOT",
                 1L,
-                "image/jpeg")
-        ).addVersion("00000000-0000-0000-0000-000000000000");
+                "image/jpeg"))
+        .addVersion("00000000-0000-0000-0000-000000000000");
 
-    String callThumbnailExpectationId = mockSuccessThumbnailResponse(
-        "/preview/image/00000000-0000-0000-0000-000000000000/1/5x5/thumbnail/"
-    );
+    String callThumbnailExpectationId =
+        mockSuccessThumbnailResponse(
+            "/preview/image/00000000-0000-0000-0000-000000000000/1/5x5/thumbnail/");
 
     final HttpRequest httpRequest =
-        HttpRequest.of("GET",
+        HttpRequest.of(
+            "GET",
             "/preview/image/00000000-0000-0000-0000-000000000000/5x5/thumbnail/?version=1",
             "ZM_AUTH_TOKEN=fake-token",
             null);
