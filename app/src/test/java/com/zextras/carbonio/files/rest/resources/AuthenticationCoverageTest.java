@@ -97,7 +97,9 @@ class AuthenticationCoverageTest {
           "com.zextras.carbonio.files.rest.resources.InternalBlobResource",
           Set.of("upload", "uploadVersion", "download", "downloadVersion"),
           "com.zextras.carbonio.files.rest.resources.InternalNodeResource",
-          Set.of("getNode", "createFolder", "createPublicLink", "deleteAllNodesAndBlobs"));
+          Set.of("getNode", "createFolder", "createPublicLink", "deleteAllNodesAndBlobs"),
+          "com.zextras.carbonio.files.rest.resources.HealthResource",
+          Set.of("health", "healthLive", "healthReady"));
 
   @Test
   void everyResourceMethodEitherAuthenticatesOrIsOnTheDocumentedAllowlist() {
