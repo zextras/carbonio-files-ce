@@ -7,12 +7,10 @@ package com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import io.ebean.annotation.Cache;
 
 import javax.persistence.*;
 import java.util.Objects;
 
-@Cache
 @Entity
 @Table(name = Constants.Db.Tables.SNAPSHOT_NODE)
 public class SnapshotNode {

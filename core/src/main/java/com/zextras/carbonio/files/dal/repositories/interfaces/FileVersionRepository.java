@@ -21,8 +21,7 @@ import java.util.Optional;
 public interface FileVersionRepository {
 
   /**
-   * Allows to retrieve a {@link FileVersion} from the database or from the cache if it was recently
-   * requested.
+   * Allows to retrieve a {@link FileVersion} from the database.
    *
    * @param nodeId is a {@link String} representing the id of the node to retrieve
    * @param version is an {@link Integer} of the version of the node
@@ -99,7 +98,7 @@ public interface FileVersionRepository {
   FileVersion updateFileVersion(FileVersion fileVersion);
 
   /**
-   * <p>Deletes a {@link Node} from the database and from the cache if enabled.</p>
+   * <p>Deletes a {@link Node} from the database.</p>
    * <p>if the {@link Node} does not exist, then the method does nothing and returns
    * <code>false</code>.</p>
    *
