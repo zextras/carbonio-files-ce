@@ -378,6 +378,10 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
     server.stubFor(
         get(urlPathEqualTo("/health/ready/")).atPriority(10).willReturn(aResponse().withStatus(200)));
 
+    // carbonio-docs-connector: DocsConnectorHttpClient#isLive() → GET {baseUrl}/q/health/live
+    server.stubFor(
+        get(urlPathEqualTo("/q/health/live")).atPriority(10).willReturn(aResponse().withStatus(200)));
+
     // carbonio-preview: any preview/thumbnail fetch → a minimal canned PNG.
     byte[] fallbackPreviewBytes = {(byte) 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a};
     server.stubFor(

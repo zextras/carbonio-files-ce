@@ -75,6 +75,10 @@ public class MockUserManagementService {
    */
   private void setupCatchAll() {
     server.stubFor(
+        get(urlPathEqualTo("/q/health/live"))
+            .atPriority(10)
+            .willReturn(aResponse().withStatus(200)));
+    server.stubFor(
         get(urlPathEqualTo("/internal/users/myself"))
             .atPriority(10)
             .willReturn(aResponse().withStatus(401)));

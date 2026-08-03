@@ -182,6 +182,54 @@
         "tags" : [ "Blob Resource" ]
       }
     },
+    "/health" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "summary" : "Health",
+        "tags" : [ "Health Resource" ]
+      }
+    },
+    "/health/live" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "summary" : "Health Live",
+        "tags" : [ "Health Resource" ]
+      }
+    },
+    "/health/ready" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "summary" : "Health Ready",
+        "tags" : [ "Health Resource" ]
+      }
+    },
     "/internal/accounts/{userId}/download/{nodeId}" : {
       "get" : {
         "parameters" : [ {
