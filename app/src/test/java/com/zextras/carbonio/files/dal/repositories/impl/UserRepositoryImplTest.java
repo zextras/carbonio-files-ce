@@ -47,7 +47,7 @@ class UserRepositoryImplTest {
   }
 
   @Test
-  void getUserMyselfByCookieNotCachedShouldExtractTokenAndMapResponse() throws Exception {
+  void getUserMyselfByCookieShouldExtractTokenAndMapResponse() throws Exception {
     UserInfoDto info =
         new UserInfoDto()
             .userId("user-1")
@@ -65,7 +65,7 @@ class UserRepositoryImplTest {
     when(userResourceApiMock.internalUsersMyselfGet(isNull(), eq("abc123"))).thenReturn(myself);
 
     Optional<UserMyself> result =
-        userRepository.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=abc123; other=xyz");
+        userRepository.getUserMyselfByCookie("ZM_AUTH_TOKEN=abc123; other=xyz");
 
     assertThat(result).isPresent();
     UserMyself userMyself = result.get();
@@ -80,7 +80,7 @@ class UserRepositoryImplTest {
   }
 
   @Test
-  void getUserMyselfByCookieNotCachedShouldUseRawCookiesAsTokenWhenPrefixMissing() throws Exception {
+  void getUserMyselfByCookieShouldUseRawCookiesAsTokenWhenPrefixMissing() throws Exception {
     UserInfoDto info = new UserInfoDto().userId("user-2").status("active").type("GUEST");
     MyselfDto myself = new MyselfDto().info(info);
 
@@ -88,7 +88,7 @@ class UserRepositoryImplTest {
         .thenReturn(myself);
 
     Optional<UserMyself> result =
-        userRepository.getUserMyselfByCookieNotCached("raw-token-value");
+        userRepository.getUserMyselfByCookie("raw-token-value");
 
     assertThat(result).isPresent();
     assertThat(result.get().getType()).isEqualTo(UserType.GUEST);
@@ -97,12 +97,12 @@ class UserRepositoryImplTest {
   }
 
   @Test
-  void getUserMyselfByCookieNotCachedShouldReturnEmptyOnUnauthenticated() throws Exception {
+  void getUserMyselfByCookieShouldReturnEmptyOnUnauthenticated() throws Exception {
     when(userResourceApiMock.internalUsersMyselfGet(any(), any()))
         .thenThrow(new ApiException(401, "Unauthorized"));
 
     Optional<UserMyself> result =
-        userRepository.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=invalid");
+        userRepository.getUserMyselfByCookie("ZM_AUTH_TOKEN=invalid");
 
     assertThat(result).isEmpty();
   }
@@ -229,27 +229,27 @@ class UserRepositoryImplTest {
 
   /**
    * The generated client returns null (rather than throwing) for a 2xx response with a blank
-   * body. getUserMyselfByCookieNotCached must not NPE in that case, and must instead treat the
+   * body. getUserMyselfByCookie must not NPE in that case, and must instead treat the
    * user as unresolvable (empty Optional), same as a missing nested {@code info}.
    */
   @Test
-  void getUserMyselfByCookieNotCachedShouldReturnEmptyOnBlankBodyResponse() throws Exception {
+  void getUserMyselfByCookieShouldReturnEmptyOnBlankBodyResponse() throws Exception {
     when(userResourceApiMock.internalUsersMyselfGet(any(), any())).thenReturn(null);
 
     Optional<UserMyself> result =
-        userRepository.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=abc123");
+        userRepository.getUserMyselfByCookie("ZM_AUTH_TOKEN=abc123");
 
     assertThat(result).isEmpty();
   }
 
   @Test
-  void getUserMyselfByCookieNotCachedShouldReturnEmptyOnMissingNestedInfo() throws Exception {
+  void getUserMyselfByCookieShouldReturnEmptyOnMissingNestedInfo() throws Exception {
     MyselfDto myself = new MyselfDto().info(null).locale("en_US");
 
     when(userResourceApiMock.internalUsersMyselfGet(any(), any())).thenReturn(myself);
 
     Optional<UserMyself> result =
-        userRepository.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=abc123");
+        userRepository.getUserMyselfByCookie("ZM_AUTH_TOKEN=abc123");
 
     assertThat(result).isEmpty();
   }

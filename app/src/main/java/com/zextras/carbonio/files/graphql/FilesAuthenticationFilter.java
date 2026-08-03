@@ -49,7 +49,7 @@ public class FilesAuthenticationFilter {
   /**
    * Registers the auth handler on the Vert.x router. Called once at startup when Quarkus publishes
    * the {@link Router} CDI event. A blocking handler is used because {@link
-   * UserRepository#getUserMyselfByCookieNotCached(String)} performs a blocking gRPC call that must
+   * UserRepository#getUserMyselfByCookie(String)} performs a blocking gRPC call that must
    * not run on the event loop.
    */
   public void registerRoutes(@Observes Router router) {
@@ -86,7 +86,7 @@ public class FilesAuthenticationFilter {
             ? cookieHeader
             : Headers.COOKIE_ZM_AUTH_TOKEN + "=" + zmCookie.getValue();
 
-    Optional<UserMyself> optUser = userRepository.getUserMyselfByCookieNotCached(cookies);
+    Optional<UserMyself> optUser = userRepository.getUserMyselfByCookie(cookies);
     if (optUser.isEmpty()) {
       rejectUnauthorized(ctx, "Unable to find requested user");
       return;

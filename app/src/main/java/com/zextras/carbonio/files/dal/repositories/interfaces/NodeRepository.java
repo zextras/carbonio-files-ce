@@ -23,8 +23,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 public interface NodeRepository {
 
   /**
-   * <p>Allows to retrieve a {@link Node} from the database or from the cache if it was recently
-   * requested.</p>
+   * <p>Allows to retrieve a {@link Node} from the database.</p>
    * <p>First it checks if the {@link Node} is on the database and then it returns a {@link
    * Node}.</p>
    *
@@ -118,17 +117,11 @@ public interface NodeRepository {
     String folderId, @Nullable Integer limit, @Nullable String pageToken);
 
   /**
-   * <p>Allows to retrieve the list of {@link Node}s from the database or from the cache if already
-   * present.</p>
+   * <p>Allows to retrieve the list of {@link Node}s from the database.</p>
    * <p>The retrieved list can be sorted using one or more {@link NodeSort}.</p>
-   * <p>If there are already some nodes in cache, the ordering of the passed nodes will be
-   * preserved, otherwise they will be retrieved with the default db ordering if no sorts is passed.
-   * If you retrieved the ids with a particular sort, be sure to pass it to this function to
-   * preserve it.</p>
    *
-   * @param nodeIds is a {@link List<String>} representing the ids of the nodes to retrieve, node
-   * order is preserved if cache is used
-   * @param sort is the list of {@link NodeSort} to use for ordering the nodes if cache is not used
+   * @param nodeIds is a {@link List<String>} representing the ids of the nodes to retrieve
+   * @param sort is the list of {@link NodeSort} to use for ordering the nodes
    *
    * @return a {@link Stream<Node>} containing the requested nodes
    */
@@ -185,7 +178,7 @@ public interface NodeRepository {
   );
 
   /**
-   * <p>Deletes a {@link Node} from the database and from the cache if enabled.</p>
+   * <p>Deletes a {@link Node} from the database.</p>
    * <p>if the {@link Node} does not exist, then the method does nothing and returns
    * <code>false</code>.</p>
    *

@@ -436,23 +436,6 @@ public final class Constants {
     }
   }
 
-  public static final class Cache {
-
-    private Cache() {
-    }
-
-    public static final long DEFAULT_ITEM_LIFETIME_IN_MILLIS = 60_000;
-    public static final long DEFAULT_SIZE = 1000;
-
-    /**
-     * Names of Files caches
-     */
-    public static final String NODE = "Node";
-    public static final String FILE_VERSION = "FileVersion";
-    public static final String SHARE = "Share";
-    public static final String LINK = "Link";
-  }
-
   public static final class GraphQL {
 
     private GraphQL() {

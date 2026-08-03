@@ -56,7 +56,7 @@ public class UserRepositoryImpl implements UserRepository {
   }
 
   @Override
-  public Optional<UserMyself> getUserMyselfByCookieNotCached(String cookies) {
+  public Optional<UserMyself> getUserMyselfByCookie(String cookies) {
     try {
       String token = extractToken(cookies);
       // bypassCache=null (unset): mirrors the pre-1.3.0 behavior of not sending the query param.

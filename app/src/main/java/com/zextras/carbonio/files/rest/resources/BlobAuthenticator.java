@@ -60,7 +60,7 @@ public class BlobAuthenticator {
             ? cookieHeader
             : Headers.COOKIE_ZM_AUTH_TOKEN + "=" + zmAuthToken;
 
-    Optional<UserMyself> optUser = userRepository.getUserMyselfByCookieNotCached(cookies);
+    Optional<UserMyself> optUser = userRepository.getUserMyselfByCookie(cookies);
     if (optUser.isEmpty()) {
       throw unauthorized("Unable to find requested user");
     }

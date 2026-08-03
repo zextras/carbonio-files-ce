@@ -177,16 +177,6 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <!--
-      P5a: Caffeine — LocalCacheAdapter's backing store for the FileVersion read-through/
-      write-through cache (CacheHandler). Not BOM-managed; version matches the legacy pin.
-    -->
-    <dependency>
-      <groupId>com.github.ben-manes.caffeine</groupId>
-      <artifactId>caffeine</artifactId>
-      <version>3.2.4</version>
-    </dependency>
-
-    <!--
       P5a: message-broker SDK — MessageBrokerManagerImpl/consumers (KeyValueChangedConsumer,
       UserStatusChangedConsumer). Not BOM-managed.
     -->

@@ -4,8 +4,6 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl;
 
-import com.zextras.carbonio.files.cache.Cache;
-import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersionPK;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -14,7 +12,6 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SortOrde
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -26,31 +23,14 @@ import java.util.stream.Collectors;
 /**
  * Panache implementation of {@link FileVersionRepository}. Replaces the old Ebean-based {@code
  * FileVersionRepositoryEbean}.
- *
- * <p>P5: re-wires the read-through/write-through/evict {@code CacheHandler}-backed {@link Cache}
- * that the P2c port had deferred (former {@code TODO(P5)} sites). The cache is a pure
- * optimization: every path below still hits the database first/last as needed, so correctness
- * never depends on the cache being populated, warm, or even present.
  */
 @ApplicationScoped
 public class FileVersionRepositoryImpl
     implements FileVersionRepository, PanacheRepositoryBase<FileVersion, FileVersionPK> {
 
-  @Inject CacheHandler cacheHandler;
-
-  private static String cacheKey(String nodeId, int version) {
-    return nodeId + "/" + version;
-  }
-
   @Override
   public Optional<FileVersion> getFileVersion(String nodeId, int version) {
-    Cache<FileVersion> cache = cacheHandler.getFileVersionCache();
-    String key = cacheKey(nodeId, version);
-    return cache.get(key).or(() -> {
-      Optional<FileVersion> dbFileVersion = findByIdOptional(new FileVersionPK(nodeId, version));
-      dbFileVersion.ifPresent(fileVersion -> cache.add(key, fileVersion));
-      return dbFileVersion;
-    });
+    return findByIdOptional(new FileVersionPK(nodeId, version));
   }
 
   @Override
@@ -82,24 +62,12 @@ public class FileVersionRepositoryImpl
             ? ""
             : " order by mVersion "
                 + (sorts.get(sorts.size() - 1).getOrder() == SortOrder.DESCENDING ? "desc" : "asc");
-    List<FileVersion> fileVersions = list("mComposedId.mNodeId = ?1" + orderBy, nodeId);
-    populateCache(fileVersions);
-    return fileVersions;
+    return list("mComposedId.mNodeId = ?1" + orderBy, nodeId);
   }
 
   @Override
   public List<FileVersion> getFileVersions(String nodeId, Collection<Integer> versions) {
-    List<FileVersion> fileVersions =
-        list("mComposedId.mNodeId = ?1 and mVersion in ?2", nodeId, versions);
-    populateCache(fileVersions);
-    return fileVersions;
-  }
-
-  /** Write-through: mirrors every DB-fetched {@link FileVersion} into the cache. */
-  private void populateCache(List<FileVersion> fileVersions) {
-    Cache<FileVersion> cache = cacheHandler.getFileVersionCache();
-    fileVersions.forEach(
-        fileVersion -> cache.add(cacheKey(fileVersion.getNodeId(), fileVersion.getVersion()), fileVersion));
+    return list("mComposedId.mNodeId = ?1 and mVersion in ?2", nodeId, versions);
   }
 
   @Override
@@ -110,9 +78,7 @@ public class FileVersionRepositoryImpl
   @Override
   @Transactional
   public FileVersion updateFileVersion(FileVersion fileVersion) {
-    FileVersion merged = getEntityManager().merge(fileVersion);
-    cacheHandler.getFileVersionCache().delete(cacheKey(fileVersion.getNodeId(), fileVersion.getVersion()));
-    return merged;
+    return getEntityManager().merge(fileVersion);
   }
 
   @Override
@@ -121,7 +87,6 @@ public class FileVersionRepositoryImpl
     Optional<FileVersion> managed =
         findByIdOptional(new FileVersionPK(fileVersion.getNodeId(), fileVersion.getVersion()));
     managed.ifPresent(this::delete);
-    cacheHandler.getFileVersionCache().delete(cacheKey(fileVersion.getNodeId(), fileVersion.getVersion()));
     return managed.isPresent();
   }
 
@@ -133,8 +98,6 @@ public class FileVersionRepositoryImpl
     // statements bypass the first-level cache and would otherwise leave stale managed instances
     // behind for the rest of the transaction.
     list("mComposedId.mNodeId = ?1 and mVersion in ?2", nodeId, versions).forEach(this::delete);
-    Cache<FileVersion> cache = cacheHandler.getFileVersionCache();
-    versions.forEach(version -> cache.delete(cacheKey(nodeId, version)));
   }
 
   @Override
