@@ -33,7 +33,8 @@ public class GenericControllerEvaluator {
   private       List<Parameter>            inputsToCheckWithRelativeFunctions;
   private       List<Parameter>            objectsToCheckWithRelativeFunctions;
 
-  GenericControllerEvaluator(
+  // public so the Advanced field-validation contributor (different package) can build it directly.
+  public GenericControllerEvaluator(
     FieldAndArguments fieldAndArguments,
     FieldValidationEnvironment environment
   ) {

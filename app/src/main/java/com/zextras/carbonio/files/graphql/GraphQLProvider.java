@@ -17,7 +17,6 @@ import graphql.execution.AsyncExecutionStrategy;
 import graphql.execution.ResultPath;
 import graphql.execution.instrumentation.ChainedInstrumentation;
 import graphql.execution.instrumentation.Instrumentation;
-import graphql.execution.instrumentation.fieldvalidation.FieldValidation;
 import graphql.execution.instrumentation.fieldvalidation.FieldValidationInstrumentation;
 import graphql.execution.instrumentation.fieldvalidation.SimpleFieldValidation;
 import graphql.schema.DataFetcher;
@@ -66,6 +65,7 @@ public class GraphQLProvider {
   // so the built schema and wiring are identical to the base ones.
   private final Instance<GraphQLSchemaContributor> schemaContributors;
   private final Instance<GraphQLWiringContributor> wiringContributors;
+  private final Instance<GraphQLFieldValidationContributor> fieldValidationContributors;
 
   @Inject
   public GraphQLProvider(
@@ -78,7 +78,8 @@ public class GraphQLProvider {
       ConfigDataFetcher configDataFetcher,
       NotificationDataFetcher notificationDataFetcher,
       @Any Instance<GraphQLSchemaContributor> schemaContributors,
-      @Any Instance<GraphQLWiringContributor> wiringContributors
+      @Any Instance<GraphQLWiringContributor> wiringContributors,
+      @Any Instance<GraphQLFieldValidationContributor> fieldValidationContributors
   ) {
     this.inputFieldsController = inputFieldsController;
     this.nodeDataFetcher = nodeDataFetcher;
@@ -90,6 +91,7 @@ public class GraphQLProvider {
     this.notificationDataFetcher = notificationDataFetcher;
     this.schemaContributors = schemaContributors;
     this.wiringContributors = wiringContributors;
+    this.fieldValidationContributors = fieldValidationContributors;
     graphQL = this.setup();
   }
 
@@ -118,7 +120,7 @@ public class GraphQLProvider {
   }
 
   private FieldValidationInstrumentation buildValidationInstrumentation() {
-    FieldValidation fieldValidation = new SimpleFieldValidation()
+    SimpleFieldValidation fieldValidation = new SimpleFieldValidation()
         .addRule(
             ResultPath.parse("/" + Constants.GraphQL.Queries.GET_NODE),
             inputFieldsController.getNodeValidation()
@@ -211,6 +213,11 @@ public class GraphQLProvider {
             ResultPath.parse("/" + Constants.GraphQL.Mutations.DELETE_COLLABORATION_LINKS),
             inputFieldsController.deleteCollaborationLinksValidation()
         );
+
+    // P9 CE seam: apply Advanced-contributed field validation (e.g. transferOwnership) AFTER all of
+    // CE's base rules, so those ops get the same pre-execution validation as their siblings. No-op
+    // in CE.
+    fieldValidationContributors.forEach(contributor -> contributor.contribute(fieldValidation));
 
     return new FieldValidationInstrumentation(fieldValidation);
   }
