@@ -11,6 +11,7 @@ import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -19,16 +20,19 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 /**
  * Restores, from the deleted (Phase 7b) white-box {@code NodeRepositoryIT}, the real-Postgres
- * coverage of {@code NodeRepositoryImpl#calculateAbsoluteFolderSize} and {@code
- * #calculateRelativeFolderSize}: both are raw-SQL recursive-CTE queries with no equivalent
- * black-box REST/GraphQL assertion elsewhere, and the whole point of these two tests is the EXACT
- * byte counts (hidden-node exclusion, share-visibility pruning) — never weakened to "size &gt;
- * 0".
+ * coverage of {@code NodeRepositoryImpl} raw-SQL queries that have no equivalent black-box
+ * REST/GraphQL assertion elsewhere: the recursive-CTE {@code #calculateAbsoluteFolderSize} and
+ * {@code #calculateRelativeFolderSize} (asserted on EXACT byte counts — hidden-node exclusion,
+ * share-visibility pruning — never weakened to "size &gt; 0"), plus the {@code #findNodes}
+ * per-user flag scoping (an unflagged search must ignore another user's flag row) and its
+ * literal-escaping of {@code %}/{@code _} keyword metacharacters.
  *
  * <p><b>Why {@code @QuarkusTest}, and why the {@code *DalTest} suffix (not {@code *IT}):</b> this
  * class needs a real database and CDI-injected repositories, so it must be in-process (JVM,
@@ -80,6 +84,29 @@ class NodeQueryDalTest {
             true,
             false,
             null));
+  }
+
+  private void flagFor(String nodeId, String userId) {
+    entityManager.persist(new NodeCustomAttributes(nodeId, userId, true));
+  }
+
+  private List<Node> find(String userId, Optional<Boolean> flagged, List<String> keywords) {
+    return nodeRepository
+        .findNodes(
+            userId,
+            Optional.empty(),
+            flagged,
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
+            keywords,
+            Optional.empty())
+        .getLeft();
   }
 
   @Test
@@ -136,5 +163,50 @@ class NodeQueryDalTest {
     entityManager.flush();
 
     assertThat(nodeRepository.calculateRelativeFolderSize(folderA, viewer)).contains(200L);
+  }
+
+  @Test
+  @TestTransaction
+  void findNodesUnflaggedExcludesANodeFlaggedOnlyByAnotherUser() {
+    String bob = id();
+    String alice = id();
+    String flaggedByAlice = id();
+    String neverFlagged = id();
+    persist(
+        flaggedByAlice, "shared-report", bob, NodeType.TEXT, false, 10L, "LOCAL_ROOT", "LOCAL_ROOT");
+    persist(
+        neverFlagged, "own-report", bob, NodeType.TEXT, false, 20L, "LOCAL_ROOT", "LOCAL_ROOT");
+    shareTo(flaggedByAlice, alice);
+    flagFor(flaggedByAlice, alice);
+    entityManager.flush();
+
+    // Bob never flagged his node: Alice's flag=true row must not leak it into Bob's unflagged view,
+    // yet a node with no custom-attribute row at all is still returned (control).
+    assertThat(find(bob, Optional.of(false), List.of()))
+        .extracting(Node::getId)
+        .containsExactly(neverFlagged);
+  }
+
+  @Test
+  @TestTransaction
+  void findNodesKeywordTreatsPercentAsLiteralNotAsWildcard() {
+    String owner = id();
+    String literalPercent = id();
+    String plainName = id();
+    persist(
+        literalPercent, "report%2024", owner, NodeType.TEXT, false, 10L, "LOCAL_ROOT", "LOCAL_ROOT");
+    persist(plainName, "reportX2024", owner, NodeType.TEXT, false, 20L, "LOCAL_ROOT", "LOCAL_ROOT");
+    entityManager.flush();
+
+    // Sanity: a plain keyword matches both, proving both nodes are visible and searchable.
+    assertThat(find(owner, Optional.empty(), List.of("report")))
+        .extracting(Node::getId)
+        .containsExactlyInAnyOrder(literalPercent, plainName);
+
+    // "%" is escaped and matched literally, so it selects ONLY the name that actually contains it
+    // instead of matching every node the way an unescaped LIKE wildcard would.
+    assertThat(find(owner, Optional.empty(), List.of("%")))
+        .extracting(Node::getId)
+        .containsExactly(literalPercent);
   }
 }

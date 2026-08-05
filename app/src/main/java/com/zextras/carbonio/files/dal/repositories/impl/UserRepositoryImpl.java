@@ -17,6 +17,8 @@ import com.zextras.carbonio.user_management.sdk.rest.model.UserInfoDto;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -74,7 +76,7 @@ public class UserRepositoryImpl implements UserRepository {
   public Optional<UserInfo> getUserById(String cookies, String userId) {
     try {
       UserInfoDto response = userResourceApi.internalUsersIdUserIdGet(userId);
-      return Optional.of(mapToUserInfo(response));
+      return Optional.ofNullable(response).map(this::mapToUserInfo);
     } catch (ApiException e) {
       logger.error("Failed to get user by id via REST: {}", e.getMessage());
       return Optional.empty();
@@ -85,7 +87,7 @@ public class UserRepositoryImpl implements UserRepository {
   public Optional<UserInfo> getUserByEmail(String cookies, String userEmail) {
     try {
       UserInfoDto response = userResourceApi.internalUsersEmailEmailGet(userEmail);
-      return Optional.of(mapToUserInfo(response));
+      return Optional.ofNullable(response).map(this::mapToUserInfo);
     } catch (ApiException e) {
       logger.error("Failed to get user by email via REST: {}", e.getMessage());
       return Optional.empty();
@@ -120,6 +122,7 @@ public class UserRepositoryImpl implements UserRepository {
       logger.warn("Missing user info in myself response, treating user as unresolvable");
       return Optional.empty();
     }
+    List<String> features = response.getFeatures();
     return Optional.of(
         new UserMyself(
             new UserId(info.getUserId()),
@@ -129,7 +132,7 @@ public class UserRepositoryImpl implements UserRepository {
             mapStatus(info.getStatus()),
             parseLocale(response.getLocale()),
             mapType(info.getType()),
-            response.getFeatures()));
+            features != null ? features : Collections.emptyList()));
   }
 
   /** Maps a {@link UserInfoDto} to the local {@link UserInfo} domain type. */

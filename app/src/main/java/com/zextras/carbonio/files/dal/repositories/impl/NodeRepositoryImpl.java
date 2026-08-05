@@ -43,6 +43,8 @@ import java.util.stream.Stream;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Clean Panache/Hibernate implementation of {@link NodeRepository}. This is a from-scratch,
@@ -70,6 +72,8 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 public class NodeRepositoryImpl implements NodeRepository {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
+
+  private static final Logger logger = LoggerFactory.getLogger(NodeRepositoryImpl.class);
 
   /** Maps a {@link Db.Node} sortable column name to the JPA entity field of {@link Node}. */
   private static final Map<String, String> FIELD_BY_COLUMN =
@@ -448,12 +452,19 @@ public class NodeRepositoryImpl implements NodeRepository {
       Object result =
           entityManager
               .createNativeQuery(sql)
+              .setHint("jakarta.persistence.query.timeout", 30000)
               .setParameter("folderId", normalizeId(folderId))
               .setParameter("userId", userId)
               .setParameter("read", ACL.READ)
               .getSingleResult();
       return Optional.of(((Number) result).longValue());
     } catch (RuntimeException e) {
+      logger.error(
+          "Error calculating relative folder size for folder {} and user {}: {}",
+          folderId,
+          userId,
+          e.getMessage(),
+          e);
       return Optional.empty();
     }
   }
@@ -693,16 +704,25 @@ public class NodeRepositoryImpl implements NodeRepository {
                 + " :userId)) and n.mNodeCategory <> 0 and n.mHidden = false");
 
     for (int i = 0; i < keywords.size(); i++) {
-      where.append(" and (lower(n.mName) like :kw").append(i).append(" or lower(n.mDescription) like :kw").append(i).append(")");
-      params.put("kw" + i, "%" + keywords.get(i).toLowerCase() + "%");
+      where
+          .append(" and (lower(n.mName) like :kw").append(i).append(" escape '!'")
+          .append(" or lower(n.mDescription) like :kw").append(i).append(" escape '!')");
+      params.put("kw" + i, "%" + escapeLike(keywords.get(i).toLowerCase()) + "%");
     }
 
     flagged.ifPresent(
         f -> {
-          String subquery =
-              "exists (select 1 from NodeCustomAttributes ca where ca.mCompositeId.mNodeId = n.mId"
-                  + " and ca.mCompositeId.mUserId = :userId and ca.mFlag = true)";
-          where.append(" and ").append(f ? subquery : "not " + subquery);
+          if (f) {
+            where.append(
+                " and exists (select 1 from NodeCustomAttributes ca where ca.mCompositeId.mNodeId ="
+                    + " n.mId and ca.mCompositeId.mUserId = :userId and ca.mFlag = true)");
+          } else {
+            where.append(
+                " and (exists (select 1 from NodeCustomAttributes ca where ca.mCompositeId.mNodeId ="
+                    + " n.mId and ca.mCompositeId.mUserId = :userId and ca.mFlag = false) or not"
+                    + " exists (select 1 from NodeCustomAttributes ca2 where"
+                    + " ca2.mCompositeId.mNodeId = n.mId))");
+          }
         });
 
     folderId.ifPresent(
@@ -958,6 +978,10 @@ public class NodeRepositoryImpl implements NodeRepository {
       return id;
     }
     return id + " ".repeat(36 - id.length());
+  }
+
+  private static String escapeLike(String value) {
+    return value.replace("!", "!!").replace("%", "!%").replace("_", "!_");
   }
 
   private static final String HMAC_ALGORITHM = "HmacSHA256";

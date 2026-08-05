@@ -253,4 +253,40 @@ class UserRepositoryImplTest {
 
     assertThat(result).isEmpty();
   }
+
+  /**
+   * The generated client returns null (rather than throwing) for a 2xx response with a blank
+   * body. getUserById must not NPE in that case and must instead resolve to an empty Optional.
+   */
+  @Test
+  void getUserByIdShouldReturnEmptyOnBlankBodyResponse() throws Exception {
+    when(userResourceApiMock.internalUsersIdUserIdGet(any())).thenReturn(null);
+
+    Optional<UserInfo> result = userRepository.getUserById("any-cookie", "user-10");
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void getUserByEmailShouldReturnEmptyOnBlankBodyResponse() throws Exception {
+    when(userResourceApiMock.internalUsersEmailEmailGet(any())).thenReturn(null);
+
+    Optional<UserInfo> result = userRepository.getUserByEmail("any-cookie", "user10@example.com");
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void getUserMyselfByCookieShouldMapNullFeaturesToEmptyList() throws Exception {
+    UserInfoDto info = new UserInfoDto().userId("user-11").status("active").type("INTERNAL");
+    MyselfDto myself = new MyselfDto().info(info).locale("en_US").features(null);
+
+    when(userResourceApiMock.internalUsersMyselfGet(any(), any())).thenReturn(myself);
+
+    Optional<UserMyself> result =
+        userRepository.getUserMyselfByCookie("ZM_AUTH_TOKEN=abc123");
+
+    assertThat(result).isPresent();
+    assertThat(result.get().getFeatures()).isEmpty();
+  }
 }
