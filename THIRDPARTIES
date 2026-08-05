@@ -21,7 +21,6 @@ Apache-2.0 (https://spdx.org/licenses/Apache-2.0.html) applies to:
   avaje-applog-slf4j (io.avaje:avaje-applog-slf4j:1.0)
   avaje-config (io.avaje:avaje-config:3.10)
   avaje-lang (io.avaje:avaje-lang:1.1)
-  Caffeine cache (com.github.ben-manes.caffeine:caffeine:3.2.4)
   classpath-scanner (io.avaje:classpath-scanner:7.1)
   classpath-scanner-api (io.avaje:classpath-scanner-api:7.1)
   Commons Digester (commons-digester:commons-digester:2.1)
