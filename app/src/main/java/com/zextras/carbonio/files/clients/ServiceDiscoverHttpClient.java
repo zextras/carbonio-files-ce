@@ -21,16 +21,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Live (per-call) Consul KV single-key reader, distinct from the boot-time snapshot exposed by
- * {@code ApplicationConfigService}.
+ * Per-call Consul KV single-key client: reads one {@code carbonio-files/<key>} entry on demand
+ * ({@link #getConfig}) and creates a key only if absent via a {@code ?cas=0} write ({@link
+ * #createConfigIfAbsent}).
  *
- * <p>Unlike most Consul-KV-backed tunables (read once at boot via the extension's root-recurse
- * snapshot), {@code ConfigDataFetcher#getConfigs} needs legacy parity with the pre-Quarkus
- * behaviour: the old Guice {@code ConfigDataFetcher} hit {@code ServiceDiscoverHttpClient} fresh
- * on every {@code getConfigs} GraphQL call, so a KV value changed after boot (or a malformed one)
- * was observed immediately, not only after a restart. This client restores that live-read for the
- * one caller that needs it ({@link com.zextras.carbonio.files.config.FilesConfig
- * #getMaxNumberOfVersionsRaw()}).
+ * <p>In the Quarkus app this client is used by {@link
+ * com.zextras.carbonio.files.config.FilesConfig} for the {@code page-token-secret-key}: it is read
+ * fresh on every use and created exactly once on a cold cluster (see {@link
+ * com.zextras.carbonio.files.config.FilesConfig#getPageTokenSecretKey()}). The {@code
+ * application-config.*} tunables do NOT go through this client — they are read via {@link
+ * com.zextras.carbonio.quarkus.extensions.bootstrap.ApplicationConfigService}, which as of extension
+ * 1.13.0-1 is itself LIVE (the extension watches Consul KV), so a runtime KV change is observed there
+ * too without a restart.
  */
 @ApplicationScoped
 public class ServiceDiscoverHttpClient {

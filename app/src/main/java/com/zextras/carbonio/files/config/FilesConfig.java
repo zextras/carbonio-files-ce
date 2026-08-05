@@ -32,11 +32,14 @@ import org.slf4j.LoggerFactory;
  * caller (P2 database extension already covers DB/Hikari, later phases cover the rest) rather
  * than speculatively here.
  *
- * <p>Unlike the legacy Guice {@code FilesConfig}, this bean does NOT talk to the raw {@code
- * ServiceDiscoverHttpClient} directly: every value it exposes is read from the boot-time Consul
- * KV / MicroProfile Config snapshot maintained by the carbonio-quarkus-extensions-bootstrap
- * extension, via {@link ApplicationConfigService} (Consul KV, {@code application-config.*}) or
- * {@link NetworkingConfigService} (config-file/ENV/-D, {@code networking-config.*}).
+ * <p>Unlike the legacy Guice {@code FilesConfig}, this bean reads the {@code application-config.*}
+ * tunables via {@link ApplicationConfigService} (Consul KV) and the {@code networking-config.*}
+ * values via {@link NetworkingConfigService} (config-file/ENV/-D), both maintained by the
+ * carbonio-quarkus-extensions-bootstrap extension. As of extension 1.13.0-1 the extension keeps its
+ * Consul KV view LIVE (watch), so {@link ApplicationConfigService} returns the CURRENT value on
+ * every call and a runtime KV change takes effect without an app restart. ({@code
+ * page-token-secret-key} is the exception: it is read live per-call straight from the raw {@code
+ * ServiceDiscoverHttpClient} — see {@link #getPageTokenSecretKey()}.)
  */
 @ApplicationScoped
 public class FilesConfig {
@@ -120,8 +123,10 @@ public class FilesConfig {
   }
 
   /**
-   * Max number of kept versions for a file. Operators may override it via Consul KV ({@code
-   * carbonio-files/max-number-of-versions}); when absent (or malformed) the default declared in
+   * Max number of kept versions for a file, read as the CURRENT (live) value via {@link
+   * ApplicationConfigService}. Operators may override it via Consul KV ({@code
+   * carbonio-files/max-number-of-versions}) and a runtime change takes effect without an app restart
+   * (extension 1.13.0-1 reads Consul KV live); when absent (or malformed) the default declared in
    * {@code application.properties} under the {@code application-config.} prefix applies (legacy
    * default: 30).
    */
@@ -137,14 +142,14 @@ public class FilesConfig {
   }
 
   /**
-   * Raw (unparsed, unclamped) {@code max-number-of-versions} value, read from the SAME boot-time
-   * {@link ApplicationConfigService} snapshot as {@link #getMaxNumberOfVersions()} — and as every
+   * Raw (unparsed, unclamped) {@code max-number-of-versions} value, read as the CURRENT (live) value
+   * from the SAME {@link ApplicationConfigService} as {@link #getMaxNumberOfVersions()} — and as every
    * other config read — so the {@code getConfigs} query reports exactly what the version-cap
-   * enforcement path enforces, never a value that drifts from it after a runtime Consul KV change
-   * until the next restart. Falls back to the string form of the default when the key is absent.
-   * Unlike {@link #getMaxNumberOfVersions()} it neither parses nor swallows the value: the {@code
-   * ConfigDataFetcher} caller parses it inline, so a non-numeric snapshot value surfaces as a
-   * GraphQL execution error on {@code getConfigs} rather than being silently defaulted.
+   * enforcement path enforces, both reflecting a runtime Consul KV change on the very next call
+   * without an app restart (extension 1.13.0-1 reads Consul KV live). Falls back to the string form of
+   * the default when the key is absent. Unlike {@link #getMaxNumberOfVersions()} it neither parses nor
+   * swallows the value: the {@code ConfigDataFetcher} caller parses it inline, so a non-numeric value
+   * surfaces as a GraphQL execution error on {@code getConfigs} rather than being silently defaulted.
    */
   public String getMaxNumberOfVersionsRaw() {
     return applicationConfig
@@ -153,8 +158,10 @@ public class FilesConfig {
   }
 
   /**
-   * Max uploadable file size in MB, or {@link Optional#empty()} if not configured or malformed
-   * (legacy behaviour: absence of the Consul KV value means "no limit", not a fallback number).
+   * Max uploadable file size in MB, read as the CURRENT (live) value via {@link
+   * ApplicationConfigService} (extension 1.13.0-1 reads Consul KV live, so a runtime change applies
+   * without an app restart), or {@link Optional#empty()} if not configured or malformed (legacy
+   * behaviour: absence of the Consul KV value means "no limit", not a fallback number).
    */
   public Optional<Integer> getMaxUploadableFileSizeInMb() {
     return applicationConfig
@@ -163,8 +170,10 @@ public class FilesConfig {
   }
 
   /**
-   * Max downloadable file size in MB, or {@link Optional#empty()} if not configured or malformed
-   * (legacy behaviour: absence of the Consul KV value means "no limit", not a fallback number).
+   * Max downloadable file size in MB, read as the CURRENT (live) value via {@link
+   * ApplicationConfigService} (extension 1.13.0-1 reads Consul KV live, so a runtime change applies
+   * without an app restart), or {@link Optional#empty()} if not configured or malformed (legacy
+   * behaviour: absence of the Consul KV value means "no limit", not a fallback number).
    */
   public Optional<Integer> getMaxDownloadableFileSizeInMb() {
     return applicationConfig

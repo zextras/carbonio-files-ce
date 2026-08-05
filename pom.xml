@@ -43,7 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
     <!-- Quarkus migration -->
     <quarkus.version>3.37.3</quarkus.version>
-    <carbonio-quarkus-extensions.version>1.12.0-1</carbonio-quarkus-extensions.version>
+    <carbonio-quarkus-extensions.version>1.13.0-1</carbonio-quarkus-extensions.version>
     <!-- P6e: user-management REST client SDK (UserRepositoryImpl co-requisite). Replaces the
          retired carbonio-user-management-grpc-sdk now that files-ce is 100% gRPC-free. -->
     <carbonio-user-management-rest-sdk.version>1.3.0-1</carbonio-user-management-rest-sdk.version>
