@@ -107,7 +107,7 @@ public class FilesConfig {
 
   /**
    * The HMAC-SHA256 key used to sign/verify {@code findNodes} keyset page tokens, read LIVE from
-   * Consul on every call (never cached), exactly like {@link #getMaxNumberOfVersionsRaw()} above.
+   * Consul on every call (never cached) via {@link ServiceDiscoverHttpClient}.
    * Falls back to a well-known, public default when Consul has no value yet (or is unreachable) —
    * the same intentional trade-off the legacy code made: a page token is not a capability grant on
    * its own (an unsigned/default-keyed one only replays what its own fields already say), so a
@@ -137,18 +137,18 @@ public class FilesConfig {
   }
 
   /**
-   * Raw (unparsed) {@code max-number-of-versions} value, read LIVE from Consul on every call (via
-   * {@link ServiceDiscoverHttpClient}) rather than from the boot-time {@link ApplicationConfigService}
-   * snapshot, falling back to the string form of the default when the key is absent or ServiceDiscover
-   * is unreachable. Unlike {@link #getMaxNumberOfVersions()} this does NOT swallow a malformed value:
-   * legacy's {@code ConfigDataFetcher} parsed this value inline with no try/catch, so a non-numeric
-   * override surfaced as an uncaught GraphQL execution error on the {@code getConfigs} query
-   * specifically, while every other caller (version-cap enforcement) kept the safe, snapshot-based
-   * fallback above.
+   * Raw (unparsed, unclamped) {@code max-number-of-versions} value, read from the SAME boot-time
+   * {@link ApplicationConfigService} snapshot as {@link #getMaxNumberOfVersions()} — and as every
+   * other config read — so the {@code getConfigs} query reports exactly what the version-cap
+   * enforcement path enforces, never a value that drifts from it after a runtime Consul KV change
+   * until the next restart. Falls back to the string form of the default when the key is absent.
+   * Unlike {@link #getMaxNumberOfVersions()} it neither parses nor swallows the value: the {@code
+   * ConfigDataFetcher} caller parses it inline, so a non-numeric snapshot value surfaces as a
+   * GraphQL execution error on {@code getConfigs} rather than being silently defaulted.
    */
   public String getMaxNumberOfVersionsRaw() {
-    return serviceDiscoverHttpClient
-        .getConfig(FilesServiceConfig.ApplicationConfig.MAX_NUMBER_OF_VERSIONS)
+    return applicationConfig
+        .get(FilesServiceConfig.ApplicationConfig.MAX_NUMBER_OF_VERSIONS)
         .orElse(String.valueOf(ServiceDiscover.Config.DEFAULT_MAX_VERSIONS));
   }
 

@@ -12,6 +12,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Inject;
 import java.net.http.HttpClient;
+import java.time.Duration;
 
 /**
  * CDI producer for the {@link UserResourceApi} REST SDK bean (carbonio-user-management-rest-sdk).
@@ -28,6 +29,8 @@ import java.net.http.HttpClient;
  */
 @ApplicationScoped
 public class UserManagementClientProducer {
+
+  private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
   private final NetworkingConfigService networkingConfig;
 
@@ -56,6 +59,10 @@ public class UserManagementClientProducer {
         HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1);
     ApiClient apiClient =
         new ApiClient(httpClientBuilder, ApiClient.createDefaultObjectMapper(), userManagementUrl);
+    // Must be set before constructing UserResourceApi: its constructor snapshots the timeouts into
+    // final fields, so setting them afterwards is a silent no-op.
+    apiClient.setConnectTimeout(TIMEOUT);
+    apiClient.setReadTimeout(TIMEOUT);
     return new UserResourceApi(apiClient);
   }
 }

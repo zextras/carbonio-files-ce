@@ -16,11 +16,13 @@ import java.util.function.BiConsumer;
  * <p>ConsulKvClient.set(key, value) constructs the URL as {consulBaseUrl}/v1/kv/{key}, so
  * target keys must use Consul KV path separators (slashes), not property name separators (dots).
  *
- * <p>The legacy carbonio-files-db bootstrap only ever wrote three flat keys — {@code db-name},
- * {@code db-username}, {@code db-password} (see {@code package/carbonio-files-db-bootstrap} on
- * the pre-Quarkus {@code dt3-pipeline} branch); it never wrote any hikari- or pool-related keys,
- * so there is nothing else to migrate here. The fixed carbonio-files-db bootstrap (files-db
- * quarkus-migration branch) writes the nested slash path directly on fresh installs, and
+ * <p>The legacy carbonio-files-db bootstrap only ever wrote three flat DB-credential keys — {@code
+ * db-name}, {@code db-username}, {@code db-password} (see {@code package/carbonio-files-db-bootstrap}
+ * on the pre-Quarkus {@code dt3-pipeline} branch). The pre-Quarkus stack ALSO read five optional
+ * connection-pool tuning keys ({@code hikari-*}) that an operator could set by hand; mirror
+ * carbonio-tasks and migrate those to the database extension's {@code db-pool-*} keys too (verbatim
+ * value copy, no unit conversion — same as tasks). The fixed carbonio-files-db bootstrap (files-db
+ * quarkus-migration branch) writes the nested slash credential path directly on fresh installs, and
  * carbonio-files never shipped the dotted-key bug that affected carbonio-tasks-db, so a single V1
  * migration is sufficient (no V2).
  *
@@ -45,6 +47,16 @@ public class V1__RenameDbCredentials extends ConfigMigration {
         SVC + "/db-username",
         (k, v) -> applicationConfig.set(SVC + "/database/credentials/db-username", v),
         SVC + "/db-password",
-        (k, v) -> applicationConfig.set(SVC + "/database/credentials/db-password", v));
+        (k, v) -> applicationConfig.set(SVC + "/database/credentials/db-password", v),
+        SVC + "/hikari-max-pool-size",
+        (k, v) -> applicationConfig.set(SVC + "/database/db-pool-max-size", v),
+        SVC + "/hikari-min-idle-connections",
+        (k, v) -> applicationConfig.set(SVC + "/database/db-pool-min-size", v),
+        SVC + "/hikari-idle-timeout",
+        (k, v) -> applicationConfig.set(SVC + "/database/db-pool-idle-timeout", v),
+        SVC + "/hikari-leak-detection-threshold",
+        (k, v) -> applicationConfig.set(SVC + "/database/db-pool-leak-detection", v),
+        SVC + "/hikari-max-lifetime",
+        (k, v) -> applicationConfig.set(SVC + "/database/db-pool-max-lifetime", v));
   }
 }
