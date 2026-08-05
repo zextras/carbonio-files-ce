@@ -10,7 +10,6 @@ import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.files.cache.CacheHandlerFactory;
 import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
 import com.zextras.carbonio.files.dal.dao.ebean.*;
@@ -75,7 +74,6 @@ public class FilesModule extends AbstractModule {
 
     bind(MessageBrokerManager.class).to(MessageBrokerManagerImpl.class);
 
-    install(new FactoryModuleBuilder().build(CacheHandlerFactory.class));
     install(new FactoryModuleBuilder().build(GenericControllerEvaluatorFactory.class));
   }
 
@@ -166,9 +164,6 @@ public class FilesModule extends AbstractModule {
     databaseConfig.setDataSource(dataSource);
     databaseConfig.setDefaultServer(true);
     databaseConfig.addAll(entityList);
-    databaseConfig.setCacheMaxSize(100_000);
-    databaseConfig.setCacheMaxTimeToLive(300);
-    databaseConfig.setCacheMaxIdleTime(300);
 
     return databaseConfig;
   }

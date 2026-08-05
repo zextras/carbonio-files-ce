@@ -82,7 +82,7 @@ class UserRepositoryRestTest {
     void givenValidCookieGetUserMyselfByCookieNotCachedShouldContainUserMyself() {
         // When
         Optional<UserMyself> returnedUserMyselfOpt =
-            userRepositoryRest.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=valid-token");
+            userRepositoryRest.getUserMyselfByCookie("ZM_AUTH_TOKEN=valid-token");
 
         // Then
         Assertions.assertThat(returnedUserMyselfOpt).isPresent();
@@ -97,7 +97,7 @@ class UserRepositoryRestTest {
     void givenInvalidCookieGetUserMyselfByCookieNotCachedShouldReturnEmpty() {
         // When
         Optional<UserMyself> returnedUserMyselfOpt =
-            userRepositoryRest.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=invalid-token");
+            userRepositoryRest.getUserMyselfByCookie("ZM_AUTH_TOKEN=invalid-token");
 
         // Then
         Assertions.assertThat(returnedUserMyselfOpt).isEmpty();
@@ -295,7 +295,7 @@ class UserRepositoryRestTest {
 
         // When
         Optional<UserMyself> returnedUserMyselfOpt =
-            userRepositoryRest.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=blank-body-token");
+            userRepositoryRest.getUserMyselfByCookie("ZM_AUTH_TOKEN=blank-body-token");
 
         // Then
         Assertions.assertThat(returnedUserMyselfOpt).isEmpty();
@@ -318,7 +318,7 @@ class UserRepositoryRestTest {
 
         // When
         Optional<UserMyself> returnedUserMyselfOpt =
-            userRepositoryRest.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=no-info-token");
+            userRepositoryRest.getUserMyselfByCookie("ZM_AUTH_TOKEN=no-info-token");
 
         // Then
         Assertions.assertThat(returnedUserMyselfOpt).isEmpty();
@@ -347,7 +347,7 @@ class UserRepositoryRestTest {
 
         // When
         Optional<UserMyself> returnedUserMyselfOpt =
-            userRepositoryRest.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=null-features-token");
+            userRepositoryRest.getUserMyselfByCookie("ZM_AUTH_TOKEN=null-features-token");
 
         // Then: no NPE, and the null is normalized to an empty list rather than propagated
         Assertions.assertThat(returnedUserMyselfOpt).isPresent();

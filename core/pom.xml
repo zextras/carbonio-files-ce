@@ -79,12 +79,6 @@ SPDX-License-Identifier: AGPL-3.0-only
       <artifactId>graphql-java</artifactId>
     </dependency>
 
-    <!-- Cache -->
-    <dependency>
-      <groupId>com.github.ben-manes.caffeine</groupId>
-      <artifactId>caffeine</artifactId>
-    </dependency>
-
     <!-- Services: storages, authentication, preview -->
     <dependency>
       <groupId>com.zextras.carbonio.user-management</groupId>

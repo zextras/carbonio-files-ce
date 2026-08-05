@@ -8,11 +8,9 @@ import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationType;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotNode;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotUser;
-import io.ebean.annotation.Cache;
 
 import javax.persistence.*;
 
-@Cache
 @Entity
 @Table(name = Constants.Db.Tables.NEW_SHARE_NOTIFICATION)
 public class NewShareNotification extends BaseNotification{

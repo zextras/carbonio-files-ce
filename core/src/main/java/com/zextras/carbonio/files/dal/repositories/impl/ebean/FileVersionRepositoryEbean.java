@@ -7,8 +7,6 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.Db;
-import com.zextras.carbonio.files.cache.Cache;
-import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.dal.DatabaseManager;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -24,25 +22,15 @@ import java.util.stream.Collectors;
 public class FileVersionRepositoryEbean implements FileVersionRepository {
 
   private DatabaseManager mDB;
-  private Cache<FileVersion>   fileVersionCache;
   private CollationRepository collationRepository;
 
   @Inject
   public FileVersionRepositoryEbean(
     DatabaseManager databaseManagerFlyway,
-    CacheHandler cacheHandler,
     CollationRepository collationRepository
   ) {
     mDB = databaseManagerFlyway;
-    fileVersionCache = cacheHandler.getFileVersionCache();
     this.collationRepository = collationRepository;
-  }
-
-  private String getFileVersionId(
-    String nodeId,
-    int version
-  ) {
-    return nodeId + "/" + version;
   }
 
   private Optional<FileVersion> getRealFileVersion(
@@ -62,15 +50,7 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
     String nodeId,
     int version
   ) {
-    String fileVersionId = getFileVersionId(nodeId, version);
-    return Optional.ofNullable(fileVersionCache
-      .get(fileVersionId)
-      .orElseGet(() -> {
-        Optional<FileVersion> dbFileVersion = getRealFileVersion(nodeId, version);
-        dbFileVersion.ifPresent(fileVersion -> fileVersionCache.add(fileVersionId, fileVersion));
-        return dbFileVersion.orElse(null);
-      })
-    );
+    return getRealFileVersion(nodeId, version);
   }
 
   @Override
@@ -113,15 +93,7 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
 
     sorts.forEach(sort -> sort.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery()));
 
-    List<FileVersion> fileVersions = query.findList();
-    fileVersions.forEach(fileVersion ->
-      fileVersionCache.add(
-        getFileVersionId(fileVersion.getNodeId(), fileVersion.getVersion()),
-        fileVersion
-      )
-    );
-
-    return fileVersions;
+    return query.findList();
   }
 
   @Override
@@ -130,22 +102,13 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
     Collection<Integer> versions
   ) {
 
-    List<FileVersion> fileVersions = mDB.getEbeanDatabase()
+    return mDB.getEbeanDatabase()
       .find(FileVersion.class)
       .where()
       .eq(Constants.Db.FileVersion.NODE_ID, nodeId)
       .and()
       .in(Constants.Db.FileVersion.VERSION, versions)
       .findList();
-
-    fileVersions.forEach(fileVersion ->
-      fileVersionCache.add(
-        getFileVersionId(fileVersion.getNodeId(), fileVersion.getVersion()),
-        fileVersion
-      )
-    );
-
-    return fileVersions;
   }
 
   @Override
@@ -160,15 +123,12 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
   @Override
   public FileVersion updateFileVersion(FileVersion fileVersion) {
     mDB.getEbeanDatabase().update(fileVersion);
-    fileVersionCache.delete(getFileVersionId(fileVersion.getNodeId(), fileVersion.getVersion()));
     return fileVersion;
   }
 
   @Override
   public boolean deleteFileVersion(FileVersion fileVersion) {
-    boolean deleted = mDB.getEbeanDatabase().delete(fileVersion);
-    fileVersionCache.delete(getFileVersionId(fileVersion.getNodeId(), fileVersion.getVersion()));
-    return deleted;
+    return mDB.getEbeanDatabase().delete(fileVersion);
   }
 
   public void deleteFileVersions(
@@ -182,8 +142,6 @@ public class FileVersionRepositoryEbean implements FileVersionRepository {
       .and()
       .in(Db.FileVersion.VERSION, versions)
       .delete();
-
-    versions.forEach(version -> fileVersionCache.delete(getFileVersionId(nodeId, version)));
   }
 
   @Override

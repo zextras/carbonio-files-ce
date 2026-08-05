@@ -6,13 +6,11 @@ package com.zextras.carbonio.files.dal.dao.ebean.notifications.utils;
 
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.Notification;
-import io.ebean.annotation.Cache;
 import javax.persistence.*;
 
 /*
  * This essentially maps users with notifications they should see, it's an N:N relationship.
  * */
-@Cache
 @Entity
 @Table(name = Constants.Db.Tables.USER_NOTIFICATION_INTEREST)
 public class UserNotificationInterest {

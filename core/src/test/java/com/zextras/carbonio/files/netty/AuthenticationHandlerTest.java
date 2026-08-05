@@ -126,7 +126,7 @@ class AuthenticationHandlerTest {
         .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
         .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=valid-token");
     Mockito
-        .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
+        .when(userRepositoryMock.getUserMyselfByCookie("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
         .thenReturn(Optional.of(userMock));
     Mockito
         .when(channelMock.attr(AttributeKey.valueOf("requester")))
@@ -176,7 +176,7 @@ class AuthenticationHandlerTest {
         .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
         .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=valid-token");
     Mockito
-        .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
+        .when(userRepositoryMock.getUserMyselfByCookie("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
         .thenReturn(Optional.of(userMock));
     Mockito
         .when(channelMock.attr(AttributeKey.valueOf("requester")))
@@ -243,7 +243,7 @@ class AuthenticationHandlerTest {
         .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
         .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=valid-token");
     Mockito
-        .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
+        .when(userRepositoryMock.getUserMyselfByCookie("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
         .thenReturn(Optional.empty());
 
     ArgumentCaptor<AuthenticationException> captorException = ArgumentCaptor.forClass(
@@ -282,7 +282,7 @@ class AuthenticationHandlerTest {
         .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
         .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=guest-token");
     Mockito
-        .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=guest-token"))
+        .when(userRepositoryMock.getUserMyselfByCookie("IRIS=ui; ZM_AUTH_TOKEN=guest-token"))
         .thenReturn(Optional.of(userMock));
     Mockito
         .when(channelMock.attr(AttributeKey.valueOf("requester")))
@@ -328,7 +328,7 @@ class AuthenticationHandlerTest {
         .when(httpHeadersMock.get(HttpHeaderNames.COOKIE))
         .thenReturn("IRIS=ui; ZM_AUTH_TOKEN=no-feature-token");
     Mockito
-        .when(userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=no-feature-token"))
+        .when(userRepositoryMock.getUserMyselfByCookie("IRIS=ui; ZM_AUTH_TOKEN=no-feature-token"))
         .thenReturn(Optional.of(userMock));
     Mockito
         .when(channelMock.attr(AttributeKey.valueOf("requester")))
@@ -374,7 +374,7 @@ class AuthenticationHandlerTest {
     Mockito.when(userMock.getCarbonioAttributes())
         .thenReturn(Map.of("carbonioFeatureFilesEnabled", "TRUE"));
     Mockito.when(
-            userRepositoryMock.getUserMyselfByCookieNotCached("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
+            userRepositoryMock.getUserMyselfByCookie("IRIS=ui; ZM_AUTH_TOKEN=valid-token"))
         .thenReturn(Optional.of(userMock));
     Mockito.when(channelMock.attr(AttributeKey.valueOf("requester"))).thenReturn(requesterAttr);
     Mockito.when(channelMock.attr(AttributeKey.valueOf("cookies"))).thenReturn(cookiesAttr);

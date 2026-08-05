@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.dal.dao.ebean.notifications;
 
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationType;
-import io.ebean.annotation.Cache;
 
 import javax.persistence.*;
 
@@ -20,7 +19,6 @@ import javax.persistence.*;
 * This does not represent a table, but is used to extend the other entities so the
 * "feeling" of using inheritance is there, instead of manipulating objects and making manual joins.
 * */
-@Cache
 @Entity
 @Table(name = Constants.Db.Tables.NOTIFICATION)
 public class Notification {

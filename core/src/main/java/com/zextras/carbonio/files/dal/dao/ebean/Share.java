@@ -5,7 +5,6 @@
 package com.zextras.carbonio.files.dal.dao.ebean;
 
 import com.zextras.carbonio.files.Constants;
-import io.ebean.annotation.Cache;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import javax.persistence.Column;
@@ -36,7 +35,6 @@ import javax.persistence.Table;
  * input are valid or not because, when these methods are called, these controls
  * <strong>must</strong> be already done.
  */
-@Cache
 @Entity
 @Table(name = Constants.Db.Tables.SHARE)
 public class Share {

@@ -103,7 +103,7 @@ public class AuthenticationHandler extends SimpleChannelInboundHandler<HttpReque
    */
   private void validateAuthTokenAndFetchAccount(ChannelHandlerContext context, HttpRequest httpRequest, String cookies) {
     userRepository
-        .getUserMyselfByCookieNotCached(cookies)
+        .getUserMyselfByCookie(cookies)
         .ifPresentOrElse(
             user -> {
               // If user is not active we block interaction with Files

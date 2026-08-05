@@ -9,11 +9,9 @@ import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.Notification
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotNode;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotUser;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.RemovedNodeType;
-import io.ebean.annotation.Cache;
 
 import javax.persistence.*;
 
-@Cache
 @Entity
 @Table(name = Constants.Db.Tables.REMOVED_NODE_NOTIFICATION)
 public class RemovedNodeNotification extends BaseNotification {
