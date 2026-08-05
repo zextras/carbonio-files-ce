@@ -8,6 +8,10 @@ import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -69,5 +73,38 @@ class MetricsApiIT extends AbstractFilesIT {
     // The "files.upload" counter registered by PrometheusService is Prometheus-sanitized
     // (dots -> underscores); its presence proves this is the real scrape, not an empty body.
     Assertions.assertThat(response.getBody().asString()).contains("files_upload");
+  }
+
+  @Test
+  void givenNoAcceptHeaderTheMetricsFilterShouldServeClassicPrometheusTextFormat() throws Exception {
+    // Given — a real authenticated upload to register the "files.upload" counter in THIS process.
+    upload(
+        null,
+        null,
+        "metrics-seed".getBytes(StandardCharsets.UTF_8),
+        "metrics-seed.txt",
+        REQUESTER_COOKIE);
+
+    // When — GET /metrics with NO Accept header at all. RestAssured always sends one, so the JDK
+    // HttpClient (which adds none unless asked) is used to reproduce a real header-less Prometheus
+    // scraper. This exercises MetricsAcceptFilter's actual default branch: it injects "Accept:
+    // text/plain" so the quarkus-micrometer-registry-prometheus handler serves the classic
+    // Prometheus text exposition instead of the OpenMetrics format it defaults to on no Accept.
+    HttpResponse<String> response = getWithoutAcceptHeader("/metrics");
+
+    // Then — classic Prometheus text (text/plain), NOT OpenMetrics: proof the filter fired.
+    Assertions.assertThat(response.statusCode()).isEqualTo(200);
+    String contentType = response.headers().firstValue("Content-Type").orElse("");
+    Assertions.assertThat(contentType).contains("text/plain");
+    Assertions.assertThat(contentType).doesNotContain("openmetrics");
+    Assertions.assertThat(response.body()).contains("files_upload");
+  }
+
+  private static HttpResponse<String> getWithoutAcceptHeader(String path) throws Exception {
+    HttpRequest request =
+        HttpRequest.newBuilder(URI.create(RestAssured.baseURI + ":" + RestAssured.port + path))
+            .GET()
+            .build();
+    return HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
   }
 }
