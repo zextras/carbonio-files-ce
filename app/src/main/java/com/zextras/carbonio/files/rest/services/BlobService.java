@@ -412,7 +412,7 @@ public class BlobService {
       UploadResponse uploadResponse = Try.of(() ->
           fileStore
               .uploadPost(
-                  FilesIdentifier.of(nodeId, 1, requesterId),
+                  FilesIdentifier.of(nodeId, 1, nodeOwner),
                   blobStream,
                   blobLength
               )

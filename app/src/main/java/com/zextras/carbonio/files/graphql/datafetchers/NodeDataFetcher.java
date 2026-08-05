@@ -37,6 +37,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.files.graphql.errors.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.graphql.types.Permissions;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
@@ -118,6 +119,7 @@ public class NodeDataFetcher {
   private final FilesConfig           filesConfig;
   private final Filestore             fileStore;
   private final TombstoneRepository   tombstoneRepository;
+  private final CopyFailureClassifier copyFailureClassifier;
 
   @Inject
   NodeDataFetcher(
@@ -129,7 +131,8 @@ public class NodeDataFetcher {
     ShareDataFetcher shareDataFetcher,
     FilesConfig filesConfig,
     Filestore fileStore,
-    TombstoneRepository tombstoneRepository
+    TombstoneRepository tombstoneRepository,
+    CopyFailureClassifier copyFailureClassifier
   ) {
     this.nodeRepository = nodeRepository;
     this.notificationRepository = notificationRepository;
@@ -140,6 +143,7 @@ public class NodeDataFetcher {
     this.filesConfig = filesConfig;
     this.fileStore = fileStore;
     this.tombstoneRepository = tombstoneRepository;
+    this.copyFailureClassifier = copyFailureClassifier;
   }
 
   /**
@@ -1620,6 +1624,8 @@ public class NodeDataFetcher {
     }
   }
 
+  private record CopyOutcome(Optional<Node> node, Throwable failure) {}
+
   /**
    * Copies a {@link Node} of type File into a destination folder.
    *
@@ -1629,9 +1635,9 @@ public class NodeDataFetcher {
    * @param newFileName is an {@link Optional<String>} if we want to give a new name to the copied
    * file, used for name clashes
    *
-   * @return the number of copied nodes.
+   * @return the copied node (empty on failure) together with the copy failure (null on success).
    */
-  private Optional<Node> copyFile(
+  private CopyOutcome copyFile(
     Node sourceNode,
     Node destinationFolder,
     String requesterId,
@@ -1664,6 +1670,8 @@ public class NodeDataFetcher {
       .getFileVersion(sourceNode.getId(), sourceNode.getCurrentVersion())
       .get();
 
+    AtomicReference<Throwable> copyFailure = new AtomicReference<>();
+
     // TODO: make the copy async
     Try
       .of(() -> fileStore
@@ -1695,9 +1703,10 @@ public class NodeDataFetcher {
           failure
         ));
         nodeRepository.deleteNode(createdNode.getId());
+        copyFailure.set(failure);
       });
 
-    return nodeRepository.getNode(createdNode.getId());
+    return new CopyOutcome(nodeRepository.getNode(createdNode.getId()), copyFailure.get());
   }
 
 
@@ -1938,18 +1947,18 @@ public class NodeDataFetcher {
                     );
 
                 } else {
-                  Optional<Node> optCopiedFile = copyFile(
+                  CopyOutcome copyOutcome = copyFile(
                     nodeDup,
                     optDestinationFolder.get(),
                     requesterId,
                     Optional.of(newName)
                   );
 
-                  if (optCopiedFile.isPresent()) {
+                  if (copyOutcome.node().isPresent()) {
                     copiedNodesResult.add(
-                      convertNodeToDataFetcherResult(optCopiedFile.get(), requesterId, resultPath)
+                      convertNodeToDataFetcherResult(copyOutcome.node().get(), requesterId, resultPath)
                     );
-                    List<String> usersToNotify = createIndirectShare(destinationFolderId, optCopiedFile.get());
+                    List<String> usersToNotify = createIndirectShare(destinationFolderId, copyOutcome.node().get());
                     usersToNotify.remove(requesterId); // remove requester if present
 
                     // If the requester is the owner of the parent folder, do not notify him since he did the upload himself
@@ -1962,7 +1971,7 @@ public class NodeDataFetcher {
 
                     if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled())
                       notificationRepository.createAddedNodeNotification(
-                        optCopiedFile.get(),
+                        copyOutcome.node().get(),
                         optDestinationFolder.get(),
                         requester,
                         AddedNodeType.COPY,
@@ -1975,10 +1984,15 @@ public class NodeDataFetcher {
 
                     errors.add(DataFetcherResult
                       .<Map<String, Object>>newResult()
-                      .error(GraphQLResultErrors.nodeCopyError(
+                      .error(copyFailureClassifier.classify(
+                        copyOutcome.failure(),
                         nodeDup.getId(),
-                        nodeDup.getCurrentVersion(),
-                        resultPath
+                        resultPath,
+                        () -> GraphQLResultErrors.nodeCopyError(
+                          nodeDup.getId(),
+                          nodeDup.getCurrentVersion(),
+                          resultPath
+                        )
                       ))
                       .build()
                     );
@@ -2020,18 +2034,18 @@ public class NodeDataFetcher {
                     );
 
                 } else {
-                  Optional<Node> optCopiedFile = copyFile(
+                  CopyOutcome copyOutcome = copyFile(
                     node,
                     optDestinationFolder.get(),
                     requesterId,
                     Optional.empty()
                   );
 
-                  if (optCopiedFile.isPresent()) {
+                  if (copyOutcome.node().isPresent()) {
                     copiedNodesResult.add(
-                      convertNodeToDataFetcherResult(optCopiedFile.get(), requesterId, resultPath)
+                      convertNodeToDataFetcherResult(copyOutcome.node().get(), requesterId, resultPath)
                     );
-                    List<String> usersToNotify = createIndirectShare(destinationFolderId, optCopiedFile.get());
+                    List<String> usersToNotify = createIndirectShare(destinationFolderId, copyOutcome.node().get());
                     usersToNotify.remove(requesterId); // remove requester if present
 
                     // If the requester is the owner of the parent folder, do not notify him since he did the upload himself
@@ -2044,7 +2058,7 @@ public class NodeDataFetcher {
 
                     if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled())
                       notificationRepository.createAddedNodeNotification(
-                        optCopiedFile.get(),
+                        copyOutcome.node().get(),
                         optDestinationFolder.get(),
                         requester,
                         AddedNodeType.COPY,
@@ -2056,10 +2070,15 @@ public class NodeDataFetcher {
 
                     errors.add(DataFetcherResult
                       .<Map<String, Object>>newResult()
-                      .error(GraphQLResultErrors.nodeCopyError(
+                      .error(copyFailureClassifier.classify(
+                        copyOutcome.failure(),
                         node.getId(),
-                        node.getCurrentVersion(),
-                        resultPath
+                        resultPath,
+                        () -> GraphQLResultErrors.nodeCopyError(
+                          node.getId(),
+                          node.getCurrentVersion(),
+                          resultPath
+                        )
                       ))
                       .build()
                     );
@@ -2351,23 +2370,32 @@ public class NodeDataFetcher {
                   newVersion
                 ));
               })
-              .onFailure(failure -> {
+              .transform(attempt -> {
+                if (attempt.isSuccess()) {
+                  return convertNodeToDataFetcherResult(
+                    nodeRepository.getNode(node.getId()).get(),
+                    newVersion,
+                    requesterId,
+                    path
+                  );
+                }
                 String error = MessageFormat.format(
                   "Copy error with nodeId: {0} and version {1}",
                   nodeId,
                   versionToClone
                 );
                 logger.error(error);
-                throw new AbortExecutionException(error);
-              })
-              .transform(copiedBlobResponse ->
-                convertNodeToDataFetcherResult(
-                  nodeRepository.getNode(node.getId()).get(),
-                  newVersion,
-                  requesterId,
-                  path
-                )
-              );
+                // Default: throw AbortExecutionException(String) so its message surfaces verbatim.
+                // Classified: RETURN the error so its extensions survive (a thrown error is stripped
+                // by the async DataFetcherExceptionHandler, unlike a returned DataFetcherResult error).
+                AbortExecutionException defaultError = new AbortExecutionException(error);
+                GraphQLError classified =
+                  copyFailureClassifier.classify(attempt.getCause(), nodeId, path, () -> defaultError);
+                if (classified == defaultError) {
+                  throw defaultError;
+                }
+                return new Builder<Map<String, Object>>().error(classified).build();
+              });
           })
           .orElse(
             new Builder<Map<String, Object>>()

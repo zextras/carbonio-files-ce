@@ -30,6 +30,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.files.graphql.errors.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.datafetchers.NodeDataFetcher.NodeAccessException;
 import com.zextras.carbonio.files.graphql.datafetchers.NodeDataFetcher.NodeNotFoundException;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
@@ -77,6 +78,7 @@ class NodeDataFetcherCreateFolderTest {
     filesConfig = mock(FilesConfig.class);
     Filestore fileStore = mock(Filestore.class);
     TombstoneRepository tombstoneRepository = mock(TombstoneRepository.class);
+    CopyFailureClassifier copyFailureClassifier = mock(CopyFailureClassifier.class);
 
     nodeDataFetcher =
         new NodeDataFetcher(
@@ -88,7 +90,8 @@ class NodeDataFetcherCreateFolderTest {
             shareDataFetcher,
             filesConfig,
             fileStore,
-            tombstoneRepository);
+            tombstoneRepository,
+            copyFailureClassifier);
 
     // No inherited shares to propagate unless a test overrides this.
     when(shareRepository.getShares(anyString(), anyList())).thenReturn(Collections.emptyList());
