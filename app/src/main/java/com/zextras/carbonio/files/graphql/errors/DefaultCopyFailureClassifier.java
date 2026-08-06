@@ -20,11 +20,10 @@ public class DefaultCopyFailureClassifier implements CopyFailureClassifier {
 
   @Override
   public GraphQLError classify(
-    Throwable failure,
-    String nodeId,
-    ResultPath resultPath,
-    Supplier<GraphQLError> defaultError
-  ) {
+      Throwable failure,
+      String nodeId,
+      ResultPath resultPath,
+      Supplier<GraphQLError> defaultError) {
     return defaultError.get();
   }
 }

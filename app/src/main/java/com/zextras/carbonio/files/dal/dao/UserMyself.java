@@ -33,13 +33,13 @@ public class UserMyself {
   /**
    * Constructor matching the old SDK's {@code UserMyself} constructor signature.
    *
-   * @param id                 the user identifier
-   * @param email              the user email address
-   * @param fullName           the user full name
-   * @param domain             the user domain
-   * @param status             the user account status
-   * @param locale             the user locale
-   * @param type               the user account type
+   * @param id the user identifier
+   * @param email the user email address
+   * @param fullName the user full name
+   * @param domain the user domain
+   * @param status the user account status
+   * @param locale the user locale
+   * @param type the user account type
    * @param carbonioAttributes a map of Carbonio attributes (feature flags and other settings)
    */
   public UserMyself(
@@ -66,13 +66,13 @@ public class UserMyself {
    * Constructor for gRPC-based creation where features come as a list of enabled feature keys
    * rather than a map of attributes.
    *
-   * @param id       the user identifier
-   * @param email    the user email address
+   * @param id the user identifier
+   * @param email the user email address
    * @param fullName the user full name
-   * @param domain   the user domain
-   * @param status   the user account status
-   * @param locale   the user locale
-   * @param type     the user account type
+   * @param domain the user domain
+   * @param status the user account status
+   * @param locale the user locale
+   * @param type the user account type
    * @param features a list of enabled feature keys (e.g. "carbonioFeatureFilesEnabled")
    */
   public UserMyself(
@@ -173,8 +173,8 @@ public class UserMyself {
   }
 
   /**
-   * Returns the list of enabled feature keys. This corresponds to the gRPC proto's
-   * {@code repeated string features} field.
+   * Returns the list of enabled feature keys. This corresponds to the gRPC proto's {@code repeated
+   * string features} field.
    *
    * @return a list of enabled feature key strings
    */

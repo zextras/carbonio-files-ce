@@ -41,7 +41,8 @@ class AddedAndRemovedNodeNotificationMoveDisabledIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenANodeMovedFromOneSharedDirectoryToAnotherSharedDirectoryAndDisabledNotificationsNoNotificationShouldBeSavedOrReturned() {
+  void
+      givenANodeMovedFromOneSharedDirectoryToAnotherSharedDirectoryAndDisabledNotificationsNoNotificationShouldBeSavedOrReturned() {
     // Given
     String folderAId = seedFolder("folderA", LOCAL_ROOT, OWNER_COOKIE);
     String folderBId = seedFolder("folderB", LOCAL_ROOT, OWNER_COOKIE);
@@ -62,13 +63,15 @@ class AddedAndRemovedNodeNotificationMoveDisabledIT extends AbstractFilesIT {
         GraphqlCommandBuilder.aQueryBuilder("getNotifications")
             .withBoolean("update_last_seen", true)
             .withWantedResultFormat(
-                "{ notifications { ... on RemovedNode { created_at }, ... on AddedNode { created_at }, ... on NewShare { created_at } } }")
+                "{ notifications { ... on RemovedNode { created_at }, ... on AddedNode { created_at"
+                    + " }, ... on NewShare { created_at } } }")
             .build();
     Response response = graphql(query, SECOND_USER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNotifications");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNotifications");
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> notifications = (List<Map<String, Object>>) page.get("notifications");
     Assertions.assertThat(notifications).hasSize(0);

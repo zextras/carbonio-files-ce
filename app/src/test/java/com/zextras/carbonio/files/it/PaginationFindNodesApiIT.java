@@ -45,7 +45,8 @@ class PaginationFindNodesApiIT extends AbstractFilesIT {
   }
 
   @SuppressWarnings("unchecked")
-  private Map<String, Object> findNodesPage(String sort, int limit, String pageToken, String cookie) {
+  private Map<String, Object> findNodesPage(
+      String sort, int limit, String pageToken, String cookie) {
     GraphqlCommandBuilder builder =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
             .withString("folder_id", "LOCAL_ROOT")
@@ -55,7 +56,8 @@ class PaginationFindNodesApiIT extends AbstractFilesIT {
     if (pageToken != null) {
       builder.withString("page_token", pageToken);
     }
-    String bodyPayload = builder.withWantedResultFormat("{ nodes { id name }, page_token }").build();
+    String bodyPayload =
+        builder.withWantedResultFormat("{ nodes { id name }, page_token }").build();
 
     Response response = graphql(bodyPayload, cookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
@@ -67,11 +69,14 @@ class PaginationFindNodesApiIT extends AbstractFilesIT {
     tickClock();
     String folderBId = seedFolder("folderB", LOCAL_ROOT, REQUESTER_COOKIE);
     tickClock();
-    String aaaId = seedFile("aaa.txt", LOCAL_ROOT, "a".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String aaaId =
+        seedFile("aaa.txt", LOCAL_ROOT, "a".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     tickClock();
-    String bbbId = seedFile("bbb.txt", LOCAL_ROOT, "b".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String bbbId =
+        seedFile("bbb.txt", LOCAL_ROOT, "b".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     tickClock();
-    String cccId = seedFile("ccc.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String cccId =
+        seedFile("ccc.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     return new String[] {folderAId, folderBId, aaaId, bbbId, cccId};
   }
 
@@ -110,7 +115,8 @@ class PaginationFindNodesApiIT extends AbstractFilesIT {
     Map<String, Object> firstPage = findNodesPage("UPDATED_AT_ASC", 4, null, REQUESTER_COOKIE);
     String pageToken = (String) firstPage.get("page_token");
 
-    Map<String, Object> secondPage = findNodesPage("UPDATED_AT_ASC", 1, pageToken, REQUESTER_COOKIE);
+    Map<String, Object> secondPage =
+        findNodesPage("UPDATED_AT_ASC", 1, pageToken, REQUESTER_COOKIE);
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) secondPage.get("nodes");
 
     Assertions.assertThat(nodes).hasSize(1);
@@ -118,13 +124,15 @@ class PaginationFindNodesApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenFilesOnRootSearchWithSortLastUpdateDescShouldReturnCorrectlyPaginatedNodes() { // recents
+  void
+      givenFilesOnRootSearchWithSortLastUpdateDescShouldReturnCorrectlyPaginatedNodes() { // recents
     String[] ids = seedFiveMixedNodes();
 
     Map<String, Object> firstPage = findNodesPage("UPDATED_AT_DESC", 4, null, REQUESTER_COOKIE);
     String pageToken = (String) firstPage.get("page_token");
 
-    Map<String, Object> secondPage = findNodesPage("UPDATED_AT_DESC", 1, pageToken, REQUESTER_COOKIE);
+    Map<String, Object> secondPage =
+        findNodesPage("UPDATED_AT_DESC", 1, pageToken, REQUESTER_COOKIE);
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) secondPage.get("nodes");
 
     Assertions.assertThat(nodes).hasSize(1);
@@ -157,7 +165,9 @@ class PaginationFindNodesApiIT extends AbstractFilesIT {
     // Note: unlike the old raw-DB backdoor, the real API dedups same-named siblings with a
     // "(N)" suffix — see FindNodesApiIT's equivalent size-sort tests for the same observation.
     Assertions.assertThat(nodes).hasSize(1);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", ids[4]).containsEntry("name", "fake (2)");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", ids[4])
+        .containsEntry("name", "fake (2)");
   }
 
   @Test
@@ -171,22 +181,30 @@ class PaginationFindNodesApiIT extends AbstractFilesIT {
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) secondPage.get("nodes");
 
     Assertions.assertThat(nodes).hasSize(1);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", ids[1]).containsEntry("name", "folder (1)");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", ids[1])
+        .containsEntry("name", "folder (1)");
   }
 
   @Test
-  @DisplayName("""
-    Given a LOCAL_ROOT with three nodes inside, a limit of two elements per page and the second
-    element is a file having a filename with a SQL injected: the findNodes should not be vulnerable
-    by the injection and should return the second page containing the third node and a null
-    page_token
-    """)
+  @DisplayName(
+      """
+      Given a LOCAL_ROOT with three nodes inside, a limit of two elements per page and the second
+      element is a file having a filename with a SQL injected: the findNodes should not be vulnerable
+      by the injection and should return the second page containing the third node and a null
+      page_token
+      """)
   void givenFilesOnRootHavingInjectedSQLInFilenameSearchWithSortNameAscShouldNotBeVulnerable() {
     seedFolder("folderA", LOCAL_ROOT, REQUESTER_COOKIE);
     tickClock();
-    seedFile("test')) OR 1=1 --file.txt", LOCAL_ROOT, "x".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedFile(
+        "test')) OR 1=1 --file.txt",
+        LOCAL_ROOT,
+        "x".getBytes(StandardCharsets.UTF_8),
+        REQUESTER_COOKIE);
     tickClock();
-    String yFileId = seedFile("y file.txt", LOCAL_ROOT, "y".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String yFileId =
+        seedFile("y file.txt", LOCAL_ROOT, "y".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     tickClock();
     seedFolder("g folder", LOCAL_ROOT, OTHER_COOKIE);
     tickClock();
@@ -199,15 +217,18 @@ class PaginationFindNodesApiIT extends AbstractFilesIT {
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) secondPage.get("nodes");
 
     Assertions.assertThat(nodes).hasSize(1);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", yFileId).containsEntry("name", "y file");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", yFileId)
+        .containsEntry("name", "y file");
   }
 
-  @DisplayName("""
-    Given a LOCAL_ROOT with three nodes inside, a limit of two elements per page and the second
-    element is a folder having a filename with a SQL injected: the findNodes should not be
-    vulnerable by the injection and should return the second page containing the third node and a
-    null page_token
-    """)
+  @DisplayName(
+      """
+      Given a LOCAL_ROOT with three nodes inside, a limit of two elements per page and the second
+      element is a folder having a filename with a SQL injected: the findNodes should not be
+      vulnerable by the injection and should return the second page containing the third node and a
+      null page_token
+      """)
   @Test
   void givenFoldersOnRootHavingInjectedSQLInFilenameSearchWithSortNameAscShouldNotBeVulnerable() {
     seedFolder("folderA", LOCAL_ROOT, REQUESTER_COOKIE);
@@ -227,6 +248,8 @@ class PaginationFindNodesApiIT extends AbstractFilesIT {
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) secondPage.get("nodes");
 
     Assertions.assertThat(nodes).hasSize(1);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", gFolderId).containsEntry("name", "g folder");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", gFolderId)
+        .containsEntry("name", "g folder");
   }
 }

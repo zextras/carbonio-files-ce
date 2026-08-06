@@ -100,11 +100,14 @@ class TransferStreamingRejectionTest {
       byte[] content = "hello".getBytes();
       BlobResponse blob =
           new BlobResponse(
-              new java.io.ByteArrayInputStream(content), "file.txt", (long) content.length,
+              new java.io.ByteArrayInputStream(content),
+              "file.txt",
+              (long) content.length,
               "text/plain");
       HttpServerResponse resp = mock(HttpServerResponse.class);
       io.vertx.core.Future<Void> succeeded = io.vertx.core.Future.succeededFuture();
-      org.mockito.Mockito.when(resp.write(org.mockito.ArgumentMatchers.any(io.vertx.core.buffer.Buffer.class)))
+      org.mockito.Mockito.when(
+              resp.write(org.mockito.ArgumentMatchers.any(io.vertx.core.buffer.Buffer.class)))
           .thenReturn(succeeded);
       org.mockito.Mockito.when(resp.end()).thenReturn(succeeded);
 

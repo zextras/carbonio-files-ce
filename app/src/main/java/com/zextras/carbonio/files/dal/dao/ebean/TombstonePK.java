@@ -5,22 +5,21 @@
 package com.zextras.carbonio.files.dal.dao.ebean;
 
 import com.zextras.carbonio.files.Constants;
-import java.io.Serializable;
-import java.util.Objects;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
+import java.io.Serializable;
+import java.util.Objects;
 
 /**
- * <p>This class represents the primary key of the {@link Constants.Db.Tables#TOMBSTONE}. It is
+ * This class represents the primary key of the {@link Constants.Db.Tables#TOMBSTONE}. It is
  * composed by two fields:
- *  <ul>
- *    <li>{@link Constants.Db.Tombstone#NODE_ID}: the foreign key of the node identifier;</li>
- *    <li>{@link Constants.Db.Tombstone#VERSION}: an integer representing the version of the file.</li>
- *  </ul>
- * </p>
- * <p>
- *   This class is necessary to specify the primary key for the {@link Tombstone}.
- * </p>
+ *
+ * <ul>
+ *   <li>{@link Constants.Db.Tombstone#NODE_ID}: the foreign key of the node identifier;
+ *   <li>{@link Constants.Db.Tombstone#VERSION}: an integer representing the version of the file.
+ * </ul>
+ *
+ * <p>This class is necessary to specify the primary key for the {@link Tombstone}.
  */
 @Embeddable
 public class TombstonePK implements Serializable {
@@ -34,10 +33,7 @@ public class TombstonePK implements Serializable {
   @Column(name = Constants.Db.Tombstone.VERSION, nullable = false)
   private Integer mVersion;
 
-  public TombstonePK(
-    String nodeId,
-    Integer mVersion
-  ) {
+  public TombstonePK(String nodeId, Integer mVersion) {
     this.mNodeId = nodeId;
     this.mVersion = mVersion;
   }

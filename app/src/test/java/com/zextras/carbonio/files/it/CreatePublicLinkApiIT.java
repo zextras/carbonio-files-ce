@@ -98,7 +98,8 @@ class CreatePublicLinkApiIT extends AbstractFilesIT {
         .containsEntry("description", "super-description")
         .containsEntry("access_code", "fake-access-code");
 
-    Assertions.assertThat((Map<String, Object>) createdLink.get("node")).containsEntry("id", nodeId);
+    Assertions.assertThat((Map<String, Object>) createdLink.get("node"))
+        .containsEntry("id", nodeId);
   }
 
   @Test
@@ -125,7 +126,8 @@ class CreatePublicLinkApiIT extends AbstractFilesIT {
         .containsEntry("description", null)
         .containsEntry("access_code", null);
 
-    Assertions.assertThat((Map<String, Object>) createdLink.get("node")).containsEntry("id", nodeId);
+    Assertions.assertThat((Map<String, Object>) createdLink.get("node"))
+        .containsEntry("id", nodeId);
   }
 
   @Test
@@ -151,7 +153,8 @@ class CreatePublicLinkApiIT extends AbstractFilesIT {
         .containsEntry("description", null)
         .containsEntry("access_code", null);
 
-    Assertions.assertThat((Map<String, Object>) createdLink.get("node")).containsEntry("id", nodeId);
+    Assertions.assertThat((Map<String, Object>) createdLink.get("node"))
+        .containsEntry("id", nodeId);
   }
 
   @Test
@@ -206,7 +209,8 @@ class CreatePublicLinkApiIT extends AbstractFilesIT {
     Assertions.assertThat(errorResponse)
         .hasSize(1)
         .containsExactly(
-            "There was a problem while executing requested operation on node: " + nonExistentNodeId);
+            "There was a problem while executing requested operation on node: "
+                + nonExistentNodeId);
   }
 
   @Test

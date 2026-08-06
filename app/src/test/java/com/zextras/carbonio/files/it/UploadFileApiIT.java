@@ -36,8 +36,8 @@ import org.junit.jupiter.api.Test;
  * <p><b>FINDING (carried over verbatim from the seam original):</b> the "missing {@code
  * Content-Length} header -> 500" scenario is NOT reproducible on either the old seam or this
  * RestAssured-driven harness: RestAssured (like the JDK HTTP client before it) computes {@code
- * Content-Length} itself from the body and does not let a caller omit or override it. This
- * scenario remains DELIBERATELY OMITTED, as in the original.
+ * Content-Length} itself from the body and does not let a caller omit or override it. This scenario
+ * remains DELIBERATELY OMITTED, as in the original.
  */
 class UploadFileApiIT extends AbstractFilesIT {
 
@@ -80,7 +80,8 @@ class UploadFileApiIT extends AbstractFilesIT {
             .build();
     Response response = graphql(bodyPayload, REQUESTER_COOKIE);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
     return nodes.stream().map(node -> (String) node.get("id")).toList();
   }
@@ -111,7 +112,12 @@ class UploadFileApiIT extends AbstractFilesIT {
 
     // When
     Response response =
-        upload(null, null, "hello world".getBytes(StandardCharsets.UTF_8), "hello.txt", REQUESTER_COOKIE);
+        upload(
+            null,
+            null,
+            "hello world".getBytes(StandardCharsets.UTF_8),
+            "hello.txt",
+            REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
@@ -127,7 +133,8 @@ class UploadFileApiIT extends AbstractFilesIT {
 
     Map<String, Object> node = getNode(nodeId, REQUESTER_COOKIE);
     Assertions.assertThat(node).containsEntry("name", "hello").containsEntry("extension", "txt");
-    Assertions.assertThat(((Map<String, Object>) node.get("owner"))).containsEntry("id", REQUESTER_ID);
+    Assertions.assertThat(((Map<String, Object>) node.get("owner")))
+        .containsEntry("id", REQUESTER_ID);
 
     Assertions.assertThat(uploadCounterValue()).isEqualTo(counterBefore + 1.0);
   }
@@ -140,7 +147,12 @@ class UploadFileApiIT extends AbstractFilesIT {
 
     // When
     Response response =
-        upload(folderId, null, "content".getBytes(StandardCharsets.UTF_8), "shared.txt", REQUESTER_COOKIE);
+        upload(
+            folderId,
+            null,
+            "content".getBytes(StandardCharsets.UTF_8),
+            "shared.txt",
+            REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
@@ -148,7 +160,8 @@ class UploadFileApiIT extends AbstractFilesIT {
     String nodeId = (String) json.get("nodeId");
 
     Map<String, Object> node = getNode(nodeId, REQUESTER_COOKIE);
-    Assertions.assertThat(((Map<String, Object>) node.get("owner"))).containsEntry("id", OTHER_USER_ID);
+    Assertions.assertThat(((Map<String, Object>) node.get("owner")))
+        .containsEntry("id", OTHER_USER_ID);
   }
 
   @Test
@@ -159,7 +172,12 @@ class UploadFileApiIT extends AbstractFilesIT {
 
     // When
     Response response =
-        upload(folderId, null, "content".getBytes(StandardCharsets.UTF_8), "nope.txt", REQUESTER_COOKIE);
+        upload(
+            folderId,
+            null,
+            "content".getBytes(StandardCharsets.UTF_8),
+            "nope.txt",
+            REQUESTER_COOKIE);
 
     // Then — BlobService#uploadFile returns Optional.empty() -> NoSuchElementException -> 404
     Assertions.assertThat(response.getStatusCode()).isEqualTo(404);
@@ -200,7 +218,8 @@ class UploadFileApiIT extends AbstractFilesIT {
 
     // When
     Response response =
-        upload(null, null, "content".getBytes(StandardCharsets.UTF_8), tooLongName, REQUESTER_COOKIE);
+        upload(
+            null, null, "content".getBytes(StandardCharsets.UTF_8), tooLongName, REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(400);
@@ -215,7 +234,12 @@ class UploadFileApiIT extends AbstractFilesIT {
 
     // When
     Response response =
-        upload(null, null, "content".getBytes(StandardCharsets.UTF_8), "willfail.txt", REQUESTER_COOKIE);
+        upload(
+            null,
+            null,
+            "content".getBytes(StandardCharsets.UTF_8),
+            "willfail.txt",
+            REQUESTER_COOKIE);
 
     // Then — DependencyException falls into ExceptionsHandler's generic else-branch -> 500;
     // the node row created before the storages call is deleted (BlobService#uploadFile's
@@ -233,7 +257,12 @@ class UploadFileApiIT extends AbstractFilesIT {
 
     // When
     Response response =
-        upload(null, null, "content".getBytes(StandardCharsets.UTF_8), "willfail2.txt", REQUESTER_COOKIE);
+        upload(
+            null,
+            null,
+            "content".getBytes(StandardCharsets.UTF_8),
+            "willfail2.txt",
+            REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(500);
@@ -244,11 +273,17 @@ class UploadFileApiIT extends AbstractFilesIT {
   @Test
   void givenANameCollisionUploadShouldDedupTheName() {
     // Given
-    seedFile("sameName.txt", LOCAL_ROOT, "existing".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedFile(
+        "sameName.txt", LOCAL_ROOT, "existing".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     Response response =
-        upload(null, null, "content".getBytes(StandardCharsets.UTF_8), "sameName.txt", REQUESTER_COOKIE);
+        upload(
+            null,
+            null,
+            "content".getBytes(StandardCharsets.UTF_8),
+            "sameName.txt",
+            REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
@@ -256,6 +291,8 @@ class UploadFileApiIT extends AbstractFilesIT {
     String nodeId = (String) json.get("nodeId");
 
     Map<String, Object> node = getNode(nodeId, REQUESTER_COOKIE);
-    Assertions.assertThat(node).containsEntry("name", "sameName (1)").containsEntry("extension", "txt");
+    Assertions.assertThat(node)
+        .containsEntry("name", "sameName (1)")
+        .containsEntry("extension", "txt");
   }
 }

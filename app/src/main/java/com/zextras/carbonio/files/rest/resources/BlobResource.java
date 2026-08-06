@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.zextras.carbonio.files.Constants.API.Headers;
 import com.zextras.carbonio.files.Constants.Db.RootId;
+import com.zextras.carbonio.files.config.FilesConfig;
+import com.zextras.carbonio.files.config.TransferPool;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -17,8 +19,6 @@ import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.services.BlobService.ZipDownload;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.UploadVersionResponse;
-import com.zextras.carbonio.files.config.FilesConfig;
-import com.zextras.carbonio.files.config.TransferPool;
 import io.smallrye.common.annotation.Blocking;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.HttpServerResponse;
@@ -32,7 +32,6 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
@@ -51,8 +50,8 @@ import org.slf4j.LoggerFactory;
  * download + check). Quarkus/RESTEasy Reactive port of the legacy Netty {@code BlobController}:
  * same endpoint set, same headers, same permission enforcement.
  *
- * <p>The trusted, UNAUTHENTICATED counterpart (no cookie, acting user id passed explicitly) lives in
- * {@link InternalBlobResource} under {@code /internal/accounts/{userId}/...} — it replaced the
+ * <p>The trusted, UNAUTHENTICATED counterpart (no cookie, acting user id passed explicitly) lives
+ * in {@link InternalBlobResource} under {@code /internal/accounts/{userId}/...} — it replaced the
  * former header-based {@code POST /internal/upload} that used to live here.
  *
  * <p>Resources are served at ROOT (carbonio-proxy strips its {@code /services/files} prefix), so no
@@ -67,12 +66,12 @@ import org.slf4j.LoggerFactory;
  *       the streamed request-body consume ({@link InputStream}, no whole-file buffering) and the
  *       JDBC/JTA write all run on the transfer pool via {@code runSubscriptionOn} (request context
  *       propagated by SmallRye context propagation).
- *   <li><b>download</b> ({@code @Blocking}) — auth + node metadata / ZIP plan resolution and opening
- *       the storages {@link InputStream} run in the method body on a WORKER thread (request context
- *       + {@code EntityManager} active), so 404/403 is thrown before any header/byte is written; the
- *       worker is then released and only the byte pump (already-open storages stream → Vert.x {@code
- *       HttpServerResponse}, with real backpressure, no {@code EntityManager} access) runs on the
- *       transfer pool. See {@link TransferStreaming}.
+ *   <li><b>download</b> ({@code @Blocking}) — auth + node metadata / ZIP plan resolution and
+ *       opening the storages {@link InputStream} run in the method body on a WORKER thread (request
+ *       context + {@code EntityManager} active), so 404/403 is thrown before any header/byte is
+ *       written; the worker is then released and only the byte pump (already-open storages stream →
+ *       Vert.x {@code HttpServerResponse}, with real backpressure, no {@code EntityManager} access)
+ *       runs on the transfer pool. See {@link TransferStreaming}.
  * </ul>
  *
  * <p>The lightweight {@code .../check} endpoints stay plain {@code @Blocking} on the default worker
@@ -254,7 +253,11 @@ public class BlobResource {
   }
 
   private Uni<Void> doDownload(
-      String cookieHeader, String zmToken, String nodeId, Integer version, HttpServerResponse resp) {
+      String cookieHeader,
+      String zmToken,
+      String nodeId,
+      Integer version,
+      HttpServerResponse resp) {
     // @Blocking: this runs on a worker thread (request context + EntityManager active). Auth +
     // metadata resolution + opening the storages InputStream happen here, throwing 404/403 BEFORE
     // any byte or header is written (so BlobExceptionMapper sets the status). Only the byte pump of
@@ -361,8 +364,8 @@ public class BlobResource {
   }
 
   /**
-   * Base64-decodes the {@code Filename} header (legacy encoding). Returns {@code null} if the header
-   * is missing or not valid base64, which the callers translate into a 400.
+   * Base64-decodes the {@code Filename} header (legacy encoding). Returns {@code null} if the
+   * header is missing or not valid base64, which the callers translate into a 400.
    */
   private static String decodeFilename(String encodedFilename) {
     if (encodedFilename == null) {
@@ -432,11 +435,12 @@ public class BlobResource {
   }
 
   /**
-   * Legacy parity (pinned by the acceptance suite): the legacy Netty stack collapsed BOTH "node does
-   * not exist" and "node exists but requester lacks permission" into the same 404 (both surfaced as
-   * {@link NoSuchElementException} → {@code "404 Not Found"}). The acceptance tests assert exactly
-   * that indistinguishable 404 shape for both cases (e.g. {@code AuthenticatedDownloadApiIT},
-   * {@code InternalUploadApiIT}), so a permission failure must NOT surface as a "more precise" 403.
+   * Legacy parity (pinned by the acceptance suite): the legacy Netty stack collapsed BOTH "node
+   * does not exist" and "node exists but requester lacks permission" into the same 404 (both
+   * surfaced as {@link NoSuchElementException} → {@code "404 Not Found"}). The acceptance tests
+   * assert exactly that indistinguishable 404 shape for both cases (e.g. {@code
+   * AuthenticatedDownloadApiIT}, {@code InternalUploadApiIT}), so a permission failure must NOT
+   * surface as a "more precise" 403.
    */
   private RuntimeException notFoundOrForbidden(String nodeId) {
     return new NoSuchElementException("Node " + nodeId + " does not exist or is not accessible");

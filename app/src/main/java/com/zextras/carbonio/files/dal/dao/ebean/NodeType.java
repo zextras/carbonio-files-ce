@@ -4,12 +4,9 @@
 
 package com.zextras.carbonio.files.dal.dao.ebean;
 
-
 import com.google.common.net.MediaType;
 
-/**
- * This enumeration is used to keep and manage the specific types of a node
- */
+/** This enumeration is used to keep and manage the specific types of a node */
 public enum NodeType {
   IMAGE,
   VIDEO,

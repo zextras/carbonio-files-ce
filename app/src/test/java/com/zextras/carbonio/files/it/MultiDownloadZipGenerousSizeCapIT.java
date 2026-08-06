@@ -18,13 +18,14 @@ import org.junit.jupiter.api.Test;
 /**
  * Config-split sibling of {@link MultiDownloadZipApiIT} (Batch E / D3): carries the ONE scenario
  * that needs a cap PRESENT-but-NOT-exceeded ({@link DownloadGenerousCapResource}, {@code 100}MB,
- * class-restricted) — genuinely distinct, at the {@code
- * BlobService#checkDownloadMultipleInternal} branch level, from the default (uncapped) stack's
- * {@code Optional.empty()} short-circuit that {@link MultiDownloadZipApiIT}'s other methods run
- * under. See {@link MultiDownloadZipApiIT}'s javadoc for the full split mapping (21 base + 2
- * {@link MultiDownloadZipSizeCapIT} + 1 here = 24).
+ * class-restricted) — genuinely distinct, at the {@code BlobService#checkDownloadMultipleInternal}
+ * branch level, from the default (uncapped) stack's {@code Optional.empty()} short-circuit that
+ * {@link MultiDownloadZipApiIT}'s other methods run under. See {@link MultiDownloadZipApiIT}'s
+ * javadoc for the full split mapping (21 base + 2 {@link MultiDownloadZipSizeCapIT} + 1 here = 24).
  */
-@WithTestResource(value = DownloadGenerousCapResource.class, scope = TestResourceScope.RESTRICTED_TO_CLASS)
+@WithTestResource(
+    value = DownloadGenerousCapResource.class,
+    scope = TestResourceScope.RESTRICTED_TO_CLASS)
 class MultiDownloadZipGenerousSizeCapIT extends AbstractFilesIT {
 
   private static final String REQUESTER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";

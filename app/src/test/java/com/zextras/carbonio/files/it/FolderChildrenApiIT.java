@@ -18,12 +18,11 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@code com.zextras.carbonio.files.acceptance.FolderChildrenApiIT} rewritten as an
- * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. All 3 methods and
- * their assertions (including the class-level finding about {@code LOCAL_ROOT}'s hard {@code
- * owner_id = requester} clause vs. a normal folder's owner-OR-share clause) are preserved
- * verbatim; only the seeding mechanism (API calls capturing server-generated ids) and transport
- * changed.
+ * {@code com.zextras.carbonio.files.acceptance.FolderChildrenApiIT} rewritten as an out-of-process
+ * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. All 3 methods and their assertions
+ * (including the class-level finding about {@code LOCAL_ROOT}'s hard {@code owner_id = requester}
+ * clause vs. a normal folder's owner-OR-share clause) are preserved verbatim; only the seeding
+ * mechanism (API calls capturing server-generated ids) and transport changed.
  */
 class FolderChildrenApiIT extends AbstractFilesIT {
 
@@ -48,17 +47,21 @@ class FolderChildrenApiIT extends AbstractFilesIT {
         GraphqlCommandBuilder.aQueryBuilder("getNode")
             .withString("node_id", folderId)
             .withWantedResultFormat(
-                "{ ... on Folder { children(" + childrenArgs + ") { nodes { id name }, page_token } } }")
+                "{ ... on Folder { children("
+                    + childrenArgs
+                    + ") { nodes { id name }, page_token } } }")
             .build();
     return graphql(bodyPayload, cookie);
   }
 
   @SuppressWarnings("unchecked")
-  private Map<String, Object> childrenPage(String folderId, int limit, String pageToken, String cookie) {
+  private Map<String, Object> childrenPage(
+      String folderId, int limit, String pageToken, String cookie) {
     Response response = getChildren(folderId, limit, pageToken, cookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     return (Map<String, Object>) node.get("children");
   }
 
@@ -73,9 +76,14 @@ class FolderChildrenApiIT extends AbstractFilesIT {
     // Given — one node owned by the requester, and one node owned by OTHER_USER_ID but directly
     // shared with the requester, both sitting at LOCAL_ROOT
     String ownedId =
-        seedFile("owned.txt", LOCAL_ROOT, "owned".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "owned.txt", LOCAL_ROOT, "owned".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String sharedId =
-        seedFile("sharedWithMe.txt", LOCAL_ROOT, "shared".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+        seedFile(
+            "sharedWithMe.txt",
+            LOCAL_ROOT,
+            "shared".getBytes(StandardCharsets.UTF_8),
+            OTHER_COOKIE);
     seedShare(sharedId, REQUESTER_ID, ACL.SharePermission.READ_ONLY, OTHER_COOKIE);
 
     // When
@@ -86,7 +94,8 @@ class FolderChildrenApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenANormalFolderChildrenShouldReturnBothOwnedAndIndividuallySharedNodes() throws java.sql.SQLException {
+  void givenANormalFolderChildrenShouldReturnBothOwnedAndIndividuallySharedNodes()
+      throws java.sql.SQLException {
     // Given — folder F owned by the requester; C1 owned by the requester, C2 owned by
     // OTHER_USER_ID but directly shared with the requester — both structurally parented under F.
     // NOTE: C2's owner/parent-owner mismatch (parented under a folder it does NOT own, without
@@ -95,11 +104,19 @@ class FolderChildrenApiIT extends AbstractFilesIT {
     // OTHER_COOKIE somehow held write access, the uploaded child would inherit F's OWNER per the
     // owner-inheritance rule, never the actor's own id) — seeded via the raw-JDBC escape hatch.
     String folderId = seedFolder("F", LOCAL_ROOT, REQUESTER_COOKIE);
-    String c1Id = seedFile("c1.txt", folderId, "c1".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String c1Id =
+        seedFile("c1.txt", folderId, "c1".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String c2Id = "00000000-0000-0000-0000-0000000000c2";
     seedInconsistentNode(
-        c2Id, OTHER_USER_ID, OTHER_USER_ID, folderId, "c2.txt", com.zextras.carbonio.files.dal.dao.ebean.NodeType.TEXT,
-        "LOCAL_ROOT," + folderId, 2L, "text/plain");
+        c2Id,
+        OTHER_USER_ID,
+        OTHER_USER_ID,
+        folderId,
+        "c2.txt",
+        com.zextras.carbonio.files.dal.dao.ebean.NodeType.TEXT,
+        "LOCAL_ROOT," + folderId,
+        2L,
+        "text/plain");
     seedShare(c2Id, REQUESTER_ID, ACL.SharePermission.READ_ONLY, OTHER_COOKIE);
 
     // When
@@ -115,11 +132,14 @@ class FolderChildrenApiIT extends AbstractFilesIT {
     // Given — folder F2 owned by the requester, with 3 children, page size 2
     String folderId = seedFolder("F2", LOCAL_ROOT, REQUESTER_COOKIE);
     tickClock();
-    String aId = seedFile("aaa.txt", folderId, "a".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String aId =
+        seedFile("aaa.txt", folderId, "a".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     tickClock();
-    String bId = seedFile("bbb.txt", folderId, "b".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String bId =
+        seedFile("bbb.txt", folderId, "b".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     tickClock();
-    String cId = seedFile("ccc.txt", folderId, "c".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String cId =
+        seedFile("ccc.txt", folderId, "c".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When — first page
     Map<String, Object> firstPage = childrenPage(folderId, 2, null, REQUESTER_COOKIE);

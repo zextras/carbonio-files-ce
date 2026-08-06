@@ -24,12 +24,12 @@ import org.junit.jupiter.api.Test;
  * F1 (Quarkus-rewrite hardening restoration): a missing/unparseable {@code Content-Length} header
  * must be REFUSED (400), not silently treated as "no size limit applies". Legacy parity: {@code
  * core/.../BlobController#isRequestSizeOverLimit} did {@code
- * Long.parseLong(httpRequest.headers().get(CONTENT_LENGTH))} as its very first act — a request
- * with no {@code Content-Length} header (e.g. chunked transfer-encoding) threw a {@code
+ * Long.parseLong(httpRequest.headers().get(CONTENT_LENGTH))} as its very first act — a request with
+ * no {@code Content-Length} header (e.g. chunked transfer-encoding) threw a {@code
  * NumberFormatException} (an {@link IllegalArgumentException} subtype), mapped to HTTP 400 by the
  * legacy {@code ExceptionsHandler}, independent of whether {@code max-uploadable-size-in-mb} was
- * even configured. {@code BlobResource#isRequestSizeOverLimit} instead returned {@code false} for
- * a {@code null} content length, bypassing the size check entirely.
+ * even configured. {@code BlobResource#isRequestSizeOverLimit} instead returned {@code false} for a
+ * {@code null} content length, bypassing the size check entirely.
  *
  * <p>Uses the JDK {@link HttpClient} with {@link BodyPublishers#ofInputStream} on purpose: its
  * content length is unknown until the stream is exhausted, so the JDK client always sends the
@@ -97,10 +97,14 @@ class UploadContentLengthApiIT extends AbstractFilesIT {
             "/upload-version",
             content,
             Map.of(
-                "NodeId", nodeId,
-                "Filename", base64("chunked-version.bin"),
-                "OverwriteVersion", "false",
-                "Cookie", REQUESTER_COOKIE));
+                "NodeId",
+                nodeId,
+                "Filename",
+                base64("chunked-version.bin"),
+                "OverwriteVersion",
+                "false",
+                "Cookie",
+                REQUESTER_COOKIE));
 
     // Then
     Assertions.assertThat(response.statusCode()).isEqualTo(400);

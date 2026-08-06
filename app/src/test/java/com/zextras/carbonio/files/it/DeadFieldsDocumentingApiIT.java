@@ -31,23 +31,23 @@ import org.junit.jupiter.api.Test;
  *       Constants.GraphQL.Queries.GET_USER} (the string {@code "getUser"}) to {@code
  *       UserDataFetcher#getUserFetcher}, but the schema's query is named {@code getUserById} —
  *       there is no {@code GET_USER_BY_ID} constant at all. Consequently {@code getUserById} falls
- *       through to graphql-java's default {@code PropertyDataFetcher} against the (null) root
- *       Query source object, which always returns {@code null} for ANY {@code user_id} value —
- *       and since NO {@code InputFieldsController} rule is bound to this field either, not even a
+ *       through to graphql-java's default {@code PropertyDataFetcher} against the (null) root Query
+ *       source object, which always returns {@code null} for ANY {@code user_id} value — and since
+ *       NO {@code InputFieldsController} rule is bound to this field either, not even a
  *       malformed/empty id trips a validation error first.
  *   <li><b>{@code Node.share(share_target_id)} has no bound resolver</b> on {@code File}/{@code
  *       Folder} either — same default-{@code PropertyDataFetcher}-on-a-{@code Map}-without-that-key
  *       fallthrough, always {@code null}, no validation, no matter the argument.
  *   <li><b>{@code Share.sorts} is a no-op.</b> {@code ShareDataFetcher#getSharesFetcher} never
- *       calls {@code environment.getArgument(...SORTS...)} at all — passing any {@code sorts}
- *       value changes nothing.
+ *       calls {@code environment.getArgument(...SORTS...)} at all — passing any {@code sorts} value
+ *       changes nothing.
  *   <li><b>The {@code DistributionList} union member is never constructed.</b> {@code
  *       Constants.GraphQL.ENTITY_TYPE} is set to {@code Types.USER} in {@code
  *       UserDataFetcher#convertUserToDataFetcherResult} and NOWHERE in the whole {@code src/main}
  *       tree is it ever set to {@code Types.DISTRIBUTION_LIST} — so {@code
  *       getAccountTypeResolver}'s {@code DistributionList} branch is unreachable dead code, on both
- *       union fields that use it ({@code Account}: {@code getAccountByEmail}; {@code
- *       SharedTarget}: {@code Share.share_target}).
+ *       union fields that use it ({@code Account}: {@code getAccountByEmail}; {@code SharedTarget}:
+ *       {@code Share.share_target}).
  * </ul>
  *
  * <p>All 4 methods and their assertions are preserved verbatim; only the seeding (API calls
@@ -97,7 +97,8 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
 
       // Then
       Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-      Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
+      Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+          .isEmpty();
       Assertions.assertThat(
               TestUtils.jsonResponseToValue(response.getBody().asString(), "getUserById"))
           .isEmpty();
@@ -110,7 +111,8 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
     // meaningfully different share_target_id combinations: the requester's own id, a registered
     // other user, and an id that resolves to nobody at all.
     String nodeId =
-        seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     for (String shareTargetId :
         List.of(REQUESTER_ID, TARGET_B, "ffffffff-ffff-ffff-ffff-ffffffffffff")) {
@@ -126,8 +128,10 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
 
       // Then
       Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-      Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
-      Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+      Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+          .isEmpty();
+      Map<String, Object> node =
+          TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
       Assertions.assertThat(node).containsEntry("id", nodeId);
       Assertions.assertThat(node.get("share")).isNull();
     }
@@ -140,7 +144,8 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
     // order (B, then C, then D), with a clock tick between each share to guarantee distinct
     // creation timestamps.
     String nodeId =
-        seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     seedShare(nodeId, TARGET_B, ACL.SharePermission.READ_ONLY, REQUESTER_COOKIE);
     tickClock();
     seedShare(nodeId, TARGET_C, ACL.SharePermission.READ_ONLY, REQUESTER_COOKIE);
@@ -151,7 +156,8 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
         GraphqlCommandBuilder.aQueryBuilder("getNode")
             .withString("node_id", nodeId)
             .withWantedResultFormat(
-                "{ shares(limit: 50, sorts: [CREATION_DESC]) { share_target { ... on User { id } } } }")
+                "{ shares(limit: 50, sorts: [CREATION_DESC]) { share_target { ... on User { id } }"
+                    + " } }")
             .build();
     String withoutSortsPayload =
         GraphqlCommandBuilder.aQueryBuilder("getNode")
@@ -165,8 +171,10 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
 
     // Then — both must be error-free (all three targets are registered UM users) and, crucially,
     // the ORDER of target ids must be IDENTICAL between the two calls: `sorts` changed nothing.
-    Assertions.assertThat(TestUtils.jsonResponseToErrors(withSortsResponse.getBody().asString())).isEmpty();
-    Assertions.assertThat(TestUtils.jsonResponseToErrors(withoutSortsResponse.getBody().asString())).isEmpty();
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(withSortsResponse.getBody().asString()))
+        .isEmpty();
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(withoutSortsResponse.getBody().asString()))
+        .isEmpty();
 
     List<String> withSortsOrder = shareTargetIds(withSortsResponse);
     List<String> withoutSortsOrder = shareTargetIds(withoutSortsResponse);
@@ -177,7 +185,8 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
 
   @SuppressWarnings("unchecked")
   private static List<String> shareTargetIds(Response response) {
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     List<Map<String, Object>> shares = (List<Map<String, Object>>) node.get("shares");
     return shares.stream()
         .map(share -> (Map<String, Object>) share.get("share_target"))
@@ -192,7 +201,8 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
     // appear. Both share the exact same type resolver (UserDataFetcher#getAccountTypeResolver),
     // which is unconditionally wired to Types.USER by every account-producing code path.
     String nodeId =
-        seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     seedShare(nodeId, TARGET_B, ACL.SharePermission.READ_ONLY, REQUESTER_COOKIE);
 
     String accountByEmailPayload =
@@ -214,16 +224,19 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
     Response shareTargetResponse = execute(shareTargetPayload);
 
     // Then — Account union: always User
-    Assertions.assertThat(TestUtils.jsonResponseToErrors(accountByEmailResponse.getBody().asString()))
+    Assertions.assertThat(
+            TestUtils.jsonResponseToErrors(accountByEmailResponse.getBody().asString()))
         .isEmpty();
     Map<String, Object> account =
-        TestUtils.jsonResponseToMap(accountByEmailResponse.getBody().asString(), "getAccountByEmail");
+        TestUtils.jsonResponseToMap(
+            accountByEmailResponse.getBody().asString(), "getAccountByEmail");
     Assertions.assertThat(account).containsEntry("__typename", "User");
 
     // Then — SharedTarget union: always User
     Assertions.assertThat(TestUtils.jsonResponseToErrors(shareTargetResponse.getBody().asString()))
         .isEmpty();
-    Map<String, Object> node = TestUtils.jsonResponseToMap(shareTargetResponse.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(shareTargetResponse.getBody().asString(), "getNode");
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> shares = (List<Map<String, Object>>) node.get("shares");
     Assertions.assertThat(shares).hasSize(1);

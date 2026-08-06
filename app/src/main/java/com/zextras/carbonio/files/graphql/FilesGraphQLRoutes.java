@@ -31,21 +31,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Registers the two GraphQL HTTP endpoints on the Vert.x router and executes the graphql-java engine
- * for each request. This is the Quarkus replacement for the legacy Netty {@code GraphQLController}
- * and {@code PublicGraphQLController}.
+ * Registers the two GraphQL HTTP endpoints on the Vert.x router and executes the graphql-java
+ * engine for each request. This is the Quarkus replacement for the legacy Netty {@code
+ * GraphQLController} and {@code PublicGraphQLController}.
  *
  * <ul>
  *   <li>{@code POST /graphql} — authenticated (guarded by {@link FilesAuthenticationFilter}); the
  *       requester/cookies stashed by the filter are copied into the graphql-java context, and a
- *       FRESH per-request {@link DataLoaderRegistry} is attached (data loaders MUST be per-request).
+ *       FRESH per-request {@link DataLoaderRegistry} is attached (data loaders MUST be
+ *       per-request).
  *   <li>{@code POST /public/graphql} — unauthenticated; no requester context and no data loaders.
  * </ul>
  *
- * <p>Execution is SYNCHRONOUS ({@link GraphQL#execute(ExecutionInput)}) and runs on a Vert.x blocking
- * worker thread where the CDI request context is active. Together with the synchronous batch loaders
- * (see {@link NodeBatchLoader}/{@link ShareBatchLoader}) this keeps every data-access hop on a
- * request-scoped thread, so the request-scoped {@code EntityManager} is always available.
+ * <p>Execution is SYNCHRONOUS ({@link GraphQL#execute(ExecutionInput)}) and runs on a Vert.x
+ * blocking worker thread where the CDI request context is active. Together with the synchronous
+ * batch loaders (see {@link NodeBatchLoader}/{@link ShareBatchLoader}) this keeps every data-access
+ * hop on a request-scoped thread, so the request-scoped {@code EntityManager} is always available.
  */
 @ApplicationScoped
 public class FilesGraphQLRoutes {
@@ -101,7 +102,8 @@ public class FilesGraphQLRoutes {
    */
   private void handleAuthenticatedRequest(RoutingContext ctx) {
     // Custom Vert.x routes registered via @Observes Router do NOT get Quarkus' automatic CDI
-    // request-context activation, so the request-scoped EntityManager would be unavailable. Activate
+    // request-context activation, so the request-scoped EntityManager would be unavailable.
+    // Activate
     // it explicitly for the whole (fully synchronous) execution on this blocking worker thread.
     ManagedContext requestContext = Arc.container().requestContext();
     boolean activatedHere = false;
@@ -132,7 +134,8 @@ public class FilesGraphQLRoutes {
     } catch (GraphQLRequest.InvalidPayloadRequestError | GraphQLException exception) {
       writeBadRequest(ctx);
     } catch (Exception exception) {
-      logger.error("GraphQLRoutes catches an exception handling an authenticated request", exception);
+      logger.error(
+          "GraphQLRoutes catches an exception handling an authenticated request", exception);
       writeBadRequest(ctx);
     } finally {
       if (activatedHere) {

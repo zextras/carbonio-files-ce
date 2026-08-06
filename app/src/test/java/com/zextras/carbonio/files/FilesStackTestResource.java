@@ -28,23 +28,22 @@ import org.testcontainers.containers.PostgreSQLContainer;
  * <p>Only two dependencies are needed to prove the schema boots:
  *
  * <ul>
- *   <li>Consul (service discovery + KV credential lookup at boot) — stubbed by an in-process
- *       {@link WireMockServer}, following the same idiom as {@code carbonio-tasks-ce}'s {@code
+ *   <li>Consul (service discovery + KV credential lookup at boot) — stubbed by an in-process {@link
+ *       WireMockServer}, following the same idiom as {@code carbonio-tasks-ce}'s {@code
  *       StackTestResource} (root {@code /v1/kv/} recurse stub returning base64-encoded DB
- *       credentials) but using the {@code org.wiremock:wiremock} Java library instead of a
- *       WireMock Docker container, since no other consumer needs the container network alias
- *       trick tasks-ce uses for its second mock role.
+ *       credentials) but using the {@code org.wiremock:wiremock} Java library instead of a WireMock
+ *       Docker container, since no other consumer needs the container network alias trick tasks-ce
+ *       uses for its second mock role.
  *   <li>PostgreSQL — a real {@code postgres:16} Testcontainer, so Flyway migrates against a real
  *       engine.
  * </ul>
  *
- * <p>No user-management / mailbox stubs are wired here: this resource only proves the
- * datasource + Flyway foundation boots, not auth or any business endpoint (that's P2b/P2c and
- * beyond).
+ * <p>No user-management / mailbox stubs are wired here: this resource only proves the datasource +
+ * Flyway foundation boots, not auth or any business endpoint (that's P2b/P2c and beyond).
  *
- * <p>Containers are static singletons: they start once per JVM and are reused across all {@code
- * @QuarkusTest} classes that use this resource. {@code stop()} is a no-op; Testcontainers' JVM
- * shutdown hook handles cleanup.
+ * <p>Containers are static singletons: they start once per JVM and are reused across all
+ * {@code @QuarkusTest} classes that use this resource. {@code stop()} is a no-op; Testcontainers'
+ * JVM shutdown hook handles cleanup.
  */
 public class FilesStackTestResource implements QuarkusTestResourceLifecycleManager {
 
@@ -71,7 +70,8 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
    * cleanup ({@code @AfterEach} DELETE/TRUNCATE, mirroring {@code
    * QuarkusTestDataAccess#resetDatabase}) and for the rare API-observable-not-creatable read-back
    * (tombstone/version rows). Mirrors {@code carbonio-tasks-ce}'s {@code StackTestResource
-   * .POSTGRES_JDBC_URL}. Credentials are the fixed {@link #DB_USER}/{@link #DB_PASSWORD} test values.
+   * .POSTGRES_JDBC_URL}. Credentials are the fixed {@link #DB_USER}/{@link #DB_PASSWORD} test
+   * values.
    */
   public static volatile String POSTGRES_JDBC_URL;
 
@@ -81,7 +81,8 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
   private static WireMockServer consulMock;
   private static WireMockServer previewMailboxMock;
   private static PostgreSQLContainer<?> postgres;
-  private static com.zextras.carbonio.files.utilities.MockUserManagementService userManagementService;
+  private static com.zextras.carbonio.files.utilities.MockUserManagementService
+      userManagementService;
   private static MockStoragesService storagesService;
 
   @Override
@@ -118,8 +119,10 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
     // ITs keep working). The acceptance seam adds/overwrites more tokens at runtime.
     userManagementService.registerToken(AUTH_TOKEN, TEST_USER_ID);
 
-    // Phase 0 (storages cutover): a dedicated in-process WireMock fake for carbonio-storages, so the
-    // app's REAL FilestoreProducer/StoragesClient talks to it over real HTTP instead of relying on an
+    // Phase 0 (storages cutover): a dedicated in-process WireMock fake for carbonio-storages, so
+    // the
+    // app's REAL FilestoreProducer/StoragesClient talks to it over real HTTP instead of relying on
+    // an
     // in-process @io.quarkus.test.Mock Filestore CDI double (see MockStoragesService's javadoc).
     storagesService = new MockStoragesService();
 
@@ -138,7 +141,8 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
             // %test.networking-config.carbonio.service.host=localhost override in
             // application.properties, but @QuarkusIntegrationTest launches the PACKAGED artifact
             // under quarkus.profile=prod (confirmed empirically: the launch command carries
-            // "-Dquarkus.profile=prod"), where that %test.-scoped line never applies -> the app binds
+            // "-Dquarkus.profile=prod"), where that %test.-scoped line never applies -> the app
+            // binds
             // to 127.78.0.2 and RestAssured's default localhost connection is refused. Force
             // quarkus.http.host directly (same channel/precedence the test framework itself already
             // uses for quarkus.http.port) so the launched app is reachable regardless of profile.
@@ -156,7 +160,8 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
             Map.entry("quarkus.datasource.jdbc.url", jdbcUrl),
             Map.entry("quarkus.datasource.username", DB_USER),
             Map.entry("quarkus.datasource.password", DB_PASSWORD),
-            // user-management REST client (UserResourceApi) → the dedicated in-process WireMock fake.
+            // user-management REST client (UserResourceApi) → the dedicated in-process WireMock
+            // fake.
             Map.entry("networking-config.carbonio.user-management.host", "localhost"),
             Map.entry(
                 "networking-config.carbonio.user-management.port",
@@ -179,7 +184,8 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
             Map.entry(
                 "networking-config.carbonio.docs-connector.port",
                 String.valueOf(previewMailboxMock.port())),
-            // Phase 0: carbonio-storages (Filestore/StoragesClient) -> the dedicated MockStoragesService
+            // Phase 0: carbonio-storages (Filestore/StoragesClient) -> the dedicated
+            // MockStoragesService
             // WireMock fake, replacing the in-process InMemoryFilestore @Mock CDI double.
             Map.entry("networking-config.carbonio.storages.host", "localhost"),
             Map.entry(
@@ -189,7 +195,8 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
             // profile, so the seam's %test.quarkus.scheduler.enabled=false override never applies.
             // Without this, the @Scheduled purge job runs LIVE against the shared Postgres
             // Testcontainer during trash/version/delete ITs, causing cross-test flakiness (rows
-            // disappearing out from under an assertion mid-test). Disable the scheduler outright via
+            // disappearing out from under an assertion mid-test). Disable the scheduler outright
+            // via
             // the same config channel.
             Map.entry("quarkus.scheduler.enabled", "false"));
 
@@ -226,8 +233,8 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
   }
 
   /**
-   * Exposes the carbonio-preview/carbonio-mailbox WireMock instance so individual {@code
-   * @QuarkusTest} classes can register per-test overriding stubs (default priority 5, higher
+   * Exposes the carbonio-preview/carbonio-mailbox WireMock instance so individual
+   * {@code @QuarkusTest} classes can register per-test overriding stubs (default priority 5, higher
    * priority than the generic fallbacks registered by {@link #setupPreviewAndMailboxStubs}, which
    * run at priority 10).
    */
@@ -237,8 +244,8 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
 
   /**
    * Resets the preview/mailbox WireMock to its baseline (clears per-test stubs, re-adds the generic
-   * fallbacks). Used by the acceptance seam's {@code Mocks#reset()} — the Quarkus counterpart of the
-   * legacy {@code Simulator#reinitializeMocks()} preview/mailbox reset.
+   * fallbacks). Used by the acceptance seam's {@code Mocks#reset()} — the Quarkus counterpart of
+   * the legacy {@code Simulator#reinitializeMocks()} preview/mailbox reset.
    */
   public static void resetPreviewMailboxStubs() {
     if (previewMailboxMock != null) {
@@ -247,7 +254,9 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
     }
   }
 
-  /** Resets the Consul-stub WireMock to its baseline (clears per-test KV stubs, re-adds defaults). */
+  /**
+   * Resets the Consul-stub WireMock to its baseline (clears per-test KV stubs, re-adds defaults).
+   */
   public static void resetConsulStubs() {
     if (consulMock != null) {
       consulMock.resetMappings();
@@ -266,12 +275,12 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
    * Registers WireMock stubs that impersonate the Consul HTTP API, mirroring {@code
    * carbonio-tasks-ce}'s {@code StackTestResource#setupConsulStubs}.
    *
-   * <p>carbonio-quarkus-extensions (>= 1.10.x) issues a SINGLE ROOT recursive GET at boot:
-   * {@code GET /v1/kv/?recurse} (prefix == "", urlPath ignores the query string). Consul
-   * ACL-filters that root recurse to the keys the token can read; the boot factory then derives
-   * the own-service application-config view from the {@code carbonio-files/*} subset. So we stub
-   * the ROOT recurse and return all three credential entries in the Consul recursive-response
-   * format (values base64-encoded, as the real Consul API does for {@code ?recurse}).
+   * <p>carbonio-quarkus-extensions (>= 1.10.x) issues a SINGLE ROOT recursive GET at boot: {@code
+   * GET /v1/kv/?recurse} (prefix == "", urlPath ignores the query string). Consul ACL-filters that
+   * root recurse to the keys the token can read; the boot factory then derives the own-service
+   * application-config view from the {@code carbonio-files/*} subset. So we stub the ROOT recurse
+   * and return all three credential entries in the Consul recursive-response format (values
+   * base64-encoded, as the real Consul API does for {@code ?recurse}).
    */
   private static void setupConsulStubs(WireMockServer server) {
     String[][] kvEntries = {
@@ -290,9 +299,7 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
 
     // Catch-all for unknown KV keys → 404 (lowest priority; urlPathMatching ignores the query).
     server.stubFor(
-        get(urlPathMatching("/v1/kv/.*"))
-            .atPriority(10)
-            .willReturn(aResponse().withStatus(404)));
+        get(urlPathMatching("/v1/kv/.*")).atPriority(10).willReturn(aResponse().withStatus(404)));
 
     // FilesConfig#initializePageTokenSecretKey's ?cas=0 write: absent this stub, a cold "cluster"
     // (this single test instance, on its very first boot) gets a 404 on the catch-all above and
@@ -356,7 +363,8 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
                 aResponse()
                     .withStatus(200)
                     .withHeader("Content-Type", "application/json")
-                    .withBody("{\"Config\":{\"Datacenter\":\"dc1\",\"NodeName\":\"mock-consul\"}}")));
+                    .withBody(
+                        "{\"Config\":{\"Datacenter\":\"dc1\",\"NodeName\":\"mock-consul\"}}")));
     server.stubFor(
         get(urlPathEqualTo("/v1/status/leader"))
             .willReturn(
@@ -376,11 +384,15 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
   private static void setupPreviewAndMailboxStubs(WireMockServer server) {
     // carbonio-preview: PreviewClient#healthReady() → GET {baseUrl}/health/ready/
     server.stubFor(
-        get(urlPathEqualTo("/health/ready/")).atPriority(10).willReturn(aResponse().withStatus(200)));
+        get(urlPathEqualTo("/health/ready/"))
+            .atPriority(10)
+            .willReturn(aResponse().withStatus(200)));
 
     // carbonio-docs-connector: DocsConnectorHttpClient#isLive() → GET {baseUrl}/q/health/live
     server.stubFor(
-        get(urlPathEqualTo("/q/health/live")).atPriority(10).willReturn(aResponse().withStatus(200)));
+        get(urlPathEqualTo("/q/health/live"))
+            .atPriority(10)
+            .willReturn(aResponse().withStatus(200)));
 
     // carbonio-preview: any preview/thumbnail fetch → a minimal canned PNG.
     byte[] fallbackPreviewBytes = {(byte) 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a};
@@ -398,20 +410,19 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
         post(urlPathMatching("/service/upload.*"))
             .atPriority(10)
             .willReturn(
-                aResponse()
-                    .withStatus(200)
-                    .withBody("200,'null','fallback-attachment-id'\n")));
+                aResponse().withStatus(200).withBody("200,'null','fallback-attachment-id'\n")));
   }
 
   /**
-   * Builds a Consul-format recursive KV response JSON for the given entries, matching what the
-   * real Consul API returns for {@code ?recurse} (values base64-encoded).
+   * Builds a Consul-format recursive KV response JSON for the given entries, matching what the real
+   * Consul API returns for {@code ?recurse} (values base64-encoded).
    */
   private static String buildKvArrayJson(String[][] entries) {
     StringBuilder sb = new StringBuilder("[");
     for (int i = 0; i < entries.length; i++) {
       String key = entries[i][0];
-      String value = Base64.getEncoder().encodeToString(entries[i][1].getBytes(StandardCharsets.UTF_8));
+      String value =
+          Base64.getEncoder().encodeToString(entries[i][1].getBytes(StandardCharsets.UTF_8));
       if (i > 0) {
         sb.append(",");
       }

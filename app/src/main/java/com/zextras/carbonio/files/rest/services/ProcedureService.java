@@ -26,9 +26,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Handles all the procedures to perform on external services. Quarkus/CDI port of the legacy
- * Guice {@code ProcedureService}: logic preserved 1:1, only the transport/DI details change
- * ({@link MailboxHttpClient} is now a CDI bean built on the JDK http client instead of Apache's).
+ * Handles all the procedures to perform on external services. Quarkus/CDI port of the legacy Guice
+ * {@code ProcedureService}: logic preserved 1:1, only the transport/DI details change ({@link
+ * MailboxHttpClient} is now a CDI bean built on the JDK http client instead of Apache's).
  */
 @ApplicationScoped
 public class ProcedureService {

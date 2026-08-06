@@ -43,7 +43,10 @@ public class MockUserManagementService {
 
   private final WireMockServer server;
 
-  /** token -> currently-registered {@code /internal/users/myself} stub, so it can be overwritten/removed. */
+  /**
+   * token -> currently-registered {@code /internal/users/myself} stub, so it can be
+   * overwritten/removed.
+   */
   private final Map<String, StubMapping> myselfStubsByToken = new ConcurrentHashMap<>();
 
   /** userId -> currently-registered {@code /internal/users/id/{userId}} stub. */
@@ -52,7 +55,10 @@ public class MockUserManagementService {
   /** email -> currently-registered {@code /internal/users/email/{email}} stub. */
   private final Map<String, StubMapping> byEmailStubs = new ConcurrentHashMap<>();
 
-  /** userId -> its currently-registered email, so changing/removing a user also cleans up its email stub. */
+  /**
+   * userId -> its currently-registered email, so changing/removing a user also cleans up its email
+   * stub.
+   */
   private final Map<String, String> userIdToEmail = new ConcurrentHashMap<>();
 
   /**
@@ -133,8 +139,8 @@ public class MockUserManagementService {
    * list, which {@code UserMyself} maps to "FALSE").
    *
    * @param status a raw UM status string (e.g. "active", "maintenance", "closed", "locked", ...),
-   *     matched case-insensitively against {@link com.zextras.carbonio.files.dal.dao.UserStatus}
-   *     by the production mapper ({@code UserRepositoryImpl#mapStatus}).
+   *     matched case-insensitively against {@link com.zextras.carbonio.files.dal.dao.UserStatus} by
+   *     the production mapper ({@code UserRepositoryImpl#mapStatus}).
    * @param isGuest true for a GUEST user, false for INTERNAL.
    * @param filesFeatureEnabled whether "carbonioFeatureFilesEnabled" is present in the features
    *     list; its absence is mapped to "FALSE" by {@code UserMyself}.
@@ -165,8 +171,8 @@ public class MockUserManagementService {
   }
 
   /**
-   * Removes a userId from the {@code getUserById}/{@code getUserByEmail} lookups so that
-   * subsequent calls for this user fall through to the {@code NOT_FOUND} catch-all.
+   * Removes a userId from the {@code getUserById}/{@code getUserByEmail} lookups so that subsequent
+   * calls for this user fall through to the {@code NOT_FOUND} catch-all.
    */
   public synchronized void unregisterUserById(String userId) {
     StubMapping oldById = byIdStubs.remove(userId);
@@ -184,9 +190,9 @@ public class MockUserManagementService {
 
   /**
    * Registers (or overwrites) a user profile for lookup by userId ({@code getUserById}) and by
-   * email ({@code getUserByEmail}). Used by integration tests that need to look up users other
-   * than the requester (e.g. transfer ownership target user). Always INTERNAL, matching the
-   * legacy gRPC fake's hardcoded type for this method.
+   * email ({@code getUserByEmail}). Used by integration tests that need to look up users other than
+   * the requester (e.g. transfer ownership target user). Always INTERNAL, matching the legacy gRPC
+   * fake's hardcoded type for this method.
    */
   public synchronized void registerUserById(
       String userId, String email, String fullName, String domain, String status) {
@@ -205,7 +211,10 @@ public class MockUserManagementService {
     setupCatchAll();
   }
 
-  /** Registers/overwrites the by-id and by-email stubs for a user, given its pre-built {@code UserInfoDto} JSON. */
+  /**
+   * Registers/overwrites the by-id and by-email stubs for a user, given its pre-built {@code
+   * UserInfoDto} JSON.
+   */
   private void registerUserInfoStubs(String userId, String email, String infoJson) {
     StubMapping oldById = byIdStubs.remove(userId);
     if (oldById != null) {
@@ -262,14 +271,18 @@ public class MockUserManagementService {
   private static String myselfJson(String infoJson, String locale, boolean filesFeatureEnabled) {
     String featuresJson = filesFeatureEnabled ? "[\"carbonioFeatureFilesEnabled\"]" : "[]";
     return String.format(
-        "{\"info\":%s,\"locale\":\"%s\",\"features\":%s}", infoJson, jsonEscape(locale), featuresJson);
+        "{\"info\":%s,\"locale\":\"%s\",\"features\":%s}",
+        infoJson, jsonEscape(locale), featuresJson);
   }
 
   private static String jsonEscape(String s) {
     return s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\"");
   }
 
-  /** Mirrors {@code ApiClient#urlEncode}, so path stubs match exactly what the REST SDK client requests. */
+  /**
+   * Mirrors {@code ApiClient#urlEncode}, so path stubs match exactly what the REST SDK client
+   * requests.
+   */
   private static String urlEncode(String s) {
     return URLEncoder.encode(s, StandardCharsets.UTF_8).replace("+", "%20");
   }

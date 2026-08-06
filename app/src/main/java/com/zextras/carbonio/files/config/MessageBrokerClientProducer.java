@@ -5,10 +5,10 @@
 package com.zextras.carbonio.files.config;
 
 import com.zextras.carbonio.files.Constants;
-import com.zextras.carbonio.quarkus.extensions.bootstrap.ApplicationConfigService;
-import com.zextras.carbonio.quarkus.extensions.bootstrap.NetworkingConfigService;
 import com.zextras.carbonio.message_broker.MessageBrokerClient;
 import com.zextras.carbonio.message_broker.config.enums.Service;
+import com.zextras.carbonio.quarkus.extensions.bootstrap.ApplicationConfigService;
+import com.zextras.carbonio.quarkus.extensions.bootstrap.NetworkingConfigService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Inject;
@@ -17,9 +17,9 @@ import jakarta.inject.Inject;
  * CDI producer for the {@link MessageBrokerClient} bean. Mirrors the legacy Guice {@code
  * FilesModule.provideMessageBrokerClient}: host/port come from {@link NetworkingConfigService}
  * ({@code carbonio.message-broker.*}, defaulting to the mesh IP/port from {@code
- * package/carbonio-files.hcl}); username/password are read from the {@code
- * carbonio-message-broker} service's own Consul KV namespace (NOT this service's own {@code
- * application-config.*} prefix), via {@link ApplicationConfigService#getFromRawPath}.
+ * package/carbonio-files.hcl}); username/password are read from the {@code carbonio-message-broker}
+ * service's own Consul KV namespace (NOT this service's own {@code application-config.*} prefix),
+ * via {@link ApplicationConfigService#getFromRawPath}.
  *
  * <p>{@link MessageBrokerClient#fromConfig} only builds a (lazy, not-yet-connected) {@code
  * ConnectionFactory}; it never attempts a connection, so this producer never throws even if
@@ -53,11 +53,13 @@ public class MessageBrokerClientProducer {
             .orElse(Constants.Config.MessageBroker.DEFAULT_PORT);
     String username =
         applicationConfig
-            .getFromRawPath(Constants.ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME + "/default/username")
+            .getFromRawPath(
+                Constants.ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME + "/default/username")
             .orElse(Constants.MessageBroker.Config.DEFAULT_USERNAME);
     String password =
         applicationConfig
-            .getFromRawPath(Constants.ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME + "/default/password")
+            .getFromRawPath(
+                Constants.ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME + "/default/password")
             .orElse(Constants.MessageBroker.Config.DEFAULT_PASSWORD);
 
     return MessageBrokerClient.fromConfig(host, port, username, password)

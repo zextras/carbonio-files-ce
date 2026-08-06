@@ -20,8 +20,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Config-split sibling of {@link RemovedNodeNotificationTrashApiIT} (Batch I / D3): carries the
- * ONE scenario that needs notifications disabled ({@link NotificationsDisabledResource},
+ * Config-split sibling of {@link RemovedNodeNotificationTrashApiIT} (Batch I / D3): carries the ONE
+ * scenario that needs notifications disabled ({@link NotificationsDisabledResource},
  * class-restricted).
  */
 @WithTestResource(
@@ -41,7 +41,8 @@ class RemovedNodeNotificationTrashDisabledIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenANodeRemovalByTrashingItOnASharedDirectoryAndDisabledNotificationsNoNotificationShouldBeSavedOrReturned() {
+  void
+      givenANodeRemovalByTrashingItOnASharedDirectoryAndDisabledNotificationsNoNotificationShouldBeSavedOrReturned() {
     // Given
     String sharedFolderId = seedFolder("folder", LOCAL_ROOT, OWNER_COOKIE);
     String nodeId = seedFolder("other_folder", sharedFolderId, OWNER_COOKIE);
@@ -53,13 +54,15 @@ class RemovedNodeNotificationTrashDisabledIT extends AbstractFilesIT {
         GraphqlCommandBuilder.aQueryBuilder("getNotifications")
             .withBoolean("update_last_seen", true)
             .withWantedResultFormat(
-                "{ notifications { ... on RemovedNode { created_at }, ... on NewShare { created_at } } }")
+                "{ notifications { ... on RemovedNode { created_at }, ... on NewShare { created_at"
+                    + " } } }")
             .build();
     Response response = graphql(query, SECOND_USER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNotifications");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNotifications");
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> notifications = (List<Map<String, Object>>) page.get("notifications");
     Assertions.assertThat(notifications).hasSize(0);

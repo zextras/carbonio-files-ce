@@ -19,9 +19,9 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Config-split sibling of {@link InternalBlobResourceApiIT} (Batch D / D3): carries the ONE
- * scenario that needs an ACTUAL {@code application-config.max-uploadable-size-in-mb} cap
- * configured ({@link UploadCapResource}, cap=0, class-restricted) to meaningfully assert that the
- * trusted {@code /internal/accounts/{userId}/upload} route bypasses it entirely. See {@link
+ * scenario that needs an ACTUAL {@code application-config.max-uploadable-size-in-mb} cap configured
+ * ({@link UploadCapResource}, cap=0, class-restricted) to meaningfully assert that the trusted
+ * {@code /internal/accounts/{userId}/upload} route bypasses it entirely. See {@link
  * InternalBlobResourceApiIT}'s javadoc for the full split mapping (8 base + 1 here = 9).
  */
 @WithTestResource(value = UploadCapResource.class, scope = TestResourceScope.RESTRICTED_TO_CLASS)
@@ -36,7 +36,10 @@ class InternalBlobResourceSizeCapIT extends AbstractFilesIT {
 
   /** Deliberately takes NO cookie parameter: {@code /internal/**} has no auth-handler. */
   private static Response internalUpload(String userId, String filenameB64, byte[] body) {
-    return RestAssured.given().header("Filename", filenameB64).body(body).post("/internal/accounts/" + userId + "/upload");
+    return RestAssured.given()
+        .header("Filename", filenameB64)
+        .body(body)
+        .post("/internal/accounts/" + userId + "/upload");
   }
 
   @Test

@@ -20,12 +20,12 @@ import org.junit.jupiter.api.Test;
 
 /**
  * F2 (Quarkus-rewrite hardening restoration): the legacy Netty pipeline capped the four {@code
- * download-multiple} routes' body at 1MB with {@code new HttpObjectAggregator(1048576)} (see
- * {@code core/.../HttpRoutingHandler#channelRead0}, lines ~110-119 for the authenticated pair,
- * ~152-167 for the public pair). The Quarkus port dropped this cap entirely: {@code
+ * download-multiple} routes' body at 1MB with {@code new HttpObjectAggregator(1048576)} (see {@code
+ * core/.../HttpRoutingHandler#channelRead0}, lines ~110-119 for the authenticated pair, ~152-167
+ * for the public pair). The Quarkus port dropped this cap entirely: {@code
  * BlobResource#downloadMultiple}/{@code #checkDownloadMultiple} and {@code
- * PublicBlobResource#downloadPublicMultiple}/{@code #checkDownloadPublicMultiple} buffered
- * whatever body arrived with no limit.
+ * PublicBlobResource#downloadPublicMultiple}/{@code #checkDownloadPublicMultiple} buffered whatever
+ * body arrived with no limit.
  *
  * <p>Every request below is sent via the JDK {@link HttpClient} with {@code
  * BodyPublishers.ofInputStream} — chunked transfer-encoding, NO {@code Content-Length} header at

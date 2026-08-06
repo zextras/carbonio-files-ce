@@ -60,8 +60,8 @@ import org.slf4j.LoggerFactory;
  *       used in an equality against those columns is normalised to 36 chars ({@link
  *       #normalizeId(String)}) so a bound {@code varchar} parameter matches the stored value.
  *   <li>Visibility is expressed with correlated {@code EXISTS} subqueries against {@code Share} /
- *       {@code NodeCustomAttributes} rather than to-many joins, which keeps result rows unique
- *       (no {@code distinct} needed) and reads cleanly.
+ *       {@code NodeCustomAttributes} rather than to-many joins, which keeps result rows unique (no
+ *       {@code distinct} needed) and reads cleanly.
  *   <li>{@link #findNodes} uses keyset (seek) pagination. The page token is an opaque Base64-URL
  *       JSON blob ({@link PageToken}) carrying the full search criteria plus the cursor (the last
  *       row's value for every applied sort column). Decoding re-applies the identical criteria plus
@@ -156,8 +156,7 @@ public class NodeRepositoryImpl implements NodeRepository {
       return Stream.empty();
     }
     List<String> ids = nodeIds.stream().map(NodeRepositoryImpl::normalizeId).toList();
-    String orderBy =
-        sort.map(s -> " order by " + orderFragment(s) + ", n.mId asc").orElse("");
+    String orderBy = sort.map(s -> " order by " + orderFragment(s) + ", n.mId asc").orElse("");
     return entityManager
         .createQuery("select n from Node n where n.mId in :ids" + orderBy, Node.class)
         .setParameter("ids", ids)
@@ -183,9 +182,7 @@ public class NodeRepositoryImpl implements NodeRepository {
 
     hql.append(" order by ")
         .append(
-            expandSorts(sort).stream()
-                .map(this::orderFragment)
-                .collect(Collectors.joining(", ")));
+            expandSorts(sort).stream().map(this::orderFragment).collect(Collectors.joining(", ")));
 
     TypedQuery<String> query = entityManager.createQuery(hql.toString(), String.class);
     params.forEach(query::setParameter);
@@ -211,7 +208,16 @@ public class NodeRepositoryImpl implements NodeRepository {
     long now = System.currentTimeMillis();
     Node node =
         new Node(
-            nodeId, creatorId, ownerId, parentId, now, now, name, description, type, ancestorIds,
+            nodeId,
+            creatorId,
+            ownerId,
+            parentId,
+            now,
+            now,
+            name,
+            description,
+            type,
+            ancestorIds,
             size);
     entityManager.persist(node);
     entityManager.flush();
@@ -270,7 +276,9 @@ public class NodeRepositoryImpl implements NodeRepository {
     String ancestorIds =
         NodeType.ROOT.equals(destinationFolder.getNodeType())
             ? destinationFolder.getId()
-            : destinationFolder.getAncestorIds() + Node.ANCESTORS_SEPARATOR + destinationFolder.getId();
+            : destinationFolder.getAncestorIds()
+                + Node.ANCESTORS_SEPARATOR
+                + destinationFolder.getId();
     long now = System.currentTimeMillis();
 
     // Fetch-then-set (not a JPQL bulk update) so the managed entities stay coherent with the L1
@@ -281,7 +289,8 @@ public class NodeRepositoryImpl implements NodeRepository {
             .setParameter("ids", nodesIds.stream().map(NodeRepositoryImpl::normalizeId).toList())
             .getResultList();
     nodes.forEach(
-        n -> n.setParentId(destinationFolder.getId()).setAncestorIds(ancestorIds).setUpdatedAt(now));
+        n ->
+            n.setParentId(destinationFolder.getId()).setAncestorIds(ancestorIds).setUpdatedAt(now));
     return nodes.size();
   }
 
@@ -302,8 +311,7 @@ public class NodeRepositoryImpl implements NodeRepository {
         .ifPresentOrElse(
             attributes -> attributes.setFlag(flag),
             () ->
-                entityManager.persist(
-                    new NodeCustomAttributes(normalizeId(nodeId), userId, flag)));
+                entityManager.persist(new NodeCustomAttributes(normalizeId(nodeId), userId, flag)));
   }
 
   private Optional<NodeCustomAttributes> getCustomAttributes(String nodeId, String userId) {
@@ -603,7 +611,8 @@ public class NodeRepositoryImpl implements NodeRepository {
       String folderId, @Nullable Integer limit, @Nullable String pageToken) {
     int realLimit = (limit != null && limit < Pagination.LIMIT) ? limit : Pagination.LIMIT;
 
-    // Public browsing has NO visibility filter: it lists the direct children of the (public) folder,
+    // Public browsing has NO visibility filter: it lists the direct children of the (public)
+    // folder,
     // ordered category-then-name-then-id, and keeps the same keyset-token machinery.
     List<NodeSort> realSorts = List.of(NodeSort.TYPE_ASC, NodeSort.NAME_ASC, NodeSort.ID_ASC);
     int pageLimit;
@@ -634,10 +643,7 @@ public class NodeRepositoryImpl implements NodeRepository {
     params.put("parentId", normalizeId(folderId));
     cursor.ifPresent(c -> hql.append(" and ").append(keysetPredicate(realSorts, c, params)));
     hql.append(" order by ")
-        .append(
-            realSorts.stream()
-                .map(this::orderFragment)
-                .collect(Collectors.joining(", ")));
+        .append(realSorts.stream().map(this::orderFragment).collect(Collectors.joining(", ")));
 
     TypedQuery<Node> query = entityManager.createQuery(hql.toString(), Node.class);
     params.forEach(query::setParameter);
@@ -706,8 +712,12 @@ public class NodeRepositoryImpl implements NodeRepository {
 
     for (int i = 0; i < keywords.size(); i++) {
       where
-          .append(" and (lower(n.mName) like :kw").append(i).append(" escape '!'")
-          .append(" or lower(n.mDescription) like :kw").append(i).append(" escape '!')");
+          .append(" and (lower(n.mName) like :kw")
+          .append(i)
+          .append(" escape '!'")
+          .append(" or lower(n.mDescription) like :kw")
+          .append(i)
+          .append(" escape '!')");
       params.put("kw" + i, "%" + escapeLike(keywords.get(i).toLowerCase()) + "%");
     }
 
@@ -719,8 +729,8 @@ public class NodeRepositoryImpl implements NodeRepository {
                     + " n.mId and ca.mCompositeId.mUserId = :userId and ca.mFlag = true)");
           } else {
             where.append(
-                " and (exists (select 1 from NodeCustomAttributes ca where ca.mCompositeId.mNodeId ="
-                    + " n.mId and ca.mCompositeId.mUserId = :userId and ca.mFlag = false) or not"
+                " and (exists (select 1 from NodeCustomAttributes ca where ca.mCompositeId.mNodeId"
+                    + " = n.mId and ca.mCompositeId.mUserId = :userId and ca.mFlag = false) or not"
                     + " exists (select 1 from NodeCustomAttributes ca2 where"
                     + " ca2.mCompositeId.mNodeId = n.mId))");
           }
@@ -779,10 +789,7 @@ public class NodeRepositoryImpl implements NodeRepository {
 
     cursor.ifPresent(c -> where.append(" and ").append(keysetPredicate(realSorts, c, params)));
 
-    String orderBy =
-        realSorts.stream()
-            .map(this::orderFragment)
-            .collect(Collectors.joining(", "));
+    String orderBy = realSorts.stream().map(this::orderFragment).collect(Collectors.joining(", "));
 
     TypedQuery<Node> query =
         entityManager.createQuery(
@@ -831,21 +838,23 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   /**
-   * Builds the lexicographic keyset predicate {@code (c0,c1,...,cn) > (v0,v1,...,vn)} honouring each
-   * column's sort direction, e.g. for [cat ASC, name ASC, id ASC]:
+   * Builds the lexicographic keyset predicate {@code (c0,c1,...,cn) > (v0,v1,...,vn)} honouring
+   * each column's sort direction, e.g. for [cat ASC, name ASC, id ASC]:
    *
-   * <pre>(cat &gt; :ks0) or (cat = :ks0 and name &gt; :ks1) or (cat = :ks0 and name = :ks1 and id &gt; :ks2)</pre>
+   * <pre>
+   * (cat &gt; :ks0) or (cat = :ks0 and name &gt; :ks1) or (cat = :ks0 and name = :ks1 and id &gt; :ks2)
+   * </pre>
    *
    * The cursor values are bound into {@code params} under {@code ks0..ksN}.
    *
    * <p>Every term uses {@link #collatedFieldPath}, NOT the plain {@link #fieldPath} — the same
-   * expression {@link #orderFragment} puts in the {@code ORDER BY}. A collated column compared
-   * with a plain (default-collation) predicate would walk a DIFFERENT total order than the one
-   * {@code ORDER BY} actually produced, silently skipping or repeating rows across a page
-   * boundary; keeping both call sites funnelled through the identical helper is what rules that
-   * out.
+   * expression {@link #orderFragment} puts in the {@code ORDER BY}. A collated column compared with
+   * a plain (default-collation) predicate would walk a DIFFERENT total order than the one {@code
+   * ORDER BY} actually produced, silently skipping or repeating rows across a page boundary;
+   * keeping both call sites funnelled through the identical helper is what rules that out.
    */
-  private String keysetPredicate(List<NodeSort> sorts, List<Object> cursor, Map<String, Object> params) {
+  private String keysetPredicate(
+      List<NodeSort> sorts, List<Object> cursor, Map<String, Object> params) {
     List<String> orParts = new ArrayList<>();
     for (int j = 0; j < sorts.size(); j++) {
       List<String> andParts = new ArrayList<>();
@@ -905,10 +914,10 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   /**
    * Whether {@code sort}'s column is one where the resolved database collation actually changes
-   * comparison/ordering semantics. Mirrors the legacy {@code NodeSort#getOrderEbeanQuery}
-   * per-value behaviour exactly: {@code NAME}/{@code OWNER}/{@code LAST_EDITOR} (all free-text
-   * {@code VARCHAR} identity columns) honoured a supplied collate; {@code ID} (always a fixed-format
-   * UUID, and never itself collation-ambiguous), {@code TYPE} (an integer category), and the
+   * comparison/ordering semantics. Mirrors the legacy {@code NodeSort#getOrderEbeanQuery} per-value
+   * behaviour exactly: {@code NAME}/{@code OWNER}/{@code LAST_EDITOR} (all free-text {@code
+   * VARCHAR} identity columns) honoured a supplied collate; {@code ID} (always a fixed-format UUID,
+   * and never itself collation-ambiguous), {@code TYPE} (an integer category), and the
    * timestamp/size numeric columns ignored it.
    */
   private static boolean isCollatable(NodeSort sort) {
@@ -930,19 +939,19 @@ public class NodeRepositoryImpl implements NodeRepository {
   /**
    * {@link #fieldPath}, wrapped in Hibernate's HQL {@code collate(x as name)} function when (a)
    * {@link #isCollatable} and (b) {@link CollationRepository} resolved a non-default collation to
-   * apply (i.e. the database's own default collation is the locale-less {@code C}/{@code C.UTF-8}
-   * — see {@link CollationRepositoryImpl}). Used for BOTH the {@code ORDER BY} term ({@link
+   * apply (i.e. the database's own default collation is the locale-less {@code C}/{@code C.UTF-8} —
+   * see {@link CollationRepositoryImpl}). Used for BOTH the {@code ORDER BY} term ({@link
    * #orderFragment}) and the matching keyset cursor comparison ({@link #keysetPredicate}) — see
    * that method's javadoc for why they must render the identical expression.
    *
    * <p>{@link CollationRepository} returns the raw-SQL, already-double-quoted identifier form
    * (legacy's contract, e.g. {@code "en_US.utf8"}, ready to drop into a native query). Hibernate's
    * HQL {@code collate(x as name)} function instead parses {@code name} as an identifier and
-   * expects it backtick-quoted when (as here) it contains characters — the dot — that are not
-   * legal in a bare HQL identifier; Hibernate then re-quotes it correctly for the target dialect
-   * ("Some PostgreSQL collation names may require quoting with backticks" — Hibernate ORM
-   * reference docs). So the outer double quotes {@link CollationRepository} adds for its raw-SQL
-   * contract are stripped here and the bare name is re-wrapped in backticks instead.
+   * expects it backtick-quoted when (as here) it contains characters — the dot — that are not legal
+   * in a bare HQL identifier; Hibernate then re-quotes it correctly for the target dialect ("Some
+   * PostgreSQL collation names may require quoting with backticks" — Hibernate ORM reference docs).
+   * So the outer double quotes {@link CollationRepository} adds for its raw-SQL contract are
+   * stripped here and the bare name is re-wrapped in backticks instead.
    */
   private String collatedFieldPath(NodeSort sort) {
     String field = fieldPath(sort);
@@ -951,7 +960,9 @@ public class NodeRepositoryImpl implements NodeRepository {
     }
     return collationRepository
         .getValidCollateForQuery()
-        .map(quoted -> "collate(" + field + " as `" + quoted.substring(1, quoted.length() - 1) + "`)")
+        .map(
+            quoted ->
+                "collate(" + field + " as `" + quoted.substring(1, quoted.length() - 1) + "`)")
         .orElse(field);
   }
 
@@ -959,7 +970,9 @@ public class NodeRepositoryImpl implements NodeRepository {
     return collatedFieldPath(sort) + (sort.getOrder() == SortOrder.ASCENDING ? " asc" : " desc");
   }
 
-  /** Extracts the value of a node for the column a given sort orders by (the keyset cursor value). */
+  /**
+   * Extracts the value of a node for the column a given sort orders by (the keyset cursor value).
+   */
   private static Object cursorValue(Node node, NodeSort sort) {
     return switch (sort) {
       case ID_ASC -> node.getId();
@@ -1031,7 +1044,9 @@ public class NodeRepositoryImpl implements NodeRepository {
     return pageToken;
   }
 
-  /** HMAC-SHA256 over the token's fields (excluding {@link PageToken#signature}), Base64-encoded. */
+  /**
+   * HMAC-SHA256 over the token's fields (excluding {@link PageToken#signature}), Base64-encoded.
+   */
   private String computeSignature(PageToken token) throws JsonProcessingException {
     ObjectMapper signingMapper = new ObjectMapper();
     signingMapper.addMixIn(PageToken.class, PageTokenSignatureMixIn.class);
@@ -1042,7 +1057,8 @@ public class NodeRepositoryImpl implements NodeRepository {
           new SecretKeySpec(
               filesConfig.getPageTokenSecretKey().getBytes(StandardCharsets.UTF_8),
               HMAC_ALGORITHM));
-      return Base64.getEncoder().encodeToString(mac.doFinal(dataToSign.getBytes(StandardCharsets.UTF_8)));
+      return Base64.getEncoder()
+          .encodeToString(mac.doFinal(dataToSign.getBytes(StandardCharsets.UTF_8)));
     } catch (NoSuchAlgorithmException | InvalidKeyException e) {
       throw new IllegalStateException("Unable to compute page token signature", e);
     }

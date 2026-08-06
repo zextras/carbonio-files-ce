@@ -5,7 +5,6 @@
 package com.zextras.carbonio.files.dal.dao.ebean;
 
 import com.zextras.carbonio.files.Constants;
-import java.util.Optional;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
@@ -13,6 +12,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.util.Optional;
 
 /**
  * Represents an Ebean {@link Share} entity that matches a record of the {@link

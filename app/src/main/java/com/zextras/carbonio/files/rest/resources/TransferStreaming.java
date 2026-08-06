@@ -32,8 +32,8 @@ import java.util.zip.ZipOutputStream;
  * <p>The single-blob response is sent fixed-length (a {@code Content-Length} header is set BEFORE
  * the first write, which makes Vert.x emit a non-chunked response); the ZIP response has no known
  * length so it enables chunked mode explicitly ({@code setChunked(true)}) before the first write —
- * Vert.x rejects a manual write otherwise. Headers, {@code Content-Disposition} encoding and the ZIP
- * entry layout are preserved verbatim from the previous {@code BlobHttpResponses} builders.
+ * Vert.x rejects a manual write otherwise. Headers, {@code Content-Disposition} encoding and the
+ * ZIP entry layout are preserved verbatim from the previous {@code BlobHttpResponses} builders.
  */
 final class TransferStreaming {
 
@@ -44,10 +44,10 @@ final class TransferStreaming {
 
   /**
    * Sets the single-download headers ({@code Content-Type}, {@code Content-Disposition} and, when
-   * known, a fixed {@code Content-Length}) then streams the blob {@link InputStream} to {@code resp}
-   * on the transfer pool. The source stream is always closed (success or failure); the returned
-   * {@link Uni} completes when the response is fully written and ended, or fails on any transfer
-   * error (client disconnect, storages read error, pool saturation).
+   * known, a fixed {@code Content-Length}) then streams the blob {@link InputStream} to {@code
+   * resp} on the transfer pool. The source stream is always closed (success or failure); the
+   * returned {@link Uni} completes when the response is fully written and ended, or fails on any
+   * transfer error (client disconnect, storages read error, pool saturation).
    */
   static Uni<Void> streamBlob(BlobResponse blob, HttpServerResponse resp, ExecutorService pool) {
     return Uni.createFrom()
@@ -64,8 +64,7 @@ final class TransferStreaming {
                         if (blob.getSize() != null) {
                           // Fixed-length (no transfer-encoding: chunked) — same as the previous
                           // Response.header(CONTENT_LENGTH, blob.getSize()).
-                          resp.putHeader(
-                              HttpHeaders.CONTENT_LENGTH, Long.toString(blob.getSize()));
+                          resp.putHeader(HttpHeaders.CONTENT_LENGTH, Long.toString(blob.getSize()));
                         } else {
                           // No known length: Vert.x rejects any manual write unless the response is
                           // either fixed-length (Content-Length) OR explicitly chunked.
@@ -91,9 +90,10 @@ final class TransferStreaming {
   /**
    * Streams a ZIP archive from a pre-resolved {@link ZipDownload} plan on the transfer pool. Sets
    * {@code Content-Type: application/zip} + {@code Content-Disposition} (no {@code Content-Length},
-   * so the response is chunked). Folder entries are written as empty directory markers; file entries
-   * pull their blob bytes lazily from storages via {@link BlobService#openZipEntryStream(ZipItem)} —
-   * no blob is buffered in memory — and each entry stream is closed as soon as it is drained.
+   * so the response is chunked). Folder entries are written as empty directory markers; file
+   * entries pull their blob bytes lazily from storages via {@link
+   * BlobService#openZipEntryStream(ZipItem)} — no blob is buffered in memory — and each entry
+   * stream is closed as soon as it is drained.
    */
   static Uni<Void> streamZip(
       ZipDownload zip, BlobService blobService, HttpServerResponse resp, ExecutorService pool) {
@@ -125,10 +125,11 @@ final class TransferStreaming {
   }
 
   /**
-   * Writes the whole ZIP archive to {@code resp} with backpressure. Body preserved verbatim from the
-   * previous {@code BlobHttpResponses.streamZip} {@code StreamingOutput}, only the sink changed: a
-   * {@link BackpressuredResponseOutputStream} over the Vert.x response instead of the container's
-   * {@code OutputStream}. The response is ended explicitly after the archive is finished.
+   * Writes the whole ZIP archive to {@code resp} with backpressure. Body preserved verbatim from
+   * the previous {@code BlobHttpResponses.streamZip} {@code StreamingOutput}, only the sink
+   * changed: a {@link BackpressuredResponseOutputStream} over the Vert.x response instead of the
+   * container's {@code OutputStream}. The response is ended explicitly after the archive is
+   * finished.
    */
   private static void writeZip(ZipDownload zip, BlobService blobService, HttpServerResponse resp)
       throws IOException {
@@ -157,8 +158,8 @@ final class TransferStreaming {
   }
 
   /**
-   * Pumps a source {@link InputStream} to the Vert.x response one {@value #CHUNK_SIZE}-byte chunk at
-   * a time, honouring the response write queue by blocking on each {@code write()} future (see
+   * Pumps a source {@link InputStream} to the Vert.x response one {@value #CHUNK_SIZE}-byte chunk
+   * at a time, honouring the response write queue by blocking on each {@code write()} future (see
    * {@link #writeChunk}) rather than busy-waiting or driving {@code drainHandler} off the event
    * loop. The source is always closed; the response is ended after the last chunk.
    */
@@ -209,12 +210,12 @@ final class TransferStreaming {
    *
    * <ul>
    *   <li>If the response head has NOT been written yet (failure during header setup or before the
-   *       first chunk), the status can still be set: fail the {@link Uni} so BlobExceptionMapper maps
-   *       the exception to the normal 4xx/5xx.
-   *   <li>If the head HAS been written (status 200 + headers + at least one chunk already sent — e.g.
-   *       a mid-stream storages drop or a client disconnect), the status can no longer be changed.
-   *       Stop writing, end the (truncated) body if still open, and COMPLETE the Uni — the client
-   *       sees a truncated 200 rather than a broken status transition.
+   *       first chunk), the status can still be set: fail the {@link Uni} so BlobExceptionMapper
+   *       maps the exception to the normal 4xx/5xx.
+   *   <li>If the head HAS been written (status 200 + headers + at least one chunk already sent —
+   *       e.g. a mid-stream storages drop or a client disconnect), the status can no longer be
+   *       changed. Stop writing, end the (truncated) body if still open, and COMPLETE the Uni — the
+   *       client sees a truncated 200 rather than a broken status transition.
    * </ul>
    */
   private static void handleTransferFailure(
@@ -245,8 +246,8 @@ final class TransferStreaming {
   }
 
   /**
-   * An {@link OutputStream} that forwards every write to a Vert.x {@link HttpServerResponse} with the
-   * same backpressure discipline as {@link #pumpInputStream}. {@link #close()} is a no-op: the
+   * An {@link OutputStream} that forwards every write to a Vert.x {@link HttpServerResponse} with
+   * the same backpressure discipline as {@link #pumpInputStream}. {@link #close()} is a no-op: the
    * enclosing {@code ZipOutputStream.close()} must not end the HTTP response — the caller ends it
    * explicitly after the archive is finished.
    */

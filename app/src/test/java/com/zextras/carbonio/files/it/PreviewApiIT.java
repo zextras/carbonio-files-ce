@@ -18,18 +18,17 @@ import org.junit.jupiter.params.provider.ValueSource;
 /**
  * {@code com.zextras.carbonio.files.acceptance.PreviewApiIT} rewritten as an out-of-process
  * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: {@code GET /preview/...} ({@code
- * PreviewService}, which talks ONLY to {@code PreviewClient} + {@code NodeRepository} — no
- * {@code Filestore} involvement, so the seeded file's byte content is irrelevant; only its
- * filename (which drives {@code MimeTypeUtils#detectMimeTypeFromFilename} ->
- * {@code NodeType.getNodeType}, exactly as the seam's {@code PopulatorNode} fixtures hard-coded)
- * and version count matter). All 7 methods and their assertions are preserved verbatim; only the
- * seeding (real {@code POST /upload}/{@code /upload-version} via {@link #seedFile}/{@link
- * #seedVersion}, capturing the server-generated node id instead of the fixed {@code
- * 00000000-...-000000000000} literal) and the preview stub/verify ({@link
- * AbstractFilesIT#previewServes}/{@link AbstractFilesIT#verifyPreviewServed}, replacing {@code
- * Mocks#previewServes}/{@code verifyPreviewServed}) changed. {@code
- * clearFileVersionCache()} is DROPPED per the plan: fresh-UUID API seeding means cache keys never
- * collide across tests, so there is nothing to flush between them.
+ * PreviewService}, which talks ONLY to {@code PreviewClient} + {@code NodeRepository} — no {@code
+ * Filestore} involvement, so the seeded file's byte content is irrelevant; only its filename (which
+ * drives {@code MimeTypeUtils#detectMimeTypeFromFilename} -> {@code NodeType.getNodeType}, exactly
+ * as the seam's {@code PopulatorNode} fixtures hard-coded) and version count matter). All 7 methods
+ * and their assertions are preserved verbatim; only the seeding (real {@code POST /upload}/{@code
+ * /upload-version} via {@link #seedFile}/{@link #seedVersion}, capturing the server-generated node
+ * id instead of the fixed {@code 00000000-...-000000000000} literal) and the preview stub/verify
+ * ({@link AbstractFilesIT#previewServes}/{@link AbstractFilesIT#verifyPreviewServed}, replacing
+ * {@code Mocks#previewServes}/{@code verifyPreviewServed}) changed. {@code clearFileVersionCache()}
+ * is DROPPED per the plan: fresh-UUID API seeding means cache keys never collide across tests, so
+ * there is nothing to flush between them.
  */
 class PreviewApiIT extends AbstractFilesIT {
 
@@ -101,7 +100,8 @@ class PreviewApiIT extends AbstractFilesIT {
             "/preview/document/" + nodeId + "/1/", OWNER_ID, "0".getBytes(), "application/pdf");
 
     // When
-    Response response = previewGet("/preview/document/" + nodeId + "?version=1", OWNER_COOKIE, null);
+    Response response =
+        previewGet("/preview/document/" + nodeId + "?version=1", OWNER_COOKIE, null);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
@@ -123,7 +123,8 @@ class PreviewApiIT extends AbstractFilesIT {
             "/preview/pdf/" + nodeId + "/3/", OWNER_ID, "0".getBytes(), "application/pdf");
 
     // When
-    Response response = previewGet("/preview/pdf/" + nodeId + "/" + versionQueryParam, OWNER_COOKIE, null);
+    Response response =
+        previewGet("/preview/pdf/" + nodeId + "/" + versionQueryParam, OWNER_COOKIE, null);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
@@ -156,8 +157,7 @@ class PreviewApiIT extends AbstractFilesIT {
       String versionQueryParam) {
     // Given
     String nodeId =
-        seedFile(
-            "don't open.png", LOCAL_ROOT, "0".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+        seedFile("don't open.png", LOCAL_ROOT, "0".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
     seedVersion(nodeId, "0".getBytes(StandardCharsets.UTF_8), "don't open.png", OWNER_COOKIE);
 
     String callPreviewExpectationId =
@@ -174,7 +174,8 @@ class PreviewApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTwoVersionsOfAnExistingJpegImageTheGetPreviewApiShouldReturnTheJpegOfTheSecondVersion() {
+  void
+      givenTwoVersionsOfAnExistingJpegImageTheGetPreviewApiShouldReturnTheJpegOfTheSecondVersion() {
     // Given — real image/jpeg mimeType via the ".jpg" extension (the seam's PopulatorNode fixture
     // forced an inconsistent png-filename/jpeg-mimeType pair that API-seeding cannot reproduce;
     // the INTENT here — "an image node whose stored mimeType is image/jpeg" — is preserved exactly
@@ -188,7 +189,8 @@ class PreviewApiIT extends AbstractFilesIT {
             "/preview/image/" + nodeId + "/2/0x0/", OWNER_ID, "0".getBytes(), "image/jpeg");
 
     // When
-    Response response = previewGet("/preview/image/" + nodeId + "/0x0?version=2", OWNER_COOKIE, null);
+    Response response =
+        previewGet("/preview/image/" + nodeId + "/0x0?version=2", OWNER_COOKIE, null);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);

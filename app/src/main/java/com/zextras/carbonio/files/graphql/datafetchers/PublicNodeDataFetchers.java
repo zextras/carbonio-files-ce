@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 package com.zextras.carbonio.files.graphql.datafetchers;
-import com.zextras.carbonio.files.graphql.SyncCompletableFuture;
 
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.GraphQL.InputParameters.FindNodes;
@@ -14,6 +13,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.graphql.SyncCompletableFuture;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.graphql.types.PublicNode;
 import graphql.execution.DataFetcherResult;
@@ -72,47 +72,55 @@ public class PublicNodeDataFetchers {
             () -> {
               ResultPath path = environment.getExecutionStepInfo().getPath();
               String publicLinkId = environment.getArgument(GetPublicNode.NODE_LINK_ID);
-              Optional<String> accessCode = Optional.ofNullable(environment.getArgument(GetPublicNode.ACCESS_CODE));
+              Optional<String> accessCode =
+                  Optional.ofNullable(environment.getArgument(GetPublicNode.ACCESS_CODE));
               return linkRepository
                   .getLinkByNotExpiredPublicId(publicLinkId)
                   .map(
-                      publicLink -> nodeRepository
-                            .getNode(publicLink.getNodeId())
-                            .map(
-                                node -> {
-                                    // If node has been trashed, return not found as if it didn't exist
+                      publicLink ->
+                          nodeRepository
+                              .getNode(publicLink.getNodeId())
+                              .map(
+                                  node -> {
+                                    // If node has been trashed, return not found as if it didn't
+                                    // exist
                                     if (nodeRepository.getTrashedNode(node.getId()).isPresent()) {
                                       return DataFetcherResult.<Map<String, Object>>newResult()
-                                        .error(
-                                            GraphQLResultErrors.nodeNotFound(
-                                                publicLink.getNodeId(), path))
-                                        .build();
+                                          .error(
+                                              GraphQLResultErrors.nodeNotFound(
+                                                  publicLink.getNodeId(), path))
+                                          .build();
                                     }
 
-                                    // Check access code for existence and correctness, but only if node is
+                                    // Check access code for existence and correctness, but only if
+                                    // node is
                                     // a folder
                                     Optional<String> linkAccessCode = publicLink.getAccessCode();
                                     if (linkAccessCode.isPresent()) {
                                       if (accessCode.isEmpty()) {
                                         return DataFetcherResult.<Map<String, Object>>newResult()
-                                            .error(GraphQLResultErrors.accessCodeRequired(publicLinkId, path))
+                                            .error(
+                                                GraphQLResultErrors.accessCodeRequired(
+                                                    publicLinkId, path))
                                             .build();
                                       } else if (!linkAccessCode.get().equals(accessCode.get())) {
                                         return DataFetcherResult.<Map<String, Object>>newResult()
-                                            .error(GraphQLResultErrors.wrongAccessCode(publicLinkId, path))
+                                            .error(
+                                                GraphQLResultErrors.wrongAccessCode(
+                                                    publicLinkId, path))
                                             .build();
                                       }
                                     }
                                     return DataFetcherResult.<Map<String, Object>>newResult()
                                         .data(PublicNode.createFromNode(node).convertToMap())
                                         .build();
-                                })
-                            .orElse(
-                                DataFetcherResult.<Map<String, Object>>newResult()
-                                    .error(
-                                        GraphQLResultErrors.nodeNotFound(
-                                            publicLink.getNodeId(), path))
-                                  .build()))
+                                  })
+                              .orElse(
+                                  DataFetcherResult.<Map<String, Object>>newResult()
+                                      .error(
+                                          GraphQLResultErrors.nodeNotFound(
+                                              publicLink.getNodeId(), path))
+                                      .build()))
                   .orElse(
                       DataFetcherResult.<Map<String, Object>>newResult()
                           .error(GraphQLResultErrors.linkNotFound(publicLinkId, path))
@@ -138,7 +146,8 @@ public class PublicNodeDataFetchers {
 
                 // If present check access code
                 Link link = linkRepository.getLinkByNotExpiredPublicId(nodeLinkId).get();
-                if (link.getAccessCode().isPresent() && !link.getAccessCode().get().equals(accessCode)) {
+                if (link.getAccessCode().isPresent()
+                    && !link.getAccessCode().get().equals(accessCode)) {
                   return DataFetcherResult.<Map<String, String>>newResult()
                       .error(GraphQLResultErrors.accessCodeRequired(nodeLinkId, path))
                       .build();

@@ -27,8 +27,8 @@ import org.junit.jupiter.api.Test;
  * exists here: every body assertion below always runs.
  *
  * <p><b>Sizing is no longer a hand-computed convention.</b> The original seeded every node's DB
- * size as {@code (nodeId + version).length()} to match {@code StoragesMockHelper}'s fixed
- * {@code nodeId+version} fallback bytes (so the DB-recorded size and the mocked body length never
+ * size as {@code (nodeId + version).length()} to match {@code StoragesMockHelper}'s fixed {@code
+ * nodeId+version} fallback bytes (so the DB-recorded size and the mocked body length never
  * disagreed). Real API seeding removes the need for that convention entirely: {@code
  * seedFile}/{@code seedVersion} upload ACTUAL content bytes through the real {@code BlobService},
  * which itself records the true byte length — so the DB size and the served body are equal BY
@@ -38,8 +38,8 @@ import org.junit.jupiter.api.Test;
  * givenTheNodeSizeOverTheConfiguredCapDownloadShouldReturn413}) needs an ACTUAL {@code
  * application-config.max-downloadable-size-in-mb} cap configured; it moved to the sibling {@link
  * AuthenticatedDownloadSizeCapIT} ({@code @WithTestResource(DownloadCapResource.class)}). This
- * class keeps the remaining 8 methods on the shared default (uncapped) stack. Mapping: 8 (here) +
- * 1 ({@code AuthenticatedDownloadSizeCapIT}) = 9 (unchanged from the original).
+ * class keeps the remaining 8 methods on the shared default (uncapped) stack. Mapping: 8 (here) + 1
+ * ({@code AuthenticatedDownloadSizeCapIT}) = 9 (unchanged from the original).
  */
 class AuthenticatedDownloadApiIT extends AbstractFilesIT {
 
@@ -74,8 +74,11 @@ class AuthenticatedDownloadApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(response.getHeader("Content-Disposition"))
-        .isEqualTo("attachment; filename*=UTF-8''" + URLEncoder.encode("fake.txt", StandardCharsets.UTF_8));
-    Assertions.assertThat(response.getHeader("Content-Length")).isEqualTo(String.valueOf(content.length));
+        .isEqualTo(
+            "attachment; filename*=UTF-8''"
+                + URLEncoder.encode("fake.txt", StandardCharsets.UTF_8));
+    Assertions.assertThat(response.getHeader("Content-Length"))
+        .isEqualTo(String.valueOf(content.length));
     Assertions.assertThat(response.getBody().asByteArray()).isEqualTo(content);
 
     FilesStackTestResource.getStoragesService().verifyDownloaded(nodeId, 1);
@@ -126,7 +129,11 @@ class AuthenticatedDownloadApiIT extends AbstractFilesIT {
   void givenNoPermissionOnTheNodeDownloadShouldReturn404() {
     // Given — node owned by OTHER_USER_ID, never shared with the requester
     String nodeId =
-        seedFile("notMine.txt", LOCAL_ROOT, "secret".getBytes(StandardCharsets.UTF_8), OTHER_USER_COOKIE);
+        seedFile(
+            "notMine.txt",
+            LOCAL_ROOT,
+            "secret".getBytes(StandardCharsets.UTF_8),
+            OTHER_USER_COOKIE);
     // seedFile's real upload path itself performs ONE storages verify-blob-exists GET /download
     // (BlobService#uploadFile -> verifyBlobExists) — an incidental seed-time side effect, not part
     // of the scenario under test. Reset the fake's download log so "never downloaded" below asserts
@@ -161,7 +168,9 @@ class AuthenticatedDownloadApiIT extends AbstractFilesIT {
   @Test
   void givenADownloadableNodeCheckDownloadShouldReturn204() {
     // Given
-    String nodeId = seedFile("fake.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String nodeId =
+        seedFile(
+            "fake.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     // See givenNoPermissionOnTheNodeDownloadShouldReturn404's comment: seedFile's upload itself
     // triggers one storages verify-blob-exists GET /download; reset so the assertion below covers
     // only /check's own behaviour.
@@ -179,7 +188,11 @@ class AuthenticatedDownloadApiIT extends AbstractFilesIT {
   void givenNoPermissionCheckDownloadShouldReturn404() {
     // Given — node owned by OTHER_USER_ID, never shared with the requester
     String nodeId =
-        seedFile("notMine.txt", LOCAL_ROOT, "secret".getBytes(StandardCharsets.UTF_8), OTHER_USER_COOKIE);
+        seedFile(
+            "notMine.txt",
+            LOCAL_ROOT,
+            "secret".getBytes(StandardCharsets.UTF_8),
+            OTHER_USER_COOKIE);
 
     // When
     Response response = checkDownload(nodeId, REQUESTER_COOKIE);

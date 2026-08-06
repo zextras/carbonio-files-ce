@@ -30,14 +30,14 @@ import org.slf4j.LoggerFactory;
  * word-character invitation id, matching the legacy {@code
  * Constants.API.Endpoints#COLLABORATION_LINK} regex), same delegation to {@link
  * CollaborationLinkService#createShareByInvitationId}, same 307 redirect to the Files webapp on
- * success. Resources are served at ROOT (carbonio-proxy strips its {@code /services/files}
- * prefix, see {@link BlobResource}), so no {@code quarkus.rest.path} is set.
+ * success. Resources are served at ROOT (carbonio-proxy strips its {@code /services/files} prefix,
+ * see {@link BlobResource}), so no {@code quarkus.rest.path} is set.
  *
  * <p>On failure (unknown invitation id or dangling node reference) it throws a plain {@link
  * NoSuchElementException}, mapped to HTTP 404 by the global {@link BlobExceptionMapper} — same
  * outcome as the legacy controller's {@code context.fireExceptionCaught(new
- * NoSuchElementException())}. Authentication failures surface as 401 via {@link
- * BlobAuthenticator}, matching the blob REST endpoints.
+ * NoSuchElementException())}. Authentication failures surface as 401 via {@link BlobAuthenticator},
+ * matching the blob REST endpoints.
  */
 @Path("/")
 @ApplicationScoped
@@ -80,8 +80,7 @@ public class CollaborationLinkResource {
     String nodeInternalURL =
         MessageFormat.format(
             "{0}/carbonio/files/?file={1}&node={1}&tab=sharing",
-            requester.getDomain(),
-            sharedNode.getId());
+            requester.getDomain(), sharedNode.getId());
 
     return Response.status(Response.Status.TEMPORARY_REDIRECT)
         .header(HttpHeaders.LOCATION, nodeInternalURL)

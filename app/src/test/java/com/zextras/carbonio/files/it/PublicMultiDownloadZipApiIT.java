@@ -36,8 +36,8 @@ import org.junit.jupiter.api.Test;
  * server-generated ids) and the transport changed. {@link #zipEntryNames} (real {@code
  * ZipInputStream} parsing) replaces the original's conditional {@code
  * assertBodyContainsWhenObservable} substring-matching — {@code @QuarkusIntegrationTest} drives
- * real HTTP end to end, so the body is always fully drained (see {@link
- * MultiDownloadZipApiIT}'s class javadoc for the same observation on the authenticated route).
+ * real HTTP end to end, so the body is always fully drained (see {@link MultiDownloadZipApiIT}'s
+ * class javadoc for the same observation on the authenticated route).
  *
  * <p>The trashed-child scenario now trashes the node via the REAL {@code trashNodes} mutation
  * ({@link #seedTrashed}) rather than the seam's populator, which is an even more faithful
@@ -55,7 +55,10 @@ class PublicMultiDownloadZipApiIT extends AbstractFilesIT {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", OWNER_ID);
   }
 
-  /** Creates a link via the real mutation and returns its {@code public_id} (last 50 chars of the url). */
+  /**
+   * Creates a link via the real mutation and returns its {@code public_id} (last 50 chars of the
+   * url).
+   */
   private static String createLink(String nodeId, String ownerCookie) {
     String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("createLink")
@@ -65,7 +68,8 @@ class PublicMultiDownloadZipApiIT extends AbstractFilesIT {
     Response response = graphql(bodyPayload, ownerCookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     String url =
-        (String) TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
+        (String)
+            TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
     return url.substring(url.length() - 50);
   }
 
@@ -83,7 +87,10 @@ class PublicMultiDownloadZipApiIT extends AbstractFilesIT {
     String jsonArray =
         "[" + nodeIds.stream().map(id -> "\"" + id + "\"").collect(Collectors.joining(",")) + "]";
     String requestBody =
-        "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8) + "&nodeLinkId=" + nodeLinkId;
+        "nodeIds="
+            + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8)
+            + "&nodeLinkId="
+            + nodeLinkId;
     return RestAssured.given()
         .contentType("application/x-www-form-urlencoded")
         .body(requestBody)
@@ -94,12 +101,13 @@ class PublicMultiDownloadZipApiIT extends AbstractFilesIT {
    * {@code checkDownloadPublicMultiple}'s accessChecker is {@code
    * linkRepository.isLinkValidForNode(nodeLinkId, node) && !trashed} (link-scope validity), a
    * DIFFERENT check than the authenticated path's permission-based one (valid iff the node IS the
-   * link's node or one of its ancestors). A node entirely outside the linked folder's tree fails
-   * it and is silently skipped — same {@code continue} branch as the authenticated path, but a
+   * link's node or one of its ancestors). A node entirely outside the linked folder's tree fails it
+   * and is silently skipped — same {@code continue} branch as the authenticated path, but a
    * different reason.
    */
   @Test
-  void givenNodeOutsideLinkScopeMixedWithValidNodeCheckDownloadPublicMultipleShouldReturn204SkippingIt() {
+  void
+      givenNodeOutsideLinkScopeMixedWithValidNodeCheckDownloadPublicMultipleShouldReturn204SkippingIt() {
     // Given
     String folderId = seedFolder("linked-folder", LOCAL_ROOT, OWNER_COOKIE);
     String insideFileId =
@@ -120,8 +128,8 @@ class PublicMultiDownloadZipApiIT extends AbstractFilesIT {
    * Distinguishes {@code checkDownloadMultipleInternal}'s own {@code nodeIds.isEmpty()} -&gt;
    * {@code Optional.empty()} -&gt; 404 branch from the "link not found" -&gt; {@code
    * Optional.empty()} -&gt; 404 branch already exercised by {@code
-   * PublicDownloadMultipleApiIT#givenEmptyNodeListTheDownloadMultipleShouldReturn404} (which uses
-   * a random, never-created public id, so the request never reaches {@code
+   * PublicDownloadMultipleApiIT#givenEmptyNodeListTheDownloadMultipleShouldReturn404} (which uses a
+   * random, never-created public id, so the request never reaches {@code
    * checkDownloadMultipleInternal} at all). Here the link genuinely exists and resolves, so the
    * empty-list check inside {@code checkDownloadMultipleInternal} is what actually fires.
    */
@@ -140,8 +148,8 @@ class PublicMultiDownloadZipApiIT extends AbstractFilesIT {
 
   /**
    * The LOCAL_ROOT-alias branch's {@code if (requesterId == null) return Optional.empty();} is
-   * UNREACHABLE for the authenticated path (requester is never null there) — it only exists for
-   * the public path, where {@code checkDownloadPublicMultiple} always passes {@code null} as the
+   * UNREACHABLE for the authenticated path (requester is never null there) — it only exists for the
+   * public path, where {@code checkDownloadPublicMultiple} always passes {@code null} as the
    * requesterId. This is the only way to reach it.
    */
   @Test
@@ -163,10 +171,14 @@ class PublicMultiDownloadZipApiIT extends AbstractFilesIT {
     // Given
     String folderId = seedFolder("public-folder", LOCAL_ROOT, OWNER_COOKIE);
     String keptFileId =
-        seedFile("kept.txt", folderId, "kept-content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+        seedFile(
+            "kept.txt", folderId, "kept-content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
     String trashedFileId =
         seedFile(
-            "trashed.txt", folderId, "trashed-content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+            "trashed.txt",
+            folderId,
+            "trashed-content".getBytes(StandardCharsets.UTF_8),
+            OWNER_COOKIE);
     String publicId = createLink(folderId, OWNER_COOKIE);
     seedTrashed(trashedFileId, OWNER_COOKIE);
 

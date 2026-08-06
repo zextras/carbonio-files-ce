@@ -47,9 +47,9 @@ import org.junit.jupiter.api.AfterEach;
 /**
  * The ONE base class for the out-of-process (native-binary-capable) black-box IT suite (D1/D2 of
  * the acceptance-to-Quarkus-tests plan): {@code @QuarkusIntegrationTest} — the app under test runs
- * as a SEPARATE launched process (packaged jar today, {@code -Dnative} periodically) — plus {@code
- * @WithTestResource(FilesStackTestResource.class)}, the same stack the seam-based {@code
- * @QuarkusTest} acceptance classes still use during the migration window.
+ * as a SEPARATE launched process (packaged jar today, {@code -Dnative} periodically) — plus
+ * {@code @WithTestResource(FilesStackTestResource.class)}, the same stack the seam-based
+ * {@code @QuarkusTest} acceptance classes still use during the migration window.
  *
  * <p><b>NO {@code @Inject}/Arc anywhere in this class or its subclasses.</b> Out-of-process, the
  * test JVM and the app JVM are different processes; CDI beans are simply not resolvable from here.
@@ -65,21 +65,21 @@ import org.junit.jupiter.api.AfterEach;
  * is how a subclass seeds a foreign-owner node (create as that user, then act as the requester).
  *
  * <p><b>Cleanup is raw JDBC.</b> {@link #resetDb()} runs after every test method and mirrors the
- * seam's {@code QuarkusTestDataAccess#resetDatabase} exactly (same DELETE/TRUNCATE statements), plus
- * resetting the shared {@code MockStoragesService} fake so blob-presence assertions do not leak
- * across tests.
+ * seam's {@code QuarkusTestDataAccess#resetDatabase} exactly (same DELETE/TRUNCATE statements),
+ * plus resetting the shared {@code MockStoragesService} fake so blob-presence assertions do not
+ * leak across tests.
  *
- * <p><b>GOTCHA — the cookie/token convention is GLOBAL, not per-class.</b> Unlike the old seam
- * (one fresh in-process {@code FilesTestApp}/user-management fake PER TEST CLASS), {@link
+ * <p><b>GOTCHA — the cookie/token convention is GLOBAL, not per-class.</b> Unlike the old seam (one
+ * fresh in-process {@code FilesTestApp}/user-management fake PER TEST CLASS), {@link
  * FilesStackTestResource#getUserManagementService()} is a single static singleton shared by the
  * ENTIRE out-of-process test run. Its {@code registerToken(token, userId)} 2-arg overload is a
  * NO-OP if the token is already registered — so whichever class runs FIRST in the suite "wins" a
  * given cookie label for every class that reuses it afterward. ALL subclasses MUST reuse the SAME
- * fixed convention for the standard fixture users: {@code "fake-token"} →
- * {@code aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa}, {@code "fake-token-b"} →
- * {@code bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb}, {@code "fake-token-c"} →
- * {@code cccccccc-cccc-cccc-cccc-cccccccccccc}. Deviating (e.g. mapping {@code "fake-token-b"} to
- * a different id in just one class) silently binds that cookie to WHICHEVER id some other class
+ * fixed convention for the standard fixture users: {@code "fake-token"} → {@code
+ * aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa}, {@code "fake-token-b"} → {@code
+ * bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb}, {@code "fake-token-c"} → {@code
+ * cccccccc-cccc-cccc-cccc-cccccccccccc}. Deviating (e.g. mapping {@code "fake-token-b"} to a
+ * different id in just one class) silently binds that cookie to WHICHEVER id some other class
  * registered first, corrupting ownership/permission assertions in a way that only reproduces when
  * the whole suite (or an unlucky subset) runs together — see the fix in {@code FlagNodesApiIT}.
  */
@@ -87,7 +87,10 @@ import org.junit.jupiter.api.AfterEach;
 @WithTestResource(FilesStackTestResource.class)
 public abstract class AbstractFilesIT {
 
-  /** The fixed root-folder pseudo-id accepted by {@code createFolder}/{@code upload}'s ParentId header. */
+  /**
+   * The fixed root-folder pseudo-id accepted by {@code createFolder}/{@code upload}'s ParentId
+   * header.
+   */
   protected static final String LOCAL_ROOT = "LOCAL_ROOT";
 
   // --------------------------------------------------------------------------------- lifecycle
@@ -167,14 +170,18 @@ public abstract class AbstractFilesIT {
 
   /** POSTs an authenticated GraphQL {@code query}/{@code mutation} string to {@code /graphql/}. */
   protected static Response graphql(String query, String cookie) {
-    var request = RestAssured.given().contentType("application/json").body(TestUtils.queryPayload(query));
+    var request =
+        RestAssured.given().contentType("application/json").body(TestUtils.queryPayload(query));
     if (cookie != null) {
       request = request.header("Cookie", cookie);
     }
     return request.post("/graphql/");
   }
 
-  /** POSTs an UNAUTHENTICATED GraphQL {@code query}/{@code mutation} string to {@code /public/graphql/}. */
+  /**
+   * POSTs an UNAUTHENTICATED GraphQL {@code query}/{@code mutation} string to {@code
+   * /public/graphql/}.
+   */
   protected static Response publicGraphql(String query) {
     return RestAssured.given()
         .contentType("application/json")
@@ -188,7 +195,8 @@ public abstract class AbstractFilesIT {
    * ({@code Filename} base64, optional {@code ParentId}/{@code Description}, raw byte body — NOT
    * multipart).
    */
-  protected static Response upload(String parentId, String description, byte[] content, String filename, String cookie) {
+  protected static Response upload(
+      String parentId, String description, byte[] content, String filename, String cookie) {
     var request = RestAssured.given().header("Filename", base64(filename));
     if (parentId != null) {
       request = request.header("ParentId", parentId);
@@ -291,7 +299,8 @@ public abstract class AbstractFilesIT {
    * assert ZIP contents precisely now that {@code @QuarkusIntegrationTest} drives real HTTP end to
    * end — the old seam's embedded transport could never fully drain a streamed multi-frame body
    * (see the deleted {@code MultiDownloadZipApiIT}'s class-level FINDING), forcing lossy substring
-   * matching over a partially-decoded body; RestAssured's real socket client has no such limitation.
+   * matching over a partially-decoded body; RestAssured's real socket client has no such
+   * limitation.
    */
   protected static Set<String> zipEntryNames(byte[] zipBytes) throws IOException {
     Set<String> names = new LinkedHashSet<>();
@@ -307,7 +316,9 @@ public abstract class AbstractFilesIT {
 
   // ------------------------------------------------------------------------- preview / mailbox
 
-  /** id -> request pattern, so {@link #verifyPreviewServed} can verify the matching preview call. */
+  /**
+   * id -> request pattern, so {@link #verifyPreviewServed} can verify the matching preview call.
+   */
   private static final Map<String, RequestPatternBuilder> PREVIEW_EXPECTATIONS =
       new ConcurrentHashMap<>();
 
@@ -326,16 +337,15 @@ public abstract class AbstractFilesIT {
     return request.get(path);
   }
 
-
   /**
    * Stubs the shared carbonio-preview/carbonio-mailbox WireMock ({@link
-   * FilesStackTestResource#getPreviewMailboxWireMock()}) to serve {@code content}/{@code
-   * mediaType} for the given preview/thumbnail {@code pathEndpoint}, matching the {@code
-   * service_type=files} query param and {@code FileOwnerId} header {@code PreviewClient} always
-   * sends (plus, for {@code document} paths, the {@code lang_tag=en} query param). Returns an
-   * expectation id for {@link #verifyPreviewServed}. Ports the seam's {@code
-   * QuarkusMocks#previewServes} verbatim (same stub/verify shape), replacing its in-process
-   * per-app-instance map with a static one (out-of-process, no per-class app instance).
+   * FilesStackTestResource#getPreviewMailboxWireMock()}) to serve {@code content}/{@code mediaType}
+   * for the given preview/thumbnail {@code pathEndpoint}, matching the {@code service_type=files}
+   * query param and {@code FileOwnerId} header {@code PreviewClient} always sends (plus, for {@code
+   * document} paths, the {@code lang_tag=en} query param). Returns an expectation id for {@link
+   * #verifyPreviewServed}. Ports the seam's {@code QuarkusMocks#previewServes} verbatim (same
+   * stub/verify shape), replacing its in-process per-app-instance map with a static one
+   * (out-of-process, no per-class app instance).
    */
   protected static String previewServes(
       String pathEndpoint, String fileOwnerId, byte[] content, String mediaType) {
@@ -374,8 +384,8 @@ public abstract class AbstractFilesIT {
   }
 
   /**
-   * Stubs {@code pathEndpoint} on the preview/mailbox WireMock to fail with an HTTP 500,
-   * simulating a carbonio-preview outage. Ports {@code QuarkusMocks#previewFails} verbatim.
+   * Stubs {@code pathEndpoint} on the preview/mailbox WireMock to fail with an HTTP 500, simulating
+   * a carbonio-preview outage. Ports {@code QuarkusMocks#previewFails} verbatim.
    */
   protected static void previewFails(String pathEndpoint) {
     var mappingBuilder =
@@ -403,7 +413,8 @@ public abstract class AbstractFilesIT {
             .withWantedResultFormat("{ id }")
             .build();
     Response response = graphql(mutation, ownerCookie);
-    Map<String, Object> folder = TestUtils.jsonResponseToMap(response.getBody().asString(), "createFolder");
+    Map<String, Object> folder =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "createFolder");
     String id = folder == null ? null : (String) folder.get("id");
     if (id == null) {
       throw new IllegalStateException("seedFolder failed: " + response.getBody().asString());
@@ -415,7 +426,8 @@ public abstract class AbstractFilesIT {
    * Creates a file via {@code POST /upload} (version 1) and returns the SERVER-GENERATED node id.
    * Replaces {@code DatabasePopulator#addNode(SimplePopulatorTextFile)}.
    */
-  protected static String seedFile(String name, String parentId, byte[] content, String ownerCookie) {
+  protected static String seedFile(
+      String name, String parentId, byte[] content, String ownerCookie) {
     Response response = upload(parentId, null, content, name, ownerCookie);
     Map<String, Object> json = response.jsonPath().getMap("$");
     String nodeId = json == null ? null : (String) json.get("nodeId");
@@ -426,13 +438,14 @@ public abstract class AbstractFilesIT {
   }
 
   /**
-   * Uploads a new version of an existing node via {@code POST /upload-version} and returns the
-   * new version number. Replaces {@code DatabasePopulator#addVersion}. {@code keepForever} is NOT
-   * settable via the public API (it is not exposed as an upload parameter); a scenario that needs
-   * a kept-forever version seeded directly (rather than exercised via the {@code updateNode}
+   * Uploads a new version of an existing node via {@code POST /upload-version} and returns the new
+   * version number. Replaces {@code DatabasePopulator#addVersion}. {@code keepForever} is NOT
+   * settable via the public API (it is not exposed as an upload parameter); a scenario that needs a
+   * kept-forever version seeded directly (rather than exercised via the {@code updateNode}
    * mutation) is a candidate for the JDBC-seed escape hatch, not this helper.
    */
-  protected static int seedVersion(String nodeId, byte[] content, String filename, String ownerCookie) {
+  protected static int seedVersion(
+      String nodeId, byte[] content, String filename, String ownerCookie) {
     Response response = uploadVersion(nodeId, content, filename, false, ownerCookie);
     Map<String, Object> json = response.jsonPath().getMap("$");
     Object version = json == null ? null : json.get("version");
@@ -445,7 +458,10 @@ public abstract class AbstractFilesIT {
     return ((Number) version).intValue();
   }
 
-  /** Creates a share via the {@code createShare} GraphQL mutation. Replaces {@code DatabasePopulator#addShare}. */
+  /**
+   * Creates a share via the {@code createShare} GraphQL mutation. Replaces {@code
+   * DatabasePopulator#addShare}.
+   */
   protected static void seedShare(
       String nodeId, String targetUserId, ACL.SharePermission permission, String ownerCookie) {
     String mutation =
@@ -462,7 +478,10 @@ public abstract class AbstractFilesIT {
     }
   }
 
-  /** Creates a public link via the {@code createLink} GraphQL mutation and returns its id. Replaces {@code DatabasePopulator#addLink}. */
+  /**
+   * Creates a public link via the {@code createLink} GraphQL mutation and returns its id. Replaces
+   * {@code DatabasePopulator#addLink}.
+   */
   protected static String seedLink(String nodeId, String ownerCookie) {
     String mutation =
         GraphqlCommandBuilder.aMutationBuilder("createLink")
@@ -470,7 +489,8 @@ public abstract class AbstractFilesIT {
             .withWantedResultFormat("{ id }")
             .build();
     Response response = graphql(mutation, ownerCookie);
-    Map<String, Object> link = TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink");
+    Map<String, Object> link =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink");
     String id = link == null ? null : (String) link.get("id");
     if (id == null) {
       throw new IllegalStateException("seedLink failed: " + response.getBody().asString());
@@ -478,7 +498,10 @@ public abstract class AbstractFilesIT {
     return id;
   }
 
-  /** Flags a node for the given requester via the {@code flagNodes} GraphQL mutation. Replaces {@code DatabasePopulator#addFlag}. */
+  /**
+   * Flags a node for the given requester via the {@code flagNodes} GraphQL mutation. Replaces
+   * {@code DatabasePopulator#addFlag}.
+   */
   protected static void seedFlag(String nodeId, String cookie) {
     String mutation =
         GraphqlCommandBuilder.aMutationBuilder("flagNodes")
@@ -493,7 +516,10 @@ public abstract class AbstractFilesIT {
     }
   }
 
-  /** Trashes a node via the {@code trashNodes} GraphQL mutation. Replaces {@code DatabasePopulator#addNodeToTrash}. */
+  /**
+   * Trashes a node via the {@code trashNodes} GraphQL mutation. Replaces {@code
+   * DatabasePopulator#addNodeToTrash}.
+   */
   protected static void seedTrashed(String nodeId, String cookie) {
     String mutation =
         GraphqlCommandBuilder.aMutationBuilder("trashNodes")
@@ -509,9 +535,9 @@ public abstract class AbstractFilesIT {
 
   /**
    * API-observable existence check replacing the seam's backdoor {@code
-   * TestDataAccess#nodeExists(String)} (which resolved {@code NodeRepository} from Arc — unavailable
-   * out-of-process): queries {@code getNode} and returns {@code true} iff it resolves without a
-   * GraphQL error.
+   * TestDataAccess#nodeExists(String)} (which resolved {@code NodeRepository} from Arc —
+   * unavailable out-of-process): queries {@code getNode} and returns {@code true} iff it resolves
+   * without a GraphQL error.
    */
   protected static boolean nodeExists(String nodeId, String cookie) {
     String query =
@@ -520,7 +546,8 @@ public abstract class AbstractFilesIT {
             .withWantedResultFormat("{ id }")
             .build();
     Response response = graphql(query, cookie);
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     return node != null && node.get("id") != null;
   }
 
@@ -543,7 +570,8 @@ public abstract class AbstractFilesIT {
                 "{ shares(limit: 200) { share_target { ... on User { id } } } }")
             .build();
     Response response = graphql(query, cookie);
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     if (node == null) {
       return false;
     }
@@ -575,12 +603,12 @@ public abstract class AbstractFilesIT {
   // ------------------------------------------------------------------ rare JDBC-only seeding
 
   /**
-   * Raw-JDBC seed for a node (+ matching version-1 {@code revision} row for non-folder types)
-   * whose creator/owner topology is NOT producible via the public API — e.g. a child whose owner
-   * differs from its structural parent's owner (the real {@code createFolder}/{@code upload}
-   * mutations always inherit the parent's owner), or a ghost creator/owner id never registered
-   * with user-management (the real API always stamps the AUTHENTICATED caller as creator/owner).
-   * Mirrors exactly what {@code NodeRepositoryImpl#createNewNode} + {@code
+   * Raw-JDBC seed for a node (+ matching version-1 {@code revision} row for non-folder types) whose
+   * creator/owner topology is NOT producible via the public API — e.g. a child whose owner differs
+   * from its structural parent's owner (the real {@code createFolder}/{@code upload} mutations
+   * always inherit the parent's owner), or a ghost creator/owner id never registered with
+   * user-management (the real API always stamps the AUTHENTICATED caller as creator/owner). Mirrors
+   * exactly what {@code NodeRepositoryImpl#createNewNode} + {@code
    * FileVersionRepositoryImpl#createNewFileVersion} (the production code the old seam's {@code
    * DatabasePopulator#addNode} drove via Arc) persist for a freshly-created node: {@code
    * index_status=1}, {@code hidden=false}, {@code current_version=1} for non-{@code FOLDER}/{@code
@@ -708,8 +736,8 @@ public abstract class AbstractFilesIT {
    * Optional.empty())}'s persisted row shape exactly (direct=true, created_via_link=false, no
    * expiry).
    */
-  protected static void seedShareRawJdbc(String nodeId, String targetUserId, ACL.SharePermission permission)
-      throws SQLException {
+  protected static void seedShareRawJdbc(
+      String nodeId, String targetUserId, ACL.SharePermission permission) throws SQLException {
     try (Connection connection = jdbcConnection();
         PreparedStatement statement =
             connection.prepareStatement(
@@ -841,7 +869,8 @@ public abstract class AbstractFilesIT {
           "directShare": null,
           "nodeType": null,
           "ownerId": null
-        }""",
+        }\
+        """,
         signatureField, jsonKeySet);
   }
 }

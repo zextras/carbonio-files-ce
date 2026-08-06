@@ -8,21 +8,24 @@ import com.zextras.carbonio.files.Constants.GraphQL.Types;
 import java.util.Objects;
 
 /**
- * <p>This class represents an Access Control List (ACL). Each ACL instance represents the
- * permissions that a user can have on a specific object (e.g.: {@link Node}).</p>
+ * This class represents an Access Control List (ACL). Each ACL instance represents the permissions
+ * that a user can have on a specific object (e.g.: {@link Node}).
+ *
  * <p>It associates <code>short</code> numbers with a specific name to represent clearly every
  * single permission. It also contains the {@link SharePermission} enumerator that is useful as
  * shortcut references to represent the union of multiple permissions (like {@link
- * SharePermission#READ_AND_WRITE}).</p>
+ * SharePermission#READ_AND_WRITE}).
+ *
  * <p><strong>Be aware</strong>: Selecting {@link #WRITE} permission doesn't automatically select
- * the {@link #READ} permission to true, if you want that, you must use the enumerator.</p>
+ * the {@link #READ} permission to true, if you want that, you must use the enumerator.
+ *
  * <p>This class contains useful methods to check if the user can read, write, share and/or delete
- * the related object.</p>
+ * the related object.
  */
 public class ACL {
 
-  public static final short NONE  = 0;
-  public static final short READ  = 1;
+  public static final short NONE = 0;
+  public static final short READ = 1;
   public static final short WRITE = 2;
   public static final short SHARE = 4;
   public static final short OWNER = READ | WRITE | SHARE;
@@ -75,15 +78,9 @@ public class ACL {
    */
   public short encode() {
     short rights = 0;
-    rights |= (mCanRead)
-      ? READ
-      : 0;
-    rights |= (mCanWrite)
-      ? WRITE
-      : 0;
-    rights |= (mCanShare)
-      ? SHARE
-      : 0;
+    rights |= (mCanRead) ? READ : 0;
+    rights |= (mCanWrite) ? WRITE : 0;
+    rights |= (mCanShare) ? SHARE : 0;
     return rights;
   }
 
@@ -91,20 +88,16 @@ public class ACL {
    * Checks which ACL is the more restrictive one.
    *
    * @param permissions is the {@link ACL} to be compared
-   *
    * @return the {@link ACL} representing the more restrictive permissions.
    */
   public ACL lesserACL(ACL permissions) {
-    return (encode() < permissions.encode())
-      ? this
-      : permissions;
+    return (encode() < permissions.encode()) ? this : permissions;
   }
 
   /**
    * Checks if the current {@link ACL} has the specified {@link SharePermission}.
    *
    * @param permission is a {@link SharePermission} to check.
-   *
    * @return true if the current {@link ACL} contains the specified permission, false otherwise.
    */
   public boolean has(SharePermission permission) {
@@ -122,10 +115,10 @@ public class ACL {
     }
 
     ACL acl = (ACL) o;
-    return mCanRead == acl.mCanRead &&
-      mCanWrite == acl.mCanWrite &&
-      mCanShare == acl.mCanShare &&
-      mCanDelete == acl.mCanDelete;
+    return mCanRead == acl.mCanRead
+        && mCanWrite == acl.mCanWrite
+        && mCanShare == acl.mCanShare
+        && mCanDelete == acl.mCanDelete;
   }
 
   @Override

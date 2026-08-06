@@ -8,13 +8,13 @@ import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
 import java.util.Map;
 
 /**
- * Class-restricted config resource: caps {@code max-uploadable-size-in-mb} to {@code 0} (any
- * upload is over-limit), so an {@code @QuarkusIntegrationTest} class can assert the 413 path
- * without an in-JVM {@code @Inject}able config double (unavailable out-of-process).
+ * Class-restricted config resource: caps {@code max-uploadable-size-in-mb} to {@code 0} (any upload
+ * is over-limit), so an {@code @QuarkusIntegrationTest} class can assert the 413 path without an
+ * in-JVM {@code @Inject}able config double (unavailable out-of-process).
  *
- * <p>Add via a SECOND {@code @WithTestResource(UploadCapResource.class,
- * scope = TestResourceScope.RESTRICTED_TO_CLASS)} on the specific config-variant class, alongside
- * the stack-wide {@code @WithTestResource(FilesStackTestResource.class)} inherited from {@code
+ * <p>Add via a SECOND {@code @WithTestResource(UploadCapResource.class, scope =
+ * TestResourceScope.RESTRICTED_TO_CLASS)} on the specific config-variant class, alongside the
+ * stack-wide {@code @WithTestResource(FilesStackTestResource.class)} inherited from {@code
  * AbstractFilesIT} — this resource ADDS one config property to the same launched-process config
  * channel {@code FilesStackTestResource} already proves works out-of-process (see {@code
  * ConfigCapSpikeIT}, Phase 1).

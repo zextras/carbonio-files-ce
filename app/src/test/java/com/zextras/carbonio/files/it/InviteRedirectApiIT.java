@@ -12,7 +12,6 @@ import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -26,27 +25,26 @@ import org.junit.jupiter.api.Test;
  * is needed, matching {@code DeleteNodesApiIT}'s convention) and the transport changed: RestAssured
  * follows redirects by default, so {@code clickInvite} explicitly disables that (via {@code
  * .redirects().follow(false)}) to observe the raw 307/404 status and headers. The seam's
- * dual-transport note (embedded + {@code -Dfiles.test.transport=http}) is now moot — every {@code
- * @QuarkusIntegrationTest} already talks to the launched app over real HTTP unconditionally.
+ * dual-transport note (embedded + {@code -Dfiles.test.transport=http}) is now moot — every
+ * {@code @QuarkusIntegrationTest} already talks to the launched app over real HTTP unconditionally.
  *
  * <p><b>{@code GET /invite/{id}}</b> — {@code CollaborationLinkController} consuming the 8-char
  * invitation id produced by {@code createCollaborationLink} (see {@code
  * CreateCollaborationLinkApiIT}) to auto-create/update a share and 307-redirect.
  *
  * <p><b>FINDING analysed and verified NOT to cause a transport divergence:</b> {@code
- * CollaborationLinkController#channelRead0} calls {@code
- * context.fireChannelRead(new NoSuchElementException())} UNCONDITIONALLY after handling the
- * request — including on the 307-success path, where it runs right after the {@code
- * DefaultFullHttpResponse} has already been queued via {@code writeAndFlush(...)
- * .addListener(ChannelFutureListener.CLOSE)}. This looks alarming but is inert: {@code
- * fireChannelRead} propagates an INBOUND pipeline event (a "message was read" signal), not an
- * outbound write — it never puts another byte on the wire. The next handler in the pipeline,
- * {@code exceptions-handler} ({@code ExceptionsHandler}), overrides only {@code exceptionCaught}
- * and not {@code channelRead}, so {@code ChannelInboundHandlerAdapter}'s default implementation
- * just forwards the object to the pipeline tail, which silently discards a non-{@code ByteBuf}
- * inbound message. The tests below assert the real, correct 307/404 status/headers/body to confirm
- * this — a genuine divergence would show up as a wrong status, an extra response, or a hung/reset
- * connection, none of which occurs.
+ * CollaborationLinkController#channelRead0} calls {@code context.fireChannelRead(new
+ * NoSuchElementException())} UNCONDITIONALLY after handling the request — including on the
+ * 307-success path, where it runs right after the {@code DefaultFullHttpResponse} has already been
+ * queued via {@code writeAndFlush(...) .addListener(ChannelFutureListener.CLOSE)}. This looks
+ * alarming but is inert: {@code fireChannelRead} propagates an INBOUND pipeline event (a "message
+ * was read" signal), not an outbound write — it never puts another byte on the wire. The next
+ * handler in the pipeline, {@code exceptions-handler} ({@code ExceptionsHandler}), overrides only
+ * {@code exceptionCaught} and not {@code channelRead}, so {@code ChannelInboundHandlerAdapter}'s
+ * default implementation just forwards the object to the pipeline tail, which silently discards a
+ * non-{@code ByteBuf} inbound message. The tests below assert the real, correct 307/404
+ * status/headers/body to confirm this — a genuine divergence would show up as a wrong status, an
+ * extra response, or a hung/reset connection, none of which occurs.
  */
 class InviteRedirectApiIT extends AbstractFilesIT {
 
@@ -79,7 +77,9 @@ class InviteRedirectApiIT extends AbstractFilesIT {
     return url.substring(url.length() - 8);
   }
 
-  /** {@code GET /invite/{id}} with redirect-following DISABLED, so the raw 307/404 is observable. */
+  /**
+   * {@code GET /invite/{id}} with redirect-following DISABLED, so the raw 307/404 is observable.
+   */
   private Response clickInvite(String invitationId, String cookie) {
     var request = RestAssured.given().redirects().follow(false);
     if (cookie != null) {
@@ -102,7 +102,8 @@ class InviteRedirectApiIT extends AbstractFilesIT {
             .build();
     Response response = graphql(bodyPayload, cookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> share = TestUtils.jsonResponseToMap(response.getBody().asString(), "getShare");
+    Map<String, Object> share =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getShare");
     return (String) share.get("permission");
   }
 
@@ -144,7 +145,8 @@ class InviteRedirectApiIT extends AbstractFilesIT {
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
     seedShare(nodeId, INVITEE_ID, SharePermission.READ_ONLY, OWNER_COOKIE);
-    Assertions.assertThat(getSharePermission(INVITEE_COOKIE, nodeId, INVITEE_ID)).isEqualTo("READ_ONLY");
+    Assertions.assertThat(getSharePermission(INVITEE_COOKIE, nodeId, INVITEE_ID))
+        .isEqualTo("READ_ONLY");
     String invitationId = createCollaborationLink(nodeId, SharePermission.READ_WRITE_AND_SHARE);
 
     // When

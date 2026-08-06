@@ -8,7 +8,7 @@ import java.util.List;
 
 public class HealthResponse {
 
-  private boolean             ready;
+  private boolean ready;
   private List<ServiceHealth> dependencies;
 
   public boolean isReady() {

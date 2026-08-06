@@ -19,14 +19,14 @@ import org.junit.jupiter.api.Test;
 /**
  * {@code com.zextras.carbonio.files.acceptance.RemovedNodeNotificationTrashApiIT} rewritten as an
  * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: trashing a node that
- * sits inside a directory shared with another user notifies that user ({@code RemovedNode} +,
- * from the share itself, {@code NewShare}). Only the enabled-notifications method is here — the
- * seam's {@code setNotificationsEnabled(false)} scenario is split into the sibling {@link
+ * sits inside a directory shared with another user notifies that user ({@code RemovedNode} +, from
+ * the share itself, {@code NewShare}). Only the enabled-notifications method is here — the seam's
+ * {@code setNotificationsEnabled(false)} scenario is split into the sibling {@link
  * RemovedNodeNotificationTrashDisabledIT}. Seeding (API calls capturing server-generated ids,
  * including {@link #seedTrashed} for the trash action) and transport changed; the scenario and
- * assertion are otherwise preserved verbatim. The share is created AFTER the node, so node
- * creation itself never generates an AddedNode notification — only the share (NewShare) and the
- * subsequent trashing (RemovedNode).
+ * assertion are otherwise preserved verbatim. The share is created AFTER the node, so node creation
+ * itself never generates an AddedNode notification — only the share (NewShare) and the subsequent
+ * trashing (RemovedNode).
  */
 class RemovedNodeNotificationTrashApiIT extends AbstractFilesIT {
 
@@ -56,7 +56,8 @@ class RemovedNodeNotificationTrashApiIT extends AbstractFilesIT {
         GraphqlCommandBuilder.aQueryBuilder("getNotifications")
             .withBoolean("update_last_seen", true)
             .withWantedResultFormat(
-                "{ notifications { ... on RemovedNode { created_at }, ... on NewShare { created_at } } }")
+                "{ notifications { ... on RemovedNode { created_at }, ... on NewShare { created_at"
+                    + " } } }")
             .build();
     Response response = graphql(query, cookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
@@ -64,7 +65,8 @@ class RemovedNodeNotificationTrashApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenANodeRemovalByTrashingItOnASharedDirectoryItShouldCreateANotificationForTheUsersItHasBeenSharedWith() {
+  void
+      givenANodeRemovalByTrashingItOnASharedDirectoryItShouldCreateANotificationForTheUsersItHasBeenSharedWith() {
     // Given
     createBaseScenario();
 

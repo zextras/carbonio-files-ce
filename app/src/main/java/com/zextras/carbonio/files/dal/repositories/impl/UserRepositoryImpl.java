@@ -41,8 +41,8 @@ import org.slf4j.LoggerFactory;
  * either).
  *
  * <p>bump-um-sdk (1.3.0-1): {@code internalUsersMyselfGet} gained a leading {@code bypassCache}
- * query parameter and now takes the raw token as a plain {@code ZM_AUTH_TOKEN} header argument
- * (the generated client sets the header itself) instead of a caller-built {@code Map} of headers.
+ * query parameter and now takes the raw token as a plain {@code ZM_AUTH_TOKEN} header argument (the
+ * generated client sets the header itself) instead of a caller-built {@code Map} of headers.
  */
 @ApplicationScoped
 public class UserRepositoryImpl implements UserRepository {
@@ -112,9 +112,8 @@ public class UserRepositoryImpl implements UserRepository {
 
   /**
    * Maps a {@link MyselfDto} to the local {@link UserMyself} domain type. Returns {@link
-   * Optional#empty()} if the nested {@code info} is missing, since a myself response without
-   * user info cannot be resolved to a domain user (the field is {@code @Nullable} in the
-   * generated DTO).
+   * Optional#empty()} if the nested {@code info} is missing, since a myself response without user
+   * info cannot be resolved to a domain user (the field is {@code @Nullable} in the generated DTO).
    */
   private Optional<UserMyself> mapToUserMyself(MyselfDto response) {
     UserInfoDto info = response.getInfo();
@@ -171,8 +170,8 @@ public class UserRepositoryImpl implements UserRepository {
    * UserType#GUEST} is the access-denying value ({@link
    * com.zextras.carbonio.files.graphql.FilesAuthenticationFilter} blocks guests), so an
    * unresolvable type must land on the deny side rather than defaulting to {@link
-   * UserType#INTERNAL}. A missing field, a {@code null}, or a UM-side typo must not silently
-   * grant internal access.
+   * UserType#INTERNAL}. A missing field, a {@code null}, or a UM-side typo must not silently grant
+   * internal access.
    */
   private UserType mapType(String type) {
     if (type == null) {

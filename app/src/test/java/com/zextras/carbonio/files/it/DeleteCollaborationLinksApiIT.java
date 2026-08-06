@@ -26,13 +26,13 @@ import org.junit.jupiter.api.Test;
  * <p><b>FINDING (documented, not fixed):</b> {@code
  * CollaborationLinkDataFetcher#deleteCollaborationLinks} computes "forbidden" as {@code
  * collaborationLinkRepository.getLinkById(id).filter(requesterHasShareRights).isEmpty()} — this
- * single boolean conflates TWO distinct causes (the id does not exist at all, and the id exists
- * but the requester lacks {@code READ_AND_SHARE}/{@code READ_WRITE_AND_SHARE} on its node) into
- * the SAME generic {@code missingField} error ("Could not find data to retrieve for requested
- * field", {@code errorCode: MISSING_FIELD}) with no id-specific detail — a genuine not-found and a
- * genuine permission-denial are indistinguishable over HTTP. Both scenarios are asserted below
- * with their real, identical shape; see also the analogous {@code
- * AuthenticatedDownloadApiIT}/{@code GetPublicLinksApiIT} not-found-vs-forbidden findings.
+ * single boolean conflates TWO distinct causes (the id does not exist at all, and the id exists but
+ * the requester lacks {@code READ_AND_SHARE}/{@code READ_WRITE_AND_SHARE} on its node) into the
+ * SAME generic {@code missingField} error ("Could not find data to retrieve for requested field",
+ * {@code errorCode: MISSING_FIELD}) with no id-specific detail — a genuine not-found and a genuine
+ * permission-denial are indistinguishable over HTTP. Both scenarios are asserted below with their
+ * real, identical shape; see also the analogous {@code AuthenticatedDownloadApiIT}/{@code
+ * GetPublicLinksApiIT} not-found-vs-forbidden findings.
  */
 class DeleteCollaborationLinksApiIT extends AbstractFilesIT {
 
@@ -44,7 +44,8 @@ class DeleteCollaborationLinksApiIT extends AbstractFilesIT {
   @BeforeAll
   static void registerUsers() {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", OWNER_ID);
-    FilesStackTestResource.getUserManagementService().registerToken("fake-token-b", SHARE_TARGET_ID);
+    FilesStackTestResource.getUserManagementService()
+        .registerToken("fake-token-b", SHARE_TARGET_ID);
   }
 
   private String createCollaborationLink(String nodeId, SharePermission permission) {
@@ -57,7 +58,8 @@ class DeleteCollaborationLinksApiIT extends AbstractFilesIT {
     Response response = graphql(bodyPayload, OWNER_COOKIE);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     return (String)
-        TestUtils.jsonResponseToMap(response.getBody().asString(), "createCollaborationLink").get("id");
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "createCollaborationLink")
+            .get("id");
   }
 
   private Response deleteCollaborationLinks(String cookie, String... linkIds) {
@@ -83,7 +85,8 @@ class DeleteCollaborationLinksApiIT extends AbstractFilesIT {
             .withWantedResultFormat("{ id }")
             .build();
     Response response = graphql(bodyPayload, OWNER_COOKIE);
-    return TestUtils.jsonResponseToList(response.getBody().asString(), "getCollaborationLinks").stream()
+    return TestUtils.jsonResponseToList(response.getBody().asString(), "getCollaborationLinks")
+        .stream()
         .map(link -> (String) link.get("id"))
         .toList();
   }

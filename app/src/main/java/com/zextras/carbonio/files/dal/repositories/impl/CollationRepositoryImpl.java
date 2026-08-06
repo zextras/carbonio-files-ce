@@ -16,8 +16,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Panache/JPA implementation of {@link CollationRepository}.
  *
- * <p>Determines the collation to use for name-ordering queries: if the database's default
- * collation is the (locale-less) {@code C}/{@code C.UTF-8} collation, it falls back to {@link
+ * <p>Determines the collation to use for name-ordering queries: if the database's default collation
+ * is the (locale-less) {@code C}/{@code C.UTF-8} collation, it falls back to {@link
  * Constants.ServiceDiscover.Config#FALLBACK_COLLATE} when that collation is installed on the
  * server; otherwise it returns {@link Optional#empty()} (meaning: use the column's default
  * collation as-is). The result never changes at runtime, so it is computed once and cached.

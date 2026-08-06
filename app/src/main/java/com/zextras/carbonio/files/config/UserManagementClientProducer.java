@@ -17,12 +17,12 @@ import java.time.Duration;
 /**
  * CDI producer for the {@link UserResourceApi} REST SDK bean (carbonio-user-management-rest-sdk).
  * Replaces the P3a {@code @GrpcClient("user-management")} stub: host/port come from {@link
- * NetworkingConfigService} ({@code networking-config.carbonio.user-management.*}, defaulting to
- * the mesh IP/port from {@code package/carbonio-files.hcl}: {@code 127.78.0.2:20001}), same as the
- * gRPC client it replaces.
+ * NetworkingConfigService} ({@code networking-config.carbonio.user-management.*}, defaulting to the
+ * mesh IP/port from {@code package/carbonio-files.hcl}: {@code 127.78.0.2:20001}), same as the gRPC
+ * client it replaces.
  *
- * <p>The {@link HttpClient} is explicitly pinned to HTTP/1.1: the JDK client's default (HTTP/2
- * with an HTTP/1.1 upgrade attempt) trips plaintext servers that only speak HTTP/1.1 (e.g.
+ * <p>The {@link HttpClient} is explicitly pinned to HTTP/1.1: the JDK client's default (HTTP/2 with
+ * an HTTP/1.1 upgrade attempt) trips plaintext servers that only speak HTTP/1.1 (e.g.
  * WireMock/Jetty in the ITs) into a protocol error/hang. carbonio-user-management is plain
  * HTTP/1.1, and {@code MailboxHttpClient}/{@code DocsConnectorHttpClient} pin the same version for
  * the same reason.
@@ -52,8 +52,7 @@ public class UserManagementClientProducer {
             .orElse(String.valueOf(Constants.Config.UserManagement.DEFAULT_PORT));
 
     String userManagementUrl =
-        String.format(
-            "%s://%s:%s", Constants.Config.UserManagement.DEFAULT_PROTOCOL, host, port);
+        String.format("%s://%s:%s", Constants.Config.UserManagement.DEFAULT_PROTOCOL, host, port);
 
     HttpClient.Builder httpClientBuilder =
         HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1);

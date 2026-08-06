@@ -19,9 +19,9 @@ import org.junit.jupiter.api.Test;
  * Config-split sibling of {@link UploadFileApiIT} (Batch D / D3 of the acceptance-to-Quarkus-tests
  * plan): carries the ONE scenario that needs {@code application-config.max-uploadable-size-in-mb}
  * capped to {@code 0} ({@link UploadCapResource}, class-restricted so it never leaks into other
- * classes sharing the suite-wide {@link FilesStackTestResource}). {@code FilesConfig}'s size cap
- * is a boot-time snapshot on the launched out-of-process app, so this scenario cannot share
- * {@code UploadFileApiIT}'s default (uncapped) stack.
+ * classes sharing the suite-wide {@link FilesStackTestResource}). {@code FilesConfig}'s size cap is
+ * a boot-time snapshot on the launched out-of-process app, so this scenario cannot share {@code
+ * UploadFileApiIT}'s default (uncapped) stack.
  *
  * <p><b>Split mapping (Batch D config-split accounting):</b> {@code UploadFileApiIT} = 9 methods +
  * {@code UploadFileSizeCapIT} (this class) = 1 method → 10 total, unchanged from the original

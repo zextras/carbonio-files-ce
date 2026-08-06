@@ -7,9 +7,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 
-/**
- * Represents all applicable sort types of a list of {@link Link}s.
- */
+/** Represents all applicable sort types of a list of {@link Link}s. */
 public enum LinkSort implements GenericSort {
   CREATED_AT_ASC {
     @Override

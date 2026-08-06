@@ -21,16 +21,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Runtime accessor for the carbonio-files application tunables consumed by the GraphQL
- * DataFetchers (P3c).
+ * Runtime accessor for the carbonio-files application tunables consumed by the GraphQL DataFetchers
+ * (P3c).
  *
- * <p>This is a P3c-scoped subset: it ports only the {@code FilesConfig} accessors the P3c batch
- * of DataFetchers ({@code ConfigDataFetcher}, {@code NotificationDataFetcher}, {@code
+ * <p>This is a P3c-scoped subset: it ports only the {@code FilesConfig} accessors the P3c batch of
+ * DataFetchers ({@code ConfigDataFetcher}, {@code NotificationDataFetcher}, {@code
  * ShareDataFetcher}) actually calls. The legacy class also exposed service host/port lookups
  * (files/user-management/storages/preview/mailbox/docs-connector/message-broker) and DB/Hikari/
- * page-token-secret-key accessors; those are ported in the phases that introduce their first
- * caller (P2 database extension already covers DB/Hikari, later phases cover the rest) rather
- * than speculatively here.
+ * page-token-secret-key accessors; those are ported in the phases that introduce their first caller
+ * (P2 database extension already covers DB/Hikari, later phases cover the rest) rather than
+ * speculatively here.
  *
  * <p>Unlike the legacy Guice {@code FilesConfig}, this bean reads the {@code application-config.*}
  * tunables via {@link ApplicationConfigService} (Consul KV) and the {@code networking-config.*}
@@ -62,8 +62,8 @@ public class FilesConfig {
 
   /**
    * Boot-time hook (mirrors {@code MessageBrokerManagerImpl#onStart}'s {@code @Observes
-   * StartupEvent} pattern): ensures the {@code page-token-secret-key} Consul KV entry exists
-   * before the app starts serving traffic. Ports legacy {@code FilesConfig#initializeSecretKey()}.
+   * StartupEvent} pattern): ensures the {@code page-token-secret-key} Consul KV entry exists before
+   * the app starts serving traffic. Ports legacy {@code FilesConfig#initializeSecretKey()}.
    */
   void onStart(@Observes StartupEvent event) {
     initializePageTokenSecretKey();
@@ -110,10 +110,10 @@ public class FilesConfig {
 
   /**
    * The HMAC-SHA256 key used to sign/verify {@code findNodes} keyset page tokens, read LIVE from
-   * Consul on every call (never cached) via {@link ServiceDiscoverHttpClient}.
-   * Falls back to a well-known, public default when Consul has no value yet (or is unreachable) —
-   * the same intentional trade-off the legacy code made: a page token is not a capability grant on
-   * its own (an unsigned/default-keyed one only replays what its own fields already say), so a
+   * Consul on every call (never cached) via {@link ServiceDiscoverHttpClient}. Falls back to a
+   * well-known, public default when Consul has no value yet (or is unreachable) — the same
+   * intentional trade-off the legacy code made: a page token is not a capability grant on its own
+   * (an unsigned/default-keyed one only replays what its own fields already say), so a
    * temporarily-shared-but-public key is preferable to refusing to serve requests.
    */
   public String getPageTokenSecretKey() {
@@ -125,10 +125,10 @@ public class FilesConfig {
   /**
    * Max number of kept versions for a file, read as the CURRENT (live) value via {@link
    * ApplicationConfigService}. Operators may override it via Consul KV ({@code
-   * carbonio-files/max-number-of-versions}) and a runtime change takes effect without an app restart
-   * (extension 1.13.0-1 reads Consul KV live); when absent (or malformed) the default declared in
-   * {@code application.properties} under the {@code application-config.} prefix applies (legacy
-   * default: 30).
+   * carbonio-files/max-number-of-versions}) and a runtime change takes effect without an app
+   * restart (extension 1.13.0-1 reads Consul KV live); when absent (or malformed) the default
+   * declared in {@code application.properties} under the {@code application-config.} prefix applies
+   * (legacy default: 30).
    */
   public int getMaxNumberOfVersions() {
     try {
@@ -142,14 +142,15 @@ public class FilesConfig {
   }
 
   /**
-   * Raw (unparsed, unclamped) {@code max-number-of-versions} value, read as the CURRENT (live) value
-   * from the SAME {@link ApplicationConfigService} as {@link #getMaxNumberOfVersions()} — and as every
-   * other config read — so the {@code getConfigs} query reports exactly what the version-cap
-   * enforcement path enforces, both reflecting a runtime Consul KV change on the very next call
-   * without an app restart (extension 1.13.0-1 reads Consul KV live). Falls back to the string form of
-   * the default when the key is absent. Unlike {@link #getMaxNumberOfVersions()} it neither parses nor
-   * swallows the value: the {@code ConfigDataFetcher} caller parses it inline, so a non-numeric value
-   * surfaces as a GraphQL execution error on {@code getConfigs} rather than being silently defaulted.
+   * Raw (unparsed, unclamped) {@code max-number-of-versions} value, read as the CURRENT (live)
+   * value from the SAME {@link ApplicationConfigService} as {@link #getMaxNumberOfVersions()} — and
+   * as every other config read — so the {@code getConfigs} query reports exactly what the
+   * version-cap enforcement path enforces, both reflecting a runtime Consul KV change on the very
+   * next call without an app restart (extension 1.13.0-1 reads Consul KV live). Falls back to the
+   * string form of the default when the key is absent. Unlike {@link #getMaxNumberOfVersions()} it
+   * neither parses nor swallows the value: the {@code ConfigDataFetcher} caller parses it inline,
+   * so a non-numeric value surfaces as a GraphQL execution error on {@code getConfigs} rather than
+   * being silently defaulted.
    */
   public String getMaxNumberOfVersionsRaw() {
     return applicationConfig
@@ -183,9 +184,9 @@ public class FilesConfig {
 
   /**
    * Returns {@code true} as default since notifications are a required feature, but opens the way
-   * to disable them if needed (e.g. in tests). Unlike the two accessors above this is NOT a
-   * Consul KV value: legacy read it from a config-file/System-properties {@code Properties}
-   * object, so it is read here via {@link NetworkingConfigService} (file/ENV/-D chain).
+   * to disable them if needed (e.g. in tests). Unlike the two accessors above this is NOT a Consul
+   * KV value: legacy read it from a config-file/System-properties {@code Properties} object, so it
+   * is read here via {@link NetworkingConfigService} (file/ENV/-D chain).
    */
   public boolean areNotificationsEnabled() {
     return networkingConfig

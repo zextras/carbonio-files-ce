@@ -13,8 +13,9 @@ fi
 # --setup checks for SETUP_CONSUL_TOKEN env variable and uses it
 # to avoid re-asking for the password
 echo -n "Insert the cluster credential password: "
-export SETUP_CONSUL_TOKEN=$(service-discover bootstrap-token --setup)
+SETUP_CONSUL_TOKEN=$(service-discover bootstrap-token --setup)
 EXIT_CODE="$?"
+export SETUP_CONSUL_TOKEN
 echo ""
 if [[ "${EXIT_CODE}" != "0" ]]; then
   echo "Cannot access to bootstrap token"

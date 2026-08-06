@@ -58,7 +58,8 @@ class TrashNodesApiIT extends AbstractFilesIT {
             .build();
     Response response = graphql(bodyPayload, REQUESTER_COOKIE);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
     return nodes.stream().map(node -> (String) node.get("id")).toList();
   }
@@ -67,7 +68,11 @@ class TrashNodesApiIT extends AbstractFilesIT {
   void givenANodeInRootTrashNodesShouldMoveItToTrashAndExcludeItFromRootSearch() {
     // Given
     String nodeId =
-        seedFile("toTrash.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "toTrash.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
 
     // When
     Response response = trashNodes(new String[] {nodeId}, REQUESTER_COOKIE);
@@ -75,10 +80,12 @@ class TrashNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> data =
-        (List<String>) TestUtils.jsonResponseToMap(response.getBody().asString(), "trashNodes").get("data");
+        (List<String>)
+            TestUtils.jsonResponseToMap(response.getBody().asString(), "trashNodes").get("data");
     Assertions.assertThat(data).containsExactly(nodeId);
 
-    // the row still exists (soft trash), but is no longer visible from LOCAL_ROOT and is visible from TRASH_ROOT
+    // the row still exists (soft trash), but is no longer visible from LOCAL_ROOT and is visible
+    // from TRASH_ROOT
     Assertions.assertThat(nodeExists(nodeId, REQUESTER_COOKIE)).isTrue();
     Assertions.assertThat(findNodeIdsInFolder("LOCAL_ROOT", true)).doesNotContain(nodeId);
     Assertions.assertThat(findNodeIdsInFolder("TRASH_ROOT", false)).containsExactly(nodeId);
@@ -91,13 +98,15 @@ class TrashNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "trashNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "trashNodes");
     Assertions.assertThat((List<String>) page.get("data")).isEmpty();
 
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("There was a problem while executing requested operation on node: LOCAL_ROOT");
+        .containsExactly(
+            "There was a problem while executing requested operation on node: LOCAL_ROOT");
   }
 
   @Test
@@ -113,14 +122,16 @@ class TrashNodesApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("There was a problem while executing requested operation on node: " + nonExistentId);
+        .containsExactly(
+            "There was a problem while executing requested operation on node: " + nonExistentId);
   }
 
   @Test
   void givenNoWritePermissionTrashNodesShouldReturnNodeWriteError() {
     // Given — owned by someone else, shared to the requester as READ_ONLY (no write)
     String nodeId =
-        seedFile("notMine.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+        seedFile(
+            "notMine.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
     seedShare(nodeId, REQUESTER_ID, ACL.SharePermission.READ_ONLY, OTHER_COOKIE);
 
     // When
@@ -131,14 +142,16 @@ class TrashNodesApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("There was a problem while executing requested operation on node: " + nodeId);
+        .containsExactly(
+            "There was a problem while executing requested operation on node: " + nodeId);
   }
 
   @Test
   void givenAMixOfTrashableAndBadNodesTrashNodesShouldReturnPartialSuccess() {
     // Given
     String goodId =
-        seedFile("good.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "good.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String badId = "00000000-0000-0000-0000-00000000ffff";
 
     // When
@@ -146,13 +159,15 @@ class TrashNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "trashNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "trashNodes");
     Assertions.assertThat((List<String>) page.get("data")).containsExactly(goodId);
 
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("There was a problem while executing requested operation on node: " + badId);
+        .containsExactly(
+            "There was a problem while executing requested operation on node: " + badId);
   }
 
   @Test
@@ -160,7 +175,8 @@ class TrashNodesApiIT extends AbstractFilesIT {
     // Given
     String folderId = seedFolder("parentFolder", LOCAL_ROOT, REQUESTER_COOKIE);
     String childId =
-        seedFile("child.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "child.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     // move the child under the folder directly via a real HTTP moveNodes call so its ancestor
     // chain is consistent before we trash the folder
     String movePayload =
@@ -177,7 +193,8 @@ class TrashNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "trashNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "trashNodes");
     Assertions.assertThat((List<String>) page.get("data")).containsExactly(folderId);
 
     // the whole subtree (folder + child) is now reachable under TRASH_ROOT and gone from LOCAL_ROOT

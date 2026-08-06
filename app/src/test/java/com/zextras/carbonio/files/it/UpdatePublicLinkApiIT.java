@@ -112,7 +112,8 @@ class UpdatePublicLinkApiIT extends AbstractFilesIT {
         .containsEntry("description", "another-description")
         .containsEntry("access_code", "another-fake-access-code");
 
-    Assertions.assertThat((Map<String, Object>) updatedLink.get("node")).containsEntry("id", nodeId);
+    Assertions.assertThat((Map<String, Object>) updatedLink.get("node"))
+        .containsEntry("id", nodeId);
   }
 
   @Test
@@ -142,7 +143,8 @@ class UpdatePublicLinkApiIT extends AbstractFilesIT {
         .containsEntry("description", "another-description")
         .containsEntry("access_code", null);
 
-    Assertions.assertThat((Map<String, Object>) updatedLink.get("node")).containsEntry("id", nodeId);
+    Assertions.assertThat((Map<String, Object>) updatedLink.get("node"))
+        .containsEntry("id", nodeId);
   }
 
   @Test
@@ -172,7 +174,8 @@ class UpdatePublicLinkApiIT extends AbstractFilesIT {
         .containsEntry("description", "super-description")
         .containsEntry("access_code", null);
 
-    Assertions.assertThat((Map<String, Object>) updatedLink.get("node")).containsEntry("id", nodeId);
+    Assertions.assertThat((Map<String, Object>) updatedLink.get("node"))
+        .containsEntry("id", nodeId);
   }
 
   @Test
@@ -200,7 +203,8 @@ class UpdatePublicLinkApiIT extends AbstractFilesIT {
         .containsEntry("description", "another-description")
         .containsEntry("access_code", null);
 
-    Assertions.assertThat((Map<String, Object>) updatedLink.get("node")).containsEntry("id", nodeId);
+    Assertions.assertThat((Map<String, Object>) updatedLink.get("node"))
+        .containsEntry("id", nodeId);
   }
 
   @Test
@@ -256,7 +260,9 @@ class UpdatePublicLinkApiIT extends AbstractFilesIT {
     Map<String, Object> updatedLink =
         TestUtils.jsonResponseToMap(response.getBody().asString(), "updateLink");
 
-    Assertions.assertThat(updatedLink).containsEntry("id", linkId).containsEntry("expires_at", null);
+    Assertions.assertThat(updatedLink)
+        .containsEntry("id", linkId)
+        .containsEntry("expires_at", null);
   }
 
   @Test

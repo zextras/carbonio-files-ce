@@ -22,8 +22,8 @@ import java.util.Optional;
  * Quarkus port of the legacy Guice {@code CollaborationLinkService}. Resolves a {@link
  * com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink} by its public invitation id and
  * creates/updates a direct share for the requester with the link's permission, propagating it on
- * the sub-tree via {@link ShareDataFetcher#cascadeUpsertShare} (the same helper used by the
- * GraphQL {@code createShare} mutation) — reused as-is rather than reimplemented.
+ * the sub-tree via {@link ShareDataFetcher#cascadeUpsertShare} (the same helper used by the GraphQL
+ * {@code createShare} mutation) — reused as-is rather than reimplemented.
  *
  * <p>One deliberate deviation from the legacy behaviour: {@code cascadeUpsertShare} is invoked
  * SYNCHRONOUSLY here instead of via {@code CompletableFuture.runAsync(...)}. The legacy call was
@@ -106,7 +106,6 @@ public class CollaborationLinkService {
         .orElse(
             Try.failure(
                 new NoSuchElementException(
-                    MessageFormat.format(
-                        "Collaboration Link {0} does not exist", invitationId))));
+                    MessageFormat.format("Collaboration Link {0} does not exist", invitationId))));
   }
 }

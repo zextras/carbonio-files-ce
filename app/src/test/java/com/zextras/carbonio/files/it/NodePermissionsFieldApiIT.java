@@ -20,10 +20,9 @@ import org.junit.jupiter.api.Test;
 /**
  * {@code com.zextras.carbonio.files.acceptance.NodePermissionsFieldApiIT} rewritten as an
  * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. All 3 methods and
- * their assertions (including the class-level FINDING that a zero-relationship user gets a
- * {@code nodeNotFound} error, never an all-false {@code Permissions} object) are preserved
- * verbatim; only the seeding mechanism (API calls capturing server-generated ids) and transport
- * changed.
+ * their assertions (including the class-level FINDING that a zero-relationship user gets a {@code
+ * nodeNotFound} error, never an all-false {@code Permissions} object) are preserved verbatim; only
+ * the seeding mechanism (API calls capturing server-generated ids) and transport changed.
  */
 class NodePermissionsFieldApiIT extends AbstractFilesIT {
 
@@ -41,8 +40,10 @@ class NodePermissionsFieldApiIT extends AbstractFilesIT {
   @BeforeAll
   static void registerUsers() {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", REQUESTER_ID);
-    FilesStackTestResource.getUserManagementService().registerToken("fake-token-b", SHARE_TARGET_ID);
-    FilesStackTestResource.getUserManagementService().registerToken("fake-token-c", NO_RELATIONSHIP_USER_ID);
+    FilesStackTestResource.getUserManagementService()
+        .registerToken("fake-token-b", SHARE_TARGET_ID);
+    FilesStackTestResource.getUserManagementService()
+        .registerToken("fake-token-c", NO_RELATIONSHIP_USER_ID);
   }
 
   @SuppressWarnings("unchecked")
@@ -56,7 +57,8 @@ class NodePermissionsFieldApiIT extends AbstractFilesIT {
     Response response = graphql(bodyPayload, cookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
 
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     return (Map<String, Object>) node.get("permissions");
   }
 
@@ -64,7 +66,8 @@ class NodePermissionsFieldApiIT extends AbstractFilesIT {
   void givenOwnerGetNodePermissionsShouldReturnAllTruePermissions() {
     // Given
     String nodeId =
-        seedFile("owned.txt", LOCAL_ROOT, "owned".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "owned.txt", LOCAL_ROOT, "owned".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     Map<String, Object> permissions = getNodePermissions(nodeId, REQUESTER_COOKIE);
@@ -87,7 +90,8 @@ class NodePermissionsFieldApiIT extends AbstractFilesIT {
   void givenReadOnlyShareTargetGetNodePermissionsShouldReturnOnlyReadPermissionsTrue() {
     // Given
     String nodeId =
-        seedFile("shared.txt", LOCAL_ROOT, "shared".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "shared.txt", LOCAL_ROOT, "shared".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     seedShare(nodeId, SHARE_TARGET_ID, ACL.SharePermission.READ_ONLY, REQUESTER_COOKIE);
 
     // When
@@ -108,15 +112,19 @@ class NodePermissionsFieldApiIT extends AbstractFilesIT {
   }
 
   /**
-   * See the class-level FINDING: a user with zero relationship to the node cannot reach the
-   * {@code permissions} field at all — {@code getNode} itself fails with {@code nodeNotFound}
-   * before any field resolver (including {@code getPermissionsNodeFetcher}) runs.
+   * See the class-level FINDING: a user with zero relationship to the node cannot reach the {@code
+   * permissions} field at all — {@code getNode} itself fails with {@code nodeNotFound} before any
+   * field resolver (including {@code getPermissionsNodeFetcher}) runs.
    */
   @Test
   void givenUserWithNoRelationshipToNodeGetNodeFailsWithNodeNotFoundInsteadOfAllFalsePermissions() {
     // Given
     String nodeId =
-        seedFile("private.txt", LOCAL_ROOT, "private".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "private.txt",
+            LOCAL_ROOT,
+            "private".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
 
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("getNode")
@@ -130,9 +138,12 @@ class NodePermissionsFieldApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1).containsExactly("Could not find node with id " + nodeId);
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Could not find node with id " + nodeId);
 
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node).isEmpty();
   }
 }

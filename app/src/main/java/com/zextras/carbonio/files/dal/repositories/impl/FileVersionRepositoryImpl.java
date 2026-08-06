@@ -49,7 +49,13 @@ public class FileVersionRepositoryImpl
 
     FileVersion fileVersion =
         new FileVersion(
-            nodeId, lastEditorId, System.currentTimeMillis(), version, mimeType, size, digest,
+            nodeId,
+            lastEditorId,
+            System.currentTimeMillis(),
+            version,
+            mimeType,
+            size,
+            digest,
             autosave);
     persist(fileVersion);
     return Optional.of(fileVersion);

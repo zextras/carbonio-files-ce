@@ -17,14 +17,14 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.ThumbnailApiIT} rewritten as an out-of-process
- * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: {@code GET
- * /preview/.../thumbnail} ({@code PreviewService}'s {@code getThumbnailOfXxx} methods — same
- * {@code PreviewClient}-only dependency as {@link PreviewApiIT}, no {@code Filestore}
- * involvement). All 7 methods and their assertions are preserved verbatim; only the seeding (real
- * {@code POST /upload}/{@code /upload-version} capturing the server-generated node id) and the
- * preview stub/verify ({@link AbstractFilesIT#previewServes}/{@link
- * AbstractFilesIT#verifyPreviewServed}) changed. {@code clearFileVersionCache()} is DROPPED per
- * the plan (fresh-UUID API seeding means cache keys never collide across tests).
+ * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: {@code GET /preview/.../thumbnail}
+ * ({@code PreviewService}'s {@code getThumbnailOfXxx} methods — same {@code PreviewClient}-only
+ * dependency as {@link PreviewApiIT}, no {@code Filestore} involvement). All 7 methods and their
+ * assertions are preserved verbatim; only the seeding (real {@code POST /upload}/{@code
+ * /upload-version} capturing the server-generated node id) and the preview stub/verify ({@link
+ * AbstractFilesIT#previewServes}/{@link AbstractFilesIT#verifyPreviewServed}) changed. {@code
+ * clearFileVersionCache()} is DROPPED per the plan (fresh-UUID API seeding means cache keys never
+ * collide across tests).
  */
 class ThumbnailApiIT extends AbstractFilesIT {
 
@@ -95,7 +95,8 @@ class ThumbnailApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTwoVersionsOfAnExistingDocumentTheGetThumbnailApiShouldReturnTheJpegOfTheFirstVersion() {
+  void
+      givenTwoVersionsOfAnExistingDocumentTheGetThumbnailApiShouldReturnTheJpegOfTheFirstVersion() {
     // Given
     String nodeId =
         seedFile("pres.odp", LOCAL_ROOT, "0".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
@@ -129,10 +130,7 @@ class ThumbnailApiIT extends AbstractFilesIT {
 
     String callThumbnailExpectationId =
         previewServes(
-            "/preview/pdf/" + nodeId + "/3/5x5/thumbnail/",
-            OWNER_ID,
-            "0".getBytes(),
-            "image/jpeg");
+            "/preview/pdf/" + nodeId + "/3/5x5/thumbnail/", OWNER_ID, "0".getBytes(), "image/jpeg");
 
     // When
     Response response =
@@ -154,10 +152,7 @@ class ThumbnailApiIT extends AbstractFilesIT {
 
     String callThumbnailExpectationId =
         previewServes(
-            "/preview/pdf/" + nodeId + "/2/5x5/thumbnail/",
-            OWNER_ID,
-            "0".getBytes(),
-            "image/jpeg");
+            "/preview/pdf/" + nodeId + "/2/5x5/thumbnail/", OWNER_ID, "0".getBytes(), "image/jpeg");
 
     // When
     Response response =
@@ -174,8 +169,7 @@ class ThumbnailApiIT extends AbstractFilesIT {
       String versionQueryParam) {
     // Given
     String nodeId =
-        seedFile(
-            "don't open.png", LOCAL_ROOT, "0".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+        seedFile("don't open.png", LOCAL_ROOT, "0".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
     seedVersion(nodeId, "0".getBytes(StandardCharsets.UTF_8), "don't open.png", OWNER_COOKIE);
 
     String callThumbnailExpectationId =
@@ -196,7 +190,8 @@ class ThumbnailApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTwoVersionsOfAnExistingJpegImageTheGetThumbnailApiShouldReturnTheJpegOfTheFirstVersion() {
+  void
+      givenTwoVersionsOfAnExistingJpegImageTheGetThumbnailApiShouldReturnTheJpegOfTheFirstVersion() {
     // Given — real image/jpeg mimeType via the ".jpg" extension (see PreviewApiIT's analogous
     // scenario for why: API-seeding cannot reproduce the seam's inconsistent png-filename/
     // jpeg-mimeType fixture, so the INTENT — "an image node stored as image/jpeg" — is preserved
@@ -214,8 +209,7 @@ class ThumbnailApiIT extends AbstractFilesIT {
 
     // When
     Response response =
-        previewGet(
-            "/preview/image/" + nodeId + "/5x5/thumbnail/?version=1", OWNER_COOKIE, null);
+        previewGet("/preview/image/" + nodeId + "/5x5/thumbnail/?version=1", OWNER_COOKIE, null);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);

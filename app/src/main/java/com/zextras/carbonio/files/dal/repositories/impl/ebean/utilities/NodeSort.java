@@ -7,9 +7,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 
-/**
- * Represents all applicable sort types of a list of {@link Node}s.
- */
+/** Represents all applicable sort types of a list of {@link Node}s. */
 public enum NodeSort implements GenericSort {
 
   // used as last sorting method to discriminate between nodes with identical properties

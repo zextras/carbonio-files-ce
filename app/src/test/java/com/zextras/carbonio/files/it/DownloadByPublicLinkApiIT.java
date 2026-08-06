@@ -12,7 +12,6 @@ import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
-import java.util.Map;
 import java.util.UUID;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -22,10 +21,10 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.DownloadByPublicLinkApiIT} rewritten as an
- * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: {@code GET
- * /link/{id}} and its alias {@code GET /public/link/download/{id}} — both route to the same
- * {@code PublicBlobResource#doDownloadByPublicLink}. All 7 methods and their assertions are
- * preserved verbatim; only the seeding mechanism and transport changed.
+ * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: {@code GET /link/{id}}
+ * and its alias {@code GET /public/link/download/{id}} — both route to the same {@code
+ * PublicBlobResource#doDownloadByPublicLink}. All 7 methods and their assertions are preserved
+ * verbatim; only the seeding mechanism and transport changed.
  *
  * <p><b>The 8/32/50-char {@code publicLinkId} variants need the raw-JDBC escape hatch (D1 rule
  * 4).</b> The real {@code createLink} mutation always generates a random 50-char {@code publicId}
@@ -47,7 +46,8 @@ class DownloadByPublicLinkApiIT extends AbstractFilesIT {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", OWNER_ID);
   }
 
-  private static Response publicLinkDownload(String pathPrefix, String publicLinkId, String cookie) {
+  private static Response publicLinkDownload(
+      String pathPrefix, String publicLinkId, String cookie) {
     var request = RestAssured.given().redirects().follow(false);
     if (cookie != null) {
       request = request.header("Cookie", cookie);
@@ -55,7 +55,10 @@ class DownloadByPublicLinkApiIT extends AbstractFilesIT {
     return request.get(pathPrefix + publicLinkId);
   }
 
-  /** Creates a link via the real mutation and returns its {@code public_id} (last 50 chars of the url). */
+  /**
+   * Creates a link via the real mutation and returns its {@code public_id} (last 50 chars of the
+   * url).
+   */
   private static String createLink(String nodeId, Integer expiresAt, String ownerCookie) {
     GraphqlCommandBuilder builder =
         GraphqlCommandBuilder.aMutationBuilder("createLink").withString("node_id", nodeId);
@@ -66,7 +69,8 @@ class DownloadByPublicLinkApiIT extends AbstractFilesIT {
     Response response = graphql(bodyPayload, ownerCookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     String url =
-        (String) TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
+        (String)
+            TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
     return url.substring(url.length() - 50);
   }
 
@@ -148,7 +152,8 @@ class DownloadByPublicLinkApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenANotExistingLinkTheDownloadByPublicLinkShouldReturnA404StatusCode() throws SQLException {
+  void givenANotExistingLinkTheDownloadByPublicLinkShouldReturnA404StatusCode()
+      throws SQLException {
     // Given — a real link exists, but with a DIFFERENT public id than the one requested
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);

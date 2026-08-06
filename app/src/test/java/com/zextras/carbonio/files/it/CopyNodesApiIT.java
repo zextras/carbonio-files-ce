@@ -27,14 +27,14 @@ import org.junit.jupiter.api.Test;
  * <p><b>Reading the source (behaviour this class pins down):</b>
  *
  * <ul>
- *   <li>The requester needs {@code READ_AND_WRITE} on {@code destination_id}, which must resolve
- *       to an existing {@code FOLDER}/{@code ROOT} node. Both a non-existent destination and an
- *       existing-but-wrong-type destination fall through the SAME top-level {@code if}/{@code
- *       else} into the SAME single-element {@code nodeWriteError(destination_id)} result.
+ *   <li>The requester needs {@code READ_AND_WRITE} on {@code destination_id}, which must resolve to
+ *       an existing {@code FOLDER}/{@code ROOT} node. Both a non-existent destination and an
+ *       existing-but-wrong-type destination fall through the SAME top-level {@code if}/{@code else}
+ *       into the SAME single-element {@code nodeWriteError(destination_id)} result.
  *   <li>Each source node only needs {@code canRead()} (a plain {@code READ_ONLY} share suffices).
  *   <li>A source {@code FOLDER} is excluded from the copy when the destination is nested somewhere
- *       under it — UNLESS the source's own current parent IS the destination (the explicit "copy
- *       a folder into its own parent" exception).
+ *       under it — UNLESS the source's own current parent IS the destination (the explicit "copy a
+ *       folder into its own parent" exception).
  *   <li>A filestore-copy failure deletes the just-created node row and reports {@code
  *       nodeCopyError(sourceId, sourceVersion, path)} using the SOURCE node's id/version.
  *   <li>Both single-element-error shapes leave the {@code copyNodes} GraphQL list value {@code
@@ -70,7 +70,8 @@ class CopyNodesApiIT extends AbstractFilesIT {
 
   @SuppressWarnings("unchecked")
   private List<Map<String, Object>> copiedNodes(Response response) {
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "copyNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "copyNodes");
     Object data = page.get("data");
     return data == null ? List.of() : (List<Map<String, Object>>) data;
   }
@@ -85,7 +86,8 @@ class CopyNodesApiIT extends AbstractFilesIT {
             .build();
     Response response = graphql(bodyPayload, cookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Map<String, Object> children = (Map<String, Object>) node.get("children");
     return (List<Map<String, Object>>) children.get("nodes");
   }
@@ -94,7 +96,8 @@ class CopyNodesApiIT extends AbstractFilesIT {
   void givenAPlainFileCopyItShouldCreateACopyInDestinationAndLeaveTheOriginalIntact() {
     // Given
     String sourceId =
-        seedFile("source.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "source.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String destFolderId = seedFolder("dest", LOCAL_ROOT, REQUESTER_COOKIE);
 
     // When
@@ -107,8 +110,11 @@ class CopyNodesApiIT extends AbstractFilesIT {
     Assertions.assertThat(copied).hasSize(1);
     Map<String, Object> copiedNode = copied.get(0);
     Assertions.assertThat(copiedNode.get("id")).isNotEqualTo(sourceId);
-    Assertions.assertThat(copiedNode).containsEntry("name", "source").containsEntry("extension", "txt");
-    Assertions.assertThat((Map<String, Object>) copiedNode.get("parent")).containsEntry("id", destFolderId);
+    Assertions.assertThat(copiedNode)
+        .containsEntry("name", "source")
+        .containsEntry("extension", "txt");
+    Assertions.assertThat((Map<String, Object>) copiedNode.get("parent"))
+        .containsEntry("id", destFolderId);
 
     // the source is a COPY, not a move: it still exists, unchanged, at its original location
     Assertions.assertThat(nodeExists(sourceId, REQUESTER_COOKIE)).isTrue();
@@ -122,11 +128,15 @@ class CopyNodesApiIT extends AbstractFilesIT {
     // Given — srcFolder/child.txt, srcFolder/subFolder/grandchild.txt
     String srcFolderId = seedFolder("srcFolder", LOCAL_ROOT, REQUESTER_COOKIE);
     String childFileId =
-        seedFile("child.txt", srcFolderId, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "child.txt", srcFolderId, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String subFolderId = seedFolder("subFolder", srcFolderId, REQUESTER_COOKIE);
     String grandchildFileId =
         seedFile(
-            "grandchild.txt", subFolderId, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+            "grandchild.txt",
+            subFolderId,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
     String destFolderId = seedFolder("dest2", LOCAL_ROOT, REQUESTER_COOKIE);
 
     // When
@@ -154,7 +164,9 @@ class CopyNodesApiIT extends AbstractFilesIT {
             .toString();
     Assertions.assertThat(copiedSubFolderId).isNotEqualTo(subFolderId);
     List<Map<String, Object>> copiedSubChildren = childrenOf(copiedSubFolderId, REQUESTER_COOKIE);
-    Assertions.assertThat(copiedSubChildren).extracting(node -> node.get("name")).containsExactly("grandchild");
+    Assertions.assertThat(copiedSubChildren)
+        .extracting(node -> node.get("name"))
+        .containsExactly("grandchild");
 
     // the original subtree is untouched
     Assertions.assertThat(nodeExists(srcFolderId, REQUESTER_COOKIE)).isTrue();
@@ -167,9 +179,11 @@ class CopyNodesApiIT extends AbstractFilesIT {
   void givenANameClashInDestinationCopyShouldDedupTheName() {
     // Given — destination already has a file named "clash.txt"
     String destFolderId = seedFolder("dest3", LOCAL_ROOT, REQUESTER_COOKIE);
-    seedFile("clash.txt", destFolderId, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedFile(
+        "clash.txt", destFolderId, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String sourceId =
-        seedFile("clash.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "clash.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     Response response = copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE);
@@ -178,16 +192,20 @@ class CopyNodesApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<Map<String, Object>> copied = copiedNodes(response);
     Assertions.assertThat(copied).hasSize(1);
-    Assertions.assertThat(copied.get(0)).containsEntry("name", "clash (1)").containsEntry("extension", "txt");
+    Assertions.assertThat(copied.get(0))
+        .containsEntry("name", "clash (1)")
+        .containsEntry("extension", "txt");
   }
 
   @Test
   void givenNoNameClashCopyShouldKeepTheOriginalName() {
     // Given — destination has an unrelated file; no clash with the source's name
     String destFolderId = seedFolder("dest4", LOCAL_ROOT, REQUESTER_COOKIE);
-    seedFile("other.txt", destFolderId, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedFile(
+        "other.txt", destFolderId, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String sourceId =
-        seedFile("unique.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "unique.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     Response response = copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE);
@@ -196,14 +214,17 @@ class CopyNodesApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<Map<String, Object>> copied = copiedNodes(response);
     Assertions.assertThat(copied).hasSize(1);
-    Assertions.assertThat(copied.get(0)).containsEntry("name", "unique").containsEntry("extension", "txt");
+    Assertions.assertThat(copied.get(0))
+        .containsEntry("name", "unique")
+        .containsEntry("extension", "txt");
   }
 
   @Test
   void givenSourceWithOnlyReadPermissionCopyShouldSucceed() {
     // Given — source owned by OTHER_USER_ID, shared READ_ONLY (no write) with the requester
     String sourceId =
-        seedFile("shared.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+        seedFile(
+            "shared.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
     seedShare(sourceId, REQUESTER_ID, ACL.SharePermission.READ_ONLY, OTHER_COOKIE);
     String destFolderId = seedFolder("dest5", LOCAL_ROOT, REQUESTER_COOKIE);
 
@@ -233,7 +254,8 @@ class CopyNodesApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(2)
-        .contains("There was a problem while executing requested operation on node: " + parentFolderId);
+        .contains(
+            "There was a problem while executing requested operation on node: " + parentFolderId);
     Assertions.assertThat(copiedNodes(response)).isEmpty();
     Assertions.assertThat(childrenOf(childFolderId, REQUESTER_COOKIE)).isEmpty();
   }
@@ -263,7 +285,8 @@ class CopyNodesApiIT extends AbstractFilesIT {
     // Given
     String nonExistentDest = "40000000-0000-0000-0000-00000000ffff";
     String sourceId =
-        seedFile("src8.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "src8.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     Response response = copyNodes(new String[] {sourceId}, nonExistentDest, REQUESTER_COOKIE);
@@ -273,7 +296,8 @@ class CopyNodesApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(2)
-        .contains("There was a problem while executing requested operation on node: " + nonExistentDest);
+        .contains(
+            "There was a problem while executing requested operation on node: " + nonExistentDest);
     Assertions.assertThat(copiedNodes(response)).isEmpty();
   }
 
@@ -282,10 +306,14 @@ class CopyNodesApiIT extends AbstractFilesIT {
     // Given — destination exists and the requester owns it (so permission alone would pass), but
     // it is a FILE, not a FOLDER/ROOT
     String sourceId =
-        seedFile("src9.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "src9.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String destFileId =
         seedFile(
-            "notAFolder.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+            "notAFolder.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
 
     // When
     Response response = copyNodes(new String[] {sourceId}, destFileId, REQUESTER_COOKIE);
@@ -302,7 +330,8 @@ class CopyNodesApiIT extends AbstractFilesIT {
   void givenNoWritePermissionOnDestinationCopyShouldReturnNodeWriteError() {
     // Given — destination folder owned by OTHER_USER_ID, never shared with the requester
     String sourceId =
-        seedFile("src10.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "src10.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String destFolderId = seedFolder("privateDest", LOCAL_ROOT, OTHER_COOKIE);
 
     // When
@@ -313,14 +342,16 @@ class CopyNodesApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(2)
-        .contains("There was a problem while executing requested operation on node: " + destFolderId);
+        .contains(
+            "There was a problem while executing requested operation on node: " + destFolderId);
   }
 
   @Test
   void givenAFilestoreCopyFailureCopyShouldReturnNodeCopyErrorAndLeaveNoOrphan() {
     // Given
     String sourceId =
-        seedFile("src11.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "src11.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String destFolderId = seedFolder("dest11", LOCAL_ROOT, REQUESTER_COOKIE);
     FilesStackTestResource.getStoragesService().setCopyFails(true);
 
@@ -356,7 +387,10 @@ class CopyNodesApiIT extends AbstractFilesIT {
     seedShare(destFolderId, OTHER_USER_ID, ACL.SharePermission.READ_AND_WRITE, REQUESTER_COOKIE);
     String sourceId =
         seedFile(
-            "toCopy12.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+            "toCopy12.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
 
     // When
     Response copyResponse = copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE);
@@ -366,8 +400,8 @@ class CopyNodesApiIT extends AbstractFilesIT {
         GraphqlCommandBuilder.aQueryBuilder("getNotifications")
             .withBoolean("update_last_seen", true)
             .withWantedResultFormat(
-                "{ notifications { __typename ... on AddedNode { added_node_type added_node { node_id"
-                    + " } } } }")
+                "{ notifications { __typename ... on AddedNode { added_node_type added_node {"
+                    + " node_id } } } }")
             .build();
     Response notificationsResponse = graphql(notificationsPayload, OTHER_COOKIE);
 

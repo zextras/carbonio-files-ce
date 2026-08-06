@@ -41,8 +41,8 @@ public class TombstoneRepositoryImpl
   }
 
   /**
-   * Creates tombstones for each FileVersion WITHOUT opening its own transaction; it participates
-   * in the caller's transaction.
+   * Creates tombstones for each FileVersion WITHOUT opening its own transaction; it participates in
+   * the caller's transaction.
    */
   @Override
   public void createTombstonesBulk(List<FileVersion> fileVersions, String ownerId) {

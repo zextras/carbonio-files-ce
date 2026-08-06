@@ -18,8 +18,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.RemovedNodeNotificationMoveApiIT} rewritten as an
- * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: moving a node OUT of
- * a directory shared with another user notifies that user ({@code RemovedNode} +, from the share
+ * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: moving a node OUT of a
+ * directory shared with another user notifies that user ({@code RemovedNode} +, from the share
  * itself, {@code NewShare}). Only the enabled-notifications method is here — the seam's {@code
  * setNotificationsEnabled(false)} scenario is split into the sibling {@link
  * RemovedNodeNotificationMoveDisabledIT}. Seeding (API calls capturing server-generated ids) and
@@ -62,7 +62,8 @@ class RemovedNodeNotificationMoveApiIT extends AbstractFilesIT {
         GraphqlCommandBuilder.aQueryBuilder("getNotifications")
             .withBoolean("update_last_seen", true)
             .withWantedResultFormat(
-                "{ notifications { ... on RemovedNode { created_at }, ... on NewShare { created_at } } }")
+                "{ notifications { ... on RemovedNode { created_at }, ... on NewShare { created_at"
+                    + " } } }")
             .build();
     Response response = graphql(query, cookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
@@ -70,7 +71,8 @@ class RemovedNodeNotificationMoveApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenANodeRemovalByMoveOnASharedDirectoryItShouldCreateANotificationForTheUsersItHasBeenSharedWith() {
+  void
+      givenANodeRemovalByMoveOnASharedDirectoryItShouldCreateANotificationForTheUsersItHasBeenSharedWith() {
     // Given
     createBaseScenario();
 

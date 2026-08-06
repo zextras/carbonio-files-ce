@@ -13,16 +13,16 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
 /**
- * <p>Represents an Ebean {@link TrashedNode} entity that matches a record of the {@link
- * Constants.Db.Tables#TRASHED_NODE} table.</p>
- * <p>The implementation of constructors and setters should not care to check if the values in
- * input are valid or not because, when these methods are called, these controls
- * <strong>must</strong> be already done.</p>
+ * Represents an Ebean {@link TrashedNode} entity that matches a record of the {@link
+ * Constants.Db.Tables#TRASHED_NODE} table.
+ *
+ * <p>The implementation of constructors and setters should not care to check if the values in input
+ * are valid or not because, when these methods are called, these controls <strong>must</strong> be
+ * already done.
  */
 @Entity
 @Table(name = Constants.Db.Tables.TRASHED_NODE)
-public
-class TrashedNode {
+public class TrashedNode {
 
   /** Protected no-arg constructor required by Hibernate/JPA. */
   protected TrashedNode() {}
@@ -35,13 +35,14 @@ class TrashedNode {
   private String mOldParentId;
 
   @OneToOne
-  @JoinColumn(name = Constants.Db.Trashed.NODE_ID, referencedColumnName = Constants.Db.Node.ID, insertable = false, updatable = false)
+  @JoinColumn(
+      name = Constants.Db.Trashed.NODE_ID,
+      referencedColumnName = Constants.Db.Node.ID,
+      insertable = false,
+      updatable = false)
   private Node node;
 
-  public TrashedNode(
-    String nodeId,
-    String parentId
-  ) {
+  public TrashedNode(String nodeId, String parentId) {
     mNodeId = nodeId;
     mOldParentId = parentId;
   }
@@ -53,5 +54,4 @@ class TrashedNode {
   public String getParentId() {
     return mOldParentId;
   }
-
 }

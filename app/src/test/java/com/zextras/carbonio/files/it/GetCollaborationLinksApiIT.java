@@ -26,8 +26,8 @@ import org.junit.jupiter.api.Test;
  * <p><b>Visibility rule:</b> {@code getCollaborationLinksByNodeId} requires the requester to hold
  * at least {@code READ_AND_SHARE} or {@code READ_WRITE_AND_SHARE}; once past that gate, the
  * returned links are further filtered to only those whose permission tier the requester's own ACL
- * is a bitwise superset of ({@code permissions.has(collaborationLink.getPermissions())}) — a
- * {@code READ_AND_SHARE} sharer sees ONLY the {@code READ_AND_SHARE}-tier link even when a {@code
+ * is a bitwise superset of ({@code permissions.has(collaborationLink.getPermissions())}) — a {@code
+ * READ_AND_SHARE} sharer sees ONLY the {@code READ_AND_SHARE}-tier link even when a {@code
  * READ_WRITE_AND_SHARE}-tier link also exists on the same node, while a {@code
  * READ_WRITE_AND_SHARE} sharer (a bitwise superset of both) sees both.
  *
@@ -123,7 +123,8 @@ class GetCollaborationLinksApiIT extends AbstractFilesIT {
         seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
     createCollaborationLink(nodeId, SharePermission.READ_AND_SHARE);
     createCollaborationLink(nodeId, SharePermission.READ_WRITE_AND_SHARE);
-    seedShare(nodeId, READ_WRITE_SHARE_TARGET_ID, SharePermission.READ_WRITE_AND_SHARE, OWNER_COOKIE);
+    seedShare(
+        nodeId, READ_WRITE_SHARE_TARGET_ID, SharePermission.READ_WRITE_AND_SHARE, OWNER_COOKIE);
 
     // When
     Response response = getCollaborationLinks(READ_WRITE_SHARE_TARGET_COOKIE, nodeId);
@@ -139,7 +140,8 @@ class GetCollaborationLinksApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAShareTargetWithoutShareRightsTheGetCollaborationLinksShouldReturnAPermissionDeniedError() {
+  void
+      givenAShareTargetWithoutShareRightsTheGetCollaborationLinksShouldReturnAPermissionDeniedError() {
     // Given — READ_ONLY carries no SHARE bit, so the requester never passes the top-level gate
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
@@ -159,7 +161,8 @@ class GetCollaborationLinksApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("There was a problem while executing requested operation on node: " + nodeId);
+        .containsExactly(
+            "There was a problem while executing requested operation on node: " + nodeId);
   }
 
   @SuppressWarnings("unchecked")
@@ -180,7 +183,8 @@ class GetCollaborationLinksApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     List<Map<String, Object>> links = (List<Map<String, Object>>) node.get("collaboration_links");
     Assertions.assertThat(links)
         .hasSize(2)
@@ -205,7 +209,8 @@ class GetCollaborationLinksApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     List<Map<String, Object>> links = (List<Map<String, Object>>) node.get("collaboration_links");
     Assertions.assertThat(links).hasSize(1);
     Assertions.assertThat(links.get(0)).containsEntry("permission", "READ_AND_SHARE");
@@ -231,7 +236,8 @@ class GetCollaborationLinksApiIT extends AbstractFilesIT {
 
     // Then — the node itself resolves (id present), only the sub-field errors
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node).containsEntry("id", nodeId);
     List<Map<String, Object>> links = (List<Map<String, Object>>) node.get("collaboration_links");
     Assertions.assertThat(links).hasSize(1);
@@ -240,6 +246,7 @@ class GetCollaborationLinksApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("There was a problem while executing requested operation on node: " + nodeId);
+        .containsExactly(
+            "There was a problem while executing requested operation on node: " + nodeId);
   }
 }

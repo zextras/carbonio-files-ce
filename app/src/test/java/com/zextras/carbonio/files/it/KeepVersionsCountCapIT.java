@@ -26,13 +26,13 @@ import org.junit.jupiter.api.Test;
  * needs the keep-forever cap ({@code maxNumberOfKeepVersions}) already reached. This class reuses
  * {@link VersionCapResource} (total-version cap = 2), the SAME resource {@link
  * CloneVersionCountCapIT} uses — {@code maxNumberOfKeepVersions = maxNumberOfVersions -
- * Constants.Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION} (2), so a total-version cap of 2 yields
- * a keep-forever cap of EXACTLY 0. Unlike the original seam (class-wide cap of 3, giving a
+ * Constants.Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION} (2), so a total-version cap of 2 yields a
+ * keep-forever cap of EXACTLY 0. Unlike the original seam (class-wide cap of 3, giving a
  * keep-forever cap of 1, requiring one version to be PRE-marked keep-forever to fill it), a cap of
- * 0 means the counter (starts at 0) is never {@code < 0} — so the FIRST attempt to mark ANY
- * version keep-forever already trips {@code keepVersionsFetcher}'s {@code !keepForever ||
- * counter < cap} guard, without needing to pre-seed an already-kept-forever version. Same code
- * branch, same {@code VERSIONS_LIMIT_REACHED} error shape, one fewer setup step.
+ * 0 means the counter (starts at 0) is never {@code < 0} — so the FIRST attempt to mark ANY version
+ * keep-forever already trips {@code keepVersionsFetcher}'s {@code !keepForever || counter < cap}
+ * guard, without needing to pre-seed an already-kept-forever version. Same code branch, same {@code
+ * VERSIONS_LIMIT_REACHED} error shape, one fewer setup step.
  */
 @WithTestResource(value = VersionCapResource.class, scope = TestResourceScope.RESTRICTED_TO_CLASS)
 class KeepVersionsCountCapIT extends AbstractFilesIT {

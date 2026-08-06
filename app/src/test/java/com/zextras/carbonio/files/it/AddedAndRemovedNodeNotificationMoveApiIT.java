@@ -67,7 +67,8 @@ class AddedAndRemovedNodeNotificationMoveApiIT extends AbstractFilesIT {
         GraphqlCommandBuilder.aQueryBuilder("getNotifications")
             .withBoolean("update_last_seen", true)
             .withWantedResultFormat(
-                "{ notifications { ... on RemovedNode { created_at }, ... on AddedNode { created_at }, ... on NewShare { created_at } } }")
+                "{ notifications { ... on RemovedNode { created_at }, ... on AddedNode { created_at"
+                    + " }, ... on NewShare { created_at } } }")
             .build();
     Response response = graphql(query, cookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
@@ -75,7 +76,8 @@ class AddedAndRemovedNodeNotificationMoveApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenANodeMovedFromOneSharedDirectoryToAnotherSharedDirectoryGetNotificationsShouldReturnAddedAndRemovedNodeNotifications() {
+  void
+      givenANodeMovedFromOneSharedDirectoryToAnotherSharedDirectoryGetNotificationsShouldReturnAddedAndRemovedNodeNotifications() {
     // Given
     createBaseScenario();
 

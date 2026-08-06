@@ -24,9 +24,8 @@ import java.util.function.Supplier;
  * there once the extensions repo stopped shipping a shared streaming helper) since this SDK still
  * needs it: files' internal blob endpoints ({@code InternalBlobResource}) carry item metadata
  * (filename, parent id, node id, overwrite-version) in HTTP headers over a raw octet-stream body,
- * never a {@code multipart/form-data} envelope, so only the raw-body helpers are ported --
- * {@code uploadStream} (multipart) and its {@code MultipartStreamPublisher} are intentionally
- * dropped.
+ * never a {@code multipart/form-data} envelope, so only the raw-body helpers are ported -- {@code
+ * uploadStream} (multipart) and its {@code MultipartStreamPublisher} are intentionally dropped.
  *
  * <p>Neither {@link #uploadStreamRaw} nor {@link #downloadStream} ever buffers the whole file in
  * memory: upload streams a fresh {@link InputStream} (obtained per attempt from a caller-supplied
@@ -52,7 +51,10 @@ public final class RestStreamingSupport {
    * explicitly because the target services in this mesh only speak HTTP/1.1.
    */
   public static HttpClient http1Client() {
-    return HttpClient.newBuilder().version(Version.HTTP_1_1).connectTimeout(CONNECT_TIMEOUT).build();
+    return HttpClient.newBuilder()
+        .version(Version.HTTP_1_1)
+        .connectTimeout(CONNECT_TIMEOUT)
+        .build();
   }
 
   /**
@@ -93,8 +95,8 @@ public final class RestStreamingSupport {
   /**
    * Uploads the raw bytes produced by {@code bodyStreamSupplier} as a POST request whose body is
    * the content itself &mdash; no {@code multipart/form-data} envelope &mdash; streamed directly
-   * via {@link HttpRequest.BodyPublishers#ofInputStream(Supplier)} (never buffered in memory).
-   * This is the helper for endpoints (such as files' internal upload) that carry item metadata
+   * via {@link HttpRequest.BodyPublishers#ofInputStream(Supplier)} (never buffered in memory). This
+   * is the helper for endpoints (such as files' internal upload) that carry item metadata
    * (filename, parent id, node id, overwrite-version, ...) in HTTP headers instead of in a
    * multipart body.
    *
@@ -150,12 +152,7 @@ public final class RestStreamingSupport {
     int status = response.statusCode();
     if (!isSuccess(status)) {
       throw new IOException(
-          "POST "
-              + uri
-              + " failed with status "
-              + status
-              + ": "
-              + truncate(response.body()));
+          "POST " + uri + " failed with status " + status + ": " + truncate(response.body()));
     }
     return response;
   }

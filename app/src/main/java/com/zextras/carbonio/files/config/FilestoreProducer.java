@@ -14,8 +14,8 @@ import jakarta.inject.Inject;
 
 /**
  * CDI producer for the {@link Filestore} blob-store client. Mirrors the legacy Guice {@code
- * FilesModule.provideFileStore}: it builds a {@link StoragesClient} pointed at the carbonio-storages
- * mesh upstream ({@code http://<host>:<port>}), reading host/port from the {@link
+ * FilesModule.provideFileStore}: it builds a {@link StoragesClient} pointed at the
+ * carbonio-storages mesh upstream ({@code http://<host>:<port>}), reading host/port from the {@link
  * NetworkingConfigService} ({@code networking-config.carbonio.storages.*}, defaults declared in
  * {@code application.properties}: {@code 127.78.0.2:20002}, the mesh IP + storages upstream port
  * from {@code package/carbonio-files.hcl}).
@@ -46,8 +46,7 @@ public class FilestoreProducer {
             .orElse(String.valueOf(Constants.Config.Storages.DEFAULT_PORT));
 
     String storagesUrl =
-        String.format(
-            "%s://%s:%s", Constants.Config.Storages.DEFAULT_PROTOCOL, host, port);
+        String.format("%s://%s:%s", Constants.Config.Storages.DEFAULT_PROTOCOL, host, port);
 
     return StoragesClient.atUrl(storagesUrl);
   }

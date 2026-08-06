@@ -24,8 +24,8 @@ import org.junit.jupiter.api.Test;
  * REAL {@code FilestoreProducer}/{@code StoragesClient} into {@code MockStoragesService} — no
  * explicit {@code storagesServesBlob} seeding is needed, unlike the old seam.
  *
- * <p>ZIP-content assertions (entry names, duplicate-name disambiguation, folder recursion) are
- * NOT this class's concern: {@link MultiDownloadZipApiIT} owns that coverage. This class keeps the
+ * <p>ZIP-content assertions (entry names, duplicate-name disambiguation, folder recursion) are NOT
+ * this class's concern: {@link MultiDownloadZipApiIT} owns that coverage. This class keeps the
  * original's 10 request-shape/happy-path methods unchanged in intent.
  */
 class DownloadMultipleApiIT extends AbstractFilesIT {
@@ -45,9 +45,15 @@ class DownloadMultipleApiIT extends AbstractFilesIT {
   void givenMultipleFilesInSameFolderTheDownloadMultipleShouldReturnZipWith200() {
     // Given
     String folderId = seedFolder("test-folder", LOCAL_ROOT, REQUESTER_COOKIE);
-    String fileId1 = seedFile("file1.txt", folderId, "content-1".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    String fileId2 = seedFile("file2.pdf", folderId, "content-2".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    String fileId3 = seedFile("file3.jpg", folderId, "content-3".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId1 =
+        seedFile(
+            "file1.txt", folderId, "content-1".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId2 =
+        seedFile(
+            "file2.pdf", folderId, "content-2".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId3 =
+        seedFile(
+            "file3.jpg", folderId, "content-3".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     Response response = downloadMultiple(List.of(fileId1, fileId2, fileId3), REQUESTER_COOKIE);
@@ -74,8 +80,10 @@ class DownloadMultipleApiIT extends AbstractFilesIT {
   void givenMultipleFilesTheDownloadMultipleResponseShouldBeChunkedNotFixedLength() {
     // Given
     String folderId = seedFolder("chunked-test-folder", LOCAL_ROOT, REQUESTER_COOKIE);
-    String fileId1 = seedFile("file1.txt", folderId, "a".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    String fileId2 = seedFile("file2.txt", folderId, "bb".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId1 =
+        seedFile("file1.txt", folderId, "a".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId2 =
+        seedFile("file2.txt", folderId, "bb".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     Response response = downloadMultiple(List.of(fileId1, fileId2), REQUESTER_COOKIE);
@@ -95,8 +103,14 @@ class DownloadMultipleApiIT extends AbstractFilesIT {
     // Given
     String parentFolderId = seedFolder("parent-folder", LOCAL_ROOT, REQUESTER_COOKIE);
     String subFolderId = seedFolder("sub-folder", parentFolderId, REQUESTER_COOKIE);
-    String fileId1 = seedFile("file1.txt", parentFolderId, "content-1".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    seedFile("file2.txt", subFolderId, "content-2".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId1 =
+        seedFile(
+            "file1.txt",
+            parentFolderId,
+            "content-1".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+    seedFile(
+        "file2.txt", subFolderId, "content-2".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     Response response = downloadMultiple(List.of(fileId1, subFolderId), REQUESTER_COOKIE);
@@ -108,8 +122,10 @@ class DownloadMultipleApiIT extends AbstractFilesIT {
   @Test
   void givenLocalRootAsNodeIdTheDownloadMultipleShouldReturnZipWith200() {
     // Given
-    seedFile("file1.txt", LOCAL_ROOT, "content-1".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    seedFile("file2.txt", LOCAL_ROOT, "content-2".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedFile(
+        "file1.txt", LOCAL_ROOT, "content-1".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedFile(
+        "file2.txt", LOCAL_ROOT, "content-2".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     seedFolder("folder", LOCAL_ROOT, REQUESTER_COOKIE);
 
     // When
@@ -123,7 +139,9 @@ class DownloadMultipleApiIT extends AbstractFilesIT {
   @Test
   void givenLocalRootWithOtherNodesTheDownloadMultipleShouldReturn400() {
     // Given
-    String fileId = seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId =
+        seedFile(
+            "file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     Response response = downloadMultiple(List.of(LOCAL_ROOT, fileId), REQUESTER_COOKIE);
@@ -163,7 +181,9 @@ class DownloadMultipleApiIT extends AbstractFilesIT {
   void givenMissingNodeIdsParameterTheDownloadMultipleShouldReturn400() {
     // Given
     String requestBody =
-        "wrongParam=" + URLEncoder.encode("[\"00000000-0000-0000-0000-000000000001\"]", StandardCharsets.UTF_8);
+        "wrongParam="
+            + URLEncoder.encode(
+                "[\"00000000-0000-0000-0000-000000000001\"]", StandardCharsets.UTF_8);
 
     // When
     Response response = downloadMultipleRaw(requestBody, REQUESTER_COOKIE);
@@ -179,7 +199,12 @@ class DownloadMultipleApiIT extends AbstractFilesIT {
     // share row).
     String folderId = seedFolder("shared-folder", LOCAL_ROOT, OTHER_USER_COOKIE);
     seedShare(folderId, REQUESTER_ID, ACL.SharePermission.READ_ONLY, OTHER_USER_COOKIE);
-    String fileId = seedFile("shared-file.txt", folderId, "content".getBytes(StandardCharsets.UTF_8), OTHER_USER_COOKIE);
+    String fileId =
+        seedFile(
+            "shared-file.txt",
+            folderId,
+            "content".getBytes(StandardCharsets.UTF_8),
+            OTHER_USER_COOKIE);
     seedShare(fileId, REQUESTER_ID, ACL.SharePermission.READ_ONLY, OTHER_USER_COOKIE);
 
     // When

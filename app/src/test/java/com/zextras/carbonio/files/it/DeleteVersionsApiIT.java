@@ -80,8 +80,9 @@ class DeleteVersionsApiIT extends AbstractFilesIT {
   // Tombstones created then cleaned up.
 
   @Test
-  void givenFileWithThreeVersionsDeleteVersionsOneAndTwoAllBlobsSucceedThenVersionsOneAndTwoDeletedVersionThreeStays()
-      throws SQLException {
+  void
+      givenFileWithThreeVersionsDeleteVersionsOneAndTwoAllBlobsSucceedThenVersionsOneAndTwoDeletedVersionThreeStays()
+          throws SQLException {
     // Given
     String nodeId = createFileWithThreeVersions();
     // storages bulk-delete defaults to full success (empty failed list) — no mock setup needed.
@@ -112,8 +113,9 @@ class DeleteVersionsApiIT extends AbstractFilesIT {
   // Core tombstone invariant: DB-first, tombstones remain for retry.
 
   @Test
-  void givenFileWithThreeVersionsAndPowerStoreFailsThenVersionsOneAndTwoStillDeletedAndTombstonesRemain()
-      throws SQLException {
+  void
+      givenFileWithThreeVersionsAndPowerStoreFailsThenVersionsOneAndTwoStillDeletedAndTombstonesRemain()
+          throws SQLException {
     // Given
     String nodeId = createFileWithThreeVersions();
 
@@ -175,8 +177,9 @@ class DeleteVersionsApiIT extends AbstractFilesIT {
   // --- Test 4: Protective filter — keepForever version cannot be deleted ---
 
   @Test
-  void givenFileWithKeepForeverVersionDeleteItThenKeepForeverVersionSkippedAndOnlyEligibleVersionDeleted()
-      throws SQLException {
+  void
+      givenFileWithKeepForeverVersionDeleteItThenKeepForeverVersionSkippedAndOnlyEligibleVersionDeleted()
+          throws SQLException {
     // Given — version 2 is keepForever, version 3 is current
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);

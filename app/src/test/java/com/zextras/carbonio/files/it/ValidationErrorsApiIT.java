@@ -22,8 +22,8 @@ import org.junit.jupiter.api.Test;
  * text produced by {@code GenericControllerEvaluator}.
  *
  * <p>Validation runs in a {@code FieldValidationInstrumentation} that fires BEFORE any resolver
- * executes (it aborts the whole operation via {@code AbortExecutionException} as soon as any
- * bound rule fails), so none of these scenarios need any node/share/link to actually exist in the
+ * executes (it aborts the whole operation via {@code AbortExecutionException} as soon as any bound
+ * rule fails), so none of these scenarios need any node/share/link to actually exist in the
  * database — only argument shape matters; {@code VALID_NODE_ID} is a syntactically-valid-length
  * placeholder that is never actually resolved. Doubles as a native-smoke surface under {@code
  * -Dnative}. All 11 methods and their assertions are preserved verbatim; only the transport
@@ -63,10 +63,10 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
   }
 
   /**
-   * FINDING: {@code GenericControllerEvaluator#checkLinkPassword} is dead code — it is never
-   * wired into any {@code InputFieldsController} rule, AND the {@code createLink} schema field has
-   * no {@code password} argument at all (confirmed against {@code schema.graphql}). The closest
-   * honest behaviour to pin down is: passing an unrecognised {@code password} argument to {@code
+   * FINDING: {@code GenericControllerEvaluator#checkLinkPassword} is dead code — it is never wired
+   * into any {@code InputFieldsController} rule, AND the {@code createLink} schema field has no
+   * {@code password} argument at all (confirmed against {@code schema.graphql}). The closest honest
+   * behaviour to pin down is: passing an unrecognised {@code password} argument to {@code
    * createLink} fails standard GraphQL document validation (unknown argument), NOT the advertised
    * custom message.
    */
@@ -303,6 +303,8 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1).containsExactly("Invalid user ID. Length cannot be empty");
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Invalid user ID. Length cannot be empty");
   }
 }

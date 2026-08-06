@@ -21,11 +21,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Quarkus/CDI port of the legacy Guice {@code PreviewService}. Logic preserved 1:1 (query
- * building, response mapping); the only adaptation is the transport (the carbonio-preview REST SDK
- * {@link PreviewClient}, produced by {@code PreviewClientProducer}) and CDI wiring. The unused
- * {@code FilesConfig} constructor parameter of the legacy class was dropped (dead code — it was
- * never read).
+ * Quarkus/CDI port of the legacy Guice {@code PreviewService}. Logic preserved 1:1 (query building,
+ * response mapping); the only adaptation is the transport (the carbonio-preview REST SDK {@link
+ * PreviewClient}, produced by {@code PreviewClientProducer}) and CDI wiring. The unused {@code
+ * FilesConfig} constructor parameter of the legacy class was dropped (dead code — it was never
+ * read).
  */
 @ApplicationScoped
 public class PreviewService {
@@ -142,7 +142,9 @@ public class PreviewService {
     // already be in the lower-case form the carbonio-preview server expects (the old gRPC SDK
     // lower-cased its enums internally; PreviewQueryParameters still exposes the upper-case
     // enum names, so we lower-case them here instead).
-    queryParameters.getQuality().ifPresent(quality -> parameterBuilder.quality(quality.toLowerCase()));
+    queryParameters
+        .getQuality()
+        .ifPresent(quality -> parameterBuilder.quality(quality.toLowerCase()));
     queryParameters
         .getOutputFormat()
         .ifPresent(outputFormat -> parameterBuilder.outputFormat(outputFormat.toLowerCase()));
@@ -160,9 +162,9 @@ public class PreviewService {
    * downloads (which stream straight from storages — potentially huge files), the preview payload
    * is read eagerly into memory here: carbonio-preview responses (image/PDF/document previews and
    * thumbnails) are bounded in size, and the carbonio-preview REST SDK's underlying {@code
-   * java.net.http.HttpClient} response {@link java.io.InputStream} does not play well with
-   * RESTEasy Reactive's lazy entity streaming (observed as the request hanging until the client's
-   * own socket read times out) — eagerly buffering sidesteps that instead of fighting it.
+   * java.net.http.HttpClient} response {@link java.io.InputStream} does not play well with RESTEasy
+   * Reactive's lazy entity streaming (observed as the request hanging until the client's own socket
+   * read times out) — eagerly buffering sidesteps that instead of fighting it.
    */
   private BlobResponse mapResponseToBlobResponse(PreviewResponse response, String nodeId) {
     byte[] content;

@@ -18,10 +18,9 @@ import org.junit.jupiter.api.Test;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.RestoreNodesApiIT} rewritten as an out-of-process
- * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. Both methods and their assertions
- * are preserved verbatim; only the seeding mechanism (API calls capturing server-generated ids,
- * real {@code trashNodes} mutation instead of the seam's direct backdoor trash) and transport
- * changed.
+ * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. Both methods and their assertions are
+ * preserved verbatim; only the seeding mechanism (API calls capturing server-generated ids, real
+ * {@code trashNodes} mutation instead of the seam's direct backdoor trash) and transport changed.
  */
 class RestoreNodesApiIT extends AbstractFilesIT {
 
@@ -46,7 +45,8 @@ class RestoreNodesApiIT extends AbstractFilesIT {
   void givenATrashedNodeRestoreNodesShouldRestoreThatNode() {
     // Given
     String nodeId =
-        seedFile("fake.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "fake.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     seedTrashed(nodeId, REQUESTER_COOKIE);
 
     // When
@@ -54,7 +54,8 @@ class RestoreNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "restoreNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "restoreNodes");
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("data");
 
     Assertions.assertThat(nodes).hasSize(1);
@@ -63,10 +64,12 @@ class RestoreNodesApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTwoFilesOnWithTheSameNameAndOneIsTrashedBothWithSameParentDirectoryRestoreNodeShouldRestoreFileWithDifferentNameFromAlreadyExisting() {
+  void
+      givenTwoFilesOnWithTheSameNameAndOneIsTrashedBothWithSameParentDirectoryRestoreNodeShouldRestoreFileWithDifferentNameFromAlreadyExisting() {
     // Given
     String trashedNodeId =
-        seedFile("fake.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "fake.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     seedTrashed(trashedNodeId, REQUESTER_COOKIE);
 
     // a second, NOT trashed, node with the SAME full name already occupies LOCAL_ROOT
@@ -77,7 +80,8 @@ class RestoreNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "restoreNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "restoreNodes");
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("data");
 
     Assertions.assertThat(nodes).hasSize(1);

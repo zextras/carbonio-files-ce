@@ -61,7 +61,8 @@ class AddedNodeNotificationCopyApiIT extends AbstractFilesIT {
         GraphqlCommandBuilder.aQueryBuilder("getNotifications")
             .withBoolean("update_last_seen", true)
             .withWantedResultFormat(
-                "{ notifications { ... on AddedNode { created_at }, ... on NewShare { created_at } } }")
+                "{ notifications { ... on AddedNode { created_at }, ... on NewShare { created_at }"
+                    + " } }")
             .build();
     Response response = graphql(query, cookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);

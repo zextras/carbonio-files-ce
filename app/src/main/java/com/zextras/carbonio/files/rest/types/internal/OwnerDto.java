@@ -9,7 +9,7 @@ package com.zextras.carbonio.files.rest.types.internal;
  *
  * <p>Only the id is exposed: {@code full_name} was verified to be dead code in the only consumer
  * (docs-connector) and is intentionally omitted here. If it is ever needed, it can be resolved via
- * {@code UserRepository#getUserById} — a cross-service call to user-management — rather than
- * always paying that cost for a field nobody reads.
+ * {@code UserRepository#getUserById} — a cross-service call to user-management — rather than always
+ * paying that cost for a field nobody reads.
  */
 public record OwnerDto(String id) {}

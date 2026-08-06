@@ -24,18 +24,18 @@ import org.junit.jupiter.api.Test;
  * HttpRoutingHandler#channelRead0}) that returns the Prometheus text-exposition scrape of the
  * out-of-process app's {@code PrometheusMeterRegistry}.
  *
- * <p><b>Pulled forward from Batch K to fix an exposed order-dependency (Batch D follow-up).</b>
- * The {@code files.upload} Micrometer counter (Prometheus-sanitized to {@code files_upload}) is
+ * <p><b>Pulled forward from Batch K to fix an exposed order-dependency (Batch D follow-up).</b> The
+ * {@code files.upload} Micrometer counter (Prometheus-sanitized to {@code files_upload}) is
  * registered LAZILY by {@code BlobService#uploadFile}/{@code uploadFileVersion} on the FIRST real
  * upload — it does not exist in a fresh registry until some upload happens. The original seam
  * version relied on another {@code acceptance} class incidentally uploading first in the shared
- * in-process JVM; once {@code InternalBlobResourceApiIT} (Batch D) left that shared JVM for its
- * own out-of-process {@code it/} run, nothing primed the counter before this test any more. This
- * class is made self-contained instead: it seeds its OWN authenticated upload immediately before
- * scraping {@code /metrics}, so the counter's presence is guaranteed regardless of run order or
- * of which other {@code it/} classes have (or have not) run first — see {@code
- * UploadFileApiIT#uploadCounterValue()} for the sibling class that reads this same counter's
- * value (rather than merely its presence) via a before/after delta.
+ * in-process JVM; once {@code InternalBlobResourceApiIT} (Batch D) left that shared JVM for its own
+ * out-of-process {@code it/} run, nothing primed the counter before this test any more. This class
+ * is made self-contained instead: it seeds its OWN authenticated upload immediately before scraping
+ * {@code /metrics}, so the counter's presence is guaranteed regardless of run order or of which
+ * other {@code it/} classes have (or have not) run first — see {@code
+ * UploadFileApiIT#uploadCounterValue()} for the sibling class that reads this same counter's value
+ * (rather than merely its presence) via a before/after delta.
  */
 class MetricsApiIT extends AbstractFilesIT {
 
@@ -76,7 +76,8 @@ class MetricsApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenNoAcceptHeaderTheMetricsFilterShouldServeClassicPrometheusTextFormat() throws Exception {
+  void givenNoAcceptHeaderTheMetricsFilterShouldServeClassicPrometheusTextFormat()
+      throws Exception {
     // Given — a real authenticated upload to register the "files.upload" counter in THIS process.
     upload(
         null,

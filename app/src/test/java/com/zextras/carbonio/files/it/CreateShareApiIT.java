@@ -19,11 +19,11 @@ import org.junit.jupiter.api.Test;
 /**
  * {@code com.zextras.carbonio.files.acceptance.CreateShareApiIT} rewritten as an out-of-process
  * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. All 6 methods and their assertions
- * are preserved verbatim; only the seeding mechanism (API calls capturing server-generated ids;
- * the folder/subFolder/grandchild hierarchy is built via three plain {@code seedFolder}/{@code
+ * are preserved verbatim; only the seeding mechanism (API calls capturing server-generated ids; the
+ * folder/subFolder/grandchild hierarchy is built via three plain {@code seedFolder}/{@code
  * seedFile} calls under the same owner rather than direct-DB {@code PopulatorNode} rows — the
- * production {@code createFolder}/{@code upload} mutations compute the correct {@code
- * ancestor_ids} themselves) and the transport changed.
+ * production {@code createFolder}/{@code upload} mutations compute the correct {@code ancestor_ids}
+ * themselves) and the transport changed.
  */
 class CreateShareApiIT extends AbstractFilesIT {
 
@@ -121,10 +121,14 @@ class CreateShareApiIT extends AbstractFilesIT {
     String subFolderId = seedFolder("subFolder", topFolderId, OWNER_COOKIE);
     String grandchildId =
         seedFile(
-            "grandchild.txt", subFolderId, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+            "grandchild.txt",
+            subFolderId,
+            "content".getBytes(StandardCharsets.UTF_8),
+            OWNER_COOKIE);
 
     // When
-    Response response = createShare(topFolderId, TARGET_ID, SharePermission.READ_ONLY, OWNER_COOKIE);
+    Response response =
+        createShare(topFolderId, TARGET_ID, SharePermission.READ_ONLY, OWNER_COOKIE);
 
     // Then — the share cascaded all the way down to the grandchild file
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);

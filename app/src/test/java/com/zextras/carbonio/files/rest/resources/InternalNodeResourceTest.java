@@ -182,7 +182,8 @@ class InternalNodeResourceTest {
     assertThat(response.getEntity().parent()).isNull();
   }
 
-  // ------------------------------------------------------------------------------------ createFolder
+  // ------------------------------------------------------------------------------------
+  // createFolder
 
   @Test
   void createFolder_delegatesToNodeDataFetcher_withATrustedRequester() {
@@ -225,7 +226,8 @@ class InternalNodeResourceTest {
     assertThat(response.getStatus()).isEqualTo(404);
   }
 
-  // -------------------------------------------------------------------------------- createPublicLink
+  // --------------------------------------------------------------------------------
+  // createPublicLink
 
   @Test
   void createPublicLink_returns404WhenUserNotFound() {
@@ -305,7 +307,8 @@ class InternalNodeResourceTest {
     assertThat(response.getStatus()).isEqualTo(403);
   }
 
-  // --------------------------------------------------------------------------- deleteAllNodesAndBlobs
+  // ---------------------------------------------------------------------------
+  // deleteAllNodesAndBlobs
 
   @Test
   void deleteAllNodesAndBlobs_delegatesToNodeDataFetcherAndReturnsDeletedTrue() {
@@ -321,6 +324,11 @@ class InternalNodeResourceTest {
 
   private static UserInfo aUser(String domain) {
     return new UserInfo(
-        new UserId(USER_ID), "user@example.com", "A User", domain, UserStatus.ACTIVE, UserType.INTERNAL);
+        new UserId(USER_ID),
+        "user@example.com",
+        "A User",
+        domain,
+        UserStatus.ACTIVE,
+        UserType.INTERNAL);
   }
 }

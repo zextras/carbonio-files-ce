@@ -55,7 +55,8 @@ class NewShareNotificationApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNotifications");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNotifications");
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> notifications = (List<Map<String, Object>>) page.get("notifications");
     Assertions.assertThat(notifications).hasSize(1);

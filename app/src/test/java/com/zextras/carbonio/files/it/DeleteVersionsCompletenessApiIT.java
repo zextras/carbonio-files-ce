@@ -18,28 +18,28 @@ import org.junit.jupiter.api.Test;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.DeleteVersionsCompletenessApiIT} rewritten as an
- * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. Completeness
- * companion to {@link DeleteVersionsApiIT} (which covers the happy path, the PowerStore-fails
- * DB-first invariant, current-version protection with only a bare error-count assertion, and
- * keep-forever protection likewise): this class re-covers the two "protected version" branches
- * with their EXACT message asserted, adds the genuinely-nonexistent-version case for direct
- * comparison, and documents (rather than fakes) the one branch this suite cannot reach.
+ * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. Completeness companion
+ * to {@link DeleteVersionsApiIT} (which covers the happy path, the PowerStore-fails DB-first
+ * invariant, current-version protection with only a bare error-count assertion, and keep-forever
+ * protection likewise): this class re-covers the two "protected version" branches with their EXACT
+ * message asserted, adds the genuinely-nonexistent-version case for direct comparison, and
+ * documents (rather than fakes) the one branch this suite cannot reach.
  *
  * <p><b>FINDING (carried over) — "protected" and "nonexistent" are indistinguishable to the
  * caller:</b> reading {@code NodeDataFetcher#deleteVersionsFetcher} precisely, ALL THREE of the
  * following collapse onto the exact SAME {@code fileVersionNotFound(nodeId, v, path)} error
- * (message {@code "Could not find version: <v> for node with id <id>"}, extension {@code
- * errorCode: FILE_VERSION_NOT_FOUND}): {@code v} IS the node's current version (filtered out by
- * {@code !node.getCurrentVersion().equals(fv.getVersion())}); {@code v} is marked {@code
- * keepForever} (filtered out by {@code !fv.isKeptForever()}); {@code v} simply has no {@code
- * FileVersion} row at all for this node. The result-composition code only ever compares "was
- * {@code v} requested?" against "is {@code v} in the final {@code versionsToDelete} list?" — it
- * has no memory of WHY a version fell out of that list, so a client can never tell a protected
- * version apart from a typo'd/nonexistent one. Asserted directly below (all three scenarios
- * produce the byte-identical message shape), not fixed (test-only task).
+ * (message {@code "Could not find version: <v> for node with id <id>"}, extension {@code errorCode:
+ * FILE_VERSION_NOT_FOUND}): {@code v} IS the node's current version (filtered out by {@code
+ * !node.getCurrentVersion().equals(fv.getVersion())}); {@code v} is marked {@code keepForever}
+ * (filtered out by {@code !fv.isKeptForever()}); {@code v} simply has no {@code FileVersion} row at
+ * all for this node. The result-composition code only ever compares "was {@code v} requested?"
+ * against "is {@code v} in the final {@code versionsToDelete} list?" — it has no memory of WHY a
+ * version fell out of that list, so a client can never tell a protected version apart from a
+ * typo'd/nonexistent one. Asserted directly below (all three scenarios produce the byte-identical
+ * message shape), not fixed (test-only task).
  *
- * <p><b>GAP (carried over) — the transaction-rollback branch has NO reachable trigger through
- * this suite:</b> {@code deleteVersionsFetcher}'s {@code catch (RuntimeException e)} around the
+ * <p><b>GAP (carried over) — the transaction-rollback branch has NO reachable trigger through this
+ * suite:</b> {@code deleteVersionsFetcher}'s {@code catch (RuntimeException e)} around the
  * tombstone-write-then-delete transaction (returning a single {@code nodeWriteError}) cannot be
  * exercised black-box: {@code TombstoneRepositoryEbean#createNewTombstone} is deliberately
  * idempotent (check-then-insert, cannot PK-violate); {@code
@@ -77,8 +77,9 @@ class DeleteVersionsCompletenessApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTheCurrentVersionRequestedForDeletionItIsSkippedWithTheSameNotFoundShapeAsGenuinelyMissing()
-      throws SQLException {
+  void
+      givenTheCurrentVersionRequestedForDeletionItIsSkippedWithTheSameNotFoundShapeAsGenuinelyMissing()
+          throws SQLException {
     // Given — v1, v2 (current)
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
@@ -101,8 +102,9 @@ class DeleteVersionsCompletenessApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAKeptForeverVersionRequestedForDeletionItIsSkippedWithTheSameNotFoundShapeAsGenuinelyMissing()
-      throws SQLException {
+  void
+      givenAKeptForeverVersionRequestedForDeletionItIsSkippedWithTheSameNotFoundShapeAsGenuinelyMissing()
+          throws SQLException {
     // Given — v2 is kept-forever (non-current), v3 is current
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);

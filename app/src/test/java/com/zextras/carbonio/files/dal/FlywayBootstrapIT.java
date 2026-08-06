@@ -16,8 +16,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Out-of-process {@code @QuarkusIntegrationTest} (via {@link AbstractFilesIT}) proving the schema
  * history (V1..V11, ported verbatim from {@code core/}) boots cleanly under {@code quarkus-flyway}
- * against the real Postgres Testcontainer. Rewritten off the former {@code @Inject Flyway}/{@code
- * @Inject DataSource} (unavailable out-of-process) onto raw JDBC via {@link
+ * against the real Postgres Testcontainer. Rewritten off the former {@code @Inject
+ * Flyway}/{@code @Inject DataSource} (unavailable out-of-process) onto raw JDBC via {@link
  * AbstractFilesIT#jdbcConnection()} — migrations having applied at all is implicitly proven by the
  * launched app booting successfully (an out-of-process app that failed Flyway validation would
  * never come up for {@code @WithTestResource} to hand a port back), so this is now a boot-smoke

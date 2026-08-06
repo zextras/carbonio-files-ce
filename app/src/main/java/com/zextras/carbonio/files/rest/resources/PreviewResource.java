@@ -45,13 +45,13 @@ import org.slf4j.LoggerFactory;
  * PreviewService}. Served at ROOT (see {@link BlobResource}).
  *
  * <p><b>Status-code parity with the legacy stack (intentional, pinned by the acceptance suite):</b>
- * the legacy {@code PreviewController#failureResponse} collapsed EVERY failure that wasn't a
- * {@code BadRequestException} into a 404 — this includes "node not found", "no permission", AND a
- * genuine carbonio-preview-side error surfaced by {@link PreviewService}. This resource replicates
- * that exact collapse (see {@link #collapseToNotFound}): only an unsupported mimetype for the
- * requested preview type surfaces as 400 ({@link IllegalArgumentException}); everything else,
- * including a failed preview fetch, surfaces as 404 ({@link NoSuchElementException}), both mapped
- * by {@link BlobExceptionMapper}.
+ * the legacy {@code PreviewController#failureResponse} collapsed EVERY failure that wasn't a {@code
+ * BadRequestException} into a 404 — this includes "node not found", "no permission", AND a genuine
+ * carbonio-preview-side error surfaced by {@link PreviewService}. This resource replicates that
+ * exact collapse (see {@link #collapseToNotFound}): only an unsupported mimetype for the requested
+ * preview type surfaces as 400 ({@link IllegalArgumentException}); everything else, including a
+ * failed preview fetch, surfaces as 404 ({@link NoSuchElementException}), both mapped by {@link
+ * BlobExceptionMapper}.
  */
 @Path("/preview")
 @ApplicationScoped
@@ -121,7 +121,10 @@ public class PreviewResource {
 
     Pair<Node, FileVersion> checked =
         checkNodePermissionAndExistence(
-            requester.getId().getUserId(), nodeId, queryParameters.getNodeVersion().orElse(null), IMAGE_MIME_TYPES);
+            requester.getId().getUserId(),
+            nodeId,
+            queryParameters.getNodeVersion().orElse(null),
+            IMAGE_MIME_TYPES);
     String fileDigest = checked.getRight().getDigest();
 
     if (!isPreviewChanged(ifNoneMatch, fileDigest)) {
@@ -131,7 +134,11 @@ public class PreviewResource {
     BlobResponse blob =
         previewService
             .getPreviewOfImage(
-                checked.getLeft().getOwnerId(), nodeId, checked.getRight().getVersion(), area, queryParameters)
+                checked.getLeft().getOwnerId(),
+                nodeId,
+                checked.getRight().getVersion(),
+                area,
+                queryParameters)
             .getOrElseThrow(this::collapseToNotFound);
 
     return streamPreview(blob, fileDigest);
@@ -160,7 +167,10 @@ public class PreviewResource {
 
     Pair<Node, FileVersion> checked =
         checkNodePermissionAndExistence(
-            requester.getId().getUserId(), nodeId, queryParameters.getNodeVersion().orElse(null), IMAGE_MIME_TYPES);
+            requester.getId().getUserId(),
+            nodeId,
+            queryParameters.getNodeVersion().orElse(null),
+            IMAGE_MIME_TYPES);
     String fileDigest = checked.getRight().getDigest();
 
     if (!isPreviewChanged(ifNoneMatch, fileDigest)) {
@@ -170,7 +180,11 @@ public class PreviewResource {
     BlobResponse blob =
         previewService
             .getThumbnailOfImage(
-                checked.getLeft().getOwnerId(), nodeId, checked.getRight().getVersion(), area, queryParameters)
+                checked.getLeft().getOwnerId(),
+                nodeId,
+                checked.getRight().getVersion(),
+                area,
+                queryParameters)
             .getOrElseThrow(this::collapseToNotFound);
 
     return streamPreview(blob, fileDigest);
@@ -200,7 +214,10 @@ public class PreviewResource {
 
     Pair<Node, FileVersion> checked =
         checkNodePermissionAndExistence(
-            requester.getId().getUserId(), nodeId, queryParameters.getNodeVersion().orElse(null), PDF_MIME_TYPES);
+            requester.getId().getUserId(),
+            nodeId,
+            queryParameters.getNodeVersion().orElse(null),
+            PDF_MIME_TYPES);
     String fileDigest = checked.getRight().getDigest();
 
     if (!isPreviewChanged(ifNoneMatch, fileDigest)) {
@@ -209,7 +226,11 @@ public class PreviewResource {
 
     BlobResponse blob =
         previewService
-            .getPreviewOfPdf(checked.getLeft().getOwnerId(), nodeId, checked.getRight().getVersion(), queryParameters)
+            .getPreviewOfPdf(
+                checked.getLeft().getOwnerId(),
+                nodeId,
+                checked.getRight().getVersion(),
+                queryParameters)
             .getOrElseThrow(this::collapseToNotFound);
 
     return streamPreview(blob, fileDigest);
@@ -238,7 +259,10 @@ public class PreviewResource {
 
     Pair<Node, FileVersion> checked =
         checkNodePermissionAndExistence(
-            requester.getId().getUserId(), nodeId, queryParameters.getNodeVersion().orElse(null), PDF_MIME_TYPES);
+            requester.getId().getUserId(),
+            nodeId,
+            queryParameters.getNodeVersion().orElse(null),
+            PDF_MIME_TYPES);
     String fileDigest = checked.getRight().getDigest();
 
     if (!isPreviewChanged(ifNoneMatch, fileDigest)) {
@@ -248,7 +272,11 @@ public class PreviewResource {
     BlobResponse blob =
         previewService
             .getThumbnailOfPdf(
-                checked.getLeft().getOwnerId(), nodeId, checked.getRight().getVersion(), area, queryParameters)
+                checked.getLeft().getOwnerId(),
+                nodeId,
+                checked.getRight().getVersion(),
+                area,
+                queryParameters)
             .getOrElseThrow(this::collapseToNotFound);
 
     return streamPreview(blob, fileDigest);
@@ -281,7 +309,10 @@ public class PreviewResource {
 
     Pair<Node, FileVersion> checked =
         checkNodePermissionAndExistence(
-            requester.getId().getUserId(), nodeId, queryParameters.getNodeVersion().orElse(null), DOCUMENT_MIME_TYPES);
+            requester.getId().getUserId(),
+            nodeId,
+            queryParameters.getNodeVersion().orElse(null),
+            DOCUMENT_MIME_TYPES);
     String fileDigestWithLanguage = checked.getRight().getDigest() + langTag;
 
     if (!isPreviewChanged(ifNoneMatch, fileDigestWithLanguage)) {
@@ -291,7 +322,10 @@ public class PreviewResource {
     BlobResponse blob =
         previewService
             .getPreviewOfDocument(
-                checked.getLeft().getOwnerId(), nodeId, checked.getRight().getVersion(), queryParameters)
+                checked.getLeft().getOwnerId(),
+                nodeId,
+                checked.getRight().getVersion(),
+                queryParameters)
             .getOrElseThrow(this::collapseToNotFound);
 
     return streamPreview(blob, fileDigestWithLanguage);
@@ -323,7 +357,10 @@ public class PreviewResource {
 
     Pair<Node, FileVersion> checked =
         checkNodePermissionAndExistence(
-            requester.getId().getUserId(), nodeId, queryParameters.getNodeVersion().orElse(null), DOCUMENT_MIME_TYPES);
+            requester.getId().getUserId(),
+            nodeId,
+            queryParameters.getNodeVersion().orElse(null),
+            DOCUMENT_MIME_TYPES);
     String fileDigestWithLanguage = checked.getRight().getDigest() + langTag;
 
     if (!isPreviewChanged(ifNoneMatch, fileDigestWithLanguage)) {
@@ -333,7 +370,11 @@ public class PreviewResource {
     BlobResponse blob =
         previewService
             .getThumbnailOfDocument(
-                checked.getLeft().getOwnerId(), nodeId, checked.getRight().getVersion(), area, queryParameters)
+                checked.getLeft().getOwnerId(),
+                nodeId,
+                checked.getRight().getVersion(),
+                area,
+                queryParameters)
             .getOrElseThrow(this::collapseToNotFound);
 
     return streamPreview(blob, fileDigestWithLanguage);
@@ -354,9 +395,8 @@ public class PreviewResource {
    * <p>Legacy parity (restored): {@code HttpRoutingHandler#channelRead0} placed {@code
    * auth-handler} before {@code preview-handler} for the WHOLE {@code /preview/**} family (lines
    * ~179-186), so even a request that falls through to this generic 400 was authenticated FIRST.
-   * This was the only method in the class that never called {@link
-   * BlobAuthenticator#requireUser}, so an unauthenticated request reached the 400 without ever
-   * being challenged — restored below.
+   * This was the only method in the class that never called {@link BlobAuthenticator#requireUser},
+   * so an unauthenticated request reached the 400 without ever being challenged — restored below.
    */
   @GET
   @Path("/{unmatched: .*}")
@@ -410,10 +450,10 @@ public class PreviewResource {
    * RESTEasy Reactive's own {@code @QueryParam Integer} conversion instead surfaces a param
    * conversion failure as a 404 (see {@code ParameterHandler}), so {@code version} is bound as a
    * raw {@code String} and parsed here. NOTE: the {@link IllegalArgumentException} below must NOT
-   * carry {@code e} as its cause -- {@link BlobExceptionMapper} unwraps exactly one
-   * {@code getCause()} level (matching the legacy {@code ExceptionsHandler}), so a non-null cause
-   * here would make the mapper switch on the raw {@link NumberFormatException} instead and
-   * misroute this to 500.
+   * carry {@code e} as its cause -- {@link BlobExceptionMapper} unwraps exactly one {@code
+   * getCause()} level (matching the legacy {@code ExceptionsHandler}), so a non-null cause here
+   * would make the mapper switch on the raw {@link NumberFormatException} instead and misroute this
+   * to 500.
    */
   private static Integer parseVersion(String rawVersion) {
     try {
@@ -427,10 +467,10 @@ public class PreviewResource {
    * Checks that {@code requesterId} can read {@code nodeId} (or its explicit {@code version}) and
    * that the resolved file version's mimetype belongs to {@code allowedMimeTypes}.
    *
-   * @throws IllegalArgumentException if the mimetype is not supported by the requested preview
-   *     type (→ 400)
-   * @throws NoSuchElementException if the node/version does not exist OR the requester lacks
-   *     READ permission — collapsed to the same outcome, matching the legacy behaviour (→ 404)
+   * @throws IllegalArgumentException if the mimetype is not supported by the requested preview type
+   *     (→ 400)
+   * @throws NoSuchElementException if the node/version does not exist OR the requester lacks READ
+   *     permission — collapsed to the same outcome, matching the legacy behaviour (→ 404)
    */
   private Pair<Node, FileVersion> checkNodePermissionAndExistence(
       String requesterId, String nodeId, Integer version, Set<String> allowedMimeTypes) {
@@ -462,20 +502,21 @@ public class PreviewResource {
   }
 
   /**
-   * Legacy parity (see class javadoc): any failure surfaced by {@link PreviewService} — including
-   * a genuine carbonio-preview-side error — becomes a 404, never a 500.
+   * Legacy parity (see class javadoc): any failure surfaced by {@link PreviewService} — including a
+   * genuine carbonio-preview-side error — becomes a 404, never a 500.
    */
   private RuntimeException collapseToNotFound(Throwable failure) {
-    logger.warn("Preview fetch failed, surfacing as not-found (legacy parity): {}", failure.getMessage());
+    logger.warn(
+        "Preview fetch failed, surfacing as not-found (legacy parity): {}", failure.getMessage());
     return new NoSuchElementException("Preview not available");
   }
 
   /**
    * Legacy parity gotcha: an empty (but present) {@code If-None-Match} header — which is exactly
-   * what a zero-length file digest round-trips to (see {@link #base64}) — must still compare
-   * equal, not be treated as "no header sent". {@code @HeaderParam} binds an empty header value to
-   * {@code null} in RESTEasy Reactive (indistinguishable from an absent header), so callers read
-   * this value via {@code HttpHeaders#getHeaderString} instead, which preserves the distinction.
+   * what a zero-length file digest round-trips to (see {@link #base64}) — must still compare equal,
+   * not be treated as "no header sent". {@code @HeaderParam} binds an empty header value to {@code
+   * null} in RESTEasy Reactive (indistinguishable from an absent header), so callers read this
+   * value via {@code HttpHeaders#getHeaderString} instead, which preserves the distinction.
    */
   private boolean isPreviewChanged(String ifNoneMatch, String fileDigest) {
     String base64Digest = base64(fileDigest);
@@ -486,7 +527,9 @@ public class PreviewResource {
     Response.ResponseBuilder builder =
         Response.ok(blob.getBlobStream())
             .header(HttpHeaders.CONTENT_TYPE, blob.getMimeType())
-            .header(HttpHeaders.CONTENT_DISPOSITION, BlobHttpResponses.contentDisposition(blob.getFilename()))
+            .header(
+                HttpHeaders.CONTENT_DISPOSITION,
+                BlobHttpResponses.contentDisposition(blob.getFilename()))
             .header(HttpHeaders.CACHE_CONTROL, "no-cache")
             .header(HttpHeaders.ETAG, base64(fileDigest));
     if (blob.getSize() != null) {

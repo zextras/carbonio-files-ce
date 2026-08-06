@@ -30,9 +30,9 @@ import org.junit.jupiter.api.Test;
  * coverage of {@code NodeRepositoryImpl} raw-SQL queries that have no equivalent black-box
  * REST/GraphQL assertion elsewhere: the recursive-CTE {@code #calculateAbsoluteFolderSize} and
  * {@code #calculateRelativeFolderSize} (asserted on EXACT byte counts — hidden-node exclusion,
- * share-visibility pruning — never weakened to "size &gt; 0"), plus the {@code #findNodes}
- * per-user flag scoping (an unflagged search must ignore another user's flag row) and its
- * literal-escaping of {@code %}/{@code _} keyword metacharacters.
+ * share-visibility pruning — never weakened to "size &gt; 0"), plus the {@code #findNodes} per-user
+ * flag scoping (an unflagged search must ignore another user's flag row) and its literal-escaping
+ * of {@code %}/{@code _} keyword metacharacters.
  *
  * <p><b>Why {@code @QuarkusTest}, and why the {@code *DalTest} suffix (not {@code *IT}):</b> this
  * class needs a real database and CDI-injected repositories, so it must be in-process (JVM,
@@ -122,7 +122,13 @@ class NodeQueryDalTest {
     persist(folderB, "B", owner, NodeType.FOLDER, false, 0L, folderA, "LOCAL_ROOT," + folderA);
     persist(fileC, "C", owner, NodeType.TEXT, false, 100L, folderA, "LOCAL_ROOT," + folderA);
     persist(
-        fileD, "D", owner, NodeType.TEXT, false, 200L, folderB,
+        fileD,
+        "D",
+        owner,
+        NodeType.TEXT,
+        false,
+        200L,
+        folderB,
         "LOCAL_ROOT," + folderA + "," + folderB);
     persist(fileEHidden, "E", owner, NodeType.TEXT, true, 50L, folderA, "LOCAL_ROOT," + folderA);
     entityManager.flush();
@@ -147,7 +153,13 @@ class NodeQueryDalTest {
     persist(folderB, "B", owner, NodeType.FOLDER, false, 0L, folderA, "LOCAL_ROOT," + folderA);
     persist(fileC, "C", owner, NodeType.TEXT, false, 100L, folderA, "LOCAL_ROOT," + folderA);
     persist(
-        fileD, "D", owner, NodeType.TEXT, false, 200L, folderB,
+        fileD,
+        "D",
+        owner,
+        NodeType.TEXT,
+        false,
+        200L,
+        folderB,
         "LOCAL_ROOT," + folderA + "," + folderB);
     entityManager.flush();
 
@@ -173,9 +185,15 @@ class NodeQueryDalTest {
     String flaggedByAlice = id();
     String neverFlagged = id();
     persist(
-        flaggedByAlice, "shared-report", bob, NodeType.TEXT, false, 10L, "LOCAL_ROOT", "LOCAL_ROOT");
-    persist(
-        neverFlagged, "own-report", bob, NodeType.TEXT, false, 20L, "LOCAL_ROOT", "LOCAL_ROOT");
+        flaggedByAlice,
+        "shared-report",
+        bob,
+        NodeType.TEXT,
+        false,
+        10L,
+        "LOCAL_ROOT",
+        "LOCAL_ROOT");
+    persist(neverFlagged, "own-report", bob, NodeType.TEXT, false, 20L, "LOCAL_ROOT", "LOCAL_ROOT");
     shareTo(flaggedByAlice, alice);
     flagFor(flaggedByAlice, alice);
     entityManager.flush();
@@ -194,7 +212,14 @@ class NodeQueryDalTest {
     String literalPercent = id();
     String plainName = id();
     persist(
-        literalPercent, "report%2024", owner, NodeType.TEXT, false, 10L, "LOCAL_ROOT", "LOCAL_ROOT");
+        literalPercent,
+        "report%2024",
+        owner,
+        NodeType.TEXT,
+        false,
+        10L,
+        "LOCAL_ROOT",
+        "LOCAL_ROOT");
     persist(plainName, "reportX2024", owner, NodeType.TEXT, false, 20L, "LOCAL_ROOT", "LOCAL_ROOT");
     entityManager.flush();
 

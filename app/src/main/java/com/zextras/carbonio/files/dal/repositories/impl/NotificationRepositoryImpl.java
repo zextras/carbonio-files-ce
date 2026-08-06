@@ -31,8 +31,8 @@ import java.util.UUID;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 /**
- * Panache/JPA implementation of {@link NotificationRepository}. Replaces the old Ebean-based
- * {@code NotificationRepositoryEbean}.
+ * Panache/JPA implementation of {@link NotificationRepository}. Replaces the old Ebean-based {@code
+ * NotificationRepositoryEbean}.
  *
  * <p>Unlike the Ebean implementation, the concrete notification subtypes ({@link
  * NewShareNotification}, {@link AddedNodeNotification}, {@link RemovedNodeNotification}) are each
@@ -41,13 +41,13 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
  * of JPA inheritance: {@link #getNotifications} simply queries each concrete subtype directly
  * (filtering by the id list) and merges the results back into id order.
  *
- * <p>{@link BaseNotification} carries a {@code @OneToOne(cascade = ALL) @MapsId} to the base
- * {@code Notification} row, so persisting a subtype instance cascades the base row insert too.
+ * <p>{@link BaseNotification} carries a {@code @OneToOne(cascade = ALL) @MapsId} to the base {@code
+ * Notification} row, so persisting a subtype instance cascades the base row insert too.
  *
- * <p>Multiple unrelated entity types are involved here (notifications, snapshots, user
- * notification bookkeeping), so this repository is backed by a directly injected {@link
- * EntityManager} rather than a single {@code PanacheRepositoryBase} (which can only be
- * parameterized for one entity/id pair per class).
+ * <p>Multiple unrelated entity types are involved here (notifications, snapshots, user notification
+ * bookkeeping), so this repository is backed by a directly injected {@link EntityManager} rather
+ * than a single {@code PanacheRepositoryBase} (which can only be parameterized for one entity/id
+ * pair per class).
  */
 @ApplicationScoped
 public class NotificationRepositoryImpl implements NotificationRepository {
@@ -120,7 +120,9 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         notificationTypeRegistry.notificationClasses()) {
       entityManager
           .createQuery(
-              "select n from " + notificationClass.getSimpleName() + " n where n.notificationId in :ids",
+              "select n from "
+                  + notificationClass.getSimpleName()
+                  + " n where n.notificationId in :ids",
               notificationClass)
           .setParameter("ids", notificationIds)
           .getResultList()
@@ -159,7 +161,8 @@ public class NotificationRepositoryImpl implements NotificationRepository {
   public Optional<SnapshotUser> getLatestSnapshotOfUser(String userId) {
     return entityManager
         .createQuery(
-            "select s from SnapshotUser s where s.userId = :userId order by s.snapshotTimestamp desc",
+            "select s from SnapshotUser s where s.userId = :userId order by s.snapshotTimestamp"
+                + " desc",
             SnapshotUser.class)
         .setParameter("userId", userId)
         .setMaxResults(1)
@@ -177,7 +180,8 @@ public class NotificationRepositoryImpl implements NotificationRepository {
   public Optional<SnapshotNode> getLatestSnapshotOfNode(String nodeId) {
     return entityManager
         .createQuery(
-            "select s from SnapshotNode s where s.nodeId = :nodeId order by s.snapshotTimestamp desc",
+            "select s from SnapshotNode s where s.nodeId = :nodeId order by s.snapshotTimestamp"
+                + " desc",
             SnapshotNode.class)
         .setParameter("nodeId", nodeId)
         .setMaxResults(1)
@@ -218,8 +222,8 @@ public class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   /**
-   * Returns the latest snapshot of the given node if it already represents it unchanged,
-   * otherwise persists (and returns) a brand-new snapshot.
+   * Returns the latest snapshot of the given node if it already represents it unchanged, otherwise
+   * persists (and returns) a brand-new snapshot.
    */
   private SnapshotNode conditionallySnapshotNode(Node node) {
     Optional<SnapshotNode> latest = getLatestSnapshotOfNode(node.getId());
@@ -241,8 +245,8 @@ public class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   /**
-   * Returns the latest snapshot of the given user if it already represents it unchanged,
-   * otherwise persists (and returns) a brand-new snapshot.
+   * Returns the latest snapshot of the given user if it already represents it unchanged, otherwise
+   * persists (and returns) a brand-new snapshot.
    */
   private SnapshotUser conditionallySnapshotUser(UserMyself user) {
     Optional<SnapshotUser> latest = getLatestSnapshotOfUser(user.getId().getUserId());
@@ -266,7 +270,8 @@ public class NotificationRepositoryImpl implements NotificationRepository {
    * notify, creates their {@link UserNotificationsInfo} if missing, bumps their unread counter, and
    * records their interest in the new notification.
    */
-  private BaseNotification notifyUsers(BaseNotification notification, List<String> usersIdsToNotify) {
+  private BaseNotification notifyUsers(
+      BaseNotification notification, List<String> usersIdsToNotify) {
     entityManager.persist(notification);
 
     usersIdsToNotify.forEach(

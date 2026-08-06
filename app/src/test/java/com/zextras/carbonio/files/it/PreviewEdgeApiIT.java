@@ -27,27 +27,26 @@ import org.junit.jupiter.params.provider.ValueSource;
  *   <li>The generic {@code /preview/<unmatched>} fall-through -&gt; 400.
  *   <li>The {@code IllegalArgumentException} catch branch (unparsable {@code ?version=} value)
  *       -&gt; 400.
- *   <li>ETag / {@code If-None-Match} caching: first request -&gt; 200 + ETag; matching If-None-Match
- *       -&gt; 304; stale/mismatched If-None-Match -&gt; 200 again (same ETag).
+ *   <li>ETag / {@code If-None-Match} caching: first request -&gt; 200 + ETag; matching
+ *       If-None-Match -&gt; 304; stale/mismatched If-None-Match -&gt; 200 again (same ETag).
  *   <li>Permission-denied and not-found on the shared {@code checkNodePermissionAndExistence} path
  *       (exercised once, via the pdf family, since the branch is shared bytecode).
  * </ul>
  *
- * <p>All 19 methods and their assertions are preserved verbatim; only the seeding (real {@code
- * POST /upload} capturing the server-generated node id, replacing the seam's {@code
- * PopulatorNode} fixture) and the preview stub/verify/fail ({@link
- * AbstractFilesIT#previewServes}/{@link AbstractFilesIT#verifyPreviewServed}/{@link
- * AbstractFilesIT#previewFails}) changed. The 6 "matched path, wrong HTTP verb" and 2
- * non-existent-node scenarios need no seeded node at all (the guard trips before any DB lookup),
- * so they keep fixed placeholder ids exactly like the seam version. {@code
- * clearFileVersionCache()} is DROPPED per the plan (fresh-UUID API seeding means cache keys never
- * collide across tests).
+ * <p>All 19 methods and their assertions are preserved verbatim; only the seeding (real {@code POST
+ * /upload} capturing the server-generated node id, replacing the seam's {@code PopulatorNode}
+ * fixture) and the preview stub/verify/fail ({@link AbstractFilesIT#previewServes}/{@link
+ * AbstractFilesIT#verifyPreviewServed}/{@link AbstractFilesIT#previewFails}) changed. The 6
+ * "matched path, wrong HTTP verb" and 2 non-existent-node scenarios need no seeded node at all (the
+ * guard trips before any DB lookup), so they keep fixed placeholder ids exactly like the seam
+ * version. {@code clearFileVersionCache()} is DROPPED per the plan (fresh-UUID API seeding means
+ * cache keys never collide across tests).
  *
  * <p><b>Still NOT covered here (a genuine gap, carried over from the seam):</b> the
  * document-preview ETag's locale component (same node, different {@code Accept-Language} must NOT
- * 304) — production does not read an {@code Accept-Language} header at all; the requester's
- * {@code Locale} comes from the user-management profile, and {@code MockUserManagementService}
- * hardcodes every registered user's locale to {@code "en"} with no knob to vary it.
+ * 304) — production does not read an {@code Accept-Language} header at all; the requester's {@code
+ * Locale} comes from the user-management profile, and {@code MockUserManagementService} hardcodes
+ * every registered user's locale to {@code "en"} with no knob to vary it.
  */
 class PreviewEdgeApiIT extends AbstractFilesIT {
 
@@ -74,7 +73,10 @@ class PreviewEdgeApiIT extends AbstractFilesIT {
   void givenANonImageNodeThePreviewImageApiShouldReturnA400StatusCode() {
     String nodeId =
         seedFile(
-            "not-an-image.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+            "not-an-image.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            OWNER_COOKIE);
 
     Response response = previewGet("/preview/image/" + nodeId + "/100x100", OWNER_COOKIE, null);
 
@@ -134,14 +136,14 @@ class PreviewEdgeApiIT extends AbstractFilesIT {
   // --- Malformed area segment (F4) -------------------------------------------------------------
 
   /**
-   * F4 (Quarkus-rewrite hardening restoration): legacy constrained the {@code area} path segment
-   * to {@code ([\d]*x[\d]*)} for every image/pdf/document (thumbnail) route that carries one (see
+   * F4 (Quarkus-rewrite hardening restoration): legacy constrained the {@code area} path segment to
+   * {@code ([\d]*x[\d]*)} for every image/pdf/document (thumbnail) route that carries one (see
    * {@code core/.../Constants.java}, lines ~1090-1108: {@code PREVIEW_IMAGE}/{@code
-   * THUMBNAIL_IMAGE}/{@code THUMBNAIL_PDF}/{@code THUMBNAIL_DOCUMENT}). The port's {@code
-   * @Path("/image/{nodeId}/{area}")} (and the 3 sibling thumbnail templates) left {@code area}
-   * unconstrained, so a malformed value ran the FULL permission check and a preview call before
-   * ever collapsing to 404 -- restoring the pattern constraint makes JAX-RS itself reject the
-   * template match, falling through to the generic 400 fallback BEFORE any permission check or
+   * THUMBNAIL_IMAGE}/{@code THUMBNAIL_PDF}/{@code THUMBNAIL_DOCUMENT}). The port's
+   * {@code @Path("/image/{nodeId}/{area}")} (and the 3 sibling thumbnail templates) left {@code
+   * area} unconstrained, so a malformed value ran the FULL permission check and a preview call
+   * before ever collapsing to 404 -- restoring the pattern constraint makes JAX-RS itself reject
+   * the template match, falling through to the generic 400 fallback BEFORE any permission check or
    * downstream call (so, unlike the not-found/permission-denied scenarios above, no node needs to
    * exist at all).
    */
@@ -204,7 +206,8 @@ class PreviewEdgeApiIT extends AbstractFilesIT {
             "cacheable.pdf", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
 
     String expectationId =
-        previewServes("/preview/pdf/" + nodeId + "/1/", OWNER_ID, "content".getBytes(), "application/pdf");
+        previewServes(
+            "/preview/pdf/" + nodeId + "/1/", OWNER_ID, "content".getBytes(), "application/pdf");
 
     Response firstResponse = previewGet("/preview/pdf/" + nodeId + "/", OWNER_COOKIE, null);
 
@@ -229,7 +232,8 @@ class PreviewEdgeApiIT extends AbstractFilesIT {
             OWNER_COOKIE);
 
     String expectationId =
-        previewServes("/preview/pdf/" + nodeId + "/1/", OWNER_ID, "content".getBytes(), "application/pdf");
+        previewServes(
+            "/preview/pdf/" + nodeId + "/1/", OWNER_ID, "content".getBytes(), "application/pdf");
 
     Response firstResponse = previewGet("/preview/pdf/" + nodeId + "/", OWNER_COOKIE, null);
 
@@ -246,7 +250,8 @@ class PreviewEdgeApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAMatchingIfNoneMatchHeaderTheRepeatedDocumentPreviewRequestShouldReturnA304StatusCode() {
+  void
+      givenAMatchingIfNoneMatchHeaderTheRepeatedDocumentPreviewRequestShouldReturnA304StatusCode() {
     String nodeId =
         seedFile("cacheable.xls", LOCAL_ROOT, "0".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
 
@@ -272,7 +277,8 @@ class PreviewEdgeApiIT extends AbstractFilesIT {
   @Test
   void givenAMatchingIfNoneMatchHeaderTheRepeatedImagePreviewRequestShouldReturnA304StatusCode() {
     String nodeId =
-        seedFile("cacheable.png", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+        seedFile(
+            "cacheable.png", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
 
     String expectationId =
         previewServes(
@@ -299,7 +305,8 @@ class PreviewEdgeApiIT extends AbstractFilesIT {
   @Test
   void givenThePreviewServiceFailsTheImagePreviewApiShouldReturnA404StatusCode() {
     String nodeId =
-        seedFile("broken.png", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+        seedFile(
+            "broken.png", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
 
     previewFails("/preview/image/" + nodeId + "/1/0x0/");
 
@@ -312,11 +319,15 @@ class PreviewEdgeApiIT extends AbstractFilesIT {
   void givenThePreviewServiceFailsTheImageThumbnailApiShouldReturnA404StatusCode() {
     String nodeId =
         seedFile(
-            "broken-thumb.png", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+            "broken-thumb.png",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            OWNER_COOKIE);
 
     previewFails("/preview/image/" + nodeId + "/1/5x5/thumbnail/");
 
-    Response response = previewGet("/preview/image/" + nodeId + "/5x5/thumbnail", OWNER_COOKIE, null);
+    Response response =
+        previewGet("/preview/image/" + nodeId + "/5x5/thumbnail", OWNER_COOKIE, null);
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(404);
   }
@@ -324,7 +335,8 @@ class PreviewEdgeApiIT extends AbstractFilesIT {
   @Test
   void givenThePreviewServiceFailsThePdfPreviewApiShouldReturnA404StatusCode() {
     String nodeId =
-        seedFile("broken.pdf", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+        seedFile(
+            "broken.pdf", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
 
     previewFails("/preview/pdf/" + nodeId + "/1/");
 
@@ -337,7 +349,10 @@ class PreviewEdgeApiIT extends AbstractFilesIT {
   void givenThePreviewServiceFailsThePdfThumbnailApiShouldReturnA404StatusCode() {
     String nodeId =
         seedFile(
-            "broken-thumb.pdf", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+            "broken-thumb.pdf",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            OWNER_COOKIE);
 
     previewFails("/preview/pdf/" + nodeId + "/1/5x5/thumbnail/");
 
@@ -361,7 +376,8 @@ class PreviewEdgeApiIT extends AbstractFilesIT {
   @Test
   void givenThePreviewServiceFailsTheDocumentThumbnailApiShouldReturnA404StatusCode() {
     String nodeId =
-        seedFile("broken-thumb.xls", LOCAL_ROOT, "0".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+        seedFile(
+            "broken-thumb.xls", LOCAL_ROOT, "0".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
 
     previewFails("/preview/document/" + nodeId + "/1/5x5/thumbnail/");
 
@@ -407,8 +423,7 @@ class PreviewEdgeApiIT extends AbstractFilesIT {
             "content".getBytes(StandardCharsets.UTF_8),
             OWNER_COOKIE);
 
-    Response response =
-        previewGet("/preview/pdf/" + nodeId + "/?version=999", OWNER_COOKIE, null);
+    Response response = previewGet("/preview/pdf/" + nodeId + "/?version=999", OWNER_COOKIE, null);
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(404);
   }

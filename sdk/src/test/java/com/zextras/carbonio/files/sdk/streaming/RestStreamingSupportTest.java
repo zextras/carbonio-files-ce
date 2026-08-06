@@ -37,15 +37,17 @@ import org.junit.jupiter.api.Test;
  * module only ports {@link RestStreamingSupport#downloadStream} and {@link
  * RestStreamingSupport#uploadStreamRaw}.
  *
- * <p>Every test drives a real request through a real socket and asserts completion within a
- * bounded time (via {@link org.junit.jupiter.api.Assertions#assertTimeoutPreemptively}), so a
- * regression back to a hanging publisher fails the test instead of hanging the build.
+ * <p>Every test drives a real request through a real socket and asserts completion within a bounded
+ * time (via {@link org.junit.jupiter.api.Assertions#assertTimeoutPreemptively}), so a regression
+ * back to a hanging publisher fails the test instead of hanging the build.
  */
 class RestStreamingSupportTest {
 
-  /** ~1MB: large enough that a full-buffering (non-streaming) implementation would still "work"
-   *  by accident, but small enough to keep the test fast. Streaming is instead verified by
-   *  asserting the exact byte content/length the server received matches what was sent. */
+  /**
+   * ~1MB: large enough that a full-buffering (non-streaming) implementation would still "work" by
+   * accident, but small enough to keep the test fast. Streaming is instead verified by asserting
+   * the exact byte content/length the server received matches what was sent.
+   */
   private static final int PAYLOAD_SIZE = 1_000_000;
 
   private HttpServer server;
@@ -89,7 +91,8 @@ class RestStreamingSupportTest {
             Duration.ofSeconds(10),
             () -> {
               try (InputStream in =
-                  RestStreamingSupport.downloadStream(client, uri, Map.of(), Duration.ofSeconds(10))) {
+                  RestStreamingSupport.downloadStream(
+                      client, uri, Map.of(), Duration.ofSeconds(10))) {
                 return in.readAllBytes();
               }
             },
@@ -290,8 +293,7 @@ class RestStreamingSupportTest {
     server.start();
 
     HttpClient client = RestStreamingSupport.http1Client();
-    URI uri =
-        URI.create("http://localhost:" + server.getAddress().getPort() + "/upload-raw-error");
+    URI uri = URI.create("http://localhost:" + server.getAddress().getPort() + "/upload-raw-error");
 
     IOException thrown =
         assertTimeoutPreemptively(

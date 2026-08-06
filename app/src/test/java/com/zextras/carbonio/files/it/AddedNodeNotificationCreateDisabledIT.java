@@ -22,8 +22,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Config-split sibling of {@link AddedNodeNotificationCreateApiIT} (Batch I / D3): carries the ONE
  * scenario that needs notifications disabled ({@link NotificationsDisabledResource},
- * class-restricted) — {@code networking-config.carbonio.files.enable-notifications} is a
- * boot-time snapshot for the WHOLE launched process, not settable per-method.
+ * class-restricted) — {@code networking-config.carbonio.files.enable-notifications} is a boot-time
+ * snapshot for the WHOLE launched process, not settable per-method.
  */
 @WithTestResource(
     value = NotificationsDisabledResource.class,
@@ -42,7 +42,8 @@ class AddedNodeNotificationCreateDisabledIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenANodeCreationOnASharedDirectoryAndDisabledNotificationsNoNotificationShouldBeSavedOrReturned() {
+  void
+      givenANodeCreationOnASharedDirectoryAndDisabledNotificationsNoNotificationShouldBeSavedOrReturned() {
     // Given
     String folderId = seedFolder("folder", LOCAL_ROOT, OWNER_COOKIE);
     seedShare(folderId, SECOND_USER_ID, ACL.SharePermission.READ_AND_SHARE, OWNER_COOKIE);
@@ -60,13 +61,15 @@ class AddedNodeNotificationCreateDisabledIT extends AbstractFilesIT {
         GraphqlCommandBuilder.aQueryBuilder("getNotifications")
             .withBoolean("update_last_seen", true)
             .withWantedResultFormat(
-                "{ notifications { ... on AddedNode { created_at }, ... on NewShare { created_at } } }")
+                "{ notifications { ... on AddedNode { created_at }, ... on NewShare { created_at }"
+                    + " } }")
             .build();
     Response response = graphql(query, SECOND_USER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNotifications");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNotifications");
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> notifications = (List<Map<String, Object>>) page.get("notifications");
     Assertions.assertThat(notifications).hasSize(0);

@@ -88,7 +88,8 @@ class PurgeServiceTest {
     Node file = trashedNode("node-1", "owner-1", NodeType.TEXT, "TRASH_ROOT");
     when(nodeRepository.getAllTrashedNodes(anyLong())).thenReturn(List.of(file));
     when(fileVersionRepository.getFileVersions("node-1", List.of(FileVersionSort.VERSION_ASC)))
-        .thenReturn(List.of(new FileVersion("node-1", "owner-1", 1L, 1, "text/plain", 1L, "d", false)));
+        .thenReturn(
+            List.of(new FileVersion("node-1", "owner-1", 1L, 1, "text/plain", 1L, "d", false)));
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList()))
         .thenReturn(List.of());
 
@@ -102,7 +103,8 @@ class PurgeServiceTest {
     Node file = trashedNode("node-2", "owner-2", NodeType.TEXT, "TRASH_ROOT");
     when(nodeRepository.getAllTrashedNodes(anyLong())).thenReturn(List.of(file));
     when(fileVersionRepository.getFileVersions("node-2", List.of(FileVersionSort.VERSION_ASC)))
-        .thenReturn(List.of(new FileVersion("node-2", "owner-2", 1L, 1, "text/plain", 1L, "d", false)));
+        .thenReturn(
+            List.of(new FileVersion("node-2", "owner-2", 1L, 1, "text/plain", 1L, "d", false)));
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-2"), anyList()))
         .thenThrow(new RuntimeException("storages down"));
 
@@ -120,7 +122,8 @@ class PurgeServiceTest {
     Node child = trashedNode("child-1", "owner-3", NodeType.TEXT, "LOCAL_ROOT,folder-1");
     when(nodeRepository.getAllTrashedNodes(anyLong())).thenReturn(List.of(folder, child));
     when(fileVersionRepository.getFileVersions("child-1", List.of(FileVersionSort.VERSION_ASC)))
-        .thenReturn(List.of(new FileVersion("child-1", "owner-3", 1L, 1, "text/plain", 1L, "d", false)));
+        .thenReturn(
+            List.of(new FileVersion("child-1", "owner-3", 1L, 1, "text/plain", 1L, "d", false)));
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-3"), anyList()))
         .thenThrow(new RuntimeException("storages down"));
 
@@ -225,8 +228,7 @@ class PurgeServiceTest {
     // treated like an outage, never as "all deleted".
     Tombstone tombstone = new Tombstone("node-c", "owner-4", 1L, 1);
     when(tombstoneRepository.getTombstones()).thenReturn(List.of(tombstone));
-    when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-4"), anyList()))
-        .thenReturn(null);
+    when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-4"), anyList())).thenReturn(null);
 
     purgeService.purgeTombstones();
 
@@ -253,7 +255,8 @@ class PurgeServiceTest {
   }
 
   @Test
-  void purgeTombstonesDropsTheBlobAsAnOrphanAfterTheThirdConsecutivePartialFailure() throws Exception {
+  void purgeTombstonesDropsTheBlobAsAnOrphanAfterTheThirdConsecutivePartialFailure()
+      throws Exception {
     // MAX_TOMBSTONE_RETRIES = 3: a blob PowerStore keeps genuinely rejecting (HTTP 200, listed in
     // the failed-ids response — NOT an outage) is dropped as an accepted orphan on the 3rd run.
     Tombstone tombstone = new Tombstone("node-e", "owner-6", 1L, 1);

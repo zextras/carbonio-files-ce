@@ -28,12 +28,11 @@ import org.junit.jupiter.api.Test;
  * <h2>moveNodes</h2>
  *
  * <ul>
- *   <li>Permission-denied on the destination; a FILE (not FOLDER/ROOT) destination; every
- *       requested node filtered out; a ROOT id + a self-move in the same request.
- *   <li>Mover ≠ destination-folder-owner (inherited-share upsert + destination-owner notify);
- *       moved node already has a DIRECT share to a destination target (left untouched); mover ≠
- *       moved node's CURRENT parent's owner on the REMOVE-notification side (fresh add / skip
- *       duplicate).
+ *   <li>Permission-denied on the destination; a FILE (not FOLDER/ROOT) destination; every requested
+ *       node filtered out; a ROOT id + a self-move in the same request.
+ *   <li>Mover ≠ destination-folder-owner (inherited-share upsert + destination-owner notify); moved
+ *       node already has a DIRECT share to a destination target (left untouched); mover ≠ moved
+ *       node's CURRENT parent's owner on the REMOVE-notification side (fresh add / skip duplicate).
  * </ul>
  *
  * <h2>restoreNodes</h2>
@@ -42,19 +41,19 @@ import org.junit.jupiter.api.Test;
  *   <li>Never-trashed node; a ROOT id; the node's recorded original parent no longer resolves to
  *       any row at all (promotes to {@code LOCAL_ROOT}, indirect share promoted to direct); the
  *       recorded original parent still exists but is ITSELF also trashed (same fatherless
- *       treatment); restoring a FOLDER into a valid non-ROOT parent with shares (cascades the
- *       share down to the restored folder's own child).
+ *       treatment); restoring a FOLDER into a valid non-ROOT parent with shares (cascades the share
+ *       down to the restored folder's own child).
  * </ul>
  *
  * <p>Several scenarios need a node whose owner differs from its structural parent's owner, or a
- * child that must NOT have inherited its parent's share cascade yet — neither is producible via
- * the public API (a real {@code createFolder}/{@code upload} always inherits the parent's owner
- * AND cascades shares) — those are seeded via {@link #seedInconsistentNode} (raw JDBC, mirrors
- * exactly what {@code NodeRepositoryImpl#createNewNode} persists) and the recorded-original-parent
- * override via {@link #forceTrashedOldParentId} (the node is first genuinely trashed via the real
- * {@code trashNodes} mutation, then its {@code trashed.parent_id} is overridden — there is no
- * public mutation that lets a caller record an arbitrary/inconsistent original-parent value). All
- * 13 methods and their assertions are preserved verbatim; only the seeding mechanism and transport
+ * child that must NOT have inherited its parent's share cascade yet — neither is producible via the
+ * public API (a real {@code createFolder}/{@code upload} always inherits the parent's owner AND
+ * cascades shares) — those are seeded via {@link #seedInconsistentNode} (raw JDBC, mirrors exactly
+ * what {@code NodeRepositoryImpl#createNewNode} persists) and the recorded-original-parent override
+ * via {@link #forceTrashedOldParentId} (the node is first genuinely trashed via the real {@code
+ * trashNodes} mutation, then its {@code trashed.parent_id} is overridden — there is no public
+ * mutation that lets a caller record an arbitrary/inconsistent original-parent value). All 13
+ * methods and their assertions are preserved verbatim; only the seeding mechanism and transport
  * changed.
  */
 class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
@@ -85,7 +84,8 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
 
   @SuppressWarnings("unchecked")
   private List<Map<String, Object>> movedNodes(Response response) {
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "moveNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "moveNodes");
     Object data = page.get("data");
     return data == null ? List.of() : (List<Map<String, Object>>) data;
   }
@@ -108,7 +108,8 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
             .build();
     Response response = graphql(bodyPayload, cookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNotifications");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNotifications");
     List<Map<String, Object>> notifications = (List<Map<String, Object>>) page.get("notifications");
     return (int) notifications.stream().filter(n -> !n.isEmpty()).count();
   }
@@ -135,7 +136,8 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(2)
-        .contains("There was a problem while executing requested operation on node: " + destFolderId);
+        .contains(
+            "There was a problem while executing requested operation on node: " + destFolderId);
     Assertions.assertThat(movedNodes(response)).isEmpty();
   }
 
@@ -144,7 +146,8 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     // Given — destination exists and is owned by the requester (permission gate passes), but it
     // is a FILE, not a FOLDER/ROOT
     String destFileId =
-        seedFile("notAFolder.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+        seedFile(
+            "notAFolder.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
 
@@ -164,7 +167,8 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     // Given — destination valid, but the sole requested node is owned by someone else, unshared
     String destFolderId = seedFolder("dest", LOCAL_ROOT, OWNER_COOKIE);
     String nodeId =
-        seedFile("notMine.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+        seedFile(
+            "notMine.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
 
     // When
     Response response = moveNodes(new String[] {nodeId}, destFolderId, OWNER_COOKIE);
@@ -185,7 +189,8 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     String destFolderId = seedFolder("dest", LOCAL_ROOT, OWNER_COOKIE);
 
     // When — one root id (always filtered) + a self-move (destination moved into itself)
-    Response response = moveNodes(new String[] {"LOCAL_ROOT", destFolderId}, destFolderId, OWNER_COOKIE);
+    Response response =
+        moveNodes(new String[] {"LOCAL_ROOT", destFolderId}, destFolderId, OWNER_COOKIE);
 
     // Then — TWO blocked nodes, each bubbling its own app error PLUS its own null-propagation
     // error (see the destination-permission test above) -> 4 errors total
@@ -200,7 +205,8 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAMoverWhoIsNotTheDestinationOwnerMoveNodesShouldNotifyTheOwnerAndUpsertInheritedShares() {
+  void
+      givenAMoverWhoIsNotTheDestinationOwnerMoveNodesShouldNotifyTheOwnerAndUpsertInheritedShares() {
     // Given — folder F owned by OWNER_ID, shared WRITE to OTHER_USER_ID (mover) and shared to
     // THIRD_USER_ID (an unrelated share target on the destination); a FRESH, completely unshared
     // node owned by the mover, sitting at LOCAL_ROOT
@@ -218,7 +224,8 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
     Assertions.assertThat(movedNodes(response)).hasSize(1);
 
-    // ...the node inherited THIRD_USER_ID's share from the destination (sourceShare absent -> upsert).
+    // ...the node inherited THIRD_USER_ID's share from the destination (sourceShare absent ->
+    // upsert).
     // Checked via OTHER_COOKIE (the node's own owner, per PermissionsChecker#getPermissions):
     // OWNER_ID has no permission to read this node at all (owning the ANCESTOR folder does not
     // grant access to a specific child — the destination's shares list has no entry for OWNER_ID,
@@ -231,7 +238,8 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTheMovedNodeAlreadyHasADirectShareToADestinationTargetMoveNodesShouldLeaveItUntouched() {
+  void
+      givenTheMovedNodeAlreadyHasADirectShareToADestinationTargetMoveNodesShouldLeaveItUntouched() {
     // Given — node X owned by OTHER_USER_ID already has a DIRECT (not inherited) share to
     // THIRD_USER_ID; the destination folder is ALSO shared to THIRD_USER_ID. Unlike an INHERITED
     // share (deleted by the same move's own remove-phase before this check ever runs — see
@@ -241,7 +249,8 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     String destFolderId = seedFolder("dest", LOCAL_ROOT, OTHER_COOKIE);
     seedShare(destFolderId, THIRD_USER_ID, SharePermission.READ_ONLY, OTHER_COOKIE);
     String nodeId =
-        seedFile("shared.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+        seedFile(
+            "shared.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
     seedShare(nodeId, THIRD_USER_ID, SharePermission.READ_AND_WRITE, OTHER_COOKIE);
 
     // When — the node's own owner moves it into the (also-shared-to-the-same-user) destination
@@ -281,14 +290,16 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
 
-    // F's owner (fresh add: was not already in the notify list) gets exactly one RemovedNode notification
+    // F's owner (fresh add: was not already in the notify list) gets exactly one RemovedNode
+    // notification
     Assertions.assertThat(notificationCountOf(OWNER_COOKIE, "... on RemovedNode { created_at }"))
         .isEqualTo(1);
   }
 
   @Test
-  void givenAMoverWhoIsNotTheNodesParentOwnerButTheOwnerIsAlreadyAShareTargetMoveNodesShouldNotDuplicateTheNotification()
-      throws SQLException {
+  void
+      givenAMoverWhoIsNotTheNodesParentOwnerButTheOwnerIsAlreadyAShareTargetMoveNodesShouldNotDuplicateTheNotification()
+          throws SQLException {
     // Given — same shape as above, but the node ALSO has a DIRECT share to F's owner already (so
     // the owner is already in the remove-notify list before the "add if absent" check runs)
     String parentFolderId = seedFolder("F", LOCAL_ROOT, OWNER_COOKIE);
@@ -324,7 +335,8 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
   void givenANodeThatWasNeverTrashedRestoreNodesShouldReturnNodeWriteError() {
     // Given — exists, owned by the requester, but never trashed
     String nodeId =
-        seedFile("notTrashed.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+        seedFile(
+            "notTrashed.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
 
     // When
     Response response = restoreNodes(new String[] {nodeId}, OWNER_COOKIE);
@@ -334,7 +346,8 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("There was a problem while executing requested operation on node: " + nodeId);
+        .containsExactly(
+            "There was a problem while executing requested operation on node: " + nodeId);
   }
 
   @Test
@@ -347,12 +360,14 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("There was a problem while executing requested operation on node: LOCAL_ROOT");
+        .containsExactly(
+            "There was a problem while executing requested operation on node: LOCAL_ROOT");
   }
 
   @Test
-  void givenAFatherlessNodeWhoseOriginalParentRowNoLongerExistsRestoreNodesShouldRestoreToLocalRootAndPromoteIndirectSharesToDirect()
-      throws SQLException {
+  void
+      givenAFatherlessNodeWhoseOriginalParentRowNoLongerExistsRestoreNodesShouldRestoreToLocalRootAndPromoteIndirectSharesToDirect()
+          throws SQLException {
     // Given — folder F (shared to THIRD_USER_ID), a sub-folder X created via the REAL createFolder
     // mutation (so X inherits an INDIRECT share to THIRD_USER_ID via cascade); X is then trashed
     // with its RECORDED original parent set to an id that was NEVER a real node row at all
@@ -421,7 +436,8 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
             .withWantedResultFormat("{ id parent { id } }")
             .build();
     Response getNodeResponse = graphql(getNodePayload, OWNER_COOKIE);
-    Map<String, Object> node = TestUtils.jsonResponseToMap(getNodeResponse.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(getNodeResponse.getBody().asString(), "getNode");
     @SuppressWarnings("unchecked")
     Map<String, Object> parent = (Map<String, Object>) node.get("parent");
     Assertions.assertThat(parent).containsEntry("id", "LOCAL_ROOT");
@@ -483,8 +499,10 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
             .withWantedResultFormat("{ id parent { id } }")
             .build();
     Response getNodeResponse = graphql(getNodePayload, OWNER_COOKIE);
-    Map<String, Object> node = TestUtils.jsonResponseToMap(getNodeResponse.getBody().asString(), "getNode");
-    Assertions.assertThat((Map<String, Object>) node.get("parent")).containsEntry("id", validParentId);
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(getNodeResponse.getBody().asString(), "getNode");
+    Assertions.assertThat((Map<String, Object>) node.get("parent"))
+        .containsEntry("id", validParentId);
 
     // P's share cascaded onto Q AND down to Q's own child R
     Assertions.assertThat(shareExists(folderId, THIRD_USER_ID, OWNER_COOKIE)).isTrue();

@@ -25,11 +25,12 @@ import org.slf4j.LoggerFactory;
  * replacement for the legacy Netty {@code AuthenticationHandler}: the auth checks are ported 1:1,
  * only the transport differs (a Vert.x blocking route handler instead of a Netty channel handler).
  *
- * <p>It runs BEFORE the GraphQL route (registered with {@code order(-100)} vs. the default {@code 0}
- * of the POST handlers). On success it stores the authenticated {@link UserMyself} and the raw
- * cookie string in the {@link RoutingContext} so the GraphQL route can copy them into the graphql-java
- * context; on failure it short-circuits the request with HTTP 401 (genuine auth failure) or HTTP 403
- * (authenticated but not entitled: inactive, guest, or feature disabled -- CO-3482).
+ * <p>It runs BEFORE the GraphQL route (registered with {@code order(-100)} vs. the default {@code
+ * 0} of the POST handlers). On success it stores the authenticated {@link UserMyself} and the raw
+ * cookie string in the {@link RoutingContext} so the GraphQL route can copy them into the
+ * graphql-java context; on failure it short-circuits the request with HTTP 401 (genuine auth
+ * failure) or HTTP 403 (authenticated but not entitled: inactive, guest, or feature disabled --
+ * CO-3482).
  *
  * <p>It is deliberately attached ONLY to {@code /graphql} (and {@code /graphql/}). The public
  * endpoint {@code /public/graphql} is intentionally NOT filtered — it is reachable without a token.
@@ -49,8 +50,8 @@ public class FilesAuthenticationFilter {
   /**
    * Registers the auth handler on the Vert.x router. Called once at startup when Quarkus publishes
    * the {@link Router} CDI event. A blocking handler is used because {@link
-   * UserRepository#getUserMyselfByCookie(String)} performs a blocking gRPC call that must
-   * not run on the event loop.
+   * UserRepository#getUserMyselfByCookie(String)} performs a blocking gRPC call that must not run
+   * on the event loop.
    */
   public void registerRoutes(@Observes Router router) {
     router.route("/graphql").order(-100).blockingHandler(this::filter);
@@ -118,10 +119,10 @@ public class FilesAuthenticationFilter {
 
   /**
    * Ends the request with HTTP 401 and the exact legacy body shape produced by the Netty {@code
-   * ExceptionsHandler} for an {@code AuthenticationException}: {@code "Failed to authenticate request
-   * <uri>: <reason>"}. Reserved for genuine auth failures (missing/invalid credentials, unresolvable
-   * user). The acceptance suite ({@code AuthApiIT}) asserts the response body contains these reason
-   * fragments, so the body must not be empty.
+   * ExceptionsHandler} for an {@code AuthenticationException}: {@code "Failed to authenticate
+   * request <uri>: <reason>"}. Reserved for genuine auth failures (missing/invalid credentials,
+   * unresolvable user). The acceptance suite ({@code AuthApiIT}) asserts the response body contains
+   * these reason fragments, so the body must not be empty.
    */
   private void rejectUnauthorized(RoutingContext ctx, String reason) {
     String message =
@@ -132,9 +133,9 @@ public class FilesAuthenticationFilter {
 
   /**
    * Ends the request with HTTP 403 and the body shape produced by the Netty {@code
-   * ExceptionsHandler} for a {@code ForbiddenException}: {@code "Failed to authorize request
-   * <uri>: <reason>"}. Used for authenticated-but-not-entitled users: inactive account, guest
-   * user, or {@code carbonioFeatureFilesEnabled} disabled (CO-3482, ported from devel #301).
+   * ExceptionsHandler} for a {@code ForbiddenException}: {@code "Failed to authorize request <uri>:
+   * <reason>"}. Used for authenticated-but-not-entitled users: inactive account, guest user, or
+   * {@code carbonioFeatureFilesEnabled} disabled (CO-3482, ported from devel #301).
    */
   private void rejectForbidden(RoutingContext ctx, String reason) {
     String message =

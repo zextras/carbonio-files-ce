@@ -51,7 +51,11 @@ class AuthApiIT extends AbstractFilesIT {
     // Fixtures for the non-happy-path branches, registered once — each test picks its own cookie.
     FilesStackTestResource.getUserManagementService()
         .registerToken(
-            "maintenance-token", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1", "maintenance", false, true);
+            "maintenance-token",
+            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+            "maintenance",
+            false,
+            true);
     FilesStackTestResource.getUserManagementService()
         .registerToken("guest-token", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2", "active", true, true);
     FilesStackTestResource.getUserManagementService()

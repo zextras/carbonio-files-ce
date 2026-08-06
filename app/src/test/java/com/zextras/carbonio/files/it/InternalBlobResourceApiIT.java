@@ -32,10 +32,10 @@ import org.junit.jupiter.api.Test;
  * givenABodyOverTheConfiguredSizeCapInternalUploadShouldStillSucceed}) asserts that this trusted
  * surface bypasses the configured upload-size cap entirely — which requires an ACTUAL cap to be
  * configured to be a meaningful assertion (not a vacuous "succeeds because nothing is capped"). It
- * moved to the sibling {@link InternalBlobResourceSizeCapIT} ({@code
- * @WithTestResource(UploadCapResource.class)}, cap=0, so ANY non-empty body proves the bypass).
- * This class keeps the remaining 8 methods on the shared default (uncapped) stack. Mapping: 8
- * (here) + 1 ({@code InternalBlobResourceSizeCapIT}) = 9 (unchanged from the original).
+ * moved to the sibling {@link InternalBlobResourceSizeCapIT}
+ * ({@code @WithTestResource(UploadCapResource.class)}, cap=0, so ANY non-empty body proves the
+ * bypass). This class keeps the remaining 8 methods on the shared default (uncapped) stack.
+ * Mapping: 8 (here) + 1 ({@code InternalBlobResourceSizeCapIT}) = 9 (unchanged from the original).
  */
 class InternalBlobResourceApiIT extends AbstractFilesIT {
 
@@ -59,7 +59,8 @@ class InternalBlobResourceApiIT extends AbstractFilesIT {
   // --------------------------------------------------------------------------------------- upload
 
   /** Deliberately takes NO cookie parameter: {@code /internal/**} has no auth-handler. */
-  private static Response internalUpload(String userId, String parentId, String filenameB64, byte[] body) {
+  private static Response internalUpload(
+      String userId, String parentId, String filenameB64, byte[] body) {
     var request = RestAssured.given().header("Filename", filenameB64);
     if (parentId != null) {
       request = request.header("ParentId", parentId);
@@ -88,7 +89,11 @@ class InternalBlobResourceApiIT extends AbstractFilesIT {
 
     // When
     Response response =
-        internalUpload(REQUESTER_ID, null, toBase64("internal.txt"), "content".getBytes(StandardCharsets.UTF_8));
+        internalUpload(
+            REQUESTER_ID,
+            null,
+            toBase64("internal.txt"),
+            "content".getBytes(StandardCharsets.UTF_8));
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
@@ -101,12 +106,14 @@ class InternalBlobResourceApiIT extends AbstractFilesIT {
     // play at all.
     Map<String, Object> node = getNode(nodeId, REQUESTER_COOKIE);
     Assertions.assertThat(node).containsEntry("name", "internal").containsEntry("extension", "txt");
-    Assertions.assertThat(((Map<String, Object>) node.get("owner"))).containsEntry("id", REQUESTER_ID);
+    Assertions.assertThat(((Map<String, Object>) node.get("owner")))
+        .containsEntry("id", REQUESTER_ID);
   }
 
   @Test
   @SuppressWarnings("unchecked")
-  void givenASharedDestinationFolderInternalUploadShouldFireNoAddedNodeNotification() throws Exception {
+  void givenASharedDestinationFolderInternalUploadShouldFireNoAddedNodeNotification()
+      throws Exception {
     // Given — folder owned by REQUESTER_ID, shared with OTHER_USER_ID (who would normally be
     // notified of a new node landing in a folder shared with them).
     String folderId = seedFolder("sharedFolder", LOCAL_ROOT, REQUESTER_COOKIE);
@@ -115,7 +122,10 @@ class InternalBlobResourceApiIT extends AbstractFilesIT {
     // When — internal upload into the shared folder, owned by the folder owner (path userId)
     Response response =
         internalUpload(
-            REQUESTER_ID, folderId, toBase64("internal-in-shared.txt"), "content".getBytes(StandardCharsets.UTF_8));
+            REQUESTER_ID,
+            folderId,
+            toBase64("internal-in-shared.txt"),
+            "content".getBytes(StandardCharsets.UTF_8));
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
 
     // Then — OTHER_USER_ID only sees the NewShare notification from createShare/seedShare; NO
@@ -126,7 +136,8 @@ class InternalBlobResourceApiIT extends AbstractFilesIT {
         GraphqlCommandBuilder.aQueryBuilder("getNotifications")
             .withBoolean("update_last_seen", true)
             .withWantedResultFormat(
-                "{ notifications { ... on AddedNode { created_at }, ... on NewShare { created_at } } }")
+                "{ notifications { ... on AddedNode { created_at }, ... on NewShare { created_at }"
+                    + " } }")
             .build();
     Response notificationsResponse = graphql(getNotificationsPayload, OTHER_USER_COOKIE);
     Assertions.assertThat(notificationsResponse.getStatusCode()).isEqualTo(200);
@@ -156,14 +167,18 @@ class InternalBlobResourceApiIT extends AbstractFilesIT {
     byte[] v2 = "version two is longer".getBytes(StandardCharsets.UTF_8);
     Response uploadResponse = internalUpload(REQUESTER_ID, null, toBase64("doc.txt"), v1);
     Assertions.assertThat(uploadResponse.getStatusCode()).isEqualTo(200);
-    String nodeId = (String) OBJECT_MAPPER.readValue(uploadResponse.getBody().asString(), Map.class).get("nodeId");
+    String nodeId =
+        (String)
+            OBJECT_MAPPER.readValue(uploadResponse.getBody().asString(), Map.class).get("nodeId");
 
     // When
-    Response versionResponse = internalUploadVersion(REQUESTER_ID, nodeId, toBase64("doc.txt"), false, v2);
+    Response versionResponse =
+        internalUploadVersion(REQUESTER_ID, nodeId, toBase64("doc.txt"), false, v2);
 
     // Then
     Assertions.assertThat(versionResponse.getStatusCode()).isEqualTo(200);
-    Map<String, Object> json = OBJECT_MAPPER.readValue(versionResponse.getBody().asString(), Map.class);
+    Map<String, Object> json =
+        OBJECT_MAPPER.readValue(versionResponse.getBody().asString(), Map.class);
     Assertions.assertThat(json).containsEntry("nodeId", nodeId);
     Assertions.assertThat(((Number) json.get("version")).intValue()).isEqualTo(2);
   }
@@ -172,13 +187,21 @@ class InternalBlobResourceApiIT extends AbstractFilesIT {
   void internalUploadVersionWithoutPermissionOnTheNodeShouldReturn404() throws Exception {
     // Given — node owned by OTHER_USER_ID, requester (path userId) has no share on it
     Response uploadResponse =
-        internalUpload(OTHER_USER_ID, null, toBase64("doc.txt"), "v1".getBytes(StandardCharsets.UTF_8));
+        internalUpload(
+            OTHER_USER_ID, null, toBase64("doc.txt"), "v1".getBytes(StandardCharsets.UTF_8));
     Assertions.assertThat(uploadResponse.getStatusCode()).isEqualTo(200);
-    String nodeId = (String) OBJECT_MAPPER.readValue(uploadResponse.getBody().asString(), Map.class).get("nodeId");
+    String nodeId =
+        (String)
+            OBJECT_MAPPER.readValue(uploadResponse.getBody().asString(), Map.class).get("nodeId");
 
     // When — a DIFFERENT path userId attempts the new version
     Response versionResponse =
-        internalUploadVersion(REQUESTER_ID, nodeId, toBase64("doc.txt"), false, "v2".getBytes(StandardCharsets.UTF_8));
+        internalUploadVersion(
+            REQUESTER_ID,
+            nodeId,
+            toBase64("doc.txt"),
+            false,
+            "v2".getBytes(StandardCharsets.UTF_8));
 
     // Then
     Assertions.assertThat(versionResponse.getStatusCode()).isEqualTo(404);
@@ -200,14 +223,17 @@ class InternalBlobResourceApiIT extends AbstractFilesIT {
     byte[] content = "hello internal streaming world".getBytes(StandardCharsets.UTF_8);
     Response uploadResponse = internalUpload(REQUESTER_ID, null, toBase64("hello.txt"), content);
     Assertions.assertThat(uploadResponse.getStatusCode()).isEqualTo(200);
-    String nodeId = (String) OBJECT_MAPPER.readValue(uploadResponse.getBody().asString(), Map.class).get("nodeId");
+    String nodeId =
+        (String)
+            OBJECT_MAPPER.readValue(uploadResponse.getBody().asString(), Map.class).get("nodeId");
 
     // When — no cookie at all: this route has no auth-handler in its pipeline either
     Response downloadResponse = internalDownload(REQUESTER_ID, nodeId, null);
 
     // Then
     Assertions.assertThat(downloadResponse.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(downloadResponse.getBody().asString()).isEqualTo(new String(content, StandardCharsets.UTF_8));
+    Assertions.assertThat(downloadResponse.getBody().asString())
+        .isEqualTo(new String(content, StandardCharsets.UTF_8));
   }
 
   @Test
@@ -216,8 +242,11 @@ class InternalBlobResourceApiIT extends AbstractFilesIT {
     byte[] v1 = "version one".getBytes(StandardCharsets.UTF_8);
     byte[] v2 = "version two is longer".getBytes(StandardCharsets.UTF_8);
     Response uploadResponse = internalUpload(REQUESTER_ID, null, toBase64("doc.txt"), v1);
-    String nodeId = (String) OBJECT_MAPPER.readValue(uploadResponse.getBody().asString(), Map.class).get("nodeId");
-    Response versionResponse = internalUploadVersion(REQUESTER_ID, nodeId, toBase64("doc.txt"), false, v2);
+    String nodeId =
+        (String)
+            OBJECT_MAPPER.readValue(uploadResponse.getBody().asString(), Map.class).get("nodeId");
+    Response versionResponse =
+        internalUploadVersion(REQUESTER_ID, nodeId, toBase64("doc.txt"), false, v2);
     Assertions.assertThat(versionResponse.getStatusCode()).isEqualTo(200);
 
     // When — explicit v1, even though v2 is now current
@@ -225,15 +254,22 @@ class InternalBlobResourceApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(firstVersionDownload.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(firstVersionDownload.getBody().asString()).isEqualTo(new String(v1, StandardCharsets.UTF_8));
+    Assertions.assertThat(firstVersionDownload.getBody().asString())
+        .isEqualTo(new String(v1, StandardCharsets.UTF_8));
   }
 
   @Test
   void internalDownloadOfANonPermittedNodeShouldReturn404() throws Exception {
     // Given — node owned by OTHER_USER_ID, never shared with REQUESTER_ID
     Response uploadResponse =
-        internalUpload(OTHER_USER_ID, null, toBase64("notMine.txt"), "content".getBytes(StandardCharsets.UTF_8));
-    String nodeId = (String) OBJECT_MAPPER.readValue(uploadResponse.getBody().asString(), Map.class).get("nodeId");
+        internalUpload(
+            OTHER_USER_ID,
+            null,
+            toBase64("notMine.txt"),
+            "content".getBytes(StandardCharsets.UTF_8));
+    String nodeId =
+        (String)
+            OBJECT_MAPPER.readValue(uploadResponse.getBody().asString(), Map.class).get("nodeId");
 
     // When — a DIFFERENT path userId attempts the download
     Response downloadResponse = internalDownload(REQUESTER_ID, nodeId, null);

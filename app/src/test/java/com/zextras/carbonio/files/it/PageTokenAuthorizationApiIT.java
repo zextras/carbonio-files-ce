@@ -22,23 +22,22 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Authorization tests for the {@code findNodes} keyset page token (public AND authenticated
- * flows). These are NOT regression tests for a message string: every assertion here is on the
- * OUTCOME (whether node data comes back, whether a page exceeds {@code Pagination.LIMIT}) —
- * never on the wording of an error message, since a message-string assertion is exactly the
- * pattern that let the underlying vulnerability (dropped HMAC signing of the page token, dropped
- * folderId enforcement, dropped limit clamp on the token path) survive the Quarkus port
- * undetected: {@code PublicFindNodesApiIT}'s and {@code ExceptionResidueApiIT}'s existing
- * token-forging tests pass today for the WRONG reason (a Jackson {@code
- * UnrecognizedPropertyException} on the legacy {@code PageQuery} shape's {@code keySet}/{@code
- * signature} fields, not any real signature check).
+ * Authorization tests for the {@code findNodes} keyset page token (public AND authenticated flows).
+ * These are NOT regression tests for a message string: every assertion here is on the OUTCOME
+ * (whether node data comes back, whether a page exceeds {@code Pagination.LIMIT}) — never on the
+ * wording of an error message, since a message-string assertion is exactly the pattern that let the
+ * underlying vulnerability (dropped HMAC signing of the page token, dropped folderId enforcement,
+ * dropped limit clamp on the token path) survive the Quarkus port undetected: {@code
+ * PublicFindNodesApiIT}'s and {@code ExceptionResidueApiIT}'s existing token-forging tests pass
+ * today for the WRONG reason (a Jackson {@code UnrecognizedPropertyException} on the legacy {@code
+ * PageQuery} shape's {@code keySet}/{@code signature} fields, not any real signature check).
  *
  * <p>Every "tamper" helper here mints a REAL page token through the real public/authenticated API
  * first, then edits ONE field and re-serialises it via the port's actual {@link
- * NodeRepositoryImpl.PageToken} shape, WITHOUT recomputing any signature — exactly what an
- * attacker who intercepted a legitimate token and edited it client-side would send. This is why
- * these tests cannot pass "by accident": a token that merely fails to Jackson-parse would prove
- * nothing about authorization, only about strict deserialization.
+ * NodeRepositoryImpl.PageToken} shape, WITHOUT recomputing any signature — exactly what an attacker
+ * who intercepted a legitimate token and edited it client-side would send. This is why these tests
+ * cannot pass "by accident": a token that merely fails to Jackson-parse would prove nothing about
+ * authorization, only about strict deserialization.
  */
 class PageTokenAuthorizationApiIT extends AbstractFilesIT {
 
@@ -64,7 +63,8 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
     Response response = graphql(mutation, ownerCookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     String url =
-        (String) TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
+        (String)
+            TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
     return url.substring(url.length() - 50);
   }
 
@@ -81,7 +81,8 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
     if (pageToken != null) {
       builder = builder.withString("page_token", pageToken);
     }
-    String bodyPayload = builder.withWantedResultFormat("{ nodes { id name }, page_token }").build();
+    String bodyPayload =
+        builder.withWantedResultFormat("{ nodes { id name }, page_token }").build();
     return publicGraphql(bodyPayload);
   }
 
@@ -92,7 +93,8 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
 
   @SuppressWarnings("unchecked")
   private static List<Map<String, Object>> nodesOf(Response response) {
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
     Object nodes = page.get("nodes");
     return nodes == null ? null : (List<Map<String, Object>>) nodes;
   }
@@ -126,7 +128,8 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
   @DisplayName(
       """
       A valid page token tampered to point its folderId at a DIFFERENT, unrelated (non-public)
-      folder must be denied outright, not leak that folder's children""")
+      folder must be denied outright, not leak that folder's children\
+      """)
   @Test
   void givenATamperedFolderIdInAValidTokenPublicFindNodesMustDenyAccess() throws Exception {
     // Given: a public, link-covered folder with more than one page of children ...
@@ -165,7 +168,8 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
   @DisplayName(
       """
       A valid page token tampered to OMIT folderId must NOT fall back to leaking LOCAL_ROOT's
-      children (every user's top-level nodes)""")
+      children (every user's top-level nodes)\
+      """)
   @Test
   void givenATokenOmittingFolderIdPublicFindNodesMustNotFallBackToLocalRoot() throws Exception {
     String publicFolderId = seedFolder("pta public folder 2", LOCAL_ROOT, OWNER_COOKIE);
@@ -182,7 +186,8 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
     // alphabetically: if the token's missing folderId ever falls back to LOCAL_ROOT, THIS is what
     // would leak (LOCAL_ROOT is the shared parent of every user's top-level nodes, not just this
     // link owner's).
-    String otherUsersFolderId = seedFolder("zzz other user's private folder", LOCAL_ROOT, OTHER_COOKIE);
+    String otherUsersFolderId =
+        seedFolder("zzz other user's private folder", LOCAL_ROOT, OTHER_COOKIE);
 
     Response firstPage = publicFindNodes(publicFolderId, 1, publicId, null);
     String legitToken = pageTokenOf(firstPage);
@@ -209,7 +214,8 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
   @DisplayName(
       """
       A valid page token tampered to raise limit far above Pagination.LIMIT must not bypass the
-      clamp on the PUBLIC findNodes token path""")
+      clamp on the PUBLIC findNodes token path\
+      """)
   @Test
   void givenATokenWithOversizedLimitPublicFindNodesMustNotBypassTheClamp() throws Exception {
     int childCount = Constants.Config.Pagination.LIMIT + 5;
@@ -235,7 +241,9 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
 
     List<Map<String, Object>> nodes = nodesOf(response);
     Assertions.assertThat(nodes == null ? 0 : nodes.size())
-        .as("a single page must never exceed Pagination.LIMIT (%d)", Constants.Config.Pagination.LIMIT)
+        .as(
+            "a single page must never exceed Pagination.LIMIT (%d)",
+            Constants.Config.Pagination.LIMIT)
         .isLessThanOrEqualTo(Constants.Config.Pagination.LIMIT);
   }
 
@@ -266,7 +274,8 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
   @DisplayName(
       """
       A page token minted under public link A must be rejected when replayed under a DIFFERENT
-      public link B, even though it is untampered and validly signed""")
+      public link B, even though it is untampered and validly signed\
+      """)
   @Test
   void givenATokenMintedUnderOneLinkPublicFindNodesMustRejectItUnderAnotherLink() throws Exception {
     String folderAId = seedFolder("pta folder A", LOCAL_ROOT, OWNER_COOKIE);
@@ -290,7 +299,10 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
     List<Map<String, Object>> nodes = nodesOf(response);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(nodes == null || nodes.isEmpty())
-        .as("no node data must be returned for a token replayed under a different link, but got: %s", nodes)
+        .as(
+            "no node data must be returned for a token replayed under a different link, but got:"
+                + " %s",
+            nodes)
         .isTrue();
     Assertions.assertThat(errors).isNotEmpty();
     if (nodes != null) {
@@ -324,10 +336,13 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
               "ownerId": null,
               "keywords": [],
               "cursor": [0, "", ""]
-            }""",
+            }\
+            """,
             publicFolderId);
     String handBuiltToken =
-        Base64.getUrlEncoder().withoutPadding().encodeToString(json.getBytes(StandardCharsets.UTF_8));
+        Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(json.getBytes(StandardCharsets.UTF_8));
 
     Response response = publicFindNodes(publicFolderId, 1, publicId, handBuiltToken);
 
@@ -342,14 +357,18 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
   @DisplayName(
       """
       A valid page token tampered to raise limit far above Pagination.LIMIT must not bypass the
-      clamp on the AUTHENTICATED findNodes token path""")
+      clamp on the AUTHENTICATED findNodes token path\
+      """)
   @Test
   void givenATokenWithOversizedLimitAuthenticatedFindNodesMustNotBypassTheClamp() throws Exception {
     int childCount = Constants.Config.Pagination.LIMIT + 5;
     String folderId = seedFolder("pta auth big folder", LOCAL_ROOT, OWNER_COOKIE);
     for (int i = 0; i < childCount; i++) {
       seedFile(
-          String.format("g%03d.txt", i), folderId, "x".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+          String.format("g%03d.txt", i),
+          folderId,
+          "x".getBytes(StandardCharsets.UTF_8),
+          OWNER_COOKIE);
     }
 
     String firstQuery =
@@ -381,10 +400,13 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
     Response response = graphql(secondQuery, OWNER_COOKIE);
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Object nodesObj = TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes").get("nodes");
+    Object nodesObj =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes").get("nodes");
     int size = nodesObj == null ? 0 : ((List<?>) nodesObj).size();
     Assertions.assertThat(size)
-        .as("a single authenticated page must never exceed Pagination.LIMIT (%d)", Constants.Config.Pagination.LIMIT)
+        .as(
+            "a single authenticated page must never exceed Pagination.LIMIT (%d)",
+            Constants.Config.Pagination.LIMIT)
         .isLessThanOrEqualTo(Constants.Config.Pagination.LIMIT);
   }
 }

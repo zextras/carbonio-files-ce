@@ -61,7 +61,8 @@ class NativeReflectionConfigTest {
   void pageTokenSurvivesABase64JsonRoundTripOnTheJvm() throws Exception {
     // Mirrors how NodeRepositoryImpl (de)serializes the keyset pagination cursor: a raw
     // ObjectMapper over the token's public fields, Base64-url-encoded. This proves the shape/logic
-    // works on the JVM; it does NOT prove native-image reflection availability (see class javadoc) —
+    // works on the JVM; it does NOT prove native-image reflection availability (see class javadoc)
+    // —
     // ordinary JVM reflection is always open-world, so it cannot catch the closed-world native gap
     // that the targets() assertion above guards against.
     NodeRepositoryImpl.PageToken original = new NodeRepositoryImpl.PageToken();
@@ -82,8 +83,7 @@ class NativeReflectionConfigTest {
     String json = objectMapper.writeValueAsString(original);
     String encoded = Base64.getUrlEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
 
-    String decodedJson =
-        new String(Base64.getUrlDecoder().decode(encoded), StandardCharsets.UTF_8);
+    String decodedJson = new String(Base64.getUrlDecoder().decode(encoded), StandardCharsets.UTF_8);
     NodeRepositoryImpl.PageToken roundTripped =
         objectMapper.readValue(decodedJson, NodeRepositoryImpl.PageToken.class);
 

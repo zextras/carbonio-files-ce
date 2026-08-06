@@ -6,14 +6,15 @@ package com.zextras.carbonio.files.dal.repositories.interfaces;
 
 import com.zextras.carbonio.files.dal.dao.UserInfo;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
-
 import java.util.Optional;
 
 public interface UserRepository {
 
   /**
-   * @param cookies is a {@link String} representing the cookie of the requester used to fetch all the metadata of the requester itself
-   * @return a {@link Optional} of the requested {@link UserMyself} if the cookie is valid, otherwise it returns an {@link Optional#empty}
+   * @param cookies is a {@link String} representing the cookie of the requester used to fetch all
+   *     the metadata of the requester itself
+   * @return a {@link Optional} of the requested {@link UserMyself} if the cookie is valid,
+   *     otherwise it returns an {@link Optional#empty}
    */
   Optional<UserMyself> getUserMyselfByCookie(String cookies);
 

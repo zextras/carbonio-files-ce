@@ -16,8 +16,8 @@ import org.junit.jupiter.api.Test;
  * com.zextras.carbonio.files.config.TransferPool}) surfaces saturation (both its threads AND its
  * bounded queue full) as a {@link RejectedExecutionException} — see {@code TransferStreaming}'s
  * catch blocks and {@code BlobResource#upload}'s {@code runSubscriptionOn} — and this mapper must
- * turn that into a 503 Service Unavailable rather than the generic 500 the {@code else} branch would
- * otherwise produce, so a client sees a transient/retryable overload signal.
+ * turn that into a 503 Service Unavailable rather than the generic 500 the {@code else} branch
+ * would otherwise produce, so a client sees a transient/retryable overload signal.
  *
  * <p>{@link com.zextras.carbonio.files.rest.TransferPoolSaturationIT} additionally proves this
  * end-to-end (a real download request against a saturated pool actually receives HTTP 503); this
@@ -38,7 +38,8 @@ class BlobExceptionMapperTest {
   @Test
   void rejectedExecutionExceptionWrappedAsACauseAlsoMapsTo503() {
     // Some call paths (e.g. Mutiny's runSubscriptionOn on upload) may surface the rejection wrapped
-    // in another throwable; the mapper unwraps exactly one getCause() level (see its class javadoc).
+    // in another throwable; the mapper unwraps exactly one getCause() level (see its class
+    // javadoc).
     BlobExceptionMapper mapper = new BlobExceptionMapper();
     RuntimeException wrapper =
         new RuntimeException("subscription failed", new RejectedExecutionException("saturated"));

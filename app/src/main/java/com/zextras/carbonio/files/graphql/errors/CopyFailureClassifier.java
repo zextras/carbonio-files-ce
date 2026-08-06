@@ -27,14 +27,9 @@ public interface CopyFailureClassifier {
    * @param nodeId the id of the node whose copy failed
    * @param resultPath the GraphQL result path of the failing field
    * @param defaultError supplies the error CE would emit; implementations that cannot classify the
-   * failure must return it unchanged
-   *
+   *     failure must return it unchanged
    * @return the error to surface for the failed copy
    */
   GraphQLError classify(
-    Throwable failure,
-    String nodeId,
-    ResultPath resultPath,
-    Supplier<GraphQLError> defaultError
-  );
+      Throwable failure, String nodeId, ResultPath resultPath, Supplier<GraphQLError> defaultError);
 }

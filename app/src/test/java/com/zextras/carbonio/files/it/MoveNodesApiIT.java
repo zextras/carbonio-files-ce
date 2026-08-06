@@ -18,9 +18,9 @@ import org.junit.jupiter.api.Test;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.MoveNodesApiIT} rewritten as an out-of-process
- * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. Both methods and their assertions
- * are preserved verbatim; only the seeding mechanism (API calls capturing server-generated ids)
- * and transport changed.
+ * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. Both methods and their assertions are
+ * preserved verbatim; only the seeding mechanism (API calls capturing server-generated ids) and
+ * transport changed.
  */
 class MoveNodesApiIT extends AbstractFilesIT {
 
@@ -43,19 +43,22 @@ class MoveNodesApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenANodeInRootAndANodeInAnotherFolderWithSameNameMovingThemInTheSameFolderShouldRenameTheMovedOne() {
+  void
+      givenANodeInRootAndANodeInAnotherFolderWithSameNameMovingThemInTheSameFolderShouldRenameTheMovedOne() {
     // Given — "name.txt" already sits at LOCAL_ROOT; a second "name.txt" sits inside "folder"
     seedFile("name.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String folderId = seedFolder("folder", LOCAL_ROOT, REQUESTER_COOKIE);
     String nodeToMoveId =
-        seedFile("name.txt", folderId, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "name.txt", folderId, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     Response response = moveNodes(new String[] {nodeToMoveId}, LOCAL_ROOT, REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "moveNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "moveNodes");
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("data");
 
     Assertions.assertThat(nodes).hasSize(1);
@@ -68,14 +71,16 @@ class MoveNodesApiIT extends AbstractFilesIT {
   void givenANodeInAFolderMovingItInTheSameFolderShouldNotRenameTheNode() {
     // Given
     String nodeId =
-        seedFile("second.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "second.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     Response response = moveNodes(new String[] {nodeId}, LOCAL_ROOT, REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "moveNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "moveNodes");
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("data");
 
     Assertions.assertThat(nodes).hasSize(1);

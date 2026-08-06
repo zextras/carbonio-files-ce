@@ -21,11 +21,11 @@ import org.junit.jupiter.api.Test;
  * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. The {@code keepVersions} mutation
  * (bound to {@code NodeDataFetcher#keepVersionsFetcher}) is exercised here on the DEFAULT
  * (unbounded) version cap — {@code maxNumberOfKeepVersions} is derived from {@code
- * maxNumberOfVersions - 2} (see {@code Constants.Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION}),
- * so the default cap (30) leaves 28 keep-forever slots, far more than these 3 scenarios (which
- * each mark/unmark at most one version) ever need. The cap-reached scenario is split into the
- * sibling {@link KeepVersionsCountCapIT}, since the cap is a boot-time config snapshot for the
- * WHOLE launched process, not settable per-method.
+ * maxNumberOfVersions - 2} (see {@code Constants.Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION}), so
+ * the default cap (30) leaves 28 keep-forever slots, far more than these 3 scenarios (which each
+ * mark/unmark at most one version) ever need. The cap-reached scenario is split into the sibling
+ * {@link KeepVersionsCountCapIT}, since the cap is a boot-time config snapshot for the WHOLE
+ * launched process, not settable per-method.
  *
  * <p><b>FINDING (carried over, confirmed dead code):</b> the missing-version error composition at
  * the end of {@code keepVersionsFetcher} filters {@code List<FileVersion>} against {@code
@@ -33,10 +33,10 @@ import org.junit.jupiter.api.Test;
  * a {@code GraphQLError}, so that filter's predicate is always {@code false} and the branch that
  * would emit a {@code fileVersionNotFound} for a missing/non-existent requested version can NEVER
  * execute. {@code fileVersionRepository.getFileVersions(nodeId, versions)} is a plain SQL {@code
- * WHERE node_id = ? AND version IN (...)} query, so a version number with no matching row is
- * simply absent from the result list, not represented by a null placeholder. The combined,
- * observable effect: requesting a version that doesn't exist produces NEITHER a data entry NOR
- * any error for it — it vanishes without a trace. Asserted below, not fixed (test-only task).
+ * WHERE node_id = ? AND version IN (...)} query, so a version number with no matching row is simply
+ * absent from the result list, not represented by a null placeholder. The combined, observable
+ * effect: requesting a version that doesn't exist produces NEITHER a data entry NOR any error for
+ * it — it vanishes without a trace. Asserted below, not fixed (test-only task).
  */
 class KeepVersionsApiIT extends AbstractFilesIT {
 
@@ -62,7 +62,8 @@ class KeepVersionsApiIT extends AbstractFilesIT {
   @SuppressWarnings("unchecked")
   private static List<Integer> keptVersions(Response response) {
     return (List<Integer>)
-        TestUtils.jsonResponseToValue(response.getBody().asString(), "keepVersions").orElse(List.of());
+        TestUtils.jsonResponseToValue(response.getBody().asString(), "keepVersions")
+            .orElse(List.of());
   }
 
   private static boolean keepForeverFlagOf(String nodeId, int version) {
@@ -86,7 +87,8 @@ class KeepVersionsApiIT extends AbstractFilesIT {
     // Given — v1 (non-current), v2 (current); no version is kept-forever yet
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
-    seedVersion(nodeId, "v2".getBytes(StandardCharsets.UTF_8), "file.txt", OWNER_COOKIE); // v2, current
+    seedVersion(
+        nodeId, "v2".getBytes(StandardCharsets.UTF_8), "file.txt", OWNER_COOKIE); // v2, current
 
     // When
     Response response = keepVersions(nodeId, true, 1);
@@ -106,7 +108,8 @@ class KeepVersionsApiIT extends AbstractFilesIT {
         seedFile("file.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
     seedVersion(nodeId, "v2".getBytes(StandardCharsets.UTF_8), "file.txt", OWNER_COOKIE); // v2
     keepVersions(nodeId, true, 2); // mark v2 keep-forever
-    seedVersion(nodeId, "v3".getBytes(StandardCharsets.UTF_8), "file.txt", OWNER_COOKIE); // v3, current
+    seedVersion(
+        nodeId, "v3".getBytes(StandardCharsets.UTF_8), "file.txt", OWNER_COOKIE); // v3, current
 
     // When — unmark v2 (keep_forever:false is never cap-checked, see keepVersionsFetcher's
     // `!keepForever || counter < cap` condition)

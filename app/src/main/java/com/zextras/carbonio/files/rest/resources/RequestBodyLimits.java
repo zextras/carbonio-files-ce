@@ -25,9 +25,9 @@ import java.util.Map;
  * rather than trusting the {@code Content-Length} header: {@code quarkus.http.limits.max-body-size}
  * is left blank on purpose (see {@code application.properties}) so large uploads can still stream,
  * meaning there is no framework-level fallback cap either, and a Content-Length-only check would be
- * bypassable by chunked transfer-encoding (the exact same bypass class as the missing-Content-Length
- * upload-size hole this same hardening pass restores — see {@code BlobResource
- * #isRequestSizeOverLimit}).
+ * bypassable by chunked transfer-encoding (the exact same bypass class as the
+ * missing-Content-Length upload-size hole this same hardening pass restores — see {@code
+ * BlobResource #isRequestSizeOverLimit}).
  */
 final class RequestBodyLimits {
 
@@ -63,10 +63,10 @@ final class RequestBodyLimits {
 
   /**
    * Minimal {@code application/x-www-form-urlencoded} decoder: splits on {@code &} then the first
-   * {@code =}, URL-decoding each key/value pair (UTF-8, {@code +} as space) exactly like {@code
-   * @FormParam} does. Used so the body-size bound above can be enforced on the raw bytes BEFORE
-   * any form parsing is attempted, in place of the framework's own {@code @FormParam} binding
-   * (which buffers the whole body itself, with no bound we control).
+   * {@code =}, URL-decoding each key/value pair (UTF-8, {@code +} as space) exactly like
+   * {@code @FormParam} does. Used so the body-size bound above can be enforced on the raw bytes
+   * BEFORE any form parsing is attempted, in place of the framework's own {@code @FormParam}
+   * binding (which buffers the whole body itself, with no bound we control).
    */
   static Map<String, String> parseFormUrlEncoded(String rawBody) {
     Map<String, String> fields = new HashMap<>();

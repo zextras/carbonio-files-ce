@@ -104,7 +104,11 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
     nodeIds.forEach(
         nodeId ->
             upsertShare(
-                nodeId, targetUserId, permissions, direct, createdViaCollaborationLink,
+                nodeId,
+                targetUserId,
+                permissions,
+                direct,
+                createdViaCollaborationLink,
                 expireTimestamp));
   }
 
@@ -129,7 +133,10 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
     // already managed in the current persistence context are correctly evicted; JPA bulk
     // statements bypass the first-level cache and would otherwise leave stale managed instances
     // behind for the rest of the transaction.
-    list("composedPrimaryKey.mNodeId in ?1 and composedPrimaryKey.mTargetUserId = ?2", nodeIds, targetUserId)
+    list(
+            "composedPrimaryKey.mNodeId in ?1 and composedPrimaryKey.mTargetUserId = ?2",
+            nodeIds,
+            targetUserId)
         .forEach(this::delete);
   }
 
@@ -141,7 +148,10 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
 
   @Override
   public List<Share> getShares(List<String> nodeIds, String targetUserId) {
-    return list("composedPrimaryKey.mNodeId in ?1 and composedPrimaryKey.mTargetUserId = ?2", nodeIds, targetUserId);
+    return list(
+        "composedPrimaryKey.mNodeId in ?1 and composedPrimaryKey.mTargetUserId = ?2",
+        nodeIds,
+        targetUserId);
   }
 
   @Override

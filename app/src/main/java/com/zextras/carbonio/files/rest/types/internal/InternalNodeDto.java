@@ -5,8 +5,9 @@
 package com.zextras.carbonio.files.rest.types.internal;
 
 /**
- * The trusted-caller REST representation of a {@link com.zextras.carbonio.files.dal.dao.ebean.Node},
- * returned by {@code GET /internal/accounts/{userId}/nodes/{nodeId}}.
+ * The trusted-caller REST representation of a {@link
+ * com.zextras.carbonio.files.dal.dao.ebean.Node}, returned by {@code GET
+ * /internal/accounts/{userId}/nodes/{nodeId}}.
  *
  * <p>{@code extension}/{@code mimeType}/{@code size}/{@code version} are {@code null} for folders
  * (and roots): only files carry a resolved {@link

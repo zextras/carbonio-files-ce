@@ -30,9 +30,9 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
-import com.zextras.carbonio.files.graphql.errors.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.datafetchers.NodeDataFetcher.NodeAccessException;
 import com.zextras.carbonio.files.graphql.datafetchers.NodeDataFetcher.NodeNotFoundException;
+import com.zextras.carbonio.files.graphql.errors.CopyFailureClassifier;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.filestore.api.Filestore;
 import java.util.Collections;
@@ -141,7 +141,17 @@ class NodeDataFetcherCreateFolderTest {
 
   private static Node folder(String id, String ownerId, String ancestorIds) {
     return new Node(
-        id, ownerId, ownerId, "root", 1L, 1L, "some-folder", null, NodeType.FOLDER, ancestorIds, 0L);
+        id,
+        ownerId,
+        ownerId,
+        "root",
+        1L,
+        1L,
+        "some-folder",
+        null,
+        NodeType.FOLDER,
+        ancestorIds,
+        0L);
   }
 
   private static Node root(String id) {
@@ -160,7 +170,8 @@ class NodeDataFetcherCreateFolderTest {
     when(nodeRepository.getNode(PARENT_ID)).thenReturn(Optional.of(parent));
 
     Node created =
-        nodeDataFetcher.createFolder(REQUESTER_ID, PARENT_ID, "New Folder", requester(REQUESTER_ID));
+        nodeDataFetcher.createFolder(
+            REQUESTER_ID, PARENT_ID, "New Folder", requester(REQUESTER_ID));
 
     assertThat(created.getNodeType()).isEqualTo(NodeType.FOLDER);
     assertThat(created.getOwnerId()).isEqualTo(REQUESTER_ID);
@@ -195,7 +206,8 @@ class NodeDataFetcherCreateFolderTest {
     when(filesConfig.areNotificationsEnabled()).thenReturn(true);
 
     Node created =
-        nodeDataFetcher.createFolder(REQUESTER_ID, PARENT_ID, "New Folder", requester(REQUESTER_ID));
+        nodeDataFetcher.createFolder(
+            REQUESTER_ID, PARENT_ID, "New Folder", requester(REQUESTER_ID));
 
     assertThat(created.getOwnerId()).isEqualTo(OTHER_USER_ID);
 
@@ -228,7 +240,8 @@ class NodeDataFetcherCreateFolderTest {
     when(nodeRepository.getNode(PARENT_ID)).thenReturn(Optional.of(rootParent));
 
     Node created =
-        nodeDataFetcher.createFolder(REQUESTER_ID, PARENT_ID, "New Folder", requester(REQUESTER_ID));
+        nodeDataFetcher.createFolder(
+            REQUESTER_ID, PARENT_ID, "New Folder", requester(REQUESTER_ID));
 
     assertThat(created.getOwnerId()).isEqualTo(REQUESTER_ID);
     assertThat(created.getAncestorIds()).isEqualTo(PARENT_ID);
@@ -337,7 +350,8 @@ class NodeDataFetcherCreateFolderTest {
 
     // Leading/trailing whitespace must also be trimmed before the collision search, exactly as
     // the original inline GraphQL logic did.
-    nodeDataFetcher.createFolder(REQUESTER_ID, PARENT_ID, "  New Folder  ", requester(REQUESTER_ID));
+    nodeDataFetcher.createFolder(
+        REQUESTER_ID, PARENT_ID, "  New Folder  ", requester(REQUESTER_ID));
 
     verify(nodeRepository)
         .createNewNode(

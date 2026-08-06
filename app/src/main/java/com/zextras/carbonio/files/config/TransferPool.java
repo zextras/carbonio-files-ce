@@ -19,12 +19,12 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Dedicated, bounded thread pool that runs the heavy REST byte-transfer work (single/ZIP blob
- * downloads and blob uploads) OFF the Vert.x event loop and OFF the shared Quarkus worker pool, so a
- * burst of large transfers cannot starve the rest of the service.
+ * downloads and blob uploads) OFF the Vert.x event loop and OFF the shared Quarkus worker pool, so
+ * a burst of large transfers cannot starve the rest of the service.
  *
  * <p>The pool is sized from Consul KV (overridable at {@code carbonio-files/transfer/max-threads}
- * and {@code carbonio-files/transfer/queue-size}, surfaced by the bootstrap extension as the
- * {@code application-config.transfer.*} MicroProfile properties). It is a fixed-size {@link
+ * and {@code carbonio-files/transfer/queue-size}, surfaced by the bootstrap extension as the {@code
+ * application-config.transfer.*} MicroProfile properties). It is a fixed-size {@link
  * ThreadPoolExecutor} (core == max) fronted by a bounded {@link ArrayBlockingQueue}; when both the
  * threads and the queue are saturated the {@link ThreadPoolExecutor.AbortPolicy} rejects new work
  * (surfacing as a {@link java.util.concurrent.RejectedExecutionException} that the transfer helpers
@@ -48,7 +48,8 @@ public class TransferPool {
     AtomicLong counter = new AtomicLong();
     ThreadFactory threadFactory =
         runnable -> {
-          Thread thread = new Thread(runnable, "carbonio-files-transfer-" + counter.incrementAndGet());
+          Thread thread =
+              new Thread(runnable, "carbonio-files-transfer-" + counter.incrementAndGet());
           thread.setDaemon(true);
           return thread;
         };

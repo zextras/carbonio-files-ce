@@ -8,11 +8,6 @@ import static com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER;
 import static com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT;
 
 import com.zextras.carbonio.files.Constants;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -22,14 +17,19 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
- * Represents an Ebean {@link Node} entity that matches a record of the {@link Constants.Db.Tables#NODE}
- * table.
+ * Represents an Ebean {@link Node} entity that matches a record of the {@link
+ * Constants.Db.Tables#NODE} table.
  *
- * <p>The implementation of the constructor and setters should not care to check if the values in input
- * are valid or not because, when these methods are called, these controls <strong>must</strong> be
- * already done.
+ * <p>The implementation of the constructor and setters should not care to check if the values in
+ * input are valid or not because, when these methods are called, these controls
+ * <strong>must</strong> be already done.
  */
 @Entity
 @Table(name = Constants.Db.Tables.NODE)

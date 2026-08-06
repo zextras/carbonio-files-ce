@@ -7,9 +7,7 @@ package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 
-/**
- * Represents all the applicable sort types in a list of {@link FileVersion}s.
- */
+/** Represents all the applicable sort types in a list of {@link FileVersion}s. */
 public enum FileVersionSort implements GenericSort {
   VERSION_ASC {
     @Override

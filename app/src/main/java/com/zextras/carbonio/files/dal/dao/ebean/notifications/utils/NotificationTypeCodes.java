@@ -5,8 +5,8 @@
 package com.zextras.carbonio.files.dal.dao.ebean.notifications.utils;
 
 /**
- * The on-disk {@code notification.notification_type} string codes. These are the exact former {@code
- * NotificationType} enum names, so replacing the closed enum with an open {@link
+ * The on-disk {@code notification.notification_type} string codes. These are the exact former
+ * {@code NotificationType} enum names, so replacing the closed enum with an open {@link
  * NotificationTypeDescriptor} registry leaves the persisted column value unchanged (no data
  * migration). The values are compile-time constants so they can be used as {@code switch} case
  * labels.

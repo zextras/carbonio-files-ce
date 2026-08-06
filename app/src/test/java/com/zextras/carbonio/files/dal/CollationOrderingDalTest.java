@@ -23,28 +23,27 @@ import org.junit.jupiter.api.Test;
 /**
  * RED/GREEN proof that {@code NodeRepositoryImpl}'s {@code NAME_ASC}/{@code NAME_DESC} ordering
  * actually applies the database collation {@link
- * com.zextras.carbonio.files.dal.repositories.impl.CollationRepositoryImpl} resolves, restoring
- * the feature the Quarkus rewrite silently dropped when it deleted {@code CollationRepositoryImpl}
- * as (apparently) dead code.
+ * com.zextras.carbonio.files.dal.repositories.impl.CollationRepositoryImpl} resolves, restoring the
+ * feature the Quarkus rewrite silently dropped when it deleted {@code CollationRepositoryImpl} as
+ * (apparently) dead code.
  *
  * <p><b>Why this needs its own {@link CLocalePostgresTestResource}, not the shared {@code
  * FilesStackTestResource}:</b> the shared Testcontainer's database defaults to {@code
  * datcollate=en_US.utf8} (the official {@code postgres:16} image's own default), so {@code
  * CollationRepositoryImpl}'s {@code C}-detection branch never fires there and an explicit {@code
- * COLLATE "en_US.utf8"} would be a no-op — the exact "container's own default collation may
- * already mask the difference" trap. {@link CLocalePostgresTestResource} instead forces {@code
+ * COLLATE "en_US.utf8"} would be a no-op — the exact "container's own default collation may already
+ * mask the difference" trap. {@link CLocalePostgresTestResource} instead forces {@code
  * datcollate=C}, the one environment this feature exists for, so the fix's effect is observable.
  *
  * <p><b>Why these particular fixture names:</b> under the {@code C} collation Postgres falls back
  * to when nothing else is specified, string ordering is plain byte/codepoint order: {@code 'A'}
  * (0x41) &lt; {@code 'Z'} (0x5A) &lt; {@code 'a'} (0x61) &lt; the multi-byte UTF-8 encoding of
  * {@code 'Ä'} (0xC3 0x84) — giving {@code Apple, Zebra, apple, Ähnlich}. Under {@code en_US.utf8},
- * a locale-aware collation, case and diacritics are folded near their base letter instead —
- * giving {@code Ähnlich, apple, Apple, Zebra} (confirmed empirically against a real {@code
- * postgres:16} container with {@code datcollate=C}: see this task's report). Every ASCII-only
- * fixture (as {@code FindNodesApiIT}'s {@code NAME_ASC}/{@code NAME_DESC} cases are) sorts
- * IDENTICALLY under both collations, which is exactly why the existing suite never caught the
- * regression.
+ * a locale-aware collation, case and diacritics are folded near their base letter instead — giving
+ * {@code Ähnlich, apple, Apple, Zebra} (confirmed empirically against a real {@code postgres:16}
+ * container with {@code datcollate=C}: see this task's report). Every ASCII-only fixture (as {@code
+ * FindNodesApiIT}'s {@code NAME_ASC}/{@code NAME_DESC} cases are) sorts IDENTICALLY under both
+ * collations, which is exactly why the existing suite never caught the regression.
  */
 @QuarkusTest
 @QuarkusTestResource(value = CLocalePostgresTestResource.class, restrictToAnnotatedClass = true)
@@ -62,7 +61,16 @@ class CollationOrderingDalTest {
     long now = System.currentTimeMillis();
     Node node =
         new Node(
-            nodeId, owner, owner, "LOCAL_ROOT", now, now, name, "", NodeType.TEXT, "LOCAL_ROOT",
+            nodeId,
+            owner,
+            owner,
+            "LOCAL_ROOT",
+            now,
+            now,
+            name,
+            "",
+            NodeType.TEXT,
+            "LOCAL_ROOT",
             0L);
     entityManager.persist(node);
     return nodeId;
@@ -81,7 +89,8 @@ class CollationOrderingDalTest {
 
     List<String> namesInOrder =
         nodeRepository
-            .getNodes(List.of(zebra, umlaut, upperApple, lowerApple), Optional.of(NodeSort.NAME_ASC))
+            .getNodes(
+                List.of(zebra, umlaut, upperApple, lowerApple), Optional.of(NodeSort.NAME_ASC))
             .map(Node::getFullName)
             .toList();
 

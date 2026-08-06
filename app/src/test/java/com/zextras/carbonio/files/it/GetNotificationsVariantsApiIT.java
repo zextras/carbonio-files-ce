@@ -20,19 +20,19 @@ import org.junit.jupiter.api.Test;
 /**
  * {@code com.zextras.carbonio.files.acceptance.GetNotificationsVariantsApiIT} rewritten as an
  * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: direct coverage of
- * {@code getNotifications} itself (as opposed to the other notification ITs, which only assert
- * that a notification was created as a side effect of some other mutation). All 5 methods and
- * their assertions are preserved verbatim; only the seeding (API calls capturing server-generated
- * ids) and transport changed.
+ * {@code getNotifications} itself (as opposed to the other notification ITs, which only assert that
+ * a notification was created as a side effect of some other mutation). All 5 methods and their
+ * assertions are preserved verbatim; only the seeding (API calls capturing server-generated ids)
+ * and transport changed.
  *
  * <p><b>FINDING (carried over):</b> {@code NotificationDataFetcher#getNotificationsFetcher} has no
  * permission concept (the query is entirely scoped to the requester's own notifications), no bound
  * schema validator, and treats an invalid/unknown {@code page_token} as a silent empty-page
  * fallback rather than an error ({@code NotificationRepositoryEbean#doFind} falls back to an empty
- * notification id list when the token's {@code UserNotificationInterest} row is absent). This
- * class pins the real reachable "variant" behaviour instead: first-time-user fallback, the {@code
- * update_last_seen} unread/last_seen side effects (including the not-entirely-obvious fact that
- * the CURRENT call's response reports the counters as they were BEFORE this call's own reset),
+ * notification id list when the token's {@code UserNotificationInterest} row is absent). This class
+ * pins the real reachable "variant" behaviour instead: first-time-user fallback, the {@code
+ * update_last_seen} unread/last_seen side effects (including the not-entirely-obvious fact that the
+ * CURRENT call's response reports the counters as they were BEFORE this call's own reset),
  * pagination via {@code page_token} (including the exactly-at-the-limit case), and the
  * silently-empty garbage-token case above.
  */
@@ -52,10 +52,14 @@ class GetNotificationsVariantsApiIT extends AbstractFilesIT {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token-c", FRESH_USER_ID);
   }
 
-  /** Shares a fresh node from {@code SHARER_ID} to {@code RECEIVER_ID}, creating one NewShare notification. */
+  /**
+   * Shares a fresh node from {@code SHARER_ID} to {@code RECEIVER_ID}, creating one NewShare
+   * notification.
+   */
   private static void shareANewNodeWithReceiver() {
     String nodeId =
-        seedFile("shared.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), SHARER_COOKIE);
+        seedFile(
+            "shared.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), SHARER_COOKIE);
     seedShare(nodeId, RECEIVER_ID, ACL.SharePermission.READ_ONLY, SHARER_COOKIE);
   }
 
@@ -85,7 +89,8 @@ class GetNotificationsVariantsApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAUserWithNoPriorNotificationsInfoGetNotificationsFallsBackToZeroUnreadAndZeroLastSeen() {
+  void
+      givenAUserWithNoPriorNotificationsInfoGetNotificationsFallsBackToZeroUnreadAndZeroLastSeen() {
     // When — FRESH_USER_ID has never received a notification and has no UserNotificationsInfo row
     Map<String, Object> page = getNotifications(false, null, null, FRESH_USER_COOKIE);
 
@@ -157,7 +162,8 @@ class GetNotificationsVariantsApiIT extends AbstractFilesIT {
 
     // and no notification id is repeated across the two pages
     List<String> firstIds = firstPageNotifications.stream().map(n -> (String) n.get("id")).toList();
-    List<String> secondIds = secondPageNotifications.stream().map(n -> (String) n.get("id")).toList();
+    List<String> secondIds =
+        secondPageNotifications.stream().map(n -> (String) n.get("id")).toList();
     Assertions.assertThat(firstIds).doesNotContainAnyElementsOf(secondIds);
   }
 

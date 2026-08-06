@@ -18,32 +18,32 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@code com.zextras.carbonio.files.acceptance.PublicFindNodesApiIT} rewritten as an
- * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. All 12 methods and
- * their assertions are preserved verbatim; only the seeding mechanism (real {@code
- * seedFolder}/{@code seedFile}/{@code createLink} API, capturing server-generated ids — {@link
- * #createFolderTree} returns them as an array so id AND name assertions both stay literal) and the
- * transport ({@link #publicFindNodes} posts unauthenticated via {@link #publicGraphql}) changed.
+ * {@code com.zextras.carbonio.files.acceptance.PublicFindNodesApiIT} rewritten as an out-of-process
+ * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. All 12 methods and their assertions
+ * are preserved verbatim; only the seeding mechanism (real {@code seedFolder}/{@code
+ * seedFile}/{@code createLink} API, capturing server-generated ids — {@link #createFolderTree}
+ * returns them as an array so id AND name assertions both stay literal) and the transport ({@link
+ * #publicFindNodes} posts unauthenticated via {@link #publicGraphql}) changed.
  *
  * <p><b>The forged page-token's embedded {@code folderId} is a fixed, unrelated literal by
  * design.</b> {@link #forgeTamperedPageTokenMissingSignature()}/{@link
  * #forgeTamperedPageTokenWithWrongSignature(String)} always embed the SAME hard-coded {@code
  * "77777777-7777-7777-7777-777777777777"} (ported verbatim from the deleted seam's {@code
- * QuarkusTestDataAccess}) regardless of what real data exists — this legacy {@code PageQuery}-shaped
- * JSON (keySet/signature fields foreign to the port's actual {@code PageToken}) fails to
- * Jackson-deserialize at all, so the server rejects it as MALFORMED before that embedded value —
- * or any signature — is ever consulted. The two tampered-token tests still seed a small decoy "not
- * public folder" tree for scenario fidelity (an unrelated, non-public folder a hacker might try to
- * pivot into), even though it is not required for the assertion to hold. For tests that exercise
- * the REAL signature/scope/limit enforcement with tokens in the port's actual shape, see {@code
- * PageTokenAuthorizationApiIT}.
+ * QuarkusTestDataAccess}) regardless of what real data exists — this legacy {@code
+ * PageQuery}-shaped JSON (keySet/signature fields foreign to the port's actual {@code PageToken})
+ * fails to Jackson-deserialize at all, so the server rejects it as MALFORMED before that embedded
+ * value — or any signature — is ever consulted. The two tampered-token tests still seed a small
+ * decoy "not public folder" tree for scenario fidelity (an unrelated, non-public folder a hacker
+ * might try to pivot into), even though it is not required for the assertion to hold. For tests
+ * that exercise the REAL signature/scope/limit enforcement with tokens in the port's actual shape,
+ * see {@code PageTokenAuthorizationApiIT}.
  *
  * <p><b>Access codes must satisfy the schema's 10-254 char bound.</b> {@code createLink}'s {@code
  * access_code} argument is validated ({@code schema.graphql}: "must be equal or longer than 10 and
  * shorter than 255 characters"); the original's in-JVM backdoor bypassed this, so the access code
- * used here ({@code "fakeaccesscode"}) is a compliant-length replacement for the original's
- * shorter {@code "fakecode"} literal — same scenario intent (a link protected by an access code),
- * just a real-API-creatable value.
+ * used here ({@code "fakeaccesscode"}) is a compliant-length replacement for the original's shorter
+ * {@code "fakecode"} literal — same scenario intent (a link protected by an access code), just a
+ * real-API-creatable value.
  */
 class PublicFindNodesApiIT extends AbstractFilesIT {
 
@@ -57,9 +57,9 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
   }
 
   /**
-   * Seeds a "public folder" containing one child folder and four child files, named so the
-   * default (category then alphabetical) sort order matches the original fixture's expectations.
-   * Returns the captured ids as {@code [publicFolderId, folderChildId, file2Id, file3Id, file4Id,
+   * Seeds a "public folder" containing one child folder and four child files, named so the default
+   * (category then alphabetical) sort order matches the original fixture's expectations. Returns
+   * the captured ids as {@code [publicFolderId, folderChildId, file2Id, file3Id, file4Id,
    * file5Id]}.
    */
   private String[] createFolderTree(String ownerCookie) {
@@ -73,8 +73,12 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     return new String[] {publicFolderId, folderChildId, file2Id, file3Id, file4Id, file5Id};
   }
 
-  /** Creates a link via the real mutation and returns its {@code public_id} (last 50 chars of the url). */
-  private String createLink(String nodeId, Integer expiresAt, String accessCode, String ownerCookie) {
+  /**
+   * Creates a link via the real mutation and returns its {@code public_id} (last 50 chars of the
+   * url).
+   */
+  private String createLink(
+      String nodeId, Integer expiresAt, String accessCode, String ownerCookie) {
     GraphqlCommandBuilder builder =
         GraphqlCommandBuilder.aMutationBuilder("createLink").withString("node_id", nodeId);
     if (expiresAt != null) {
@@ -87,7 +91,8 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     Response response = graphql(bodyPayload, ownerCookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     String url =
-        (String) TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
+        (String)
+            TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
     return url.substring(url.length() - 50);
   }
 
@@ -109,15 +114,17 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     if (pageToken != null) {
       builder = builder.withString("page_token", pageToken);
     }
-    String bodyPayload = builder.withWantedResultFormat("{ nodes { id name }, page_token }").build();
+    String bodyPayload =
+        builder.withWantedResultFormat("{ nodes { id name }, page_token }").build();
     return publicGraphql(bodyPayload);
   }
 
   @DisplayName(
       """
-    Given an existing folder with five nodes inside, a valid public link associated, a limit of
-    three elements per page: the findNodes should return the first page containing three nodes
-    ordered by category and alphabetically and the page_token for the next page""")
+      Given an existing folder with five nodes inside, a valid public link associated, a limit of
+      three elements per page: the findNodes should return the first page containing three nodes
+      ordered by category and alphabetically and the page_token for the next page\
+      """)
   @Test
   void givenAnExistingFolderAndAValidPublicLinkTheFindNodesShouldReturnTheFirstPage() {
     // Given
@@ -129,22 +136,30 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
     Assertions.assertThat(page.get("page_token")).isNotNull();
 
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
     Assertions.assertThat(nodes).hasSize(3);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", tree[1]).containsEntry("name", "folder child");
-    Assertions.assertThat(nodes.get(1)).containsEntry("id", tree[2]).containsEntry("name", "file child id 2");
-    Assertions.assertThat(nodes.get(2)).containsEntry("id", tree[3]).containsEntry("name", "file child id 3");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", tree[1])
+        .containsEntry("name", "folder child");
+    Assertions.assertThat(nodes.get(1))
+        .containsEntry("id", tree[2])
+        .containsEntry("name", "file child id 2");
+    Assertions.assertThat(nodes.get(2))
+        .containsEntry("id", tree[3])
+        .containsEntry("name", "file child id 3");
   }
 
   @DisplayName(
       """
-    Given an existing folder with five nodes inside, a valid public link associated, a limit of
-    three elements per page and a page token for the second page: the findNodes should return the
-    second page containing two nodes and a null page_token""")
+      Given an existing folder with five nodes inside, a valid public link associated, a limit of
+      three elements per page and a page token for the second page: the findNodes should return the
+      second page containing two nodes and a null page_token\
+      """)
   @Test
   void givenAnExistingFolderAndAValidLinkTheFindNodesShouldReturnTheSecondPage() {
     // Given
@@ -156,28 +171,35 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     Assertions.assertThat(firstResponse.getStatusCode()).isEqualTo(200);
     String pageToken =
         (String)
-            TestUtils.jsonResponseToMap(firstResponse.getBody().asString(), "findNodes").get("page_token");
+            TestUtils.jsonResponseToMap(firstResponse.getBody().asString(), "findNodes")
+                .get("page_token");
     // End request first page of the folder content
 
     // When
     Response response = publicFindNodes(tree[0], 3, publicId, null, pageToken);
 
     // Then
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
     Assertions.assertThat(page.get("page_token")).isNull();
 
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
     Assertions.assertThat(nodes).hasSize(2);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", tree[4]).containsEntry("name", "file child id 4");
-    Assertions.assertThat(nodes.get(1)).containsEntry("id", tree[5]).containsEntry("name", "file child id 5");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", tree[4])
+        .containsEntry("name", "file child id 4");
+    Assertions.assertThat(nodes.get(1))
+        .containsEntry("id", tree[5])
+        .containsEntry("name", "file child id 5");
   }
 
   @DisplayName(
       """
-    Given an existing folder with five nodes inside, a valid public link associated, a limit of
-    six elements per page: the findNodes should return the first page containing five nodes ordered
-    by category and alphabetically and a null page_token since there is no more pages to fetch""")
+      Given an existing folder with five nodes inside, a valid public link associated, a limit of
+      six elements per page: the findNodes should return the first page containing five nodes ordered
+      by category and alphabetically and a null page_token since there is no more pages to fetch\
+      """)
   @Test
   void givenAnExistingFolderAndAValidPublicLinkTheFindNodesShouldReturnTheOnlyPageExisting() {
     // Given
@@ -189,23 +211,35 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
     Assertions.assertThat(page.get("page_token")).isNull();
 
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
     Assertions.assertThat(nodes).hasSize(5);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", tree[1]).containsEntry("name", "folder child");
-    Assertions.assertThat(nodes.get(1)).containsEntry("id", tree[2]).containsEntry("name", "file child id 2");
-    Assertions.assertThat(nodes.get(2)).containsEntry("id", tree[3]).containsEntry("name", "file child id 3");
-    Assertions.assertThat(nodes.get(3)).containsEntry("id", tree[4]).containsEntry("name", "file child id 4");
-    Assertions.assertThat(nodes.get(4)).containsEntry("id", tree[5]).containsEntry("name", "file child id 5");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", tree[1])
+        .containsEntry("name", "folder child");
+    Assertions.assertThat(nodes.get(1))
+        .containsEntry("id", tree[2])
+        .containsEntry("name", "file child id 2");
+    Assertions.assertThat(nodes.get(2))
+        .containsEntry("id", tree[3])
+        .containsEntry("name", "file child id 3");
+    Assertions.assertThat(nodes.get(3))
+        .containsEntry("id", tree[4])
+        .containsEntry("name", "file child id 4");
+    Assertions.assertThat(nodes.get(4))
+        .containsEntry("id", tree[5])
+        .containsEntry("name", "file child id 5");
   }
 
   @DisplayName(
       """
-    Given an existing folder without nodes inside, a valid public link associated: the findNodes
-    should return an empty first page and a null page_token""")
+      Given an existing folder without nodes inside, a valid public link associated: the findNodes
+      should return an empty first page and a null page_token\
+      """)
   @Test
   void givenAnExistingEmptyFolderAndAValidPublicLinkTheFindNodesShouldReturnAnEmptyFirstPage() {
     // Given
@@ -217,7 +251,8 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
     Assertions.assertThat(page.get("page_token")).isNull();
 
     @SuppressWarnings("unchecked")
@@ -227,10 +262,12 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
 
   @DisplayName(
       """
-    Given an existing folder without nodes inside, a valid public link associated: the findNodes
-    should return an empty first page and a null page_token""")
+      Given an existing folder without nodes inside, a valid public link associated: the findNodes
+      should return an empty first page and a null page_token\
+      """)
   @Test
-  void givenAnExistingFolderAndAnExpiredPublicLinkTheFindNodesShouldReturn200CodeAndAnErrorMessage() {
+  void
+      givenAnExistingFolderAndAnExpiredPublicLinkTheFindNodesShouldReturn200CodeAndAnErrorMessage() {
     // Given — expires_at is a raw millis passthrough; 1 is already in the past
     String folderId = seedFolder("public folder", LOCAL_ROOT, OWNER_COOKIE);
     String publicId = createLink(folderId, 1, null, OWNER_COOKIE);
@@ -241,15 +278,19 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1).containsExactly("Could not find node with id " + folderId);
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Could not find node with id " + folderId);
   }
 
   @DisplayName(
       """
-    Given an existing folder with five nodes inside, a not existing public link associated: the
-    findNodes should return 200 status code and an error message""")
+      Given an existing folder with five nodes inside, a not existing public link associated: the
+      findNodes should return 200 status code and an error message\
+      """)
   @Test
-  void givenAnExistingFolderAndANotExistingPublicLinkTheFindNodesShouldReturnAn200StatusWithAnErrorMessage() {
+  void
+      givenAnExistingFolderAndANotExistingPublicLinkTheFindNodesShouldReturnAn200StatusWithAnErrorMessage() {
     // Given
     String[] tree = createFolderTree(OWNER_COOKIE);
 
@@ -261,7 +302,9 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1).containsExactly("Could not find node with id " + tree[0]);
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Could not find node with id " + tree[0]);
   }
 
   @Test
@@ -288,9 +331,10 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
 
   @DisplayName(
       """
-    Given an existing folder with five nodes inside, a valid public link associated, another folder
-    not public and an hacked page token that is formed to try access a private node: the findNodes
-    should return an empty page""")
+      Given an existing folder with five nodes inside, a valid public link associated, another folder
+      not public and an hacked page token that is formed to try access a private node: the findNodes
+      should return an empty page\
+      """)
   @Test
   void givenAnHackedPageTokenWithoutSignatureTheFindNodesShouldReturnAnError() {
     // Given
@@ -345,7 +389,8 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAnExistingFolderAndAValidPublicLinkNotPassedInQueryTheFindNodesShouldReturn200AndAnErrorCode() {
+  void
+      givenAnExistingFolderAndAValidPublicLinkNotPassedInQueryTheFindNodesShouldReturn200AndAnErrorCode() {
     // Given
     String[] tree = createFolderTree(OWNER_COOKIE);
     createLink(tree[0], null, null, OWNER_COOKIE);
@@ -356,7 +401,9 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1).containsExactly("Could not find node with id " + tree[0]);
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Could not find node with id " + tree[0]);
   }
 
   @Test
@@ -390,14 +437,21 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
     Assertions.assertThat(page.get("page_token")).isNotNull();
 
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
     Assertions.assertThat(nodes).hasSize(3);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", tree[1]).containsEntry("name", "folder child");
-    Assertions.assertThat(nodes.get(1)).containsEntry("id", tree[2]).containsEntry("name", "file child id 2");
-    Assertions.assertThat(nodes.get(2)).containsEntry("id", tree[3]).containsEntry("name", "file child id 3");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", tree[1])
+        .containsEntry("name", "folder child");
+    Assertions.assertThat(nodes.get(1))
+        .containsEntry("id", tree[2])
+        .containsEntry("name", "file child id 2");
+    Assertions.assertThat(nodes.get(2))
+        .containsEntry("id", tree[3])
+        .containsEntry("name", "file child id 3");
   }
 }

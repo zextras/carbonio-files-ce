@@ -19,8 +19,8 @@ import org.junit.jupiter.api.Test;
 /**
  * {@code com.zextras.carbonio.files.acceptance.FlagNodesApiIT} rewritten as an out-of-process
  * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. All 4 methods and their assertions
- * are preserved verbatim; only the seeding mechanism (API calls capturing server-generated ids)
- * and transport changed.
+ * are preserved verbatim; only the seeding mechanism (API calls capturing server-generated ids) and
+ * transport changed.
  */
 class FlagNodesApiIT extends AbstractFilesIT {
 
@@ -49,14 +49,16 @@ class FlagNodesApiIT extends AbstractFilesIT {
   void givenANodeFlagNodesShouldFlagIt() {
     // Given
     String nodeId =
-        seedFile("aFile.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "aFile.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     Response response = flagNodes(new String[] {nodeId}, REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "flagNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "flagNodes");
     List<String> nodes = (List<String>) page.get("data");
 
     Assertions.assertThat(nodes).hasSize(1);
@@ -76,14 +78,16 @@ class FlagNodesApiIT extends AbstractFilesIT {
     List<String> errorResponse = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errorResponse)
         .hasSize(1)
-        .containsExactly("There was a problem while executing requested operation on node: " + nonExistentId);
+        .containsExactly(
+            "There was a problem while executing requested operation on node: " + nonExistentId);
   }
 
   @Test
   void givenANodeAndAUserWithoutPermissionsFlagNodesShouldReturn200WithAnErrorMessage() {
     // Given — node owned by a DIFFERENT user, never shared with the requester
     String nodeId =
-        seedFile("notMine.txt", LOCAL_ROOT, "notmine".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+        seedFile(
+            "notMine.txt", LOCAL_ROOT, "notmine".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
 
     // When
     Response response = flagNodes(new String[] {nodeId}, REQUESTER_COOKIE);
@@ -93,14 +97,16 @@ class FlagNodesApiIT extends AbstractFilesIT {
     List<String> errorResponse = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errorResponse)
         .hasSize(1)
-        .containsExactly("There was a problem while executing requested operation on node: " + nodeId);
+        .containsExactly(
+            "There was a problem while executing requested operation on node: " + nodeId);
   }
 
   @Test
   void givenTwoNodesWithOneNotExistingNodeFlagNodesShouldReturn200WithAnErrorMessage() {
     // Given
     String nodeId =
-        seedFile("aFile.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "aFile.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String nonExistentId = "00000000-0000-0000-0000-000000000004";
 
     // When
@@ -111,6 +117,7 @@ class FlagNodesApiIT extends AbstractFilesIT {
     List<String> errorResponse = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errorResponse)
         .hasSize(1)
-        .containsExactly("There was a problem while executing requested operation on node: " + nonExistentId);
+        .containsExactly(
+            "There was a problem while executing requested operation on node: " + nonExistentId);
   }
 }

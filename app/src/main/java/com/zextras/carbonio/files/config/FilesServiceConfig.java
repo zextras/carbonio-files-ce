@@ -63,20 +63,17 @@ public final class FilesServiceConfig implements CarbonioServiceConfig {
 
     /** Consul KV path: carbonio-files/max-number-of-versions */
     @ConfigKey(
-        description = "Max number of kept versions for a file (see also max-number-of-keep-versions)",
+        description =
+            "Max number of kept versions for a file (see also max-number-of-keep-versions)",
         ifNotPresent = "30")
     public static final String MAX_NUMBER_OF_VERSIONS = "max-number-of-versions";
 
     /** Consul KV path: carbonio-files/max-uploadable-size-in-mb */
-    @ConfigKey(
-        description = "Max uploadable file size in MB",
-        ifNotPresent = "no limit")
+    @ConfigKey(description = "Max uploadable file size in MB", ifNotPresent = "no limit")
     public static final String MAX_UPLOADABLE_SIZE_IN_MB = "max-uploadable-size-in-mb";
 
     /** Consul KV path: carbonio-files/max-downloadable-size-in-mb */
-    @ConfigKey(
-        description = "Max downloadable file size in MB",
-        ifNotPresent = "no limit")
+    @ConfigKey(description = "Max downloadable file size in MB", ifNotPresent = "no limit")
     public static final String MAX_DOWNLOADABLE_SIZE_IN_MB = "max-downloadable-size-in-mb";
   }
 }

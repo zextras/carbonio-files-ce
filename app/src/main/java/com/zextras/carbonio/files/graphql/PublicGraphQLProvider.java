@@ -6,10 +6,6 @@ package com.zextras.carbonio.files.graphql;
 
 import static graphql.schema.idl.TypeRuntimeWiring.newTypeWiring;
 
-import jakarta.inject.Inject;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Any;
-import jakarta.enterprise.inject.Instance;
 import com.zextras.carbonio.files.Constants.GraphQL.NodePage;
 import com.zextras.carbonio.files.Constants.GraphQL.Queries;
 import com.zextras.carbonio.files.Constants.GraphQL.Types;
@@ -23,6 +19,10 @@ import graphql.schema.idl.RuntimeWiring;
 import graphql.schema.idl.SchemaGenerator;
 import graphql.schema.idl.SchemaParser;
 import graphql.schema.idl.TypeDefinitionRegistry;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Any;
+import jakarta.enterprise.inject.Instance;
+import jakarta.inject.Inject;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -91,21 +91,23 @@ public class PublicGraphQLProvider {
    * @return a {@link RuntimeWiring} instance.
    */
   private RuntimeWiring buildWiring() {
-    RuntimeWiring.Builder builder = RuntimeWiring.newRuntimeWiring()
-        .scalar(new DateTimeScalar().graphQLScalarType())
-        .type(
-            newTypeWiring(Types.NODE_TYPE).enumValues(publicNodeDataFetchers.getNodeTypeResolver()))
-        .type(
-            newTypeWiring(Types.NODE_INTERFACE)
-                .typeResolver(publicNodeDataFetchers.getNodeInterfaceResolver()))
-        .type(
-            newTypeWiring(Types.NODE_PAGE)
-                .dataFetcher(NodePage.NODES, publicNodeDataFetchers.findNodesByNodePage()))
-        .type(
-            newTypeWiring("Query")
-                .dataFetcher(
-                    Queries.GET_PUBLIC_NODE, publicNodeDataFetchers.getNodeByPublicLinkId())
-                .dataFetcher(Queries.FIND_NODES, publicNodeDataFetchers.findNodes()));
+    RuntimeWiring.Builder builder =
+        RuntimeWiring.newRuntimeWiring()
+            .scalar(new DateTimeScalar().graphQLScalarType())
+            .type(
+                newTypeWiring(Types.NODE_TYPE)
+                    .enumValues(publicNodeDataFetchers.getNodeTypeResolver()))
+            .type(
+                newTypeWiring(Types.NODE_INTERFACE)
+                    .typeResolver(publicNodeDataFetchers.getNodeInterfaceResolver()))
+            .type(
+                newTypeWiring(Types.NODE_PAGE)
+                    .dataFetcher(NodePage.NODES, publicNodeDataFetchers.findNodesByNodePage()))
+            .type(
+                newTypeWiring("Query")
+                    .dataFetcher(
+                        Queries.GET_PUBLIC_NODE, publicNodeDataFetchers.getNodeByPublicLinkId())
+                    .dataFetcher(Queries.FIND_NODES, publicNodeDataFetchers.findNodes()));
 
     // P9 CE seam: apply Advanced-contributed wiring AFTER all of CE's base wiring, scoped to the
     // public schema only. No-op in CE.
@@ -140,8 +142,8 @@ public class PublicGraphQLProvider {
     TypeDefinitionRegistry typeRegistry = new SchemaParser().parse(schema);
     schemaContributors.stream()
         .filter(GraphQLSchemaContributor::appliesToPublicSchema)
-        .forEach(contributor ->
-            typeRegistry.merge(new SchemaParser().parse(contributor.schemaSdl())));
+        .forEach(
+            contributor -> typeRegistry.merge(new SchemaParser().parse(contributor.schemaSdl())));
 
     // Create the GraphQLSchema object
     return new SchemaGenerator().makeExecutableSchema(typeRegistry, wiring);

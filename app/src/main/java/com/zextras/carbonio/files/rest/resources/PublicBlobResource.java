@@ -45,12 +45,12 @@ import java.util.Optional;
  * solely by a valid, non-expired public link (plus an optional access code); permission enforcement
  * is delegated to {@link BlobService}, which validates the link against each node.
  *
- * <p>Served at ROOT (no {@code quarkus.rest.path}). The download endpoints are {@code @Blocking} and
- * return a Mutiny {@code Uni}: link/permission resolution and opening the storages stream / ZIP plan
- * run in the method body on a worker thread (so a 404, or the access-code redirect, is produced
- * before any byte is written), then only the blob/ZIP byte pump is offloaded to the dedicated {@link
- * TransferPool} (see {@link TransferStreaming}). The {@code .../check} endpoints stay plain {@code
- * @Blocking} on the default worker pool.
+ * <p>Served at ROOT (no {@code quarkus.rest.path}). The download endpoints are {@code @Blocking}
+ * and return a Mutiny {@code Uni}: link/permission resolution and opening the storages stream / ZIP
+ * plan run in the method body on a worker thread (so a 404, or the access-code redirect, is
+ * produced before any byte is written), then only the blob/ZIP byte pump is offloaded to the
+ * dedicated {@link TransferPool} (see {@link TransferStreaming}). The {@code .../check} endpoints
+ * stay plain {@code @Blocking} on the default worker pool.
  */
 @Path("/")
 @ApplicationScoped
@@ -95,7 +95,8 @@ public class PublicBlobResource {
       // Location header value VERBATIM (a relative path). Response.temporaryRedirect(URI)/
       // .location(URI) instead resolve a non-absolute URI against the request's base URI,
       // producing an absolute Location -- use a raw header() to keep it relative. Thrown as a
-      // WebApplicationException so BlobExceptionMapper passes the redirect response through verbatim
+      // WebApplicationException so BlobExceptionMapper passes the redirect response through
+      // verbatim
       // (this method now returns Uni<Void>, streaming directly to the Vert.x response otherwise).
       throw new WebApplicationException(
           Response.status(Response.Status.TEMPORARY_REDIRECT)
@@ -157,7 +158,8 @@ public class PublicBlobResource {
   @Path("/public/download-multiple")
   @Blocking
   @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
-  public Uni<Void> downloadPublicMultiple(InputStream requestBody, @Context HttpServerResponse resp) {
+  public Uni<Void> downloadPublicMultiple(
+      InputStream requestBody, @Context HttpServerResponse resp) {
     // Legacy parity: restores the 1MB HttpObjectAggregator cap (see RequestBodyLimits) dropped by
     // the Quarkus port. The entity is read as a raw InputStream (not @FormParam) so the size bound
     // is enforced against actual bytes read, not a trusted Content-Length header.
@@ -201,7 +203,8 @@ public class PublicBlobResource {
     try {
       Map<String, Object> map =
           OBJECT_MAPPER.readValue(jsonBody, new TypeReference<Map<String, Object>>() {});
-      nodeIds = OBJECT_MAPPER.convertValue(map.get(BodyAttributes.NODE_IDS), new TypeReference<>() {});
+      nodeIds =
+          OBJECT_MAPPER.convertValue(map.get(BodyAttributes.NODE_IDS), new TypeReference<>() {});
       nodeLinkId = (String) map.get(BodyAttributes.NODE_LINK_ID);
       accessCode = (String) map.get(BodyAttributes.ACCESS_CODE);
     } catch (JsonProcessingException e) {
@@ -230,13 +233,13 @@ public class PublicBlobResource {
   }
 
   /**
-   * Legacy parity: {@code DOWNLOAD_PUBLIC_FILE_CHECK}'s regex (see {@code
-   * Constants.API.Endpoints}) hard-codes {@code node_link_id} as the FIRST query parameter
-   * (immediately after {@code ?}), with {@code access_code} (if present) only allowed to follow
-   * it. Any other order matches NO route in the legacy {@code HttpRoutingHandler} at all, falling
-   * straight to its raw 404 fallback -- {@code PublicBlobController} is never invoked. JAX-RS binds
-   * {@code @QueryParam} by name regardless of order, so this replicates the order constraint by
-   * inspecting the raw query string.
+   * Legacy parity: {@code DOWNLOAD_PUBLIC_FILE_CHECK}'s regex (see {@code Constants.API.Endpoints})
+   * hard-codes {@code node_link_id} as the FIRST query parameter (immediately after {@code ?}),
+   * with {@code access_code} (if present) only allowed to follow it. Any other order matches NO
+   * route in the legacy {@code HttpRoutingHandler} at all, falling straight to its raw 404 fallback
+   * -- {@code PublicBlobController} is never invoked. JAX-RS binds {@code @QueryParam} by name
+   * regardless of order, so this replicates the order constraint by inspecting the raw query
+   * string.
    */
   private static void requireNodeLinkIdFirst(UriInfo uriInfo) {
     String rawQuery = uriInfo.getRequestUri().getRawQuery();

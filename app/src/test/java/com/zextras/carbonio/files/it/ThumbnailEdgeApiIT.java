@@ -18,8 +18,8 @@ import org.junit.jupiter.api.Test;
  * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. Edge-branch coverage for {@code
  * PreviewService}/{@code PreviewResource}'s three {@code thumbnailXxx} methods (image/pdf/
  * document) that {@link ThumbnailApiIT} does not exercise (that class covers only happy-path
- * retrieval and version resolution). Each of the three methods shares the same two-branch shape
- * as their {@code previewXxx} siblings:
+ * retrieval and version resolution). Each of the three methods shares the same two-branch shape as
+ * their {@code previewXxx} siblings:
  *
  * <ul>
  *   <li>{@code tryCheckNode.isSuccess()} — {@link PreviewEdgeApiIT} covers the not-found/
@@ -32,8 +32,8 @@ import org.junit.jupiter.api.Test;
  *       three {@code thumbnailXxx} methods.
  * </ul>
  *
- * <p>All 6 methods and their assertions are preserved verbatim; only the seeding (real {@code
- * POST /upload} capturing the server-generated node id) and the preview stub/verify ({@link
+ * <p>All 6 methods and their assertions are preserved verbatim; only the seeding (real {@code POST
+ * /upload} capturing the server-generated node id) and the preview stub/verify ({@link
  * AbstractFilesIT#previewServes}/{@link AbstractFilesIT#verifyPreviewServed}) changed.
  */
 class ThumbnailEdgeApiIT extends AbstractFilesIT {
@@ -158,7 +158,8 @@ class ThumbnailEdgeApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAMatchingIfNoneMatchHeaderTheRepeatedDocumentThumbnailRequestShouldReturnA304StatusCode() {
+  void
+      givenAMatchingIfNoneMatchHeaderTheRepeatedDocumentThumbnailRequestShouldReturnA304StatusCode() {
     String nodeId =
         seedFile(
             "cacheable-thumb.xls", LOCAL_ROOT, "0".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);

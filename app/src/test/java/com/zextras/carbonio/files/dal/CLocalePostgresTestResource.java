@@ -94,12 +94,15 @@ public class CLocalePostgresTestResource implements QuarkusTestResourceLifecycle
 
   @Override
   public void stop() {
-    // Testcontainers' JVM shutdown hook stops postgres; no-op here (mirrors FilesStackTestResource).
+    // Testcontainers' JVM shutdown hook stops postgres; no-op here (mirrors
+    // FilesStackTestResource).
   }
 
-  /** Trimmed copy of {@code FilesStackTestResource#setupConsulStubs}: DB creds + the generic
-   * bootstrap/mesh-registration endpoints the carbonio-quarkus-extensions-bootstrap extension
-   * calls at boot regardless of which business feature a test exercises. */
+  /**
+   * Trimmed copy of {@code FilesStackTestResource#setupConsulStubs}: DB creds + the generic
+   * bootstrap/mesh-registration endpoints the carbonio-quarkus-extensions-bootstrap extension calls
+   * at boot regardless of which business feature a test exercises.
+   */
   private static void setupConsulStubs(WireMockServer server) {
     String[][] kvEntries = {
       {"carbonio-files/database/credentials/db-name", DB_NAME},
@@ -116,9 +119,7 @@ public class CLocalePostgresTestResource implements QuarkusTestResourceLifecycle
                     .withBody(buildKvArrayJson(kvEntries))));
 
     server.stubFor(
-        get(urlPathMatching("/v1/kv/.*"))
-            .atPriority(10)
-            .willReturn(aResponse().withStatus(404)));
+        get(urlPathMatching("/v1/kv/.*")).atPriority(10).willReturn(aResponse().withStatus(404)));
 
     for (String pattern :
         new String[] {
@@ -146,7 +147,8 @@ public class CLocalePostgresTestResource implements QuarkusTestResourceLifecycle
                 aResponse()
                     .withStatus(200)
                     .withHeader("Content-Type", "application/json")
-                    .withBody("{\"Config\":{\"Datacenter\":\"dc1\",\"NodeName\":\"mock-consul\"}}")));
+                    .withBody(
+                        "{\"Config\":{\"Datacenter\":\"dc1\",\"NodeName\":\"mock-consul\"}}")));
     server.stubFor(
         get(urlPathEqualTo("/v1/status/leader"))
             .willReturn(
@@ -160,7 +162,8 @@ public class CLocalePostgresTestResource implements QuarkusTestResourceLifecycle
     StringBuilder sb = new StringBuilder("[");
     for (int i = 0; i < entries.length; i++) {
       String key = entries[i][0];
-      String value = Base64.getEncoder().encodeToString(entries[i][1].getBytes(StandardCharsets.UTF_8));
+      String value =
+          Base64.getEncoder().encodeToString(entries[i][1].getBytes(StandardCharsets.UTF_8));
       if (i > 0) {
         sb.append(",");
       }

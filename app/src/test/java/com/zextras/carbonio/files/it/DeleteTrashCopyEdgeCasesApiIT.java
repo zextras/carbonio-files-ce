@@ -27,10 +27,10 @@ import org.junit.jupiter.api.Test;
  *   <li>{@code trashNodes}: the truster ≠ the trashed node's CURRENT parent's owner — both the
  *       "owner not yet in the notify list" (fresh add) and "owner already there" (skip, avoid
  *       duplicate) outcomes of {@code !usersToNotify.contains(parent.getOwnerId())}. The node's
- *       owner differing from its structural parent's owner is NOT producible via the public API
- *       (a real {@code createFolder}/{@code upload} always inherits the parent's owner), so these
- *       two nodes are seeded via {@link #seedInconsistentNode} (raw JDBC, mirrors exactly what
- *       {@code NodeRepositoryImpl#createNewNode} persists).
+ *       owner differing from its structural parent's owner is NOT producible via the public API (a
+ *       real {@code createFolder}/{@code upload} always inherits the parent's owner), so these two
+ *       nodes are seeded via {@link #seedInconsistentNode} (raw JDBC, mirrors exactly what {@code
+ *       NodeRepositoryImpl#createNewNode} persists).
  *   <li>{@code flagNodes}: a ROOT id in the request — the {@code getNodeType() != ROOT} filter.
  * </ul>
  *
@@ -59,7 +59,8 @@ class DeleteTrashCopyEdgeCasesApiIT extends AbstractFilesIT {
             .build();
     Response response = graphql(bodyPayload, cookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNotifications");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNotifications");
     List<Map<String, Object>> notifications = (List<Map<String, Object>>) page.get("notifications");
     return (int) notifications.stream().filter(n -> !n.isEmpty()).count();
   }
@@ -107,8 +108,9 @@ class DeleteTrashCopyEdgeCasesApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenATrasherWhoIsNotTheNodesParentOwnerButTheOwnerIsAlreadyAShareTargetTrashNodesShouldNotDuplicateTheNotification()
-      throws SQLException {
+  void
+      givenATrasherWhoIsNotTheNodesParentOwnerButTheOwnerIsAlreadyAShareTargetTrashNodesShouldNotDuplicateTheNotification()
+          throws SQLException {
     // Given — same shape, but the node ALSO has a DIRECT share to F's owner already
     String parentFolderId = seedFolder("F", LOCAL_ROOT, OWNER_COOKIE);
     seedShare(parentFolderId, OTHER_USER_ID, SharePermission.READ_AND_WRITE, OWNER_COOKIE);
@@ -154,6 +156,7 @@ class DeleteTrashCopyEdgeCasesApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("There was a problem while executing requested operation on node: LOCAL_ROOT");
+        .containsExactly(
+            "There was a problem while executing requested operation on node: LOCAL_ROOT");
   }
 }

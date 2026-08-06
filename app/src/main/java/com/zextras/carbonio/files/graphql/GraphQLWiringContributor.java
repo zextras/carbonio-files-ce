@@ -23,9 +23,9 @@ public interface GraphQLWiringContributor {
   void contribute(RuntimeWiring.Builder builder);
 
   /**
-   * Scope flag: whether this contributor targets the public ({@code /public/graphql}) schema
-   * rather than the authenticated one. Defaults to {@code false} (authenticated schema), since CE
-   * and most Advanced contributors extend the authenticated API only.
+   * Scope flag: whether this contributor targets the public ({@code /public/graphql}) schema rather
+   * than the authenticated one. Defaults to {@code false} (authenticated schema), since CE and most
+   * Advanced contributors extend the authenticated API only.
    *
    * @return {@code true} if {@link #contribute(RuntimeWiring.Builder)} should be applied to the
    *     public wiring instead of the authenticated one.

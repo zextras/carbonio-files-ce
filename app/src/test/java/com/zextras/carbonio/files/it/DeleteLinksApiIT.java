@@ -48,7 +48,8 @@ class DeleteLinksApiIT extends AbstractFilesIT {
   @SuppressWarnings("unchecked")
   private List<String> deletedIds(Response response) {
     return (List<String>)
-        TestUtils.jsonResponseToValue(response.getBody().asString(), "deleteLinks").orElse(List.of());
+        TestUtils.jsonResponseToValue(response.getBody().asString(), "deleteLinks")
+            .orElse(List.of());
   }
 
   @Test
@@ -81,7 +82,9 @@ class DeleteLinksApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(deletedIds(response)).isEmpty();
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1).containsExactly("Could not find link with id " + linkId);
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Could not find link with id " + linkId);
   }
 
   @Test
@@ -142,7 +145,8 @@ class DeleteLinksApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     List<Map<String, Object>> links = (List<Map<String, Object>>) node.get("links");
     Assertions.assertThat(links).hasSize(1);
     Assertions.assertThat(links.get(0)).containsEntry("id", linkId);
@@ -166,6 +170,7 @@ class DeleteLinksApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("There was a problem while executing requested operation on node: LOCAL_ROOT");
+        .containsExactly(
+            "There was a problem while executing requested operation on node: LOCAL_ROOT");
   }
 }

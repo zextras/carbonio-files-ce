@@ -49,9 +49,9 @@ import org.junit.jupiter.api.Test;
 class AuthenticationCoverageTest {
 
   /**
-   * Scans the WHOLE app package (not just {@code rest.resources}) so a future JAX-RS resource
-   * class added anywhere else in {@code app/src/main} is picked up automatically -- narrowing this
-   * to today's one resource package would silently stop protecting the next one.
+   * Scans the WHOLE app package (not just {@code rest.resources}) so a future JAX-RS resource class
+   * added anywhere else in {@code app/src/main} is picked up automatically -- narrowing this to
+   * today's one resource package would silently stop protecting the next one.
    */
   private static final String APP_PACKAGE = "com.zextras.carbonio.files";
 
@@ -72,8 +72,8 @@ class AuthenticationCoverageTest {
    *   <li><b>{@code InternalBlobResource}</b> / <b>{@code InternalNodeResource}</b> — the {@code
    *       /internal/**} trusted-caller routes: reached only over the mesh, where mTLS/service
    *       intentions are the trust boundary; the acting {@code userId} is an explicit path/body
-   *       parameter and node ACLs are still enforced via {@code PermissionsChecker}, but there is no
-   *       cookie auth filter by design (mirrors the retired header-based {@code POST
+   *       parameter and node ACLs are still enforced via {@code PermissionsChecker}, but there is
+   *       no cookie auth filter by design (mirrors the retired header-based {@code POST
    *       /internal/upload} / gRPC {@code FilesGrpcService} contract — see the classes' javadocs).
    * </ul>
    *
@@ -120,8 +120,7 @@ class AuthenticationCoverageTest {
         String className = javaClass.getFullName();
         String methodName = method.getName();
 
-        boolean allowlisted =
-            ALLOWLIST.getOrDefault(className, Set.of()).contains(methodName);
+        boolean allowlisted = ALLOWLIST.getOrDefault(className, Set.of()).contains(methodName);
         if (allowlisted) {
           continue;
         }
@@ -169,13 +168,14 @@ class AuthenticationCoverageTest {
    *       in {@code Uni.createFrom().item(() -> {...})}; the lambda compiles to a synthetic {@code
    *       lambda$upload$0}-shaped method that is invoked later by Mutiny's internals, NOT by a
    *       direct call recorded in {@code upload}'s own bytecode — so lambda bodies are located by
-   *       the standard javac naming convention ({@code lambda$<enclosingMethod>$<index>}) instead of
-   *       a call-graph edge.
+   *       the standard javac naming convention ({@code lambda$<enclosingMethod>$<index>}) instead
+   *       of a call-graph edge.
    * </ul>
    */
   private static boolean resolvesRequireUserCall(JavaMethod method) {
     JavaClass owner = method.getOwner();
-    Pattern lambdaPattern = Pattern.compile("^lambda\\$" + Pattern.quote(method.getName()) + "\\$\\d+$");
+    Pattern lambdaPattern =
+        Pattern.compile("^lambda\\$" + Pattern.quote(method.getName()) + "\\$\\d+$");
 
     Set<JavaMethod> seeds = new HashSet<>();
     seeds.add(method);

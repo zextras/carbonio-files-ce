@@ -21,14 +21,14 @@ import org.junit.jupiter.api.Test;
  * {@code com.zextras.carbonio.files.acceptance.GetPublicNodeApiIT} rewritten as an out-of-process
  * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. All 7 methods and their assertions
  * are preserved verbatim; only the seeding mechanism changed: the node/link is seeded via the real
- * {@code seedFolder}/{@code seedFile}/{@code createLink} API (capturing the server-generated
- * {@code public_id} from the {@code createLink} response's {@code url} — its last 50 characters,
+ * {@code seedFolder}/{@code seedFile}/{@code createLink} API (capturing the server-generated {@code
+ * public_id} from the {@code createLink} response's {@code url} — its last 50 characters,
  * regardless of the file/folder URL-prefix difference — since {@code createLink} can no longer be
  * pointed at a caller-chosen id) and the transport changed; the {@code getPublicNode} query itself
- * already runs unauthenticated via {@link #publicGraphql}, exactly as in the original suite.
- * {@code expires_at} is a raw millis passthrough (see {@code LinkDataFetcher#createLinkFetcher}),
- * so requesting {@code expires_at: 1} produces an already-expired link exactly like the seam's
- * direct {@code Optional.of(1L)} write did.
+ * already runs unauthenticated via {@link #publicGraphql}, exactly as in the original suite. {@code
+ * expires_at} is a raw millis passthrough (see {@code LinkDataFetcher#createLinkFetcher}), so
+ * requesting {@code expires_at: 1} produces an already-expired link exactly like the seam's direct
+ * {@code Optional.of(1L)} write did.
  */
 class GetPublicNodeApiIT extends AbstractFilesIT {
 
@@ -40,7 +40,10 @@ class GetPublicNodeApiIT extends AbstractFilesIT {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", OWNER_ID);
   }
 
-  /** Creates a link via the real mutation and returns its {@code public_id} (last 50 chars of the url). */
+  /**
+   * Creates a link via the real mutation and returns its {@code public_id} (last 50 chars of the
+   * url).
+   */
   private String createLinkAndGetPublicId(
       String nodeId, Integer expiresAt, String accessCode, String cookie) {
     GraphqlCommandBuilder builder =
@@ -55,7 +58,8 @@ class GetPublicNodeApiIT extends AbstractFilesIT {
     Response response = graphql(bodyPayload, cookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     String url =
-        (String) TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
+        (String)
+            TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
     return url.substring(url.length() - 50);
   }
 
@@ -78,8 +82,7 @@ class GetPublicNodeApiIT extends AbstractFilesIT {
     String publicId = createLinkAndGetPublicId(nodeId, null, null, OWNER_COOKIE);
 
     // When
-    Response response =
-        getPublicNode(publicId, null, "{ id created_at updated_at name type }");
+    Response response = getPublicNode(publicId, null, "{ id created_at updated_at name type }");
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
@@ -142,7 +145,8 @@ class GetPublicNodeApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAnExpiredPublicLinkIdAndAnExistingFolderTheGetPublicNodeShouldReturn200StatusCodeWithAnErrorMessage() {
+  void
+      givenAnExpiredPublicLinkIdAndAnExistingFolderTheGetPublicNodeShouldReturn200StatusCodeWithAnErrorMessage() {
     // Given — expires_at is a raw millis passthrough; 1 is already in the past
     String nodeId = seedFolder("folder", LOCAL_ROOT, OWNER_COOKIE);
     String publicId = createLinkAndGetPublicId(nodeId, 1, null, OWNER_COOKIE);
@@ -159,7 +163,8 @@ class GetPublicNodeApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithCorrectCodeShouldReturnThePublicFolder() {
+  void
+      givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithCorrectCodeShouldReturnThePublicFolder() {
     // Given
     long now = System.currentTimeMillis();
     String nodeId = seedFolder("folder", LOCAL_ROOT, OWNER_COOKIE);
@@ -182,13 +187,15 @@ class GetPublicNodeApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithWrongCodeShouldReturnAnErrorMessage() {
+  void
+      givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithWrongCodeShouldReturnAnErrorMessage() {
     // Given
     String nodeId = seedFolder("folder", LOCAL_ROOT, OWNER_COOKIE);
     String publicId = createLinkAndGetPublicId(nodeId, null, "fake-access-code", OWNER_COOKIE);
 
     // When
-    Response response = getPublicNode(publicId, "wrong-access-code", "{ id created_at updated_at name type }");
+    Response response =
+        getPublicNode(publicId, "wrong-access-code", "{ id created_at updated_at name type }");
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
@@ -199,7 +206,8 @@ class GetPublicNodeApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithNoCodeShouldReturnAnErrorMessage() {
+  void
+      givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithNoCodeShouldReturnAnErrorMessage() {
     // Given
     String nodeId = seedFolder("folder", LOCAL_ROOT, OWNER_COOKIE);
     String publicId = createLinkAndGetPublicId(nodeId, null, "fake-access-code", OWNER_COOKIE);

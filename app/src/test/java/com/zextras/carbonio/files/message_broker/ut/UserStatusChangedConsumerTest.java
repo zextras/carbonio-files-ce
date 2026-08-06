@@ -44,8 +44,17 @@ class UserStatusChangedConsumerTest {
   private static Node node(boolean hidden) {
     Node node =
         new Node(
-            "node-1", "owner-1", "owner-1", "LOCAL_ROOT", 1L, 1L, "n", "d", NodeType.TEXT,
-            "LOCAL_ROOT", 1L);
+            "node-1",
+            "owner-1",
+            "owner-1",
+            "LOCAL_ROOT",
+            1L,
+            1L,
+            "n",
+            "d",
+            NodeType.TEXT,
+            "LOCAL_ROOT",
+            1L);
     node.setHidden(hidden);
     return node;
   }

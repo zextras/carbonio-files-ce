@@ -21,15 +21,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Plain JUnit (NOT {@code @QuarkusTest}) unit test for {@link ConfigDataFetcher#getConfigs}, mocking
- * {@link FilesConfig} so the raw {@code max-number-of-versions} value can be varied per test.
+ * Plain JUnit (NOT {@code @QuarkusTest}) unit test for {@link ConfigDataFetcher#getConfigs},
+ * mocking {@link FilesConfig} so the raw {@code max-number-of-versions} value can be varied per
+ * test.
  *
  * <p>This is where the PARSING/DERIVATION coverage lives: it varies the raw {@code
  * max-number-of-versions} value directly, with no Consul in the loop. The out-of-process {@code
- * GetConfigsApiIT} only exercises the harness default (30 -&gt; 28) because its Consul WireMock stub
- * serves no {@code max-number-of-versions} key, so the configured (versions -&gt; keep = versions -
- * DIFF), the at-or-below-the-diff clamp-to-"0", and the non-numeric -&gt; GraphQL execution error
- * cases are asserted directly against the fetcher here.
+ * GetConfigsApiIT} only exercises the harness default (30 -&gt; 28) because its Consul WireMock
+ * stub serves no {@code max-number-of-versions} key, so the configured (versions -&gt; keep =
+ * versions - DIFF), the at-or-below-the-diff clamp-to-"0", and the non-numeric -&gt; GraphQL
+ * execution error cases are asserted directly against the fetcher here.
  */
 class ConfigDataFetcherTest {
 
@@ -46,7 +47,8 @@ class ConfigDataFetcherTest {
     List<DataFetcherResult<Map<String, String>>> results =
         configDataFetcher.getConfigs().get(null).join();
     Map<String, String> configs = new HashMap<>();
-    results.forEach(result -> configs.put(result.getData().get("name"), result.getData().get("value")));
+    results.forEach(
+        result -> configs.put(result.getData().get("name"), result.getData().get("value")));
     return configs;
   }
 

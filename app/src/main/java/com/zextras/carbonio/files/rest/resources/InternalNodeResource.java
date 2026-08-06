@@ -52,12 +52,12 @@ import org.jboss.resteasy.reactive.RestResponse;
  * reached through the reused business beans), exactly as the cookie-authenticated REST/GraphQL
  * paths do.
  *
- * <p>Every endpoint delegates to the same beans the REST resources and the GraphQL DataFetchers
- * use — no business logic is duplicated here:
+ * <p>Every endpoint delegates to the same beans the REST resources and the GraphQL DataFetchers use
+ * — no business logic is duplicated here:
  *
  * <ul>
- *   <li>{@code GET /internal/accounts/{userId}/nodes/{nodeId}} → {@link NodeRepository#getNode}
- *       + {@link PermissionsChecker#getPermissions}, assembled into an {@link InternalNodeDto}.
+ *   <li>{@code GET /internal/accounts/{userId}/nodes/{nodeId}} → {@link NodeRepository#getNode} +
+ *       {@link PermissionsChecker#getPermissions}, assembled into an {@link InternalNodeDto}.
  *   <li>{@code POST /internal/folders} → {@link NodeDataFetcher#createFolder} (the extracted core
  *       of the GraphQL {@code createFolder} mutation).
  *   <li>{@code POST /internal/links} → {@link LinkDataFetcher#createPublicLink} + {@link
@@ -160,7 +160,8 @@ public class InternalNodeResource {
         permissionsDto);
   }
 
-  // ------------------------------------------------------------------------------------ createFolder
+  // ------------------------------------------------------------------------------------
+  // createFolder
 
   @POST
   @Path("/folders")
@@ -182,13 +183,14 @@ public class InternalNodeResource {
     }
   }
 
-  // -------------------------------------------------------------------------------- createPublicLink
+  // --------------------------------------------------------------------------------
+  // createPublicLink
 
   /**
    * Mirrors {@code FilesGrpcService#createPublicLink} exactly: the requester's domain is resolved
-   * the same trusted-caller way (a direct {@link UserRepository#getUserById} call, cookie
-   * ignored), then {@link LinkDataFetcher#createPublicLink} + {@link
-   * LinkDataFetcher#buildPublicLinkUrl} build the link, identically to the gRPC RPC.
+   * the same trusted-caller way (a direct {@link UserRepository#getUserById} call, cookie ignored),
+   * then {@link LinkDataFetcher#createPublicLink} + {@link LinkDataFetcher#buildPublicLinkUrl}
+   * build the link, identically to the gRPC RPC.
    */
   @POST
   @Path("/links")
@@ -225,7 +227,8 @@ public class InternalNodeResource {
     }
   }
 
-  // --------------------------------------------------------------------------- deleteAllNodesAndBlobs
+  // ---------------------------------------------------------------------------
+  // deleteAllNodesAndBlobs
 
   @DELETE
   @Path("/nodes")

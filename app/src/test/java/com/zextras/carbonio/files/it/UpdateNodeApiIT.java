@@ -62,7 +62,8 @@ class UpdateNodeApiIT extends AbstractFilesIT {
   void givenWritePermissionUpdateNodeShouldRenameTheNode() {
     // Given
     String nodeId =
-        seedFile("old.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "old.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     Response response = updateNode(nodeId, "renamed", null, null, REQUESTER_COOKIE);
@@ -70,7 +71,8 @@ class UpdateNodeApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "updateNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "updateNode");
     Assertions.assertThat(node).containsEntry("name", "renamed");
   }
 
@@ -78,7 +80,8 @@ class UpdateNodeApiIT extends AbstractFilesIT {
   void givenNoWritePermissionUpdateNodeShouldReturnNodeNotFoundError() {
     // Given — owned by someone else, shared READ_ONLY (no write) with the requester
     String nodeId =
-        seedFile("notMine.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+        seedFile(
+            "notMine.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
     seedShare(nodeId, REQUESTER_ID, SharePermission.READ_ONLY, OTHER_COOKIE);
 
     // When
@@ -87,7 +90,9 @@ class UpdateNodeApiIT extends AbstractFilesIT {
     // Then — updateNodeFetcher's permission-denied branch returns nodeNotFound, not nodeWriteError
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1).containsExactly("Could not find node with id " + nodeId);
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Could not find node with id " + nodeId);
   }
 
   @Test
@@ -95,7 +100,11 @@ class UpdateNodeApiIT extends AbstractFilesIT {
     // Given — two files in LOCAL_ROOT; renaming the second to collide with the first's full name
     seedFile("taken.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String nodeId =
-        seedFile("original.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "original.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
 
     // When — renaming to "taken" would produce the full name "taken.txt", already present
     Response response = updateNode(nodeId, "taken", null, null, REQUESTER_COOKIE);
@@ -106,7 +115,9 @@ class UpdateNodeApiIT extends AbstractFilesIT {
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly(
-            "Trying to create a duplicate for the node " + nodeId + " in destination folder LOCAL_ROOT");
+            "Trying to create a duplicate for the node "
+                + nodeId
+                + " in destination folder LOCAL_ROOT");
 
     // the node was NOT renamed
     Assertions.assertThat(nodeExists(nodeId, REQUESTER_COOKIE)).isTrue();
@@ -116,14 +127,19 @@ class UpdateNodeApiIT extends AbstractFilesIT {
   void givenOnlyADescriptionUpdateNodeShouldUpdateItWithoutTouchingTheName() {
     // Given — closes the `optName.isPresent()` FALSE branch: no rename search is performed at all
     String nodeId =
-        seedFile("untouched.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "untouched.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
 
     // When
     Response response = updateNode(nodeId, null, "a new description", null, REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "updateNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "updateNode");
     Assertions.assertThat(node)
         .containsEntry("name", "untouched")
         .containsEntry("description", "a new description");
@@ -133,14 +149,16 @@ class UpdateNodeApiIT extends AbstractFilesIT {
   void givenOnlyAFlaggedValueUpdateNodeShouldFlagTheNodeWithoutTouchingItsName() {
     // Given
     String nodeId =
-        seedFile("flagme.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "flagme.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     Response response = updateNode(nodeId, null, null, true, REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "updateNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "updateNode");
     Assertions.assertThat(node).containsEntry("name", "flagme");
   }
 }

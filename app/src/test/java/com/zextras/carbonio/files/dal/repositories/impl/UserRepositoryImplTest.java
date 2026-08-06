@@ -29,8 +29,8 @@ import org.junit.jupiter.api.Test;
  * contract of {@link com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository} against
  * the carbonio-user-management-rest-sdk client.
  *
- * <p>No CDI container / HTTP server is started: the {@link UserResourceApi} is a plain Mockito
- * mock passed directly to the constructor; it does not require any Testcontainers/WireMock stack.
+ * <p>No CDI container / HTTP server is started: the {@link UserResourceApi} is a plain Mockito mock
+ * passed directly to the constructor; it does not require any Testcontainers/WireMock stack.
  * Renamed from {@code UserRepositoryImplIT} to {@code *Test} (Phase 7b convention alignment) so
  * Surefire runs it as a unit test instead of Failsafe running it alongside the real integration
  * tests it never needed to be grouped with.
@@ -57,10 +57,7 @@ class UserRepositoryImplTest {
             .status("active")
             .type("INTERNAL");
     MyselfDto myself =
-        new MyselfDto()
-            .info(info)
-            .locale("en_US")
-            .features(List.of("carbonioFeatureFilesEnabled"));
+        new MyselfDto().info(info).locale("en_US").features(List.of("carbonioFeatureFilesEnabled"));
 
     when(userResourceApiMock.internalUsersMyselfGet(isNull(), eq("abc123"))).thenReturn(myself);
 
@@ -87,8 +84,7 @@ class UserRepositoryImplTest {
     when(userResourceApiMock.internalUsersMyselfGet(isNull(), eq("raw-token-value")))
         .thenReturn(myself);
 
-    Optional<UserMyself> result =
-        userRepository.getUserMyselfByCookie("raw-token-value");
+    Optional<UserMyself> result = userRepository.getUserMyselfByCookie("raw-token-value");
 
     assertThat(result).isPresent();
     assertThat(result.get().getType()).isEqualTo(UserType.GUEST);
@@ -101,8 +97,7 @@ class UserRepositoryImplTest {
     when(userResourceApiMock.internalUsersMyselfGet(any(), any()))
         .thenThrow(new ApiException(401, "Unauthorized"));
 
-    Optional<UserMyself> result =
-        userRepository.getUserMyselfByCookie("ZM_AUTH_TOKEN=invalid");
+    Optional<UserMyself> result = userRepository.getUserMyselfByCookie("ZM_AUTH_TOKEN=invalid");
 
     assertThat(result).isEmpty();
   }
@@ -152,7 +147,11 @@ class UserRepositoryImplTest {
   @Test
   void getUserByEmailShouldMapResponse() throws Exception {
     UserInfoDto info =
-        new UserInfoDto().userId("user-5").email("user5@example.com").type("GUEST").status("active");
+        new UserInfoDto()
+            .userId("user-5")
+            .email("user5@example.com")
+            .type("GUEST")
+            .status("active");
 
     when(userResourceApiMock.internalUsersEmailEmailGet(eq("user5@example.com"))).thenReturn(info);
 
@@ -176,8 +175,8 @@ class UserRepositoryImplTest {
   /**
    * mapType MUST fail closed: a null, unrecognized, or otherwise unresolvable type must map to
    * {@link UserType#GUEST} (the access-denying value), never to {@link UserType#INTERNAL}. See
-   * carbonio-files-ce#301 / CO-3482 and the legacy {@code UserRepositoryRest#mapType} it was
-   * ported from.
+   * carbonio-files-ce#301 / CO-3482 and the legacy {@code UserRepositoryRest#mapType} it was ported
+   * from.
    */
   @Test
   void getUserByIdShouldFailClosedToGuestOnNullType() throws Exception {
@@ -228,16 +227,15 @@ class UserRepositoryImplTest {
   }
 
   /**
-   * The generated client returns null (rather than throwing) for a 2xx response with a blank
-   * body. getUserMyselfByCookie must not NPE in that case, and must instead treat the
-   * user as unresolvable (empty Optional), same as a missing nested {@code info}.
+   * The generated client returns null (rather than throwing) for a 2xx response with a blank body.
+   * getUserMyselfByCookie must not NPE in that case, and must instead treat the user as
+   * unresolvable (empty Optional), same as a missing nested {@code info}.
    */
   @Test
   void getUserMyselfByCookieShouldReturnEmptyOnBlankBodyResponse() throws Exception {
     when(userResourceApiMock.internalUsersMyselfGet(any(), any())).thenReturn(null);
 
-    Optional<UserMyself> result =
-        userRepository.getUserMyselfByCookie("ZM_AUTH_TOKEN=abc123");
+    Optional<UserMyself> result = userRepository.getUserMyselfByCookie("ZM_AUTH_TOKEN=abc123");
 
     assertThat(result).isEmpty();
   }
@@ -248,15 +246,14 @@ class UserRepositoryImplTest {
 
     when(userResourceApiMock.internalUsersMyselfGet(any(), any())).thenReturn(myself);
 
-    Optional<UserMyself> result =
-        userRepository.getUserMyselfByCookie("ZM_AUTH_TOKEN=abc123");
+    Optional<UserMyself> result = userRepository.getUserMyselfByCookie("ZM_AUTH_TOKEN=abc123");
 
     assertThat(result).isEmpty();
   }
 
   /**
-   * The generated client returns null (rather than throwing) for a 2xx response with a blank
-   * body. getUserById must not NPE in that case and must instead resolve to an empty Optional.
+   * The generated client returns null (rather than throwing) for a 2xx response with a blank body.
+   * getUserById must not NPE in that case and must instead resolve to an empty Optional.
    */
   @Test
   void getUserByIdShouldReturnEmptyOnBlankBodyResponse() throws Exception {
@@ -283,8 +280,7 @@ class UserRepositoryImplTest {
 
     when(userResourceApiMock.internalUsersMyselfGet(any(), any())).thenReturn(myself);
 
-    Optional<UserMyself> result =
-        userRepository.getUserMyselfByCookie("ZM_AUTH_TOKEN=abc123");
+    Optional<UserMyself> result = userRepository.getUserMyselfByCookie("ZM_AUTH_TOKEN=abc123");
 
     assertThat(result).isPresent();
     assertThat(result.get().getFeatures()).isEmpty();

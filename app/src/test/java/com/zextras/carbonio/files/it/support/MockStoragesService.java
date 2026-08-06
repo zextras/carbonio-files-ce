@@ -35,8 +35,9 @@ import java.util.regex.Pattern;
  * the P4a-era {@code @io.quarkus.test.Mock InMemoryFilestore} CDI double: with this fake wired into
  * {@code networking-config.carbonio.storages.host/port}, the app's REAL {@code FilestoreProducer} /
  * {@code StoragesClient} (Retrofit2 + OkHttp3, plain HTTP, no Consul/mesh/mTLS) talks to it over a
- * real socket — no {@code @Mock} CDI {@code @Alternative} of {@link com.zextras.filestore.api.Filestore}
- * survives, which is required once {@code @QuarkusIntegrationTest} (out-of-process) is introduced.
+ * real socket — no {@code @Mock} CDI {@code @Alternative} of {@link
+ * com.zextras.filestore.api.Filestore} survives, which is required once
+ * {@code @QuarkusIntegrationTest} (out-of-process) is introduced.
  *
  * <p>The wire contract implemented here was recovered from the frozen legacy MockServer fixture
  * ({@code core/src/test/.../utilities/StoragesMockHelper.java}) and cross-checked against the
@@ -48,26 +49,29 @@ import java.util.regex.Pattern;
  *       missing, e.g. after {@link #setUploadSkipsStore}); {@link #setDownloadFails} simulates a
  *       dropped connection ({@link Fault#CONNECTION_RESET_BY_PEER}).
  *   <li>{@code PUT|POST /upload?node=&version=&type=} (multipart, part name {@code "file"}) → 200 +
- *       {@code {"digest":"…","digest_algorithm":"SHA-256","size":N}} (the
- *       {@code StoragesUploadResponse} Gson shape); {@link #setUploadFails} → 500;
- *       {@link #setUploadSkipsStore} → 200 but nothing is stored (a later download 404s).
- *   <li>{@code PUT /copy?sourceNode=&sourceVersion=&destinationNode=&destinationVersion=&type=&override=}
- *       → duplicates the source blob to the destination key, 200 + the same upload-response JSON;
+ *       {@code {"digest":"…","digest_algorithm":"SHA-256","size":N}} (the {@code
+ *       StoragesUploadResponse} Gson shape); {@link #setUploadFails} → 500; {@link
+ *       #setUploadSkipsStore} → 200 but nothing is stored (a later download 404s).
+ *   <li>{@code PUT
+ *       /copy?sourceNode=&sourceVersion=&destinationNode=&destinationVersion=&type=&override=} →
+ *       duplicates the source blob to the destination key, 200 + the same upload-response JSON;
  *       {@link #setCopyFails} → 500.
- *   <li>{@code POST /bulk-delete?type=} (body {@code {"ids":[{"node":…,"version":…}]}}) → removes the
- *       matching blobs and returns {@code {"ids":[…failed…]}} (an empty array is the real
- *       full-success signal, deliberately NOT an omitted field); {@link #setBulkDeleteAlwaysThrows} →
- *       500 (persistent outage); {@link #setBulkDeleteReturnsNull} → 200 body {@code "{}"} (the SDK
- *       deserialises {@code ids=null} and throws an uncaught NPE out of {@code bulkDelete(...)}, which
- *       production code treats identically to any other bulk-delete failure); {@link
- *       #failBulkDeleteFor} marks specific node ids as per-item failures (their blob is kept).
+ *   <li>{@code POST /bulk-delete?type=} (body {@code {"ids":[{"node":…,"version":…}]}}) → removes
+ *       the matching blobs and returns {@code {"ids":[…failed…]}} (an empty array is the real
+ *       full-success signal, deliberately NOT an omitted field); {@link #setBulkDeleteAlwaysThrows}
+ *       → 500 (persistent outage); {@link #setBulkDeleteReturnsNull} → 200 body {@code "{}"} (the
+ *       SDK deserialises {@code ids=null} and throws an uncaught NPE out of {@code
+ *       bulkDelete(...)}, which production code treats identically to any other bulk-delete
+ *       failure); {@link #failBulkDeleteFor} marks specific node ids as per-item failures (their
+ *       blob is kept).
  *   <li>{@code GET /health/live} → 200, or 502 once {@link #setLive} is flipped to {@code false}.
  * </ul>
  *
  * <p>Statefulness (the in-memory blob store, failure switches, download log) is implemented via a
- * single named {@link ResponseTransformerV2} attached to explicit low-priority stub mappings for each
- * route — WireMock's own declarative stub matching does the routing (path + HTTP method), the
- * transformer does the business logic. Binary bodies flow through {@code Response.Builder#body(byte[])}.
+ * single named {@link ResponseTransformerV2} attached to explicit low-priority stub mappings for
+ * each route — WireMock's own declarative stub matching does the routing (path + HTTP method), the
+ * transformer does the business logic. Binary bodies flow through {@code
+ * Response.Builder#body(byte[])}.
  */
 public class MockStoragesService {
 
@@ -75,8 +79,10 @@ public class MockStoragesService {
   private static final String FILES_TYPE = "files";
 
   private static final Pattern JSON_OBJECT_PATTERN = Pattern.compile("\\{[^{}]*}");
-  private static final Pattern NODE_FIELD_PATTERN = Pattern.compile("\"node\"\\s*:\\s*\"([^\"]*)\"");
-  private static final Pattern VERSION_FIELD_PATTERN = Pattern.compile("\"version\"\\s*:\\s*(-?\\d+)");
+  private static final Pattern NODE_FIELD_PATTERN =
+      Pattern.compile("\"node\"\\s*:\\s*\"([^\"]*)\"");
+  private static final Pattern VERSION_FIELD_PATTERN =
+      Pattern.compile("\"version\"\\s*:\\s*(-?\\d+)");
 
   private final WireMockServer server;
 
@@ -85,8 +91,8 @@ public class MockStoragesService {
 
   /**
    * Keys explicitly forced absent by {@link #setUploadSkipsStore} (an upload that reports success
-   * but stores nothing), so a later download of exactly that key 404s instead of falling back to the
-   * deterministic {@code (node+version)} bytes convention used for keys that were simply never
+   * but stores nothing), so a later download of exactly that key 404s instead of falling back to
+   * the deterministic {@code (node+version)} bytes convention used for keys that were simply never
    * touched.
    */
   private final java.util.Set<String> forcedMissingKeys = ConcurrentHashMap.newKeySet();
@@ -94,7 +100,10 @@ public class MockStoragesService {
   /** Node ids reported as FAILED by the next bulk-delete(s); their blob is kept. */
   private final java.util.Set<String> failingBulkDeleteNodeIds = ConcurrentHashMap.newKeySet();
 
-  /** Every download key attempted (success or failure), so {@link #verifyDownloaded} can assert on it. */
+  /**
+   * Every download key attempted (success or failure), so {@link #verifyDownloaded} can assert on
+   * it.
+   */
   private final List<String> downloadLog = Collections.synchronizedList(new ArrayList<>());
 
   private volatile boolean uploadFails = false;
@@ -115,7 +124,8 @@ public class MockStoragesService {
 
   private void registerRoutes() {
     server.stubFor(
-        get(urlPathEqualTo("/download")).willReturn(aResponse().withTransformers(TRANSFORMER_NAME)));
+        get(urlPathEqualTo("/download"))
+            .willReturn(aResponse().withTransformers(TRANSFORMER_NAME)));
     server.stubFor(
         put(urlPathEqualTo("/upload")).willReturn(aResponse().withTransformers(TRANSFORMER_NAME)));
     server.stubFor(
@@ -237,7 +247,8 @@ public class MockStoragesService {
     forcedMissingKeys.clear();
   }
 
-  // --------------------------------------------------------------------------------- request handling
+  // --------------------------------------------------------------------------------- request
+  // handling
 
   private Response handleDownload(Request request) {
     String node = queryParam(request, "node");
@@ -390,7 +401,9 @@ public class MockStoragesService {
     return new HttpHeaders(HttpHeader.httpHeader("Content-Type", "application/json"));
   }
 
-  /** Builds a {@code StoragesUploadResponse}-shaped JSON body (fields read via Gson SerializedName). */
+  /**
+   * Builds a {@code StoragesUploadResponse}-shaped JSON body (fields read via Gson SerializedName).
+   */
   private static String uploadResponseJson(long size) {
     return "{\"digest\":\"test-digest-"
         + size
@@ -411,7 +424,10 @@ public class MockStoragesService {
         body.append(',');
       }
       Map.Entry<String, Integer> item = failed.get(i);
-      body.append("{\"node\":\"").append(item.getKey()).append("\",\"type\":\"").append(FILES_TYPE)
+      body.append("{\"node\":\"")
+          .append(item.getKey())
+          .append("\",\"type\":\"")
+          .append(FILES_TYPE)
           .append('"');
       if (item.getValue() != null) {
         body.append(",\"version\":").append(item.getValue());
@@ -472,9 +488,8 @@ public class MockStoragesService {
 
       return switch (path) {
         case "/download" -> "GET".equals(method) ? handleDownload(request) : response;
-        case "/upload" -> ("PUT".equals(method) || "POST".equals(method))
-            ? handleUpload(request)
-            : response;
+        case "/upload" ->
+            ("PUT".equals(method) || "POST".equals(method)) ? handleUpload(request) : response;
         case "/copy" -> "PUT".equals(method) ? handleCopy(request) : response;
         case "/bulk-delete" -> "POST".equals(method) ? handleBulkDelete(request) : response;
         case "/health/live" -> "GET".equals(method) ? handleHealth() : response;

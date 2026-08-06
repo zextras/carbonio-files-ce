@@ -146,7 +146,8 @@ class DeleteAllNodesAndBlobsApiIT extends AbstractFilesIT {
         .isEqualTo(0);
   }
 
-  // --- Test 4: folder with a file, PowerStore fails — both deleted (DB-first), tombstone remains ---
+  // --- Test 4: folder with a file, PowerStore fails — both deleted (DB-first), tombstone remains
+  // ---
 
   @Test
   void givenFolderWithFileAndPowerStoreFailsThenBothDeletedAndTombstonesRemain()

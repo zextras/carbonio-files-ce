@@ -11,11 +11,12 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
 /**
- * <p>Represents an Ebean {@link Tombstone} entity that matches a record of the {@link
- * Constants.Db.Tables#TOMBSTONE} table.</p>
- * <p>The implementation of constructors and setters should not care to check if the values in
- * input are valid or not because, when these methods are called, these controls
- * <strong>must</strong> be already done.</p>
+ * Represents an Ebean {@link Tombstone} entity that matches a record of the {@link
+ * Constants.Db.Tables#TOMBSTONE} table.
+ *
+ * <p>The implementation of constructors and setters should not care to check if the values in input
+ * are valid or not because, when these methods are called, these controls <strong>must</strong> be
+ * already done.
  */
 @Entity
 @Table(name = Constants.Db.Tables.TOMBSTONE)
@@ -24,8 +25,7 @@ public class Tombstone {
   /** Protected no-arg constructor required by Hibernate/JPA. */
   protected Tombstone() {}
 
-  @EmbeddedId
-  private TombstonePK mComposedId;
+  @EmbeddedId private TombstonePK mComposedId;
 
   @Column(name = Constants.Db.Tombstone.OWNER_ID, length = 256)
   private String mOwnerId;
@@ -33,18 +33,17 @@ public class Tombstone {
   @Column(name = Constants.Db.Tombstone.TIMESTAMP, nullable = false)
   private Long mTimestamp;
 
-  @Column(name = Constants.Db.Tombstone.VERSION, nullable = false, insertable = false, updatable = false)
+  @Column(
+      name = Constants.Db.Tombstone.VERSION,
+      nullable = false,
+      insertable = false,
+      updatable = false)
   private Integer mVersion;
 
   @Column(name = Constants.Db.Tombstone.ATTEMPTS, nullable = false)
   private Integer mAttempts;
 
-  public Tombstone(
-    String nodeId,
-    String ownerId,
-    Long timestamp,
-    Integer version
-  ) {
+  public Tombstone(String nodeId, String ownerId, Long timestamp, Integer version) {
     mComposedId = new TombstonePK(nodeId, version);
     mOwnerId = ownerId;
     mTimestamp = timestamp;

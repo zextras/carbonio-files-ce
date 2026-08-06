@@ -33,16 +33,16 @@ import org.junit.jupiter.api.Test;
  * so {@link #zipEntryNames} parses it properly and every assertion below always runs, asserting
  * EXACT entry names rather than substrings.
  *
- * <p><b>Duplicate-name seeding needs two different PARENT folders, not one (a deliberate,
- * necessary adaptation, not a scenario change).</b> The original seeded same-named siblings
- * directly via {@code DatabasePopulator}, bypassing {@code BlobService#uploadFile}'s real
- * name-deduplication ({@code RenameNodeUtils#searchAlternativeName}, which uses the EXACT SAME "
- * (N)" convention as this class's ZIP-level {@code getUniqueNameForZip}). Seeding two same-named
- * files/folders under the SAME real parent via {@code seedFile}/{@code seedFolder} would therefore
- * have the upload/folder-creation path itself rename the second one BEFORE it ever reaches the ZIP
- * builder, making the ZIP-level dedup logic unreachable. Seeding them under two DIFFERENT parents
- * avoids the upload-time rename (each name is unique within its own parent) while still requesting
- * both nodes DIRECTLY (top-level, not via their folder) in {@code /download-multiple} — {@code
+ * <p><b>Duplicate-name seeding needs two different PARENT folders, not one (a deliberate, necessary
+ * adaptation, not a scenario change).</b> The original seeded same-named siblings directly via
+ * {@code DatabasePopulator}, bypassing {@code BlobService#uploadFile}'s real name-deduplication
+ * ({@code RenameNodeUtils#searchAlternativeName}, which uses the EXACT SAME " (N)" convention as
+ * this class's ZIP-level {@code getUniqueNameForZip}). Seeding two same-named files/folders under
+ * the SAME real parent via {@code seedFile}/{@code seedFolder} would therefore have the
+ * upload/folder-creation path itself rename the second one BEFORE it ever reaches the ZIP builder,
+ * making the ZIP-level dedup logic unreachable. Seeding them under two DIFFERENT parents avoids the
+ * upload-time rename (each name is unique within its own parent) while still requesting both nodes
+ * DIRECTLY (top-level, not via their folder) in {@code /download-multiple} — {@code
  * addFileToPlan}/{@code addFolderToPlan} pass an EMPTY {@code parentPath} for every top-level
  * requested node regardless of its real DB parent (ported verbatim from the original's own
  * comment), so both entries still collide at the SAME top-level ZIP path and the SAME {@code
@@ -52,8 +52,8 @@ import org.junit.jupiter.api.Test;
  *
  * <p><b>Config-split (D3):</b> the original held 24 methods. THREE need an ACTUAL {@code
  * application-config.max-downloadable-size-in-mb} cap configured (a boot-time snapshot, per {@code
- * FilesConfig}, that a runtime WireMock stub cannot re-drive out-of-process): the two
- * cap-EXCEEDED scenarios (cap=0) moved to {@link MultiDownloadZipSizeCapIT}; the one
+ * FilesConfig}, that a runtime WireMock stub cannot re-drive out-of-process): the two cap-EXCEEDED
+ * scenarios (cap=0) moved to {@link MultiDownloadZipSizeCapIT}; the one
  * cap-PRESENT-but-NOT-exceeded scenario (cap=100 — genuinely different from the default/uncapped
  * stack's {@code Optional.empty()} short-circuit) moved to {@link
  * MultiDownloadZipGenerousSizeCapIT}. This class keeps the remaining 21 methods on the default
@@ -85,7 +85,9 @@ class MultiDownloadZipApiIT extends AbstractFilesIT {
 
   @Test
   void givenValidNodeIdsCheckDownloadMultipleShouldReturn204AndNeverTouchStorages() {
-    String fileId = seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId =
+        seedFile(
+            "file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     // seedFile's upload itself performs one storages verify-blob-exists GET /download; reset so
     // "never touch storages" below asserts only /check's own behaviour.
     FilesStackTestResource.getStoragesService().reset();
@@ -140,9 +142,12 @@ class MultiDownloadZipApiIT extends AbstractFilesIT {
 
   @Test
   void givenLocalRootWithOtherNodeCheckDownloadMultipleShouldReturn400() {
-    String fileId = seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId =
+        seedFile(
+            "file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
-    Response response = checkDownloadMultiple(checkBodyOf(List.of(LOCAL_ROOT, fileId)), REQUESTER_COOKIE);
+    Response response =
+        checkDownloadMultiple(checkBodyOf(List.of(LOCAL_ROOT, fileId)), REQUESTER_COOKIE);
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(400);
   }
@@ -160,28 +165,42 @@ class MultiDownloadZipApiIT extends AbstractFilesIT {
   void givenOnlyNonExistentNodeIdsCheckDownloadMultipleShouldReturn204NotFound() {
     String nonExistentId = "00000000-0000-0000-0000-0000dead0001";
 
-    Response response = checkDownloadMultiple(checkBodyOf(List.of(nonExistentId)), REQUESTER_COOKIE);
+    Response response =
+        checkDownloadMultiple(checkBodyOf(List.of(nonExistentId)), REQUESTER_COOKIE);
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(204);
   }
 
   @Test
-  void givenMixOfValidAndNonExistentNodeIdsCheckDownloadMultipleShouldReturn204SkippingTheInvalidOne() {
-    String fileId = seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+  void
+      givenMixOfValidAndNonExistentNodeIdsCheckDownloadMultipleShouldReturn204SkippingTheInvalidOne() {
+    String fileId =
+        seedFile(
+            "file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String nonExistentId = "00000000-0000-0000-0000-0000dead0002";
 
-    Response response = checkDownloadMultiple(checkBodyOf(List.of(fileId, nonExistentId)), REQUESTER_COOKIE);
+    Response response =
+        checkDownloadMultiple(checkBodyOf(List.of(fileId, nonExistentId)), REQUESTER_COOKIE);
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(204);
   }
 
   @Test
-  void givenNodeWithoutPermissionMixedWithOwnedNodeCheckDownloadMultipleShouldReturn204SkippingTheDeniedOne() {
-    String ownedFileId = seedFile("mine.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+  void
+      givenNodeWithoutPermissionMixedWithOwnedNodeCheckDownloadMultipleShouldReturn204SkippingTheDeniedOne() {
+    String ownedFileId =
+        seedFile(
+            "mine.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     // Owned by another user, never shared with the requester -> PermissionsChecker yields NONE.
-    String deniedFileId = seedFile("notMine.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_USER_COOKIE);
+    String deniedFileId =
+        seedFile(
+            "notMine.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            OTHER_USER_COOKIE);
 
-    Response response = checkDownloadMultiple(checkBodyOf(List.of(ownedFileId, deniedFileId)), REQUESTER_COOKIE);
+    Response response =
+        checkDownloadMultiple(checkBodyOf(List.of(ownedFileId, deniedFileId)), REQUESTER_COOKIE);
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(204);
   }
@@ -192,15 +211,18 @@ class MultiDownloadZipApiIT extends AbstractFilesIT {
   // =========================================================================================
 
   @Test
-  void givenDuplicateFileNamesTheDownloadMultipleShouldDisambiguateWithExtensionPreserved() throws Exception {
+  void givenDuplicateFileNamesTheDownloadMultipleShouldDisambiguateWithExtensionPreserved()
+      throws Exception {
     // Both files requested DIRECTLY (not via their containing folder) -> addFileToPlan passes an
     // empty parentPath for each top-level requested node regardless of the node's real DB parent
     // -> the ZIP mirrors the REQUEST shape (flat here), not the nodes' absolute paths. Seeded under
     // TWO DIFFERENT parents so the real upload-time name-dedup never fires (see class javadoc).
     String parentA = seedFolder("parentA", LOCAL_ROOT, REQUESTER_COOKIE);
     String parentB = seedFolder("parentB", LOCAL_ROOT, REQUESTER_COOKIE);
-    String fileId1 = seedFile("dup.txt", parentA, "one".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    String fileId2 = seedFile("dup.txt", parentB, "two".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId1 =
+        seedFile("dup.txt", parentA, "one".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId2 =
+        seedFile("dup.txt", parentB, "two".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     Response response = downloadMultiple(List.of(fileId1, fileId2), REQUESTER_COOKIE);
 
@@ -212,11 +234,14 @@ class MultiDownloadZipApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenDuplicateFileNamesWithoutExtensionTheDownloadMultipleShouldDisambiguate() throws Exception {
+  void givenDuplicateFileNamesWithoutExtensionTheDownloadMultipleShouldDisambiguate()
+      throws Exception {
     String parentA = seedFolder("parentA", LOCAL_ROOT, REQUESTER_COOKIE);
     String parentB = seedFolder("parentB", LOCAL_ROOT, REQUESTER_COOKIE);
-    String fileId1 = seedFile("dupfile", parentA, "one".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    String fileId2 = seedFile("dupfile", parentB, "two".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId1 =
+        seedFile("dupfile", parentA, "one".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId2 =
+        seedFile("dupfile", parentB, "two".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     Response response = downloadMultiple(List.of(fileId1, fileId2), REQUESTER_COOKIE);
 
@@ -228,11 +253,14 @@ class MultiDownloadZipApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenDuplicateFileNamesEndingWithDotTheDownloadMultipleShouldDisambiguate() throws Exception {
+  void givenDuplicateFileNamesEndingWithDotTheDownloadMultipleShouldDisambiguate()
+      throws Exception {
     String parentA = seedFolder("parentA", LOCAL_ROOT, REQUESTER_COOKIE);
     String parentB = seedFolder("parentB", LOCAL_ROOT, REQUESTER_COOKIE);
-    String fileId1 = seedFile("dup.", parentA, "one".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    String fileId2 = seedFile("dup.", parentB, "two".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId1 =
+        seedFile("dup.", parentA, "one".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId2 =
+        seedFile("dup.", parentB, "two".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     Response response = downloadMultiple(List.of(fileId1, fileId2), REQUESTER_COOKIE);
 
@@ -246,13 +274,17 @@ class MultiDownloadZipApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTripleDuplicateFileNamesTheDownloadMultipleShouldIncrementCounterPastOne() throws Exception {
+  void givenTripleDuplicateFileNamesTheDownloadMultipleShouldIncrementCounterPastOne()
+      throws Exception {
     String parentA = seedFolder("parentA", LOCAL_ROOT, REQUESTER_COOKIE);
     String parentB = seedFolder("parentB", LOCAL_ROOT, REQUESTER_COOKIE);
     String parentC = seedFolder("parentC", LOCAL_ROOT, REQUESTER_COOKIE);
-    String fileId1 = seedFile("same.txt", parentA, "one".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    String fileId2 = seedFile("same.txt", parentB, "two".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    String fileId3 = seedFile("same.txt", parentC, "three".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId1 =
+        seedFile("same.txt", parentA, "one".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId2 =
+        seedFile("same.txt", parentB, "two".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId3 =
+        seedFile("same.txt", parentC, "three".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     Response response = downloadMultiple(List.of(fileId1, fileId2, fileId3), REQUESTER_COOKIE);
 
@@ -267,7 +299,8 @@ class MultiDownloadZipApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenDuplicateFolderNamesTheDownloadMultipleShouldDisambiguateFolderEntries() throws Exception {
+  void givenDuplicateFolderNamesTheDownloadMultipleShouldDisambiguateFolderEntries()
+      throws Exception {
     String wrapperA = seedFolder("wrapperA", LOCAL_ROOT, REQUESTER_COOKIE);
     String wrapperB = seedFolder("wrapperB", LOCAL_ROOT, REQUESTER_COOKIE);
     String folderId1 = seedFolder("docs", wrapperA, REQUESTER_COOKIE);
@@ -285,7 +318,9 @@ class MultiDownloadZipApiIT extends AbstractFilesIT {
     String folderA = seedFolder("A", LOCAL_ROOT, REQUESTER_COOKIE);
     String folderB = seedFolder("B", folderA, REQUESTER_COOKIE);
     String folderC = seedFolder("C", folderB, REQUESTER_COOKIE);
-    String fileId = seedFile("leaf.txt", folderC, "leaf-content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId =
+        seedFile(
+            "leaf.txt", folderC, "leaf-content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     Response response = downloadMultiple(List.of(folderA), REQUESTER_COOKIE);
 
@@ -303,7 +338,9 @@ class MultiDownloadZipApiIT extends AbstractFilesIT {
    */
   @Test
   void givenSingleFileRequestTheDownloadMultipleShouldNameZipAfterTheFile() {
-    String fileId = seedFile("report.pdf", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId =
+        seedFile(
+            "report.pdf", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     Response response = downloadMultiple(List.of(fileId), REQUESTER_COOKIE);
 
@@ -313,9 +350,12 @@ class MultiDownloadZipApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenEmptyFolderAlongsideAFileTheDownloadMultipleShouldIncludeBothEntries() throws Exception {
+  void givenEmptyFolderAlongsideAFileTheDownloadMultipleShouldIncludeBothEntries()
+      throws Exception {
     String emptyFolderId = seedFolder("empty", LOCAL_ROOT, REQUESTER_COOKIE);
-    String fileId = seedFile("alone.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId =
+        seedFile(
+            "alone.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     Response response = downloadMultiple(List.of(emptyFolderId, fileId), REQUESTER_COOKIE);
 
@@ -326,8 +366,14 @@ class MultiDownloadZipApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenNonExistentNodeIdMixedWithValidFileTheDownloadMultipleShouldSilentlySkipIt() throws Exception {
-    String fileId = seedFile("present.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+  void givenNonExistentNodeIdMixedWithValidFileTheDownloadMultipleShouldSilentlySkipIt()
+      throws Exception {
+    String fileId =
+        seedFile(
+            "present.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
     String nonExistentId = "00000000-0000-0000-0000-0000dead0050";
 
     Response response = downloadMultiple(List.of(fileId, nonExistentId), REQUESTER_COOKIE);
@@ -351,24 +397,32 @@ class MultiDownloadZipApiIT extends AbstractFilesIT {
    * <p><b>Pre-state needs a JDBC escape hatch (D1 rule 4): this exact scenario is NOT
    * API-creatable.</b> Both real cascades — {@code ShareDataFetcher#cascadeUpsertShare} (fired by
    * {@code createShare}/{@code seedShare}, recurses onto ALL existing children) and {@code
-   * BlobService#uploadFile}'s own "propagate the parent folder's shares onto a newly uploaded
-   * file" branch — mean that sharing the folder before OR after uploading the child both leave the
-   * child with its OWN share row, regardless of order. The original acceptance test could only
-   * reach "shared parent, unshared child" because {@code DatabasePopulator#addShare} wrote a single
-   * share row via direct repository access, bypassing both cascades entirely — a backdoor with no
+   * BlobService#uploadFile}'s own "propagate the parent folder's shares onto a newly uploaded file"
+   * branch — mean that sharing the folder before OR after uploading the child both leave the child
+   * with its OWN share row, regardless of order. The original acceptance test could only reach
+   * "shared parent, unshared child" because {@code DatabasePopulator#addShare} wrote a single share
+   * row via direct repository access, bypassing both cascades entirely — a backdoor with no
    * real-API equivalent. Seeded here via the real API (so the cascade fires as it always does),
    * then the child's auto-cascaded share row is stripped via raw JDBC to reach the intended,
    * API-observable-but-not-API-creatable pre-state.
    */
   @Test
-  void givenSharedFolderWithUnsharedChildTheDownloadMultipleShouldExcludeTheChildFromTheZip() throws Exception {
+  void givenSharedFolderWithUnsharedChildTheDownloadMultipleShouldExcludeTheChildFromTheZip()
+      throws Exception {
     String folderId = seedFolder("shared-folder", LOCAL_ROOT, OTHER_USER_COOKIE);
     seedShare(folderId, REQUESTER_ID, ACL.SharePermission.READ_ONLY, OTHER_USER_COOKIE);
-    String childFileId = seedFile("notShared.txt", folderId, "secret".getBytes(StandardCharsets.UTF_8), OTHER_USER_COOKIE);
-    // Strip the child's auto-cascaded share row (see javadoc above) to reach the intended pre-state.
+    String childFileId =
+        seedFile(
+            "notShared.txt",
+            folderId,
+            "secret".getBytes(StandardCharsets.UTF_8),
+            OTHER_USER_COOKIE);
+    // Strip the child's auto-cascaded share row (see javadoc above) to reach the intended
+    // pre-state.
     try (java.sql.Connection connection = jdbcConnection();
         java.sql.PreparedStatement statement =
-            connection.prepareStatement("DELETE FROM share WHERE node_id = ? AND target_uuid = ?")) {
+            connection.prepareStatement(
+                "DELETE FROM share WHERE node_id = ? AND target_uuid = ?")) {
       statement.setString(1, childFileId);
       statement.setString(2, REQUESTER_ID);
       statement.executeUpdate();
@@ -401,7 +455,9 @@ class MultiDownloadZipApiIT extends AbstractFilesIT {
    */
   @Test
   void givenStoragesConnectionDropsMidZipTheDownloadMultipleStillReturns200WithATruncatedBody() {
-    String fileId = seedFile("flaky.bin", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId =
+        seedFile(
+            "flaky.bin", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     FilesStackTestResource.getStoragesService().setDownloadFails(true);
 
     Response response = downloadMultiple(List.of(fileId), REQUESTER_COOKIE);

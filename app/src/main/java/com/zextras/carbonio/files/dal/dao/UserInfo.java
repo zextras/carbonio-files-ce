@@ -21,12 +21,7 @@ public class UserInfo {
   public UserInfo() {}
 
   public UserInfo(
-      UserId id,
-      String email,
-      String fullName,
-      String domain,
-      UserStatus status,
-      UserType type) {
+      UserId id, String email, String fullName, String domain, UserStatus status, UserType type) {
     this.id = id;
     this.email = email;
     this.fullName = fullName;

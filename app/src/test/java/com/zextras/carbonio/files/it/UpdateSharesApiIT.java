@@ -69,7 +69,10 @@ class UpdateSharesApiIT extends AbstractFilesIT {
     // When
     List<Map<String, Object>> updatedShares =
         updateShares(
-            nodeId, new String[] {TARGET_B_ID, TARGET_C_ID}, SharePermission.READ_AND_WRITE, OWNER_COOKIE);
+            nodeId,
+            new String[] {TARGET_B_ID, TARGET_C_ID},
+            SharePermission.READ_AND_WRITE,
+            OWNER_COOKIE);
 
     // Then
     Assertions.assertThat(updatedShares).hasSize(2);
@@ -123,7 +126,8 @@ class UpdateSharesApiIT extends AbstractFilesIT {
             .withWantedResultFormat("{ permission }")
             .build();
 
-    // When — TARGET_B_ID itself has no READ_AND_SHARE on the node, so it cannot update its own share
+    // When — TARGET_B_ID itself has no READ_AND_SHARE on the node, so it cannot update its own
+    // share
     Response response = graphql(bodyPayload, TARGET_B_COOKIE);
 
     // Then

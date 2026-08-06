@@ -19,17 +19,17 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * F2 (Quarkus-rewrite hardening restoration): the legacy Netty pipeline capped both GraphQL
- * routes' body at 256KB with {@code new HttpObjectAggregator(256 * 1024)} (see {@code
+ * F2 (Quarkus-rewrite hardening restoration): the legacy Netty pipeline capped both GraphQL routes'
+ * body at 256KB with {@code new HttpObjectAggregator(256 * 1024)} (see {@code
  * core/.../HttpRoutingHandler#channelRead0}, lines ~99-108 for {@code /graphql}, ~199-207 for
  * {@code /public/graphql}). {@code FilesGraphQLRoutes} ported the Vert.x {@code BodyHandler} but
  * never set a body limit on it (Vert.x's default is unlimited), so the cap was silently dropped.
  *
- * <p>Every request is sent via the JDK {@link HttpClient} with {@code
- * BodyPublishers.ofInputStream} (chunked transfer-encoding, no {@code Content-Length} header) to
- * prove the cap holds against actual bytes streamed in, not a trusted header — Vert.x's {@code
- * BodyHandler} tracks the running byte count itself as data arrives, so this is also a genuine
- * test of that (rather than only its Content-Length pre-check).
+ * <p>Every request is sent via the JDK {@link HttpClient} with {@code BodyPublishers.ofInputStream}
+ * (chunked transfer-encoding, no {@code Content-Length} header) to prove the cap holds against
+ * actual bytes streamed in, not a trusted header — Vert.x's {@code BodyHandler} tracks the running
+ * byte count itself as data arrives, so this is also a genuine test of that (rather than only its
+ * Content-Length pre-check).
  *
  * <p>{@code /graphql} needs a VALID authenticated cookie: {@code FilesAuthenticationFilter} is
  * registered at a lower Vert.x route order ({@code -100}) than the GraphQL POST route, so it runs
@@ -82,8 +82,7 @@ class GraphQLBodySizeCapIT extends AbstractFilesIT {
 
   @Test
   void givenAnOversizedChunkedBodyGraphqlShouldReturn413() throws Exception {
-    HttpResponse<String> response =
-        postChunked("/graphql", oversizedJsonBody(), REQUESTER_COOKIE);
+    HttpResponse<String> response = postChunked("/graphql", oversizedJsonBody(), REQUESTER_COOKIE);
 
     Assertions.assertThat(response.statusCode()).isEqualTo(413);
   }

@@ -37,7 +37,12 @@ class AuthenticatedDownloadSizeCapIT extends AbstractFilesIT {
   void givenTheNodeSizeOverTheConfiguredCapDownloadShouldReturn413() {
     // Given — a 0MB cap is configured (this class's DownloadCapResource): any non-empty node
     // exceeds it.
-    String nodeId = seedFile("big.bin", LOCAL_ROOT, "any non-empty content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String nodeId =
+        seedFile(
+            "big.bin",
+            LOCAL_ROOT,
+            "any non-empty content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
     // seedFile's real upload path itself performs one storages verify-blob-exists GET /download;
     // reset the fake's download log so the assertion below covers only the capped-download attempt.
     FilesStackTestResource.getStoragesService().reset();

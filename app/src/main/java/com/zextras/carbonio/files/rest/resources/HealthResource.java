@@ -62,18 +62,16 @@ public class HealthResource {
     dependencies.add(healthService.getDocsConnectorHealth());
     dependencies.add(healthService.getMessageBrokerHealth());
 
-    boolean filesIsReady = dependencies
-        .stream()
-        .filter(dep -> DependencyType.REQUIRED.equals(dep.getType()))
-        .allMatch(ServiceHealth::isReady);
+    boolean filesIsReady =
+        dependencies.stream()
+            .filter(dep -> DependencyType.REQUIRED.equals(dep.getType()))
+            .allMatch(ServiceHealth::isReady);
 
-    HealthResponse healthResponse = new HealthResponse()
-        .setDependencies(dependencies)
-        .setReady(filesIsReady);
+    HealthResponse healthResponse =
+        new HealthResponse().setDependencies(dependencies).setReady(filesIsReady);
 
-    Response.Status status = filesIsReady
-        ? Response.Status.OK
-        : Response.Status.INTERNAL_SERVER_ERROR;
+    Response.Status status =
+        filesIsReady ? Response.Status.OK : Response.Status.INTERNAL_SERVER_ERROR;
 
     return Response.status(status).entity(healthResponse).build();
   }

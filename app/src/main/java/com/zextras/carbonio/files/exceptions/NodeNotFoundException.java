@@ -10,15 +10,10 @@ public class NodeNotFoundException extends Exception {
     super();
   }
 
-  public NodeNotFoundException(
-    String requesterId,
-    String nodeId
-  ) {
-    super(String.format(
-      "Node %s requested by %s does not exist or it does not have the permission to read it",
-      nodeId,
-      requesterId
-    ));
+  public NodeNotFoundException(String requesterId, String nodeId) {
+    super(
+        String.format(
+            "Node %s requested by %s does not exist or it does not have the permission to read it",
+            nodeId, requesterId));
   }
-
 }

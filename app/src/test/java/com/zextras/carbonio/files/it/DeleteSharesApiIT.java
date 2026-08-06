@@ -43,7 +43,8 @@ class DeleteSharesApiIT extends AbstractFilesIT {
   @SuppressWarnings("unchecked")
   private List<String> deletedIds(Response response) {
     return (List<String>)
-        TestUtils.jsonResponseToValue(response.getBody().asString(), "deleteShares").orElse(List.of());
+        TestUtils.jsonResponseToValue(response.getBody().asString(), "deleteShares")
+            .orElse(List.of());
   }
 
   private Response deleteShares(String nodeId, String[] targetUserIds, String cookie) {
@@ -69,7 +70,9 @@ class DeleteSharesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(deletedIds(response)).hasSize(2).containsExactly(TARGET_B_ID, TARGET_C_ID);
+    Assertions.assertThat(deletedIds(response))
+        .hasSize(2)
+        .containsExactly(TARGET_B_ID, TARGET_C_ID);
 
     Assertions.assertThat(shareExists(nodeId, TARGET_B_ID, OWNER_COOKIE)).isFalse();
     Assertions.assertThat(shareExists(nodeId, TARGET_C_ID, OWNER_COOKIE)).isFalse();

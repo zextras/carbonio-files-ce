@@ -34,9 +34,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The legacy implementation used Apache HttpClient ({@code InputStreamEntity} with an explicit
  * {@code Content-Length}); this port uses the JDK's {@link HttpClient} instead (no new dependency
- * needed). {@link HttpRequest.Builder} forbids setting {@code Content-Length} manually, so the
- * body is streamed with chunked transfer-encoding instead of a fixed length — mailbox reads the
- * stream to completion either way, so the wire behaviour is equivalent.
+ * needed). {@link HttpRequest.Builder} forbids setting {@code Content-Length} manually, so the body
+ * is streamed with chunked transfer-encoding instead of a fixed length — mailbox reads the stream
+ * to completion either way, so the wire behaviour is equivalent.
  */
 @ApplicationScoped
 public class MailboxHttpClient {
@@ -121,7 +121,8 @@ public class MailboxHttpClient {
               .orElseGet(
                   () ->
                       Try.failure(
-                          new DependencyException("Unable to deserialize mailbox upload response")));
+                          new DependencyException(
+                              "Unable to deserialize mailbox upload response")));
         }
 
         return Try.failure(new RequestEntityTooLargeException("Upload to mailbox failed"));

@@ -78,7 +78,7 @@ public class GraphqlCommandBuilder {
   }
 
   public GraphqlCommandBuilder withWantedResultFormat(String wantedResultFormat) {
-    if (wantedResultFormat.isEmpty()){
+    if (wantedResultFormat.isEmpty()) {
       if (hasArguments) {
         query.setLength(query.length() - 2);
         query.append(") }");

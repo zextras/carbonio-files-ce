@@ -26,8 +26,8 @@ import org.junit.jupiter.api.Test;
 /**
  * {@code com.zextras.carbonio.files.acceptance.UploadToApiIT} rewritten as an out-of-process
  * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: {@code POST /upload-to} ({@code
- * ProcedureController}/{@code ProcedureService}), the "attach node to mailbox" route. All 7
- * methods and their assertions are preserved verbatim; only the seeding (API calls capturing
+ * ProcedureController}/{@code ProcedureService}), the "attach node to mailbox" route. All 7 methods
+ * and their assertions are preserved verbatim; only the seeding (API calls capturing
  * server-generated ids), the mailbox stub (this class's own {@code
  * FilesStackTestResource#getPreviewMailboxWireMock()} usage, replacing {@code Mocks#mailboxAccepts}
  * / {@code Mocks#mailboxDown}), and the transport changed.
@@ -79,14 +79,17 @@ class UploadToApiIT extends AbstractFilesIT {
         .stubFor(
             post(urlPathMatching("/service/upload.*"))
                 .atPriority(5)
-                .willReturn(aResponse().withStatus(200).withBody("200,'null','" + attachmentId + "'")));
+                .willReturn(
+                    aResponse().withStatus(200).withBody("200,'null','" + attachmentId + "'")));
   }
 
   /** Stubs {@code POST /service/upload.*} (mailbox) to fail with a 500. */
   private static void mailboxDown() {
     FilesStackTestResource.getPreviewMailboxWireMock()
         .stubFor(
-            post(urlPathMatching("/service/upload.*")).atPriority(5).willReturn(aResponse().withStatus(500)));
+            post(urlPathMatching("/service/upload.*"))
+                .atPriority(5)
+                .willReturn(aResponse().withStatus(500)));
   }
 
   @Test
@@ -124,13 +127,15 @@ class UploadToApiIT extends AbstractFilesIT {
   void givenNoPermissionOnTheNodeUploadToShouldReturn404() throws Exception {
     // Given -- a file owned by another user, never shared with the requester
     String fileId =
-        seedFile("private.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+        seedFile(
+            "private.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
     String body = uploadToBody(fileId, TargetModule.MAILS);
 
     // When
     Response response = uploadTo("POST", REQUESTER_COOKIE, body);
 
-    // Then -- PermissionsChecker returns ACL.NONE -> !.has(READ_ONLY) -> NodeNotFoundException -> 404
+    // Then -- PermissionsChecker returns ACL.NONE -> !.has(READ_ONLY) -> NodeNotFoundException ->
+    // 404
     Assertions.assertThat(response.getStatusCode()).isEqualTo(404);
     Assertions.assertThat(response.getBody().asString()).isEqualTo("404 Not Found");
   }
@@ -154,7 +159,11 @@ class UploadToApiIT extends AbstractFilesIT {
   void givenStoragesDownloadFailsUploadToShouldReturn500() throws Exception {
     // Given -- requester owns the file, but the storages download connection drops
     String fileId =
-        seedFile("toattach.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "toattach.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
     FilesStackTestResource.getStoragesService().setDownloadFails(true);
     String body = uploadToBody(fileId, TargetModule.MAILS);
 
@@ -172,7 +181,8 @@ class UploadToApiIT extends AbstractFilesIT {
   void givenMailboxAcceptsUploadToShouldReturn200WithTheAttachmentId() throws Exception {
     // Given
     String fileId =
-        seedFile("attach.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "attach.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     mailboxAccepts("85e4b3d9-1f41-4292-9dc8-e933194cc1f2:dbca72a2-8b05-45c5-a83f-bbae05ab907c");
     String body = uploadToBody(fileId, TargetModule.MAILS);
 
@@ -184,14 +194,19 @@ class UploadToApiIT extends AbstractFilesIT {
     Map<String, Object> json = OBJECT_MAPPER.readValue(response.getBody().asString(), Map.class);
     Assertions.assertThat(json)
         .containsEntry(
-            "attachmentId", "85e4b3d9-1f41-4292-9dc8-e933194cc1f2:dbca72a2-8b05-45c5-a83f-bbae05ab907c");
+            "attachmentId",
+            "85e4b3d9-1f41-4292-9dc8-e933194cc1f2:dbca72a2-8b05-45c5-a83f-bbae05ab907c");
   }
 
   @Test
   void givenMailboxDownUploadToShouldReturn500() throws Exception {
     // Given
     String fileId =
-        seedFile("attach2.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "attach2.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
     mailboxDown();
     String body = uploadToBody(fileId, TargetModule.MAILS);
 

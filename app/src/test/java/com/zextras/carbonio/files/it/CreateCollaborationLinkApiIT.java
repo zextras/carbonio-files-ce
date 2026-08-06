@@ -24,18 +24,17 @@ import org.junit.jupiter.api.Test;
  * server-generated ids) and the transport changed.
  *
  * <p><b>URL shape:</b> {@code <domain><Endpoints.COLLABORATION_LINK_URL><8-char invitationId>}
- * (here {@code example.com/services/files/invite/<8 chars>}). The invitation id is deliberately
- * 8 alphanumeric characters — distinct from the 36-char UUID {@code id} field of the link itself
- * — matching {@code CollaborationLinkRepository#createLink}'s {@code invitationId} contract (see
- * also {@code InviteRedirectApiIT}, which consumes this same 8-char id via {@code GET
- * /invite/{id}}).
+ * (here {@code example.com/services/files/invite/<8 chars>}). The invitation id is deliberately 8
+ * alphanumeric characters — distinct from the 36-char UUID {@code id} field of the link itself —
+ * matching {@code CollaborationLinkRepository#createLink}'s {@code invitationId} contract (see also
+ * {@code InviteRedirectApiIT}, which consumes this same 8-char id via {@code GET /invite/{id}}).
  *
  * <p><b>Permission gate:</b> {@code CollaborationLinkDataFetcher#createCollaborationLink} checks
  * {@code permissionsChecker.getPermissions(nodeId, requesterId).has(permission)} where {@code
- * permission} is literally the mutation's {@code permission} argument — the requester must
- * ALREADY hold (as a bitwise subset of their own ACL) the exact tier they are requesting a link
- * for. A missing node maps to {@code ACL.NONE} (see {@code PermissionsChecker#getPermissions}), so
- * a non-existing node collapses into the identical {@code nodeWriteError} shape as a genuine
+ * permission} is literally the mutation's {@code permission} argument — the requester must ALREADY
+ * hold (as a bitwise subset of their own ACL) the exact tier they are requesting a link for. A
+ * missing node maps to {@code ACL.NONE} (see {@code PermissionsChecker#getPermissions}), so a
+ * non-existing node collapses into the identical {@code nodeWriteError} shape as a genuine
  * permission denial — asserted explicitly below rather than assumed.
  */
 class CreateCollaborationLinkApiIT extends AbstractFilesIT {
@@ -49,10 +48,12 @@ class CreateCollaborationLinkApiIT extends AbstractFilesIT {
   @BeforeAll
   static void registerUsers() {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", OWNER_ID);
-    FilesStackTestResource.getUserManagementService().registerToken("fake-token-b", SHARE_TARGET_ID);
+    FilesStackTestResource.getUserManagementService()
+        .registerToken("fake-token-b", SHARE_TARGET_ID);
   }
 
-  private Response createCollaborationLink(String cookie, String nodeId, SharePermission permission) {
+  private Response createCollaborationLink(
+      String cookie, String nodeId, SharePermission permission) {
     String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("createCollaborationLink")
             .withString("node_id", nodeId)
@@ -87,7 +88,8 @@ class CreateCollaborationLinkApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAnExistingLinkWithTheSamePermissionTheCreateCollaborationLinkShouldReturnItIdempotently() {
+  void
+      givenAnExistingLinkWithTheSamePermissionTheCreateCollaborationLinkShouldReturnItIdempotently() {
     // Given
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
@@ -116,7 +118,8 @@ class CreateCollaborationLinkApiIT extends AbstractFilesIT {
         createCollaborationLink(OWNER_COOKIE, nodeId, SharePermission.READ_AND_SHARE);
     String readShareId =
         (String)
-            TestUtils.jsonResponseToMap(readShareResponse.getBody().asString(), "createCollaborationLink")
+            TestUtils.jsonResponseToMap(
+                    readShareResponse.getBody().asString(), "createCollaborationLink")
                 .get("id");
 
     // When
@@ -126,13 +129,15 @@ class CreateCollaborationLinkApiIT extends AbstractFilesIT {
     // Then — a second, distinct link is created for the other tier
     Assertions.assertThat(readWriteShareResponse.getStatusCode()).isEqualTo(200);
     Map<String, Object> link =
-        TestUtils.jsonResponseToMap(readWriteShareResponse.getBody().asString(), "createCollaborationLink");
+        TestUtils.jsonResponseToMap(
+            readWriteShareResponse.getBody().asString(), "createCollaborationLink");
     Assertions.assertThat(link.get("id")).isNotNull().isNotEqualTo(readShareId);
     Assertions.assertThat(link).containsEntry("permission", "READ_WRITE_AND_SHARE");
   }
 
   @Test
-  void givenAShareTargetWithoutShareRightsTheCreateCollaborationLinkShouldReturnAPermissionDeniedError() {
+  void
+      givenAShareTargetWithoutShareRightsTheCreateCollaborationLinkShouldReturnAPermissionDeniedError() {
     // Given — READ_ONLY carries no SHARE bit
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
@@ -147,11 +152,13 @@ class CreateCollaborationLinkApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("There was a problem while executing requested operation on node: " + nodeId);
+        .containsExactly(
+            "There was a problem while executing requested operation on node: " + nodeId);
   }
 
   @Test
-  void givenAShareTargetWithWriteButNoShareRightsTheCreateCollaborationLinkShouldReturnAPermissionDeniedError() {
+  void
+      givenAShareTargetWithWriteButNoShareRightsTheCreateCollaborationLinkShouldReturnAPermissionDeniedError() {
     // Given — READ_AND_WRITE has the WRITE bit but not the SHARE bit: holding write alone is not
     // enough to request a share-tier collaboration link (documents that the gate checks the
     // exact requested tier, not just "some" permission)
@@ -168,11 +175,13 @@ class CreateCollaborationLinkApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
         .hasSize(1)
-        .containsExactly("There was a problem while executing requested operation on node: " + nodeId);
+        .containsExactly(
+            "There was a problem while executing requested operation on node: " + nodeId);
   }
 
   @Test
-  void givenANonExistingNodeTheCreateCollaborationLinkShouldReturnTheSamePermissionDeniedErrorShape() {
+  void
+      givenANonExistingNodeTheCreateCollaborationLinkShouldReturnTheSamePermissionDeniedErrorShape() {
     // Given — no node is created at all: PermissionsChecker#getPermissions maps a missing node to
     // ACL.NONE, the same shape as an existing-but-forbidden node (mirrors the analogous finding in
     // AuthenticatedDownloadApiIT/CreatePublicLinkApiIT for their respective operations)
@@ -188,6 +197,7 @@ class CreateCollaborationLinkApiIT extends AbstractFilesIT {
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly(
-            "There was a problem while executing requested operation on node: " + nonExistentNodeId);
+            "There was a problem while executing requested operation on node: "
+                + nonExistentNodeId);
   }
 }

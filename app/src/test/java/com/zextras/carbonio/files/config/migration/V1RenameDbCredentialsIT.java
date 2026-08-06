@@ -26,13 +26,13 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Exercises the real {@link V1__RenameDbCredentials} the way {@code
- * carbonio-quarkus-extensions-bootstrap} runs it in production: {@link ConfigMigrationRunner}
- * loads the migration by FQCN (via {@code Class.forName}, exactly like the build-time-generated
- * {@code META-INF/carbonio-migrations.list}) and executes it against the Consul HTTP KV API.
+ * carbonio-quarkus-extensions-bootstrap} runs it in production: {@link ConfigMigrationRunner} loads
+ * the migration by FQCN (via {@code Class.forName}, exactly like the build-time-generated {@code
+ * META-INF/carbonio-migrations.list}) and executes it against the Consul HTTP KV API.
  *
  * <p>Not a {@code @QuarkusTest}: {@code ConfigMigrationRunner} is invoked by the {@code --setup}
- * CLI path BEFORE Quarkus starts (see {@code SetupAwareMain}), so a plain WireMock Consul double
- * is enough to exercise it end-to-end — no app boot / {@code FilesStackTestResource} involved.
+ * CLI path BEFORE Quarkus starts (see {@code SetupAwareMain}), so a plain WireMock Consul double is
+ * enough to exercise it end-to-end — no app boot / {@code FilesStackTestResource} involved.
  */
 class V1RenameDbCredentialsIT {
 

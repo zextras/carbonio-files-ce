@@ -11,12 +11,11 @@ import java.util.Optional;
 /**
  * Quarkus port of the legacy (core) {@code PreviewQueryParameters}. The legacy Netty {@code
  * PreviewController} built this via a hand-rolled query-string parser + {@code
- * ObjectMapper#convertValue}; {@link
- * com.zextras.carbonio.files.rest.resources.PreviewResource} instead binds each field directly
- * from a JAX-RS {@code @QueryParam}, so this class gains public string/boolean/integer setters
- * (the legacy class only exposed {@code setLangTag}/{@code setNodeVersion}, relying on Jackson for
- * the rest). Field semantics and the downstream consumer ({@code PreviewService#generateQuery})
- * are unchanged.
+ * ObjectMapper#convertValue}; {@link com.zextras.carbonio.files.rest.resources.PreviewResource}
+ * instead binds each field directly from a JAX-RS {@code @QueryParam}, so this class gains public
+ * string/boolean/integer setters (the legacy class only exposed {@code setLangTag}/{@code
+ * setNodeVersion}, relying on Jackson for the rest). Field semantics and the downstream consumer
+ * ({@code PreviewService#generateQuery}) are unchanged.
  */
 public class PreviewQueryParameters {
 

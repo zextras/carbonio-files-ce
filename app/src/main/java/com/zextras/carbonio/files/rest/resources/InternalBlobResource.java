@@ -41,20 +41,20 @@ import java.util.Optional;
  * boundary — there is NO auth filter/cookie here at all): {@code POST
  * /internal/accounts/{userId}/upload}, {@code POST /internal/accounts/{userId}/upload-version} and
  * {@code GET /internal/accounts/{userId}/download/{nodeId}[/{version}]}. The {@code userId} PATH
- * segment is the ONLY thing that determines whose ACLs are checked / who owns a newly-created node —
- * the same trusted-caller contract the retired WIP gRPC surface (formerly {@code FilesGrpcService})
- * used for its {@code UploadFile}/{@code UploadFileVersion}/{@code DownloadFile} RPCs, now reached
- * here over REST instead.
+ * segment is the ONLY thing that determines whose ACLs are checked / who owns a newly-created node
+ * — the same trusted-caller contract the retired WIP gRPC surface (formerly {@code
+ * FilesGrpcService}) used for its {@code UploadFile}/{@code UploadFileVersion}/{@code DownloadFile}
+ * RPCs, now reached here over REST instead.
  *
- * <p>Reuses the EXACT same proven streaming machinery as the authenticated {@link BlobResource}: raw
- * body {@link InputStream} in, a Vert.x {@link HttpServerResponse} out via {@link
+ * <p>Reuses the EXACT same proven streaming machinery as the authenticated {@link BlobResource}:
+ * raw body {@link InputStream} in, a Vert.x {@link HttpServerResponse} out via {@link
  * TransferStreaming#streamBlob}, and the dedicated {@link TransferPool} for the heavy byte-transfer
  * work (real backpressure, no whole-file buffering). No new streaming approach is introduced.
  *
  * <p>Replaces the former header-based {@code POST /internal/upload} (which read the acting user id
  * from an {@code AccountId} header): same no-auth, no-upload-size-cap behavior — mirrored here
- * verbatim — reshaped so the acting user id is a path segment, per the locked decision, and extended
- * with the upload-version and download counterparts.
+ * verbatim — reshaped so the acting user id is a path segment, per the locked decision, and
+ * extended with the upload-version and download counterparts.
  */
 @Path("/internal")
 @ApplicationScoped
@@ -89,12 +89,12 @@ public class InternalBlobResource {
       @HeaderParam(HttpHeaders.CONTENT_LENGTH) Long contentLength,
       InputStream body) {
 
-    // Offloaded to the transfer pool exactly like BlobResource's uploads: the whole upload (streamed
+    // Offloaded to the transfer pool exactly like BlobResource's uploads: the whole upload
+    // (streamed
     // body consume + JDBC/JTA) runs on a transfer thread, off the event loop.
     return Uni.createFrom()
         .item(
-            () ->
-                doUploadFile(userId, body, contentLength, parentId, encodedFilename, description))
+            () -> doUploadFile(userId, body, contentLength, parentId, encodedFilename, description))
         .runSubscriptionOn(transferPool.get());
   }
 
@@ -225,8 +225,8 @@ public class InternalBlobResource {
   }
 
   /**
-   * Base64-decodes the {@code Filename} header (legacy encoding). Returns {@code null} if the header
-   * is missing or not valid base64, which the callers translate into a 400.
+   * Base64-decodes the {@code Filename} header (legacy encoding). Returns {@code null} if the
+   * header is missing or not valid base64, which the callers translate into a 400.
    */
   private static String decodeFilename(String encodedFilename) {
     if (encodedFilename == null) {

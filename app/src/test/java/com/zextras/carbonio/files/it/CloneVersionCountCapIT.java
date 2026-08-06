@@ -62,7 +62,8 @@ class CloneVersionCountCapIT extends AbstractFilesIT {
         .hasSize(1)
         .containsExactly(
             "There was a problem while executing requested operation on node: " + nodeId);
-    Assertions.assertThat(TestUtils.jsonResponseToValue(response.getBody().asString(), "cloneVersion"))
+    Assertions.assertThat(
+            TestUtils.jsonResponseToValue(response.getBody().asString(), "cloneVersion"))
         .isEmpty();
 
     // no new version was created

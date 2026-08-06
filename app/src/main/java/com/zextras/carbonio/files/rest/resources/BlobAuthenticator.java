@@ -85,11 +85,11 @@ public class BlobAuthenticator {
   }
 
   /**
-   * Builds a 401 whose body carries the legacy {@code AuthenticationException} message shape ({@code
-   * "Failed to authenticate request: <reason>"}), matching the Netty {@code ExceptionsHandler} which
-   * wrote {@code cause.getMessage()} as the 401 body. Reserved for genuine auth failures. The
-   * acceptance suite ({@code AuthApiIT}, blob route) asserts the body contains the reason fragment,
-   * so it must not be empty.
+   * Builds a 401 whose body carries the legacy {@code AuthenticationException} message shape
+   * ({@code "Failed to authenticate request: <reason>"}), matching the Netty {@code
+   * ExceptionsHandler} which wrote {@code cause.getMessage()} as the 401 body. Reserved for genuine
+   * auth failures. The acceptance suite ({@code AuthApiIT}, blob route) asserts the body contains
+   * the reason fragment, so it must not be empty.
    */
   private WebApplicationException unauthorized(String reason) {
     String message = "Failed to authenticate request: " + reason;

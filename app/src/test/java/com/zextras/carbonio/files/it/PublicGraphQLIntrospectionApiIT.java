@@ -24,17 +24,17 @@ import org.junit.jupiter.api.Test;
  * methods; (b) {@code getNode} resolving via the request-scoped DataLoader without {@code
  * ContextNotActiveException} — implied by every successful {@code getNode} query in this whole
  * suite (a broken DataLoader would fail all of them, not just this one); (c) missing/invalid-cookie
- * {@code /graphql} returning 401 — covered by {@link AuthApiIT}'s {@code
- * unauthorizedAuthScenarios} (a superset: missing cookie, cookie without the token, unresolvable
- * token). No unique coverage was lost.
+ * {@code /graphql} returning 401 — covered by {@link AuthApiIT}'s {@code unauthorizedAuthScenarios}
+ * (a superset: missing cookie, cookie without the token, unresolvable token). No unique coverage
+ * was lost.
  *
  * <p><b>SECURITY FINDING (carried over, not fixed — test-only task, no {@code src/main}
  * changes):</b> unlike the authenticated {@code /graphql/} endpoint ({@link IntrospectionApiIT}
  * confirms introspection is blocked there via {@code GraphQLProvider#buildSchema}'s {@code
  * BlockedFields.newBlock().addPattern("__.*")} field-visibility transform), {@code
- * PublicGraphQLProvider#buildSchema} applies NO such transform. The public, unauthenticated
- * GraphQL endpoint therefore serves full schema introspection to anyone, with no login required.
- * These tests pin down and demonstrate the current (unblocked) behaviour.
+ * PublicGraphQLProvider#buildSchema} applies NO such transform. The public, unauthenticated GraphQL
+ * endpoint therefore serves full schema introspection to anyone, with no login required. These
+ * tests pin down and demonstrate the current (unblocked) behaviour.
  *
  * <p>Both methods and their assertions are preserved verbatim; only the transport ({@link
  * #publicGraphql}) changed — no seeding is needed (introspection needs no data).
@@ -45,7 +45,8 @@ class PublicGraphQLIntrospectionApiIT extends AbstractFilesIT {
 
   @SuppressWarnings("unchecked")
   @Test
-  void givenFullSchemaIntrospectionQueryOnPublicGraphqlThenItSucceedsUnauthenticated() throws Exception {
+  void givenFullSchemaIntrospectionQueryOnPublicGraphqlThenItSucceedsUnauthenticated()
+      throws Exception {
     // Given — the exact introspection query that IntrospectionApiIT proves is BLOCKED on the
     // authenticated /graphql/ endpoint.
     String introspectionQuery = "query introspectionQuery { __schema { types { name } } }";
@@ -75,7 +76,8 @@ class PublicGraphQLIntrospectionApiIT extends AbstractFilesIT {
 
   @SuppressWarnings("unchecked")
   @Test
-  void givenTypeIntrospectionOnQueryTypeOnPublicGraphqlThenFieldNamesAreDisclosed() throws Exception {
+  void givenTypeIntrospectionOnQueryTypeOnPublicGraphqlThenFieldNamesAreDisclosed()
+      throws Exception {
     // Given — a narrower introspection query revealing the exact Query field names/shape.
     String query = "query { __type(name: \\\"Query\\\") { name fields { name } } }";
 

@@ -19,22 +19,22 @@ import org.junit.jupiter.api.Test;
 /**
  * {@code com.zextras.carbonio.files.acceptance.ExceptionResidueApiIT} rewritten as an
  * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: exception-handling
- * branches not exercised by any other {@code *ApiIT} — the {@code /upload-to} oversized-body
- * guard and the tampered-page-token {@code InvalidTokenSignException} path.
+ * branches not exercised by any other {@code *ApiIT} — the {@code /upload-to} oversized-body guard
+ * and the tampered-page-token {@code InvalidTokenSignException} path.
  *
- * <p><b>The seam's per-TEST (not per-class) app lifecycle is OBSOLETE under {@code
- * @QuarkusIntegrationTest} and is dropped here.</b> The seam's elaborate {@code @BeforeEach}/{@code
- * @AfterEach} app rebuild existed ONLY to work around a real bug in the seam's OWN real-HTTP
- * harness (see the deleted class's FINDING #3): {@code java.net.http.HttpClient} connection
- * pooling could race a still-closing connection from the oversized-body test into the NEXT test,
- * landing on a stale Netty pipeline that had already had {@code HttpRoutingHandler#channelRead0}'s
- * route-matched handler added once — a "Duplicate handler name" clash unique to that bespoke
- * pipeline-mutation-per-request design. The out-of-process app under test here is a plain
- * RESTEasy Reactive/Vert.x server with no such per-route pipeline mutation (confirmed by reading
- * {@code ProcedureResource}, the Quarkus port of the legacy {@code ProcedureController}, which has
- * no pipeline-touching code at all) — so this harness bug cannot recur, and every {@code
- * AbstractFilesIT} class already shares one launched app for the whole suite, cleaned up per-method
- * by {@link #resetDb()}.
+ * <p><b>The seam's per-TEST (not per-class) app lifecycle is OBSOLETE under
+ * {@code @QuarkusIntegrationTest} and is dropped here.</b> The seam's elaborate
+ * {@code @BeforeEach}/{@code @AfterEach} app rebuild existed ONLY to work around a real bug in the
+ * seam's OWN real-HTTP harness (see the deleted class's FINDING #3): {@code
+ * java.net.http.HttpClient} connection pooling could race a still-closing connection from the
+ * oversized-body test into the NEXT test, landing on a stale Netty pipeline that had already had
+ * {@code HttpRoutingHandler#channelRead0}'s route-matched handler added once — a "Duplicate handler
+ * name" clash unique to that bespoke pipeline-mutation-per-request design. The out-of-process app
+ * under test here is a plain RESTEasy Reactive/Vert.x server with no such per-route pipeline
+ * mutation (confirmed by reading {@code ProcedureResource}, the Quarkus port of the legacy {@code
+ * ProcedureController}, which has no pipeline-touching code at all) — so this harness bug cannot
+ * recur, and every {@code AbstractFilesIT} class already shares one launched app for the whole
+ * suite, cleaned up per-method by {@link #resetDb()}.
  *
  * <p><b>FINDING (carried over, and CONFIRMED still true under Quarkus):</b> {@code
  * ProcedureResource}'s javadoc states it reproduces the legacy Netty {@code
@@ -48,8 +48,8 @@ import org.junit.jupiter.api.Test;
  * confined to {@code PageQuery} ({@code fromToken}/{@code computeHmac}/{@code toToken}), invoked
  * ONLY from the {@code findNodes} / public {@code findNodes} GraphQL data-fetchers. Both run inside
  * graphql-java's query-execution engine, which catches any {@link RuntimeException} thrown by a
- * {@code DataFetcher} and converts it into a {@code GraphQLError} entry in the (still-200)
- * response — the exception never propagates to an HTTP-level exception mapper. The actual,
+ * {@code DataFetcher} and converts it into a {@code GraphQLError} entry in the (still-200) response
+ * — the exception never propagates to an HTTP-level exception mapper. The actual,
  * empirically-observed status is 200 with a GraphQL execution error, asserted explicitly here.
  */
 class ExceptionResidueApiIT extends AbstractFilesIT {
@@ -71,13 +71,15 @@ class ExceptionResidueApiIT extends AbstractFilesIT {
             .build();
     Response response = graphql(mutation, ownerCookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    String url = (String) TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
+    String url =
+        (String)
+            TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
     return url.substring(url.length() - 50);
   }
 
   /**
-   * {@code /upload-to}'s {@code Content-Length} guard (see {@code ProcedureResource}) sits FIRST
-   * in the resource method, ahead of authentication. So an over-limit request is rejected before
+   * {@code /upload-to}'s {@code Content-Length} guard (see {@code ProcedureResource}) sits FIRST in
+   * the resource method, ahead of authentication. So an over-limit request is rejected before
    * authentication — no cookie is required to reach this branch at all.
    */
   @Test
@@ -100,12 +102,12 @@ class ExceptionResidueApiIT extends AbstractFilesIT {
    * Reproduces the exact fixture/forged-token construction already used by {@code
    * PublicFindNodesApiIT}'s "hacked page token without signature" test, but states the STATUS-code
    * mapping explicitly (this class's stated purpose), rather than only the GraphQL error message.
-   * The forged token's embedded {@code folderId} is a fixed, unrelated literal by design (see {@code
-   * PublicFindNodesApiIT}'s class javadoc): this legacy-shaped JSON fails to Jackson-deserialize
-   * against the port's actual {@code PageToken} shape at all (a MALFORMED token — see {@code
-   * NodeRepositoryImpl#decodeToken}), before that embedded value — or any signature — is ever
-   * consulted, so the seeded nodes below need not (and structurally cannot, since API-seeding
-   * cannot choose a caller ID) share the forged token's hard-coded ids.
+   * The forged token's embedded {@code folderId} is a fixed, unrelated literal by design (see
+   * {@code PublicFindNodesApiIT}'s class javadoc): this legacy-shaped JSON fails to
+   * Jackson-deserialize against the port's actual {@code PageToken} shape at all (a MALFORMED token
+   * — see {@code NodeRepositoryImpl#decodeToken}), before that embedded value — or any signature —
+   * is ever consulted, so the seeded nodes below need not (and structurally cannot, since
+   * API-seeding cannot choose a caller ID) share the forged token's hard-coded ids.
    */
   @Test
   void givenATamperedPageTokenTheActualStatusIs200WithAGraphQLErrorNotAnHttp401() {

@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot;
 
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -36,7 +35,8 @@ public class SnapshotUser {
   @Column(name = Constants.Db.SnapshotUser.EMAIL, length = 1024, nullable = false)
   private String email;
 
-  public SnapshotUser(String snapshotUserId, Long snapshotTimestamp, String userId, String fullName, String email) {
+  public SnapshotUser(
+      String snapshotUserId, Long snapshotTimestamp, String userId, String fullName, String email) {
     this.snapshotUserId = snapshotUserId;
     this.snapshotTimestamp = snapshotTimestamp;
     this.userId = userId;

@@ -6,16 +6,16 @@ package com.zextras.carbonio.files.dal.dao.ebean;
 
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.Db;
-
-import java.util.Optional;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.util.Optional;
 
 /**
- * Represents an Ebean {@link Link} entity that matches a record of the {@link Constants.Db.Link} table.
+ * Represents an Ebean {@link Link} entity that matches a record of the {@link Constants.Db.Link}
+ * table.
  *
  * <p>The public link has properties mapped to the corresponding table columns:
  *
@@ -162,7 +162,7 @@ public class Link {
 
   /**
    * @return an {@link Optional} containing a {@link String} representing the link access code, if
-   * exists.
+   *     exists.
    */
   public Optional<String> getAccessCode() {
     return Optional.ofNullable(accessCode);
@@ -172,9 +172,12 @@ public class Link {
    * Allows to add/change the access code of the existing public link.
    *
    * @param accessCode is a {@link String} of the link code that the user must have in order to
-   *    access the resource.
+   *     access the resource.
    */
   public void setAccessCode(String accessCode) {
-    this.accessCode = accessCode.isEmpty() ? null : accessCode; // If accessCode is empty, set it to null since it is used as optional
+    this.accessCode =
+        accessCode.isEmpty()
+            ? null
+            : accessCode; // If accessCode is empty, set it to null since it is used as optional
   }
 }

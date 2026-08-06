@@ -22,17 +22,17 @@ import org.junit.jupiter.api.Test;
  * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. The {@code cloneVersion} mutation
  * (bound to {@code NodeDataFetcher#cloneVersionFetcher}) is exercised on the DEFAULT (unbounded)
  * version cap; the total-version-cap scenario is split into the sibling {@link
- * CloneVersionCountCapIT} (Batch G / D3), since the cap is a boot-time config snapshot that must
- * be set for the WHOLE launched process, not per-method.
+ * CloneVersionCountCapIT} (Batch G / D3), since the cap is a boot-time config snapshot that must be
+ * set for the WHOLE launched process, not per-method.
  *
- * <p><b>FINDING (carried over) — the graceful "version not found" branch is DEAD CODE, killed by
- * an eager debug-log {@code Optional#get()}:</b> immediately before the safe {@code
+ * <p><b>FINDING (carried over) — the graceful "version not found" branch is DEAD CODE, killed by an
+ * eager debug-log {@code Optional#get()}:</b> immediately before the safe {@code
  * fileVersionRepository.getFileVersion(nodeId, versionToClone).map(...).orElse(
  * fileVersionNotFound(...))} chain, {@code cloneVersionFetcher} builds a debug log line via an
  * unconditional {@code .get()} on that same lookup — evaluated eagerly by {@code
- * MessageFormat.format}'s argument list regardless of whether DEBUG logging is enabled. When
- * {@code versionToClone} does not correspond to any {@code FileVersion} row, this throws a plain
- * {@code NoSuchElementException("No value present")}, which graphql-java's default {@code
+ * MessageFormat.format}'s argument list regardless of whether DEBUG logging is enabled. When {@code
+ * versionToClone} does not correspond to any {@code FileVersion} row, this throws a plain {@code
+ * NoSuchElementException("No value present")}, which graphql-java's default {@code
  * SimpleDataFetcherExceptionHandler} wraps into an {@code ExceptionWhileDataFetching} error
  * (message {@code "Exception while fetching data (/cloneVersion) : No value present"}). The
  * well-formed {@code fileVersionNotFound(...)} error a few lines below can therefore NEVER be
@@ -44,8 +44,8 @@ import org.junit.jupiter.api.Test;
  * {@code CompletableFuture} callback, so it is caught by the same fetch-exception path as above,
  * producing ONE {@code ExceptionWhileDataFetching} error and a null {@code data} — unlike {@code
  * CopyNodesApiIT}'s blocked-destination cases (a deliberately-null LIST item, a different
- * graphql-java mechanism), a top-level non-list field failing via a thrown fetch exception does
- * NOT also trip a redundant null-propagation error.
+ * graphql-java mechanism), a top-level non-list field failing via a thrown fetch exception does NOT
+ * also trip a redundant null-propagation error.
  */
 class CloneVersionApiIT extends AbstractFilesIT {
 
@@ -68,7 +68,8 @@ class CloneVersionApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAnExistingVersionCloningItShouldAppendANewVersionMarkedWithTheSourceItWasClonedFrom() throws SQLException {
+  void givenAnExistingVersionCloningItShouldAppendANewVersionMarkedWithTheSourceItWasClonedFrom()
+      throws SQLException {
     // Given — v2 is kept-forever AND current; cloning it proves the NEW version does NOT inherit
     // the keep-forever flag from its source (createNewFileVersion(..., false) hardcodes it false).
     // keepForever is NOT settable via seedVersion (see AbstractFilesIT#seedVersion javadoc), so v2
@@ -97,13 +98,16 @@ class CloneVersionApiIT extends AbstractFilesIT {
         .containsEntry("id", nodeId)
         .containsEntry("version", 3)
         .containsEntry("cloned_from_version", 2)
-        .containsEntry("keep_forever", false); // hardcoded false by createNewFileVersion(..., false)
+        .containsEntry(
+            "keep_forever", false); // hardcoded false by createNewFileVersion(..., false)
 
     Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2, 3);
   }
 
   @Test
-  void givenAVersionThatDoesNotExistCloningCrashesOnAnEagerDebugLogGetInsteadOfReturningFileVersionNotFound() throws SQLException {
+  void
+      givenAVersionThatDoesNotExistCloningCrashesOnAnEagerDebugLogGetInsteadOfReturningFileVersionNotFound()
+          throws SQLException {
     // Given — only v1 (current) exists
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
@@ -119,13 +123,15 @@ class CloneVersionApiIT extends AbstractFilesIT {
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly("Exception while fetching data (/cloneVersion) : No value present");
-    Assertions.assertThat(TestUtils.jsonResponseToValue(response.getBody().asString(), "cloneVersion"))
+    Assertions.assertThat(
+            TestUtils.jsonResponseToValue(response.getBody().asString(), "cloneVersion"))
         .isEmpty();
     Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
   }
 
   @Test
-  void givenAFilestoreCopyFailureCloningShouldHardAbortWithAnExceptionWhileFetchingDataError() throws SQLException {
+  void givenAFilestoreCopyFailureCloningShouldHardAbortWithAnExceptionWhileFetchingDataError()
+      throws SQLException {
     // Given — v1 (source to clone), v2 (current)
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
@@ -146,7 +152,8 @@ class CloneVersionApiIT extends AbstractFilesIT {
             "Exception while fetching data (/cloneVersion) : Copy error with nodeId: "
                 + nodeId
                 + " and version 1");
-    Assertions.assertThat(TestUtils.jsonResponseToValue(response.getBody().asString(), "cloneVersion"))
+    Assertions.assertThat(
+            TestUtils.jsonResponseToValue(response.getBody().asString(), "cloneVersion"))
         .isEmpty();
 
     // no new version row was created (createNewFileVersion only runs inside Try#onSuccess, which

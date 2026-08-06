@@ -8,12 +8,12 @@ import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.Constants.Db.Tables;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
-import java.time.Instant;
-import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Represents an Ebean {@link CollaborationLink} entity that matches a record of the {@link

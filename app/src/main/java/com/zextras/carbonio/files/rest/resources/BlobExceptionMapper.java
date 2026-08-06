@@ -83,7 +83,8 @@ public class BlobExceptionMapper implements ExceptionMapper<Throwable> {
     } else if (cause instanceof MaxNumberOfFileVersionsException) {
       status = Response.Status.METHOD_NOT_ALLOWED;
       payload = cause.getMessage();
-    } else if (cause instanceof FileSizeException || cause instanceof RequestEntityTooLargeException) {
+    } else if (cause instanceof FileSizeException
+        || cause instanceof RequestEntityTooLargeException) {
       status = Response.Status.REQUEST_ENTITY_TOO_LARGE;
       payload = statusLine(status);
     } else if (cause instanceof ZipGenerationException) {
@@ -107,9 +108,9 @@ public class BlobExceptionMapper implements ExceptionMapper<Throwable> {
   }
 
   /**
-   * Reproduces the legacy Netty {@code HttpResponseStatus#toString()} body format ({@code
-   * "<code> <reason phrase>"}, e.g. {@code "404 Not Found"}). The legacy {@code ExceptionsHandler}
-   * used this exact string as the response body, and the acceptance suite asserts it verbatim (e.g.
+   * Reproduces the legacy Netty {@code HttpResponseStatus#toString()} body format ({@code "<code>
+   * <reason phrase>"}, e.g. {@code "404 Not Found"}). The legacy {@code ExceptionsHandler} used
+   * this exact string as the response body, and the acceptance suite asserts it verbatim (e.g.
    * {@code AuthenticatedDownloadApiIT} expects {@code "404 Not Found"} / {@code "413 Request Entity
    * Too Large"}), so the bare reason phrase ({@code getReasonPhrase()}) alone is not enough.
    */
@@ -119,8 +120,8 @@ public class BlobExceptionMapper implements ExceptionMapper<Throwable> {
 
   /**
    * {@code true} for the two route families whose legacy Netty controller explicitly gated its
-   * single supported HTTP verb in-handler (see {@link #toResponse}): {@code /upload-to}
-   * ({@code ProcedureController}) and {@code /preview/**} ({@code PreviewController}).
+   * single supported HTTP verb in-handler (see {@link #toResponse}): {@code /upload-to} ({@code
+   * ProcedureController}) and {@code /preview/**} ({@code PreviewController}).
    */
   private boolean isLegacyMethodGatedRoute() {
     if (uriInfo == null) {

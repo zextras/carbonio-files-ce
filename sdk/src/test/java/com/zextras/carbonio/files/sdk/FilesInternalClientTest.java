@@ -27,11 +27,11 @@ import org.junit.jupiter.api.Test;
  * HttpServer} on an ephemeral loopback port (no mocked I/O) &mdash; the same style as {@link
  * com.zextras.carbonio.files.sdk.streaming.RestStreamingSupportTest}. These exist to prove the
  * {@code Content-Length} fix holds all the way through the public facade API real callers use, not
- * just the lower-level {@code RestStreamingSupport} helper: {@link
- * FilesInternalClient#uploadFile} / {@link FilesInternalClient#uploadFileVersion} must deliver a
- * real {@code Content-Length} header (derived from their {@code length} parameter) instead of
- * chunked transfer-encoding with an unknown length &mdash; the bug that made the server-side {@code
- * blobLength} arrive as {@code -1} (silently bypassing the quota check).
+ * just the lower-level {@code RestStreamingSupport} helper: {@link FilesInternalClient#uploadFile}
+ * / {@link FilesInternalClient#uploadFileVersion} must deliver a real {@code Content-Length} header
+ * (derived from their {@code length} parameter) instead of chunked transfer-encoding with an
+ * unknown length &mdash; the bug that made the server-side {@code blobLength} arrive as {@code -1}
+ * (silently bypassing the quota check).
  */
 class FilesInternalClientTest {
 

@@ -24,8 +24,8 @@ import org.junit.jupiter.api.Test;
  * except one JDBC-only pre-state — see below) and transport changed.
  *
  * <p><b>JDBC-seeded pre-state (D1 rule 4 escape hatch):</b> {@code
- * givenAReadableChildWithAnUnreadableParentTheParentFieldIsSilentlyNull} needs a child whose
- * OWNER differs from its structural parent's owner. The real {@code createFolder}/{@code upload}
+ * givenAReadableChildWithAnUnreadableParentTheParentFieldIsSilentlyNull} needs a child whose OWNER
+ * differs from its structural parent's owner. The real {@code createFolder}/{@code upload}
  * mutations always inherit the parent's owner (see {@code CreateFolderApiIT}'s finding), so this
  * owner/parent-owner mismatch is NOT producible through the public API at all — it is seeded via
  * {@link AbstractFilesIT#seedInconsistentNode}, the ONLY method in this class that does not go
@@ -55,7 +55,8 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAReadableChildWithAnUnreadableParentTheParentFieldIsSilentlyNull() throws java.sql.SQLException {
+  void givenAReadableChildWithAnUnreadableParentTheParentFieldIsSilentlyNull()
+      throws java.sql.SQLException {
     // Given — folder P owned by OTHER_USER_ID, never shared with the requester (unreadable to
     // them); child C is owned by the REQUESTER (so the requester CAN read C directly) but is
     // structurally parented under P. This owner/parent-owner mismatch is not producible through
@@ -65,11 +66,25 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
     String parentId = "10000000-0000-0000-0000-000000000001";
     String childId = "00000000-0000-0000-0000-000000000001";
     seedInconsistentNode(
-        parentId, OTHER_USER_ID, OTHER_USER_ID, "LOCAL_ROOT", "privateParent", NodeType.FOLDER,
-        "LOCAL_ROOT", 0L, null);
+        parentId,
+        OTHER_USER_ID,
+        OTHER_USER_ID,
+        "LOCAL_ROOT",
+        "privateParent",
+        NodeType.FOLDER,
+        "LOCAL_ROOT",
+        0L,
+        null);
     seedInconsistentNode(
-        childId, REQUESTER_ID, REQUESTER_ID, parentId, "child.txt", NodeType.TEXT,
-        "LOCAL_ROOT," + parentId, 1L, "text/plain");
+        childId,
+        REQUESTER_ID,
+        REQUESTER_ID,
+        parentId,
+        "child.txt",
+        NodeType.TEXT,
+        "LOCAL_ROOT," + parentId,
+        1L,
+        "text/plain");
 
     // When
     Response response = getNode(childId, null, "{ id parent { id } }", REQUESTER_COOKIE);
@@ -77,7 +92,8 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
     // Then — getNode itself succeeds (the requester owns the child), but parent is silently null
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node).containsEntry("id", childId);
     Assertions.assertThat(node.get("parent")).isNull();
   }
@@ -95,7 +111,8 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat((Map<String, Object>) node.get("parent")).containsEntry("id", parentId);
   }
 
@@ -110,8 +127,11 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
     // Then — unlike the `parent` field, direct getNode surfaces a real error
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1).containsExactly("Could not find node with id " + nonExistentId);
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Could not find node with id " + nonExistentId);
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node).isEmpty();
   }
 
@@ -119,7 +139,8 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
   void givenNoPermissionOnAnExistingNodeDirectGetNodeShouldReturnNodeNotFoundError() {
     // Given — exists, owned by someone else, never shared
     String nodeId =
-        seedFile("notMine.txt", LOCAL_ROOT, "notmine".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+        seedFile(
+            "notMine.txt", LOCAL_ROOT, "notmine".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
 
     // When
     Response response = getNode(nodeId, null, "{ id }", REQUESTER_COOKIE);
@@ -127,15 +148,17 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
     // Then — same nodeNotFound-shaped error as the not-found case; the gate cannot distinguish them
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1).containsExactly("Could not find node with id " + nodeId);
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Could not find node with id " + nodeId);
   }
 
   /**
    * Closes {@code GenericControllerEvaluator#validateNodeId}'s missing branch: {@code
-   * RootId.TRASH_ROOT} is a special-cased valid id (alongside {@code LOCAL_ROOT}, already
-   * exercised elsewhere in the suite e.g. via {@code createFolder(parent_id: "LOCAL_ROOT")}), but
-   * no test ever passed {@code "TRASH_ROOT"} itself as a {@code getNode} argument, so that
-   * specific {@code || nodeId.equals(RootId.TRASH_ROOT)} branch direction was never taken.
+   * RootId.TRASH_ROOT} is a special-cased valid id (alongside {@code LOCAL_ROOT}, already exercised
+   * elsewhere in the suite e.g. via {@code createFolder(parent_id: "LOCAL_ROOT")}), but no test
+   * ever passed {@code "TRASH_ROOT"} itself as a {@code getNode} argument, so that specific {@code
+   * || nodeId.equals(RootId.TRASH_ROOT)} branch direction was never taken.
    */
   @Test
   void givenTrashRootAsNodeIdDirectGetNodeShouldPassValidationAndResolve() {
@@ -145,7 +168,8 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
     // Then — no "Invalid node ID" validation error; TRASH_ROOT resolves like any other root id.
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node).containsEntry("id", "TRASH_ROOT");
   }
 
@@ -153,14 +177,16 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
   void givenARequestedVersionThatDoesNotExistGetNodeReturnsBaseDataPlusAnError() {
     // Given — a file that only has version 1
     String nodeId =
-        seedFile("versioned.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "versioned.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When — request a version that was never created
     Response response = getNode(nodeId, 999, "{ id name type }", REQUESTER_COOKIE);
 
     // Then — base node data IS present...
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node)
         .containsEntry("id", nodeId)
         .containsEntry("name", "versioned")

@@ -45,7 +45,8 @@ class PermissionsCheckerTest {
     NodeRepository nodeRepository = mock(NodeRepository.class);
     ShareRepository shareRepository = mock(ShareRepository.class);
     String nodeId = "44444444-4444-4444-4444-444444444441";
-    when(nodeRepository.getNode(nodeId)).thenReturn(Optional.of(node(nodeId, NodeType.FOLDER, false)));
+    when(nodeRepository.getNode(nodeId))
+        .thenReturn(Optional.of(node(nodeId, NodeType.FOLDER, false)));
     PermissionsChecker checker = new PermissionsChecker(nodeRepository, shareRepository);
 
     ACL permissions = checker.getPermissions(nodeId, OWNER_ID);
@@ -58,7 +59,8 @@ class PermissionsCheckerTest {
     NodeRepository nodeRepository = mock(NodeRepository.class);
     ShareRepository shareRepository = mock(ShareRepository.class);
     String nodeId = "44444444-4444-4444-4444-444444444442";
-    when(nodeRepository.getNode(nodeId)).thenReturn(Optional.of(node(nodeId, NodeType.ROOT, false)));
+    when(nodeRepository.getNode(nodeId))
+        .thenReturn(Optional.of(node(nodeId, NodeType.ROOT, false)));
     PermissionsChecker checker = new PermissionsChecker(nodeRepository, shareRepository);
 
     ACL permissions = checker.getPermissions(nodeId, STRANGER_ID);
@@ -71,10 +73,16 @@ class PermissionsCheckerTest {
     NodeRepository nodeRepository = mock(NodeRepository.class);
     ShareRepository shareRepository = mock(ShareRepository.class);
     String nodeId = "44444444-4444-4444-4444-444444444443";
-    when(nodeRepository.getNode(nodeId)).thenReturn(Optional.of(node(nodeId, NodeType.FOLDER, false)));
+    when(nodeRepository.getNode(nodeId))
+        .thenReturn(Optional.of(node(nodeId, NodeType.FOLDER, false)));
     Share share =
         new Share(
-            nodeId, SHARED_USER_ID, ACL.decode(SharePermission.READ_AND_WRITE), 1_000L, true, false,
+            nodeId,
+            SHARED_USER_ID,
+            ACL.decode(SharePermission.READ_AND_WRITE),
+            1_000L,
+            true,
+            false,
             null);
     when(shareRepository.getShare(nodeId, SHARED_USER_ID)).thenReturn(Optional.of(share));
     PermissionsChecker checker = new PermissionsChecker(nodeRepository, shareRepository);
@@ -91,7 +99,8 @@ class PermissionsCheckerTest {
     NodeRepository nodeRepository = mock(NodeRepository.class);
     ShareRepository shareRepository = mock(ShareRepository.class);
     String nodeId = "44444444-4444-4444-4444-444444444444";
-    when(nodeRepository.getNode(nodeId)).thenReturn(Optional.of(node(nodeId, NodeType.FOLDER, false)));
+    when(nodeRepository.getNode(nodeId))
+        .thenReturn(Optional.of(node(nodeId, NodeType.FOLDER, false)));
     when(shareRepository.getShare(nodeId, STRANGER_ID)).thenReturn(Optional.empty());
     PermissionsChecker checker = new PermissionsChecker(nodeRepository, shareRepository);
 
@@ -105,7 +114,8 @@ class PermissionsCheckerTest {
     NodeRepository nodeRepository = mock(NodeRepository.class);
     ShareRepository shareRepository = mock(ShareRepository.class);
     String nodeId = "44444444-4444-4444-4444-444444444445";
-    when(nodeRepository.getNode(nodeId)).thenReturn(Optional.of(node(nodeId, NodeType.FOLDER, true)));
+    when(nodeRepository.getNode(nodeId))
+        .thenReturn(Optional.of(node(nodeId, NodeType.FOLDER, true)));
     PermissionsChecker checker = new PermissionsChecker(nodeRepository, shareRepository);
 
     ACL permissions = checker.getPermissions(nodeId, OWNER_ID);
@@ -117,7 +127,8 @@ class PermissionsCheckerTest {
   void getPermissionsShouldReturnNoneWhenNodeDoesNotExist() {
     NodeRepository nodeRepository = mock(NodeRepository.class);
     ShareRepository shareRepository = mock(ShareRepository.class);
-    when(nodeRepository.getNode("55555555-5555-5555-5555-555555555555")).thenReturn(Optional.empty());
+    when(nodeRepository.getNode("55555555-5555-5555-5555-555555555555"))
+        .thenReturn(Optional.empty());
     PermissionsChecker checker = new PermissionsChecker(nodeRepository, shareRepository);
 
     ACL permissions = checker.getPermissions("55555555-5555-5555-5555-555555555555", STRANGER_ID);

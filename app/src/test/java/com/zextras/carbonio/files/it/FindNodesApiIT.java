@@ -45,8 +45,15 @@ class FindNodesApiIT extends AbstractFilesIT {
 
   @SuppressWarnings("unchecked")
   private List<Map<String, Object>> findNodes(
-      String folderId, boolean cascade, String sort, int limit, boolean flagged,
-      boolean sharedByMe, boolean sharedWithMe, boolean directShare, String[] keywords,
+      String folderId,
+      boolean cascade,
+      String sort,
+      int limit,
+      boolean flagged,
+      boolean sharedByMe,
+      boolean sharedWithMe,
+      boolean directShare,
+      String[] keywords,
       String cookie) {
     GraphqlCommandBuilder builder =
         GraphqlCommandBuilder.aQueryBuilder("findNodes")
@@ -69,16 +76,19 @@ class FindNodesApiIT extends AbstractFilesIT {
     if (keywords != null) {
       builder.withListOfStrings("keywords", keywords);
     }
-    String bodyPayload = builder.withWantedResultFormat("{ nodes { id name }, page_token }").build();
+    String bodyPayload =
+        builder.withWantedResultFormat("{ nodes { id name }, page_token }").build();
 
     Response response = graphql(bodyPayload, cookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> page = TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
     return (List<Map<String, Object>>) page.get("nodes");
   }
 
   private List<Map<String, Object>> findNodesOnRoot(String sort, int limit) {
-    return findNodes("LOCAL_ROOT", true, sort, limit, false, false, false, false, null, REQUESTER_COOKIE);
+    return findNodes(
+        "LOCAL_ROOT", true, sort, limit, false, false, false, false, null, REQUESTER_COOKIE);
   }
 
   /** Seeds folderA, folderB, aaa.txt, bbb.txt, ccc.txt (in that order) and returns their ids. */
@@ -87,11 +97,14 @@ class FindNodesApiIT extends AbstractFilesIT {
     tickClock();
     String folderBId = seedFolder("folderB", LOCAL_ROOT, REQUESTER_COOKIE);
     tickClock();
-    String aaaId = seedFile("aaa.txt", LOCAL_ROOT, "a".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String aaaId =
+        seedFile("aaa.txt", LOCAL_ROOT, "a".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     tickClock();
-    String bbbId = seedFile("bbb.txt", LOCAL_ROOT, "b".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String bbbId =
+        seedFile("bbb.txt", LOCAL_ROOT, "b".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     tickClock();
-    String cccId = seedFile("ccc.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String cccId =
+        seedFile("ccc.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     return new String[] {folderAId, folderBId, aaaId, bbbId, cccId};
   }
 
@@ -102,8 +115,12 @@ class FindNodesApiIT extends AbstractFilesIT {
     List<Map<String, Object>> nodes = findNodesOnRoot("NAME_ASC", 5);
 
     Assertions.assertThat(nodes).hasSize(5);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", ids[0]).containsEntry("name", "folderA");
-    Assertions.assertThat(nodes.get(1)).containsEntry("id", ids[1]).containsEntry("name", "folderB");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", ids[0])
+        .containsEntry("name", "folderA");
+    Assertions.assertThat(nodes.get(1))
+        .containsEntry("id", ids[1])
+        .containsEntry("name", "folderB");
     Assertions.assertThat(nodes.get(2)).containsEntry("id", ids[2]).containsEntry("name", "aaa");
     Assertions.assertThat(nodes.get(3)).containsEntry("id", ids[3]).containsEntry("name", "bbb");
     Assertions.assertThat(nodes.get(4)).containsEntry("id", ids[4]).containsEntry("name", "ccc");
@@ -116,8 +133,12 @@ class FindNodesApiIT extends AbstractFilesIT {
     List<Map<String, Object>> nodes = findNodesOnRoot("NAME_DESC", 5);
 
     Assertions.assertThat(nodes).hasSize(5);
-    Assertions.assertThat(nodes.get(1)).containsEntry("id", ids[0]).containsEntry("name", "folderA");
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", ids[1]).containsEntry("name", "folderB");
+    Assertions.assertThat(nodes.get(1))
+        .containsEntry("id", ids[0])
+        .containsEntry("name", "folderA");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", ids[1])
+        .containsEntry("name", "folderB");
     Assertions.assertThat(nodes.get(4)).containsEntry("id", ids[2]).containsEntry("name", "aaa");
     Assertions.assertThat(nodes.get(3)).containsEntry("id", ids[3]).containsEntry("name", "bbb");
     Assertions.assertThat(nodes.get(2)).containsEntry("id", ids[4]).containsEntry("name", "ccc");
@@ -130,8 +151,12 @@ class FindNodesApiIT extends AbstractFilesIT {
     List<Map<String, Object>> nodes = findNodesOnRoot("UPDATED_AT_ASC", 5);
 
     Assertions.assertThat(nodes).hasSize(5);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", ids[0]).containsEntry("name", "folderA");
-    Assertions.assertThat(nodes.get(1)).containsEntry("id", ids[1]).containsEntry("name", "folderB");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", ids[0])
+        .containsEntry("name", "folderA");
+    Assertions.assertThat(nodes.get(1))
+        .containsEntry("id", ids[1])
+        .containsEntry("name", "folderB");
     Assertions.assertThat(nodes.get(2)).containsEntry("id", ids[2]).containsEntry("name", "aaa");
     Assertions.assertThat(nodes.get(3)).containsEntry("id", ids[3]).containsEntry("name", "bbb");
     Assertions.assertThat(nodes.get(4)).containsEntry("id", ids[4]).containsEntry("name", "ccc");
@@ -144,8 +169,12 @@ class FindNodesApiIT extends AbstractFilesIT {
     List<Map<String, Object>> nodes = findNodesOnRoot("UPDATED_AT_DESC", 5);
 
     Assertions.assertThat(nodes).hasSize(5);
-    Assertions.assertThat(nodes.get(1)).containsEntry("id", ids[0]).containsEntry("name", "folderA");
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", ids[1]).containsEntry("name", "folderB");
+    Assertions.assertThat(nodes.get(1))
+        .containsEntry("id", ids[0])
+        .containsEntry("name", "folderA");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", ids[1])
+        .containsEntry("name", "folderB");
     Assertions.assertThat(nodes.get(4)).containsEntry("id", ids[2]).containsEntry("name", "aaa");
     Assertions.assertThat(nodes.get(3)).containsEntry("id", ids[3]).containsEntry("name", "bbb");
     Assertions.assertThat(nodes.get(2)).containsEntry("id", ids[4]).containsEntry("name", "ccc");
@@ -156,10 +185,22 @@ class FindNodesApiIT extends AbstractFilesIT {
     String[] ids = seedFiveMixedNodes();
 
     List<Map<String, Object>> nodes =
-        findNodes("LOCAL_ROOT", true, "NAME_ASC", 5, false, false, false, false, new String[] {"a"}, REQUESTER_COOKIE);
+        findNodes(
+            "LOCAL_ROOT",
+            true,
+            "NAME_ASC",
+            5,
+            false,
+            false,
+            false,
+            false,
+            new String[] {"a"},
+            REQUESTER_COOKIE);
 
     Assertions.assertThat(nodes).hasSize(2);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", ids[0]).containsEntry("name", "folderA");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", ids[0])
+        .containsEntry("name", "folderA");
     Assertions.assertThat(nodes.get(1)).containsEntry("id", ids[2]).containsEntry("name", "aaa");
   }
 
@@ -188,10 +229,16 @@ class FindNodesApiIT extends AbstractFilesIT {
     // siblings, so same-named siblings created here pick up the real "(1)"/"(2)" dedup suffix.
     Assertions.assertThat(nodes).hasSize(5);
     Assertions.assertThat(nodes.get(0)).containsEntry("id", ids[0]).containsEntry("name", "folder");
-    Assertions.assertThat(nodes.get(1)).containsEntry("id", ids[1]).containsEntry("name", "folder (1)");
+    Assertions.assertThat(nodes.get(1))
+        .containsEntry("id", ids[1])
+        .containsEntry("name", "folder (1)");
     Assertions.assertThat(nodes.get(2)).containsEntry("id", ids[2]).containsEntry("name", "fake");
-    Assertions.assertThat(nodes.get(3)).containsEntry("id", ids[3]).containsEntry("name", "fake (1)");
-    Assertions.assertThat(nodes.get(4)).containsEntry("id", ids[4]).containsEntry("name", "fake (2)");
+    Assertions.assertThat(nodes.get(3))
+        .containsEntry("id", ids[3])
+        .containsEntry("name", "fake (1)");
+    Assertions.assertThat(nodes.get(4))
+        .containsEntry("id", ids[4])
+        .containsEntry("name", "fake (2)");
   }
 
   @Test
@@ -202,82 +249,133 @@ class FindNodesApiIT extends AbstractFilesIT {
 
     Assertions.assertThat(nodes).hasSize(5);
     Assertions.assertThat(nodes.get(3)).containsEntry("id", ids[0]).containsEntry("name", "folder");
-    Assertions.assertThat(nodes.get(4)).containsEntry("id", ids[1]).containsEntry("name", "folder (1)");
+    Assertions.assertThat(nodes.get(4))
+        .containsEntry("id", ids[1])
+        .containsEntry("name", "folder (1)");
     Assertions.assertThat(nodes.get(2)).containsEntry("id", ids[2]).containsEntry("name", "fake");
-    Assertions.assertThat(nodes.get(1)).containsEntry("id", ids[3]).containsEntry("name", "fake (1)");
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", ids[4]).containsEntry("name", "fake (2)");
+    Assertions.assertThat(nodes.get(1))
+        .containsEntry("id", ids[3])
+        .containsEntry("name", "fake (1)");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", ids[4])
+        .containsEntry("name", "fake (2)");
   }
 
   @Test
   void givenFilesOnRootSearchWithFlaggedShouldReturnFlaggedNodes() {
     // Given
     String flaggedId =
-        seedFile("flagged.txt", LOCAL_ROOT, "flagged".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "flagged.txt",
+            LOCAL_ROOT,
+            "flagged".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
     seedFlag(flaggedId, REQUESTER_COOKIE);
-    seedFile("not_flagged.txt", LOCAL_ROOT, "notflagged".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedFile(
+        "not_flagged.txt",
+        LOCAL_ROOT,
+        "notflagged".getBytes(StandardCharsets.UTF_8),
+        REQUESTER_COOKIE);
 
     // When
     List<Map<String, Object>> nodes =
-        findNodes("LOCAL_ROOT", true, "NAME_ASC", 5, true, false, false, false, null, REQUESTER_COOKIE);
+        findNodes(
+            "LOCAL_ROOT", true, "NAME_ASC", 5, true, false, false, false, null, REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(nodes).hasSize(1);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", flaggedId).containsEntry("name", "flagged");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", flaggedId)
+        .containsEntry("name", "flagged");
   }
 
   @Test
   void givenFilesOnRootSearchSharedByMeShouldReturnSharedByMeNodes() {
     // Given
     String sharedId =
-        seedFile("shared_by_me.txt", LOCAL_ROOT, "shared".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "shared_by_me.txt",
+            LOCAL_ROOT,
+            "shared".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
     seedShare(sharedId, OTHER_USER_ID, ACL.SharePermission.READ_AND_SHARE, REQUESTER_COOKIE);
-    seedFile("not_shared_by_me.txt", LOCAL_ROOT, "notshared".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedFile(
+        "not_shared_by_me.txt",
+        LOCAL_ROOT,
+        "notshared".getBytes(StandardCharsets.UTF_8),
+        REQUESTER_COOKIE);
 
     // When
     List<Map<String, Object>> nodes =
-        findNodes("LOCAL_ROOT", true, "NAME_ASC", 5, false, true, false, true, null, REQUESTER_COOKIE);
+        findNodes(
+            "LOCAL_ROOT", true, "NAME_ASC", 5, false, true, false, true, null, REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(nodes).hasSize(1);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", sharedId).containsEntry("name", "shared_by_me");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", sharedId)
+        .containsEntry("name", "shared_by_me");
   }
 
   @Test
-  void givenFilesOnRootSearchSharedWithMeShouldReturnSharedWithMeNodes() throws java.sql.SQLException {
+  void givenFilesOnRootSearchSharedWithMeShouldReturnSharedWithMeNodes()
+      throws java.sql.SQLException {
     // Given — file owned by the requester, shared TO the requester itself (mirrors the original
     // seam fixture verbatim: addShare(nodeId, REQUESTER_ID, ...) on a node the requester itself
     // owns), plus a second, un-shared file. NOTE: the real createShare mutation explicitly REJECTS
     // target==owner (ShareDataFetcher#createShareFetcher's shareCreationError guard), so this
     // self-share pre-state is not API-creatable and is seeded via the raw-JDBC escape hatch.
     String sharedId =
-        seedFile("shared_with_me.txt", LOCAL_ROOT, "shared".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "shared_with_me.txt",
+            LOCAL_ROOT,
+            "shared".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
     seedShareRawJdbc(sharedId, REQUESTER_ID, ACL.SharePermission.READ_AND_SHARE);
-    seedFile("not_shared_with_me.txt", LOCAL_ROOT, "notshared".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedFile(
+        "not_shared_with_me.txt",
+        LOCAL_ROOT,
+        "notshared".getBytes(StandardCharsets.UTF_8),
+        REQUESTER_COOKIE);
 
     // When
     List<Map<String, Object>> nodes =
-        findNodes("LOCAL_ROOT", true, "NAME_ASC", 5, false, false, true, true, null, REQUESTER_COOKIE);
+        findNodes(
+            "LOCAL_ROOT", true, "NAME_ASC", 5, false, false, true, true, null, REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(nodes).hasSize(1);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", sharedId).containsEntry("name", "shared_with_me");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", sharedId)
+        .containsEntry("name", "shared_with_me");
   }
 
   @Test
   void givenFilesOnTrashSearchTrashBinShouldReturnTrashedNodes() {
     // Given
     String trashedId =
-        seedFile("trashed.txt", LOCAL_ROOT, "trashed".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "trashed.txt",
+            LOCAL_ROOT,
+            "trashed".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
     seedTrashed(trashedId, REQUESTER_COOKIE);
-    seedFile("not_trashed.txt", LOCAL_ROOT, "nottrashed".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedFile(
+        "not_trashed.txt",
+        LOCAL_ROOT,
+        "nottrashed".getBytes(StandardCharsets.UTF_8),
+        REQUESTER_COOKIE);
 
     // When
     List<Map<String, Object>> nodes =
-        findNodes("TRASH_ROOT", false, "NAME_ASC", 5, false, false, false, false, null, REQUESTER_COOKIE);
+        findNodes(
+            "TRASH_ROOT", false, "NAME_ASC", 5, false, false, false, false, null, REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(nodes).hasSize(1);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", trashedId).containsEntry("name", "trashed");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", trashedId)
+        .containsEntry("name", "trashed");
   }
 
   @Test
@@ -285,17 +383,28 @@ class FindNodesApiIT extends AbstractFilesIT {
       throws java.sql.SQLException {
     // Given — same self-share pre-state as the sibling test above (target==owner, raw-JDBC only).
     String trashedId =
-        seedFile("trashed.txt", LOCAL_ROOT, "trashed".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+        seedFile(
+            "trashed.txt",
+            LOCAL_ROOT,
+            "trashed".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
     seedShareRawJdbc(trashedId, REQUESTER_ID, ACL.SharePermission.READ_AND_SHARE);
     seedTrashed(trashedId, REQUESTER_COOKIE);
-    seedFile("not_trashed.txt", LOCAL_ROOT, "nottrashed".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedFile(
+        "not_trashed.txt",
+        LOCAL_ROOT,
+        "nottrashed".getBytes(StandardCharsets.UTF_8),
+        REQUESTER_COOKIE);
 
     // When
     List<Map<String, Object>> nodes =
-        findNodes("TRASH_ROOT", false, "NAME_ASC", 5, false, false, true, false, null, REQUESTER_COOKIE);
+        findNodes(
+            "TRASH_ROOT", false, "NAME_ASC", 5, false, false, true, false, null, REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(nodes).hasSize(1);
-    Assertions.assertThat(nodes.get(0)).containsEntry("id", trashedId).containsEntry("name", "trashed");
+    Assertions.assertThat(nodes.get(0))
+        .containsEntry("id", trashedId)
+        .containsEntry("name", "trashed");
   }
 }

@@ -8,10 +8,11 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Shared transport-only helper for the streamed blob/ZIP HTTP responses used by {@link BlobResource},
- * {@link PublicBlobResource} and {@link PreviewResource}. The actual byte streaming now lives in
- * {@link TransferStreaming} (which pumps to the Vert.x response on the dedicated transfer pool); this
- * class retains only the {@code Content-Disposition} builder those callers share.
+ * Shared transport-only helper for the streamed blob/ZIP HTTP responses used by {@link
+ * BlobResource}, {@link PublicBlobResource} and {@link PreviewResource}. The actual byte streaming
+ * now lives in {@link TransferStreaming} (which pumps to the Vert.x response on the dedicated
+ * transfer pool); this class retains only the {@code Content-Disposition} builder those callers
+ * share.
  */
 final class BlobHttpResponses {
 

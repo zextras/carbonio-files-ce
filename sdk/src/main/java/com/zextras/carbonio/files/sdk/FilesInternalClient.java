@@ -4,6 +4,8 @@
 
 package com.zextras.carbonio.files.sdk;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.sdk.rest.ApiClient;
 import com.zextras.carbonio.files.sdk.rest.ApiException;
 import com.zextras.carbonio.files.sdk.rest.api.InternalNodeResourceApi;
@@ -15,8 +17,6 @@ import com.zextras.carbonio.files.sdk.rest.model.InternalNodeDto;
 import com.zextras.carbonio.files.sdk.rest.model.InternalNodeIdDto;
 import com.zextras.carbonio.files.sdk.rest.model.PublicLinkDto;
 import com.zextras.carbonio.files.sdk.streaming.RestStreamingSupport;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -52,12 +52,12 @@ import java.util.regex.Pattern;
  * </ul>
  *
  * <p>Blob metadata (filename, parent id, node id, overwrite-version) is carried in HTTP headers,
- * exactly as {@code InternalBlobResource} on the server side expects. {@code Content-Length} is
- * NOT one of them &mdash; and never set directly &mdash; because {@link java.net.http.HttpClient}
+ * exactly as {@code InternalBlobResource} on the server side expects. {@code Content-Length} is NOT
+ * one of them &mdash; and never set directly &mdash; because {@link java.net.http.HttpClient}
  * treats it as a restricted header that callers may not set manually (it throws {@link
  * IllegalArgumentException} if attempted). Instead, the {@code length} each upload method accepts
- * is passed down to {@link RestStreamingSupport#uploadStreamRaw}, which advertises it to the
- * {@link java.net.http.HttpRequest.BodyPublishers#ofInputStream} publisher via {@link
+ * is passed down to {@link RestStreamingSupport#uploadStreamRaw}, which advertises it to the {@link
+ * java.net.http.HttpRequest.BodyPublishers#ofInputStream} publisher via {@link
  * java.net.http.HttpRequest.BodyPublishers#fromPublisher(java.util.concurrent.Flow.Publisher,
  * long)}; the JDK HTTP client then emits a real {@code Content-Length} request header on its own
  * and streams the body straight from the caller-supplied {@link InputStream}, never buffering it.
@@ -71,8 +71,10 @@ public final class FilesInternalClient {
 
   private static final String INTERNAL_ACCOUNTS_PATH = "/internal/accounts/";
 
-  /** Matches the trailing "... failed with status NNN: ..." shape of the IOExceptions thrown by
-   *  {@link RestStreamingSupport}, so a blob-op failure can still expose an HTTP status code. */
+  /**
+   * Matches the trailing "... failed with status NNN: ..." shape of the IOExceptions thrown by
+   * {@link RestStreamingSupport}, so a blob-op failure can still expose an HTTP status code.
+   */
   private static final Pattern STATUS_CODE_PATTERN = Pattern.compile("status (\\d{3}):");
 
   private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
@@ -174,9 +176,8 @@ public final class FilesInternalClient {
    * fileStreamSupplier} is invoked exactly once (no retry is attempted by this client) and must
    * return a fresh, unread {@link InputStream} yielding EXACTLY {@code length} bytes; the body is
    * streamed straight from it, never buffered whole in memory. {@code length} is not sent as a
-   * header, but IS honored: it is advertised to the underlying JDK {@link
-   * java.net.http.HttpClient} so it emits a real {@code Content-Length} request header on its own
-   * (see the class javadoc).
+   * header, but IS honored: it is advertised to the underlying JDK {@link java.net.http.HttpClient}
+   * so it emits a real {@code Content-Length} request header on its own (see the class javadoc).
    *
    * @return the id of the newly-created file node.
    */
@@ -219,7 +220,8 @@ public final class FilesInternalClient {
     headers.put(HEADER_OVERWRITE_VERSION, String.valueOf(overwrite));
 
     URI uri =
-        URI.create(baseUrl + INTERNAL_ACCOUNTS_PATH + encodePathSegment(userId) + "/upload-version");
+        URI.create(
+            baseUrl + INTERNAL_ACCOUNTS_PATH + encodePathSegment(userId) + "/upload-version");
     HttpResponse<String> response =
         sendRawUpload("uploadFileVersion", uri, headers, mimeType, fileStreamSupplier, length);
     return readVersion(response.body());
@@ -229,8 +231,8 @@ public final class FilesInternalClient {
 
   /**
    * Downloads the blob of {@code nodeId} (its current version, or {@code version} if present), on
-   * behalf of {@code userId}, as a live, streamed {@link InputStream} never buffered in memory.
-   * The caller is responsible for closing the returned stream.
+   * behalf of {@code userId}, as a live, streamed {@link InputStream} never buffered in memory. The
+   * caller is responsible for closing the returned stream.
    */
   public InputStream downloadFile(String userId, String nodeId, Optional<Integer> version) {
     StringBuilder path =
@@ -308,15 +310,13 @@ public final class FilesInternalClient {
 
   private static FilesInternalClientException mapApiException(String operation, ApiException e) {
     return new FilesInternalClientException(
-        operation + " failed with status " + e.getCode() + ": " + e.getMessage(),
-        e.getCode(),
-        e);
+        operation + " failed with status " + e.getCode() + ": " + e.getMessage(), e.getCode(), e);
   }
 
   /**
-   * Wraps an {@link IOException} thrown by {@link RestStreamingSupport}, recovering the HTTP
-   * status code from its message (see {@link #STATUS_CODE_PATTERN}) when the failure was a
-   * non-2xx response rather than a pure transport error.
+   * Wraps an {@link IOException} thrown by {@link RestStreamingSupport}, recovering the HTTP status
+   * code from its message (see {@link #STATUS_CODE_PATTERN}) when the failure was a non-2xx
+   * response rather than a pure transport error.
    */
   private static FilesInternalClientException mapStreamingException(
       String operation, IOException e) {

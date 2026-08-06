@@ -39,28 +39,25 @@ public class ShareBatchLoader implements BatchLoader<String, List<Share>> {
   }
 
   /**
-   * This method will be invoked by the GraphQL dataloader scheduler when all the
-   * {@link DataFetcher}s, necessary to create a GraphQL response, are called.
-   * </p>
-   * It is only responsible to fetch the {@link Share}s and it does <strong>not</strong> check if
-   * the requester has the read permission on the {@link Node}s.
+   * This method will be invoked by the GraphQL dataloader scheduler when all the {@link
+   * DataFetcher}s, necessary to create a GraphQL response, are called. It is only responsible to
+   * fetch the {@link Share}s and it does <strong>not</strong> check if the requester has the read
+   * permission on the {@link Node}s.
    *
    * @param nodeIds the {@link List} of node ids. For each one of them it retrieves all the related
-   * shares.
-   *
+   *     shares.
    * @return a {@link CompletionStage} containing a {@link List} of {@link List<Share>}. The list
-   * has as many elements as there are node ids in input. If a node does not have a share, then it
-   * will be associated to an empty list.
+   *     has as many elements as there are node ids in input. If a node does not have a share, then
+   *     it will be associated to an empty list.
    */
   @Override
   public CompletionStage<List<List<Share>>> load(List<String> nodeIds) {
     // P3e: load SYNCHRONOUSLY on the calling (request-scoped blocking worker) thread instead of
     // hopping to ForkJoinPool.commonPool via supplyAsync, so the request-scoped EntityManager stays
     // available (see NodeBatchLoader for the full rationale).
-    logger.debug(MessageFormat.format(
-      "Start fetching shares in batch for the following nodes: {0}",
-      nodeIds
-    ));
+    logger.debug(
+        MessageFormat.format(
+            "Start fetching shares in batch for the following nodes: {0}", nodeIds));
 
     List<Share> shares = shareRepository.getShares(nodeIds);
 
@@ -69,20 +66,17 @@ public class ShareBatchLoader implements BatchLoader<String, List<Share>> {
     // It populates the results: for each node ids it associates all the related shares.
     // If a node does not have a share then the .collect(Collectors.toList()) generates
     // an empty List: this is why is not necessary using a Try.
-    nodeIds.forEach(nodeId ->
-      results.add(
-        shares
-          .stream()
-          .filter(share -> nodeId.equals(share.getNodeId()))
-          .collect(Collectors.toList())
-      )
-    );
+    nodeIds.forEach(
+        nodeId ->
+            results.add(
+                shares.stream()
+                    .filter(share -> nodeId.equals(share.getNodeId()))
+                    .collect(Collectors.toList())));
 
-    logger.debug(MessageFormat.format(
-      "End fetching shares in batch. {0} shares found for {1} nodes",
-      shares.size(),
-      nodeIds.size()
-    ));
+    logger.debug(
+        MessageFormat.format(
+            "End fetching shares in batch. {0} shares found for {1} nodes",
+            shares.size(), nodeIds.size()));
 
     return CompletableFuture.completedFuture(results);
   }

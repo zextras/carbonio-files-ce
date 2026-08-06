@@ -23,11 +23,11 @@ import org.junit.jupiter.api.Test;
  * HTTP coverage of {@code createFolder}: happy path (including owner inheritance in a shared
  * parent), name-collision dedup, permission-denied, and parent-not-found/wrong-type.
  *
- * <p>All 6 methods and their assertions are preserved verbatim from the seam-based original;
- * only the SEEDING mechanism changed (API calls capturing server-generated ids instead of {@code
+ * <p>All 6 methods and their assertions are preserved verbatim from the seam-based original; only
+ * the SEEDING mechanism changed (API calls capturing server-generated ids instead of {@code
  * DatabasePopulator} repository writes) and the transport (RestAssured against the launched
- * out-of-process app instead of the {@code FilesTestApp} seam over the in-process {@code
- * @QuarkusTest} app).
+ * out-of-process app instead of the {@code FilesTestApp} seam over the in-process
+ * {@code @QuarkusTest} app).
  *
  * <p><b>FINDING (preserved from the original, still true):</b> {@code createFolderFetcher} checks
  * {@code permissionsChecker.getPermissions(parentId, requesterId).has(READ_AND_WRITE)} BEFORE it
@@ -70,9 +70,11 @@ class CreateFolderApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> folder = TestUtils.jsonResponseToMap(response.getBody().asString(), "createFolder");
+    Map<String, Object> folder =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "createFolder");
     Assertions.assertThat(folder).containsEntry("name", "newFolder");
-    Assertions.assertThat(((Map<String, Object>) folder.get("owner"))).containsEntry("id", REQUESTER_ID);
+    Assertions.assertThat(((Map<String, Object>) folder.get("owner")))
+        .containsEntry("id", REQUESTER_ID);
     Assertions.assertThat(nodeExists((String) folder.get("id"), REQUESTER_COOKIE)).isTrue();
   }
 
@@ -87,8 +89,10 @@ class CreateFolderApiIT extends AbstractFilesIT {
 
     // Then — the new folder's owner is the PARENT's owner, not the requester who created it
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> folder = TestUtils.jsonResponseToMap(response.getBody().asString(), "createFolder");
-    Assertions.assertThat(((Map<String, Object>) folder.get("owner"))).containsEntry("id", OTHER_USER_ID);
+    Map<String, Object> folder =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "createFolder");
+    Assertions.assertThat(((Map<String, Object>) folder.get("owner")))
+        .containsEntry("id", OTHER_USER_ID);
   }
 
   @Test
@@ -101,7 +105,8 @@ class CreateFolderApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> folder = TestUtils.jsonResponseToMap(response.getBody().asString(), "createFolder");
+    Map<String, Object> folder =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "createFolder");
     Assertions.assertThat(folder).containsEntry("name", "sameName (1)");
   }
 
@@ -124,8 +129,8 @@ class CreateFolderApiIT extends AbstractFilesIT {
 
   /**
    * See the class-level FINDING: a non-existent parent fails the READ_AND_WRITE permission gate
-   * (ACL.NONE for a missing node) BEFORE the not-found filter is ever reached, so the real error
-   * is {@code nodeWriteError}, not {@code nodeNotFound}. No seeding: this id is deliberately
+   * (ACL.NONE for a missing node) BEFORE the not-found filter is ever reached, so the real error is
+   * {@code nodeWriteError}, not {@code nodeNotFound}. No seeding: this id is deliberately
    * syntactically-valid (36-char) but non-existent, not a captured id.
    */
   @Test
@@ -142,13 +147,19 @@ class CreateFolderApiIT extends AbstractFilesIT {
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly(
-            "There was a problem while executing requested operation on node: " + nonExistentParentId);
+            "There was a problem while executing requested operation on node: "
+                + nonExistentParentId);
   }
 
   @Test
   void givenParentIsAFileNotAFolderCreateFolderShouldReturnNodeNotFound() {
     // Given
-    String fileId = seedFile("aFile.txt", LOCAL_ROOT, "aFile content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileId =
+        seedFile(
+            "aFile.txt",
+            LOCAL_ROOT,
+            "aFile content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
 
     // When
     Response response = createFolder(fileId, "childFolder", REQUESTER_COOKIE);
@@ -156,6 +167,8 @@ class CreateFolderApiIT extends AbstractFilesIT {
     // Then — the parent exists, but createFolder filters it out for having the wrong node type
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1).containsExactly("Could not find node with id " + fileId);
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Could not find node with id " + fileId);
   }
 }

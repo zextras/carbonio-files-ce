@@ -21,16 +21,16 @@ import org.junit.jupiter.api.Test;
  * Gap-closing pass: {@code DateTimeScalar}'s coercion edges (the {@code DateTime} custom scalar
  * bound to, among other fields, {@code createLink(expires_at:)}), rewritten as an out-of-process
  * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. All 5 methods and their assertions
- * are preserved verbatim; only the seeding mechanism (API calls capturing server-generated ids)
- * and transport (raw RestAssured POST for the {@code variables}-driven tests, which need a
- * hand-built {@code {"query":...,"variables":{...}}} JSON payload the {@link
- * AbstractFilesIT#graphql} helper does not support) changed.
+ * are preserved verbatim; only the seeding mechanism (API calls capturing server-generated ids) and
+ * transport (raw RestAssured POST for the {@code variables}-driven tests, which need a hand-built
+ * {@code {"query":...,"variables":{...}}} JSON payload the {@link AbstractFilesIT#graphql} helper
+ * does not support) changed.
  *
  * <h2>{@code parseLiteral} (inline literal in the query text)</h2>
  *
  * <ul>
- *   <li>{@code instanceof StringValue} true (a QUOTED numeric literal, e.g. {@code
- *       expires_at: "1690000000"}).
+ *   <li>{@code instanceof StringValue} true (a QUOTED numeric literal, e.g. {@code expires_at:
+ *       "1690000000"}).
  *   <li>Neither {@code StringValue} nor {@code IntValue} (e.g. a float literal) -&gt; {@code
  *       CoercingParseLiteralException}, surfaced as a document-validation error.
  * </ul>
@@ -53,7 +53,8 @@ class DateTimeScalarApiIT extends AbstractFilesIT {
   }
 
   private String seedLinkableNode() {
-    return seedFile("linkable.txt", LOCAL_ROOT, "0123456789".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    return seedFile(
+        "linkable.txt", LOCAL_ROOT, "0123456789".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
   }
 
   // --- parseLiteral -------------------------------------------------------------------------
@@ -76,7 +77,8 @@ class DateTimeScalarApiIT extends AbstractFilesIT {
     // literal is accepted exactly like an unquoted one.
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
-    Map<String, Object> link = TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink");
+    Map<String, Object> link =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink");
     Assertions.assertThat(link).containsEntry("expires_at", 1690000000);
   }
 
@@ -99,7 +101,9 @@ class DateTimeScalarApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors).hasSize(1);
     Assertions.assertThat(errors.get(0)).contains("date");
-    Assertions.assertThat(TestUtils.jsonResponseToValue(response.getBody().asString(), "createLink")).isEmpty();
+    Assertions.assertThat(
+            TestUtils.jsonResponseToValue(response.getBody().asString(), "createLink"))
+        .isEmpty();
   }
 
   // --- parseValue (GraphQL variables) --------------------------------------------------------
@@ -132,7 +136,8 @@ class DateTimeScalarApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
-    Map<String, Object> link = TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink");
+    Map<String, Object> link =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink");
     Assertions.assertThat(link).containsEntry("expires_at", 5);
   }
 
@@ -148,7 +153,8 @@ class DateTimeScalarApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
-    Map<String, Object> link = TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink");
+    Map<String, Object> link =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink");
     Assertions.assertThat(link).containsEntry("expires_at", 99999999999999L);
   }
 
@@ -165,6 +171,8 @@ class DateTimeScalarApiIT extends AbstractFilesIT {
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors).hasSize(1);
     Assertions.assertThat(errors.get(0)).contains("date");
-    Assertions.assertThat(TestUtils.jsonResponseToValue(response.getBody().asString(), "createLink")).isEmpty();
+    Assertions.assertThat(
+            TestUtils.jsonResponseToValue(response.getBody().asString(), "createLink"))
+        .isEmpty();
   }
 }

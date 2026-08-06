@@ -79,18 +79,14 @@ class GetPublicLinksApiIT extends AbstractFilesIT {
     // Given
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
-    Map<String, Object> firstLink =
-        createLink(nodeId, 5, "super-description", null, OWNER_COOKIE);
+    Map<String, Object> firstLink = createLink(nodeId, 5, "super-description", null, OWNER_COOKIE);
     // Distinct creation timestamps are required for a deterministic descending sort.
     tickClock();
     Map<String, Object> secondLink = createLink(nodeId, null, null, null, OWNER_COOKIE);
 
     // When
     List<Map<String, Object>> publicLinks =
-        getLinks(
-            nodeId,
-            OWNER_COOKIE,
-            "{ id url expires_at created_at description node { id } }");
+        getLinks(nodeId, OWNER_COOKIE, "{ id url expires_at created_at description node { id } }");
 
     // Then
     Assertions.assertThat(publicLinks).hasSize(2);
@@ -100,14 +96,16 @@ class GetPublicLinksApiIT extends AbstractFilesIT {
         .containsEntry("url", secondLink.get("url"))
         .containsEntry("expires_at", null)
         .containsEntry("description", null);
-    Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node")).containsEntry("id", nodeId);
+    Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node"))
+        .containsEntry("id", nodeId);
 
     Assertions.assertThat(publicLinks.get(1))
         .containsEntry("id", firstLink.get("id"))
         .containsEntry("url", firstLink.get("url"))
         .containsEntry("expires_at", 5)
         .containsEntry("description", "super-description");
-    Assertions.assertThat((Map<String, Object>) publicLinks.get(1).get("node")).containsEntry("id", nodeId);
+    Assertions.assertThat((Map<String, Object>) publicLinks.get(1).get("node"))
+        .containsEntry("id", nodeId);
   }
 
   @Test
@@ -119,10 +117,7 @@ class GetPublicLinksApiIT extends AbstractFilesIT {
 
     // When
     List<Map<String, Object>> publicLinks =
-        getLinks(
-            nodeId,
-            OWNER_COOKIE,
-            "{ id url expires_at created_at description node { id } }");
+        getLinks(nodeId, OWNER_COOKIE, "{ id url expires_at created_at description node { id } }");
 
     // Then
     Assertions.assertThat(publicLinks).hasSize(1);
@@ -132,7 +127,8 @@ class GetPublicLinksApiIT extends AbstractFilesIT {
         .containsEntry("url", link.get("url"))
         .containsEntry("expires_at", 5)
         .containsEntry("description", "super-description");
-    Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node")).containsEntry("id", nodeId);
+    Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node"))
+        .containsEntry("id", nodeId);
   }
 
   @Test
@@ -159,7 +155,8 @@ class GetPublicLinksApiIT extends AbstractFilesIT {
         .containsEntry("expires_at", 5)
         .containsEntry("description", "super-description")
         .containsEntry("access_code", "fake-access-code");
-    Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node")).containsEntry("id", nodeId);
+    Assertions.assertThat((Map<String, Object>) publicLinks.get(0).get("node"))
+        .containsEntry("id", nodeId);
   }
 
   @Test

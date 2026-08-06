@@ -30,9 +30,9 @@ import org.slf4j.LoggerFactory;
  * fresh on every use and created exactly once on a cold cluster (see {@link
  * com.zextras.carbonio.files.config.FilesConfig#getPageTokenSecretKey()}). The {@code
  * application-config.*} tunables do NOT go through this client — they are read via {@link
- * com.zextras.carbonio.quarkus.extensions.bootstrap.ApplicationConfigService}, which as of extension
- * 1.13.0-1 is itself LIVE (the extension watches Consul KV), so a runtime KV change is observed there
- * too without a restart.
+ * com.zextras.carbonio.quarkus.extensions.bootstrap.ApplicationConfigService}, which as of
+ * extension 1.13.0-1 is itself LIVE (the extension watches Consul KV), so a runtime KV change is
+ * observed there too without a restart.
  */
 @ApplicationScoped
 public class ServiceDiscoverHttpClient {
@@ -54,8 +54,7 @@ public class ServiceDiscoverHttpClient {
             .get(Constants.ServiceDiscover.PORT_PROPERTY)
             .orElse(String.valueOf(Constants.ServiceDiscover.DEFAULT_PORT));
     this.kvBaseUrl =
-        String.format(
-            "http://%s:%s/v1/kv/%s/", host, port, Constants.ServiceDiscover.SERVICE_NAME);
+        String.format("http://%s:%s/v1/kv/%s/", host, port, Constants.ServiceDiscover.SERVICE_NAME);
     // Force HTTP/1.1, same rationale as MailboxHttpClient/PreviewClient: WireMock/Jetty in the
     // ITs (and Consul's real agent) only speak plain HTTP/1.1.
     this.httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
@@ -75,7 +74,8 @@ public class ServiceDiscoverHttpClient {
               .header("X-Consul-Token", consulToken())
               .GET()
               .build();
-      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      HttpResponse<String> response =
+          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
       if (response.statusCode() != 200) {
         return Optional.empty();
       }
@@ -98,15 +98,14 @@ public class ServiceDiscoverHttpClient {
   }
 
   /**
-   * Writes a single {@code carbonio-files/<key>} Consul KV entry ONLY IF IT DOES NOT ALREADY
-   * EXIST, using Consul's {@code ?cas=0} check-and-set semantics (a CAS write against index 0
-   * succeeds only when the key is currently absent). Used at boot to converge every instance of a
-   * cluster on ONE shared value (e.g. the page-token HMAC secret): the first instance to reach
-   * Consul wins and every other instance's write is rejected, so they all subsequently read back
-   * the winner's value via {@link #getConfig(String)}. Returns {@code true} only when THIS call
-   * created the key; {@code false} for a losing race, a non-200 response (including an
-   * ACL-rejected/403 write), or any transport failure — callers must not treat {@code false} as
-   * fatal.
+   * Writes a single {@code carbonio-files/<key>} Consul KV entry ONLY IF IT DOES NOT ALREADY EXIST,
+   * using Consul's {@code ?cas=0} check-and-set semantics (a CAS write against index 0 succeeds
+   * only when the key is currently absent). Used at boot to converge every instance of a cluster on
+   * ONE shared value (e.g. the page-token HMAC secret): the first instance to reach Consul wins and
+   * every other instance's write is rejected, so they all subsequently read back the winner's value
+   * via {@link #getConfig(String)}. Returns {@code true} only when THIS call created the key;
+   * {@code false} for a losing race, a non-200 response (including an ACL-rejected/403 write), or
+   * any transport failure — callers must not treat {@code false} as fatal.
    */
   public boolean createConfigIfAbsent(String key, String value) {
     try {
@@ -116,7 +115,8 @@ public class ServiceDiscoverHttpClient {
               .header("X-Consul-Token", consulToken())
               .PUT(HttpRequest.BodyPublishers.ofString(value, StandardCharsets.UTF_8))
               .build();
-      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      HttpResponse<String> response =
+          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
       if (response.statusCode() != 200) {
         return false;
       }

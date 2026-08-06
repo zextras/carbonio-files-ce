@@ -17,8 +17,10 @@ public class FilesInternalClientException extends RuntimeException {
 
   private static final long serialVersionUID = 1L;
 
-  /** The HTTP status code of the failed response, or {@code -1} if not known (transport-level
-   *  failure: the request never got a response to read a status from). */
+  /**
+   * The HTTP status code of the failed response, or {@code -1} if not known (transport-level
+   * failure: the request never got a response to read a status from).
+   */
   private final int statusCode;
 
   public FilesInternalClientException(String message, int statusCode, Throwable cause) {

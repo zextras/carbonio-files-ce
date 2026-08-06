@@ -4,5 +4,4 @@
 
 package com.zextras.carbonio.files.exceptions;
 
-public class BadRequestException extends Exception {
-}
+public class BadRequestException extends Exception {}

@@ -15,8 +15,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.AliasNotAloneDownloadApiIT} rewritten as an
- * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: the {@code
- * LOCAL_ROOT} alias branch of {@code BlobService#checkDownloadMultipleInternal} on {@code POST
+ * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: the {@code LOCAL_ROOT}
+ * alias branch of {@code BlobService#checkDownloadMultipleInternal} on {@code POST
  * /download-multiple} — {@code LOCAL_ROOT} combined with any other id is rejected with {@code
  * AliasNotAloneInDownload} (400), while {@code LOCAL_ROOT} passed alone resolves to its children.
  *
@@ -38,7 +38,8 @@ class AliasNotAloneDownloadApiIT extends AbstractFilesIT {
   @Test
   void givenLocalRootAndAnotherNodeIdThenDownloadMultipleReturns400WithGenericBadRequestBody() {
     // Given
-    String fileId = seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    String fileId =
+        seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
 
     // When — LOCAL_ROOT is not the only id passed -> AliasNotAloneInDownload
     Response response = downloadMultiple(List.of(LOCAL_ROOT, fileId), OWNER_COOKIE);
@@ -52,8 +53,12 @@ class AliasNotAloneDownloadApiIT extends AbstractFilesIT {
   @Test
   void givenLocalRootAloneThenDownloadMultipleResolvesToItsChildrenAndReturnsZipWith200() {
     // Given
-    String fileId1 = seedFile("file1.txt", LOCAL_ROOT, "content-1".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
-    String fileId2 = seedFile("file2.txt", LOCAL_ROOT, "content-2".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    String fileId1 =
+        seedFile(
+            "file1.txt", LOCAL_ROOT, "content-1".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    String fileId2 =
+        seedFile(
+            "file2.txt", LOCAL_ROOT, "content-2".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
 
     // When — LOCAL_ROOT passed alone resolves to its children (both files).
     Response response = downloadMultiple(List.of(LOCAL_ROOT), OWNER_COOKIE);

@@ -23,25 +23,25 @@ import org.junit.jupiter.api.Test;
  * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. All 6 methods and their assertions
  * are preserved verbatim; only the seeding mechanism and transport changed.
  *
- * <p><b>GOTCHA discovered by this batch (documented on {@link AbstractFilesIT}'s
- * cookie-convention note too):</b> {@code MockUserManagementService#registerToken}'s default
- * overload hardcodes the SAME email ({@code "fake-email@example.com"}) for EVERY registered user,
- * and the "by email" WireMock stub for that literal string is a single GLOBAL mapping in the
- * shared singleton — the LAST class anywhere in the suite to register a NEW token silently
- * overwrites which id that shared email resolves to. Since this class's whole point is asserting
- * that a KNOWN email resolves to THIS class's own {@code REQUESTER_ID}, it cannot rely on the
- * shared default email at all (verified to break once ANY later-alphabetical class in the suite
- * registers a fresh token). Instead it explicitly registers REQUESTER_ID under a
- * class-scoped-unique email via {@code registerUserById}, which overwrites only that one user's
- * email stub without touching the shared default other classes still rely on.
+ * <p><b>GOTCHA discovered by this batch (documented on {@link AbstractFilesIT}'s cookie-convention
+ * note too):</b> {@code MockUserManagementService#registerToken}'s default overload hardcodes the
+ * SAME email ({@code "fake-email@example.com"}) for EVERY registered user, and the "by email"
+ * WireMock stub for that literal string is a single GLOBAL mapping in the shared singleton — the
+ * LAST class anywhere in the suite to register a NEW token silently overwrites which id that shared
+ * email resolves to. Since this class's whole point is asserting that a KNOWN email resolves to
+ * THIS class's own {@code REQUESTER_ID}, it cannot rely on the shared default email at all
+ * (verified to break once ANY later-alphabetical class in the suite registers a fresh token).
+ * Instead it explicitly registers REQUESTER_ID under a class-scoped-unique email via {@code
+ * registerUserById}, which overwrites only that one user's email stub without touching the shared
+ * default other classes still rely on.
  *
- * <p><b>JDBC-seeded pre-states (D1 rule 4 escape hatch):</b> the two "unresolvable
- * creator/owner id" scenarios need a node whose {@code creator_id}/{@code owner_id} is a GHOST id
- * never registered with user-management. The real upload/createFolder mutations always stamp the
+ * <p><b>JDBC-seeded pre-states (D1 rule 4 escape hatch):</b> the two "unresolvable creator/owner
+ * id" scenarios need a node whose {@code creator_id}/{@code owner_id} is a GHOST id never
+ * registered with user-management. The real upload/createFolder mutations always stamp the
  * AUTHENTICATED caller as both creator and owner — there is no API path to set either to an
  * arbitrary, unregistered id — so both are seeded via {@link AbstractFilesIT#seedInconsistentNode}.
- * The "owner ghost" scenario also needs a share granted BY that ghost owner; since the ghost has
- * no real session/cookie, the share row is inserted directly via {@link
+ * The "owner ghost" scenario also needs a share granted BY that ghost owner; since the ghost has no
+ * real session/cookie, the share row is inserted directly via {@link
  * AbstractFilesIT#seedShareRawJdbc} rather than the {@code createShare} mutation.
  */
 class UserResolversApiIT extends AbstractFilesIT {
@@ -81,8 +81,11 @@ class UserResolversApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
-    Map<String, Object> account = TestUtils.jsonResponseToMap(response.getBody().asString(), "getAccountByEmail");
-    Assertions.assertThat(account).containsEntry("id", REQUESTER_ID).containsEntry("email", KNOWN_EMAIL);
+    Map<String, Object> account =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getAccountByEmail");
+    Assertions.assertThat(account)
+        .containsEntry("id", REQUESTER_ID)
+        .containsEntry("email", KNOWN_EMAIL);
   }
 
   @Test
@@ -101,8 +104,11 @@ class UserResolversApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1).containsExactly("Could not find user with identifier " + unknownEmail);
-    Assertions.assertThat(TestUtils.jsonResponseToValue(response.getBody().asString(), "getAccountByEmail"))
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Could not find user with identifier " + unknownEmail);
+    Assertions.assertThat(
+            TestUtils.jsonResponseToValue(response.getBody().asString(), "getAccountByEmail"))
         .isEmpty();
   }
 
@@ -124,10 +130,13 @@ class UserResolversApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<Map<String, Object>> accounts = TestUtils.jsonResponseToList(response.getBody().asString(), "getAccountsByEmail");
+    List<Map<String, Object>> accounts =
+        TestUtils.jsonResponseToList(response.getBody().asString(), "getAccountsByEmail");
     Assertions.assertThat(accounts).hasSize(3);
     Assertions.assertThat(accounts.get(0)).isNull();
-    Assertions.assertThat(accounts.get(1)).containsEntry("id", REQUESTER_ID).containsEntry("email", KNOWN_EMAIL);
+    Assertions.assertThat(accounts.get(1))
+        .containsEntry("id", REQUESTER_ID)
+        .containsEntry("email", KNOWN_EMAIL);
     Assertions.assertThat(accounts.get(2)).isNull();
 
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
@@ -139,15 +148,23 @@ class UserResolversApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAnUnresolvableCreatorIdTheCreatorSubFieldShouldSurfaceAccountNotFound() throws SQLException {
+  void givenAnUnresolvableCreatorIdTheCreatorSubFieldShouldSurfaceAccountNotFound()
+      throws SQLException {
     // Given — a file OWNED by the requester (so the requester has full read access trivially) but
     // CREATED by a ghost id never registered in the UM mock. creator/owner are stored in separate
     // columns, so this isolates creator's resolver independently of owner's.
     String ghostCreatorId = "dddddddd-dddd-dddd-dddd-dddddddddddd";
     String nodeId = "00000000-0000-0000-0000-000000000001";
     seedInconsistentNode(
-        nodeId, ghostCreatorId, REQUESTER_ID, "LOCAL_ROOT", "creatorless.txt", NodeType.TEXT,
-        "LOCAL_ROOT", 1L, "text/plain");
+        nodeId,
+        ghostCreatorId,
+        REQUESTER_ID,
+        "LOCAL_ROOT",
+        "creatorless.txt",
+        NodeType.TEXT,
+        "LOCAL_ROOT",
+        1L,
+        "text/plain");
 
     String bodyPayload =
         GraphqlCommandBuilder.aQueryBuilder("getNode")
@@ -164,14 +181,16 @@ class UserResolversApiIT extends AbstractFilesIT {
     Assertions.assertThat(errors)
         .anySatisfy(
             message ->
-                Assertions.assertThat(message).isEqualTo("Could not find user with identifier " + ghostCreatorId));
+                Assertions.assertThat(message)
+                    .isEqualTo("Could not find user with identifier " + ghostCreatorId));
 
     // creator: User! is NON-NULL in the schema (unlike owner/last_editor), so per GraphQL
     // null-propagation a null-data DataFetcherResult on `creator` bubbles up to the nearest
     // nullable ancestor — `getNode` itself (schema: `getNode(...): Node`, nullable) — nulling the
     // WHOLE node, not just the `creator` sub-field. This is asserted as the REAL, current
     // behaviour: id/name/owner do NOT survive here alongside the error.
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node).isEmpty();
   }
 
@@ -186,8 +205,15 @@ class UserResolversApiIT extends AbstractFilesIT {
     String ghostOwnerId = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee";
     String nodeId = "00000000-0000-0000-0000-000000000002";
     seedInconsistentNode(
-        nodeId, REQUESTER_ID, ghostOwnerId, "LOCAL_ROOT", "ownerless.txt", NodeType.TEXT,
-        "LOCAL_ROOT", 1L, "text/plain");
+        nodeId,
+        REQUESTER_ID,
+        ghostOwnerId,
+        "LOCAL_ROOT",
+        "ownerless.txt",
+        NodeType.TEXT,
+        "LOCAL_ROOT",
+        1L,
+        "text/plain");
     seedShareRawJdbc(nodeId, REQUESTER_ID, ACL.SharePermission.READ_ONLY);
 
     String bodyPayload =
@@ -202,15 +228,18 @@ class UserResolversApiIT extends AbstractFilesIT {
     // Then — owner/last_editor: User (nullable in the schema) resolve to null WITHOUT bubbling,
     // so the rest of the node (id/name/creator) survives alongside the two scoped errors.
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node).containsEntry("id", nodeId).containsEntry("name", "ownerless");
-    Assertions.assertThat((Map<String, Object>) node.get("creator")).containsEntry("id", REQUESTER_ID);
+    Assertions.assertThat((Map<String, Object>) node.get("creator"))
+        .containsEntry("id", REQUESTER_ID);
     Assertions.assertThat(node.get("owner")).isNull();
     Assertions.assertThat(node.get("last_editor")).isNull();
 
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors)
-        .filteredOn(message -> message.equals("Could not find user with identifier " + ghostOwnerId))
+        .filteredOn(
+            message -> message.equals("Could not find user with identifier " + ghostOwnerId))
         .hasSize(2); // one for `owner`, one for `last_editor` — same ghost id, two separate fields
   }
 
@@ -235,7 +264,8 @@ class UserResolversApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
-    Map<String, Object> node = TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node).containsEntry("id", folderId);
     Assertions.assertThat(node.get("last_editor")).isNull();
   }

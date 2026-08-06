@@ -19,18 +19,18 @@ import org.junit.jupiter.api.Test;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.PublicDownloadEdgeApiIT} rewritten as an
- * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. Covers the two
- * "check" variants of the public download surface plus the query-string-order routing quirk on
- * {@code /public/download/{id}/check}:
+ * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. Covers the two "check"
+ * variants of the public download surface plus the query-string-order routing quirk on {@code
+ * /public/download/{id}/check}:
  *
  * <ul>
  *   <li>{@code checkDownloadPublicFile} ({@code GET /public/download/{id}/check?node_link_id=...})
  *       -&gt; 204 on success, 404 on any not-accessible condition.
- *   <li>{@code checkDownloadPublicMultiple} ({@code POST /public/download-multiple/check}, raw
- *       JSON body) -&gt; 204/404/500.
+ *   <li>{@code checkDownloadPublicMultiple} ({@code POST /public/download-multiple/check}, raw JSON
+ *       body) -&gt; 204/404/500.
  *   <li>{@code PublicBlobResource#requireNodeLinkIdFirst} hard-codes {@code node_link_id}
- *       immediately after {@code ?} on {@code checkDownloadPublicFile}; any other query order
- *       (e.g. {@code access_code} first) is rejected with a 404 before {@code BlobService} is ever
+ *       immediately after {@code ?} on {@code checkDownloadPublicFile}; any other query order (e.g.
+ *       {@code access_code} first) is rejected with a 404 before {@code BlobService} is ever
  *       consulted — ported verbatim as a raw hand-built query string (not RestAssured's {@code
  *       .queryParam(...)}, whose insertion order this test must control byte-exactly).
  * </ul>
@@ -49,7 +49,10 @@ class PublicDownloadEdgeApiIT extends AbstractFilesIT {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", OWNER_ID);
   }
 
-  /** Creates a link via the real mutation and returns its {@code public_id} (last 50 chars of the url). */
+  /**
+   * Creates a link via the real mutation and returns its {@code public_id} (last 50 chars of the
+   * url).
+   */
   private static String createLink(String nodeId, String accessCode, String ownerCookie) {
     GraphqlCommandBuilder builder =
         GraphqlCommandBuilder.aMutationBuilder("createLink").withString("node_id", nodeId);
@@ -60,13 +63,17 @@ class PublicDownloadEdgeApiIT extends AbstractFilesIT {
     Response response = graphql(bodyPayload, ownerCookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     String url =
-        (String) TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
+        (String)
+            TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
     return url.substring(url.length() - 50);
   }
 
   private static Response checkPublicSingle(String nodeId, String nodeLinkId, String accessCode) {
     StringBuilder path =
-        new StringBuilder("/public/download/").append(nodeId).append("/check?node_link_id=").append(nodeLinkId);
+        new StringBuilder("/public/download/")
+            .append(nodeId)
+            .append("/check?node_link_id=")
+            .append(nodeLinkId);
     if (accessCode != null) {
       path.append("&access_code=").append(accessCode);
     }
@@ -122,7 +129,8 @@ class PublicDownloadEdgeApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAProtectedLinkWithoutTheAccessCodeTheCheckDownloadPublicFileApiShouldReturnA404StatusCode() {
+  void
+      givenAProtectedLinkWithoutTheAccessCodeTheCheckDownloadPublicFileApiShouldReturnA404StatusCode() {
     // Given
     String nodeId =
         seedFile(
@@ -195,12 +203,17 @@ class PublicDownloadEdgeApiIT extends AbstractFilesIT {
   void givenNodeLinkIdBeforeAccessCodeTheCheckDownloadPublicFileApiShouldReturnA204StatusCode() {
     // Given
     String nodeId =
-        seedFile("ordered.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+        seedFile(
+            "ordered.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
     String publicId = createLink(nodeId, "secretcode123", OWNER_COOKIE);
 
     // When
     String correctOrderUrl =
-        "/public/download/" + nodeId + "/check?node_link_id=" + publicId + "&access_code=secretcode123";
+        "/public/download/"
+            + nodeId
+            + "/check?node_link_id="
+            + publicId
+            + "&access_code=secretcode123";
     Response response = checkPublicSingleRawQuery(correctOrderUrl);
 
     // Then

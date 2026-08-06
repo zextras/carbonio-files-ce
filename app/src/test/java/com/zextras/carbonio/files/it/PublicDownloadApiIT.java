@@ -18,13 +18,13 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * {@code com.zextras.carbonio.files.acceptance.PublicDownloadApiIT} rewritten as an
- * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: {@code GET
+ * {@code com.zextras.carbonio.files.acceptance.PublicDownloadApiIT} rewritten as an out-of-process
+ * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: {@code GET
  * /public/download/{nodeId}?node_link_id=...&access_code=...} ({@code
  * PublicBlobResource#downloadPublicFile}). All 8 methods and their assertions are preserved
- * verbatim; only the seeding mechanism (real {@code createLink} API, capturing the
- * server-generated 50-char public id from the {@code url} field — see {@link
- * GetPublicNodeApiIT}'s class javadoc) and the transport changed.
+ * verbatim; only the seeding mechanism (real {@code createLink} API, capturing the server-generated
+ * 50-char public id from the {@code url} field — see {@link GetPublicNodeApiIT}'s class javadoc)
+ * and the transport changed.
  */
 class PublicDownloadApiIT extends AbstractFilesIT {
 
@@ -36,7 +36,10 @@ class PublicDownloadApiIT extends AbstractFilesIT {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", OWNER_ID);
   }
 
-  /** Creates a link via the real mutation and returns its {@code public_id} (last 50 chars of the url). */
+  /**
+   * Creates a link via the real mutation and returns its {@code public_id} (last 50 chars of the
+   * url).
+   */
   private static String createLink(
       String nodeId, Integer expiresAt, String accessCode, String ownerCookie) {
     GraphqlCommandBuilder builder =
@@ -51,7 +54,8 @@ class PublicDownloadApiIT extends AbstractFilesIT {
     Response response = graphql(bodyPayload, ownerCookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     String url =
-        (String) TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
+        (String)
+            TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
     return url.substring(url.length() - 50);
   }
 
@@ -172,8 +176,7 @@ class PublicDownloadApiIT extends AbstractFilesIT {
     FilesStackTestResource.getStoragesService().reset();
 
     // When — the query string does not carry node_link_id at all
-    Response response =
-        publicDownloadByNodeId(nodeId, null, null, "ZM_AUTH_TOKEN=" + userToken);
+    Response response = publicDownloadByNodeId(nodeId, null, null, "ZM_AUTH_TOKEN=" + userToken);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(404);

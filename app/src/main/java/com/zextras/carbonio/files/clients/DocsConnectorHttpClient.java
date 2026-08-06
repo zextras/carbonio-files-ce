@@ -18,9 +18,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Minimal HTTP client for carbonio-docs-connector's own liveness probe: {@code GET
- * /q/health/live}, the default SmallRye-health liveness path docs-connector (itself a Quarkus
- * service) exposes. Host/port come from {@link NetworkingConfigService} ({@code
+ * Minimal HTTP client for carbonio-docs-connector's own liveness probe: {@code GET /q/health/live},
+ * the default SmallRye-health liveness path docs-connector (itself a Quarkus service) exposes.
+ * Host/port come from {@link NetworkingConfigService} ({@code
  * networking-config.carbonio.docs-connector.*}, defaulting to the mesh IP/port from {@code
  * package/carbonio-files.hcl}: {@code 127.78.0.2:20005}).
  *

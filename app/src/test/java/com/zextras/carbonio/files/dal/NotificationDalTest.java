@@ -26,9 +26,9 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 /**
- * Restores, from the deleted (Phase 7b) white-box {@code NotificationRepositoryIT}, the 3
- * snapshot dedup/reuse scenarios of {@code NotificationRepositoryImpl#createNewShareNotification}:
- * this optimisation (reuse the latest {@code SnapshotNode}/{@code SnapshotUser} row when it still
+ * Restores, from the deleted (Phase 7b) white-box {@code NotificationRepositoryIT}, the 3 snapshot
+ * dedup/reuse scenarios of {@code NotificationRepositoryImpl#createNewShareNotification}: this
+ * optimisation (reuse the latest {@code SnapshotNode}/{@code SnapshotUser} row when it still
  * represents the current node/user, otherwise persist a fresh one) has NO API-observable signature
  * — every code path returns a structurally identical {@code NewShareNotification} — which is
  * exactly why it needs a direct test: nothing black-box would ever catch a regression here.
@@ -135,6 +135,7 @@ class NotificationDalTest {
     NewShareNotification second =
         notificationRepository.createNewShareNotification(node, changedUser, List.of(id()));
 
-    assertThat(second.getTriggeringUserSnapshotId()).isNotEqualTo(first.getTriggeringUserSnapshotId());
+    assertThat(second.getTriggeringUserSnapshotId())
+        .isNotEqualTo(first.getTriggeringUserSnapshotId());
   }
 }

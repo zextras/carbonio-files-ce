@@ -17,8 +17,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.UploadFileVersionApiIT} rewritten as an
- * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: {@code
- * POST /upload-version}.
+ * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: {@code POST
+ * /upload-version}.
  *
  * <p><b>Config-split (D3/Batch D):</b> the original class held 9 methods. Four scenarios need a
  * config cap that cannot share this class's default (uncapped/unlimited-versions) stack, since
@@ -56,11 +56,21 @@ class UploadFileVersionApiIT extends AbstractFilesIT {
   @Test
   void givenANewVersionUploadShouldSucceedAndReturnTheIncrementedVersion() throws Exception {
     // Given — a single existing version (v1)
-    String nodeId = seedFile("fake.txt", LOCAL_ROOT, "v1 content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String nodeId =
+        seedFile(
+            "fake.txt",
+            LOCAL_ROOT,
+            "v1 content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
 
     // When
     Response response =
-        uploadVersion(nodeId, "v2 content".getBytes(StandardCharsets.UTF_8), "fake.txt", false, REQUESTER_COOKIE);
+        uploadVersion(
+            nodeId,
+            "v2 content".getBytes(StandardCharsets.UTF_8),
+            "fake.txt",
+            false,
+            REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
@@ -73,12 +83,23 @@ class UploadFileVersionApiIT extends AbstractFilesIT {
   @Test
   void givenOverwriteTrueUploadShouldReplaceTheCurrentVersionInPlace() throws Exception {
     // Given — two existing versions (v1, v2); current version is 2
-    String nodeId = seedFile("fake.txt", LOCAL_ROOT, "v1 content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    seedVersion(nodeId, "v2 content".getBytes(StandardCharsets.UTF_8), "fake.txt", REQUESTER_COOKIE);
+    String nodeId =
+        seedFile(
+            "fake.txt",
+            LOCAL_ROOT,
+            "v1 content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+    seedVersion(
+        nodeId, "v2 content".getBytes(StandardCharsets.UTF_8), "fake.txt", REQUESTER_COOKIE);
 
     // When
     Response response =
-        uploadVersion(nodeId, "overwritten content".getBytes(StandardCharsets.UTF_8), "fake.txt", true, REQUESTER_COOKIE);
+        uploadVersion(
+            nodeId,
+            "overwritten content".getBytes(StandardCharsets.UTF_8),
+            "fake.txt",
+            true,
+            REQUESTER_COOKIE);
 
     // Then — the response's version (2) IS > 1, so (unlike a fresh v1 upload) it IS present
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
@@ -94,12 +115,18 @@ class UploadFileVersionApiIT extends AbstractFilesIT {
   void givenNoWritePermissionUploadVersionShouldReturn404() {
     // Given — node owned by OTHER_USER_ID, shared READ_ONLY (no write) with the requester
     String nodeId =
-        seedFile("notMine.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+        seedFile(
+            "notMine.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
     seedShare(nodeId, REQUESTER_ID, ACL.SharePermission.READ_ONLY, OTHER_COOKIE);
 
     // When
     Response response =
-        uploadVersion(nodeId, "content".getBytes(StandardCharsets.UTF_8), "notMine.txt", false, REQUESTER_COOKIE);
+        uploadVersion(
+            nodeId,
+            "content".getBytes(StandardCharsets.UTF_8),
+            "notMine.txt",
+            false,
+            REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(404);
@@ -115,7 +142,12 @@ class UploadFileVersionApiIT extends AbstractFilesIT {
 
     // When
     Response response =
-        uploadVersion(nonExistentId, "content".getBytes(StandardCharsets.UTF_8), "ghost.txt", false, REQUESTER_COOKIE);
+        uploadVersion(
+            nonExistentId,
+            "content".getBytes(StandardCharsets.UTF_8),
+            "ghost.txt",
+            false,
+            REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(404);
@@ -125,11 +157,18 @@ class UploadFileVersionApiIT extends AbstractFilesIT {
   @Test
   void givenAMimeTypeMismatchUploadVersionShouldReturn400() {
     // Given — existing node is TEXT (fake.txt); new filename maps to IMAGE
-    String nodeId = seedFile("fake.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String nodeId =
+        seedFile(
+            "fake.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     Response response =
-        uploadVersion(nodeId, "content".getBytes(StandardCharsets.UTF_8), "photo.png", false, REQUESTER_COOKIE);
+        uploadVersion(
+            nodeId,
+            "content".getBytes(StandardCharsets.UTF_8),
+            "photo.png",
+            false,
+            REQUESTER_COOKIE);
 
     // Then — FileTypeMismatchException groups with the GENERIC-body BAD_REQUEST branch in
     // ExceptionsHandler (same group as BadRequestException/IllegalArgumentException), so the

@@ -39,17 +39,18 @@ public class PermissionsChecker {
   }
 
   /**
-   * <p>Calculates the {@link ACL} of a {@link Node} for a specific {@link
-   * com.zextras.carbonio.files.dal.dao.UserMyself}.</p>
+   * Calculates the {@link ACL} of a {@link Node} for a specific {@link
+   * com.zextras.carbonio.files.dal.dao.UserMyself}.
+   *
    * <p>The algorithm is very simple: if the user is the owner/creator of the node then it returns
    * the {@link ACL#OWNER} permissions, this means that the user can do anything with this node;
    * otherwise it checks if the node is shared with the user. It finds one then returns the
    * permissions specified in the related {@link Share} otherwise it returns {@link ACL#NONE} that
-   * means that the user can do nothing with this node.</p>
+   * means that the user can do nothing with this node.
    *
    * @param nodeId is a {@link String} representing a node id
-   * @param userId is a {@link String} representing a user id. This is the user we want to check
-   *     its node permissions
+   * @param userId is a {@link String} representing a user id. This is the user we want to check its
+   *     node permissions
    * @return a {@link ACL} containing all the permissions that the user has on the specified node.
    */
   public ACL getPermissions(String nodeId, String userId) {

@@ -7,13 +7,13 @@ package com.zextras.carbonio.files.graphql;
 import graphql.execution.instrumentation.fieldvalidation.SimpleFieldValidation;
 
 /**
- * CE extension seam applied to the {@link SimpleFieldValidation} of the authenticated
- * {@link GraphQLProvider} AFTER all of CE's base pre-execution field-validation rules have been
+ * CE extension seam applied to the {@link SimpleFieldValidation} of the authenticated {@link
+ * GraphQLProvider} AFTER all of CE's base pre-execution field-validation rules have been
  * registered, so contributors can validate the arguments of the queries/mutations they introduce
- * via a {@link GraphQLSchemaContributor}. CE ships zero contributors, so the validation is identical
- * to the base one. The Advanced edition adds contributors as {@code @ApplicationScoped} beans. The
- * public schema ({@link PublicGraphQLProvider}) has no field validation, so there is no public-scope
- * variant of this seam.
+ * via a {@link GraphQLSchemaContributor}. CE ships zero contributors, so the validation is
+ * identical to the base one. The Advanced edition adds contributors as {@code @ApplicationScoped}
+ * beans. The public schema ({@link PublicGraphQLProvider}) has no field validation, so there is no
+ * public-scope variant of this seam.
  */
 public interface GraphQLFieldValidationContributor {
 

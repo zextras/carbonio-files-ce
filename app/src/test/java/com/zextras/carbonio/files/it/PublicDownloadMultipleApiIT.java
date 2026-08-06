@@ -24,10 +24,10 @@ import org.junit.jupiter.api.Test;
  * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: {@code POST
  * /public/download-multiple} (form-encoded, ZIP download) — {@code
  * PublicBlobResource#downloadPublicMultiple}. All 8 methods and their assertions are preserved
- * verbatim; only the seeding mechanism (real {@code seedFolder}/{@code seedFile}/{@code
- * createLink} API, capturing server-generated ids) and the transport changed. Content bytes are
- * now real, storages-backed uploads (via {@code seedFile}) rather than the seam's {@code
- * storagesServesBlob} stub registration — the fake serves whatever content was actually uploaded.
+ * verbatim; only the seeding mechanism (real {@code seedFolder}/{@code seedFile}/{@code createLink}
+ * API, capturing server-generated ids) and the transport changed. Content bytes are now real,
+ * storages-backed uploads (via {@code seedFile}) rather than the seam's {@code storagesServesBlob}
+ * stub registration — the fake serves whatever content was actually uploaded.
  */
 class PublicDownloadMultipleApiIT extends AbstractFilesIT {
 
@@ -39,7 +39,10 @@ class PublicDownloadMultipleApiIT extends AbstractFilesIT {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", OWNER_ID);
   }
 
-  /** Creates a link via the real mutation and returns its {@code public_id} (last 50 chars of the url). */
+  /**
+   * Creates a link via the real mutation and returns its {@code public_id} (last 50 chars of the
+   * url).
+   */
   private static String createLink(
       String nodeId, String description, String accessCode, String ownerCookie) {
     GraphqlCommandBuilder builder =
@@ -54,7 +57,8 @@ class PublicDownloadMultipleApiIT extends AbstractFilesIT {
     Response response = graphql(bodyPayload, ownerCookie);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     String url =
-        (String) TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
+        (String)
+            TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink").get("url");
     return url.substring(url.length() - 50);
   }
 
@@ -80,9 +84,12 @@ class PublicDownloadMultipleApiIT extends AbstractFilesIT {
   void givenMultipleFilesWithPublicLinkTheDownloadMultipleShouldReturnZipWith200() {
     // Given
     String folderId = seedFolder("test-folder", LOCAL_ROOT, OWNER_COOKIE);
-    String fileId1 = seedFile("file1.txt", folderId, "one".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
-    String fileId2 = seedFile("file2.pdf", folderId, "two".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
-    String fileId3 = seedFile("file3.jpg", folderId, "three".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    String fileId1 =
+        seedFile("file1.txt", folderId, "one".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    String fileId2 =
+        seedFile("file2.pdf", folderId, "two".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    String fileId3 =
+        seedFile("file3.jpg", folderId, "three".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
     String publicId = createLink(folderId, "Public folder link", null, OWNER_COOKIE);
 
     // When
@@ -101,13 +108,14 @@ class PublicDownloadMultipleApiIT extends AbstractFilesIT {
   void givenPublicLinkWithAccessCodeTheDownloadMultipleShouldReturnZipWith200() {
     // Given
     String folderId = seedFolder("protected-folder", LOCAL_ROOT, OWNER_COOKIE);
-    String fileId1 = seedFile("file1.txt", folderId, "one".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
-    String fileId2 = seedFile("file2.txt", folderId, "two".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    String fileId1 =
+        seedFile("file1.txt", folderId, "one".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    String fileId2 =
+        seedFile("file2.txt", folderId, "two".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
     String publicId = createLink(folderId, "Protected link", "secret123456", OWNER_COOKIE);
 
     // When
-    Response response =
-        publicDownloadMultiple(List.of(fileId1, fileId2), publicId, "secret123456");
+    Response response = publicDownloadMultiple(List.of(fileId1, fileId2), publicId, "secret123456");
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
@@ -120,8 +128,7 @@ class PublicDownloadMultipleApiIT extends AbstractFilesIT {
         seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
 
     // When
-    Response response =
-        publicDownloadMultiple(List.of(fileId), UUID.randomUUID().toString(), null);
+    Response response = publicDownloadMultiple(List.of(fileId), UUID.randomUUID().toString(), null);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(404);

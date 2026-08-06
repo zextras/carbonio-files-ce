@@ -24,11 +24,11 @@ import org.junit.jupiter.api.Test;
  * one-element path) are preserved verbatim.
  *
  * <p>The "leaf shared with no ancestor share" pre-state is, contrary to the original's javadoc
- * claim about the backdoor being required, actually reachable via the real API too: the real
- * {@code createShare} mutation only shares the EXACT node it targets (no downward cascade onto
- * the SHARER's side — {@code cascadeUpsertShare} propagates a share onto a node's own descendants
- * when the node itself is later shared again, it does not retroactively create ancestor shares),
- * so directly sharing only the leaf (not any ancestor) reproduces the same state as the original
+ * claim about the backdoor being required, actually reachable via the real API too: the real {@code
+ * createShare} mutation only shares the EXACT node it targets (no downward cascade onto the
+ * SHARER's side — {@code cascadeUpsertShare} propagates a share onto a node's own descendants when
+ * the node itself is later shared again, it does not retroactively create ancestor shares), so
+ * directly sharing only the leaf (not any ancestor) reproduces the same state as the original
  * backdoor fixture. Only the seeding mechanism (API calls capturing server-generated ids) and
  * transport changed.
  */
@@ -65,16 +65,23 @@ class GetPathApiIT extends AbstractFilesIT {
     // Given — a 3-level chain, fully owned by the requester
     String folderAId = seedFolder("folderA", LOCAL_ROOT, REQUESTER_COOKIE);
     String folderBId = seedFolder("folderB", folderAId, REQUESTER_COOKIE);
-    String fileCId = seedFile("fileC.txt", folderBId, "c".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileCId =
+        seedFile("fileC.txt", folderBId, "c".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
 
     // When
     List<Map<String, Object>> path = getPath(fileCId, REQUESTER_COOKIE);
 
     // Then — the full chain, starting at LOCAL_ROOT itself
     Assertions.assertThat(path).hasSize(4);
-    Assertions.assertThat(path.get(0)).containsEntry("id", "LOCAL_ROOT").containsEntry("name", "ROOT");
-    Assertions.assertThat(path.get(1)).containsEntry("id", folderAId).containsEntry("name", "folderA");
-    Assertions.assertThat(path.get(2)).containsEntry("id", folderBId).containsEntry("name", "folderB");
+    Assertions.assertThat(path.get(0))
+        .containsEntry("id", "LOCAL_ROOT")
+        .containsEntry("name", "ROOT");
+    Assertions.assertThat(path.get(1))
+        .containsEntry("id", folderAId)
+        .containsEntry("name", "folderA");
+    Assertions.assertThat(path.get(2))
+        .containsEntry("id", folderBId)
+        .containsEntry("name", "folderB");
     Assertions.assertThat(path.get(3)).containsEntry("id", fileCId).containsEntry("name", "fileC");
   }
 
@@ -84,7 +91,8 @@ class GetPathApiIT extends AbstractFilesIT {
     // shared with the requester (direct createShare calls on each, no cascade from folderA)
     String folderAId = seedFolder("folderA", LOCAL_ROOT, OTHER_COOKIE);
     String folderBId = seedFolder("folderB", folderAId, OTHER_COOKIE);
-    String fileCId = seedFile("fileC.txt", folderBId, "c".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+    String fileCId =
+        seedFile("fileC.txt", folderBId, "c".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
     seedShare(folderBId, REQUESTER_ID, ACL.SharePermission.READ_ONLY, OTHER_COOKIE);
     seedShare(fileCId, REQUESTER_ID, ACL.SharePermission.READ_ONLY, OTHER_COOKIE);
 
@@ -94,7 +102,9 @@ class GetPathApiIT extends AbstractFilesIT {
     // Then — starts at folderB (the highest node with an explicit share), NOT at LOCAL_ROOT nor
     // at the unshared folderA
     Assertions.assertThat(path).hasSize(2);
-    Assertions.assertThat(path.get(0)).containsEntry("id", folderBId).containsEntry("name", "folderB");
+    Assertions.assertThat(path.get(0))
+        .containsEntry("id", folderBId)
+        .containsEntry("name", "folderB");
     Assertions.assertThat(path.get(1)).containsEntry("id", fileCId).containsEntry("name", "fileC");
   }
 
@@ -108,7 +118,8 @@ class GetPathApiIT extends AbstractFilesIT {
     // Given — 3-level chain owned by OTHER_USER_ID; ONLY the leaf is shared, no ancestor is
     String folderAId = seedFolder("folderA", LOCAL_ROOT, OTHER_COOKIE);
     String folderBId = seedFolder("folderB", folderAId, OTHER_COOKIE);
-    String fileCId = seedFile("fileC.txt", folderBId, "c".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+    String fileCId =
+        seedFile("fileC.txt", folderBId, "c".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
     seedShare(fileCId, REQUESTER_ID, ACL.SharePermission.READ_ONLY, OTHER_COOKIE);
 
     // When
@@ -116,7 +127,8 @@ class GetPathApiIT extends AbstractFilesIT {
 
     // Then — silently degrades to a singleton path; no ancestors, no error
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<Map<String, Object>> path = TestUtils.jsonResponseToList(response.getBody().asString(), "getPath");
+    List<Map<String, Object>> path =
+        TestUtils.jsonResponseToList(response.getBody().asString(), "getPath");
     Assertions.assertThat(path).hasSize(1);
     Assertions.assertThat(path.get(0)).containsEntry("id", fileCId).containsEntry("name", "fileC");
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
@@ -125,7 +137,8 @@ class GetPathApiIT extends AbstractFilesIT {
   @Test
   void givenNoRelationshipToTheRequestedNodeGetPathShouldReturnNodeNotFound() {
     // Given — a node owned by OTHER_USER_ID, never shared with the requester at all
-    String fileDId = seedFile("fileD.txt", LOCAL_ROOT, "d".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+    String fileDId =
+        seedFile("fileD.txt", LOCAL_ROOT, "d".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
 
     // When
     Response response = getPathRaw(fileDId, REQUESTER_COOKIE);
@@ -133,6 +146,8 @@ class GetPathApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1).containsExactly("Could not find node with id " + fileDId);
+    Assertions.assertThat(errors)
+        .hasSize(1)
+        .containsExactly("Could not find node with id " + fileDId);
   }
 }
