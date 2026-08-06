@@ -22,364 +22,373 @@ import org.mockserver.model.HttpResponse;
 
 class UserRepositoryRestTest {
 
-  private ClientAndServer mockServer;
-  private UserRepositoryRest userRepositoryRest;
+    private ClientAndServer mockServer;
+    private UserRepositoryRest userRepositoryRest;
 
-  @BeforeEach
-  void setup() {
-    // Start a MockServer fake of carbonio-user-management on an ephemeral port and stub its
-    // /internal/users/* REST endpoints (replaces the old in-process gRPC fake).
-    mockServer = ClientAndServer.startClientAndServer();
-    int port = mockServer.getLocalPort();
+    @BeforeEach
+    void setup() {
+        // Start a MockServer fake of carbonio-user-management on an ephemeral port and stub its
+        // /internal/users/* REST endpoints (replaces the old in-process gRPC fake).
+        mockServer = ClientAndServer.startClientAndServer();
+        int port = mockServer.getLocalPort();
 
-    HttpClient.Builder httpClientBuilder =
-        HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1);
-    ApiClient apiClient =
-        new ApiClient(
+        HttpClient.Builder httpClientBuilder =
+            HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1);
+        ApiClient apiClient = new ApiClient(
             httpClientBuilder, ApiClient.createDefaultObjectMapper(), "http://localhost:" + port);
-    UserResourceApi userResourceApi = new UserResourceApi(apiClient);
+        UserResourceApi userResourceApi = new UserResourceApi(apiClient);
 
-    userRepositoryRest = new UserRepositoryRest(userResourceApi);
+        userRepositoryRest = new UserRepositoryRest(userResourceApi);
 
-    mockServer
-        .when(
-            HttpRequest.request()
-                .withMethod("GET")
-                .withPath("/internal/users/myself")
-                .withHeader("ZM_AUTH_TOKEN", "valid-token"))
-        .respond(
-            HttpResponse.response()
-                .withStatusCode(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody(
-                    "{\"info\":{\"userId\":\"fake-user-id\",\"email\":\"fake@example.com\","
-                        + "\"fullName\":\"Fake User\",\"domain\":\"example.com\","
-                        + "\"status\":\"active\",\"type\":\"INTERNAL\"},\"locale\":\"en\","
-                        + "\"features\":[\"carbonioFeatureFilesEnabled\"],\"capabilities\":{}}"));
+        mockServer
+            .when(
+                HttpRequest.request()
+                    .withMethod("GET")
+                    .withPath("/internal/users/myself")
+                    .withHeader("ZM_AUTH_TOKEN", "valid-token"))
+            .respond(
+                HttpResponse.response()
+                    .withStatusCode(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(
+                        "{\"info\":{\"userId\":\"fake-user-id\",\"email\":\"fake@example.com\","
+                            + "\"fullName\":\"Fake User\",\"domain\":\"example.com\","
+                            + "\"status\":\"active\",\"type\":\"INTERNAL\"},\"locale\":\"en\","
+                            + "\"features\":[\"carbonioFeatureFilesEnabled\"],\"capabilities\":{}}"));
 
-    mockServer
-        .when(HttpRequest.request().withMethod("GET").withPath("/internal/users/id/fake-user-id"))
-        .respond(
-            HttpResponse.response()
-                .withStatusCode(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody(
-                    "{\"userId\":\"fake-user-id\",\"email\":\"fake@example.com\","
-                        + "\"fullName\":\"Fake User\",\"domain\":\"example.com\","
-                        + "\"status\":\"active\",\"type\":\"INTERNAL\"}"));
-  }
-
-  @AfterEach
-  void tearDown() {
-    if (mockServer != null) {
-      mockServer.stop();
+        mockServer
+            .when(
+                HttpRequest.request()
+                    .withMethod("GET")
+                    .withPath("/internal/users/id/fake-user-id"))
+            .respond(
+                HttpResponse.response()
+                    .withStatusCode(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(
+                        "{\"userId\":\"fake-user-id\",\"email\":\"fake@example.com\","
+                            + "\"fullName\":\"Fake User\",\"domain\":\"example.com\","
+                            + "\"status\":\"active\",\"type\":\"INTERNAL\"}"));
     }
-  }
 
-  @Test
-  void givenValidCookieGetUserMyselfByCookieNotCachedShouldContainUserMyself() {
-    // When
-    Optional<UserMyself> returnedUserMyselfOpt =
-        userRepositoryRest.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=valid-token");
+    @AfterEach
+    void tearDown() {
+        if (mockServer != null) {
+            mockServer.stop();
+        }
+    }
 
-    // Then
-    Assertions.assertThat(returnedUserMyselfOpt).isPresent();
-    UserMyself user = returnedUserMyselfOpt.get();
-    Assertions.assertThat(user.getId().getUserId()).isEqualTo("fake-user-id");
-    Assertions.assertThat(user.getEmail()).isEqualTo("fake@example.com");
-    Assertions.assertThat(user.getFullName()).isEqualTo("Fake User");
-    Assertions.assertThat(user.getDomain()).isEqualTo("example.com");
-  }
+    @Test
+    void givenValidCookieGetUserMyselfByCookieNotCachedShouldContainUserMyself() {
+        // When
+        Optional<UserMyself> returnedUserMyselfOpt =
+            userRepositoryRest.getUserMyselfByCookie("ZM_AUTH_TOKEN=valid-token");
 
-  @Test
-  void givenInvalidCookieGetUserMyselfByCookieNotCachedShouldReturnEmpty() {
-    // When
-    Optional<UserMyself> returnedUserMyselfOpt =
-        userRepositoryRest.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=invalid-token");
+        // Then
+        Assertions.assertThat(returnedUserMyselfOpt).isPresent();
+        UserMyself user = returnedUserMyselfOpt.get();
+        Assertions.assertThat(user.getId().getUserId()).isEqualTo("fake-user-id");
+        Assertions.assertThat(user.getEmail()).isEqualTo("fake@example.com");
+        Assertions.assertThat(user.getFullName()).isEqualTo("Fake User");
+        Assertions.assertThat(user.getDomain()).isEqualTo("example.com");
+    }
 
-    // Then
-    Assertions.assertThat(returnedUserMyselfOpt).isEmpty();
-  }
+    @Test
+    void givenInvalidCookieGetUserMyselfByCookieNotCachedShouldReturnEmpty() {
+        // When
+        Optional<UserMyself> returnedUserMyselfOpt =
+            userRepositoryRest.getUserMyselfByCookie("ZM_AUTH_TOKEN=invalid-token");
 
-  @Test
-  void givenValidUserIdGetUserByIdShouldReturnUserInfo() {
-    // When
-    Optional<UserInfo> returnedUserInfoOpt =
-        userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "fake-user-id");
+        // Then
+        Assertions.assertThat(returnedUserMyselfOpt).isEmpty();
+    }
 
-    // Then
-    Assertions.assertThat(returnedUserInfoOpt).isPresent();
-    UserInfo userInfo = returnedUserInfoOpt.get();
-    Assertions.assertThat(userInfo.getId().getUserId()).isEqualTo("fake-user-id");
-    Assertions.assertThat(userInfo.getEmail()).isEqualTo("fake@example.com");
-  }
+    @Test
+    void givenValidUserIdGetUserByIdShouldReturnUserInfo() {
+        // When
+        Optional<UserInfo> returnedUserInfoOpt =
+            userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "fake-user-id");
 
-  @Test
-  void givenUnknownUserIdGetUserByIdShouldReturnEmpty() {
-    // When
-    Optional<UserInfo> returnedUserInfoOpt =
-        userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "unknown-user-id");
+        // Then
+        Assertions.assertThat(returnedUserInfoOpt).isPresent();
+        UserInfo userInfo = returnedUserInfoOpt.get();
+        Assertions.assertThat(userInfo.getId().getUserId()).isEqualTo("fake-user-id");
+        Assertions.assertThat(userInfo.getEmail()).isEqualTo("fake@example.com");
+    }
 
-    // Then
-    Assertions.assertThat(returnedUserInfoOpt).isEmpty();
-  }
+    @Test
+    void givenUnknownUserIdGetUserByIdShouldReturnEmpty() {
+        // When
+        Optional<UserInfo> returnedUserInfoOpt =
+            userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "unknown-user-id");
 
-  // ---------------------------------------------------------------------------------------
-  // mapType() coverage: "GUEST" is the access-denying value (AuthenticationHandler blocks
-  // guests), so an unresolvable/unknown type must fail CLOSED onto GUEST rather than
-  // defaulting to INTERNAL. These stub a range of "type" values that a plain REST string can
-  // now carry but the old protobuf UserTypeProto enum could never have produced.
-  // ---------------------------------------------------------------------------------------
+        // Then
+        Assertions.assertThat(returnedUserInfoOpt).isEmpty();
+    }
 
-  @Test
-  void givenUserTypeGuestGetUserByIdShouldMapToGuestType() {
-    // Given
-    mockServer
-        .when(HttpRequest.request().withMethod("GET").withPath("/internal/users/id/guest-user-id"))
-        .respond(
-            HttpResponse.response()
-                .withStatusCode(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody(
-                    "{\"userId\":\"guest-user-id\",\"email\":\"guest@example.com\","
-                        + "\"fullName\":\"Guest User\",\"domain\":\"example.com\","
-                        + "\"status\":\"active\",\"type\":\"GUEST\"}"));
+    // ---------------------------------------------------------------------------------------
+    // mapType() coverage: "GUEST" is the access-denying value (AuthenticationHandler blocks
+    // guests), so an unresolvable/unknown type must fail CLOSED onto GUEST rather than
+    // defaulting to INTERNAL. These stub a range of "type" values that a plain REST string can
+    // now carry but the old protobuf UserTypeProto enum could never have produced.
+    // ---------------------------------------------------------------------------------------
 
-    // When
-    Optional<UserInfo> returnedUserInfoOpt =
-        userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "guest-user-id");
+    @Test
+    void givenUserTypeGuestGetUserByIdShouldMapToGuestType() {
+        // Given
+        mockServer
+            .when(
+                HttpRequest.request()
+                    .withMethod("GET")
+                    .withPath("/internal/users/id/guest-user-id"))
+            .respond(
+                HttpResponse.response()
+                    .withStatusCode(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(
+                        "{\"userId\":\"guest-user-id\",\"email\":\"guest@example.com\","
+                            + "\"fullName\":\"Guest User\",\"domain\":\"example.com\","
+                            + "\"status\":\"active\",\"type\":\"GUEST\"}"));
 
-    // Then
-    Assertions.assertThat(returnedUserInfoOpt).isPresent();
-    Assertions.assertThat(returnedUserInfoOpt.get().getType()).isEqualTo(UserType.GUEST);
-  }
+        // When
+        Optional<UserInfo> returnedUserInfoOpt =
+            userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "guest-user-id");
 
-  @Test
-  void givenUserTypeInternalGetUserByIdShouldMapToInternalType() {
-    // When: the "fake-user-id" stub registered in setup() returns "type":"INTERNAL"
-    Optional<UserInfo> returnedUserInfoOpt =
-        userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "fake-user-id");
+        // Then
+        Assertions.assertThat(returnedUserInfoOpt).isPresent();
+        Assertions.assertThat(returnedUserInfoOpt.get().getType()).isEqualTo(UserType.GUEST);
+    }
 
-    // Then
-    Assertions.assertThat(returnedUserInfoOpt).isPresent();
-    Assertions.assertThat(returnedUserInfoOpt.get().getType()).isEqualTo(UserType.INTERNAL);
-  }
+    @Test
+    void givenUserTypeInternalGetUserByIdShouldMapToInternalType() {
+        // When: the "fake-user-id" stub registered in setup() returns "type":"INTERNAL"
+        Optional<UserInfo> returnedUserInfoOpt =
+            userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "fake-user-id");
 
-  @Test
-  void givenMixedCaseUserTypeGuestGetUserByIdShouldMapToGuestType() {
-    // Given
-    mockServer
-        .when(
-            HttpRequest.request()
-                .withMethod("GET")
-                .withPath("/internal/users/id/mixed-case-guest-id"))
-        .respond(
-            HttpResponse.response()
-                .withStatusCode(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody(
-                    "{\"userId\":\"mixed-case-guest-id\",\"email\":\"guest2@example.com\","
-                        + "\"fullName\":\"Guest User Two\",\"domain\":\"example.com\","
-                        + "\"status\":\"active\",\"type\":\"GuEsT\"}"));
+        // Then
+        Assertions.assertThat(returnedUserInfoOpt).isPresent();
+        Assertions.assertThat(returnedUserInfoOpt.get().getType()).isEqualTo(UserType.INTERNAL);
+    }
 
-    // When
-    Optional<UserInfo> returnedUserInfoOpt =
-        userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "mixed-case-guest-id");
+    @Test
+    void givenMixedCaseUserTypeGuestGetUserByIdShouldMapToGuestType() {
+        // Given
+        mockServer
+            .when(
+                HttpRequest.request()
+                    .withMethod("GET")
+                    .withPath("/internal/users/id/mixed-case-guest-id"))
+            .respond(
+                HttpResponse.response()
+                    .withStatusCode(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(
+                        "{\"userId\":\"mixed-case-guest-id\",\"email\":\"guest2@example.com\","
+                            + "\"fullName\":\"Guest User Two\",\"domain\":\"example.com\","
+                            + "\"status\":\"active\",\"type\":\"GuEsT\"}"));
 
-    // Then
-    Assertions.assertThat(returnedUserInfoOpt).isPresent();
-    Assertions.assertThat(returnedUserInfoOpt.get().getType()).isEqualTo(UserType.GUEST);
-  }
+        // When
+        Optional<UserInfo> returnedUserInfoOpt =
+            userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "mixed-case-guest-id");
 
-  @Test
-  void givenMixedCaseUserTypeInternalGetUserByIdShouldMapToInternalType() {
-    // Given
-    mockServer
-        .when(
-            HttpRequest.request()
-                .withMethod("GET")
-                .withPath("/internal/users/id/mixed-case-internal-id"))
-        .respond(
-            HttpResponse.response()
-                .withStatusCode(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody(
-                    "{\"userId\":\"mixed-case-internal-id\",\"email\":\"internal2@example.com\","
-                        + "\"fullName\":\"Internal User Two\",\"domain\":\"example.com\","
-                        + "\"status\":\"active\",\"type\":\"InTeRnAl\"}"));
+        // Then
+        Assertions.assertThat(returnedUserInfoOpt).isPresent();
+        Assertions.assertThat(returnedUserInfoOpt.get().getType()).isEqualTo(UserType.GUEST);
+    }
 
-    // When
-    Optional<UserInfo> returnedUserInfoOpt =
-        userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "mixed-case-internal-id");
+    @Test
+    void givenMixedCaseUserTypeInternalGetUserByIdShouldMapToInternalType() {
+        // Given
+        mockServer
+            .when(
+                HttpRequest.request()
+                    .withMethod("GET")
+                    .withPath("/internal/users/id/mixed-case-internal-id"))
+            .respond(
+                HttpResponse.response()
+                    .withStatusCode(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(
+                        "{\"userId\":\"mixed-case-internal-id\",\"email\":\"internal2@example.com\","
+                            + "\"fullName\":\"Internal User Two\",\"domain\":\"example.com\","
+                            + "\"status\":\"active\",\"type\":\"InTeRnAl\"}"));
 
-    // Then
-    Assertions.assertThat(returnedUserInfoOpt).isPresent();
-    Assertions.assertThat(returnedUserInfoOpt.get().getType()).isEqualTo(UserType.INTERNAL);
-  }
+        // When
+        Optional<UserInfo> returnedUserInfoOpt =
+            userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "mixed-case-internal-id");
 
-  @Test
-  void givenMissingUserTypeGetUserByIdShouldFailClosedToGuestType() {
-    // Given: the "type" field is entirely absent from the response body -- e.g. a UM-side
-    // regression -- unlike the old protobuf message where the field was always populated
-    mockServer
-        .when(
-            HttpRequest.request().withMethod("GET").withPath("/internal/users/id/no-type-user-id"))
-        .respond(
-            HttpResponse.response()
-                .withStatusCode(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody(
-                    "{\"userId\":\"no-type-user-id\",\"email\":\"no-type@example.com\","
-                        + "\"fullName\":\"No Type User\",\"domain\":\"example.com\","
-                        + "\"status\":\"active\"}"));
+        // Then
+        Assertions.assertThat(returnedUserInfoOpt).isPresent();
+        Assertions.assertThat(returnedUserInfoOpt.get().getType()).isEqualTo(UserType.INTERNAL);
+    }
 
-    // When
-    Optional<UserInfo> returnedUserInfoOpt =
-        userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "no-type-user-id");
+    @Test
+    void givenMissingUserTypeGetUserByIdShouldFailClosedToGuestType() {
+        // Given: the "type" field is entirely absent from the response body -- e.g. a UM-side
+        // regression -- unlike the old protobuf message where the field was always populated
+        mockServer
+            .when(
+                HttpRequest.request()
+                    .withMethod("GET")
+                    .withPath("/internal/users/id/no-type-user-id"))
+            .respond(
+                HttpResponse.response()
+                    .withStatusCode(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(
+                        "{\"userId\":\"no-type-user-id\",\"email\":\"no-type@example.com\","
+                            + "\"fullName\":\"No Type User\",\"domain\":\"example.com\","
+                            + "\"status\":\"active\"}"));
 
-    // Then: a missing type must NOT silently grant internal access
-    Assertions.assertThat(returnedUserInfoOpt).isPresent();
-    Assertions.assertThat(returnedUserInfoOpt.get().getType()).isEqualTo(UserType.GUEST);
-  }
+        // When
+        Optional<UserInfo> returnedUserInfoOpt =
+            userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "no-type-user-id");
 
-  @Test
-  void givenUnknownUserTypeGetUserByIdShouldFailClosedToGuestType() {
-    // Given: an unrecognized type value (e.g. a UM-side typo, or a future type this client
-    // doesn't know about yet)
-    mockServer
-        .when(
-            HttpRequest.request()
-                .withMethod("GET")
-                .withPath("/internal/users/id/unknown-type-user-id"))
-        .respond(
-            HttpResponse.response()
-                .withStatusCode(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody(
-                    "{\"userId\":\"unknown-type-user-id\",\"email\":\"unknown@example.com\","
-                        + "\"fullName\":\"Unknown Type User\",\"domain\":\"example.com\","
-                        + "\"status\":\"active\",\"type\":\"SOMETHING_ELSE\"}"));
+        // Then: a missing type must NOT silently grant internal access
+        Assertions.assertThat(returnedUserInfoOpt).isPresent();
+        Assertions.assertThat(returnedUserInfoOpt.get().getType()).isEqualTo(UserType.GUEST);
+    }
 
-    // When
-    Optional<UserInfo> returnedUserInfoOpt =
-        userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "unknown-type-user-id");
+    @Test
+    void givenUnknownUserTypeGetUserByIdShouldFailClosedToGuestType() {
+        // Given: an unrecognized type value (e.g. a UM-side typo, or a future type this client
+        // doesn't know about yet)
+        mockServer
+            .when(
+                HttpRequest.request()
+                    .withMethod("GET")
+                    .withPath("/internal/users/id/unknown-type-user-id"))
+            .respond(
+                HttpResponse.response()
+                    .withStatusCode(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(
+                        "{\"userId\":\"unknown-type-user-id\",\"email\":\"unknown@example.com\","
+                            + "\"fullName\":\"Unknown Type User\",\"domain\":\"example.com\","
+                            + "\"status\":\"active\",\"type\":\"SOMETHING_ELSE\"}"));
 
-    // Then: an unrecognized type must NOT silently grant internal access
-    Assertions.assertThat(returnedUserInfoOpt).isPresent();
-    Assertions.assertThat(returnedUserInfoOpt.get().getType()).isEqualTo(UserType.GUEST);
-  }
+        // When
+        Optional<UserInfo> returnedUserInfoOpt =
+            userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "unknown-type-user-id");
 
-  // ---------------------------------------------------------------------------------------
-  // NPE-guard coverage: the generated client returns null (not an exception) for a 2xx
-  // response with a blank body, and MyselfDto#getInfo()/#getFeatures() are @Nullable. All of
-  // these must degrade to Optional.empty() (or an empty features list), never throw.
-  // ---------------------------------------------------------------------------------------
+        // Then: an unrecognized type must NOT silently grant internal access
+        Assertions.assertThat(returnedUserInfoOpt).isPresent();
+        Assertions.assertThat(returnedUserInfoOpt.get().getType()).isEqualTo(UserType.GUEST);
+    }
 
-  @Test
-  void givenBlankResponseBodyGetUserMyselfByCookieNotCachedShouldReturnEmpty() {
-    // Given
-    mockServer
-        .when(
-            HttpRequest.request()
-                .withMethod("GET")
-                .withPath("/internal/users/myself")
-                .withHeader("ZM_AUTH_TOKEN", "blank-body-token"))
-        .respond(HttpResponse.response().withStatusCode(200).withBody(""));
+    // ---------------------------------------------------------------------------------------
+    // NPE-guard coverage: the generated client returns null (not an exception) for a 2xx
+    // response with a blank body, and MyselfDto#getInfo()/#getFeatures() are @Nullable. All of
+    // these must degrade to Optional.empty() (or an empty features list), never throw.
+    // ---------------------------------------------------------------------------------------
 
-    // When
-    Optional<UserMyself> returnedUserMyselfOpt =
-        userRepositoryRest.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=blank-body-token");
+    @Test
+    void givenBlankResponseBodyGetUserMyselfByCookieNotCachedShouldReturnEmpty() {
+        // Given
+        mockServer
+            .when(
+                HttpRequest.request()
+                    .withMethod("GET")
+                    .withPath("/internal/users/myself")
+                    .withHeader("ZM_AUTH_TOKEN", "blank-body-token"))
+            .respond(HttpResponse.response().withStatusCode(200).withBody(""));
 
-    // Then
-    Assertions.assertThat(returnedUserMyselfOpt).isEmpty();
-  }
+        // When
+        Optional<UserMyself> returnedUserMyselfOpt =
+            userRepositoryRest.getUserMyselfByCookie("ZM_AUTH_TOKEN=blank-body-token");
 
-  @Test
-  void givenMissingInfoInMyselfResponseGetUserMyselfByCookieNotCachedShouldReturnEmpty() {
-    // Given: a 200 response whose body parses fine but carries no "info" object
-    mockServer
-        .when(
-            HttpRequest.request()
-                .withMethod("GET")
-                .withPath("/internal/users/myself")
-                .withHeader("ZM_AUTH_TOKEN", "no-info-token"))
-        .respond(
-            HttpResponse.response()
-                .withStatusCode(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody("{\"locale\":\"en\",\"features\":[],\"capabilities\":{}}"));
+        // Then
+        Assertions.assertThat(returnedUserMyselfOpt).isEmpty();
+    }
 
-    // When
-    Optional<UserMyself> returnedUserMyselfOpt =
-        userRepositoryRest.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=no-info-token");
+    @Test
+    void givenMissingInfoInMyselfResponseGetUserMyselfByCookieNotCachedShouldReturnEmpty() {
+        // Given: a 200 response whose body parses fine but carries no "info" object
+        mockServer
+            .when(
+                HttpRequest.request()
+                    .withMethod("GET")
+                    .withPath("/internal/users/myself")
+                    .withHeader("ZM_AUTH_TOKEN", "no-info-token"))
+            .respond(
+                HttpResponse.response()
+                    .withStatusCode(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody("{\"locale\":\"en\",\"features\":[],\"capabilities\":{}}"));
 
-    // Then
-    Assertions.assertThat(returnedUserMyselfOpt).isEmpty();
-  }
+        // When
+        Optional<UserMyself> returnedUserMyselfOpt =
+            userRepositoryRest.getUserMyselfByCookie("ZM_AUTH_TOKEN=no-info-token");
 
-  @Test
-  void
-      givenNullFeaturesInMyselfResponseGetUserMyselfByCookieNotCachedShouldDefaultToEmptyFeatures() {
-    // Given: UM emits an explicit JSON null for "features" (Jackson leaves the field at its
-    // default `new ArrayList<>()` only when the key is ABSENT, but sets it to null when the
-    // key is present with a JSON null value)
-    mockServer
-        .when(
-            HttpRequest.request()
-                .withMethod("GET")
-                .withPath("/internal/users/myself")
-                .withHeader("ZM_AUTH_TOKEN", "null-features-token"))
-        .respond(
-            HttpResponse.response()
-                .withStatusCode(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody(
-                    "{\"info\":{\"userId\":\"null-features-user-id\",\"email\":\"null-features@example.com\",\"fullName\":\"Null"
-                        + " Features User\","
-                        + "\"domain\":\"example.com\",\"status\":\"active\",\"type\":\"INTERNAL\"},"
-                        + "\"locale\":\"en\",\"features\":null,\"capabilities\":{}}"));
+        // Then
+        Assertions.assertThat(returnedUserMyselfOpt).isEmpty();
+    }
 
-    // When
-    Optional<UserMyself> returnedUserMyselfOpt =
-        userRepositoryRest.getUserMyselfByCookieNotCached("ZM_AUTH_TOKEN=null-features-token");
+    @Test
+    void givenNullFeaturesInMyselfResponseGetUserMyselfByCookieNotCachedShouldDefaultToEmptyFeatures() {
+        // Given: UM emits an explicit JSON null for "features" (Jackson leaves the field at its
+        // default `new ArrayList<>()` only when the key is ABSENT, but sets it to null when the
+        // key is present with a JSON null value)
+        mockServer
+            .when(
+                HttpRequest.request()
+                    .withMethod("GET")
+                    .withPath("/internal/users/myself")
+                    .withHeader("ZM_AUTH_TOKEN", "null-features-token"))
+            .respond(
+                HttpResponse.response()
+                    .withStatusCode(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(
+                        "{\"info\":{\"userId\":\"null-features-user-id\","
+                            + "\"email\":\"null-features@example.com\",\"fullName\":\"Null Features User\","
+                            + "\"domain\":\"example.com\",\"status\":\"active\",\"type\":\"INTERNAL\"},"
+                            + "\"locale\":\"en\",\"features\":null,\"capabilities\":{}}"));
 
-    // Then: no NPE, and the null is normalized to an empty list rather than propagated
-    Assertions.assertThat(returnedUserMyselfOpt).isPresent();
-    UserMyself user = returnedUserMyselfOpt.get();
-    Assertions.assertThat(user.getFeatures()).isEmpty();
-    Assertions.assertThat(user.getCarbonioAttributes()).isEmpty();
-  }
+        // When
+        Optional<UserMyself> returnedUserMyselfOpt =
+            userRepositoryRest.getUserMyselfByCookie("ZM_AUTH_TOKEN=null-features-token");
 
-  @Test
-  void givenBlankResponseBodyGetUserByIdShouldReturnEmpty() {
-    // Given
-    mockServer
-        .when(HttpRequest.request().withMethod("GET").withPath("/internal/users/id/blank-body-id"))
-        .respond(HttpResponse.response().withStatusCode(200).withBody(""));
+        // Then: no NPE, and the null is normalized to an empty list rather than propagated
+        Assertions.assertThat(returnedUserMyselfOpt).isPresent();
+        UserMyself user = returnedUserMyselfOpt.get();
+        Assertions.assertThat(user.getFeatures()).isEmpty();
+        Assertions.assertThat(user.getCarbonioAttributes()).isEmpty();
+    }
 
-    // When
-    Optional<UserInfo> returnedUserInfoOpt =
-        userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "blank-body-id");
+    @Test
+    void givenBlankResponseBodyGetUserByIdShouldReturnEmpty() {
+        // Given
+        mockServer
+            .when(
+                HttpRequest.request()
+                    .withMethod("GET")
+                    .withPath("/internal/users/id/blank-body-id"))
+            .respond(HttpResponse.response().withStatusCode(200).withBody(""));
 
-    // Then
-    Assertions.assertThat(returnedUserInfoOpt).isEmpty();
-  }
+        // When
+        Optional<UserInfo> returnedUserInfoOpt =
+            userRepositoryRest.getUserById("ZM_AUTH_TOKEN=valid-token", "blank-body-id");
 
-  @Test
-  void givenBlankResponseBodyGetUserByEmailShouldReturnEmpty() {
-    // Given
-    mockServer
-        .when(
-            HttpRequest.request()
-                .withMethod("GET")
-                .withPath("/internal/users/email/blank-body-email"))
-        .respond(HttpResponse.response().withStatusCode(200).withBody(""));
+        // Then
+        Assertions.assertThat(returnedUserInfoOpt).isEmpty();
+    }
 
-    // When
-    Optional<UserInfo> returnedUserInfoOpt =
-        userRepositoryRest.getUserByEmail("ZM_AUTH_TOKEN=valid-token", "blank-body-email");
+    @Test
+    void givenBlankResponseBodyGetUserByEmailShouldReturnEmpty() {
+        // Given
+        mockServer
+            .when(
+                HttpRequest.request()
+                    .withMethod("GET")
+                    .withPath("/internal/users/email/blank-body-email"))
+            .respond(HttpResponse.response().withStatusCode(200).withBody(""));
 
-    // Then
-    Assertions.assertThat(returnedUserInfoOpt).isEmpty();
-  }
+        // When
+        Optional<UserInfo> returnedUserInfoOpt =
+            userRepositoryRest.getUserByEmail("ZM_AUTH_TOKEN=valid-token", "blank-body-email");
+
+        // Then
+        Assertions.assertThat(returnedUserInfoOpt).isEmpty();
+    }
 }

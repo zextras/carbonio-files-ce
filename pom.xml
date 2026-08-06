@@ -33,10 +33,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <properties>
     <!-- Maven CI Friendly properties -->
-    <revision>1.4.0</revision>
+    <revision>1.4.1</revision>
     <!-- Dependencies -->
     <assertj.version>3.27.7</assertj.version>
-    <caffeine.version>3.2.4</caffeine.version>
     <carbonio-message-broker-sdk.version>1.1.0-1</carbonio-message-broker-sdk.version>
     <carbonio-storages-common.version>0.0.15-SNAPSHOT</carbonio-storages-common.version>
     <carbonio-storages-ce.version>0.0.15-SNAPSHOT</carbonio-storages-ce.version>
@@ -171,13 +170,6 @@ SPDX-License-Identifier: AGPL-3.0-only
         <groupId>com.graphql-java</groupId>
         <artifactId>graphql-java</artifactId>
         <version>${graphql-java.version}</version>
-      </dependency>
-
-      <!-- Cache -->
-      <dependency>
-        <groupId>com.github.ben-manes.caffeine</groupId>
-        <artifactId>caffeine</artifactId>
-        <version>${caffeine.version}</version>
       </dependency>
 
       <!-- Services: storages, authentication, preview -->

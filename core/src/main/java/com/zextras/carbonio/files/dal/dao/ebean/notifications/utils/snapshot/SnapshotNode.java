@@ -7,11 +7,10 @@ package com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import io.ebean.annotation.Cache;
-import java.util.Objects;
-import javax.persistence.*;
 
-@Cache
+import javax.persistence.*;
+import java.util.Objects;
+
 @Entity
 @Table(name = Constants.Db.Tables.SNAPSHOT_NODE)
 public class SnapshotNode {
@@ -39,14 +38,7 @@ public class SnapshotNode {
   @Column(name = Constants.Db.SnapshotNode.NAME, length = 1024, nullable = false)
   private String name;
 
-  public SnapshotNode(
-      String snapshotNodeId,
-      Long snapshotTimestamp,
-      String nodeId,
-      String ownerId,
-      Long createdAt,
-      NodeType nodeType,
-      String name) {
+  public SnapshotNode(String snapshotNodeId, Long snapshotTimestamp, String nodeId, String ownerId, Long createdAt, NodeType nodeType, String name) {
     this.snapshotNodeId = snapshotNodeId;
     this.snapshotTimestamp = snapshotTimestamp;
     this.nodeId = nodeId;

@@ -5,7 +5,6 @@
 package com.zextras.carbonio.files.dal.dao.ebean.notifications.utils;
 
 import com.zextras.carbonio.files.Constants;
-import io.ebean.annotation.Cache;
 import javax.persistence.*;
 
 /*
@@ -14,7 +13,6 @@ import javax.persistence.*;
  * Since the users will be inserted on-demand, one assumption is that users with notifications will always be present
  * in this table, so we can assume if a user is not present here there is no notification for him.
  * */
-@Cache
 @Entity
 @Table(name = Constants.Db.Tables.USER_NOTIFICATIONS_INFO)
 public class UserNotificationsInfo {

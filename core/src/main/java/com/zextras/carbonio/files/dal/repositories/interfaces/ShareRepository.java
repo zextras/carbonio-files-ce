@@ -77,7 +77,7 @@ public interface ShareRepository {
 
   /**
    * This method is used to update a share on database. It requires the updated share and it will
-   * update it on database and cache.
+   * update it on database.
    *
    * @param share is the {@link Share} to update
    * @return the updated {@link Share}
@@ -85,7 +85,7 @@ public interface ShareRepository {
   Share updateShare(Share share);
 
   /**
-   * Deletes a {@link Share} from the database and from the cache if it was recently requested.
+   * Deletes a {@link Share} from the database.
    *
    * @param nodeId is a {@link String} of the id of shared node.
    * @param targetUserId is a {@link String} of the target user id which the node is shared to.

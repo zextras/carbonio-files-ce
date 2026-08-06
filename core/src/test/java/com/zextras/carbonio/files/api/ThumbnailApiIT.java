@@ -52,7 +52,6 @@ class ThumbnailApiIT {
   @AfterEach
   void cleanUp() {
     simulator.resetDatabase();
-    simulator.clearFileVersionCache();
   }
 
   @AfterAll

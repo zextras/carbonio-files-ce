@@ -13,7 +13,6 @@ import com.google.inject.Singleton;
 import com.google.inject.util.Modules;
 import com.zextras.carbonio.files.Constants.Config.Database;
 import com.zextras.carbonio.files.Constants.ServiceDiscover.Config.Key;
-import com.zextras.carbonio.files.cache.CacheHandler;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.FilesModule;
 import com.zextras.carbonio.files.dal.DatabaseManager;
@@ -480,10 +479,6 @@ public class Simulator implements AutoCloseable {
             "TRUNCATE user_notification_interest, notification, snapshot_node, snapshot_user,"
                 + " user_notifications_info CASCADE")
         .execute();
-  }
-
-  public void clearFileVersionCache() {
-    injector.getInstance(CacheHandler.class).getFileVersionCache().flushAll();
   }
 
   public void reinitializeMocks() {

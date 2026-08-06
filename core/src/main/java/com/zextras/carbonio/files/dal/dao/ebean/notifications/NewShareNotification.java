@@ -8,42 +8,28 @@ import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.NotificationType;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotNode;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotUser;
-import io.ebean.annotation.Cache;
+
 import javax.persistence.*;
 
-@Cache
 @Entity
 @Table(name = Constants.Db.Tables.NEW_SHARE_NOTIFICATION)
-public class NewShareNotification extends BaseNotification {
+public class NewShareNotification extends BaseNotification{
 
   @Column(name = Constants.Db.NewShareNotification.NODE_SNAPSHOT_ID, length = 36, nullable = false)
   private String nodeSnapshotId;
 
   @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(
-      name = Constants.Db.NewShareNotification.NODE_SNAPSHOT_ID,
-      insertable = false,
-      updatable = false)
+  @JoinColumn(name = Constants.Db.NewShareNotification.NODE_SNAPSHOT_ID, insertable = false, updatable = false)
   private SnapshotNode snapshotNode;
 
-  @Column(
-      name = Constants.Db.NewShareNotification.TRIGGERING_USER_SNAPSHOT_ID,
-      length = 36,
-      nullable = false)
+  @Column(name = Constants.Db.NewShareNotification.TRIGGERING_USER_SNAPSHOT_ID, length = 36, nullable = false)
   private String triggeringUserSnapshotId;
 
   @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(
-      name = Constants.Db.NewShareNotification.TRIGGERING_USER_SNAPSHOT_ID,
-      insertable = false,
-      updatable = false)
+  @JoinColumn(name = Constants.Db.NewShareNotification.TRIGGERING_USER_SNAPSHOT_ID, insertable = false, updatable = false)
   private SnapshotUser snapshotUser;
 
-  public NewShareNotification(
-      String notificationId,
-      Long createdAt,
-      String nodeSnapshotId,
-      String triggeringUserSnapshotId) {
+  public NewShareNotification(String notificationId, Long createdAt, String nodeSnapshotId, String triggeringUserSnapshotId) {
     super(notificationId, createdAt, NotificationType.NEW_SHARE);
     this.nodeSnapshotId = nodeSnapshotId;
     this.triggeringUserSnapshotId = triggeringUserSnapshotId;

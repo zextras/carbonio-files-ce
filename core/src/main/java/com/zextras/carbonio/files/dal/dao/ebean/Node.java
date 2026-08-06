@@ -8,7 +8,6 @@ import static com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER;
 import static com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT;
 
 import com.zextras.carbonio.files.Constants;
-import io.ebean.annotation.Cache;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -32,7 +31,6 @@ import javax.persistence.Table;
  * input are valid or not because, when these methods are called, these controls
  * <strong>must</strong> be already done.
  */
-@Cache
 @Entity
 @Table(name = Constants.Db.Tables.NODE)
 public class Node {

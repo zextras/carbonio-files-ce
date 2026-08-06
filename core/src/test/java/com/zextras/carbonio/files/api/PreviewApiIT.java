@@ -53,7 +53,6 @@ class PreviewApiIT {
   @AfterEach
   void cleanUp() {
     simulator.resetDatabase();
-    simulator.clearFileVersionCache();
   }
 
   @AfterAll
