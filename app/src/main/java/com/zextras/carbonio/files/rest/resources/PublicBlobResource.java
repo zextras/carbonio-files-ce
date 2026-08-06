@@ -38,6 +38,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 
 /**
  * Public (unauthenticated) blob download endpoints. Quarkus/RESTEasy Reactive port of the legacy
@@ -72,6 +77,19 @@ public class PublicBlobResource {
   @GET
   @Path("/link/{publicLinkId}")
   @Blocking
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "File bytes",
+        content =
+            @Content(
+                mediaType = "application/octet-stream",
+                schema = @Schema(type = SchemaType.STRING, format = "binary"))),
+    @APIResponse(
+        responseCode = "307",
+        description = "Redirect to the access-code page (access-code-protected link)"),
+    @APIResponse(responseCode = "404", description = "Link or node not found")
+  })
   public Uni<Void> downloadByPublicLink(
       @PathParam("publicLinkId") String publicLinkId, @Context HttpServerResponse resp) {
     return doDownloadByPublicLink(publicLinkId, resp);
@@ -80,6 +98,19 @@ public class PublicBlobResource {
   @GET
   @Path("/public/link/download/{publicLinkId}")
   @Blocking
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "File bytes",
+        content =
+            @Content(
+                mediaType = "application/octet-stream",
+                schema = @Schema(type = SchemaType.STRING, format = "binary"))),
+    @APIResponse(
+        responseCode = "307",
+        description = "Redirect to the access-code page (access-code-protected link)"),
+    @APIResponse(responseCode = "404", description = "Link or node not found")
+  })
   public Uni<Void> downloadViaPublicLink(
       @PathParam("publicLinkId") String publicLinkId, @Context HttpServerResponse resp) {
     return doDownloadByPublicLink(publicLinkId, resp);
@@ -117,6 +148,18 @@ public class PublicBlobResource {
   @GET
   @Path("/public/download/{nodeId}")
   @Blocking
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "File bytes",
+        content =
+            @Content(
+                mediaType = "application/octet-stream",
+                schema = @Schema(type = SchemaType.STRING, format = "binary"))),
+    @APIResponse(
+        responseCode = "404",
+        description = "Node not found or not accessible via the link")
+  })
   public Uni<Void> downloadPublicFile(
       @PathParam("nodeId") String nodeId,
       @QueryParam("node_link_id") String nodeLinkId,
@@ -158,6 +201,17 @@ public class PublicBlobResource {
   @Path("/public/download-multiple")
   @Blocking
   @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "ZIP archive of the requested nodes",
+        content =
+            @Content(
+                mediaType = "application/zip",
+                schema = @Schema(type = SchemaType.STRING, format = "binary"))),
+    @APIResponse(responseCode = "400", description = "Missing or malformed parameters"),
+    @APIResponse(responseCode = "404", description = "Nodes not accessible via the link")
+  })
   public Uni<Void> downloadPublicMultiple(
       InputStream requestBody, @Context HttpServerResponse resp) {
     // Legacy parity: restores the 1MB HttpObjectAggregator cap (see RequestBodyLimits) dropped by

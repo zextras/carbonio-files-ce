@@ -39,6 +39,11 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.commons.lang3.tuple.Pair;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,6 +113,18 @@ public class PreviewResource {
   @GET
   @Path("/image/{nodeId}/{area: [\\d]*x[\\d]*}")
   @Blocking
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "Preview bytes",
+        content =
+            @Content(
+                mediaType = "application/octet-stream",
+                schema = @Schema(type = SchemaType.STRING, format = "binary"))),
+    @APIResponse(responseCode = "304", description = "Not modified (ETag matched)"),
+    @APIResponse(responseCode = "400", description = "Unsupported mimetype for this preview type"),
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
+  })
   public Uni<Void> previewImage(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
@@ -155,6 +172,18 @@ public class PreviewResource {
   @GET
   @Path("/image/{nodeId}/{area: [\\d]*x[\\d]*}/thumbnail")
   @Blocking
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "Preview bytes",
+        content =
+            @Content(
+                mediaType = "application/octet-stream",
+                schema = @Schema(type = SchemaType.STRING, format = "binary"))),
+    @APIResponse(responseCode = "304", description = "Not modified (ETag matched)"),
+    @APIResponse(responseCode = "400", description = "Unsupported mimetype for this preview type"),
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
+  })
   public Uni<Void> thumbnailImage(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
@@ -204,6 +233,18 @@ public class PreviewResource {
   @GET
   @Path("/pdf/{nodeId}")
   @Blocking
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "Preview bytes",
+        content =
+            @Content(
+                mediaType = "application/octet-stream",
+                schema = @Schema(type = SchemaType.STRING, format = "binary"))),
+    @APIResponse(responseCode = "304", description = "Not modified (ETag matched)"),
+    @APIResponse(responseCode = "400", description = "Unsupported mimetype for this preview type"),
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
+  })
   public Uni<Void> previewPdf(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
@@ -249,6 +290,18 @@ public class PreviewResource {
   @GET
   @Path("/pdf/{nodeId}/{area: [\\d]*x[\\d]*}/thumbnail")
   @Blocking
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "Preview bytes",
+        content =
+            @Content(
+                mediaType = "application/octet-stream",
+                schema = @Schema(type = SchemaType.STRING, format = "binary"))),
+    @APIResponse(responseCode = "304", description = "Not modified (ETag matched)"),
+    @APIResponse(responseCode = "400", description = "Unsupported mimetype for this preview type"),
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
+  })
   public Uni<Void> thumbnailPdf(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
@@ -298,6 +351,18 @@ public class PreviewResource {
   @GET
   @Path("/document/{nodeId}")
   @Blocking
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "Preview bytes",
+        content =
+            @Content(
+                mediaType = "application/octet-stream",
+                schema = @Schema(type = SchemaType.STRING, format = "binary"))),
+    @APIResponse(responseCode = "304", description = "Not modified (ETag matched)"),
+    @APIResponse(responseCode = "400", description = "Unsupported mimetype for this preview type"),
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
+  })
   public Uni<Void> previewDocument(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
@@ -346,6 +411,18 @@ public class PreviewResource {
   @GET
   @Path("/document/{nodeId}/{area: [\\d]*x[\\d]*}/thumbnail")
   @Blocking
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "Preview bytes",
+        content =
+            @Content(
+                mediaType = "application/octet-stream",
+                schema = @Schema(type = SchemaType.STRING, format = "binary"))),
+    @APIResponse(responseCode = "304", description = "Not modified (ETag matched)"),
+    @APIResponse(responseCode = "400", description = "Unsupported mimetype for this preview type"),
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
+  })
   public Uni<Void> thumbnailDocument(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,

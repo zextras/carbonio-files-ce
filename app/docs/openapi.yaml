@@ -20,8 +20,17 @@ paths:
               format: binary
         required: true
       responses:
-        "201":
-          description: Created
+        "200":
+          description: ZIP archive of the requested nodes
+          content:
+            application/zip:
+              schema:
+                format: binary
+                type: string
+        "400":
+          description: Missing or malformed nodeIds
+        "404":
+          description: Some nodes do not exist or are not accessible
       summary: Download Multiple
       tags:
       - Blob Resource
@@ -69,8 +78,15 @@ paths:
         schema:
           type: string
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "404":
+          description: Node not found or not accessible
       summary: Download
       tags:
       - Blob Resource
@@ -122,8 +138,15 @@ paths:
         schema:
           type: string
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "404":
+          description: Node not found or not accessible
       summary: Download Version
       tags:
       - Blob Resource
@@ -174,8 +197,15 @@ paths:
         schema:
           type: string
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "404":
+          description: Node not found or not accessible
       summary: Download
       tags:
       - Internal Blob Resource
@@ -199,8 +229,15 @@ paths:
           type: integer
           format: int32
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "404":
+          description: Node not found or not accessible
       summary: Download Version
       tags:
       - Internal Blob Resource
@@ -400,8 +437,17 @@ paths:
         schema:
           type: string
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "307":
+          description: Redirect to the access-code page (access-code-protected link)
+        "404":
+          description: Link or node not found
       summary: Download By Public Link
       tags:
       - Public Blob Resource
@@ -452,8 +498,19 @@ paths:
         schema:
           type: string
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: Preview bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "304":
+          description: Not modified (ETag matched)
+        "400":
+          description: Unsupported mimetype for this preview type
+        "404":
+          description: Node not found or not accessible
       summary: Preview Document
       tags:
       - Preview Resource
@@ -510,8 +567,19 @@ paths:
         schema:
           type: string
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: Preview bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "304":
+          description: Not modified (ETag matched)
+        "400":
+          description: Unsupported mimetype for this preview type
+        "404":
+          description: Node not found or not accessible
       summary: Thumbnail Document
       tags:
       - Preview Resource
@@ -568,8 +636,19 @@ paths:
         schema:
           type: string
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: Preview bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "304":
+          description: Not modified (ETag matched)
+        "400":
+          description: Unsupported mimetype for this preview type
+        "404":
+          description: Node not found or not accessible
       summary: Preview Image
       tags:
       - Preview Resource
@@ -626,8 +705,19 @@ paths:
         schema:
           type: string
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: Preview bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "304":
+          description: Not modified (ETag matched)
+        "400":
+          description: Unsupported mimetype for this preview type
+        "404":
+          description: Node not found or not accessible
       summary: Thumbnail Image
       tags:
       - Preview Resource
@@ -678,8 +768,19 @@ paths:
         schema:
           type: string
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: Preview bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "304":
+          description: Not modified (ETag matched)
+        "400":
+          description: Unsupported mimetype for this preview type
+        "404":
+          description: Node not found or not accessible
       summary: Preview Pdf
       tags:
       - Preview Resource
@@ -736,8 +837,19 @@ paths:
         schema:
           type: string
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: Preview bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "304":
+          description: Not modified (ETag matched)
+        "400":
+          description: Unsupported mimetype for this preview type
+        "404":
+          description: Node not found or not accessible
       summary: Thumbnail Pdf
       tags:
       - Preview Resource
@@ -777,8 +889,17 @@ paths:
               format: binary
         required: true
       responses:
-        "201":
-          description: Created
+        "200":
+          description: ZIP archive of the requested nodes
+          content:
+            application/zip:
+              schema:
+                format: binary
+                type: string
+        "400":
+          description: Missing or malformed parameters
+        "404":
+          description: Nodes not accessible via the link
       summary: Download Public Multiple
       tags:
       - Public Blob Resource
@@ -817,8 +938,15 @@ paths:
         schema:
           type: string
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "404":
+          description: Node not found or not accessible via the link
       summary: Download Public File
       tags:
       - Public Blob Resource
@@ -856,8 +984,17 @@ paths:
         schema:
           type: string
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "307":
+          description: Redirect to the access-code page (access-code-protected link)
+        "404":
+          description: Link or node not found
       summary: Download Via Public Link
       tags:
       - Public Blob Resource

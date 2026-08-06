@@ -35,6 +35,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 
 /**
  * Trusted, UNAUTHENTICATED blob REST endpoints reached only over the mesh (mTLS is the trust
@@ -179,6 +184,16 @@ public class InternalBlobResource {
   @GET
   @Path("/accounts/{userId}/download/{nodeId}")
   @Blocking
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "File bytes",
+        content =
+            @Content(
+                mediaType = "application/octet-stream",
+                schema = @Schema(type = SchemaType.STRING, format = "binary"))),
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
+  })
   public Uni<Void> download(
       @PathParam("userId") String userId,
       @PathParam("nodeId") String nodeId,
@@ -189,6 +204,16 @@ public class InternalBlobResource {
   @GET
   @Path("/accounts/{userId}/download/{nodeId}/{version:\\d+}")
   @Blocking
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "File bytes",
+        content =
+            @Content(
+                mediaType = "application/octet-stream",
+                schema = @Schema(type = SchemaType.STRING, format = "binary"))),
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
+  })
   public Uni<Void> downloadVersion(
       @PathParam("userId") String userId,
       @PathParam("nodeId") String nodeId,

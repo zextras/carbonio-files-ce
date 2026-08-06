@@ -28,8 +28,22 @@
           "required" : true
         },
         "responses" : {
-          "201" : {
-            "description" : "Created"
+          "200" : {
+            "description" : "ZIP archive of the requested nodes",
+            "content" : {
+              "application/zip" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Missing or malformed nodeIds"
+          },
+          "404" : {
+            "description" : "Some nodes do not exist or are not accessible"
           }
         },
         "summary" : "Download Multiple",
@@ -99,8 +113,19 @@
           }
         } ],
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "description" : "File bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
           }
         },
         "summary" : "Download",
@@ -174,8 +199,19 @@
           }
         } ],
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "description" : "File bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
           }
         },
         "summary" : "Download Version",
@@ -248,8 +284,19 @@
           }
         } ],
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "description" : "File bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
           }
         },
         "summary" : "Download",
@@ -282,8 +329,19 @@
           }
         } ],
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "description" : "File bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
           }
         },
         "summary" : "Download Version",
@@ -577,8 +635,22 @@
           }
         } ],
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "description" : "File bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "307" : {
+            "description" : "Redirect to the access-code page (access-code-protected link)"
+          },
+          "404" : {
+            "description" : "Link or node not found"
           }
         },
         "summary" : "Download By Public Link",
@@ -652,8 +724,25 @@
           }
         } ],
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "description" : "Preview bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not modified (ETag matched)"
+          },
+          "400" : {
+            "description" : "Unsupported mimetype for this preview type"
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
           }
         },
         "summary" : "Preview Document",
@@ -735,8 +824,25 @@
           }
         } ],
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "description" : "Preview bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not modified (ETag matched)"
+          },
+          "400" : {
+            "description" : "Unsupported mimetype for this preview type"
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
           }
         },
         "summary" : "Thumbnail Document",
@@ -818,8 +924,25 @@
           }
         } ],
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "description" : "Preview bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not modified (ETag matched)"
+          },
+          "400" : {
+            "description" : "Unsupported mimetype for this preview type"
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
           }
         },
         "summary" : "Preview Image",
@@ -901,8 +1024,25 @@
           }
         } ],
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "description" : "Preview bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not modified (ETag matched)"
+          },
+          "400" : {
+            "description" : "Unsupported mimetype for this preview type"
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
           }
         },
         "summary" : "Thumbnail Image",
@@ -976,8 +1116,25 @@
           }
         } ],
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "description" : "Preview bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not modified (ETag matched)"
+          },
+          "400" : {
+            "description" : "Unsupported mimetype for this preview type"
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
           }
         },
         "summary" : "Preview Pdf",
@@ -1059,8 +1216,25 @@
           }
         } ],
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "description" : "Preview bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not modified (ETag matched)"
+          },
+          "400" : {
+            "description" : "Unsupported mimetype for this preview type"
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
           }
         },
         "summary" : "Thumbnail Pdf",
@@ -1118,8 +1292,22 @@
           "required" : true
         },
         "responses" : {
-          "201" : {
-            "description" : "Created"
+          "200" : {
+            "description" : "ZIP archive of the requested nodes",
+            "content" : {
+              "application/zip" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Missing or malformed parameters"
+          },
+          "404" : {
+            "description" : "Nodes not accessible via the link"
           }
         },
         "summary" : "Download Public Multiple",
@@ -1176,8 +1364,19 @@
           }
         } ],
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "description" : "File bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Node not found or not accessible via the link"
           }
         },
         "summary" : "Download Public File",
@@ -1231,8 +1430,22 @@
           }
         } ],
         "responses" : {
-          "204" : {
-            "description" : "No Content"
+          "200" : {
+            "description" : "File bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "307" : {
+            "description" : "Redirect to the access-code page (access-code-protected link)"
+          },
+          "404" : {
+            "description" : "Link or node not found"
           }
         },
         "summary" : "Download Via Public Link",

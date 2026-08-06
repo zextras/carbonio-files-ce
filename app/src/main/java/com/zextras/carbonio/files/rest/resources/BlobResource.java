@@ -42,6 +42,11 @@ import java.util.Base64;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -232,6 +237,16 @@ public class BlobResource {
   @GET
   @Path("/download/{nodeId}")
   @Blocking
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "File bytes",
+        content =
+            @Content(
+                mediaType = "application/octet-stream",
+                schema = @Schema(type = SchemaType.STRING, format = "binary"))),
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
+  })
   public Uni<Void> download(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
@@ -243,6 +258,16 @@ public class BlobResource {
   @GET
   @Path("/download/{nodeId}/{version:\\d+}")
   @Blocking
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "File bytes",
+        content =
+            @Content(
+                mediaType = "application/octet-stream",
+                schema = @Schema(type = SchemaType.STRING, format = "binary"))),
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
+  })
   public Uni<Void> downloadVersion(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
@@ -289,6 +314,19 @@ public class BlobResource {
   @Path("/download-multiple")
   @Blocking
   @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "ZIP archive of the requested nodes",
+        content =
+            @Content(
+                mediaType = "application/zip",
+                schema = @Schema(type = SchemaType.STRING, format = "binary"))),
+    @APIResponse(responseCode = "400", description = "Missing or malformed nodeIds"),
+    @APIResponse(
+        responseCode = "404",
+        description = "Some nodes do not exist or are not accessible")
+  })
   public Uni<Void> downloadMultiple(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
