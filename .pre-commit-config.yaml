@@ -1,8 +1,9 @@
-# SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
+# SPDX-FileCopyrightText: 2026 Zextras <https://www.zextras.com>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
-
-exclude: "mvnw|package.json|go.sum"
+#
+# Local hooks regenerate files but don't `git add` the result — if one changes a
+# tracked file, review the diff, `git add` it, and re-commit.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -17,18 +18,24 @@ repos:
       - id: check-yaml
         args: [--allow-multiple-documents]
       - id: end-of-file-fixer
-      - id: mixed-line-ending
+        # A formatting hook rewriting a generated file makes CI red forever (generator
+        # writes X -> hook rewrites X -> dev commits that -> CI regenerates X -> diff -> FAIL).
+        # Not excluded from `reuse` lint: licence checks must still cover generated files.
+        # db/migration/**: Flyway migrations are checksum-validated; a byte change to an
+        # already-released migration (even just adding a trailing newline) breaks
+        # `flyway validate` on every existing install. Never let a formatting hook touch them.
+        exclude: &generated-files "^THIRDPARTIES$|^package/PKGBUILD$|^app/src/main/resources/db/migration/"
       - id: trailing-whitespace
+        # Two trailing spaces are a hard line break in Markdown; stripping them changes rendering.
+        args: [--markdown-linebreak-ext=md]
+        exclude: *generated-files
 
   - repo: https://github.com/gruntwork-io/pre-commit
     rev: v0.1.30
     hooks:
       - id: shellcheck
-
-  - repo: https://github.com/IamTheFij/docker-pre-commit
-    rev: v3.0.1
-    hooks:
-      - id: docker-compose-check
+        # Vendored verbatim from jenkins-lib-common; fix warnings upstream, then re-vendor.
+        exclude: "^\\.ci/checksum-verify\\.sh$"
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.3.0
@@ -36,6 +43,19 @@ repos:
       - id: conventional-pre-commit
         stages: [commit-msg]
         args: []
+
+  - repo: local
+    hooks:
+      - id: reuse-download-licenses
+        name: reuse-download-licenses
+        description: "Fetches missing SPDX licence texts into LICENSES/; `reuse lint` below never autofixes and hard-fails without them."
+        entry: reuse
+        args: [download, --all]
+        language: python
+        # Keep in sync with the `reuse` hook's rev below (v6.2.0) or the two silently drift.
+        additional_dependencies: ["reuse==6.2.0"]
+        pass_filenames: false
+        always_run: true
 
   - repo: https://github.com/fsfe/reuse-tool
     rev: v6.2.0
@@ -56,15 +76,26 @@ repos:
 
   - repo: local
     hooks:
-      - id: check-if-version-is-snapshot
-        name: check-if-version-is-snapshot
-        entry: bash -c '
-          currentBranch=$(git branch --show-current)
-          isSnapshot=$(grep -re "pkgrel=\"SNAPSHOT\"" package/PKGBUILD)
-
-          if [[ "$currentBranch" != *"release"* && -z "$isSnapshot" ]] ||
-             [[ "$currentBranch" == *"release"* && -n "$isSnapshot" ]];
-          then
-            exit 1;
-          fi'
+      - id: comment-check
+        name: comment-check
+        description: "Warns on long // comment runs. Never blocks — it always exits 0."
+        entry: bash .ci/comment-check.sh
         language: system
+        types: [java]
+        verbose: true
+
+      - id: generate-thirdparties
+        name: generate-thirdparties
+        description: Regenerates THIRDPARTIES the same way Jenkins' verify stage does.
+        entry: bash .ci/thirdparties/generate-thirdparties.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: checksum-verify-pkgbuild
+        name: checksum-verify-pkgbuild
+        description: "Verifies and autofixes package/PKGBUILD sha256sums; SKIP entries for remote/versioned sources stay untouched."
+        entry: bash .ci/checksum-verify.sh package/PKGBUILD true
+        language: system
+        pass_filenames: false
+        files: ^package/

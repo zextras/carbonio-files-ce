@@ -54,6 +54,29 @@ With the generated fat-jar:
 ```bash
 java -Djava.net.preferIPv4Stack=true -jar boot/target/carbonio-files-ce-*-jar-with-dependencies.jar
 ```
+## Development 🛠
+
+This repo uses the [`pre-commit`](https://pre-commit.com/) framework (`.pre-commit-config.yaml`).
+Install it once per clone:
+
+```bash
+pip install --user pre-commit
+pre-commit install --hook-type pre-commit --hook-type commit-msg
+```
+
+Besides linting/formatting, `pre-commit` locally regenerates the files CI previously
+generated and bot-committed (Jenkins now only verifies them):
+
+- `THIRDPARTIES` — regenerated via a vendored copy of jenkins-lib-common's
+  license-maven-plugin invocation/template (`.ci/thirdparties/`).
+- `package/PKGBUILD` `sha256sums` — verified/autofixed via a vendored copy of
+  jenkins-lib-common's `checksum-verify.sh` (`.ci/checksum-verify.sh`); `SKIP` entries
+  (build artifacts, or sources whose content embeds `pkgver`) are always preserved.
+
+If a hook regenerates a file, `pre-commit` will fail that commit (by design — it does not
+auto-stage changes for you). Review the diff, `git add` the regenerated file(s), and
+re-run `git commit`.
+
 ## License 📚
 
 Files-CE backend service for Zextras Carbonio.
