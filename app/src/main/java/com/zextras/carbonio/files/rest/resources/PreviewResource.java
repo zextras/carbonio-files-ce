@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.rest.resources;
 
 import com.zextras.carbonio.files.Constants.API.Headers;
+import com.zextras.carbonio.files.config.TransferPool;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
@@ -18,6 +19,8 @@ import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
 import com.zextras.carbonio.files.utilities.MimeTypeUtils;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.smallrye.common.annotation.Blocking;
+import io.smallrye.mutiny.Uni;
+import io.vertx.core.http.HttpServerResponse;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.CookieParam;
@@ -31,6 +34,7 @@ import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
@@ -79,6 +83,7 @@ public class PreviewResource {
   private final FileVersionRepository fileVersionRepository;
   private final MimeTypeUtils mimeTypeUtils;
   private final BlobAuthenticator authenticator;
+  private final TransferPool transferPool;
 
   @Inject
   public PreviewResource(
@@ -87,13 +92,15 @@ public class PreviewResource {
       NodeRepository nodeRepository,
       FileVersionRepository fileVersionRepository,
       MimeTypeUtils mimeTypeUtils,
-      BlobAuthenticator authenticator) {
+      BlobAuthenticator authenticator,
+      TransferPool transferPool) {
     this.previewService = previewService;
     this.permissionsChecker = permissionsChecker;
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
     this.mimeTypeUtils = mimeTypeUtils;
     this.authenticator = authenticator;
+    this.transferPool = transferPool;
   }
 
   // ------------------------------------------------------------------------------------- image
@@ -101,7 +108,7 @@ public class PreviewResource {
   @GET
   @Path("/image/{nodeId}/{area: [\\d]*x[\\d]*}")
   @Blocking
-  public Response previewImage(
+  public Uni<Void> previewImage(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
       @Context HttpHeaders httpHeaders,
@@ -113,7 +120,8 @@ public class PreviewResource {
       @QueryParam("shape") String shape,
       @QueryParam("first_page") Integer firstPage,
       @QueryParam("last_page") Integer lastPage,
-      @QueryParam("version") String version) {
+      @QueryParam("version") String version,
+      @Context HttpServerResponse resp) {
     String ifNoneMatch = httpHeaders.getHeaderString(HttpHeaders.IF_NONE_MATCH);
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
     PreviewQueryParameters queryParameters =
@@ -128,7 +136,7 @@ public class PreviewResource {
     String fileDigest = checked.getRight().getDigest();
 
     if (!isPreviewChanged(ifNoneMatch, fileDigest)) {
-      return notModified(fileDigest);
+      return notModified(resp, fileDigest);
     }
 
     BlobResponse blob =
@@ -141,13 +149,13 @@ public class PreviewResource {
                 queryParameters)
             .getOrElseThrow(this::collapseToNotFound);
 
-    return streamPreview(blob, fileDigest);
+    return streamPreview(resp, blob, fileDigest);
   }
 
   @GET
   @Path("/image/{nodeId}/{area: [\\d]*x[\\d]*}/thumbnail")
   @Blocking
-  public Response thumbnailImage(
+  public Uni<Void> thumbnailImage(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
       @Context HttpHeaders httpHeaders,
@@ -159,7 +167,8 @@ public class PreviewResource {
       @QueryParam("shape") String shape,
       @QueryParam("first_page") Integer firstPage,
       @QueryParam("last_page") Integer lastPage,
-      @QueryParam("version") String version) {
+      @QueryParam("version") String version,
+      @Context HttpServerResponse resp) {
     String ifNoneMatch = httpHeaders.getHeaderString(HttpHeaders.IF_NONE_MATCH);
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
     PreviewQueryParameters queryParameters =
@@ -174,7 +183,7 @@ public class PreviewResource {
     String fileDigest = checked.getRight().getDigest();
 
     if (!isPreviewChanged(ifNoneMatch, fileDigest)) {
-      return notModified(fileDigest);
+      return notModified(resp, fileDigest);
     }
 
     BlobResponse blob =
@@ -187,7 +196,7 @@ public class PreviewResource {
                 queryParameters)
             .getOrElseThrow(this::collapseToNotFound);
 
-    return streamPreview(blob, fileDigest);
+    return streamPreview(resp, blob, fileDigest);
   }
 
   // --------------------------------------------------------------------------------------- pdf
@@ -195,7 +204,7 @@ public class PreviewResource {
   @GET
   @Path("/pdf/{nodeId}")
   @Blocking
-  public Response previewPdf(
+  public Uni<Void> previewPdf(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
       @Context HttpHeaders httpHeaders,
@@ -206,7 +215,8 @@ public class PreviewResource {
       @QueryParam("shape") String shape,
       @QueryParam("first_page") Integer firstPage,
       @QueryParam("last_page") Integer lastPage,
-      @QueryParam("version") String version) {
+      @QueryParam("version") String version,
+      @Context HttpServerResponse resp) {
     String ifNoneMatch = httpHeaders.getHeaderString(HttpHeaders.IF_NONE_MATCH);
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
     PreviewQueryParameters queryParameters =
@@ -221,7 +231,7 @@ public class PreviewResource {
     String fileDigest = checked.getRight().getDigest();
 
     if (!isPreviewChanged(ifNoneMatch, fileDigest)) {
-      return notModified(fileDigest);
+      return notModified(resp, fileDigest);
     }
 
     BlobResponse blob =
@@ -233,13 +243,13 @@ public class PreviewResource {
                 queryParameters)
             .getOrElseThrow(this::collapseToNotFound);
 
-    return streamPreview(blob, fileDigest);
+    return streamPreview(resp, blob, fileDigest);
   }
 
   @GET
   @Path("/pdf/{nodeId}/{area: [\\d]*x[\\d]*}/thumbnail")
   @Blocking
-  public Response thumbnailPdf(
+  public Uni<Void> thumbnailPdf(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
       @Context HttpHeaders httpHeaders,
@@ -251,7 +261,8 @@ public class PreviewResource {
       @QueryParam("shape") String shape,
       @QueryParam("first_page") Integer firstPage,
       @QueryParam("last_page") Integer lastPage,
-      @QueryParam("version") String version) {
+      @QueryParam("version") String version,
+      @Context HttpServerResponse resp) {
     String ifNoneMatch = httpHeaders.getHeaderString(HttpHeaders.IF_NONE_MATCH);
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
     PreviewQueryParameters queryParameters =
@@ -266,7 +277,7 @@ public class PreviewResource {
     String fileDigest = checked.getRight().getDigest();
 
     if (!isPreviewChanged(ifNoneMatch, fileDigest)) {
-      return notModified(fileDigest);
+      return notModified(resp, fileDigest);
     }
 
     BlobResponse blob =
@@ -279,7 +290,7 @@ public class PreviewResource {
                 queryParameters)
             .getOrElseThrow(this::collapseToNotFound);
 
-    return streamPreview(blob, fileDigest);
+    return streamPreview(resp, blob, fileDigest);
   }
 
   // ---------------------------------------------------------------------------------- document
@@ -287,7 +298,7 @@ public class PreviewResource {
   @GET
   @Path("/document/{nodeId}")
   @Blocking
-  public Response previewDocument(
+  public Uni<Void> previewDocument(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
       @Context HttpHeaders httpHeaders,
@@ -298,7 +309,8 @@ public class PreviewResource {
       @QueryParam("shape") String shape,
       @QueryParam("first_page") Integer firstPage,
       @QueryParam("last_page") Integer lastPage,
-      @QueryParam("version") String version) {
+      @QueryParam("version") String version,
+      @Context HttpServerResponse resp) {
     String ifNoneMatch = httpHeaders.getHeaderString(HttpHeaders.IF_NONE_MATCH);
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
     PreviewQueryParameters queryParameters =
@@ -316,7 +328,7 @@ public class PreviewResource {
     String fileDigestWithLanguage = checked.getRight().getDigest() + langTag;
 
     if (!isPreviewChanged(ifNoneMatch, fileDigestWithLanguage)) {
-      return notModified(fileDigestWithLanguage);
+      return notModified(resp, fileDigestWithLanguage);
     }
 
     BlobResponse blob =
@@ -328,13 +340,13 @@ public class PreviewResource {
                 queryParameters)
             .getOrElseThrow(this::collapseToNotFound);
 
-    return streamPreview(blob, fileDigestWithLanguage);
+    return streamPreview(resp, blob, fileDigestWithLanguage);
   }
 
   @GET
   @Path("/document/{nodeId}/{area: [\\d]*x[\\d]*}/thumbnail")
   @Blocking
-  public Response thumbnailDocument(
+  public Uni<Void> thumbnailDocument(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
       @Context HttpHeaders httpHeaders,
@@ -346,7 +358,8 @@ public class PreviewResource {
       @QueryParam("shape") String shape,
       @QueryParam("first_page") Integer firstPage,
       @QueryParam("last_page") Integer lastPage,
-      @QueryParam("version") String version) {
+      @QueryParam("version") String version,
+      @Context HttpServerResponse resp) {
     String ifNoneMatch = httpHeaders.getHeaderString(HttpHeaders.IF_NONE_MATCH);
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
     PreviewQueryParameters queryParameters =
@@ -364,7 +377,7 @@ public class PreviewResource {
     String fileDigestWithLanguage = checked.getRight().getDigest() + langTag;
 
     if (!isPreviewChanged(ifNoneMatch, fileDigestWithLanguage)) {
-      return notModified(fileDigestWithLanguage);
+      return notModified(resp, fileDigestWithLanguage);
     }
 
     BlobResponse blob =
@@ -377,7 +390,7 @@ public class PreviewResource {
                 queryParameters)
             .getOrElseThrow(this::collapseToNotFound);
 
-    return streamPreview(blob, fileDigestWithLanguage);
+    return streamPreview(resp, blob, fileDigestWithLanguage);
   }
 
   // ---------------------------------------------------------------------------- unmatched (400)
@@ -523,26 +536,23 @@ public class PreviewResource {
     return ifNoneMatch == null || !ifNoneMatch.equals(base64Digest);
   }
 
-  private Response streamPreview(BlobResponse blob, String fileDigest) {
-    Response.ResponseBuilder builder =
-        Response.ok(blob.getBlobStream())
-            .header(HttpHeaders.CONTENT_TYPE, blob.getMimeType())
-            .header(
-                HttpHeaders.CONTENT_DISPOSITION,
-                BlobHttpResponses.contentDisposition(blob.getFilename()))
-            .header(HttpHeaders.CACHE_CONTROL, "no-cache")
-            .header(HttpHeaders.ETAG, base64(fileDigest));
-    if (blob.getSize() != null) {
-      builder.header(HttpHeaders.CONTENT_LENGTH, blob.getSize());
-    }
-    return builder.build();
+  /**
+   * Streams the preview to the client over the raw Vert.x response (via {@link TransferStreaming}),
+   * with {@code Content-Type}/{@code Content-Disposition}/{@code Content-Length} set by the
+   * transfer and the preview-specific {@code ETag}/{@code Cache-Control} passed as extra headers.
+   * No whole-preview buffering: the carbonio-preview SDK stream is pumped chunk-by-chunk.
+   */
+  private Uni<Void> streamPreview(HttpServerResponse resp, BlobResponse blob, String fileDigest) {
+    return TransferStreaming.streamBlob(
+        blob,
+        resp,
+        transferPool.get(),
+        Map.of(HttpHeaders.CACHE_CONTROL, "no-cache", HttpHeaders.ETAG, base64(fileDigest)));
   }
 
-  private Response notModified(String fileDigest) {
-    return Response.status(Response.Status.NOT_MODIFIED)
-        .header(HttpHeaders.CACHE_CONTROL, "no-cache")
-        .header(HttpHeaders.ETAG, base64(fileDigest))
-        .build();
+  private Uni<Void> notModified(HttpServerResponse resp, String fileDigest) {
+    return TransferStreaming.notModified(
+        resp, Map.of(HttpHeaders.CACHE_CONTROL, "no-cache", HttpHeaders.ETAG, base64(fileDigest)));
   }
 
   private static String base64(String digest) {

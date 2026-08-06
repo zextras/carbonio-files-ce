@@ -16,6 +16,7 @@ import jakarta.ws.rs.core.HttpHeaders;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
@@ -42,14 +43,24 @@ final class TransferStreaming {
 
   private TransferStreaming() {}
 
-  /**
-   * Sets the single-download headers ({@code Content-Type}, {@code Content-Disposition} and, when
-   * known, a fixed {@code Content-Length}) then streams the blob {@link InputStream} to {@code
-   * resp} on the transfer pool. The source stream is always closed (success or failure); the
-   * returned {@link Uni} completes when the response is fully written and ended, or fails on any
-   * transfer error (client disconnect, storages read error, pool saturation).
-   */
   static Uni<Void> streamBlob(BlobResponse blob, HttpServerResponse resp, ExecutorService pool) {
+    return streamBlob(blob, resp, pool, Map.of());
+  }
+
+  /**
+   * Sets {@code extraHeaders} (e.g. preview {@code ETag}/{@code Cache-Control}) plus the
+   * single-download headers ({@code Content-Type}, {@code Content-Disposition} and, when known, a
+   * fixed {@code Content-Length}), then streams the blob {@link InputStream} to {@code resp} on the
+   * transfer pool. The source stream is always closed (success or failure); the returned {@link
+   * Uni} completes when the response is fully written and ended, or fails on any transfer error
+   * (client disconnect, storages read error, pool saturation). All headers are set on the pool
+   * thread before the first write, so they land before {@code headWritten()}.
+   */
+  static Uni<Void> streamBlob(
+      BlobResponse blob,
+      HttpServerResponse resp,
+      ExecutorService pool,
+      Map<String, String> extraHeaders) {
     return Uni.createFrom()
         .<Void>emitter(
             emitter -> {
@@ -57,6 +68,7 @@ final class TransferStreaming {
                 pool.execute(
                     () -> {
                       try {
+                        extraHeaders.forEach(resp::putHeader);
                         resp.putHeader(HttpHeaders.CONTENT_TYPE, blob.getMimeType());
                         resp.putHeader(
                             HttpHeaders.CONTENT_DISPOSITION,
@@ -85,6 +97,18 @@ final class TransferStreaming {
                 emitter.fail(rejected);
               }
             });
+  }
+
+  /**
+   * Sends a bodyless {@code 304 Not Modified} on the raw Vert.x response with {@code headers} (the
+   * preview {@code ETag}/{@code Cache-Control}), returning a {@link Uni} that completes once the
+   * response is ended. The preview endpoints participate in ETag/{@code If-None-Match} caching
+   * (downloads do not), so this lives here to keep a single Vert.x response-writing path.
+   */
+  static Uni<Void> notModified(HttpServerResponse resp, Map<String, String> headers) {
+    resp.setStatusCode(304);
+    headers.forEach(resp::putHeader);
+    return Uni.createFrom().completionStage(resp.end().toCompletionStage().toCompletableFuture());
   }
 
   /**

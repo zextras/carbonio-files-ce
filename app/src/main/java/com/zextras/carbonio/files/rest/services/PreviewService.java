@@ -14,7 +14,6 @@ import com.zextras.carbonio.preview.sdk.QueryBuilder;
 import io.vavr.control.Try;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import java.io.ByteArrayInputStream;
 import java.text.MessageFormat;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -158,25 +157,19 @@ public class PreviewService {
   }
 
   /**
-   * Maps a {@link PreviewResponse} to a {@link BlobResponse}. Unlike {@code BlobService}'s node
-   * downloads (which stream straight from storages — potentially huge files), the preview payload
-   * is read eagerly into memory here: carbonio-preview responses (image/PDF/document previews and
-   * thumbnails) are bounded in size, and the carbonio-preview REST SDK's underlying {@code
-   * java.net.http.HttpClient} response {@link java.io.InputStream} does not play well with RESTEasy
-   * Reactive's lazy entity streaming (observed as the request hanging until the client's own socket
-   * read times out) — eagerly buffering sidesteps that instead of fighting it.
+   * Maps a {@link PreviewResponse} to a {@link BlobResponse} without buffering: the
+   * carbonio-preview REST SDK response {@link java.io.InputStream} is handed through as-is and
+   * streamed to the client by {@code TransferStreaming} over the raw Vert.x response (not
+   * RESTEasy's entity writer). The {@link PreviewResponse} is intentionally NOT closed here: {@code
+   * TransferStreaming} closes the stream after the pump, which is what releases the underlying HTTP
+   * connection.
    */
   private BlobResponse mapResponseToBlobResponse(PreviewResponse response, String nodeId) {
-    byte[] content;
-    try (response) {
-      content = response.getContent().readAllBytes();
-    } catch (java.io.IOException e) {
-      throw new java.io.UncheckedIOException("Failed to read preview response content", e);
-    }
+    long length = response.getLength();
     return new BlobResponse(
-        new ByteArrayInputStream(content),
+        response.getContent(),
         nodeRepository.getNode(nodeId).get().getFullName(),
-        (long) content.length,
+        length >= 0 ? length : null,
         response.getMimeType());
   }
 }

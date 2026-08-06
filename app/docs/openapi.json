@@ -652,13 +652,8 @@
           }
         } ],
         "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
-            }
+          "204" : {
+            "description" : "No Content"
           }
         },
         "summary" : "Preview Document",
@@ -740,13 +735,8 @@
           }
         } ],
         "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
-            }
+          "204" : {
+            "description" : "No Content"
           }
         },
         "summary" : "Thumbnail Document",
@@ -828,13 +818,8 @@
           }
         } ],
         "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
-            }
+          "204" : {
+            "description" : "No Content"
           }
         },
         "summary" : "Preview Image",
@@ -916,13 +901,8 @@
           }
         } ],
         "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
-            }
+          "204" : {
+            "description" : "No Content"
           }
         },
         "summary" : "Thumbnail Image",
@@ -996,13 +976,8 @@
           }
         } ],
         "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
-            }
+          "204" : {
+            "description" : "No Content"
           }
         },
         "summary" : "Preview Pdf",
@@ -1084,13 +1059,8 @@
           }
         } ],
         "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "application/json" : {
-                "schema" : { }
-              }
-            }
+          "204" : {
+            "description" : "No Content"
           }
         },
         "summary" : "Thumbnail Pdf",

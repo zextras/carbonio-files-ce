@@ -452,11 +452,8 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "204":
+          description: No Content
       summary: Preview Document
       tags:
       - Preview Resource
@@ -513,11 +510,8 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "204":
+          description: No Content
       summary: Thumbnail Document
       tags:
       - Preview Resource
@@ -574,11 +568,8 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "204":
+          description: No Content
       summary: Preview Image
       tags:
       - Preview Resource
@@ -635,11 +626,8 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "204":
+          description: No Content
       summary: Thumbnail Image
       tags:
       - Preview Resource
@@ -690,11 +678,8 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "204":
+          description: No Content
       summary: Preview Pdf
       tags:
       - Preview Resource
@@ -751,11 +736,8 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "204":
+          description: No Content
       summary: Thumbnail Pdf
       tags:
       - Preview Resource
