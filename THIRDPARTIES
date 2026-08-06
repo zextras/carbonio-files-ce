@@ -30,7 +30,6 @@ List of third-party dependencies grouped by their license type.
         * Apache HttpClient (org.apache.httpcomponents:httpclient:4.5.14 - http://hc.apache.org/httpcomponents-client-ga)
         * Apache HttpClient Mime (org.apache.httpcomponents:httpmime:4.5.14 - http://hc.apache.org/httpcomponents-client-ga)
         * Apache HttpCore (org.apache.httpcomponents:httpcore:4.4.16 - http://hc.apache.org/httpcomponents-core-ga)
-        * Caffeine cache (com.github.ben-manes.caffeine:caffeine:3.2.4 - https://github.com/ben-manes/caffeine)
         * flyway-core (org.flywaydb:flyway-core:11.20.3 - https://flywaydb.org/flyway-core)
         * flyway-database-postgresql (org.flywaydb:flyway-database-postgresql:11.20.3 - https://flywaydb.org/flyway-database-postgresql)
         * Guava: Google Core Libraries for Java (com.google.guava:guava:31.0.1-jre - https://github.com/google/guava)
