@@ -12,6 +12,11 @@ import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
 import com.zextras.carbonio.files.rest.types.UploadAttachmentResponse;
 import com.zextras.carbonio.files.rest.types.UploadToRequest;
 import com.zextras.carbonio.files.rest.types.UploadVersionResponse;
+import com.zextras.carbonio.files.rest.types.health.DependencyType;
+import com.zextras.carbonio.files.rest.types.health.HealthResponse;
+import com.zextras.carbonio.files.rest.types.health.ServiceHealth;
+import com.zextras.carbonio.user_management.sdk.rest.model.MyselfDto;
+import com.zextras.carbonio.user_management.sdk.rest.model.UserInfoDto;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 /**
@@ -48,7 +53,16 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
       UploadToRequest.class,
       PreviewQueryParameters.class,
       // Keyset pagination cursor (Base64 JSON via a raw ObjectMapper in NodeRepositoryImpl)
-      NodeRepositoryImpl.PageToken.class
+      NodeRepositoryImpl.PageToken.class,
+      // carbonio-user-management REST SDK response DTOs deserialized by UserRepositoryImpl via an
+      // opaque generated client (getUserMyselfByCookie -> authentication; getUserById -> owner /
+      // account resolution). Without these the native image throws on every authenticated request.
+      MyselfDto.class,
+      UserInfoDto.class,
+      // /health response graph, serialized manually through an opaque Response by HealthResource
+      HealthResponse.class,
+      ServiceHealth.class,
+      DependencyType.class
     })
 public final class NativeReflectionConfig {
   private NativeReflectionConfig() {}
