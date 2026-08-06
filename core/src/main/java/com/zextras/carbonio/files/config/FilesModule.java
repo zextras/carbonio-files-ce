@@ -11,7 +11,6 @@ import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.DatabaseManager;
-import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
 import com.zextras.carbonio.files.dal.dao.ebean.*;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.AddedNodeNotification;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.NewShareNotification;
@@ -21,6 +20,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.UserNotifica
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.UserNotificationsInfo;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotNode;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.SnapshotUser;
+import com.zextras.carbonio.files.dal.impl.DatabaseManagerFlyway;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.*;
 import com.zextras.carbonio.files.dal.repositories.interfaces.*;
 import com.zextras.carbonio.files.graphql.validators.GenericControllerEvaluatorFactory;
@@ -88,19 +88,16 @@ public class FilesModule extends AbstractModule {
   @Provides
   @Singleton
   public CloseableHttpClient provideGenericHttpClientPool() {
-    return HttpClientBuilder.create()
-        .setMaxConnPerRoute(10)
-        .setMaxConnTotal(30)
-        .build();
+    return HttpClientBuilder.create().setMaxConnPerRoute(10).setMaxConnTotal(30).build();
   }
 
   @Provides
   @Singleton
   public HikariDataSource provideDataSource(FilesConfig config) {
-    String jdbcPostgresUrl = String.format("jdbc:postgresql://%s:%s/%s",
-        config.getDatabaseHost(),
-        config.getDatabasePort(),
-        config.getDatabaseName());
+    String jdbcPostgresUrl =
+        String.format(
+            "jdbc:postgresql://%s:%s/%s",
+            config.getDatabaseHost(), config.getDatabasePort(), config.getDatabaseName());
 
     int maximumPoolSize = config.getHikariMaxPoolSize();
     int minimumIdleConnections = config.getHikariMinIdleConnections();
@@ -172,19 +169,20 @@ public class FilesModule extends AbstractModule {
   @Singleton
   public Database provideEbeanDatabase(DatabaseConfig databaseConfig) {
     try {
-      Database ebeanDatabase = DatabaseFactory.createWithContextClassLoader(
-          databaseConfig,
-          FilesModule.class.getClassLoader());
+      Database ebeanDatabase =
+          DatabaseFactory.createWithContextClassLoader(
+              databaseConfig, FilesModule.class.getClassLoader());
 
       logger.info("Database connection created successfully");
       return ebeanDatabase;
     } catch (Exception exception) {
-      String error = String.format(
-          "%s: e.g. %s, %s or %s",
-          "Unable to create the database connection! Something went wrong",
-          "database is not reachable",
-          "the database does not exist",
-          "the database credentials are wrong");
+      String error =
+          String.format(
+              "%s: e.g. %s, %s or %s",
+              "Unable to create the database connection! Something went wrong",
+              "database is not reachable",
+              "the database does not exist",
+              "the database credentials are wrong");
 
       throw new RuntimeException(error, exception);
     }
@@ -204,11 +202,12 @@ public class FilesModule extends AbstractModule {
   @Provides
   @Singleton
   public UserResourceApi provideUserManagementApi(FilesConfig config) {
-    final String userManagementUrl = String.format(
-        "%s://%s:%s",
-        Constants.Config.UserManagement.DEFAULT_PROTOCOL,
-        config.getUserManagementHost(),
-        config.getUserManagementPort());
+    final String userManagementUrl =
+        String.format(
+            "%s://%s:%s",
+            Constants.Config.UserManagement.DEFAULT_PROTOCOL,
+            config.getUserManagementHost(),
+            config.getUserManagementPort());
 
     // Pin HTTP/1.1: carbonio-user-management is plain HTTP/1.1, and the JDK client's default
     // (HTTP/2 with an HTTP/1.1 upgrade attempt) trips plaintext HTTP/1.1-only servers into a
@@ -227,11 +226,12 @@ public class FilesModule extends AbstractModule {
   @Provides
   @Singleton
   public PreviewClient providePreviewClient(FilesConfig config) {
-    final String carbonioPreviewUrl = String.format(
-        "%s://%s:%s",
-        Constants.Config.Preview.DEFAULT_PROTOCOL,
-        config.getPreviewHost(),
-        config.getPreviewPort());
+    final String carbonioPreviewUrl =
+        String.format(
+            "%s://%s:%s",
+            Constants.Config.Preview.DEFAULT_PROTOCOL,
+            config.getPreviewHost(),
+            config.getPreviewPort());
 
     return PreviewClient.atURL(carbonioPreviewUrl);
   }
@@ -239,11 +239,12 @@ public class FilesModule extends AbstractModule {
   @Provides
   @Singleton
   public Filestore provideFileStore(FilesConfig config) {
-    final String carbonioStoragesUrl = String.format(
-        "%s://%s:%s",
-        Constants.Config.Storages.DEFAULT_PROTOCOL,
-        config.getStoragesHost(),
-        config.getStoragesPort());
+    final String carbonioStoragesUrl =
+        String.format(
+            "%s://%s:%s",
+            Constants.Config.Storages.DEFAULT_PROTOCOL,
+            config.getStoragesHost(),
+            config.getStoragesPort());
 
     return StoragesClient.atUrl(carbonioStoragesUrl);
   }

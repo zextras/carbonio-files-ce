@@ -9,19 +9,16 @@ import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.ServiceDiscover;
 import com.zextras.carbonio.files.clients.ServiceDiscoverHttpClient;
 import com.zextras.carbonio.files.exceptions.InvalidTokenSignException;
-
+import io.vavr.control.Try;
 import java.io.*;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.Properties;
-
-import io.vavr.control.Try;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
 public class FilesConfig {
@@ -36,13 +33,14 @@ public class FilesConfig {
   // Load config from files or system properties.
   public void loadConfig() throws IOException {
     loadFromEtc() // the official way
-        .ifPresent(config -> {
-          try {
-            properties.load(config);
-          } catch (IOException e) {
-            logger.warn("Error loading configuration file: {}", e.getMessage());
-          }
-        });
+        .ifPresent(
+            config -> {
+              try {
+                properties.load(config);
+              } catch (IOException e) {
+                logger.warn("Error loading configuration file: {}", e.getMessage());
+              }
+            });
 
     properties.putAll(System.getProperties()); // the dev way, overriding existing properties
 
@@ -63,10 +61,13 @@ public class FilesConfig {
   }
 
   private void initializeSecretKey() {
-    // Wrap this in a try catch because we don't want to stop the application if the secret key doesn't get created.
-    // This is because the page token is already secured against attacks and the only thing one could do with a
+    // Wrap this in a try catch because we don't want to stop the application if the secret key
+    // doesn't get created.
+    // This is because the page token is already secured against attacks and the only thing one
+    // could do with a
     // not signed token is getting data of already public folders knowing their id and link id; so
-    // I prefer to let the application run even if the secret key is not created and use a default useless key to sign
+    // I prefer to let the application run even if the secret key is not created and use a default
+    // useless key to sign
     // the page token.
     try {
       logger.debug("Creating secret key");
@@ -97,14 +98,12 @@ public class FilesConfig {
 
   public String getDatabaseHost() {
     return properties.getProperty(
-        Constants.Config.Database.HOST_PROPERTY,
-        Constants.Config.Database.DEFAULT_HOST);
+        Constants.Config.Database.HOST_PROPERTY, Constants.Config.Database.DEFAULT_HOST);
   }
 
   public String getDatabasePort() {
     return properties.getProperty(
-        Constants.Config.Database.PORT_PROPERTY,
-        Constants.Config.Database.DEFAULT_PORT);
+        Constants.Config.Database.PORT_PROPERTY, Constants.Config.Database.DEFAULT_PORT);
   }
 
   public String getDatabaseName() {
@@ -126,15 +125,12 @@ public class FilesConfig {
   }
 
   public String getFilesHost() {
-    return properties.getProperty(
-        Constants.Files.HOST_PROPERTY,
-        Constants.Files.DEFAULT_HOST);
+    return properties.getProperty(Constants.Files.HOST_PROPERTY, Constants.Files.DEFAULT_HOST);
   }
 
   public String getFilesPort() {
     return properties.getProperty(
-        Constants.Files.PORT_PROPERTY,
-        String.valueOf(Constants.Files.DEFAULT_PORT));
+        Constants.Files.PORT_PROPERTY, String.valueOf(Constants.Files.DEFAULT_PORT));
   }
 
   public String getUserManagementHost() {
@@ -151,8 +147,7 @@ public class FilesConfig {
 
   public String getStoragesHost() {
     return properties.getProperty(
-        Constants.Config.Storages.HOST_PROPERTY,
-        Constants.Config.Storages.DEFAULT_HOST);
+        Constants.Config.Storages.HOST_PROPERTY, Constants.Config.Storages.DEFAULT_HOST);
   }
 
   public String getStoragesPort() {
@@ -163,8 +158,7 @@ public class FilesConfig {
 
   public String getPreviewHost() {
     return properties.getProperty(
-        Constants.Config.Preview.HOST_PROPERTY,
-        Constants.Config.Preview.DEFAULT_HOST);
+        Constants.Config.Preview.HOST_PROPERTY, Constants.Config.Preview.DEFAULT_HOST);
   }
 
   public String getPreviewPort() {
@@ -175,8 +169,7 @@ public class FilesConfig {
 
   public String getMailboxHost() {
     return properties.getProperty(
-        Constants.Config.Mailbox.HOST_PROPERTY,
-        Constants.Config.Mailbox.DEFAULT_HOST);
+        Constants.Config.Mailbox.HOST_PROPERTY, Constants.Config.Mailbox.DEFAULT_HOST);
   }
 
   public String getMailboxPort() {
@@ -187,8 +180,7 @@ public class FilesConfig {
 
   public String getDocsConnectorHost() {
     return properties.getProperty(
-        Constants.Config.DocsConnector.HOST_PROPERTY,
-        Constants.Config.DocsConnector.DEFAULT_HOST);
+        Constants.Config.DocsConnector.HOST_PROPERTY, Constants.Config.DocsConnector.DEFAULT_HOST);
   }
 
   public String getDocsConnectorPort() {
@@ -199,12 +191,19 @@ public class FilesConfig {
 
   public String getMessageBrokerHost() {
     return Optional.ofNullable(System.getProperty(Constants.Config.MessageBroker.HOST_PROPERTY))
-        .orElse(properties.getProperty(Constants.Config.MessageBroker.HOST_PROPERTY, Constants.Config.MessageBroker.DEFAULT_HOST));
+        .orElse(
+            properties.getProperty(
+                Constants.Config.MessageBroker.HOST_PROPERTY,
+                Constants.Config.MessageBroker.DEFAULT_HOST));
   }
 
   public Integer getMessageBrokerPort() {
-    String messageBrokerPort = Optional.ofNullable(System.getProperty(Constants.Config.MessageBroker.PORT_PROPERTY))
-        .orElse(properties.getProperty(Constants.Config.MessageBroker.PORT_PROPERTY, String.valueOf(Constants.Config.MessageBroker.DEFAULT_PORT)));
+    String messageBrokerPort =
+        Optional.ofNullable(System.getProperty(Constants.Config.MessageBroker.PORT_PROPERTY))
+            .orElse(
+                properties.getProperty(
+                    Constants.Config.MessageBroker.PORT_PROPERTY,
+                    String.valueOf(Constants.Config.MessageBroker.DEFAULT_PORT)));
     return Integer.valueOf(messageBrokerPort);
   }
 
@@ -238,30 +237,31 @@ public class FilesConfig {
 
   public int getHikariIdleTimeout() {
     return getServiceDiscoverFilesClient()
-      .getConfig(ServiceDiscover.Config.Key.HIKARI_IDLE_TIMEOUT)
-      .map(Integer::parseInt)
-      .getOrElse(Constants.Config.Hikari.IDLE_TIMEOUT);
+        .getConfig(ServiceDiscover.Config.Key.HIKARI_IDLE_TIMEOUT)
+        .map(Integer::parseInt)
+        .getOrElse(Constants.Config.Hikari.IDLE_TIMEOUT);
   }
 
   public int getHikariLeakDetectionThreshold() {
     return getServiceDiscoverFilesClient()
-      .getConfig(ServiceDiscover.Config.Key.HIKARI_LEAK_DETECTION_THRESHOLD)
-      .map(Integer::parseInt)
-      .getOrElse(Constants.Config.Hikari.LEAK_DETECTION_THRESHOLD);
+        .getConfig(ServiceDiscover.Config.Key.HIKARI_LEAK_DETECTION_THRESHOLD)
+        .map(Integer::parseInt)
+        .getOrElse(Constants.Config.Hikari.LEAK_DETECTION_THRESHOLD);
   }
 
   public int getHikariMaxLifetime() {
     return getServiceDiscoverFilesClient()
-      .getConfig(ServiceDiscover.Config.Key.HIKARI_MAX_LIFETIME)
-      .map(Integer::parseInt)
-      .getOrElse(Constants.Config.Hikari.MAX_LIFETIME);
+        .getConfig(ServiceDiscover.Config.Key.HIKARI_MAX_LIFETIME)
+        .map(Integer::parseInt)
+        .getOrElse(Constants.Config.Hikari.MAX_LIFETIME);
   }
 
   public String getServiceDiscoverEndpoint() {
-    return "http://" + properties.getProperty(
-        ServiceDiscover.HOST_PROPERTY,
-        ServiceDiscover.DEFAULT_HOST) + ":" + properties.getProperty(ServiceDiscover.PORT_PROPERTY,
-        String.valueOf(ServiceDiscover.DEFAULT_PORT));
+    return "http://"
+        + properties.getProperty(ServiceDiscover.HOST_PROPERTY, ServiceDiscover.DEFAULT_HOST)
+        + ":"
+        + properties.getProperty(
+            ServiceDiscover.PORT_PROPERTY, String.valueOf(ServiceDiscover.DEFAULT_PORT));
   }
 
   // ================================================================================
@@ -280,16 +280,20 @@ public class FilesConfig {
   }
 
   private ServiceDiscoverHttpClient getServiceDiscoverFilesClient() {
-    return ServiceDiscoverHttpClient.atURL(this.getServiceDiscoverEndpoint(), ServiceDiscover.SERVICE_NAME);
+    return ServiceDiscoverHttpClient.atURL(
+        this.getServiceDiscoverEndpoint(), ServiceDiscover.SERVICE_NAME);
   }
 
   private ServiceDiscoverHttpClient getServiceDiscoverBrokerClient() {
-    return ServiceDiscoverHttpClient.atURL(this.getServiceDiscoverEndpoint(), ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME);
+    return ServiceDiscoverHttpClient.atURL(
+        this.getServiceDiscoverEndpoint(), ServiceDiscover.MESSAGE_BROKER_SERVICE_NAME);
   }
 
   public String getPageTokenSecretKey() {
-    // The default secret key is obviously useless since it's public, but since the security implications are minimal
-    // (only used for page token and already protected against attacks) I prefer to let the application run.
+    // The default secret key is obviously useless since it's public, but since the security
+    // implications are minimal
+    // (only used for page token and already protected against attacks) I prefer to let the
+    // application run.
     return getServiceDiscoverFilesClient()
         .getConfig(ServiceDiscover.Config.PAGE_TOKEN_SECRET_KEY)
         .getOrElse(ServiceDiscover.Config.DEFAULT_PAGE_TOKEN_SECRET_KEY);
@@ -308,39 +312,41 @@ public class FilesConfig {
   // Returns the maximum uploadable file size in MB or optional.empty if not found or malformed
   public Optional<Integer> getMaxUploadableFileSizeInMb() {
     return Optional.ofNullable(
-        getServiceDiscoverFilesClient()
-            .getConfig(ServiceDiscover.Config.MAX_UPLOADABLE_SIZE_IN_MB)
-            .getOrElse((String) null)
-    )
-    .flatMap(s -> {
-      try {
-        return Optional.of(Integer.parseInt(s));
-      } catch (NumberFormatException e) {
-        return Optional.empty();
-      }
-    });
+            getServiceDiscoverFilesClient()
+                .getConfig(ServiceDiscover.Config.MAX_UPLOADABLE_SIZE_IN_MB)
+                .getOrElse((String) null))
+        .flatMap(
+            s -> {
+              try {
+                return Optional.of(Integer.parseInt(s));
+              } catch (NumberFormatException e) {
+                return Optional.empty();
+              }
+            });
   }
 
-  // Returns true as default since the notifications are a required feature, but opens the way to disable them if
+  // Returns true as default since the notifications are a required feature, but opens the way to
+  // disable them if
   // needed in the future
   public boolean areNotificationsEnabled() {
     return Boolean.parseBoolean(
         properties.getProperty(
-            Constants.Files.ENABLE_NOTIFICATIONS_PROPERTY, String.valueOf(Constants.Files.DEFAULT_ENABLE_NOTIFICATIONS)));
+            Constants.Files.ENABLE_NOTIFICATIONS_PROPERTY,
+            String.valueOf(Constants.Files.DEFAULT_ENABLE_NOTIFICATIONS)));
   }
 
   public Optional<Integer> getMaxDownloadableFileSizeInMb() {
     return Optional.ofNullable(
-        getServiceDiscoverFilesClient()
-            .getConfig(ServiceDiscover.Config.MAX_DOWNLOADABLE_SIZE_IN_MB)
-            .getOrElse((String) null)
-    )
-    .flatMap(s -> {
-      try {
-        return Optional.of(Integer.parseInt(s));
-      } catch (NumberFormatException e) {
-        return Optional.empty();
-      }
-    });
+            getServiceDiscoverFilesClient()
+                .getConfig(ServiceDiscover.Config.MAX_DOWNLOADABLE_SIZE_IN_MB)
+                .getOrElse((String) null))
+        .flatMap(
+            s -> {
+              try {
+                return Optional.of(Integer.parseInt(s));
+              } catch (NumberFormatException e) {
+                return Optional.empty();
+              }
+            });
   }
 }

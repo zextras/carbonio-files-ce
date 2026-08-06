@@ -11,9 +11,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * This is only an example of test. It must be changed
- */
+/** This is only an example of test. It must be changed */
 class NodeRepositoryEbeanIT {
 
   private static FilesPostgreSQLContainer database;
@@ -29,9 +27,9 @@ class NodeRepositoryEbeanIT {
   }
 
   @Test
-  void test(){
+  void test() {
     database.start();
     Assertions.assertEquals("password", database.getPassword());
-    System.out.println(database.getExposedPorts() + " " +database.getPassword());
+    System.out.println(database.getExposedPorts() + " " + database.getPassword());
   }
 }

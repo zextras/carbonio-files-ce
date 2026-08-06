@@ -15,18 +15,18 @@ import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
 /**
- * <p>Represents an Ebean {@link FileVersion} entity that matches a record of the {@link
- * Constants.Db.Tables#FILE_VERSION} table.</p>
- * <p>The implementation of constructors and setters should not care to check if the values in
- * input are valid or not because, when these methods are called, these controls
- * <strong>must</strong> be already done.</p>
+ * Represents an Ebean {@link FileVersion} entity that matches a record of the {@link
+ * Constants.Db.Tables#FILE_VERSION} table.
+ *
+ * <p>The implementation of constructors and setters should not care to check if the values in input
+ * are valid or not because, when these methods are called, these controls <strong>must</strong> be
+ * already done.
  */
 @Entity
 @Table(name = Constants.Db.Tables.FILE_VERSION)
 public class FileVersion {
 
-  @EmbeddedId
-  private FileVersionPK mComposedId;
+  @EmbeddedId private FileVersionPK mComposedId;
 
   @Column(name = Constants.Db.FileVersion.LAST_EDITOR_ID, length = 256, nullable = false)
   private String mLastEditorId;
@@ -56,19 +56,22 @@ public class FileVersion {
   private Integer clonedFromVersion;
 
   @ManyToOne
-  @JoinColumn(name = Constants.Db.NodeCustomAttributes.NODE_ID, referencedColumnName = Constants.Db.Node.ID, insertable = false, updatable = false)
+  @JoinColumn(
+      name = Constants.Db.NodeCustomAttributes.NODE_ID,
+      referencedColumnName = Constants.Db.Node.ID,
+      insertable = false,
+      updatable = false)
   private Node node;
 
   public FileVersion(
-    String nodeId,
-    String lastEditorId,
-    long updatedAt,
-    int version,
-    String mimeType,
-    long size,
-    String digest,
-    boolean autosave
-  ) {
+      String nodeId,
+      String lastEditorId,
+      long updatedAt,
+      int version,
+      String mimeType,
+      long size,
+      String digest,
+      boolean autosave) {
     mComposedId = new FileVersionPK(nodeId, version);
     mLastEditorId = lastEditorId;
     mUpdatedAt = updatedAt;
@@ -81,8 +84,7 @@ public class FileVersion {
   }
 
   public String getNodeId() {
-    return mComposedId.getNodeId()
-      .trim();
+    return mComposedId.getNodeId().trim();
   }
 
   public String getLastEditorId() {

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
 # SPDX-FileCopyrightText: 2024 Zextras <https://www.zextras.com>
 #

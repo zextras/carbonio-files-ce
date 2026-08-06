@@ -17,9 +17,9 @@ class SQLCondition implements SQLPart {
   private final Object parameter;
 
   protected SQLCondition(
-    @JsonProperty("field") String field,
-    @JsonProperty("operator") SortOrder operator,
-    @JsonProperty("parameter") Object parameter) {
+      @JsonProperty("field") String field,
+      @JsonProperty("operator") SortOrder operator,
+      @JsonProperty("parameter") Object parameter) {
 
     this.field = field;
     this.operator = operator;

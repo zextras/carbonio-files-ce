@@ -32,32 +32,31 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
 
   private static final Logger logger = LoggerFactory.getLogger(HttpRoutingHandler.class);
 
-  private final HealthController            healthController;
-  private final GraphQLController           graphQLController;
-  private final BlobController              blobController;
-  private final PublicBlobController        publicBlobController;
-  private final AuthenticationHandler       authenticationHandler;
-  private final ExceptionsHandler           exceptionsHandler;
-  private final PreviewController           previewController;
-  private final ProcedureController         procedureController;
-  private final PublicGraphQLController     publicGraphQLController;
+  private final HealthController healthController;
+  private final GraphQLController graphQLController;
+  private final BlobController blobController;
+  private final PublicBlobController publicBlobController;
+  private final AuthenticationHandler authenticationHandler;
+  private final ExceptionsHandler exceptionsHandler;
+  private final PreviewController previewController;
+  private final ProcedureController procedureController;
+  private final PublicGraphQLController publicGraphQLController;
   private final CollaborationLinkController collaborationLinkController;
-  private final MetricsController           metricsController;
+  private final MetricsController metricsController;
 
   @Inject
   public HttpRoutingHandler(
-    HealthController healthController,
-    GraphQLController graphQLController,
-    BlobController blobController,
-    PublicBlobController publicBlobController,
-    AuthenticationHandler authenticationHandler,
-    ExceptionsHandler exceptionsHandler,
-    PreviewController previewController,
-    ProcedureController procedureController,
-    PublicGraphQLController publicGraphQLController,
-    CollaborationLinkController collaborationLinkController,
-    MetricsController metricsController
-  ) {
+      HealthController healthController,
+      GraphQLController graphQLController,
+      BlobController blobController,
+      PublicBlobController publicBlobController,
+      AuthenticationHandler authenticationHandler,
+      ExceptionsHandler exceptionsHandler,
+      PreviewController previewController,
+      ProcedureController procedureController,
+      PublicGraphQLController publicGraphQLController,
+      CollaborationLinkController collaborationLinkController,
+      MetricsController metricsController) {
     logger.info("Service ready to receive http requests!");
     this.healthController = healthController;
     this.authenticationHandler = authenticationHandler;
@@ -73,23 +72,22 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
   }
 
   @Override
-  protected void channelRead0(
-    ChannelHandlerContext context,
-    HttpRequest request
-  ) {
+  protected void channelRead0(ChannelHandlerContext context, HttpRequest request) {
 
     if (Endpoints.METRICS.matcher(request.uri()).matches()) {
-      context.pipeline()
-        .addLast("metrics-handler", metricsController)
-        .addLast("exceptions-handler", exceptionsHandler);
+      context
+          .pipeline()
+          .addLast("metrics-handler", metricsController)
+          .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
 
     if (Endpoints.HEALTH.matcher(request.uri()).matches()) {
-      context.pipeline()
-        .addLast("health-handler", healthController)
-        .addLast("exceptions-handler", exceptionsHandler);
+      context
+          .pipeline()
+          .addLast("health-handler", healthController)
+          .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
@@ -97,119 +95,125 @@ public class HttpRoutingHandler extends SimpleChannelInboundHandler<HttpRequest>
     logger.info(request.uri());
 
     if (Endpoints.GRAPHQL.matcher(request.uri()).matches()) {
-      context.pipeline()
-        .addLast(new HttpObjectAggregator(256 * 1024))
-        .addLast(new ChunkedWriteHandler())
-        .addLast("auth-handler", authenticationHandler)
-        .addLast("graphql-handler", graphQLController)
-        .addLast("exceptions-handler", exceptionsHandler);
+      context
+          .pipeline()
+          .addLast(new HttpObjectAggregator(256 * 1024))
+          .addLast(new ChunkedWriteHandler())
+          .addLast("auth-handler", authenticationHandler)
+          .addLast("graphql-handler", graphQLController)
+          .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
 
     if (Endpoints.DOWNLOAD_MULTIPLE.matcher(request.uri()).matches()
-      || Endpoints.DOWNLOAD_MULTIPLE_CHECK.matcher(request.uri()).matches()) {
-      context.pipeline()
-        .addLast("http-aggregator", new HttpObjectAggregator(1048576)) // 1MB max
-        .addLast("auth-handler", authenticationHandler)
-        .addLast("rest-handler", blobController)
-        .addLast("exceptions-handler", exceptionsHandler);
+        || Endpoints.DOWNLOAD_MULTIPLE_CHECK.matcher(request.uri()).matches()) {
+      context
+          .pipeline()
+          .addLast("http-aggregator", new HttpObjectAggregator(1048576)) // 1MB max
+          .addLast("auth-handler", authenticationHandler)
+          .addLast("rest-handler", blobController)
+          .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
 
     if (Endpoints.DOWNLOAD_FILE.matcher(request.uri()).matches()
-      || Endpoints.DOWNLOAD_FILE_CHECK.matcher(request.uri()).matches()
-      || Endpoints.UPLOAD_FILE.matcher(request.uri()).matches()
-      || Endpoints.UPLOAD_FILE_VERSION.matcher(request.uri()).matches()) {
-      context.pipeline()
-        .addLast("auth-handler", authenticationHandler)
-        .addLast("rest-handler", blobController)
-        .addLast("exceptions-handler", exceptionsHandler);
+        || Endpoints.DOWNLOAD_FILE_CHECK.matcher(request.uri()).matches()
+        || Endpoints.UPLOAD_FILE.matcher(request.uri()).matches()
+        || Endpoints.UPLOAD_FILE_VERSION.matcher(request.uri()).matches()) {
+      context
+          .pipeline()
+          .addLast("auth-handler", authenticationHandler)
+          .addLast("rest-handler", blobController)
+          .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
 
     // No auth for internal calls
     if (Endpoints.UPLOAD_FILE_INTERNAL.matcher(request.uri()).matches()) {
-      context.pipeline()
-        .addLast("rest-handler", blobController)
-        .addLast("exceptions-handler", exceptionsHandler);
+      context
+          .pipeline()
+          .addLast("rest-handler", blobController)
+          .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
 
     if (Endpoints.DOWNLOAD_VIA_PUBLIC_LINK.matcher(request.uri()).matches()
-      || Endpoints.PUBLIC_LINK.matcher(request.uri()).matches()
-      || Endpoints.DOWNLOAD_PUBLIC_FILE.matcher(request.uri()).matches()) {
-      context.pipeline()
-        .addLast("rest-handler", publicBlobController)
-        .addLast("exceptions-handler", exceptionsHandler);
+        || Endpoints.PUBLIC_LINK.matcher(request.uri()).matches()
+        || Endpoints.DOWNLOAD_PUBLIC_FILE.matcher(request.uri()).matches()) {
+      context
+          .pipeline()
+          .addLast("rest-handler", publicBlobController)
+          .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
 
     if (Endpoints.DOWNLOAD_PUBLIC_FILE_CHECK.matcher(request.uri()).matches()
-      || Endpoints.DOWNLOAD_PUBLIC_MULTIPLE.matcher(request.uri()).matches()
-      || Endpoints.DOWNLOAD_PUBLIC_MULTIPLE_CHECK.matcher(request.uri()).matches()) {
+        || Endpoints.DOWNLOAD_PUBLIC_MULTIPLE.matcher(request.uri()).matches()
+        || Endpoints.DOWNLOAD_PUBLIC_MULTIPLE_CHECK.matcher(request.uri()).matches()) {
 
       if (Endpoints.DOWNLOAD_PUBLIC_MULTIPLE.matcher(request.uri()).matches()
-        || Endpoints.DOWNLOAD_PUBLIC_MULTIPLE_CHECK.matcher(request.uri()).matches()) {
-        context.pipeline()
-          .addLast("http-aggregator", new HttpObjectAggregator(1048576));
+          || Endpoints.DOWNLOAD_PUBLIC_MULTIPLE_CHECK.matcher(request.uri()).matches()) {
+        context.pipeline().addLast("http-aggregator", new HttpObjectAggregator(1048576));
       }
 
-      context.pipeline()
-        .addLast("rest-handler", publicBlobController)
-        .addLast("exceptions-handler", exceptionsHandler);
+      context
+          .pipeline()
+          .addLast("rest-handler", publicBlobController)
+          .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
 
     if (Endpoints.COLLABORATION_LINK.matcher(request.uri()).matches()) {
       context
-        .pipeline()
-        .addLast("auth-handler", authenticationHandler)
-        .addLast("collaboration-link-handler", collaborationLinkController)
-        .addLast("exceptions-handler", exceptionsHandler);
+          .pipeline()
+          .addLast("auth-handler", authenticationHandler)
+          .addLast("collaboration-link-handler", collaborationLinkController)
+          .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
 
     if (Endpoints.PREVIEW.matcher(request.uri()).matches()) {
-      context.pipeline()
-        .addLast("auth-handler", authenticationHandler)
-        .addLast("preview-handler", previewController)
-        .addLast("exceptions-handler", exceptionsHandler);
+      context
+          .pipeline()
+          .addLast("auth-handler", authenticationHandler)
+          .addLast("preview-handler", previewController)
+          .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
 
     if (Endpoints.UPLOAD_FILE_TO.matcher(request.uri()).matches()) {
-      context.pipeline()
-        .addLast(new HttpObjectAggregator(256 * 1024))
-        .addLast(new ChunkedWriteHandler())
-        .addLast("auth-handler", authenticationHandler)
-        .addLast("procedure-handler", procedureController)
-        .addLast("exceptions-handler", exceptionsHandler);
+      context
+          .pipeline()
+          .addLast(new HttpObjectAggregator(256 * 1024))
+          .addLast(new ChunkedWriteHandler())
+          .addLast("auth-handler", authenticationHandler)
+          .addLast("procedure-handler", procedureController)
+          .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
 
     if (Endpoints.PUBLIC_GRAPHQL.matcher(request.uri()).matches()) {
-      context.pipeline()
-        .addLast(new HttpObjectAggregator(256 * 1024))
-        .addLast(new ChunkedWriteHandler())
-        .addLast("public-graphql-handler", publicGraphQLController)
-        .addLast("exceptions-handler", exceptionsHandler);
+      context
+          .pipeline()
+          .addLast(new HttpObjectAggregator(256 * 1024))
+          .addLast(new ChunkedWriteHandler())
+          .addLast("public-graphql-handler", publicGraphQLController)
+          .addLast("exceptions-handler", exceptionsHandler);
       context.fireChannelRead(request);
       return;
     }
 
-    FullHttpResponse response = new DefaultFullHttpResponse(
-      request.protocolVersion(),
-      HttpResponseStatus.NOT_FOUND
-    );
+    FullHttpResponse response =
+        new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.NOT_FOUND);
 
     context.writeAndFlush(response);
     context.close();

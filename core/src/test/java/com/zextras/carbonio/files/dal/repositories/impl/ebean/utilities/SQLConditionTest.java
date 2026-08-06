@@ -30,7 +30,7 @@ class SQLConditionTest {
   @ParameterizedTest()
   @EnumSource(SortOrder.class)
   void givenASQLConditionTheToExpressionShouldReturnTheConditionWithQuestionMarkParameter(
-    SortOrder operator) {
+      SortOrder operator) {
     // Given
     final String field = "field";
     final int parameter = 2;

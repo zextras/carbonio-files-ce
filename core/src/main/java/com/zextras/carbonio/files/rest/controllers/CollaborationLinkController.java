@@ -6,8 +6,8 @@ package com.zextras.carbonio.files.rest.controllers;
 
 import com.google.inject.Inject;
 import com.zextras.carbonio.files.Constants.API.Endpoints;
-import com.zextras.carbonio.files.rest.services.CollaborationLinkService;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
+import com.zextras.carbonio.files.rest.services.CollaborationLinkService;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -37,46 +37,43 @@ public class CollaborationLinkController extends SimpleChannelInboundHandler<Htt
   }
 
   @Override
-  protected void channelRead0(
-    ChannelHandlerContext context,
-    HttpRequest httpRequest
-  ) {
+  protected void channelRead0(ChannelHandlerContext context, HttpRequest httpRequest) {
     Matcher collaborationLinkMatcher = Endpoints.COLLABORATION_LINK.matcher(httpRequest.uri());
 
     try {
       if (collaborationLinkMatcher.find()) {
         String invitationId = collaborationLinkMatcher.group(1);
-        UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
+        UserMyself requester =
+            (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
         collaborationLinkService
-          .createShareByInvitationId(invitationId, requester.getId().getUserId())
-          .onSuccess(sharedNode -> {
-            FullHttpResponse response = new DefaultFullHttpResponse(
-              httpRequest.protocolVersion(),
-              HttpResponseStatus.TEMPORARY_REDIRECT
-            );
+            .createShareByInvitationId(invitationId, requester.getId().getUserId())
+            .onSuccess(
+                sharedNode -> {
+                  FullHttpResponse response =
+                      new DefaultFullHttpResponse(
+                          httpRequest.protocolVersion(), HttpResponseStatus.TEMPORARY_REDIRECT);
 
-            String nodeInternalURL = MessageFormat.format(
-              "{0}/carbonio/files/?file={1}&node={1}&tab=sharing",
-              requester.getDomain(),
-              sharedNode.getId()
-            );
+                  String nodeInternalURL =
+                      MessageFormat.format(
+                          "{0}/carbonio/files/?file={1}&node={1}&tab=sharing",
+                          requester.getDomain(), sharedNode.getId());
 
-            response.headers()
-              .add(HttpHeaderNames.LOCATION, nodeInternalURL)
-              .add(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
+                  response
+                      .headers()
+                      .add(HttpHeaderNames.LOCATION, nodeInternalURL)
+                      .add(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
 
-            context
-              .writeAndFlush(response)
-              .addListener(ChannelFutureListener.CLOSE);
-          })
-          .onFailure(failure -> {
-            logger.error(
-              String.format("Unable to create the share from invitation di %s", invitationId),
-              failure
-            );
-            context.fireExceptionCaught(new NoSuchElementException());
-          });
+                  context.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+                })
+            .onFailure(
+                failure -> {
+                  logger.error(
+                      String.format(
+                          "Unable to create the share from invitation di %s", invitationId),
+                      failure);
+                  context.fireExceptionCaught(new NoSuchElementException());
+                });
       }
 
       context.fireChannelRead(new NoSuchElementException());

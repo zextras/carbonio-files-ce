@@ -14,11 +14,9 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.message_broker.consumers.UserStatusChangedConsumer;
 import com.zextras.carbonio.message_broker.events.services.mailbox.UserStatusChanged;
 import com.zextras.carbonio.message_broker.events.services.mailbox.enums.UserStatus;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.AfterAll;
@@ -35,7 +33,6 @@ class UserStatusChangedIT {
   static Simulator simulator;
   static NodeRepository nodeRepository;
   static Condition<Node> isNodeHidden;
-
 
   @BeforeAll
   static void init() {
@@ -69,7 +66,7 @@ class UserStatusChangedIT {
 
   @Test
   void
-  givenANotHiddenNodeAndAnUserStatusChangedEventClosedWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeTrue() {
+      givenANotHiddenNodeAndAnUserStatusChangedEventClosedWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeTrue() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -77,8 +74,10 @@ class UserStatusChangedIT {
                 "00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
 
     // When
-    UserStatusChangedConsumer userStatusChangedConsumer = new UserStatusChangedConsumer(nodeRepository);
-    userStatusChangedConsumer.doHandle(new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", UserStatus.CLOSED));
+    UserStatusChangedConsumer userStatusChangedConsumer =
+        new UserStatusChangedConsumer(nodeRepository);
+    userStatusChangedConsumer.doHandle(
+        new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", UserStatus.CLOSED));
 
     // Then
     Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000000");
@@ -88,7 +87,7 @@ class UserStatusChangedIT {
 
   @Test
   void
-  givenAHiddenNodeAnUserStatusChangedEventActiveWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeFalse() {
+      givenAHiddenNodeAnUserStatusChangedEventActiveWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeFalse() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -98,8 +97,10 @@ class UserStatusChangedIT {
         nodeRepository.getNode("00000000-0000-0000-0000-000000000001").get().setHidden(true));
 
     // When
-    UserStatusChangedConsumer userStatusChangedConsumer = new UserStatusChangedConsumer(nodeRepository);
-    userStatusChangedConsumer.doHandle(new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab", UserStatus.ACTIVE));
+    UserStatusChangedConsumer userStatusChangedConsumer =
+        new UserStatusChangedConsumer(nodeRepository);
+    userStatusChangedConsumer.doHandle(
+        new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab", UserStatus.ACTIVE));
 
     // Then
     Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000001");
@@ -109,7 +110,7 @@ class UserStatusChangedIT {
 
   @Test
   void
-  givenANotHiddenNodeAnUserStatusChangedEventMaintenanceWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeUnchanged() {
+      givenANotHiddenNodeAnUserStatusChangedEventMaintenanceWrittenOnMessageBrokerQueueUsersNodesHiddenFlagsShouldBeUnchanged() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -117,8 +118,10 @@ class UserStatusChangedIT {
                 "00000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaac"));
 
     // When
-    UserStatusChangedConsumer userStatusChangedConsumer = new UserStatusChangedConsumer(nodeRepository);
-    userStatusChangedConsumer.doHandle(new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaac", UserStatus.MAINTENANCE));
+    UserStatusChangedConsumer userStatusChangedConsumer =
+        new UserStatusChangedConsumer(nodeRepository);
+    userStatusChangedConsumer.doHandle(
+        new UserStatusChanged("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaac", UserStatus.MAINTENANCE));
 
     // Then
     Optional<Node> nodeOpt = nodeRepository.getNode("00000000-0000-0000-0000-000000000002");

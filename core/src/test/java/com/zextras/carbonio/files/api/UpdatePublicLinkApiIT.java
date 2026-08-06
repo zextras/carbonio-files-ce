@@ -103,7 +103,8 @@ class UpdatePublicLinkApiIT {
             .withInteger("expires_at", 10)
             .withString("description", "another-description")
             .withString("access_code", "another-fake-access-code")
-            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
+            .withWantedResultFormat(
+                "{ id url expires_at created_at description access_code node { id } }")
             .build();
 
     final HttpRequest httpRequest =
@@ -152,7 +153,8 @@ class UpdatePublicLinkApiIT {
             .withInteger("expires_at", 10)
             .withString("description", "another-description")
             .withString("access_code", "")
-            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
+            .withWantedResultFormat(
+                "{ id url expires_at created_at description access_code node { id } }")
             .build();
 
     final HttpRequest httpRequest =
@@ -198,7 +200,8 @@ class UpdatePublicLinkApiIT {
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("updateLink")
             .withString("link_id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
-            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
+            .withWantedResultFormat(
+                "{ id url expires_at created_at description access_code node { id } }")
             .build();
 
     final HttpRequest httpRequest =
@@ -247,7 +250,8 @@ class UpdatePublicLinkApiIT {
             .withString("link_id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")
             .withInteger("expires_at", 10)
             .withString("description", "another-description")
-            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
+            .withWantedResultFormat(
+                "{ id url expires_at created_at description access_code node { id } }")
             .build();
 
     final HttpRequest httpRequest =
@@ -263,7 +267,8 @@ class UpdatePublicLinkApiIT {
         TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "updateLink");
 
     Assertions.assertThat((String) updatedLink.get("url"))
-        .isEqualTo("example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab");
+        .isEqualTo(
+            "example.com/files/public/link/access/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab");
 
     Assertions.assertThat(updatedLink)
         .containsEntry("id", "cc83bd73-8c5c-4e7c-8c34-3e3919ff6c9b")

@@ -21,14 +21,14 @@ public class BufferInputStream extends InputStream {
 
   private static final Logger logger = LoggerFactory.getLogger(BufferInputStream.class);
 
-  private static int           maxCapacity = 500 * 1024 * 1024;
-  private static int           capacity    = 100 * 1024 * 1024;
-  public         ByteBuf       buffer;
-  private        Lock          lock;
-  private        Condition     condition;
-  private        boolean       isDone;
-  private        ChannelConfig nettyChannelConfig;
-  private        int           sum;
+  private static int maxCapacity = 500 * 1024 * 1024;
+  private static int capacity = 100 * 1024 * 1024;
+  public ByteBuf buffer;
+  private Lock lock;
+  private Condition condition;
+  private boolean isDone;
+  private ChannelConfig nettyChannelConfig;
+  private int sum;
 
   public BufferInputStream(ChannelConfig channelConfig) {
     this.nettyChannelConfig = channelConfig;
@@ -59,10 +59,7 @@ public class BufferInputStream extends InputStream {
 
       condition.signalAll();
     } catch (Exception e) {
-      logger.warn(MessageFormat.format(
-        "Unexpected error encountered: {0}",
-        e.getMessage()
-      ));
+      logger.warn(MessageFormat.format("Unexpected error encountered: {0}", e.getMessage()));
     } finally {
       lock.unlock();
     }
@@ -74,11 +71,7 @@ public class BufferInputStream extends InputStream {
   }
 
   @Override
-  public int read(
-    byte[] byteArray,
-    int offset,
-    int length
-  ) throws IOException {
+  public int read(byte[] byteArray, int offset, int length) throws IOException {
     lock.lock();
     try {
 
@@ -98,16 +91,9 @@ public class BufferInputStream extends InputStream {
           }
         }
 
-        int readSize = Math.min(
-          buffer.readableBytes(),
-          length
-        );
+        int readSize = Math.min(buffer.readableBytes(), length);
 
-        buffer.readBytes(
-          byteArray,
-          offset,
-          readSize
-        );
+        buffer.readBytes(byteArray, offset, readSize);
 
         return readSize;
       }
@@ -126,11 +112,10 @@ public class BufferInputStream extends InputStream {
     try {
       isDone = true;
       condition.signalAll();
-      logger.debug(MessageFormat.format(
-        "Read done, {0} bytes written with a buffer capacity of {1}",
-        sum,
-        buffer.capacity()
-      ));
+      logger.debug(
+          MessageFormat.format(
+              "Read done, {0} bytes written with a buffer capacity of {1}",
+              sum, buffer.capacity()));
     } finally {
       lock.unlock();
     }

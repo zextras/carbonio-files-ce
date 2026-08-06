@@ -8,7 +8,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import java.util.Objects;
 
-
 public class UploadVersionResponse {
 
   public static final String SERIALIZED_NAME_VERSION_ID = "version";
@@ -41,19 +40,14 @@ public class UploadVersionResponse {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class UploadNode {\n");
-    sb.append("    nodeId: ")
-      .append(toIndentedString(nodeId))
-      .append("\n");
-    sb.append("    versionId: ")
-      .append(toIndentedString(version))
-      .append("\n");
+    sb.append("    nodeId: ").append(toIndentedString(nodeId)).append("\n");
+    sb.append("    versionId: ").append(toIndentedString(version)).append("\n");
     sb.append("}");
     return sb.toString();
   }
 
   /**
-   * Convert the given object to string with each line indented by 4 spaces (except the first
-   * line).
+   * Convert the given object to string with each line indented by 4 spaces (except the first line).
    */
   private String toIndentedString(Object o) {
     if (o == null) {

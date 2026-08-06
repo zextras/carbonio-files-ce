@@ -20,7 +20,6 @@ import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
-
 import java.util.stream.Stream;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.assertj.core.api.Assertions;
@@ -42,9 +41,8 @@ class CreatePublicLinkApiIT {
   // It is needed since strings cannot be generated as constants in the @ValueSource definition
   static Stream<Arguments> invalidAccessCodesProvider() {
     return Stream.of(
-      Arguments.of(RandomStringUtils.secure().nextAlphanumeric(9)),
-      Arguments.of(RandomStringUtils.secure().nextAlphanumeric(255))
-    );
+        Arguments.of(RandomStringUtils.secure().nextAlphanumeric(9)),
+        Arguments.of(RandomStringUtils.secure().nextAlphanumeric(255)));
   }
 
   @BeforeAll
@@ -103,7 +101,8 @@ class CreatePublicLinkApiIT {
             .withInteger("expires_at", 5)
             .withString("description", "super-description")
             .withString("access_code", "fake-access-code")
-            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
+            .withWantedResultFormat(
+                "{ id url expires_at created_at description access_code node { id } }")
             .build();
 
     final HttpRequest httpRequest =
@@ -139,7 +138,8 @@ class CreatePublicLinkApiIT {
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("createLink")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
-            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
+            .withWantedResultFormat(
+                "{ id url expires_at created_at description access_code node { id } }")
             .build();
 
     final HttpRequest httpRequest =
@@ -176,7 +176,8 @@ class CreatePublicLinkApiIT {
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("createLink")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
-            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
+            .withWantedResultFormat(
+                "{ id url expires_at created_at description access_code node { id } }")
             .build();
 
     final HttpRequest httpRequest =
@@ -236,35 +237,35 @@ class CreatePublicLinkApiIT {
   @ParameterizedTest
   @MethodSource("invalidAccessCodesProvider")
   void givenAFileIdAndAnInvalidAccessCodeLengthTheCreateLinkShouldReturn200CodeWithAnErrorMessage(
-    String invalidAccessCode
-  ) {
+      String invalidAccessCode) {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     final String bodyPayload =
-      GraphqlCommandBuilder.aMutationBuilder("createLink")
-        .withString("node_id", "00000000-0000-0000-0000-000000000000")
-        .withInteger("expires_at", 5)
-        .withString("description", "super-description")
-        .withString("access_code", invalidAccessCode)
-        .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
-        .build();
+        GraphqlCommandBuilder.aMutationBuilder("createLink")
+            .withString("node_id", "00000000-0000-0000-0000-000000000000")
+            .withInteger("expires_at", 5)
+            .withString("description", "super-description")
+            .withString("access_code", invalidAccessCode)
+            .withWantedResultFormat(
+                "{ id url expires_at created_at description access_code node { id } }")
+            .build();
 
     final HttpRequest httpRequest =
-      HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
     // When
     final HttpResponse httpResponse =
-      TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     final List<String> errorResponse =
-      TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errorResponse)
-      .hasSize(1)
-      .containsExactly(
-        "Invalid link access code. The access code must be between 10 and 255 characters long");
+        .hasSize(1)
+        .containsExactly(
+            "Invalid link access code. The access code must be between 10 and 255 characters long");
   }
 
   @Test
@@ -290,7 +291,8 @@ class CreatePublicLinkApiIT {
     Assertions.assertThat(errorResponse)
         .hasSize(1)
         .containsExactly(
-            "There was a problem while executing requested operation on node: 00000000-0000-0000-0000-000000000000");
+            "There was a problem while executing requested operation on node:"
+                + " 00000000-0000-0000-0000-000000000000");
   }
 
   @Test
@@ -353,7 +355,8 @@ class CreatePublicLinkApiIT {
     Assertions.assertThat(errorResponse)
         .hasSize(1)
         .containsExactly(
-            "There was a problem while executing requested operation on node: 00000000-0000-0000-0000-000000000000");
+            "There was a problem while executing requested operation on node:"
+                + " 00000000-0000-0000-0000-000000000000");
   }
 
   @Test
@@ -382,11 +385,13 @@ class CreatePublicLinkApiIT {
     Assertions.assertThat(errorResponse)
         .hasSize(1)
         .containsExactly(
-            "There was a problem while executing requested operation on node: 00000000-0000-0000-0000-000000000000");
+            "There was a problem while executing requested operation on node:"
+                + " 00000000-0000-0000-0000-000000000000");
   }
 
   @Test
-  void givenAFileIdWithMoreThanFiftyLinksAndOnlyMandatoryLinkFieldsTheCreateLinkShouldReturn200CodeWithAnErrorMessage() {
+  void
+      givenAFileIdWithMoreThanFiftyLinksAndOnlyMandatoryLinkFieldsTheCreateLinkShouldReturn200CodeWithAnErrorMessage() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
@@ -396,7 +401,8 @@ class CreatePublicLinkApiIT {
     final String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("createLink")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
-            .withWantedResultFormat("{ id url expires_at created_at description access_code node { id } }")
+            .withWantedResultFormat(
+                "{ id url expires_at created_at description access_code node { id } }")
             .build();
 
     final HttpRequest httpRequest =
@@ -413,6 +419,7 @@ class CreatePublicLinkApiIT {
     Assertions.assertThat(errorResponse)
         .hasSize(1)
         .containsExactly(
-            "The limit for links has been reached for this node: 00000000-0000-0000-0000-000000000000");
+            "The limit for links has been reached for this node:"
+                + " 00000000-0000-0000-0000-000000000000");
   }
 }

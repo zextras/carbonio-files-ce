@@ -12,7 +12,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.*;
-
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -113,7 +112,10 @@ public class TestUtils {
     DefaultHttpHeaders httpHeaders = new DefaultHttpHeaders();
 
     if (request.getHeaders().isPresent()) {
-      request.getHeaders().get().forEach(header -> httpHeaders.add(header.getKey(), header.getValue()));
+      request
+          .getHeaders()
+          .get()
+          .forEach(header -> httpHeaders.add(header.getKey(), header.getValue()));
     }
 
     if (request.getCookie().isPresent()) {
@@ -141,32 +143,36 @@ public class TestUtils {
           fullHttpResponse.content().toString(StandardCharsets.UTF_8));
     }
 
-    return HttpResponse.of(defaultHttpResponse.status().code(), defaultHttpResponse.headers().entries(), null);
+    return HttpResponse.of(
+        defaultHttpResponse.status().code(), defaultHttpResponse.headers().entries(), null);
   }
 
   public static HttpResponse sendFormRequest(HttpRequest request, EmbeddedChannel nettyChannel) {
-    final ByteBuf payloadBuffer = Unpooled.wrappedBuffer(
-        request.getBodyPayload().orElse("").getBytes(StandardCharsets.UTF_8)
-    );
+    final ByteBuf payloadBuffer =
+        Unpooled.wrappedBuffer(
+            request.getBodyPayload().orElse("").getBytes(StandardCharsets.UTF_8));
 
     DefaultHttpHeaders httpHeaders = new DefaultHttpHeaders();
 
     if (request.getHeaders().isPresent()) {
-      request.getHeaders().get().forEach(header -> httpHeaders.add(header.getKey(), header.getValue()));
+      request
+          .getHeaders()
+          .get()
+          .forEach(header -> httpHeaders.add(header.getKey(), header.getValue()));
     }
 
     if (request.getCookie().isPresent()) {
       httpHeaders.add(HttpHeaderNames.COOKIE, request.getCookie().get());
     }
 
-    final FullHttpRequest fullHttpRequest = new DefaultFullHttpRequest(
-        HttpVersion.HTTP_1_1,
-        HttpMethod.valueOf(request.getMethod()),
-        request.getEndpoint(),
-        payloadBuffer,
-        httpHeaders,
-        httpHeaders
-    );
+    final FullHttpRequest fullHttpRequest =
+        new DefaultFullHttpRequest(
+            HttpVersion.HTTP_1_1,
+            HttpMethod.valueOf(request.getMethod()),
+            request.getEndpoint(),
+            payloadBuffer,
+            httpHeaders,
+            httpHeaders);
 
     fullHttpRequest.retain(2);
     nettyChannel.writeInbound(fullHttpRequest);
@@ -177,7 +183,11 @@ public class TestUtils {
     if (defaultHttpResponse == null) {
       long deadline = System.currentTimeMillis() + 5000;
       while (defaultHttpResponse == null && System.currentTimeMillis() < deadline) {
-        try { Thread.sleep(20); } catch (InterruptedException ignored) { break; }
+        try {
+          Thread.sleep(20);
+        } catch (InterruptedException ignored) {
+          break;
+        }
         nettyChannel.runScheduledPendingTasks();
         defaultHttpResponse = nettyChannel.readOutbound();
       }
@@ -187,14 +197,10 @@ public class TestUtils {
       return HttpResponse.of(
           fullHttpResponse.status().code(),
           fullHttpResponse.headers().entries(),
-          fullHttpResponse.content().toString(StandardCharsets.UTF_8)
-      );
+          fullHttpResponse.content().toString(StandardCharsets.UTF_8));
     }
 
     return HttpResponse.of(
-        defaultHttpResponse.status().code(),
-        defaultHttpResponse.headers().entries(),
-        null
-    );
+        defaultHttpResponse.status().code(), defaultHttpResponse.headers().entries(), null);
   }
 }

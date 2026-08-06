@@ -24,6 +24,10 @@ import com.zextras.carbonio.user_management.sdk.rest.ApiClient;
 import com.zextras.carbonio.user_management.sdk.rest.api.UserResourceApi;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.HttpMethod;
+import java.net.http.HttpClient;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.integration.ClientAndServer;
 import org.mockserver.model.HttpRequest;
@@ -34,11 +38,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.shaded.com.trilead.ssh2.crypto.Base64;
 
-import java.net.http.HttpClient;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
 public class Simulator implements AutoCloseable {
 
   private static final Logger logger = LoggerFactory.getLogger(Simulator.class);
@@ -47,8 +46,7 @@ public class Simulator implements AutoCloseable {
   // Testcontainers' Ryuk will clean them up when the JVM exits.
   private static final PostgreSQLContainer<?> SHARED_POSTGRES =
       new PostgreSQLContainer<>("postgres:16.6");
-  private static final RabbitMQContainer SHARED_RABBITMQ =
-      new RabbitMQContainer("rabbitmq:3.13.4");
+  private static final RabbitMQContainer SHARED_RABBITMQ = new RabbitMQContainer("rabbitmq:3.13.4");
 
   // Singleton MockServer: started once per JVM on fixed ports, reused across all test classes.
   // Unlike the container fields (static final, never null, safe to lock on directly),
@@ -110,22 +108,21 @@ public class Simulator implements AutoCloseable {
               new MockServerClient("localhost", Constants.Config.UserManagement.DEFAULT_PORT));
     }
 
-    Module overrideModule = new AbstractModule() {
-        @Provides
-        @Singleton
-        public FilesConfig provideFilesConfig() throws Exception {
+    Module overrideModule =
+        new AbstractModule() {
+          @Provides
+          @Singleton
+          public FilesConfig provideFilesConfig() throws Exception {
             final MockFilesConfig config = new MockFilesConfig();
             config.loadConfig();
             return config;
-        }
-    };
+          }
+        };
 
     Module umOverride = new UmOverrideModule(userManagementApi);
     Module finalOverride = Modules.combine(overrideModule, umOverride);
 
-    injector = Guice.createInjector(
-        Modules.override(new FilesModule()).with(finalOverride)
-    );
+    injector = Guice.createInjector(Modules.override(new FilesModule()).with(finalOverride));
     return this;
   }
 
@@ -137,7 +134,8 @@ public class Simulator implements AutoCloseable {
     }
     // Set the System.properties for the dynamic database url and port
     setManagedProperty(Database.HOST_PROPERTY, SHARED_POSTGRES.getHost());
-    setManagedProperty(Database.PORT_PROPERTY, String.valueOf(SHARED_POSTGRES.getFirstMappedPort()));
+    setManagedProperty(
+        Database.PORT_PROPERTY, String.valueOf(SHARED_POSTGRES.getFirstMappedPort()));
 
     return this;
   }
@@ -150,7 +148,9 @@ public class Simulator implements AutoCloseable {
     }
     // Set the System.properties for the dynamic rabbit url and port
     setManagedProperty(Constants.Config.MessageBroker.HOST_PROPERTY, SHARED_RABBITMQ.getHost());
-    setManagedProperty(Constants.Config.MessageBroker.PORT_PROPERTY, String.valueOf(SHARED_RABBITMQ.getFirstMappedPort()));
+    setManagedProperty(
+        Constants.Config.MessageBroker.PORT_PROPERTY,
+        String.valueOf(SHARED_RABBITMQ.getFirstMappedPort()));
 
     return this;
   }
@@ -255,7 +255,9 @@ public class Simulator implements AutoCloseable {
                 .withStatusCode(200)
                 .withBody(
                     String.format(
-                        bodyPayloadFormat, "carbonio-message-broker/default/password", encodedAdminPassword)));
+                        bodyPayloadFormat,
+                        "carbonio-message-broker/default/password",
+                        encodedAdminPassword)));
 
     serviceDiscoverMock
         .when(
@@ -268,7 +270,9 @@ public class Simulator implements AutoCloseable {
                 .withStatusCode(200)
                 .withBody(
                     String.format(
-                        bodyPayloadFormat, "carbonio-message-broker/default/username", encodedAdminUsername)));
+                        bodyPayloadFormat,
+                        "carbonio-message-broker/default/username",
+                        encodedAdminUsername)));
 
     return this;
   }
@@ -308,10 +312,7 @@ public class Simulator implements AutoCloseable {
   private Simulator startStorages() {
     startMockServer();
 
-    storagesMock =
-        new MockServerClient(
-            "localhost",
-            Constants.Config.Storages.DEFAULT_PORT);
+    storagesMock = new MockServerClient("localhost", Constants.Config.Storages.DEFAULT_PORT);
     setManagedProperty(Constants.Config.Storages.HOST_PROPERTY, "localhost");
 
     return this;
@@ -320,10 +321,7 @@ public class Simulator implements AutoCloseable {
   private Simulator startPreviewService() {
     startMockServer();
 
-    previewServiceMock = new MockServerClient(
-      "localhost",
-      Constants.Config.Preview.DEFAULT_PORT
-    );
+    previewServiceMock = new MockServerClient("localhost", Constants.Config.Preview.DEFAULT_PORT);
     setManagedProperty(Constants.Config.Preview.HOST_PROPERTY, "localhost");
 
     return this;
@@ -332,10 +330,8 @@ public class Simulator implements AutoCloseable {
   private Simulator startDocsConnectorService() {
     startMockServer();
 
-    docsConnectorServiceMock = new MockServerClient(
-      "localhost",
-      Constants.Config.DocsConnector.DEFAULT_PORT
-    );
+    docsConnectorServiceMock =
+        new MockServerClient("localhost", Constants.Config.DocsConnector.DEFAULT_PORT);
     setManagedProperty(Constants.Config.DocsConnector.HOST_PROPERTY, "localhost");
 
     return this;
@@ -349,7 +345,8 @@ public class Simulator implements AutoCloseable {
         final int docsConnectorServicePort = Constants.Config.DocsConnector.DEFAULT_PORT;
 
         sharedMockServer =
-            ClientAndServer.startClientAndServer(8500, storagesPort, previewServicePort, docsConnectorServicePort);
+            ClientAndServer.startClientAndServer(
+                8500, storagesPort, previewServicePort, docsConnectorServicePort);
       }
     }
   }
@@ -422,7 +419,8 @@ public class Simulator implements AutoCloseable {
     stopUserManagement();
     resetServiceDiscoverMock();
     stopEbeanDatabaseManager();
-    // Clear all System properties set by start methods to prevent leaking config to the next Simulator.
+    // Clear all System properties set by start methods to prevent leaking config to the next
+    // Simulator.
     managedProperties.forEach(System::clearProperty);
   }
 
@@ -436,8 +434,8 @@ public class Simulator implements AutoCloseable {
   }
 
   /**
-   * Returns the mock UM REST service, allowing tests to register additional users
-   * (e.g. for getUserById lookups in transfer ownership scenarios).
+   * Returns the mock UM REST service, allowing tests to register additional users (e.g. for
+   * getUserById lookups in transfer ownership scenarios).
    */
   public MockUserManagementService getUserManagementService() {
     return mockUmService;
@@ -445,8 +443,8 @@ public class Simulator implements AutoCloseable {
 
   /**
    * Simulates user-management being unreachable: re-stubs {@code GET /q/health/live} on the UM
-   * MockServer to a non-2xx status, causing {@code UserManagementHttpClient#healthLiveCheck()}
-   * (and therefore {@code HealthService#isUserManagementLive()}) to report UM as unhealthy.
+   * MockServer to a non-2xx status, causing {@code UserManagementHttpClient#healthLiveCheck()} (and
+   * therefore {@code HealthService#isUserManagementLive()}) to report UM as unhealthy.
    */
   public void shutdownUserManagementServer() {
     if (userManagementStarted) {
@@ -475,12 +473,12 @@ public class Simulator implements AutoCloseable {
   public void resetDatabase() {
     var db = databaseManager.getEbeanDatabase();
     // Delete test nodes but preserve ROOT nodes (LOCAL_ROOT, TRASH_ROOT) which have null owner_id.
-    db.find(Node.class)
-            .where()
-            .isNotNull("mOwnerId")
-            .delete();
+    db.find(Node.class).where().isNotNull("mOwnerId").delete();
     // Wipe notification and snapshot tables (not FK-linked to node, so not cascade-deleted above).
-    db.sqlUpdate("TRUNCATE user_notification_interest, notification, snapshot_node, snapshot_user, user_notifications_info CASCADE").execute();
+    db.sqlUpdate(
+            "TRUNCATE user_notification_interest, notification, snapshot_node, snapshot_user,"
+                + " user_notifications_info CASCADE")
+        .execute();
   }
 
   public void reinitializeMocks() {
@@ -500,8 +498,8 @@ public class Simulator implements AutoCloseable {
   }
 
   /**
-   * Guice module that overrides the {@link UserResourceApi} binding to point at the MockServer
-   * fake used for testing.
+   * Guice module that overrides the {@link UserResourceApi} binding to point at the MockServer fake
+   * used for testing.
    */
   private static class UmOverrideModule extends AbstractModule {
 

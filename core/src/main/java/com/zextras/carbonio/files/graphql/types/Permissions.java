@@ -7,13 +7,15 @@ package com.zextras.carbonio.files.graphql.types;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 
 /**
- * <p>Represents a GraphQL Permissions object declared in the schema. This class must be used only
- * in a {@link graphql.schema.DataFetcher} when is necessary to return an object that {@link
- * graphql.GraphQL} library can decode and create the related JSON response.</p>
+ * Represents a GraphQL Permissions object declared in the schema. This class must be used only in a
+ * {@link graphql.schema.DataFetcher} when is necessary to return an object that {@link
+ * graphql.GraphQL} library can decode and create the related JSON response.
+ *
  * <p>For this reason every field has the same name and naming-style as the attributes declared in
- * the schema.</p>
- * <p>This class has neither getter nor setter because it is only a representation of a GraphQL
- * type and <strong>must not be used</strong> for other scopes.</p>
+ * the schema.
+ *
+ * <p>This class has neither getter nor setter because it is only a representation of a GraphQL type
+ * and <strong>must not be used</strong> for other scopes.
  */
 public class Permissions {
 
@@ -59,15 +61,15 @@ public class Permissions {
       return false;
     }
     Permissions that = (Permissions) o;
-    return can_read == that.can_read &&
-      can_write_file == that.can_write_file &&
-      can_write_folder == that.can_write_folder &&
-      can_delete == that.can_delete &&
-      can_add_version == that.can_add_version &&
-      can_read_link == that.can_read_link &&
-      can_change_link == that.can_change_link &&
-      can_share == that.can_share &&
-      can_read_share == that.can_read_share &&
-      can_change_share == that.can_change_share;
+    return can_read == that.can_read
+        && can_write_file == that.can_write_file
+        && can_write_folder == that.can_write_folder
+        && can_delete == that.can_delete
+        && can_add_version == that.can_add_version
+        && can_read_link == that.can_read_link
+        && can_change_link == that.can_change_link
+        && can_share == that.can_share
+        && can_read_share == that.can_read_share
+        && can_change_share == that.can_change_share;
   }
 }

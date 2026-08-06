@@ -13,7 +13,8 @@ fi
 # --setup check for SETUP_CONSUL_TOKEN env. variable and uses it
 # to avoid re-asking for the password
 echo -n "Insert the cluster credential password: "
-export CONSUL_HTTP_TOKEN=$(service-discover bootstrap-token --setup)
+export CONSUL_HTTP_TOKEN
+CONSUL_HTTP_TOKEN=$(service-discover bootstrap-token --setup)
 EXIT_CODE="$?"
 echo ""
 if [[ "${EXIT_CODE}" != "0" ]]; then
@@ -27,10 +28,8 @@ POLICY_NAME='carbonio-files-policy'
 POLICY_DESCRIPTION='Carbonio Files service policy for service and sidecar proxy'
 
 # Create or update policy for the specific service (this will be shared across cluster)
-consul acl policy create -name "${POLICY_NAME}" -description "${POLICY_DESCRIPTION}" -rules  @/etc/carbonio/files/service-discover/policies.json >/dev/null 2>&1
-if [[ "$?" != "0" ]]; then
-    consul acl policy update -no-merge -name "${POLICY_NAME}" -description "${POLICY_DESCRIPTION}" -rules @/etc/carbonio/files/service-discover/policies.json
-    if [[ "$?" != "0" ]]; then
+if ! consul acl policy create -name "${POLICY_NAME}" -description "${POLICY_DESCRIPTION}" -rules @/etc/carbonio/files/service-discover/policies.json >/dev/null 2>&1; then
+    if ! consul acl policy update -no-merge -name "${POLICY_NAME}" -description "${POLICY_DESCRIPTION}" -rules @/etc/carbonio/files/service-discover/policies.json; then
       echo "Setup failed: Cannot update policy for ${POLICY_NAME}"
       exit 1
     fi

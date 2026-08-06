@@ -16,112 +16,101 @@ class ACLTest {
 
   static Stream<Arguments> aclsToCheckTheirRights() {
     return Stream.of(
-      Arguments.arguments(ACL.NONE, false, false, false, false, (short) 0),
-      Arguments.arguments(ACL.READ, true, false, false, false, (short) 1),
-      Arguments.arguments(ACL.WRITE, false, true, false, true,(short)  2),
-      Arguments.arguments(ACL.SHARE, false, false, true, false, (short) 4),
-      Arguments.arguments(ACL.OWNER, true, true, true, true, (short) 7),
-      Arguments.arguments(
-        ACL.SharePermission.READ_ONLY.encode(),
-        true,
-        false,
-        false,
-        false,
-        (short) 1
-      ),
-      Arguments.arguments(
-        ACL.SharePermission.READ_AND_WRITE.encode(),
-        true,
-        true,
-        false,
-        true,
-        (short) 3
-      ),
-      Arguments.arguments(
-        ACL.SharePermission.READ_AND_SHARE.encode(),
-        true,
-        false,
-        true,
-        false,
-        (short) 5
-      ),
-      Arguments.arguments(
-        ACL.SharePermission.READ_WRITE_AND_SHARE.encode(),
-        true,
-        true,
-        true,
-        true,
-        (short) 7
-      )
-    );
+        Arguments.arguments(ACL.NONE, false, false, false, false, (short) 0),
+        Arguments.arguments(ACL.READ, true, false, false, false, (short) 1),
+        Arguments.arguments(ACL.WRITE, false, true, false, true, (short) 2),
+        Arguments.arguments(ACL.SHARE, false, false, true, false, (short) 4),
+        Arguments.arguments(ACL.OWNER, true, true, true, true, (short) 7),
+        Arguments.arguments(
+            ACL.SharePermission.READ_ONLY.encode(), true, false, false, false, (short) 1),
+        Arguments.arguments(
+            ACL.SharePermission.READ_AND_WRITE.encode(), true, true, false, true, (short) 3),
+        Arguments.arguments(
+            ACL.SharePermission.READ_AND_SHARE.encode(), true, false, true, false, (short) 5),
+        Arguments.arguments(
+            ACL.SharePermission.READ_WRITE_AND_SHARE.encode(), true, true, true, true, (short) 7));
   }
 
   static Stream<Arguments> pairOfAclsToCheckIfTheFirstIsContainedInTheOtherOne() {
     return Stream.of(
-      Arguments.arguments(ACL.NONE, ACL.SharePermission.READ_ONLY, false),
-      Arguments.arguments(ACL.NONE, ACL.SharePermission.READ_AND_WRITE, false),
-      Arguments.arguments(ACL.NONE, ACL.SharePermission.READ_AND_SHARE, false),
-      Arguments.arguments(ACL.NONE, ACL.SharePermission.READ_WRITE_AND_SHARE, false),
-      Arguments.arguments(ACL.READ, ACL.SharePermission.READ_ONLY, true),
-      Arguments.arguments(ACL.READ, ACL.SharePermission.READ_AND_WRITE, false),
-      Arguments.arguments(ACL.READ, ACL.SharePermission.READ_AND_SHARE, false),
-      Arguments.arguments(ACL.READ, ACL.SharePermission.READ_WRITE_AND_SHARE, false),
-      Arguments.arguments(ACL.WRITE, ACL.SharePermission.READ_ONLY, false),
-      Arguments.arguments(ACL.WRITE, ACL.SharePermission.READ_AND_WRITE, false),
-      Arguments.arguments(ACL.WRITE, ACL.SharePermission.READ_AND_SHARE, false),
-      Arguments.arguments(ACL.WRITE, ACL.SharePermission.READ_WRITE_AND_SHARE, false),
-      Arguments.arguments(ACL.SHARE, ACL.SharePermission.READ_ONLY, false),
-      Arguments.arguments(ACL.SHARE, ACL.SharePermission.READ_AND_WRITE, false),
-      Arguments.arguments(ACL.SHARE, ACL.SharePermission.READ_AND_SHARE, false),
-      Arguments.arguments(ACL.SHARE, ACL.SharePermission.READ_WRITE_AND_SHARE, false),
-      Arguments.arguments(ACL.OWNER, ACL.SharePermission.READ_ONLY, true),
-      Arguments.arguments(ACL.OWNER, ACL.SharePermission.READ_AND_WRITE, true),
-      Arguments.arguments(ACL.OWNER, ACL.SharePermission.READ_AND_SHARE, true),
-      Arguments.arguments(ACL.OWNER, ACL.SharePermission.READ_WRITE_AND_SHARE, true),
-      Arguments.arguments(ACL.SharePermission.READ_ONLY.encode(), ACL.SharePermission.READ_AND_WRITE, false),
-      Arguments.arguments(ACL.SharePermission.READ_ONLY.encode(), ACL.SharePermission.READ_AND_SHARE, false),
-      Arguments.arguments(ACL.SharePermission.READ_ONLY.encode(), ACL.SharePermission.READ_WRITE_AND_SHARE, false),
-      Arguments.arguments(ACL.SharePermission.READ_AND_WRITE.encode(), ACL.SharePermission.READ_ONLY, true),
-      Arguments.arguments(ACL.SharePermission.READ_AND_WRITE.encode(), ACL.SharePermission.READ_AND_SHARE, false),
-      Arguments.arguments(ACL.SharePermission.READ_AND_WRITE.encode(), ACL.SharePermission.READ_WRITE_AND_SHARE, false),
-      Arguments.arguments(ACL.SharePermission.READ_AND_SHARE.encode(), ACL.SharePermission.READ_ONLY, true),
-      Arguments.arguments(ACL.SharePermission.READ_AND_SHARE.encode(), ACL.SharePermission.READ_AND_WRITE, false),
-      Arguments.arguments(ACL.SharePermission.READ_AND_SHARE.encode(), ACL.SharePermission.READ_WRITE_AND_SHARE, false),
-      Arguments.arguments(ACL.SharePermission.READ_WRITE_AND_SHARE.encode(), ACL.SharePermission.READ_ONLY, true),
-      Arguments.arguments(ACL.SharePermission.READ_WRITE_AND_SHARE.encode(), ACL.SharePermission.READ_AND_WRITE, true),
-      Arguments.arguments(ACL.SharePermission.READ_WRITE_AND_SHARE.encode(), ACL.SharePermission.READ_AND_SHARE, true)
-    );
+        Arguments.arguments(ACL.NONE, ACL.SharePermission.READ_ONLY, false),
+        Arguments.arguments(ACL.NONE, ACL.SharePermission.READ_AND_WRITE, false),
+        Arguments.arguments(ACL.NONE, ACL.SharePermission.READ_AND_SHARE, false),
+        Arguments.arguments(ACL.NONE, ACL.SharePermission.READ_WRITE_AND_SHARE, false),
+        Arguments.arguments(ACL.READ, ACL.SharePermission.READ_ONLY, true),
+        Arguments.arguments(ACL.READ, ACL.SharePermission.READ_AND_WRITE, false),
+        Arguments.arguments(ACL.READ, ACL.SharePermission.READ_AND_SHARE, false),
+        Arguments.arguments(ACL.READ, ACL.SharePermission.READ_WRITE_AND_SHARE, false),
+        Arguments.arguments(ACL.WRITE, ACL.SharePermission.READ_ONLY, false),
+        Arguments.arguments(ACL.WRITE, ACL.SharePermission.READ_AND_WRITE, false),
+        Arguments.arguments(ACL.WRITE, ACL.SharePermission.READ_AND_SHARE, false),
+        Arguments.arguments(ACL.WRITE, ACL.SharePermission.READ_WRITE_AND_SHARE, false),
+        Arguments.arguments(ACL.SHARE, ACL.SharePermission.READ_ONLY, false),
+        Arguments.arguments(ACL.SHARE, ACL.SharePermission.READ_AND_WRITE, false),
+        Arguments.arguments(ACL.SHARE, ACL.SharePermission.READ_AND_SHARE, false),
+        Arguments.arguments(ACL.SHARE, ACL.SharePermission.READ_WRITE_AND_SHARE, false),
+        Arguments.arguments(ACL.OWNER, ACL.SharePermission.READ_ONLY, true),
+        Arguments.arguments(ACL.OWNER, ACL.SharePermission.READ_AND_WRITE, true),
+        Arguments.arguments(ACL.OWNER, ACL.SharePermission.READ_AND_SHARE, true),
+        Arguments.arguments(ACL.OWNER, ACL.SharePermission.READ_WRITE_AND_SHARE, true),
+        Arguments.arguments(
+            ACL.SharePermission.READ_ONLY.encode(), ACL.SharePermission.READ_AND_WRITE, false),
+        Arguments.arguments(
+            ACL.SharePermission.READ_ONLY.encode(), ACL.SharePermission.READ_AND_SHARE, false),
+        Arguments.arguments(
+            ACL.SharePermission.READ_ONLY.encode(),
+            ACL.SharePermission.READ_WRITE_AND_SHARE,
+            false),
+        Arguments.arguments(
+            ACL.SharePermission.READ_AND_WRITE.encode(), ACL.SharePermission.READ_ONLY, true),
+        Arguments.arguments(
+            ACL.SharePermission.READ_AND_WRITE.encode(), ACL.SharePermission.READ_AND_SHARE, false),
+        Arguments.arguments(
+            ACL.SharePermission.READ_AND_WRITE.encode(),
+            ACL.SharePermission.READ_WRITE_AND_SHARE,
+            false),
+        Arguments.arguments(
+            ACL.SharePermission.READ_AND_SHARE.encode(), ACL.SharePermission.READ_ONLY, true),
+        Arguments.arguments(
+            ACL.SharePermission.READ_AND_SHARE.encode(), ACL.SharePermission.READ_AND_WRITE, false),
+        Arguments.arguments(
+            ACL.SharePermission.READ_AND_SHARE.encode(),
+            ACL.SharePermission.READ_WRITE_AND_SHARE,
+            false),
+        Arguments.arguments(
+            ACL.SharePermission.READ_WRITE_AND_SHARE.encode(), ACL.SharePermission.READ_ONLY, true),
+        Arguments.arguments(
+            ACL.SharePermission.READ_WRITE_AND_SHARE.encode(),
+            ACL.SharePermission.READ_AND_WRITE,
+            true),
+        Arguments.arguments(
+            ACL.SharePermission.READ_WRITE_AND_SHARE.encode(),
+            ACL.SharePermission.READ_AND_SHARE,
+            true));
   }
 
   static Stream<Arguments> permissionsToCheckTheSharePermissionConversion() {
     return Stream.of(
-      Arguments.arguments(ACL.NONE, ACL.SharePermission.NONE),
-      Arguments.arguments(ACL.READ, ACL.SharePermission.READ_ONLY),
-      Arguments.arguments(
-        ACL.SharePermission.READ_AND_WRITE.encode(),
-        ACL.SharePermission.READ_AND_WRITE
-      ),
-      Arguments.arguments(
-        ACL.SharePermission.READ_AND_SHARE.encode(),
-        ACL.SharePermission.READ_AND_SHARE
-      ),
-      Arguments.arguments(
-        ACL.SharePermission.READ_WRITE_AND_SHARE.encode(),
-        ACL.SharePermission.READ_WRITE_AND_SHARE
-      )
-    );
+        Arguments.arguments(ACL.NONE, ACL.SharePermission.NONE),
+        Arguments.arguments(ACL.READ, ACL.SharePermission.READ_ONLY),
+        Arguments.arguments(
+            ACL.SharePermission.READ_AND_WRITE.encode(), ACL.SharePermission.READ_AND_WRITE),
+        Arguments.arguments(
+            ACL.SharePermission.READ_AND_SHARE.encode(), ACL.SharePermission.READ_AND_SHARE),
+        Arguments.arguments(
+            ACL.SharePermission.READ_WRITE_AND_SHARE.encode(),
+            ACL.SharePermission.READ_WRITE_AND_SHARE));
   }
 
   @ParameterizedTest
   @MethodSource("aclsToCheckTheirRights")
   void givenAPermissionTheAclDecodeShouldReturnAnAclMappedWithTheCorrectRights(
-    short permission,
-    boolean canRead,
-    boolean canWrite,
-    boolean canShare,
-    boolean canDelete,
-    short encodedPermission
-  ) {
+      short permission,
+      boolean canRead,
+      boolean canWrite,
+      boolean canShare,
+      boolean canDelete,
+      short encodedPermission) {
     // Given: see parameters
 
     // When
@@ -138,10 +127,7 @@ class ACLTest {
   @ParameterizedTest
   @MethodSource("pairOfAclsToCheckIfTheFirstIsContainedInTheOtherOne")
   void givenTwoAclPermissionsTheHasMethodShouldReturnIfTheFirstPermissionIsContainedInTheSecondOne(
-    short firstPermission,
-    SharePermission secondPermission,
-    boolean expectedResult
-  ){
+      short firstPermission, SharePermission secondPermission, boolean expectedResult) {
     // Given
     ACL firstAcl = ACL.decode(firstPermission);
 
@@ -155,9 +141,7 @@ class ACLTest {
   @ParameterizedTest
   @MethodSource("permissionsToCheckTheSharePermissionConversion")
   void givenAPermissionTheGetSharePermissionShouldConvertToTheRelatedSharePermissionObject(
-    short permission,
-    SharePermission sharePermission
-  ) {
+      short permission, SharePermission sharePermission) {
     // Given
     ACL acl = ACL.decode(permission);
 
@@ -180,10 +164,9 @@ class ACLTest {
 
     // Then
     Assertions.assertThat(restrictivePermission).isEqualTo(readPermission);
-    Assertions
-      .assertThat(restrictivePermission2)
-      .isEqualTo(readPermission)
-      .isEqualTo(restrictivePermission);
+    Assertions.assertThat(restrictivePermission2)
+        .isEqualTo(readPermission)
+        .isEqualTo(restrictivePermission);
   }
 
   @Test

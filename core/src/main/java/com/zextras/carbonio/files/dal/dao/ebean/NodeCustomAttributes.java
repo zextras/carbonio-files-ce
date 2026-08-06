@@ -14,19 +14,18 @@ import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
 /**
- * <p>Represents an Ebean {@link NodeCustomAttributes} entity that matches a record of the
- * {@link Constants.Db.Tables#NODE_CUSTOM_ATTRIBUTES} table.</p>
- * <p>The implementation of constructors and setters should not care to check if the values in
- * input
+ * Represents an Ebean {@link NodeCustomAttributes} entity that matches a record of the {@link
+ * Constants.Db.Tables#NODE_CUSTOM_ATTRIBUTES} table.
+ *
+ * <p>The implementation of constructors and setters should not care to check if the values in input
  * are valid or not because, when these methods are called, these controls <strong>must</strong> be
- * already done.</p>
+ * already done.
  */
 @Entity
 @Table(name = Constants.Db.Tables.NODE_CUSTOM_ATTRIBUTES)
 public class NodeCustomAttributes extends Model {
 
-  @EmbeddedId
-  private NodeCustomAttributesPK mCompositeId;
+  @EmbeddedId private NodeCustomAttributesPK mCompositeId;
 
   @Column(name = Constants.Db.NodeCustomAttributes.USER_ID, nullable = false)
   private String mUserId;
@@ -44,14 +43,14 @@ public class NodeCustomAttributes extends Model {
   private String mExtra;
 
   @ManyToOne
-  @JoinColumn(name = Constants.Db.NodeCustomAttributes.NODE_ID, referencedColumnName = Constants.Db.Node.ID, insertable = false, updatable = false)
+  @JoinColumn(
+      name = Constants.Db.NodeCustomAttributes.NODE_ID,
+      referencedColumnName = Constants.Db.Node.ID,
+      insertable = false,
+      updatable = false)
   private Node node;
 
-  public NodeCustomAttributes(
-    String nodeId,
-    String userId,
-    boolean flag
-  ) {
+  public NodeCustomAttributes(String nodeId, String userId, boolean flag) {
     mCompositeId = new NodeCustomAttributesPK(nodeId, userId);
     mFlag = flag;
     mColor = null;

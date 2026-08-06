@@ -13,6 +13,7 @@ import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.API.Endpoints;
 import com.zextras.carbonio.files.Constants.API.Headers;
 import com.zextras.carbonio.files.config.FilesConfig;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.exceptions.FileSizeException;
 import com.zextras.carbonio.files.netty.utilities.BufferInputStream;
@@ -22,16 +23,11 @@ import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.UploadVersionResponse;
 import com.zextras.carbonio.files.tasks.PrometheusService;
-import com.zextras.carbonio.files.dal.dao.UserMyself;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.handler.codec.http.*;
 import io.netty.util.AttributeKey;
-import org.apache.commons.codec.binary.Base64;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +35,9 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
+import org.apache.commons.codec.binary.Base64;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @ChannelHandler.Sharable
 public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
@@ -53,7 +52,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   private final PrometheusService prometheusService;
 
   @Inject
-  public BlobController(FilesConfig filesConfig, BlobService blobService, PrometheusService prometheusService) {
+  public BlobController(
+      FilesConfig filesConfig, BlobService blobService, PrometheusService prometheusService) {
     super(true);
     this.filesConfig = filesConfig;
     this.blobService = blobService;
@@ -70,7 +70,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
         Matcher downloadMatcher = Endpoints.DOWNLOAD_FILE.matcher(uriRequest);
         Matcher downloadMultipleMatcher = Endpoints.DOWNLOAD_MULTIPLE.matcher(uriRequest);
         Matcher downloadCheckMatcher = Endpoints.DOWNLOAD_FILE_CHECK.matcher(uriRequest);
-        Matcher downloadMultipleCheckMatcher = Endpoints.DOWNLOAD_MULTIPLE_CHECK.matcher(uriRequest);
+        Matcher downloadMultipleCheckMatcher =
+            Endpoints.DOWNLOAD_MULTIPLE_CHECK.matcher(uriRequest);
         Matcher uploadMatcher = Endpoints.UPLOAD_FILE.matcher(uriRequest);
         Matcher uploadInternalMatcher = Endpoints.UPLOAD_FILE_INTERNAL.matcher(uriRequest);
         Matcher uploadVersionMatcher = Endpoints.UPLOAD_FILE_VERSION.matcher(uriRequest);
@@ -121,10 +122,12 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   }
 
   private void checkDownloadMultiple(ChannelHandlerContext context, HttpRequest request) {
-    UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
+    UserMyself requester =
+        (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
     if (!(request instanceof FullHttpRequest fullRequest)) {
-      context.fireExceptionCaught(new IllegalArgumentException("Request must be a FullHttpRequest to read body"));
+      context.fireExceptionCaught(
+          new IllegalArgumentException("Request must be a FullHttpRequest to read body"));
       return;
     }
 
@@ -139,20 +142,22 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
 
     try {
       ObjectMapper objectMapper = new ObjectMapper();
-      Map<String, Object> jsonBody = objectMapper.readValue(bodyContent, new TypeReference<Map<String, Object>>() {
-      });
+      Map<String, Object> jsonBody =
+          objectMapper.readValue(bodyContent, new TypeReference<Map<String, Object>>() {});
 
       Object nodeIdsObj = jsonBody.get(Constants.API.BodyAttributes.NODE_IDS);
       if (nodeIdsObj == null) {
-        context.fireExceptionCaught(new IllegalArgumentException("Missing nodeIds parameter in JSON body"));
+        context.fireExceptionCaught(
+            new IllegalArgumentException("Missing nodeIds parameter in JSON body"));
         return;
       }
 
-      nodeIds = objectMapper.convertValue(nodeIdsObj, new TypeReference<List<String>>() {
-      });
+      nodeIds = objectMapper.convertValue(nodeIdsObj, new TypeReference<List<String>>() {});
 
     } catch (JsonProcessingException exception) {
-      context.fireExceptionCaught(new IllegalArgumentException("Can't parse JSON body. Expected 'nodeIds' field with array of strings.", exception));
+      context.fireExceptionCaught(
+          new IllegalArgumentException(
+              "Can't parse JSON body. Expected 'nodeIds' field with array of strings.", exception));
       return;
     }
 
@@ -161,40 +166,51 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       return;
     }
 
-    Optional<List<Node>> optNodes = Optional.ofNullable(blobService
-        .checkDownloadMultiple(nodeIds, requester)
-        .orElseThrow(() -> new NoSuchElementException(
-            String.format("Request %s: nodes %s requested by %s - some nodes do not exist or user lacks permission",
-                request.uri(), nodeIds, requester.getId()))));
+    Optional<List<Node>> optNodes =
+        Optional.ofNullable(
+            blobService
+                .checkDownloadMultiple(nodeIds, requester)
+                .orElseThrow(
+                    () ->
+                        new NoSuchElementException(
+                            String.format(
+                                "Request %s: nodes %s requested by %s - some nodes do not exist or"
+                                    + " user lacks permission",
+                                request.uri(), nodeIds, requester.getId()))));
 
     ChannelFuture future = context.writeAndFlush(HttpResponseBuilder.createNoContentResponse());
     future.addListener(ChannelFutureListener.CLOSE);
   }
 
-  private void checkDownload(ChannelHandlerContext context, HttpRequest request, Matcher uriMatched) {
-    UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
+  private void checkDownload(
+      ChannelHandlerContext context, HttpRequest request, Matcher uriMatched) {
+    UserMyself requester =
+        (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
     String nodeId = uriMatched.group(1);
     Optional<Node> optNode =
-        Optional.ofNullable(blobService
-            .checkDownloadFileById(nodeId, requester)
-            .orElseThrow(
-                () ->
-                    new NoSuchElementException(
-                        String.format(
-                            "Request %s: node %s requested by %s does not exist or it does not have"
-                                + " the permission to read it",
-                            request.uri(), nodeId, requester.getId()))));
+        Optional.ofNullable(
+            blobService
+                .checkDownloadFileById(nodeId, requester)
+                .orElseThrow(
+                    () ->
+                        new NoSuchElementException(
+                            String.format(
+                                "Request %s: node %s requested by %s does not exist or it does not"
+                                    + " have the permission to read it",
+                                request.uri(), nodeId, requester.getId()))));
 
     ChannelFuture future = context.writeAndFlush(HttpResponseBuilder.createNoContentResponse());
     future.addListener(ChannelFutureListener.CLOSE);
   }
 
   private void downloadMultiple(ChannelHandlerContext context, HttpRequest request) {
-    UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
+    UserMyself requester =
+        (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
     if (!(request instanceof FullHttpRequest fullRequest)) {
-      context.fireExceptionCaught(new IllegalArgumentException("Request must be a FullHttpRequest to read body"));
+      context.fireExceptionCaught(
+          new IllegalArgumentException("Request must be a FullHttpRequest to read body"));
       return;
     }
 
@@ -213,17 +229,19 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     List<String> nodeIdsParam = parameters.get(Constants.API.BodyAttributes.NODE_IDS);
 
     if (nodeIdsParam == null || nodeIdsParam.isEmpty()) {
-      context.fireExceptionCaught(new IllegalArgumentException("Missing nodeIds parameter in form data"));
+      context.fireExceptionCaught(
+          new IllegalArgumentException("Missing nodeIds parameter in form data"));
       return;
     }
 
     String nodeIdsJson = nodeIdsParam.get(0);
 
     try {
-      nodeIds = new ObjectMapper().readValue(nodeIdsJson, new TypeReference<>() {
-      });
+      nodeIds = new ObjectMapper().readValue(nodeIdsJson, new TypeReference<>() {});
     } catch (JsonProcessingException exception) {
-      context.fireExceptionCaught(new IllegalArgumentException("Can't parse form data. Expected 'nodeIds' field with JSON array."));
+      context.fireExceptionCaught(
+          new IllegalArgumentException(
+              "Can't parse form data. Expected 'nodeIds' field with JSON array."));
       return;
     }
 
@@ -232,21 +250,28 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       return;
     }
 
-    BlobResponse blobResponse = blobService
-        .downloadMultiple(nodeIds, requester)
-        .orElseThrow(() -> new NoSuchElementException(
-            String.format("Request %s: nodes %s requested by %s - some nodes do not exist or user lacks permission",
-                request.uri(), nodeIds, requester.getId())));
+    BlobResponse blobResponse =
+        blobService
+            .downloadMultiple(nodeIds, requester)
+            .orElseThrow(
+                () ->
+                    new NoSuchElementException(
+                        String.format(
+                            "Request %s: nodes %s requested by %s - some nodes do not exist or user"
+                                + " lacks permission",
+                            request.uri(), nodeIds, requester.getId())));
 
     context.write(HttpResponseBuilder.createSuccessDownloadHttpResponse(blobResponse));
-    new NettyBufferWriter(context).writePipedStream(
-        blobResponse.getPipedStream(),
-        blobResponse.getProducerDone(),
-        blobResponse.getCancelled());
+    new NettyBufferWriter(context)
+        .writePipedStream(
+            blobResponse.getPipedStream(),
+            blobResponse.getProducerDone(),
+            blobResponse.getCancelled());
   }
 
   private void download(ChannelHandlerContext context, HttpRequest request, Matcher uriMatched) {
-    UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
+    UserMyself requester =
+        (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
 
     String nodeId = uriMatched.group(1);
     Integer version = Optional.ofNullable(uriMatched.group(2)).map(Integer::parseInt).orElse(null);
@@ -278,7 +303,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   }
 
   private void uploadFile(ChannelHandlerContext context, HttpRequest httpRequest) {
-    UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
+    UserMyself requester =
+        (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
     if (isRequestSizeOverLimit(httpRequest)) {
       context.fireExceptionCaught(new FileSizeException("File size exceeds the maximum allowed"));
       return;
@@ -286,17 +312,24 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
     doUploadFile(context, httpRequest, requester.getId().getUserId(), Optional.of(requester));
   }
 
-  private void doUploadFile(ChannelHandlerContext context, HttpRequest httpRequest, String requestedId, Optional<UserMyself> requesterEntity) {
+  private void doUploadFile(
+      ChannelHandlerContext context,
+      HttpRequest httpRequest,
+      String requestedId,
+      Optional<UserMyself> requesterEntity) {
     String parentId =
-        Optional.ofNullable(httpRequest.headers().getAsString(Constants.API.Headers.UPLOAD_PARENT_ID))
+        Optional.ofNullable(
+                httpRequest.headers().getAsString(Constants.API.Headers.UPLOAD_PARENT_ID))
             .orElse(Constants.Db.RootId.LOCAL_ROOT);
     String description =
-        Optional.ofNullable(httpRequest.headers().getAsString(Constants.API.Headers.UPLOAD_DESCRIPTION))
+        Optional.ofNullable(
+                httpRequest.headers().getAsString(Constants.API.Headers.UPLOAD_DESCRIPTION))
             .orElse("");
 
     long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));
 
-    String encodedFilename = httpRequest.headers().getAsString(Constants.API.Headers.UPLOAD_FILENAME);
+    String encodedFilename =
+        httpRequest.headers().getAsString(Constants.API.Headers.UPLOAD_FILENAME);
     String decodedFilename =
         encodedFilename == null || !Base64.isBase64(encodedFilename)
             ? null
@@ -340,7 +373,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
   public void uploadFileVersion(ChannelHandlerContext context, HttpRequest httpRequest) {
 
     String nodeId = httpRequest.headers().getAsString(Headers.UPLOAD_NODE_ID);
-    String encodedFilename = httpRequest.headers().getAsString(Constants.API.Headers.UPLOAD_FILENAME);
+    String encodedFilename =
+        httpRequest.headers().getAsString(Constants.API.Headers.UPLOAD_FILENAME);
     String decodedFilename =
         encodedFilename == null || !Base64.isBase64(encodedFilename)
             ? null
@@ -354,7 +388,8 @@ public class BlobController extends SimpleChannelInboundHandler<HttpObject> {
       return;
     }
 
-    UserMyself requester = (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
+    UserMyself requester =
+        (UserMyself) context.channel().attr(AttributeKey.valueOf("requester")).get();
     boolean overwrite =
         Boolean.parseBoolean(httpRequest.headers().getAsString(Headers.UPLOAD_OVERWRITE_VERSION));
     long blobLength = Long.parseLong(httpRequest.headers().get(HttpHeaderNames.CONTENT_LENGTH));

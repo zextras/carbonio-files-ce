@@ -19,14 +19,13 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.MockFilesConfig;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
+import java.util.List;
+import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.Map;
 
 class NewShareNotificationApiIT {
 
@@ -76,7 +75,9 @@ class NewShareNotificationApiIT {
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
             new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "name.txt"));
+                "00000000-0000-0000-0000-000000000000",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "name.txt"));
 
     // Share the file with the second user using the createShare mutation
     String bodyPayload =
@@ -108,14 +109,15 @@ class NewShareNotificationApiIT {
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-2", bodyPayload);
 
     // When
-    HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
-    Map<String, Object> page = TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "getNotifications");
-    final List<Map<String, Object>> notifications = (List<Map<String, Object>>) page.get("notifications");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "getNotifications");
+    final List<Map<String, Object>> notifications =
+        (List<Map<String, Object>>) page.get("notifications");
 
     Assertions.assertThat(notifications).hasSize(1);
   }
@@ -123,10 +125,7 @@ class NewShareNotificationApiIT {
   @Test
   void givenANodeCreatingAndDisabledNotificationsNoNotificationShouldBeSavedOrReturned() {
     // Given
-    ((MockFilesConfig)
-        simulator
-            .getInjector()
-            .getInstance(FilesConfig.class))
+    ((MockFilesConfig) simulator.getInjector().getInstance(FilesConfig.class))
         .setAreNotificationsEnabled(false);
     createBaseScenario();
 
@@ -140,22 +139,20 @@ class NewShareNotificationApiIT {
         HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token-2", bodyPayload);
 
     // When
-    HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+    HttpResponse httpResponse = TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
-    Map<String, Object> page = TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "getNotifications");
-    final List<Map<String, Object>> notifications = (List<Map<String, Object>>) page.get("notifications");
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "getNotifications");
+    final List<Map<String, Object>> notifications =
+        (List<Map<String, Object>>) page.get("notifications");
 
     Assertions.assertThat(notifications).hasSize(0);
 
-    //reset
-    ((MockFilesConfig)
-        simulator
-            .getInjector()
-            .getInstance(FilesConfig.class))
+    // reset
+    ((MockFilesConfig) simulator.getInjector().getInstance(FilesConfig.class))
         .setAreNotificationsEnabled(true);
   }
 }

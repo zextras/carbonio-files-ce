@@ -5,8 +5,8 @@
 package com.zextras.carbonio.files.dal.dao;
 
 /**
- * Represents a user identifier. This is a local domain type that replaces the old
- * {@code com.zextras.carbonio.usermanagement.entities.UserId} from the HTTP SDK.
+ * Represents a user identifier. This is a local domain type that replaces the old {@code
+ * com.zextras.carbonio.usermanagement.entities.UserId} from the HTTP SDK.
  */
 public class UserId {
 

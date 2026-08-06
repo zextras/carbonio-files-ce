@@ -28,20 +28,14 @@ public class NettyBufferWriter {
     this.context = context;
   }
 
-  public void writeStream(
-    InputStream contentStream,
-    ChannelPromise promise
-  ) {
+  public void writeStream(InputStream contentStream, ChannelPromise promise) {
     ByteBuf byteBuffer = context.alloc().buffer(64 * 1024);
     byteBuffer.retain();
     writeStreamChunk(contentStream, promise, byteBuffer);
   }
 
   private void writeStreamChunk(
-    InputStream contentStream,
-    ChannelPromise promise,
-    ByteBuf byteBuffer
-  ) {
+      InputStream contentStream, ChannelPromise promise, ByteBuf byteBuffer) {
     try {
       byteBuffer.writeBytes(contentStream, byteBuffer.capacity());
     } catch (IOException ex) {
@@ -60,47 +54,49 @@ public class NettyBufferWriter {
       try {
         contentStream.close();
       } catch (IOException exception) {
-       logger.error("Exception when closing the upload input stream", exception);
+        logger.error("Exception when closing the upload input stream", exception);
       }
       promise.setSuccess();
       return;
     }
 
-    context.writeAndFlush(byteBuffer)
-      .addListener(future -> {
-          if (future.isSuccess()) {
-            byteBuffer.retain();
-            byteBuffer.clear();
-            writeStreamChunk(contentStream, promise, byteBuffer);
-          } else {
-            ReferenceCountUtil.safeRelease(byteBuffer);
-            promise.setFailure(future.cause());
-          }
-        }
-      );
+    context
+        .writeAndFlush(byteBuffer)
+        .addListener(
+            future -> {
+              if (future.isSuccess()) {
+                byteBuffer.retain();
+                byteBuffer.clear();
+                writeStreamChunk(contentStream, promise, byteBuffer);
+              } else {
+                ReferenceCountUtil.safeRelease(byteBuffer);
+                promise.setFailure(future.cause());
+              }
+            });
   }
 
   /**
-   * Streams a {@link PipedInputStream} to the channel without blocking the event loop.
-   * Uses {@link PipedInputStream#available()} to check for data and schedules retries
-   * when no data is ready, keeping the event loop free to serve other requests.
-   * Closes the pipe when the channel is closed, signaling the producer to stop.
+   * Streams a {@link PipedInputStream} to the channel without blocking the event loop. Uses {@link
+   * PipedInputStream#available()} to check for data and schedules retries when no data is ready,
+   * keeping the event loop free to serve other requests. Closes the pipe when the channel is
+   * closed, signaling the producer to stop.
    *
    * @param pipedInputStream the pipe to read from
-   * @param producerDone flag set by the producer after it closes the pipe output,
-   *                     used to safely detect EOF without blocking
+   * @param producerDone flag set by the producer after it closes the pipe output, used to safely
+   *     detect EOF without blocking
    */
   public void writePipedStream(
-      PipedInputStream pipedInputStream,
-      AtomicBoolean producerDone,
-      AtomicBoolean cancelled
-  ) {
-    context.channel().closeFuture().addListener(f -> {
-      if (cancelled != null) {
-        cancelled.set(true);
-      }
-      closeQuietly(pipedInputStream);
-    });
+      PipedInputStream pipedInputStream, AtomicBoolean producerDone, AtomicBoolean cancelled) {
+    context
+        .channel()
+        .closeFuture()
+        .addListener(
+            f -> {
+              if (cancelled != null) {
+                cancelled.set(true);
+              }
+              closeQuietly(pipedInputStream);
+            });
     pollAndWrite(pipedInputStream, producerDone);
   }
 
@@ -118,14 +114,17 @@ public class NettyBufferWriter {
         int bytesRead = buf.writeBytes(pipedInputStream, buf.capacity());
 
         if (bytesRead > 0) {
-          context.writeAndFlush(buf).addListener(future -> {
-            if (future.isSuccess()) {
-              pollAndWrite(pipedInputStream, producerDone);
-            } else {
-              logger.debug("Write failed, closing stream", future.cause());
-              closeQuietly(pipedInputStream);
-            }
-          });
+          context
+              .writeAndFlush(buf)
+              .addListener(
+                  future -> {
+                    if (future.isSuccess()) {
+                      pollAndWrite(pipedInputStream, producerDone);
+                    } else {
+                      logger.debug("Write failed, closing stream", future.cause());
+                      closeQuietly(pipedInputStream);
+                    }
+                  });
         } else {
           buf.release();
           sendLastContentAndClose(pipedInputStream);
@@ -135,10 +134,10 @@ public class NettyBufferWriter {
         sendLastContentAndClose(pipedInputStream);
       } else {
         // No data yet, producer still working. Retry after short delay.
-        context.executor().schedule(
-            () -> pollAndWrite(pipedInputStream, producerDone),
-            10, TimeUnit.MILLISECONDS
-        );
+        context
+            .executor()
+            .schedule(
+                () -> pollAndWrite(pipedInputStream, producerDone), 10, TimeUnit.MILLISECONDS);
       }
     } catch (IOException e) {
       logger.debug("Pipe closed during read", e);
@@ -148,11 +147,15 @@ public class NettyBufferWriter {
 
   private void sendLastContentAndClose(PipedInputStream pipedInputStream) {
     closeQuietly(pipedInputStream);
-    context.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListener(future -> {
-      if (!"keep-alive".equals(context.channel().attr(AttributeKey.valueOf("connection")).get())) {
-        context.close();
-      }
-    });
+    context
+        .writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
+        .addListener(
+            future -> {
+              if (!"keep-alive"
+                  .equals(context.channel().attr(AttributeKey.valueOf("connection")).get())) {
+                context.close();
+              }
+            });
   }
 
   private void closeQuietly(InputStream stream) {

@@ -101,7 +101,8 @@ public class PublicDownloadApiIT {
 
     storagesMockHelper.getBlob("00000000-0000-0000-0000-000000000000", 1);
 
-    final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
+    final String publicDownloadUrl =
+        "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, userToken, null);
 
     // When
@@ -148,7 +149,8 @@ public class PublicDownloadApiIT {
             Optional.empty(),
             Optional.empty());
 
-    final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
+    final String publicDownloadUrl =
+        "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
@@ -185,7 +187,8 @@ public class PublicDownloadApiIT {
                 1L,
                 "text/plain"));
 
-    final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
+    final String publicDownloadUrl =
+        "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
@@ -207,7 +210,8 @@ public class PublicDownloadApiIT {
 
   @Test
   void givenANotExistingNodeThePublicDownloadByNodeIdShouldReturnA404StatusCode() {
-    final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
+    final String publicDownloadUrl =
+        "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
@@ -260,7 +264,8 @@ public class PublicDownloadApiIT {
                 .withPath("/download"))
         .error(HttpError.error().withDropConnection(true));
 
-    final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
+    final String publicDownloadUrl =
+        "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
@@ -316,7 +321,8 @@ public class PublicDownloadApiIT {
   }
 
   @Test
-  void givenAnExistingFileWithAccessCodeAndAValidLinkThePublicDownloadByNodeIdWithoutAccessCodeShouldReturnA404StatusCode() {
+  void
+      givenAnExistingFileWithAccessCodeAndAValidLinkThePublicDownloadByNodeIdWithoutAccessCodeShouldReturnA404StatusCode() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -339,7 +345,8 @@ public class PublicDownloadApiIT {
             Optional.empty(),
             Optional.of("accesscode"));
 
-    final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
+    final String publicDownloadUrl =
+        "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When
@@ -351,7 +358,8 @@ public class PublicDownloadApiIT {
   }
 
   @Test
-  void givenAnExistingFileWithAccessCodeAndAValidLinkThePublicDownloadByNodeIdWithAccessCodeShouldReturnTheBlob() {
+  void
+      givenAnExistingFileWithAccessCodeAndAValidLinkThePublicDownloadByNodeIdWithAccessCodeShouldReturnTheBlob() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -376,7 +384,8 @@ public class PublicDownloadApiIT {
 
     storagesMockHelper.getBlob("00000000-0000-0000-0000-000000000000", 1);
 
-    final String publicDownloadUrl = "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab&access_code=accesscode";
+    final String publicDownloadUrl =
+        "/public/download/00000000-0000-0000-0000-000000000000?node_link_id=abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234ab&access_code=accesscode";
     final HttpRequest httpRequest = HttpRequest.of("GET", publicDownloadUrl, null, null);
 
     // When

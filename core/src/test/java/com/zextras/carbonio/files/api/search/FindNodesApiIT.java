@@ -320,10 +320,14 @@ class FindNodesApiIT {
                   "10000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
           .addNode(
               new SimplePopulatorTextFile(
-                  "00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", 0L))
+                  "00000000-0000-0000-0000-000000000001",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  0L))
           .addNode(
               new SimplePopulatorTextFile(
-                  "00000000-0000-0000-0000-000000000002", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", 1L))
+                  "00000000-0000-0000-0000-000000000002",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  1L))
           .addNode(
               new SimplePopulatorTextFile(
                   "00000000-0000-0000-0000-000000000003",
@@ -431,243 +435,243 @@ class FindNodesApiIT {
 
     @Test
     void givenFilesOnRootSearchWithFlaggedShouldReturnFlaggedNodes() {
-    // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000001",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "flagged.txt"))
-        .addFlag("00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000002",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "not_flagged.txt"));
-    String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("findNodes")
-            .withString("folder_id", "LOCAL_ROOT")
-            .withBoolean("cascade", true)
-            .withEnum("sort", NodeSort.NAME_ASC)
-            .withInteger("limit", 5)
-            .withBoolean("flagged", true)
-            .withWantedResultFormat("{ nodes { id name }, page_token }")
-            .build();
+      // Given
+      DatabasePopulator.aNodePopulator(simulator.getInjector())
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000001",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "flagged.txt"))
+          .addFlag("00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000002",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "not_flagged.txt"));
+      String bodyPayload =
+          GraphqlCommandBuilder.aQueryBuilder("findNodes")
+              .withString("folder_id", "LOCAL_ROOT")
+              .withBoolean("cascade", true)
+              .withEnum("sort", NodeSort.NAME_ASC)
+              .withInteger("limit", 5)
+              .withBoolean("flagged", true)
+              .withWantedResultFormat("{ nodes { id name }, page_token }")
+              .build();
 
-    final HttpRequest httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+      final HttpRequest httpRequest =
+          HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      // When
+      final HttpResponse httpResponse =
+          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+      // Then
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
-    final Map<String, Object> page =
-        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+      final Map<String, Object> page =
+          TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
 
-    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+      final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
 
-    Assertions.assertThat(nodes).hasSize(1);
-    Assertions.assertThat(nodes.get(0))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "flagged");
-  }
+      Assertions.assertThat(nodes).hasSize(1);
+      Assertions.assertThat(nodes.get(0))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "flagged");
+    }
 
-  @Test
-  void givenFilesOnRootSearchSharedByMeShouldReturnSharedByMeNodes() {
-    // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000001",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "shared_by_me.txt"))
-        .addShare(
-            "00000000-0000-0000-0000-000000000001",
-            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab",
-            ACL.SharePermission.READ_AND_SHARE)
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000002",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "not_shared_by_me.txt"));
-    String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("findNodes")
-            .withString("folder_id", "LOCAL_ROOT")
-            .withBoolean("cascade", true)
-            .withEnum("sort", NodeSort.NAME_ASC)
-            .withInteger("limit", 5)
-            .withBoolean("shared_by_me", true)
-            .withBoolean("direct_share", true)
-            .withWantedResultFormat("{ nodes { id name }, page_token }")
-            .build();
+    @Test
+    void givenFilesOnRootSearchSharedByMeShouldReturnSharedByMeNodes() {
+      // Given
+      DatabasePopulator.aNodePopulator(simulator.getInjector())
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000001",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "shared_by_me.txt"))
+          .addShare(
+              "00000000-0000-0000-0000-000000000001",
+              "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab",
+              ACL.SharePermission.READ_AND_SHARE)
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000002",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "not_shared_by_me.txt"));
+      String bodyPayload =
+          GraphqlCommandBuilder.aQueryBuilder("findNodes")
+              .withString("folder_id", "LOCAL_ROOT")
+              .withBoolean("cascade", true)
+              .withEnum("sort", NodeSort.NAME_ASC)
+              .withInteger("limit", 5)
+              .withBoolean("shared_by_me", true)
+              .withBoolean("direct_share", true)
+              .withWantedResultFormat("{ nodes { id name }, page_token }")
+              .build();
 
-    final HttpRequest httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+      final HttpRequest httpRequest =
+          HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      // When
+      final HttpResponse httpResponse =
+          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+      // Then
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
-    final Map<String, Object> page =
-        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+      final Map<String, Object> page =
+          TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
 
-    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+      final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
 
-    Assertions.assertThat(nodes).hasSize(1);
-    Assertions.assertThat(nodes.get(0))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "shared_by_me");
-  }
+      Assertions.assertThat(nodes).hasSize(1);
+      Assertions.assertThat(nodes.get(0))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "shared_by_me");
+    }
 
-  @Test
-  void givenFilesOnRootSearchSharedWithMeShouldReturnSharedWithMeNodes() {
-    // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000001",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "shared_with_me.txt"))
-        .addShare(
-            "00000000-0000-0000-0000-000000000001",
-            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-            ACL.SharePermission.READ_AND_SHARE)
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000002",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "not_shared_with_me.txt"));
-    String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("findNodes")
-            .withString("folder_id", "LOCAL_ROOT")
-            .withBoolean("cascade", true)
-            .withEnum("sort", NodeSort.NAME_ASC)
-            .withInteger("limit", 5)
-            .withBoolean("shared_with_me", true)
-            .withBoolean("direct_share", true)
-            .withWantedResultFormat("{ nodes { id name }, page_token }")
-            .build();
+    @Test
+    void givenFilesOnRootSearchSharedWithMeShouldReturnSharedWithMeNodes() {
+      // Given
+      DatabasePopulator.aNodePopulator(simulator.getInjector())
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000001",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "shared_with_me.txt"))
+          .addShare(
+              "00000000-0000-0000-0000-000000000001",
+              "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+              ACL.SharePermission.READ_AND_SHARE)
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000002",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "not_shared_with_me.txt"));
+      String bodyPayload =
+          GraphqlCommandBuilder.aQueryBuilder("findNodes")
+              .withString("folder_id", "LOCAL_ROOT")
+              .withBoolean("cascade", true)
+              .withEnum("sort", NodeSort.NAME_ASC)
+              .withInteger("limit", 5)
+              .withBoolean("shared_with_me", true)
+              .withBoolean("direct_share", true)
+              .withWantedResultFormat("{ nodes { id name }, page_token }")
+              .build();
 
-    final HttpRequest httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+      final HttpRequest httpRequest =
+          HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      // When
+      final HttpResponse httpResponse =
+          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+      // Then
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
-    final Map<String, Object> page =
-        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+      final Map<String, Object> page =
+          TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
 
-    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+      final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
 
-    Assertions.assertThat(nodes).hasSize(1);
-    Assertions.assertThat(nodes.get(0))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "shared_with_me");
-  }
+      Assertions.assertThat(nodes).hasSize(1);
+      Assertions.assertThat(nodes.get(0))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "shared_with_me");
+    }
 
-  @Test
-  void givenFilesOnTrashSearchTrashBinShouldReturnTrashedNodes() {
-    // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000001",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "trashed.txt"))
-        .addNodeToTrash("00000000-0000-0000-0000-000000000001", "LOCAL_ROOT")
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000002",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "not_trashed.txt"));
-    String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("findNodes")
-            .withString("folder_id", "TRASH_ROOT")
-            .withBoolean("cascade", false)
-            .withEnum("sort", NodeSort.NAME_ASC)
-            .withInteger("limit", 5)
-            .withWantedResultFormat("{ nodes { id name }, page_token }")
-            .build();
+    @Test
+    void givenFilesOnTrashSearchTrashBinShouldReturnTrashedNodes() {
+      // Given
+      DatabasePopulator.aNodePopulator(simulator.getInjector())
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000001",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "trashed.txt"))
+          .addNodeToTrash("00000000-0000-0000-0000-000000000001", "LOCAL_ROOT")
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000002",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "not_trashed.txt"));
+      String bodyPayload =
+          GraphqlCommandBuilder.aQueryBuilder("findNodes")
+              .withString("folder_id", "TRASH_ROOT")
+              .withBoolean("cascade", false)
+              .withEnum("sort", NodeSort.NAME_ASC)
+              .withInteger("limit", 5)
+              .withWantedResultFormat("{ nodes { id name }, page_token }")
+              .build();
 
-    final HttpRequest httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+      final HttpRequest httpRequest =
+          HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      // When
+      final HttpResponse httpResponse =
+          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+      // Then
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
-    final Map<String, Object> page =
-        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+      final Map<String, Object> page =
+          TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
 
-    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+      final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
 
-    Assertions.assertThat(nodes).hasSize(1);
-    Assertions.assertThat(nodes.get(0))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "trashed");
-  }
+      Assertions.assertThat(nodes).hasSize(1);
+      Assertions.assertThat(nodes.get(0))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "trashed");
+    }
 
-  @Test
-  void givenExistingFilesTrashSearchSharedWithMeInTrashBinShouldReturnSharedTrashedNodes() {
-    // Given
-    DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000001",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "trashed.txt"))
-        .addShare(
-            "00000000-0000-0000-0000-000000000001",
-            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-            ACL.SharePermission.READ_AND_SHARE)
-        .addNodeToTrash("00000000-0000-0000-0000-000000000001", "LOCAL_ROOT")
-        .addNode(
-            new SimplePopulatorTextFile(
-                "00000000-0000-0000-0000-000000000002",
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                "not_trashed.txt"));
-    String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("findNodes")
-            .withString("folder_id", "TRASH_ROOT")
-            .withBoolean("cascade", false)
-            .withEnum("sort", NodeSort.NAME_ASC)
-            .withInteger("limit", 5)
-            .withBoolean("shared_with_me", true)
-            .withWantedResultFormat("{ nodes { id name }, page_token }")
-            .build();
+    @Test
+    void givenExistingFilesTrashSearchSharedWithMeInTrashBinShouldReturnSharedTrashedNodes() {
+      // Given
+      DatabasePopulator.aNodePopulator(simulator.getInjector())
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000001",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "trashed.txt"))
+          .addShare(
+              "00000000-0000-0000-0000-000000000001",
+              "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+              ACL.SharePermission.READ_AND_SHARE)
+          .addNodeToTrash("00000000-0000-0000-0000-000000000001", "LOCAL_ROOT")
+          .addNode(
+              new SimplePopulatorTextFile(
+                  "00000000-0000-0000-0000-000000000002",
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "not_trashed.txt"));
+      String bodyPayload =
+          GraphqlCommandBuilder.aQueryBuilder("findNodes")
+              .withString("folder_id", "TRASH_ROOT")
+              .withBoolean("cascade", false)
+              .withEnum("sort", NodeSort.NAME_ASC)
+              .withInteger("limit", 5)
+              .withBoolean("shared_with_me", true)
+              .withWantedResultFormat("{ nodes { id name }, page_token }")
+              .build();
 
-    final HttpRequest httpRequest =
-        HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
+      final HttpRequest httpRequest =
+          HttpRequest.of("POST", "/graphql/", "ZM_AUTH_TOKEN=fake-token", bodyPayload);
 
-    // When
-    final HttpResponse httpResponse =
-        TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
+      // When
+      final HttpResponse httpResponse =
+          TestUtils.sendRequest(httpRequest, simulator.getNettyChannel());
 
-    // Then
-    Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
+      // Then
+      Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
-    final Map<String, Object> page =
-        TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
+      final Map<String, Object> page =
+          TestUtils.jsonResponseToMap(httpResponse.getBodyPayload(), "findNodes");
 
-    final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+      final List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
 
-    Assertions.assertThat(nodes).hasSize(1);
-    Assertions.assertThat(nodes.get(0))
-        .containsEntry("id", "00000000-0000-0000-0000-000000000001")
-        .containsEntry("name", "trashed");
-  }
+      Assertions.assertThat(nodes).hasSize(1);
+      Assertions.assertThat(nodes.get(0))
+          .containsEntry("id", "00000000-0000-0000-0000-000000000001")
+          .containsEntry("name", "trashed");
+    }
   }
 }

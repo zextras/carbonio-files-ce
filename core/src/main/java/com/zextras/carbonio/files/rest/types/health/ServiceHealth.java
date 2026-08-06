@@ -6,9 +6,9 @@ package com.zextras.carbonio.files.rest.types.health;
 
 public class ServiceHealth {
 
-  private String         name;
-  private boolean        ready;
-  private boolean        live;
+  private String name;
+  private boolean ready;
+  private boolean live;
   private DependencyType type;
 
   public String getName() {

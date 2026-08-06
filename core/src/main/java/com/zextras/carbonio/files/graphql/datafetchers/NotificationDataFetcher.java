@@ -9,6 +9,7 @@ import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.GraphQL.Context;
 import com.zextras.carbonio.files.Constants.GraphQL.NotificationPage;
 import com.zextras.carbonio.files.config.FilesConfig;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.AddedNodeNotification;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.BaseNotification;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.NewShareNotification;
@@ -20,7 +21,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.Sna
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.RemovedNodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
-import com.zextras.carbonio.files.dal.dao.UserMyself;
 import graphql.GraphQLError;
 import graphql.execution.DataFetcherResult;
 import graphql.execution.DataFetcherResult.Builder;
@@ -28,27 +28,22 @@ import graphql.execution.ResultPath;
 import graphql.schema.DataFetcher;
 import graphql.schema.TypeResolver;
 import graphql.schema.idl.EnumValuesProvider;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-
 public class NotificationDataFetcher {
 
-  private static final Logger logger =
-      LoggerFactory.getLogger(NotificationDataFetcher.class);
+  private static final Logger logger = LoggerFactory.getLogger(NotificationDataFetcher.class);
 
   private final FilesConfig filesConfig;
   private final NotificationRepository notificationRepository;
 
   @Inject
-  NotificationDataFetcher(
-      FilesConfig filesConfig,
-      NotificationRepository notificationRepository
-  ) {
+  NotificationDataFetcher(FilesConfig filesConfig, NotificationRepository notificationRepository) {
     this.filesConfig = filesConfig;
     this.notificationRepository = notificationRepository;
   }
@@ -79,27 +74,27 @@ public class NotificationDataFetcher {
         Constants.GraphQL.SnapshotUser.SNAPSHOT_USER_ID, user.getSnapshotUserId(),
         Constants.GraphQL.SnapshotUser.USER_ID, user.getUserId(),
         Constants.GraphQL.SnapshotUser.FULL_NAME, user.getFullName(),
-        Constants.GraphQL.SnapshotUser.EMAIL, user.getEmail()
-    );
+        Constants.GraphQL.SnapshotUser.EMAIL, user.getEmail());
   }
 
   public TypeResolver getNotificationInterfaceResolver() {
     return environment -> {
       Map<String, Object> notification = environment.getObject();
-      NotificationType type = (NotificationType) notification.get(Constants.GraphQL.Notification.NOTIFICATION_TYPE);
+      NotificationType type =
+          (NotificationType) notification.get(Constants.GraphQL.Notification.NOTIFICATION_TYPE);
 
       return switch (type) {
         case NEW_SHARE -> environment.getSchema().getObjectType(Constants.GraphQL.Types.NEW_SHARE);
-        case ADDED_NODE -> environment.getSchema().getObjectType(Constants.GraphQL.Types.ADDED_NODE);
-        case REMOVED_NODE -> environment.getSchema().getObjectType(Constants.GraphQL.Types.REMOVED_NODE);
+        case ADDED_NODE ->
+            environment.getSchema().getObjectType(Constants.GraphQL.Types.ADDED_NODE);
+        case REMOVED_NODE ->
+            environment.getSchema().getObjectType(Constants.GraphQL.Types.REMOVED_NODE);
       };
     };
   }
 
   private DataFetcherResult<Map<String, Object>> convertNotificationToPageResult(
-      BaseNotification notification,
-      ResultPath path
-  ) {
+      BaseNotification notification, ResultPath path) {
     Map<String, Object> result = new HashMap<>();
     Map<String, String> nodeContext = new HashMap<>();
     Optional<GraphQLError> error = Optional.empty();
@@ -112,106 +107,134 @@ public class NotificationDataFetcher {
     switch (type) {
       case NEW_SHARE -> {
         NewShareNotification newShareNotification = (NewShareNotification) notification;
-        result.put(Constants.GraphQL.NewShareNotification.NODE_SNAPSHOT, mapSnapshotNode(newShareNotification.getSnapshotNode()));
-        result.put(Constants.GraphQL.NewShareNotification.USER_SNAPSHOT, mapSnapshotUser(newShareNotification.getSnapshotUser()));
+        result.put(
+            Constants.GraphQL.NewShareNotification.NODE_SNAPSHOT,
+            mapSnapshotNode(newShareNotification.getSnapshotNode()));
+        result.put(
+            Constants.GraphQL.NewShareNotification.USER_SNAPSHOT,
+            mapSnapshotUser(newShareNotification.getSnapshotUser()));
       }
       case ADDED_NODE -> {
         AddedNodeNotification addedNodeNotification = (AddedNodeNotification) notification;
-        result.put(Constants.GraphQL.AddedNodeNotification.ADDED_NODE_SNAPSHOT, mapSnapshotNode(addedNodeNotification.getAddedNodeSnapshot()));
-        result.put(Constants.GraphQL.AddedNodeNotification.ADDED_NODE_TYPE, addedNodeNotification.getAddedNodeType());
-        result.put(Constants.GraphQL.AddedNodeNotification.DESTINATION_FOLDER, mapSnapshotNode(addedNodeNotification.getDestinationFolderSnapshot()));
-        result.put(Constants.GraphQL.AddedNodeNotification.TRIGGERING_USER, mapSnapshotUser(addedNodeNotification.getTriggeringUserSnapshot()));
+        result.put(
+            Constants.GraphQL.AddedNodeNotification.ADDED_NODE_SNAPSHOT,
+            mapSnapshotNode(addedNodeNotification.getAddedNodeSnapshot()));
+        result.put(
+            Constants.GraphQL.AddedNodeNotification.ADDED_NODE_TYPE,
+            addedNodeNotification.getAddedNodeType());
+        result.put(
+            Constants.GraphQL.AddedNodeNotification.DESTINATION_FOLDER,
+            mapSnapshotNode(addedNodeNotification.getDestinationFolderSnapshot()));
+        result.put(
+            Constants.GraphQL.AddedNodeNotification.TRIGGERING_USER,
+            mapSnapshotUser(addedNodeNotification.getTriggeringUserSnapshot()));
       }
       case REMOVED_NODE -> {
         RemovedNodeNotification removedNodeNotification = (RemovedNodeNotification) notification;
-        result.put(Constants.GraphQL.RemovedNodeNotification.REMOVED_NODE_TYPE, removedNodeNotification.getRemovedNodeType());
-        result.put(Constants.GraphQL.RemovedNodeNotification.REMOVED_NODE, mapSnapshotNode(removedNodeNotification.getRemovedNodeSnapshot()));
-        result.put(Constants.GraphQL.RemovedNodeNotification.ORIGIN_FOLDER, mapSnapshotNode(removedNodeNotification.getOriginFolderSnapshot()));
-        result.put(Constants.GraphQL.RemovedNodeNotification.TRIGGERING_USER, mapSnapshotUser(removedNodeNotification.getTriggeringUserSnapshot()));
+        result.put(
+            Constants.GraphQL.RemovedNodeNotification.REMOVED_NODE_TYPE,
+            removedNodeNotification.getRemovedNodeType());
+        result.put(
+            Constants.GraphQL.RemovedNodeNotification.REMOVED_NODE,
+            mapSnapshotNode(removedNodeNotification.getRemovedNodeSnapshot()));
+        result.put(
+            Constants.GraphQL.RemovedNodeNotification.ORIGIN_FOLDER,
+            mapSnapshotNode(removedNodeNotification.getOriginFolderSnapshot()));
+        result.put(
+            Constants.GraphQL.RemovedNodeNotification.TRIGGERING_USER,
+            mapSnapshotUser(removedNodeNotification.getTriggeringUserSnapshot()));
       }
     }
 
-    DataFetcherResult.Builder<Map<String, Object>> resultBuilder = new DataFetcherResult
-        .Builder<Map<String, Object>>()
-        .data(result)
-        .localContext(nodeContext);
+    DataFetcherResult.Builder<Map<String, Object>> resultBuilder =
+        new DataFetcherResult.Builder<Map<String, Object>>().data(result).localContext(nodeContext);
 
-    return error
-        .map(err -> resultBuilder.error(err).build())
-        .orElse(resultBuilder.build());
+    return error.map(err -> resultBuilder.error(err).build()).orElse(resultBuilder.build());
   }
 
-  public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>> notificationPageFetcher() {
-    return environment -> CompletableFuture.supplyAsync(() -> {
-      return Optional.ofNullable(environment.getLocalContext())
-          .map(context -> {
-            return ((Map<String, List<BaseNotification>>) context).get(Constants.GraphQL.NotificationPage.NOTIFICATIONS)
-                .stream()
-                .map(notification ->
-                    convertNotificationToPageResult(
-                        notification,
-                        environment.getExecutionStepInfo().getPath()
-                    )
-                )
-                .collect(Collectors.toList());
-          })
-          .orElse(Collections.emptyList());
-    });
+  public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>>
+      notificationPageFetcher() {
+    return environment ->
+        CompletableFuture.supplyAsync(
+            () -> {
+              return Optional.ofNullable(environment.getLocalContext())
+                  .map(
+                      context -> {
+                        return ((Map<String, List<BaseNotification>>) context)
+                            .get(Constants.GraphQL.NotificationPage.NOTIFICATIONS).stream()
+                                .map(
+                                    notification ->
+                                        convertNotificationToPageResult(
+                                            notification,
+                                            environment.getExecutionStepInfo().getPath()))
+                                .collect(Collectors.toList());
+                      })
+                  .orElse(Collections.emptyList());
+            });
   }
 
-  public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, String>>>> getNotificationsFetcher() {
-    return environment -> CompletableFuture.supplyAsync(() -> {
-      String requesterId = ((UserMyself) environment.getGraphQlContext()
-          .get(Context.REQUESTER)).getId().getUserId();
+  public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, String>>>>
+      getNotificationsFetcher() {
+    return environment ->
+        CompletableFuture.supplyAsync(
+            () -> {
+              String requesterId =
+                  ((UserMyself) environment.getGraphQlContext().get(Context.REQUESTER))
+                      .getId()
+                      .getUserId();
 
-      Boolean updateLastSeen = environment.getArgument(Constants.GraphQL.InputParameters.UPDATE_LAST_SEEN);
-      Optional<Integer> optLimit = Optional.ofNullable(
-          environment.getArgument(Constants.GraphQL.InputParameters.LIMIT)
-      );
-      Optional<String> optPageToken = Optional.ofNullable(
-          environment.getArgument(Constants.GraphQL.InputParameters.PAGE_TOKEN)
-      );
+              Boolean updateLastSeen =
+                  environment.getArgument(Constants.GraphQL.InputParameters.UPDATE_LAST_SEEN);
+              Optional<Integer> optLimit =
+                  Optional.ofNullable(
+                      environment.getArgument(Constants.GraphQL.InputParameters.LIMIT));
+              Optional<String> optPageToken =
+                  Optional.ofNullable(
+                      environment.getArgument(Constants.GraphQL.InputParameters.PAGE_TOKEN));
 
-      Map<String, List<BaseNotification>> localContext = new HashMap<>();
-      Map<String, String> result = new HashMap<>();
-      ImmutablePair<List<BaseNotification>, String> findResult = null;
-      findResult = filesConfig.areNotificationsEnabled() ?
-          notificationRepository.getNotifications(requesterId, optLimit, optPageToken) :
-          new ImmutablePair<>(Collections.emptyList(), null);
+              Map<String, List<BaseNotification>> localContext = new HashMap<>();
+              Map<String, String> result = new HashMap<>();
+              ImmutablePair<List<BaseNotification>, String> findResult = null;
+              findResult =
+                  filesConfig.areNotificationsEnabled()
+                      ? notificationRepository.getNotifications(requesterId, optLimit, optPageToken)
+                      : new ImmutablePair<>(Collections.emptyList(), null);
 
-      result.put(NotificationPage.PAGE_TOKEN, findResult.getRight());
-      localContext.put(NotificationPage.NOTIFICATIONS, findResult.getLeft());
+              result.put(NotificationPage.PAGE_TOKEN, findResult.getRight());
+              localContext.put(NotificationPage.NOTIFICATIONS, findResult.getLeft());
 
-      Optional<UserNotificationsInfo> optUserNotificationsInfo =
-          filesConfig.areNotificationsEnabled() ?
-              notificationRepository.getUserNotificationsInfo(requesterId) :
-              Optional.empty();
+              Optional<UserNotificationsInfo> optUserNotificationsInfo =
+                  filesConfig.areNotificationsEnabled()
+                      ? notificationRepository.getUserNotificationsInfo(requesterId)
+                      : Optional.empty();
 
-      // If user is not present in table, it has no notification (so zero unread, and user never seen before)
-      UserNotificationsInfo userNotificationsInfo = optUserNotificationsInfo.orElse(
-          new UserNotificationsInfo(requesterId, 0L, 0)
-      );
+              // If user is not present in table, it has no notification (so zero unread, and user
+              // never seen before)
+              UserNotificationsInfo userNotificationsInfo =
+                  optUserNotificationsInfo.orElse(new UserNotificationsInfo(requesterId, 0L, 0));
 
-      result.put(NotificationPage.UNREAD, userNotificationsInfo.getUnread().toString());
-      result.put(NotificationPage.LAST_SEEN, userNotificationsInfo.getLastSeen().toString());
+              result.put(NotificationPage.UNREAD, userNotificationsInfo.getUnread().toString());
+              result.put(
+                  NotificationPage.LAST_SEEN, userNotificationsInfo.getLastSeen().toString());
 
-      if (Boolean.TRUE.equals(updateLastSeen) && filesConfig.areNotificationsEnabled()) {
-        if (optUserNotificationsInfo.isPresent()) {
-          // User is present in table, so we update the last seen time and assume all news are now read
-          userNotificationsInfo.setLastSeen(System.currentTimeMillis());
-          userNotificationsInfo.setUnread(0);
-          notificationRepository.updateUserNotificationsInfo(userNotificationsInfo);
-        } else {
-          // User is not present in table, we create it here for the first time as fallback,
-          // setting last seen implicitly
-          notificationRepository.createUserNotificationsInfo(requesterId);
-        }
-      }
+              if (Boolean.TRUE.equals(updateLastSeen) && filesConfig.areNotificationsEnabled()) {
+                if (optUserNotificationsInfo.isPresent()) {
+                  // User is present in table, so we update the last seen time and assume all news
+                  // are now read
+                  userNotificationsInfo.setLastSeen(System.currentTimeMillis());
+                  userNotificationsInfo.setUnread(0);
+                  notificationRepository.updateUserNotificationsInfo(userNotificationsInfo);
+                } else {
+                  // User is not present in table, we create it here for the first time as fallback,
+                  // setting last seen implicitly
+                  notificationRepository.createUserNotificationsInfo(requesterId);
+                }
+              }
 
-      return new Builder<Map<String, String>>()
-          .data(result)
-          .localContext(localContext)
-          .build();
-    });
+              return new Builder<Map<String, String>>()
+                  .data(result)
+                  .localContext(localContext)
+                  .build();
+            });
   }
 }

@@ -32,18 +32,16 @@ public enum NodeCategory {
    * Decodes a short into a {@link NodeCategory}
    *
    * @param value is a <code>short</code> representing the value to convert. If the value is not 0,
-   *              1 or 2 then the method throws an {@link IllegalArgumentException}.
+   *     1 or 2 then the method throws an {@link IllegalArgumentException}.
    * @return a {@link NodeCategory} representing the short value passed.
    */
   public static NodeCategory decode(short value) {
     return Arrays.stream(values())
-      .filter(entry -> entry.value == value)
-      .findFirst()
-      .orElseThrow(() ->
-        new IllegalArgumentException(String.format(
-          "Invalid value for the NodeCategory enum: %d",
-          value
-        ))
-      );
+        .filter(entry -> entry.value == value)
+        .findFirst()
+        .orElseThrow(
+            () ->
+                new IllegalArgumentException(
+                    String.format("Invalid value for the NodeCategory enum: %d", value)));
   }
 }

@@ -4,6 +4,4 @@
 
 package com.zextras.carbonio.files.exceptions;
 
-public class NodePermissionException extends Exception {
-
-}
+public class NodePermissionException extends Exception {}

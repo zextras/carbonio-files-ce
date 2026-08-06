@@ -73,8 +73,7 @@ class DeleteSharesApiIT {
   }
 
   @Test
-  void
-      givenExistingSharesTheDeleteSharesShouldDeleteAllAndReturnTargetIds() {
+  void givenExistingSharesTheDeleteSharesShouldDeleteAllAndReturnTargetIds() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     createShare(
@@ -91,9 +90,8 @@ class DeleteSharesApiIT {
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
             .withListOfStrings(
                 "share_target_ids",
-                new String[]{
-                    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-                    "cccccccc-cccc-cccc-cccc-cccccccccccc"
+                new String[] {
+                  "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "cccccccc-cccc-cccc-cccc-cccccccccccc"
                 })
             .withWantedResultFormat("")
             .build();
@@ -109,31 +107,28 @@ class DeleteSharesApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     final List<String> deletedIds =
-        (List<String>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteShares")
-            .orElse(List.of());
+        (List<String>)
+            TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteShares")
+                .orElse(List.of());
 
     Assertions.assertThat(deletedIds)
         .hasSize(2)
         .containsExactly(
-            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-            "cccccccc-cccc-cccc-cccc-cccccccccccc");
+            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "cccccccc-cccc-cccc-cccc-cccccccccccc");
 
     Assertions.assertThat(
-        shareRepository.getShare(
-            "00000000-0000-0000-0000-000000000000",
-            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
-    ).isEmpty();
+            shareRepository.getShare(
+                "00000000-0000-0000-0000-000000000000", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"))
+        .isEmpty();
 
     Assertions.assertThat(
-        shareRepository.getShare(
-            "00000000-0000-0000-0000-000000000000",
-            "cccccccc-cccc-cccc-cccc-cccccccccccc")
-    ).isEmpty();
+            shareRepository.getShare(
+                "00000000-0000-0000-0000-000000000000", "cccccccc-cccc-cccc-cccc-cccccccccccc"))
+        .isEmpty();
   }
 
   @Test
-  void
-      givenOneNonExistingShareTheDeleteSharesShouldReturnPartialSuccessWithErrors() {
+  void givenOneNonExistingShareTheDeleteSharesShouldReturnPartialSuccessWithErrors() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     createShare(
@@ -146,9 +141,8 @@ class DeleteSharesApiIT {
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
             .withListOfStrings(
                 "share_target_ids",
-                new String[]{
-                    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-                    "cccccccc-cccc-cccc-cccc-cccccccccccc"
+                new String[] {
+                  "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "cccccccc-cccc-cccc-cccc-cccccccccccc"
                 })
             .withWantedResultFormat("")
             .build();
@@ -164,15 +158,15 @@ class DeleteSharesApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     final List<String> deletedIds =
-        (List<String>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteShares")
-            .orElse(List.of());
+        (List<String>)
+            TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteShares")
+                .orElse(List.of());
 
     Assertions.assertThat(deletedIds)
         .hasSize(1)
         .containsExactly("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 
-    final List<String> errors =
-        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    final List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly(
@@ -181,8 +175,7 @@ class DeleteSharesApiIT {
   }
 
   @Test
-  void
-      givenATargetUserTheDeleteSharesShouldAllowSelfDeletion() {
+  void givenATargetUserTheDeleteSharesShouldAllowSelfDeletion() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     createShare(
@@ -194,8 +187,7 @@ class DeleteSharesApiIT {
         GraphqlCommandBuilder.aMutationBuilder("deleteShares")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
             .withListOfStrings(
-                "share_target_ids",
-                new String[]{"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"})
+                "share_target_ids", new String[] {"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"})
             .withWantedResultFormat("")
             .build();
 
@@ -211,23 +203,22 @@ class DeleteSharesApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     final List<String> deletedIds =
-        (List<String>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteShares")
-            .orElse(List.of());
+        (List<String>)
+            TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteShares")
+                .orElse(List.of());
 
     Assertions.assertThat(deletedIds)
         .hasSize(1)
         .containsExactly("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 
     Assertions.assertThat(
-        shareRepository.getShare(
-            "00000000-0000-0000-0000-000000000000",
-            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
-    ).isEmpty();
+            shareRepository.getShare(
+                "00000000-0000-0000-0000-000000000000", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"))
+        .isEmpty();
   }
 
   @Test
-  void
-      givenAUserWithoutPermissionsTheDeleteSharesShouldReturnErrors() {
+  void givenAUserWithoutPermissionsTheDeleteSharesShouldReturnErrors() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     createShare(
@@ -239,8 +230,7 @@ class DeleteSharesApiIT {
         GraphqlCommandBuilder.aMutationBuilder("deleteShares")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
             .withListOfStrings(
-                "share_target_ids",
-                new String[]{"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"})
+                "share_target_ids", new String[] {"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"})
             .withWantedResultFormat("")
             .build();
 
@@ -257,19 +247,18 @@ class DeleteSharesApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     final List<String> deletedIds =
-        (List<String>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteShares")
-            .orElse(List.of());
+        (List<String>)
+            TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteShares")
+                .orElse(List.of());
 
     Assertions.assertThat(deletedIds).isEmpty();
 
-    final List<String> errors =
-        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    final List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errors).hasSize(1);
   }
 
   @Test
-  void
-      givenOwnerAsTargetTheDeleteSharesShouldReturnErrorForOwner() {
+  void givenOwnerAsTargetTheDeleteSharesShouldReturnErrorForOwner() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     createShare(
@@ -282,9 +271,8 @@ class DeleteSharesApiIT {
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
             .withListOfStrings(
                 "share_target_ids",
-                new String[]{
-                    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+                new String[] {
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
                 })
             .withWantedResultFormat("")
             .build();
@@ -300,15 +288,15 @@ class DeleteSharesApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     final List<String> deletedIds =
-        (List<String>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteShares")
-            .orElse(List.of());
+        (List<String>)
+            TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteShares")
+                .orElse(List.of());
 
     Assertions.assertThat(deletedIds)
         .hasSize(1)
         .containsExactly("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 
-    final List<String> errors =
-        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    final List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly(

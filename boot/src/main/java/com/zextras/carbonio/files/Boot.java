@@ -24,7 +24,7 @@ public class Boot {
     It does not allow any other attributes because
      the additivity flag does not apply to the root logger.
    */
-  private static final Logger logger     = (Logger) LoggerFactory.getLogger(Boot.class);
+  private static final Logger logger = (Logger) LoggerFactory.getLogger(Boot.class);
 
   private DatabaseManager databaseManager;
   private PurgeService purgeService;

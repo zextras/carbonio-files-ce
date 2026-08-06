@@ -7,24 +7,24 @@ package com.zextras.carbonio.files.utilities;
 import com.zextras.carbonio.files.config.FilesConfig;
 
 /**
- * Here one can override the standard behaviour of FilesConfigImpl to mock or otherwise differentiate
- * the standard configuration from the test configuration.
+ * Here one can override the standard behaviour of FilesConfigImpl to mock or otherwise
+ * differentiate the standard configuration from the test configuration.
  */
 public class MockFilesConfig extends FilesConfig {
-    boolean areNotificationsEnabled = true;
+  boolean areNotificationsEnabled = true;
 
-    @Override
-    public String getPageTokenSecretKey() {
-      return "testSecretKey";
-    }
+  @Override
+  public String getPageTokenSecretKey() {
+    return "testSecretKey";
+  }
 
-    @Override
-    public boolean areNotificationsEnabled() {
-        return areNotificationsEnabled;
-    }
+  @Override
+  public boolean areNotificationsEnabled() {
+    return areNotificationsEnabled;
+  }
 
-    // Useful for testing
-    public void setAreNotificationsEnabled(boolean areNotificationsEnabled) {
-        this.areNotificationsEnabled = areNotificationsEnabled;
-    }
+  // Useful for testing
+  public void setAreNotificationsEnabled(boolean areNotificationsEnabled) {
+    this.areNotificationsEnabled = areNotificationsEnabled;
+  }
 }

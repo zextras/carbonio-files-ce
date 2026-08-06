@@ -15,15 +15,14 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionReposit
 import com.zextras.carbonio.files.message_broker.consumers.KeyValueChangedConsumer;
 import com.zextras.carbonio.files.message_broker.interfaces.MessageBrokerManager;
 import com.zextras.carbonio.message_broker.events.services.service_discover.KeyValueChanged;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 class MaxVersionNumberChangedIT {
 
@@ -61,10 +60,13 @@ class MaxVersionNumberChangedIT {
   }
 
   @Test
-  void givenANodeWithMultipleVersionWhenMaxNumberVersionChangesLeastRecentVersionsShouldBeDeleted() {
+  void
+      givenANodeWithMultipleVersionWhenMaxNumberVersionChangesLeastRecentVersionsShouldBeDeleted() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addNode(new SimplePopulatorTextFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+        .addNode(
+            new SimplePopulatorTextFile(
+                "00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
         .addVersion("00000000-0000-0000-0000-000000000000")
         .addVersion("00000000-0000-0000-0000-000000000000")
         .addVersion("00000000-0000-0000-0000-000000000000")
@@ -72,11 +74,14 @@ class MaxVersionNumberChangedIT {
 
     // When
     KeyValueChanged kvChanged = new KeyValueChanged("carbonio-files/max-number-of-versions", "3");
-    KeyValueChangedConsumer keyValueChangedConsumer = new KeyValueChangedConsumer(fileVersionRepository);
+    KeyValueChangedConsumer keyValueChangedConsumer =
+        new KeyValueChangedConsumer(fileVersionRepository);
     keyValueChangedConsumer.doHandle(kvChanged);
 
     // Then
-    List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000000", List.of(FileVersionSort.VERSION_ASC));
+    List<FileVersion> fileVersionList =
+        fileVersionRepository.getFileVersions(
+            "00000000-0000-0000-0000-000000000000", List.of(FileVersionSort.VERSION_ASC));
     Assertions.assertThat(fileVersionList).hasSize(3);
     Assertions.assertThat(fileVersionList.get(0).getVersion()).isEqualTo(3);
     Assertions.assertThat(fileVersionList.get(1).getVersion()).isEqualTo(4);
@@ -84,10 +89,13 @@ class MaxVersionNumberChangedIT {
   }
 
   @Test
-  void givenANodeWithMultipleVersionWhenMaxNumberVersionChangesLeastRecentVersionsShouldBeDeletedExcludingKeepForeverAndCurrent() {
+  void
+      givenANodeWithMultipleVersionWhenMaxNumberVersionChangesLeastRecentVersionsShouldBeDeletedExcludingKeepForeverAndCurrent() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
-        .addNode(new SimplePopulatorTextFile("00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab"))
+        .addNode(
+            new SimplePopulatorTextFile(
+                "00000000-0000-0000-0000-000000000001", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab"))
         .addVersion("00000000-0000-0000-0000-000000000001", true)
         .addVersion("00000000-0000-0000-0000-000000000001", true)
         .addVersion("00000000-0000-0000-0000-000000000001")
@@ -95,11 +103,14 @@ class MaxVersionNumberChangedIT {
 
     // When
     KeyValueChanged kvChanged = new KeyValueChanged("carbonio-files/max-number-of-versions", "2");
-    KeyValueChangedConsumer keyValueChangedConsumer = new KeyValueChangedConsumer(fileVersionRepository);
+    KeyValueChangedConsumer keyValueChangedConsumer =
+        new KeyValueChangedConsumer(fileVersionRepository);
     keyValueChangedConsumer.doHandle(kvChanged);
 
     // Then
-    List<FileVersion> fileVersionList = fileVersionRepository.getFileVersions("00000000-0000-0000-0000-000000000001", List.of(FileVersionSort.VERSION_ASC));
+    List<FileVersion> fileVersionList =
+        fileVersionRepository.getFileVersions(
+            "00000000-0000-0000-0000-000000000001", List.of(FileVersionSort.VERSION_ASC));
     Assertions.assertThat(fileVersionList).hasSize(3);
     Assertions.assertThat(fileVersionList.get(0).getVersion()).isEqualTo(2);
     Assertions.assertThat(fileVersionList.get(1).getVersion()).isEqualTo(3);

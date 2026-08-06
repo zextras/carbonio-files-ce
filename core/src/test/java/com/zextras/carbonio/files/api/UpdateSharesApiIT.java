@@ -73,8 +73,7 @@ class UpdateSharesApiIT {
   }
 
   @Test
-  void
-      givenExistingSharesTheUpdateSharesShouldUpdatePermissionsForAllTargets() {
+  void givenExistingSharesTheUpdateSharesShouldUpdatePermissionsForAllTargets() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     createShare(
@@ -91,9 +90,8 @@ class UpdateSharesApiIT {
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
             .withListOfStrings(
                 "share_target_ids",
-                new String[]{
-                    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-                    "cccccccc-cccc-cccc-cccc-cccccccccccc"
+                new String[] {
+                  "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "cccccccc-cccc-cccc-cccc-cccccccccccc"
                 })
             .withEnum("permission", SharePermission.READ_AND_WRITE)
             .withWantedResultFormat("{ permission }")
@@ -113,15 +111,12 @@ class UpdateSharesApiIT {
         TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "updateShares");
 
     Assertions.assertThat(updatedShares).hasSize(2);
-    Assertions.assertThat(updatedShares.get(0))
-        .containsEntry("permission", "READ_AND_WRITE");
-    Assertions.assertThat(updatedShares.get(1))
-        .containsEntry("permission", "READ_AND_WRITE");
+    Assertions.assertThat(updatedShares.get(0)).containsEntry("permission", "READ_AND_WRITE");
+    Assertions.assertThat(updatedShares.get(1)).containsEntry("permission", "READ_AND_WRITE");
   }
 
   @Test
-  void
-      givenOneNonExistingShareTheUpdateSharesShouldReturnPartialSuccessWithErrors() {
+  void givenOneNonExistingShareTheUpdateSharesShouldReturnPartialSuccessWithErrors() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     createShare(
@@ -134,9 +129,8 @@ class UpdateSharesApiIT {
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
             .withListOfStrings(
                 "share_target_ids",
-                new String[]{
-                    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-                    "cccccccc-cccc-cccc-cccc-cccccccccccc"
+                new String[] {
+                  "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "cccccccc-cccc-cccc-cccc-cccccccccccc"
                 })
             .withEnum("permission", SharePermission.READ_AND_WRITE)
             .withWantedResultFormat("{ permission }")
@@ -156,11 +150,9 @@ class UpdateSharesApiIT {
         TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "updateShares");
 
     Assertions.assertThat(updatedShares).hasSize(1);
-    Assertions.assertThat(updatedShares.get(0))
-        .containsEntry("permission", "READ_AND_WRITE");
+    Assertions.assertThat(updatedShares.get(0)).containsEntry("permission", "READ_AND_WRITE");
 
-    final List<String> errors =
-        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    final List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly(
@@ -169,8 +161,7 @@ class UpdateSharesApiIT {
   }
 
   @Test
-  void
-      givenAUserWithoutSharePermissionsTheUpdateSharesShouldReturnErrors() {
+  void givenAUserWithoutSharePermissionsTheUpdateSharesShouldReturnErrors() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     createShare(
@@ -182,8 +173,7 @@ class UpdateSharesApiIT {
         GraphqlCommandBuilder.aMutationBuilder("updateShares")
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
             .withListOfStrings(
-                "share_target_ids",
-                new String[]{"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"})
+                "share_target_ids", new String[] {"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"})
             .withEnum("permission", SharePermission.READ_AND_WRITE)
             .withWantedResultFormat("{ permission }")
             .build();
@@ -204,14 +194,12 @@ class UpdateSharesApiIT {
 
     Assertions.assertThat(updatedShares).isEmpty();
 
-    final List<String> errors =
-        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    final List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errors).hasSize(1);
   }
 
   @Test
-  void
-      givenOwnerAsTargetTheUpdateSharesShouldReturnErrorForOwner() {
+  void givenOwnerAsTargetTheUpdateSharesShouldReturnErrorForOwner() {
     // Given
     createFile("00000000-0000-0000-0000-000000000000", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     createShare(
@@ -224,9 +212,8 @@ class UpdateSharesApiIT {
             .withString("node_id", "00000000-0000-0000-0000-000000000000")
             .withListOfStrings(
                 "share_target_ids",
-                new String[]{
-                    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+                new String[] {
+                  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
                 })
             .withEnum("permission", SharePermission.READ_AND_WRITE)
             .withWantedResultFormat("{ permission }")
@@ -246,11 +233,9 @@ class UpdateSharesApiIT {
         TestUtils.jsonResponseToList(httpResponse.getBodyPayload(), "updateShares");
 
     Assertions.assertThat(updatedShares).hasSize(1);
-    Assertions.assertThat(updatedShares.get(0))
-        .containsEntry("permission", "READ_AND_WRITE");
+    Assertions.assertThat(updatedShares.get(0)).containsEntry("permission", "READ_AND_WRITE");
 
-    final List<String> errors =
-        TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
+    final List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly(

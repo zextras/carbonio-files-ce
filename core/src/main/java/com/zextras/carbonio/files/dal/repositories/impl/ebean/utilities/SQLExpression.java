@@ -16,13 +16,14 @@ import java.util.stream.Stream;
 public class SQLExpression implements SQLPart {
 
   private final LogicalOperator logicalOperator;
+
   @JsonProperty("parts")
   private final List<SQLPart> sqlParts;
 
   @JsonCreator
   public SQLExpression(
-    @JsonProperty("logicalOperator") LogicalOperator logicalOperator,
-    @JsonProperty("parts") List<SQLPart> sqlParts) {
+      @JsonProperty("logicalOperator") LogicalOperator logicalOperator,
+      @JsonProperty("parts") List<SQLPart> sqlParts) {
 
     this.logicalOperator = logicalOperator;
     this.sqlParts = sqlParts;
@@ -47,15 +48,13 @@ public class SQLExpression implements SQLPart {
   @JsonIgnore
   public String toExpression() {
     String logicalOperatorName = " " + logicalOperator.name() + " ";
-    return sqlParts
-      .stream()
-      .map(SQLPart::toExpression)
-      .collect(Collectors.joining(logicalOperatorName, "(", ")"));
+    return sqlParts.stream()
+        .map(SQLPart::toExpression)
+        .collect(Collectors.joining(logicalOperatorName, "(", ")"));
   }
 
   @JsonIgnore
   public Stream<Object> getParameters() {
     return sqlParts.stream().flatMap(SQLPart::getParameters);
   }
-
 }

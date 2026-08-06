@@ -45,10 +45,7 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
   }
 
   @Override
-  protected void channelRead0(
-    ChannelHandlerContext context,
-    HttpRequest httpRequest
-  ) {
+  protected void channelRead0(ChannelHandlerContext context, HttpRequest httpRequest) {
 
     String uriRequest = httpRequest.uri();
     Matcher healthMatcher = Endpoints.HEALTH.matcher(uriRequest);
@@ -87,64 +84,61 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
    * @param context is a {@link ChannelHandlerContext} used to write the response.
    * @param httpRequest is a {@link HttpRequest} representing the health/live request
    */
-  private void healthLive(
-    ChannelHandlerContext context,
-    HttpRequest httpRequest
-  ) {
+  private void healthLive(ChannelHandlerContext context, HttpRequest httpRequest) {
     logger.debug("carbonio-files is live");
     context
-      .writeAndFlush(new DefaultFullHttpResponse(
-        httpRequest.protocolVersion(),
-        HttpResponseStatus.NO_CONTENT)
-      )
-      .addListener(ChannelFutureListener.CLOSE);
+        .writeAndFlush(
+            new DefaultFullHttpResponse(
+                httpRequest.protocolVersion(), HttpResponseStatus.NO_CONTENT))
+        .addListener(ChannelFutureListener.CLOSE);
   }
 
   /**
    * Handles the /health/ready endpoint. It responds with an {@link HttpResponseStatus#OK} (200) if
-   * the following  mandatory dependencies are live:
+   * the following mandatory dependencies are live:
+   *
    * <ul>
-   *   <li>Database</li>
-   *   <li>UserManagement</li>
-   *   <li>Storages</li>
+   *   <li>Database
+   *   <li>UserManagement
+   *   <li>Storages
    * </ul>
+   *
    * If one of the dependency are not reachable it responds with an InternalServerError (500).
    *
    * @param context is a {@link ChannelHandlerContext} used to write the response.
    * @param httpRequest is a {@link HttpRequest} representing the health/ready request
    */
-  private void healthReady(
-    ChannelHandlerContext context,
-    HttpRequest httpRequest
-  ) {
+  private void healthReady(ChannelHandlerContext context, HttpRequest httpRequest) {
     boolean databaseIsUp = healthService.isDatabaseLive();
     boolean userManagementIsUp = healthService.isUserManagementLive();
     boolean fileStoreIsUp = healthService.isStoragesLive();
 
-    HttpResponseStatus responseStatus = (databaseIsUp && userManagementIsUp && fileStoreIsUp)
-      ? HttpResponseStatus.NO_CONTENT
-      : HttpResponseStatus.INTERNAL_SERVER_ERROR;
+    HttpResponseStatus responseStatus =
+        (databaseIsUp && userManagementIsUp && fileStoreIsUp)
+            ? HttpResponseStatus.NO_CONTENT
+            : HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
     logger.info(MessageFormat.format("carbonio files status: {0}", responseStatus));
 
     context
-      .writeAndFlush(new DefaultFullHttpResponse(httpRequest.protocolVersion(), responseStatus))
-      .addListener(ChannelFutureListener.CLOSE);
+        .writeAndFlush(new DefaultFullHttpResponse(httpRequest.protocolVersion(), responseStatus))
+        .addListener(ChannelFutureListener.CLOSE);
   }
 
   /**
    * Handles the /health endpoint. It responds with an {@link HttpResponseStatus#OK} (200) if the
-   * following  mandatory dependencies are live:
+   * following mandatory dependencies are live:
+   *
    * <ul>
-   *   <li>Database</li>
-   *   <li>UserManagement</li>
-   *   <li>Storages</li>
+   *   <li>Database
+   *   <li>UserManagement
+   *   <li>Storages
    * </ul>
+   *
    * If one of the dependency are not reachable it responds with an InternalServerError (500).
-   * <p>
-   * Unlike the /health/ready endpoint, this one returns also a json containing the status of the
-   * service and its dependencies. This is the JSON in response if everything is ok:
-   * <code>
+   *
+   * <p>Unlike the /health/ready endpoint, this one returns also a json containing the status of the
+   * service and its dependencies. This is the JSON in response if everything is ok: <code>
    *   {
    *    "dependencies" : [
    *       {
@@ -191,10 +185,8 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
    * @param context is a {@link ChannelHandlerContext} used to write the response.
    * @param httpRequest is a {@link HttpRequest} representing the health/ready request
    */
-  private void health(
-    ChannelHandlerContext context,
-    HttpRequest httpRequest
-  ) throws JsonProcessingException {
+  private void health(ChannelHandlerContext context, HttpRequest httpRequest)
+      throws JsonProcessingException {
 
     List<ServiceHealth> dependencies = new ArrayList<>();
     dependencies.add(healthService.getDatabaseHealth());
@@ -204,31 +196,27 @@ public class HealthController extends SimpleChannelInboundHandler<HttpRequest> {
     dependencies.add(healthService.getDocsConnectorHealth());
     dependencies.add(healthService.getMessageBrokerHealth());
 
-    boolean filesIsReady = dependencies
-      .stream()
-      .filter(dependencyHealth -> DependencyType.REQUIRED.equals(dependencyHealth.getType()))
-      .allMatch(ServiceHealth::isReady);
+    boolean filesIsReady =
+        dependencies.stream()
+            .filter(dependencyHealth -> DependencyType.REQUIRED.equals(dependencyHealth.getType()))
+            .allMatch(ServiceHealth::isReady);
 
-    HealthResponse healthResponse = new HealthResponse()
-      .setDependencies(dependencies)
-      .setReady(filesIsReady);
+    HealthResponse healthResponse =
+        new HealthResponse().setDependencies(dependencies).setReady(filesIsReady);
 
-    HttpResponseStatus responseStatus = filesIsReady
-      ? HttpResponseStatus.OK
-      : HttpResponseStatus.INTERNAL_SERVER_ERROR;
+    HttpResponseStatus responseStatus =
+        filesIsReady ? HttpResponseStatus.OK : HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
     String responseBody = new ObjectMapper().writeValueAsString(healthResponse);
 
-    FullHttpResponse response = new DefaultFullHttpResponse(
-      httpRequest.protocolVersion(),
-      responseStatus,
-      Unpooled.wrappedBuffer(responseBody.getBytes(StandardCharsets.UTF_8))
-    );
+    FullHttpResponse response =
+        new DefaultFullHttpResponse(
+            httpRequest.protocolVersion(),
+            responseStatus,
+            Unpooled.wrappedBuffer(responseBody.getBytes(StandardCharsets.UTF_8)));
     response.headers().add(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON);
     response.headers().add(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
 
-    context
-      .writeAndFlush(response)
-      .addListener(ChannelFutureListener.CLOSE);
+    context.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
   }
 }

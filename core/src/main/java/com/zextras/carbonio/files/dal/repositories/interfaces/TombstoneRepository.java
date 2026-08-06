@@ -11,33 +11,29 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * <p>This is the only class allowed to execute CRUD operations on a Tombstone element.</p>
- * <p>Its methods' implementation depends specifically on DB and ORM used.</p>
+ * This is the only class allowed to execute CRUD operations on a Tombstone element.
+ *
+ * <p>Its methods' implementation depends specifically on DB and ORM used.
  */
 public interface TombstoneRepository {
 
   /**
-   * <p>Gets all Tombstones from the database.</p>
+   * Gets all Tombstones from the database.
    *
    * @return the list of all Tombstones in the database.
    */
   List<Tombstone> getTombstones();
 
   /**
-   * <p>Creates a new {@link Tombstone}.</p>
+   * Creates a new {@link Tombstone}.
    *
    * @param nodeId the identifier of the {@link Node}
    * @param ownerId the identifier associated with the owner of the {@link Node}
    * @param version the version of the {@link Node} referred by the {@link Tombstone}
-   *
    * @return an {@link Optional} containing the {@link Tombstone} just created if the creation
-   * operation was performed correctly, the {@link Optional#empty()} otherwise
+   *     operation was performed correctly, the {@link Optional#empty()} otherwise
    */
-  Optional<Tombstone> createNewTombstone(
-    String nodeId,
-    String ownerId,
-    Integer version
-  );
+  Optional<Tombstone> createNewTombstone(String nodeId, String ownerId, Integer version);
 
   /**
    * Creates new {@link Tombstone}s in bulk, one for each given {@link FileVersion}.
@@ -45,16 +41,13 @@ public interface TombstoneRepository {
    * @param fileVersions is a {@link List<FileVersion>} to create a {@link Tombstone} with.
    * @param ownerId is a {@link String} representing the owner of the {@link FileVersion}.
    */
-  void createTombstonesBulk(
-    List<FileVersion> fileVersions,
-    String ownerId
-  );
+  void createTombstonesBulk(List<FileVersion> fileVersions, String ownerId);
 
   /**
-   * Deletes a single tombstone identified by nodeId and version.
-   * Used after a blob has been confirmed deleted from PowerStore.
+   * Deletes a single tombstone identified by nodeId and version. Used after a blob has been
+   * confirmed deleted from PowerStore.
    *
-   * @param nodeId  the node identifier
+   * @param nodeId the node identifier
    * @param version the file version
    */
   void deleteTombstonesByNodeAndVersion(String nodeId, Integer version);

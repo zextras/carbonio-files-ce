@@ -45,7 +45,7 @@ addEnvToProperties "carbonio.user-management.host" "${CARBONIO_USER_MANAGEMENT_H
 addEnvToProperties "carbonio.user-management.port" "${CARBONIO_USER_MANAGEMENT_PORT}"
 
 
-JAR=$(ls carbonio-files-*-jar-with-dependencies.jar | head -n 1)
+JAR=$(find . -maxdepth 1 -name 'carbonio-files-*-jar-with-dependencies.jar' | head -n 1)
 
 exec java -Djava.net.preferIPv4Stack=true \
           -Xms4096m \

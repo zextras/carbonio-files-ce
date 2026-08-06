@@ -10,12 +10,11 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.CollationRepositor
 import io.ebean.Database;
 import io.ebean.SqlQuery;
 import io.ebean.SqlRow;
+import java.util.Optional;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-
-import java.util.Optional;
 
 class CollateRepositoryTest {
 
@@ -34,12 +33,14 @@ class CollateRepositoryTest {
   @Test
   void givenDefaultCollateIsEnUsUtf8_getValidCollateForQueryShouldReturnEmptyOptional() {
     // Given
-    CollationRepositoryEbean collationRepositoryEbean = new CollationRepositoryEbean(databaseManagerFlywayMock, filesConfigMock);
+    CollationRepositoryEbean collationRepositoryEbean =
+        new CollationRepositoryEbean(databaseManagerFlywayMock, filesConfigMock);
 
     SqlQuery sqlQueryMock = Mockito.mock(SqlQuery.class);
     SqlRow sqlRowMock = Mockito.mock(SqlRow.class);
     Mockito.when(databaseMock.sqlQuery(Mockito.anyString())).thenReturn(sqlQueryMock);
-    Mockito.when(sqlQueryMock.setParameter(Mockito.anyString(), Mockito.anyString())).thenReturn(sqlQueryMock);
+    Mockito.when(sqlQueryMock.setParameter(Mockito.anyString(), Mockito.anyString()))
+        .thenReturn(sqlQueryMock);
     Mockito.when(sqlQueryMock.findOne()).thenReturn(sqlRowMock);
     Mockito.when(sqlRowMock.getString("datcollate")).thenReturn("en_US.UTF-8");
 
@@ -53,12 +54,14 @@ class CollateRepositoryTest {
   @Test
   void givenDefaultCollateIsCUtf8_getValidCollateForQueryShouldReturnOptionalWithEnUsUtf8() {
     // Given
-    CollationRepositoryEbean collationRepositoryEbean = new CollationRepositoryEbean(databaseManagerFlywayMock, filesConfigMock);
+    CollationRepositoryEbean collationRepositoryEbean =
+        new CollationRepositoryEbean(databaseManagerFlywayMock, filesConfigMock);
 
     SqlQuery sqlQueryMock = Mockito.mock(SqlQuery.class);
     SqlRow sqlRowMock = Mockito.mock(SqlRow.class);
     Mockito.when(databaseMock.sqlQuery(Mockito.anyString())).thenReturn(sqlQueryMock);
-    Mockito.when(sqlQueryMock.setParameter(Mockito.anyString(), Mockito.anyString())).thenReturn(sqlQueryMock);
+    Mockito.when(sqlQueryMock.setParameter(Mockito.anyString(), Mockito.anyString()))
+        .thenReturn(sqlQueryMock);
     Mockito.when(sqlQueryMock.findOne()).thenReturn(sqlRowMock);
     Mockito.when(sqlRowMock.getString("datcollate")).thenReturn("C.UTF-8");
     Mockito.when(sqlRowMock.getInteger("count")).thenReturn(1);

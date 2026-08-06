@@ -40,8 +40,8 @@ public class StoragesMockHelper {
   }
 
   /**
-   * Mocks the PowerStore bulk-delete endpoint. The {@code failedIds} parameter lists
-   * node IDs whose blob deletion should be reported as failed; an empty list means full success.
+   * Mocks the PowerStore bulk-delete endpoint. The {@code failedIds} parameter lists node IDs whose
+   * blob deletion should be reported as failed; an empty list means full success.
    */
   public void bulkDelete(List<String> failedIds) {
     // Build the JSON body explicitly so an EMPTY failed list serialises to the real
@@ -56,52 +56,34 @@ public class StoragesMockHelper {
     }
     body.append("]}");
     storagesMock
-        .when(
-            HttpRequest.request()
-                .withMethod(HttpMethod.POST.toString())
-                .withPath("/bulk-delete"))
-        .respond(
-            HttpResponse.response()
-                .withStatusCode(200)
-                .withBody(body.toString()));
+        .when(HttpRequest.request().withMethod(HttpMethod.POST.toString()).withPath("/bulk-delete"))
+        .respond(HttpResponse.response().withStatusCode(200).withBody(body.toString()));
   }
 
   /**
-   * Mocks the PowerStore bulk-delete endpoint to return an HTTP 500 error,
-   * simulating a complete PowerStore outage.
+   * Mocks the PowerStore bulk-delete endpoint to return an HTTP 500 error, simulating a complete
+   * PowerStore outage.
    */
   public void bulkDeleteError() {
     storagesMock
-        .when(
-            HttpRequest.request()
-                .withMethod(HttpMethod.POST.toString())
-                .withPath("/bulk-delete"))
-        .respond(
-            HttpResponse.response()
-                .withStatusCode(500));
+        .when(HttpRequest.request().withMethod(HttpMethod.POST.toString()).withPath("/bulk-delete"))
+        .respond(HttpResponse.response().withStatusCode(500));
   }
 
   /**
-   * Mocks the PowerStore bulk-delete endpoint to return HTTP 200 with body {@code "{}"},
-   * which the SDK deserialises as {@code ids=null} and throws a {@link NullPointerException}.
-   * Production code treats this NPE as "all deletes succeeded".
+   * Mocks the PowerStore bulk-delete endpoint to return HTTP 200 with body {@code "{}"}, which the
+   * SDK deserialises as {@code ids=null} and throws a {@link NullPointerException}. Production code
+   * treats this NPE as "all deletes succeeded".
    */
   public void bulkDeleteNullResponse() {
     storagesMock
-        .when(
-            HttpRequest.request()
-                .withMethod(HttpMethod.POST.toString())
-                .withPath("/bulk-delete"))
-        .respond(
-            HttpResponse.response()
-                .withStatusCode(200)
-                .withBody("{}"));
+        .when(HttpRequest.request().withMethod(HttpMethod.POST.toString()).withPath("/bulk-delete"))
+        .respond(HttpResponse.response().withStatusCode(200).withBody("{}"));
   }
 
   /**
-   * Mocks the PowerStore bulk-delete endpoint for version-level failures.
-   * Each entry in {@code failedNodeVersions} is a pair of (nodeId, version).
-   * An empty list means full success.
+   * Mocks the PowerStore bulk-delete endpoint for version-level failures. Each entry in {@code
+   * failedNodeVersions} is a pair of (nodeId, version). An empty list means full success.
    */
   public void bulkDeleteWithVersions(List<Map.Entry<String, Integer>> failedNodeVersions) {
     final StoragesBulkDeleteResponse response = new StoragesBulkDeleteResponse();
@@ -115,13 +97,7 @@ public class StoragesMockHelper {
     }
     response.setIds(queries);
     storagesMock
-        .when(
-            HttpRequest.request()
-                .withMethod(HttpMethod.POST.toString())
-                .withPath("/bulk-delete"))
-        .respond(
-            HttpResponse.response()
-                .withStatusCode(200)
-                .withBody(JsonBody.json(response)));
+        .when(HttpRequest.request().withMethod(HttpMethod.POST.toString()).withPath("/bulk-delete"))
+        .respond(HttpResponse.response().withStatusCode(200).withBody(JsonBody.json(response)));
   }
 }

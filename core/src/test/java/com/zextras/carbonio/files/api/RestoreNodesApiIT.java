@@ -18,15 +18,14 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 class RestoreNodesApiIT {
 
@@ -43,9 +42,7 @@ class RestoreNodesApiIT {
             .withDatabase()
             .withServiceDiscover()
             .withUserManagement( // create a fake token to use in cookie for auth
-                Map.of(
-                    "fake-token",
-                    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+                Map.of("fake-token", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
             .build()
             .start();
 
@@ -65,15 +62,16 @@ class RestoreNodesApiIT {
     simulator.stopAll();
   }
 
-  private void trashNode(String nodeId){
+  private void trashNode(String nodeId) {
     Optional<Node> trashedNodeOpt = nodeRepository.getNode(nodeId);
-    trashedNodeOpt.ifPresent(trashedNode -> {
-      String nodeParentId = trashedNode.getParentId().get();
-      trashedNode.setAncestorIds(Constants.Db.RootId.TRASH_ROOT);
-      trashedNode.setParentId(Constants.Db.RootId.TRASH_ROOT);
-      nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
-      nodeRepository.updateNode(trashedNode);
-    });
+    trashedNodeOpt.ifPresent(
+        trashedNode -> {
+          String nodeParentId = trashedNode.getParentId().get();
+          trashedNode.setAncestorIds(Constants.Db.RootId.TRASH_ROOT);
+          trashedNode.setParentId(Constants.Db.RootId.TRASH_ROOT);
+          nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
+          nodeRepository.updateNode(trashedNode);
+        });
   }
 
   @Test
@@ -88,7 +86,7 @@ class RestoreNodesApiIT {
 
     String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("restoreNodes")
-            .withListOfStrings("node_ids", new String[]{"00000000-0000-0000-0000-000000000002"})
+            .withListOfStrings("node_ids", new String[] {"00000000-0000-0000-0000-000000000002"})
             .withWantedResultFormat("{ id name }")
             .build();
 
@@ -115,7 +113,8 @@ class RestoreNodesApiIT {
   }
 
   @Test
-  void givenTwoFilesOnWithTheSameNameAndOneIsTrashedBothWithSameParentDirectoryRestoreNodeShouldRestoreFileWithDifferentNameFromAlreadyExisting() {
+  void
+      givenTwoFilesOnWithTheSameNameAndOneIsTrashedBothWithSameParentDirectoryRestoreNodeShouldRestoreFileWithDifferentNameFromAlreadyExisting() {
     // Given
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(
@@ -131,7 +130,7 @@ class RestoreNodesApiIT {
 
     String bodyPayload =
         GraphqlCommandBuilder.aMutationBuilder("restoreNodes")
-            .withListOfStrings("node_ids", new String[]{"00000000-0000-0000-0000-000000000000"})
+            .withListOfStrings("node_ids", new String[] {"00000000-0000-0000-0000-000000000000"})
             .withWantedResultFormat("{ id name }")
             .build();
 

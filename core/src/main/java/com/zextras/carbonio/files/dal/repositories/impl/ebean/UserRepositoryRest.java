@@ -5,8 +5,8 @@
 package com.zextras.carbonio.files.dal.repositories.impl.ebean;
 
 import com.google.inject.Inject;
-import com.zextras.carbonio.files.dal.dao.UserInfo;
 import com.zextras.carbonio.files.dal.dao.UserId;
+import com.zextras.carbonio.files.dal.dao.UserInfo;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.UserStatus;
 import com.zextras.carbonio.files.dal.dao.UserType;
@@ -29,8 +29,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Replaces the previous gRPC-based implementation (a {@code UserManagementServiceBlockingStub}
  * injected by {@link com.zextras.carbonio.files.config.FilesModule}). Behavior is ported 1:1 from
- * it: same token-extraction rule, same response-to-domain-type mapping, same
- * empty-{@link Optional}-on-failure contract — only the transport changed.
+ * it: same token-extraction rule, same response-to-domain-type mapping, same empty-{@link
+ * Optional}-on-failure contract — only the transport changed.
  *
  * <p>Per user-management's REST contract, only {@code GET /internal/users/myself} requires the
  * caller's token (forwarded as the {@code ZM_AUTH_TOKEN} header); {@code GET .../id/{userId}} and
@@ -104,9 +104,9 @@ public class UserRepositoryRest implements UserRepository {
 
   /**
    * Maps a {@link MyselfDto} to the local {@link UserMyself} domain type. Returns {@link
-   * Optional#empty()} if the nested {@code info} is missing, since a myself response without
-   * user info cannot be resolved to a domain user (the field is {@code @Nullable} in the
-   * generated DTO, unlike the old protobuf message where it was always populated).
+   * Optional#empty()} if the nested {@code info} is missing, since a myself response without user
+   * info cannot be resolved to a domain user (the field is {@code @Nullable} in the generated DTO,
+   * unlike the old protobuf message where it was always populated).
    */
   private Optional<UserMyself> mapToUserMyself(MyselfDto response) {
     UserInfoDto info = response.getInfo();
@@ -139,8 +139,8 @@ public class UserRepositoryRest implements UserRepository {
   }
 
   /**
-   * Maps a status string to the local {@link UserStatus} enum. Falls back to
-   * {@link UserStatus#CLOSED} if the status string is missing or not recognized.
+   * Maps a status string to the local {@link UserStatus} enum. Falls back to {@link
+   * UserStatus#CLOSED} if the status string is missing or not recognized.
    */
   private UserStatus mapStatus(String status) {
     if (status == null) {
@@ -161,12 +161,12 @@ public class UserRepositoryRest implements UserRepository {
    *
    * <p>This fails <b>closed</b>, deliberately mirroring {@link #mapStatus(String)}: {@link
    * UserType#GUEST} is the access-denying value ({@link
-   * com.zextras.carbonio.files.netty.AuthenticationHandler} blocks guests), so an unresolvable
-   * type must land on the deny side rather than defaulting to {@link UserType#INTERNAL}. With the
-   * old protobuf {@code UserTypeProto} this was a closed enum and only genuine
-   * {@code INTERNAL}/{@code GUEST} values were reachable; now that user-management reports
-   * {@code type} as a plain {@code @Nullable} string, a missing field, a {@code null}, or a
-   * UM-side typo must not silently grant internal access.
+   * com.zextras.carbonio.files.netty.AuthenticationHandler} blocks guests), so an unresolvable type
+   * must land on the deny side rather than defaulting to {@link UserType#INTERNAL}. With the old
+   * protobuf {@code UserTypeProto} this was a closed enum and only genuine {@code INTERNAL}/{@code
+   * GUEST} values were reachable; now that user-management reports {@code type} as a plain
+   * {@code @Nullable} string, a missing field, a {@code null}, or a UM-side typo must not silently
+   * grant internal access.
    */
   private UserType mapType(String type) {
     if (type == null) {
@@ -182,8 +182,8 @@ public class UserRepositoryRest implements UserRepository {
   }
 
   /**
-   * Parses a locale string (e.g. "en_US", "it") into a {@link Locale}. Falls back to
-   * {@link Locale#ENGLISH} if the string is empty or null.
+   * Parses a locale string (e.g. "en_US", "it") into a {@link Locale}. Falls back to {@link
+   * Locale#ENGLISH} if the string is empty or null.
    */
   private Locale parseLocale(String localeStr) {
     if (localeStr == null || localeStr.isEmpty()) {

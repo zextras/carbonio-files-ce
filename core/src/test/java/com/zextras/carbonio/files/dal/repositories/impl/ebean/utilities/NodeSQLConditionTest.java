@@ -12,22 +12,29 @@ import org.junit.jupiter.params.provider.ValueSource;
 class NodeSQLConditionTest {
 
   @ParameterizedTest
-  @ValueSource(strings = {"node_id", "owner_id", "editor_id", "node_category", "name",
-    "updated_timestamp", "creation_timestamp", "size"})
+  @ValueSource(
+      strings = {
+        "node_id",
+        "owner_id",
+        "editor_id",
+        "node_category",
+        "name",
+        "updated_timestamp",
+        "creation_timestamp",
+        "size"
+      })
   void givenAValidFieldTheConstructorShouldUpdateTheFieldCorrectly(String field) {
     // Given & When & Then
-    Assertions
-      .assertThatNoException()
-      .isThrownBy(() -> new NodeSQLCondition(field, SortOrder.EQUAL, 2));
+    Assertions.assertThatNoException()
+        .isThrownBy(() -> new NodeSQLCondition(field, SortOrder.EQUAL, 2));
   }
 
   @Test
   void givenAnInvalidFieldTheSetFieldShouldThrownAnIllegalArgumentException() {
     // Given & When & Then
-    Assertions
-      .assertThatIllegalArgumentException()
-      .isThrownBy(() -> new NodeSQLCondition("invalid-field", SortOrder.EQUAL, 2))
-      .withMessage("The invalid-field field is invalid");
+    Assertions.assertThatIllegalArgumentException()
+        .isThrownBy(() -> new NodeSQLCondition("invalid-field", SortOrder.EQUAL, 2))
+        .withMessage("The invalid-field field is invalid");
   }
 
   @Test

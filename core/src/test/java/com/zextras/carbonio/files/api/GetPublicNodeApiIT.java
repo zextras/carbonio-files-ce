@@ -244,7 +244,8 @@ public class GetPublicNodeApiIT {
   }
 
   @Test
-  void givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithCorrectCodeShouldReturnThePublicFolder() {
+  void
+      givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithCorrectCodeShouldReturnThePublicFolder() {
     // Given
     long now = System.currentTimeMillis();
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -294,7 +295,8 @@ public class GetPublicNodeApiIT {
   }
 
   @Test
-  void givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithWrongCodeShouldReturnAnErrorMessage() {
+  void
+      givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithWrongCodeShouldReturnAnErrorMessage() {
     // Given
     long now = System.currentTimeMillis();
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -338,11 +340,14 @@ public class GetPublicNodeApiIT {
 
     Assertions.assertThat(errorMessages)
         .hasSize(1)
-        .containsExactly("The access code for link with public id abcd1234abcd1234abcd1234abcd1234 is not correct");
+        .containsExactly(
+            "The access code for link with public id abcd1234abcd1234abcd1234abcd1234 is not"
+                + " correct");
   }
 
   @Test
-  void givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithNoCodeShouldReturnAnErrorMessage() {
+  void
+      givenAPublicLinkIdWithAccessCodeAndAnExistingFolderTheGetPublicNodeWithNoCodeShouldReturnAnErrorMessage() {
     // Given
     long now = System.currentTimeMillis();
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -385,6 +390,8 @@ public class GetPublicNodeApiIT {
 
     Assertions.assertThat(errorMessages)
         .hasSize(1)
-        .containsExactly("Access code is required for accessing the resource with public link id: abcd1234abcd1234abcd1234abcd1234");
+        .containsExactly(
+            "Access code is required for accessing the resource with public link id:"
+                + " abcd1234abcd1234abcd1234abcd1234");
   }
 }

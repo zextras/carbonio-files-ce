@@ -38,55 +38,44 @@ public class NodeBatchLoader implements BatchLoader<String, Try<Node>> {
   }
 
   /**
-   * This method will be called by the GraphQL dataloader scheduler when all the
-   * {@link DataFetcher}s, necessary to create a GraphQL response, are called.
-   * </p>
-   * It is only responsible to fetch the {@link Node}s and it does <strong>not</strong>  check if
-   * the requester has the read permission on them.
+   * This method will be called by the GraphQL dataloader scheduler when all the {@link
+   * DataFetcher}s, necessary to create a GraphQL response, are called. It is only responsible to
+   * fetch the {@link Node}s and it does <strong>not</strong> check if the requester has the read
+   * permission on them.
    *
    * @param nodeIds the {@link List} of node ids to fetch
-   *
    * @return a {@link CompletionStage} containing a {@link List} of {@link Try<Node>}. The list has
-   * as many elements as there are node ids in input. If a node ids does not correspond to a
-   * {@link Node} then the method return a {@link Try#failed} containing a
-   * {@link NodeNotFoundException}.
+   *     as many elements as there are node ids in input. If a node ids does not correspond to a
+   *     {@link Node} then the method return a {@link Try#failed} containing a {@link
+   *     NodeNotFoundException}.
    */
   @Override
   public CompletionStage<List<Try<Node>>> load(List<String> nodeIds) {
-    return CompletableFuture.supplyAsync(() -> {
+    return CompletableFuture.supplyAsync(
+        () -> {
+          logger.debug(MessageFormat.format("Start fetching nodes in batch: {0}", nodeIds));
 
-      logger.debug(MessageFormat.format("Start fetching nodes in batch: {0}", nodeIds));
+          List<Node> nodes =
+              nodeRepository.getNodes(nodeIds, Optional.empty()).collect(Collectors.toList());
 
-      List<Node> nodes = nodeRepository
-        .getNodes(nodeIds, Optional.empty())
-        .collect(Collectors.toList());
+          List<String> nodeIdsFound = nodes.stream().map(Node::getId).collect(Collectors.toList());
 
-      List<String> nodeIdsFound = nodes
-        .stream()
-        .map(Node::getId)
-        .collect(Collectors.toList());
+          List<String> nodeIdsNotFound =
+              nodeIds.stream()
+                  .filter(nodeId -> !nodeIdsFound.contains(nodeId))
+                  .collect(Collectors.toList());
 
-      List<String> nodeIdsNotFound = nodeIds
-        .stream()
-        .filter(nodeId -> !nodeIdsFound.contains(nodeId))
-        .collect(Collectors.toList());
+          List<Try<Node>> results = nodes.stream().map(Try::succeeded).collect(Collectors.toList());
 
-      List<Try<Node>> results = nodes
-        .stream()
-        .map(Try::succeeded)
-        .collect(Collectors.toList());
+          nodeIdsNotFound.forEach(
+              nodeIdNotFound -> results.add(Try.failed(new NodeNotFoundException())));
 
-      nodeIdsNotFound.forEach(nodeIdNotFound ->
-        results.add(Try.failed(new NodeNotFoundException()))
-      );
+          logger.debug(
+              MessageFormat.format(
+                  "End fetching nodes in batch.\n - Nodes found: {0}\n - Nodes not found: {1}",
+                  nodeIdsFound, nodeIdsNotFound));
 
-      logger.debug(MessageFormat.format(
-        "End fetching nodes in batch.\n - Nodes found: {0}\n - Nodes not found: {1}",
-        nodeIdsFound,
-        nodeIdsNotFound
-      ));
-
-      return results;
-    });
+          return results;
+        });
   }
 }

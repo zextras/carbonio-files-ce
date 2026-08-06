@@ -4,15 +4,10 @@
 
 package com.zextras.carbonio.files.dal.dao;
 
-import com.zextras.carbonio.files.dal.dao.UserId;
-import com.zextras.carbonio.files.dal.dao.UserMyself;
-import com.zextras.carbonio.files.dal.dao.UserStatus;
-import com.zextras.carbonio.files.dal.dao.UserType;
-import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.Test;
-
 import java.util.Locale;
 import java.util.Map;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 class UserTest {
 

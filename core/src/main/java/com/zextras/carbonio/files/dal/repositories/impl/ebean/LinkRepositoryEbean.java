@@ -26,7 +26,8 @@ public class LinkRepositoryEbean implements LinkRepository {
   private final CollationRepository collationRepository;
 
   @Inject
-  public LinkRepositoryEbean(DatabaseManager databaseManagerFlyway, CollationRepository collationRepository) {
+  public LinkRepositoryEbean(
+      DatabaseManager databaseManagerFlyway, CollationRepository collationRepository) {
     this.databaseManagerFlyway = databaseManagerFlyway;
     this.collationRepository = collationRepository;
   }
@@ -37,8 +38,7 @@ public class LinkRepositoryEbean implements LinkRepository {
       String publicId,
       Optional<Long> optExpiresAt,
       Optional<String> optDescription,
-      Optional<String> optAccessCode
-  ) {
+      Optional<String> optAccessCode) {
 
     Link link = new Link(linkId, nodeId, publicId, System.currentTimeMillis(), null, null);
 
@@ -62,15 +62,15 @@ public class LinkRepositoryEbean implements LinkRepository {
 
   public Optional<Link> getLinkByNotExpiredPublicId(String publicId) {
     return databaseManagerFlyway
-      .getEbeanDatabase()
-      .find(Link.class)
-      .where()
-      .eq(Db.Link.PUBLIC_ID, publicId)
-      .or()
-      .isNull(Db.Link.EXPIRES_AT)
-      .gt(Db.Link.EXPIRES_AT, System.currentTimeMillis())
-      .endOr()
-      .findOneOrEmpty();
+        .getEbeanDatabase()
+        .find(Link.class)
+        .where()
+        .eq(Db.Link.PUBLIC_ID, publicId)
+        .or()
+        .isNull(Db.Link.EXPIRES_AT)
+        .gt(Db.Link.EXPIRES_AT, System.currentTimeMillis())
+        .endOr()
+        .findOneOrEmpty();
   }
 
   public Stream<Link> getLinksByNodeId(String nodeId, LinkSort sort) {
@@ -82,7 +82,10 @@ public class LinkRepositoryEbean implements LinkRepository {
             .eq(Db.Link.NODE_ID, nodeId)
             .query();
 
-    return sort.getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery()).findList().stream();
+    return sort
+        .getOrderEbeanQuery(query, collationRepository.getValidCollateForQuery())
+        .findList()
+        .stream();
   }
 
   public Link updateLink(Link link) {
@@ -117,26 +120,27 @@ public class LinkRepositoryEbean implements LinkRepository {
     nodeIds.add(node.getId());
     nodeIds.addAll(node.getAncestorsList());
 
-    Optional<Link> linkOptional = databaseManagerFlyway
-        .getEbeanDatabase()
-        .find(Link.class)
-        .where()
-        .eq(Db.Link.PUBLIC_ID, publicLinkId)
-        .in(Db.Link.NODE_ID, nodeIds)
-        .or()
-        .isNull(Db.Link.EXPIRES_AT)
-        .gt(Db.Link.EXPIRES_AT, System.currentTimeMillis())
-        .endOr()
-        .findOneOrEmpty();
+    Optional<Link> linkOptional =
+        databaseManagerFlyway
+            .getEbeanDatabase()
+            .find(Link.class)
+            .where()
+            .eq(Db.Link.PUBLIC_ID, publicLinkId)
+            .in(Db.Link.NODE_ID, nodeIds)
+            .or()
+            .isNull(Db.Link.EXPIRES_AT)
+            .gt(Db.Link.EXPIRES_AT, System.currentTimeMillis())
+            .endOr()
+            .findOneOrEmpty();
     return linkOptional.isPresent();
   }
 
   public Integer getLinkCountByNode(Node node) {
     return databaseManagerFlyway
-      .getEbeanDatabase()
-      .find(Link.class)
-      .where()
-      .eq(Db.Link.NODE_ID, node.getId())
-      .findCount();
+        .getEbeanDatabase()
+        .find(Link.class)
+        .where()
+        .eq(Db.Link.NODE_ID, node.getId())
+        .findCount();
   }
 }

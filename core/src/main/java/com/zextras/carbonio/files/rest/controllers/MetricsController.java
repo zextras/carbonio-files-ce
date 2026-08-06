@@ -33,10 +33,7 @@ public class MetricsController extends SimpleChannelInboundHandler<HttpRequest> 
   }
 
   @Override
-  protected void channelRead0(
-    ChannelHandlerContext context,
-    HttpRequest httpRequest
-  ) {
+  protected void channelRead0(ChannelHandlerContext context, HttpRequest httpRequest) {
 
     String uriRequest = httpRequest.uri();
     Matcher metricsMatcher = Endpoints.METRICS.matcher(uriRequest);
@@ -48,11 +45,10 @@ public class MetricsController extends SimpleChannelInboundHandler<HttpRequest> 
       }
 
       context
-        .writeAndFlush(new DefaultFullHttpResponse(
-          httpRequest.protocolVersion(),
-          HttpResponseStatus.NOT_FOUND
-        ))
-        .addListener(ChannelFutureListener.CLOSE);
+          .writeAndFlush(
+              new DefaultFullHttpResponse(
+                  httpRequest.protocolVersion(), HttpResponseStatus.NOT_FOUND))
+          .addListener(ChannelFutureListener.CLOSE);
 
     } catch (Exception exception) {
       context.fireExceptionCaught(new InternalServerErrorException(exception));
@@ -60,28 +56,23 @@ public class MetricsController extends SimpleChannelInboundHandler<HttpRequest> 
   }
 
   /**
-   * Handles the /metrics endpoint. It responds the actual Prometheus metrics inside the
-   * registry.
+   * Handles the /metrics endpoint. It responds the actual Prometheus metrics inside the registry.
+   *
    * @param context is a {@link ChannelHandlerContext} used to write the response.
    * @param httpRequest is a {@link HttpRequest} representing the metrics request
    */
-  private void metrics(
-    ChannelHandlerContext context,
-    HttpRequest httpRequest
-  ){
+  private void metrics(ChannelHandlerContext context, HttpRequest httpRequest) {
 
     String responseBody = prometheusService.getRegistry().scrape();
 
-    FullHttpResponse response = new DefaultFullHttpResponse(
-      httpRequest.protocolVersion(),
-      HttpResponseStatus.OK,
-      Unpooled.wrappedBuffer(responseBody.getBytes(StandardCharsets.UTF_8))
-    );
+    FullHttpResponse response =
+        new DefaultFullHttpResponse(
+            httpRequest.protocolVersion(),
+            HttpResponseStatus.OK,
+            Unpooled.wrappedBuffer(responseBody.getBytes(StandardCharsets.UTF_8)));
     response.headers().add(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.TEXT_PLAIN);
     response.headers().add(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes());
 
-    context
-      .writeAndFlush(response)
-      .addListener(ChannelFutureListener.CLOSE);
+    context.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
   }
 }

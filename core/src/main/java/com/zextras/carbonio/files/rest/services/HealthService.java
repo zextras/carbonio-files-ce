@@ -144,9 +144,10 @@ public class HealthService {
         .setLive(docsConnectorIsUp)
         .setReady(docsConnectorIsUp);
   }
+
   /**
-   * @return a {@link ServiceHealth} representing the status of the carbonio-message-broker service. This
-   *     dependency is {@link DependencyType#OPTIONAL} for carbonio-files.
+   * @return a {@link ServiceHealth} representing the status of the carbonio-message-broker service.
+   *     This dependency is {@link DependencyType#OPTIONAL} for carbonio-files.
    */
   public ServiceHealth getMessageBrokerHealth() {
     boolean messageBrokerIsUp = isMessageBrokerLive();

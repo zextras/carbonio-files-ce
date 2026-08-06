@@ -36,7 +36,8 @@ public class MailboxHttpClient {
   @Inject
   public MailboxHttpClient(CloseableHttpClient httpClient, FilesConfig filesConfig) {
     this.httpClient = httpClient;
-    this.mailboxURL = "http://" + filesConfig.getMailboxHost() + ":" + filesConfig.getMailboxPort() + "/";
+    this.mailboxURL =
+        "http://" + filesConfig.getMailboxHost() + ":" + filesConfig.getMailboxPort() + "/";
   }
 
   /**

@@ -12,9 +12,6 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.exceptions.InvalidTokenSignException;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -23,6 +20,8 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * This class is used as a container for mapping to and from JSON the necessary data to create a
@@ -32,7 +31,8 @@ public class PageQuery {
 
   private static final String HMAC_ALGORITHM = "HmacSHA256";
 
-  // Since this is a later implementation, instead of signing the whole token and changing its representation,
+  // Since this is a later implementation, instead of signing the whole token and changing its
+  // representation,
   // we sign every parameter and add a signature parameter to the token itself to verify.
   private String signature;
 
@@ -196,7 +196,8 @@ public class PageQuery {
   private static String computeHmac(String data, String secretKey) {
     try {
       Mac mac = Mac.getInstance(HMAC_ALGORITHM);
-      SecretKeySpec secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM);
+      SecretKeySpec secretKeySpec =
+          new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM);
       mac.init(secretKeySpec);
       byte[] hmacBytes = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
       return Base64.getEncoder().encodeToString(hmacBytes);
@@ -230,7 +231,7 @@ public class PageQuery {
       String dataToVerify = getDataToSign(pageQuery);
       String computedSignature = computeHmac(dataToVerify, secretKey);
       if (!computedSignature.equals(receivedSignature)) {
-          throw new InvalidTokenSignException("Invalid token signature");
+        throw new InvalidTokenSignException("Invalid token signature");
       }
 
       return pageQuery;

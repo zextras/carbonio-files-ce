@@ -6,6 +6,7 @@
 
 # python version
 py_ver=pythonPYTHON_VER
+# shellcheck disable=SC2034 # PREFIX is a yap packaging placeholder; unused here today
 py_prefix=PREFIX
 
 # set proper modules path

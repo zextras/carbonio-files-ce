@@ -4,9 +4,7 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities;
 
-/**
- * represents a sql compare expression, for example (A < B OR B > C)
- */
+/** represents a sql compare expression, for example (A < B OR B > C) */
 public class CompareExpression {
 
   String expression;

@@ -86,7 +86,9 @@ class HealthApiIT {
 
       docsConnectorServiceMock
           .when(
-              HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/q/health/live"))
+              HttpRequest.request()
+                  .withMethod(HttpMethod.GET.toString())
+                  .withPath("/q/health/live"))
           .respond(HttpResponse.response().withStatusCode(200));
 
       com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
@@ -187,7 +189,9 @@ class HealthApiIT {
 
       docsConnectorServiceMock
           .when(
-              HttpRequest.request().withMethod(HttpMethod.GET.toString()).withPath("/q/health/live"))
+              HttpRequest.request()
+                  .withMethod(HttpMethod.GET.toString())
+                  .withPath("/q/health/live"))
           .respond(HttpResponse.response().withStatusCode(200));
 
       com.zextras.carbonio.files.utilities.http.HttpRequest httpRequest =
@@ -364,7 +368,7 @@ class HealthApiIT {
 
   @Test
   void
-  givenMessageBrokerUnreachableAndOtherMandatoryDependenciesReachableTheHealthReadyShouldReturn204StatusCode() {
+      givenMessageBrokerUnreachableAndOtherMandatoryDependenciesReachableTheHealthReadyShouldReturn204StatusCode() {
     // Given
     SimulatorBuilder simulatorBuilder =
         SimulatorBuilder.aSimulator()

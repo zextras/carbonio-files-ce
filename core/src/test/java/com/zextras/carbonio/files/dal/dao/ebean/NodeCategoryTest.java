@@ -16,18 +16,15 @@ class NodeCategoryTest {
 
   private static Stream<Arguments> nodeCategoriesProvider() {
     return Stream.of(
-      Arguments.arguments(NodeCategory.ROOT, (short) 0),
-      Arguments.arguments(NodeCategory.FOLDER, (short) 1),
-      Arguments.arguments(NodeCategory.FILE, (short) 2)
-    );
+        Arguments.arguments(NodeCategory.ROOT, (short) 0),
+        Arguments.arguments(NodeCategory.FOLDER, (short) 1),
+        Arguments.arguments(NodeCategory.FILE, (short) 2));
   }
 
   @ParameterizedTest
   @MethodSource("nodeCategoriesProvider")
   void givenANodeCategoryTheGetValueShouldReturnTheRelatedShortValue(
-    NodeCategory category,
-    short value
-  ) {
+      NodeCategory category, short value) {
     // Given & When
     short nodeCategoryValue = category.getValue();
 
@@ -38,9 +35,7 @@ class NodeCategoryTest {
   @ParameterizedTest
   @MethodSource("nodeCategoriesProvider")
   void givenAValidShortTheDecodeShouldReturnTheRelatedNodeCategory(
-    NodeCategory category,
-    short value
-  ) {
+      NodeCategory category, short value) {
     // Given & When
     NodeCategory nodeCategory = NodeCategory.decode(value);
 
@@ -56,10 +51,9 @@ class NodeCategoryTest {
     // When
     ThrowableAssert.ThrowingCallable throwable = () -> NodeCategory.decode(value);
 
-    //Then
-    Assertions
-      .assertThatIllegalArgumentException()
-      .isThrownBy(throwable)
-      .withMessage("Invalid value for the NodeCategory enum: 3");
+    // Then
+    Assertions.assertThatIllegalArgumentException()
+        .isThrownBy(throwable)
+        .withMessage("Invalid value for the NodeCategory enum: 3");
   }
 }

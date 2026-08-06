@@ -18,15 +18,14 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepositor
 import com.zextras.carbonio.files.utilities.StoragesMockHelper;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 class DeleteVersionsApiIT {
 
@@ -61,8 +60,12 @@ class DeleteVersionsApiIT {
   void cleanUp() {
     simulator.resetDatabase();
     // Tombstones are not FK-linked to NODE so resetDatabase() doesn't clean them.
-    tombstoneRepository.getTombstones().forEach(t ->
-        tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion()));
+    tombstoneRepository
+        .getTombstones()
+        .forEach(
+            t ->
+                tombstoneRepository.deleteTombstonesByNodeAndVersion(
+                    t.getNodeId(), t.getVersion()));
     simulator.reinitializeMocks();
   }
 
@@ -84,15 +87,14 @@ class DeleteVersionsApiIT {
   }
 
   /**
-   * Creates a file with 3 versions using DatabasePopulator.
-   * Initial addNode creates version 1; addVersion adds versions 2 and 3.
-   * The node's currentVersion ends at 3.
+   * Creates a file with 3 versions using DatabasePopulator. Initial addNode creates version 1;
+   * addVersion adds versions 2 and 3. The node's currentVersion ends at 3.
    */
   private void createFileWithThreeVersions(String nodeId) {
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(new SimplePopulatorTextFile(nodeId, OWNER_ID, "file.txt"))
-        .addVersion(nodeId)   // version 2
-        .addVersion(nodeId);  // version 3
+        .addVersion(nodeId) // version 2
+        .addVersion(nodeId); // version 3
   }
 
   private List<Integer> getRemainingVersionNumbers(String nodeId) {
@@ -107,7 +109,8 @@ class DeleteVersionsApiIT {
   // Tombstones created then cleaned up.
 
   @Test
-  void givenFileWithThreeVersionsDeleteVersionsOneAndTwoAllBlobsSucceedThenVersionsOneAndTwoDeletedVersionThreeStays() {
+  void
+      givenFileWithThreeVersionsDeleteVersionsOneAndTwoAllBlobsSucceedThenVersionsOneAndTwoDeletedVersionThreeStays() {
     // Given
     String nodeId = "00000000-0000-0000-0000-200000000001";
     createFileWithThreeVersions(nodeId);
@@ -121,8 +124,9 @@ class DeleteVersionsApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     List<Integer> deletedVersions =
-        (List<Integer>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteVersions")
-            .orElse(List.of());
+        (List<Integer>)
+            TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteVersions")
+                .orElse(List.of());
     Assertions.assertThat(deletedVersions).containsExactlyInAnyOrder(1, 2);
 
     List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
@@ -139,7 +143,8 @@ class DeleteVersionsApiIT {
   // Core tombstone invariant: DB-first, tombstones remain for retry.
 
   @Test
-  void givenFileWithThreeVersionsAndPowerStoreFailsThenVersionsOneAndTwoStillDeletedAndTombstonesRemain() {
+  void
+      givenFileWithThreeVersionsAndPowerStoreFailsThenVersionsOneAndTwoStillDeletedAndTombstonesRemain() {
     // Given
     String nodeId = "00000000-0000-0000-0000-200000000002";
     createFileWithThreeVersions(nodeId);
@@ -154,8 +159,9 @@ class DeleteVersionsApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     List<Integer> deletedVersions =
-        (List<Integer>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteVersions")
-            .orElse(List.of());
+        (List<Integer>)
+            TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteVersions")
+                .orElse(List.of());
     Assertions.assertThat(deletedVersions).containsExactlyInAnyOrder(1, 2);
 
     List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
@@ -185,8 +191,9 @@ class DeleteVersionsApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     List<Integer> deletedVersions =
-        (List<Integer>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteVersions")
-            .orElse(List.of());
+        (List<Integer>)
+            TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteVersions")
+                .orElse(List.of());
     Assertions.assertThat(deletedVersions).isEmpty();
 
     List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
@@ -202,13 +209,14 @@ class DeleteVersionsApiIT {
   // --- Test 4: Protective filter — keepForever version cannot be deleted ---
 
   @Test
-  void givenFileWithKeepForeverVersionDeleteItThenKeepForeverVersionSkippedAndOnlyEligibleVersionDeleted() {
+  void
+      givenFileWithKeepForeverVersionDeleteItThenKeepForeverVersionSkippedAndOnlyEligibleVersionDeleted() {
     // Given — version 2 is keepForever, version 3 is current
     String nodeId = "00000000-0000-0000-0000-200000000005";
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(new SimplePopulatorTextFile(nodeId, OWNER_ID, "file.txt"))
-        .addVersion(nodeId, true)   // version 2, keepForever=true
-        .addVersion(nodeId);        // version 3 (current)
+        .addVersion(nodeId, true) // version 2, keepForever=true
+        .addVersion(nodeId); // version 3 (current)
 
     storagesMockHelper.bulkDelete(List.of());
 
@@ -219,8 +227,9 @@ class DeleteVersionsApiIT {
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
     List<Integer> deletedVersions =
-        (List<Integer>) TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteVersions")
-            .orElse(List.of());
+        (List<Integer>)
+            TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteVersions")
+                .orElse(List.of());
     // Only v1 deleted; v2 is keepForever (skipped → fileVersionNotFound error).
     Assertions.assertThat(deletedVersions).containsExactly(1);
 

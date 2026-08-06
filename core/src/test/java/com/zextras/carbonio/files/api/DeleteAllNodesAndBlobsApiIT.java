@@ -20,15 +20,14 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepositor
 import com.zextras.carbonio.files.utilities.StoragesMockHelper;
 import com.zextras.carbonio.files.utilities.http.HttpRequest;
 import com.zextras.carbonio.files.utilities.http.HttpResponse;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 class DeleteAllNodesAndBlobsApiIT {
 
@@ -48,8 +47,7 @@ class DeleteAllNodesAndBlobsApiIT {
             .withDatabase()
             .withServiceDiscover()
             .withStorages()
-            .withUserManagement(
-                Map.of("fake-token", OWNER_ID))
+            .withUserManagement(Map.of("fake-token", OWNER_ID))
             .build()
             .start();
 
@@ -64,8 +62,12 @@ class DeleteAllNodesAndBlobsApiIT {
   void cleanUp() {
     simulator.resetDatabase();
     // Tombstones are not FK-linked to NODE so resetDatabase() doesn't clean them.
-    tombstoneRepository.getTombstones().forEach(t ->
-        tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion()));
+    tombstoneRepository
+        .getTombstones()
+        .forEach(
+            t ->
+                tombstoneRepository.deleteTombstonesByNodeAndVersion(
+                    t.getNodeId(), t.getVersion()));
     simulator.reinitializeMocks();
   }
 
@@ -96,8 +98,7 @@ class DeleteAllNodesAndBlobsApiIT {
             new SimplePopulatorTextFile(
                 "00000000-0000-0000-0000-000000000002", OWNER_ID, "name.txt"))
         .addNode(
-            new SimplePopulatorFolder(
-                "00000000-0000-0000-0000-000000000003", OWNER_ID, "folder"));
+            new SimplePopulatorFolder("00000000-0000-0000-0000-000000000003", OWNER_ID, "folder"));
 
     storagesMockHelper.bulkDelete(List.of());
 
@@ -107,7 +108,8 @@ class DeleteAllNodesAndBlobsApiIT {
     // Then
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
 
-    Optional<Object> result = TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteAllNodesAndBlobs");
+    Optional<Object> result =
+        TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteAllNodesAndBlobs");
     Assertions.assertThat(result).isNotEmpty();
     Assertions.assertThat(result).contains(true);
 
@@ -122,14 +124,16 @@ class DeleteAllNodesAndBlobsApiIT {
     Assertions.assertThat(tombstoneRepository.getTombstones()).isEmpty();
   }
 
-  // --- Test 2: PowerStore fails — nodes still deleted (DB-first), returns true, tombstones remain ---
-  // Old test "givenNodesOwnedByUserAndStoragesNotRespondingTheDeleteAllNodesAndBlobsShouldReturn200WithAnErrorCode"
+  // --- Test 2: PowerStore fails — nodes still deleted (DB-first), returns true, tombstones remain
+  // ---
+  // Old test
+  // "givenNodesOwnedByUserAndStoragesNotRespondingTheDeleteAllNodesAndBlobsShouldReturn200WithAnErrorCode"
   // is REMOVED because PowerStore failure no longer blocks deletion or causes a user error.
 
   @Test
   void givenNodesOwnedByUserAndPowerStoreFailsThenNodeStillDeletedAndReturnsTrue() {
     // Given
-    String fileId   = "00000000-0000-0000-0000-000000000000";
+    String fileId = "00000000-0000-0000-0000-000000000000";
     String folderId = "00000000-0000-0000-0000-000000000001";
 
     DatabasePopulator.aNodePopulator(simulator.getInjector())
@@ -144,7 +148,8 @@ class DeleteAllNodesAndBlobsApiIT {
 
     // Then — DB-first: nodes deleted, returns true, no user errors.
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    Optional<Object> result = TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteAllNodesAndBlobs");
+    Optional<Object> result =
+        TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteAllNodesAndBlobs");
     Assertions.assertThat(result).contains(true);
 
     List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());
@@ -164,22 +169,45 @@ class DeleteAllNodesAndBlobsApiIT {
   void givenAllFilesSucceedThenAllNodesIncludingFoldersAreDeleted() {
     // folderA/file1 + folderB/file2 — all succeed
     String folderAId = "00000000-0000-0000-0000-000000000040";
-    String file1Id   = "00000000-0000-0000-0000-000000000041";
+    String file1Id = "00000000-0000-0000-0000-000000000041";
     String folderBId = "00000000-0000-0000-0000-000000000042";
-    String file2Id   = "00000000-0000-0000-0000-000000000043";
+    String file2Id = "00000000-0000-0000-0000-000000000043";
 
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(new SimplePopulatorFolder(folderAId, OWNER_ID, "folderA"))
-        .addNode(new PopulatorNode(file1Id, OWNER_ID, OWNER_ID, folderAId, "file1.txt", "", NodeType.TEXT, "LOCAL_ROOT," + folderAId, 1L, "text/plain"))
+        .addNode(
+            new PopulatorNode(
+                file1Id,
+                OWNER_ID,
+                OWNER_ID,
+                folderAId,
+                "file1.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT," + folderAId,
+                1L,
+                "text/plain"))
         .addNode(new SimplePopulatorFolder(folderBId, OWNER_ID, "folderB"))
-        .addNode(new PopulatorNode(file2Id, OWNER_ID, OWNER_ID, folderBId, "file2.txt", "", NodeType.TEXT, "LOCAL_ROOT," + folderBId, 1L, "text/plain"));
+        .addNode(
+            new PopulatorNode(
+                file2Id,
+                OWNER_ID,
+                OWNER_ID,
+                folderBId,
+                "file2.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT," + folderBId,
+                1L,
+                "text/plain"));
 
     storagesMockHelper.bulkDelete(List.of());
 
     HttpResponse httpResponse = executeDeleteAllNodesAndBlobs();
 
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    Optional<Object> result = TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteAllNodesAndBlobs");
+    Optional<Object> result =
+        TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteAllNodesAndBlobs");
     Assertions.assertThat(result).contains(true);
 
     // Everything deleted.
@@ -196,18 +224,30 @@ class DeleteAllNodesAndBlobsApiIT {
   @Test
   void givenFolderWithFileAndPowerStoreFailsThenBothDeletedAndTombstonesRemain() {
     String folderId = "00000000-0000-0000-0000-000000000020";
-    String fileId   = "00000000-0000-0000-0000-000000000021";
+    String fileId = "00000000-0000-0000-0000-000000000021";
 
     DatabasePopulator.aNodePopulator(simulator.getInjector())
         .addNode(new SimplePopulatorFolder(folderId, OWNER_ID, "folder"))
-        .addNode(new PopulatorNode(fileId, OWNER_ID, OWNER_ID, folderId, "file.txt", "", NodeType.TEXT, "LOCAL_ROOT," + folderId, 1L, "text/plain"));
+        .addNode(
+            new PopulatorNode(
+                fileId,
+                OWNER_ID,
+                OWNER_ID,
+                folderId,
+                "file.txt",
+                "",
+                NodeType.TEXT,
+                "LOCAL_ROOT," + folderId,
+                1L,
+                "text/plain"));
 
     storagesMockHelper.bulkDeleteError();
 
     HttpResponse httpResponse = executeDeleteAllNodesAndBlobs();
 
     Assertions.assertThat(httpResponse.getStatus()).isEqualTo(200);
-    Optional<Object> result = TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteAllNodesAndBlobs");
+    Optional<Object> result =
+        TestUtils.jsonResponseToValue(httpResponse.getBodyPayload(), "deleteAllNodesAndBlobs");
     Assertions.assertThat(result).contains(true);
 
     List<String> errors = TestUtils.jsonResponseToErrors(httpResponse.getBodyPayload());

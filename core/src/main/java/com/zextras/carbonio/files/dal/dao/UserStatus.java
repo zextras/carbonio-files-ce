@@ -5,8 +5,8 @@
 package com.zextras.carbonio.files.dal.dao;
 
 /**
- * Represents the status of a user account. This is a local domain type that replaces the old
- * {@code com.zextras.carbonio.usermanagement.enumerations.UserStatus} from the HTTP SDK.
+ * Represents the status of a user account. This is a local domain type that replaces the old {@code
+ * com.zextras.carbonio.usermanagement.enumerations.UserStatus} from the HTTP SDK.
  */
 public enum UserStatus {
   ACTIVE,
