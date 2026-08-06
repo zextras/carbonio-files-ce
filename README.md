@@ -43,16 +43,29 @@ sudo yum install carbonio-files-ce
 After the installation you must run `pending-setups` in order to register the service in `service-discover`.
 
 ## How to build ⚙
-Build using maven:
+This is a Quarkus service; the deployable is the `app` module.
+
+JVM build:
 ```bash
 mvn clean install
 ```
-It will generate a fat-jar inside the `boot/target` folder.
+Native build (Mandrel/GraalVM):
+```bash
+mvn clean install -Dnative
+```
 
 ## How to run 🚀
-With the generated fat-jar:
+JVM mode:
 ```bash
-java -Djava.net.preferIPv4Stack=true -jar boot/target/carbonio-files-ce-*-jar-with-dependencies.jar
+java -Djava.net.preferIPv4Stack=true -jar app/target/quarkus-app/quarkus-run.jar
+```
+Native binary (`app/target/*-runner`, the artifact packaged and shipped):
+```bash
+./app/target/carbonio-files-ce-runner -Djava.net.preferIPv4Stack=true
+```
+Dev mode with live reload:
+```bash
+mvn -pl app quarkus:dev
 ```
 ## Development 🛠
 

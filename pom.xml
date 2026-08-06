@@ -26,12 +26,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <name>carbonio-files-ce</name>
 
-  <!--
-    Quarkus migration: the reactor builds the new `sdk` (generated gRPC SDK, P6a) and
-    `app` modules. The legacy `boot/` and `core/` directories are intentionally kept on
-    disk (out of the reactor) as the source-of-truth to port FROM, package-by-package,
-    during P2-P5. They are NOT built. Do not delete until the port is complete.
-  -->
   <modules>
     <module>sdk</module>
     <module>app</module>
