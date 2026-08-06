@@ -20,6 +20,7 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SortOrder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -1047,7 +1048,13 @@ public class NodeRepositoryImpl implements NodeRepository {
     }
   }
 
-  /** Jackson mix-in excluding {@link PageToken#signature} from the bytes that get signed. */
+  /**
+   * Jackson mix-in excluding {@link PageToken#signature} from the bytes that get signed. Must be
+   * registered for reflection: in a native image the {@code @JsonIgnore} is otherwise dropped, so
+   * signing includes {@code "signature":null} while verification includes the real signature —
+   * every freshly minted page token then fails its own signature check.
+   */
+  @RegisterForReflection
   private abstract static class PageTokenSignatureMixIn {
     @JsonIgnore public String signature;
   }
