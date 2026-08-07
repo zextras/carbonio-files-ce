@@ -13,21 +13,23 @@ library(
 
 properties(defaultPipelineProperties())
 
-// Quarkus native build. dt3_pipeline provides the Mandrel builder image and passes
-// -Dquarkus.native.march=compatibility (native crashes on v2/QEMU vCPUs without it); do NOT
-// pin march/Mandrel in the pom. mavenPublish ships BOTH the generated gRPC SDK (sdk module,
-// carbonio-files-grpc-sdk) and the app; the *-runner is the native binary consumed by
-// package/PKGBUILD (install to /usr/share/carbonio) and docker/Dockerfile.
+// Quarkus JVM uber-jar build (NON-native for now — mirrors carbonio-user-management on devel).
+// jarBuild copies the app module's `*-runner.jar` (the Quarkus uber-jar, produced because
+// application.properties sets quarkus.package.jar.type=uber-jar) into package/ as
+// `carbonio-files-ce.jar`, consumed by package/PKGBUILD (install to /usr/share/carbonio) and
+// docker/Dockerfile. No nativeBuild block => no GraalVM/Mandrel stage. mavenPublish still ships
+// the sdk AND the app: the app's *thin* jar (Quarkus keeps the -runner suffix on the uber-jar, so
+// the plain classes jar stays the Maven main artifact) is what carbonio-files (Advanced) consumes.
 dt3_pipeline(
     repoName: 'carbonio-files-ce',
     mavenPublish: ['sdk', 'app'],
-    nativeBuild: [runnerName: 'carbonio-files-ce-runner'],
+    jarBuild: [jarName: 'carbonio-files-ce.jar'],
     packaging: [
         buildFlags: '-ds',
         // Stage the live-config watch bridge (package/watches/*, the pika Consul-KV ->
         // message-broker republisher) into package/ before yap runs, so the PKGBUILD can install
         // carbonio-files-watches.service / -start-watches.sh / -handle-kv-changes.py. Mirrors
-        // carbonio-files (Advanced); the native *-runner is staged automatically from runnerName.
+        // carbonio-files (Advanced); the uber-jar is staged automatically from jarBuild.jarName.
         preBuildScript: 'cp -a package/watches/* package/',
     ],
     docker: [

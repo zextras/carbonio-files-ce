@@ -4,5 +4,12 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-exec /usr/share/carbonio/carbonio-files-ce-runner \
-  -Djava.net.preferIPv4Stack=true
+# JVM uber-jar (mirrors carbonio-user-management). --enable-preview + --enable-native-access are
+# required by the carbonio-quarkus-extensions bootstrap sd_notify (systemd Type=notify) which uses
+# the Java 21 Foreign Function & Memory API (preview). `exec` keeps java as the systemd MAINPID so
+# NotifyAccess=main accepts its readiness notification.
+exec /opt/zextras/common/bin/java \
+  --enable-preview \
+  --enable-native-access=ALL-UNNAMED \
+  -Djava.net.preferIPv4Stack=true \
+  -jar /usr/share/carbonio/carbonio-files-ce.jar

@@ -23,7 +23,8 @@ if [[ "${EXIT_CODE}" != "0" ]]; then
 fi
 
 # Standard setup via quarkus-extensions (policy, token, KV migration, systemd override)
-/usr/share/carbonio/carbonio-files-ce-runner \
+/opt/zextras/common/bin/java \
+  -jar /usr/share/carbonio/carbonio-files-ce.jar \
   --setup http://127.0.0.1:8500
 SETUP_EXIT_CODE="$?"
 

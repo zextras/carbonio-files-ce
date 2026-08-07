@@ -20,6 +20,7 @@ depends=(
   "pending-setups"
   "service-discover"
   "service-discover-base"
+  "carbonio-openjdk"
   "python3"
   "python3-pika"
 )
@@ -32,7 +33,7 @@ source=(
   "carbonio-files-setup"
   "carbonio-files-sidecar.service"
   "carbonio-files-sidecar-legacy.service"
-  "carbonio-files-ce-runner"
+  "carbonio-files-ce.jar"
   "intentions.json"
   "policies.json"
   "service-protocol.json"
@@ -43,10 +44,10 @@ source=(
 )
 sha256sums=(
   '96f4a551909cd061e95fe06175ff3e2f35578af77ac677023174098c8f940ed3'
-  '2b978ab2baa4fd0c4910c54b7f4089c2448442a8c8561eb7661c59147caf92e2'
+  'e1f985bcaee243d36b239410135a94fe0083d1dd0efa4beb5404cd252ced47be'
   'e2e11511134908bb984b97eb6defa1902722d028f63aaa646a1dbd29d7b9187d'
-  '0faa20edd054b5f896d57b77fa53d95a12bd2d3022c6728311ab82b477b66d65'
-  '73c308df628ee033558512b30be237b8ab99b4e11f1601170142ab36fa435814'
+  'f977389e751359f019490b698d1a8f96895d498067449592419e619084e14d17'
+  '6798541a60d633dd88de43f6d69f8930d5161de5d28a400377c70617af1d77bd'
   '715f7f726f86cab548fa5e8254cb8096b9e734f186ffb09e94c01470153d8a6a'
   '84750b0b5bc4fd7b35f015de7c970dc8c9a77020ce70b6b87b3e976649e3824d'
   'SKIP'
@@ -70,8 +71,8 @@ _package_common() {
   install -Dm755 "${srcdir}/carbonio-files-setup" \
     "${pkgdir}/usr/bin/carbonio-files-setup"
 
-  install -Dm755 "${srcdir}/carbonio-files-ce-runner" \
-    "${pkgdir}/usr/share/carbonio/carbonio-files-ce-runner"
+  install -Dm755 "${srcdir}/carbonio-files-ce.jar" \
+    "${pkgdir}/usr/share/carbonio/carbonio-files-ce.jar"
 
   install -Dm644 "${srcdir}/carbonio-files.service" \
     "${pkgdir}/lib/systemd/system/carbonio-files.service"

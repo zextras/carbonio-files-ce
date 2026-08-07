@@ -7,7 +7,7 @@ WORKDIR /staging
 COPY ../../. .
 
 RUN mkdir -p package && \
-    cp ./app/target/carbonio-files-ce-*-runner package/carbonio-files-ce-runner && \
+    cp ./app/target/*-runner.jar package/carbonio-files-ce.jar && \
     cp ./package/watches/* package/ 2>/dev/null
 
 # Stage Ubuntu 20.04 (Focal)
