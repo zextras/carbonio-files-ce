@@ -179,11 +179,28 @@ SPDX-License-Identifier: AGPL-3.0-only
     <!--
       P5a: message-broker SDK — MessageBrokerManagerImpl/consumers (KeyValueChangedConsumer,
       UserStatusChangedConsumer). Not BOM-managed.
+
+      Exclude logback: the SDK POM declares ch.qos.logback:logback-classic at COMPILE scope while it
+      only needs it for its OWN tests, so every consumer inherits a second SLF4J backend in the uber-jar
+      on top of Quarkus' jboss-logmanager. That dual binding both risks non-deterministic backend
+      selection in prod and (logback defaulting root=DEBUG, unconfigured) floods the
+      @QuarkusIntegrationTest failsafe JVM with WireMock/Jetty wire DEBUG (~GB-scale run logs).
+      TODO(message-broker-sdk): drop this exclusion once the SDK scopes logback-classic as test/optional.
     -->
     <dependency>
       <groupId>com.zextras.carbonio.message-broker</groupId>
       <artifactId>carbonio-message-broker-sdk</artifactId>
       <version>1.1.0-1</version>
+      <exclusions>
+        <exclusion>
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-core</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- P5a: quarkus-scheduler backs PurgeService's @Scheduled purge job. BOM-managed. -->
