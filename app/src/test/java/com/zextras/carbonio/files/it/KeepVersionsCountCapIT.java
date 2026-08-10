@@ -10,22 +10,21 @@ import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
-import com.zextras.carbonio.files.it.support.config.VersionCapResource;
-import io.quarkus.test.common.TestResourceScope;
-import io.quarkus.test.common.WithTestResource;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
  * Config-split sibling of {@link KeepVersionsApiIT} (Batch G / D3): carries the ONE scenario that
- * needs the keep-forever cap ({@code maxNumberOfKeepVersions}) already reached. This class reuses
- * {@link VersionCapResource} (total-version cap = 2), the SAME resource {@link
- * CloneVersionCountCapIT} uses — {@code maxNumberOfKeepVersions = maxNumberOfVersions -
+ * needs the keep-forever cap ({@code maxNumberOfKeepVersions}) already reached. This class uses the
+ * same version cap of 2 (published at runtime via setApplicationConfig on the shared stack) as
+ * {@link CloneVersionCountCapIT} — {@code maxNumberOfKeepVersions = maxNumberOfVersions -
  * Constants.Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION} (2), so a total-version cap of 2 yields a
  * keep-forever cap of EXACTLY 0. Unlike the original seam (class-wide cap of 3, giving a
  * keep-forever cap of 1, requiring one version to be PRE-marked keep-forever to fill it), a cap of
@@ -34,7 +33,6 @@ import org.junit.jupiter.api.Test;
  * guard, without needing to pre-seed an already-kept-forever version. Same code branch, same {@code
  * VERSIONS_LIMIT_REACHED} error shape, one fewer setup step.
  */
-@WithTestResource(value = VersionCapResource.class, scope = TestResourceScope.RESTRICTED_TO_CLASS)
 class KeepVersionsCountCapIT extends AbstractFilesIT {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -45,6 +43,18 @@ class KeepVersionsCountCapIT extends AbstractFilesIT {
   @BeforeAll
   static void registerUsers() {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", OWNER_ID);
+  }
+
+  private static final String MAX_NUMBER_OF_VERSIONS = "max-number-of-versions";
+
+  @BeforeEach
+  void capVersionsToTwo() {
+    setApplicationConfig(MAX_NUMBER_OF_VERSIONS, "2");
+  }
+
+  @AfterEach
+  void restoreVersionCap() {
+    clearApplicationConfig(MAX_NUMBER_OF_VERSIONS, "30");
   }
 
   /** Raw {@code errors[].extensions.errorCode} values, in response order. */
@@ -66,7 +76,7 @@ class KeepVersionsCountCapIT extends AbstractFilesIT {
   @Test
   void givenTheKeepCapAlreadyReachedMarkingAVersionShouldReturnTooManyVersionsError()
       throws Exception {
-    // Given — cap is 0 (maxNumberOfKeepVersions, from this class's VersionCapResource cap=2); v1
+    // Given — cap is 0 (maxNumberOfKeepVersions, derived from max-number-of-versions=2 set in @BeforeEach); v1
     // (current) exists, no version is kept-forever yet
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);

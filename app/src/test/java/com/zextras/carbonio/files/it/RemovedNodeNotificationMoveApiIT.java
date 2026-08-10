@@ -20,10 +20,8 @@ import org.junit.jupiter.api.Test;
  * {@code com.zextras.carbonio.files.acceptance.RemovedNodeNotificationMoveApiIT} rewritten as an
  * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: moving a node OUT of a
  * directory shared with another user notifies that user ({@code RemovedNode} +, from the share
- * itself, {@code NewShare}). Only the enabled-notifications method is here — the seam's {@code
- * setNotificationsEnabled(false)} scenario is split into the sibling {@link
- * RemovedNodeNotificationMoveDisabledIT}. Seeding (API calls capturing server-generated ids) and
- * transport changed; the scenario and assertion are otherwise preserved verbatim. The share is
+ * itself, {@code NewShare}). Seeding (API calls capturing server-generated ids) and transport
+ * changed; the scenario and assertion are otherwise preserved verbatim. The share is
  * created AFTER the node, so node creation itself never generates an AddedNode notification — only
  * the share (NewShare) and the subsequent move-away (RemovedNode).
  */

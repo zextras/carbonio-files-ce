@@ -6,25 +6,24 @@ package com.zextras.carbonio.files.it;
 
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
-import com.zextras.carbonio.files.it.support.config.DownloadCapResource;
-import io.quarkus.test.common.TestResourceScope;
-import io.quarkus.test.common.WithTestResource;
 import io.restassured.response.Response;
 import java.util.List;
 import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
  * Config-split sibling of {@link MultiDownloadZipApiIT} (Batch E / D3 of the
  * acceptance-to-Quarkus-tests plan): carries the TWO scenarios (the {@code /check} variant and the
  * actual streamed-download variant) that need an ACTUAL {@code
- * application-config.max-downloadable-size-in-mb} cap of {@code 0} configured ({@link
- * DownloadCapResource}, class-restricted) to meaningfully assert the total-size-over-cap 413 path.
+ * application-config.max-downloadable-size-in-mb} cap of {@code 0} configured (cap=0, published at
+ * runtime via setApplicationConfig on the shared stack) to meaningfully assert the
+ * total-size-over-cap 413 path.
  * See {@link MultiDownloadZipApiIT}'s javadoc for the full split mapping (21 base + 2 here + 1
  * {@link MultiDownloadZipGenerousSizeCapIT} = 24).
  */
-@WithTestResource(value = DownloadCapResource.class, scope = TestResourceScope.RESTRICTED_TO_CLASS)
 class MultiDownloadZipSizeCapIT extends AbstractFilesIT {
 
   private static final String REQUESTER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
@@ -33,6 +32,18 @@ class MultiDownloadZipSizeCapIT extends AbstractFilesIT {
   @BeforeAll
   static void registerUsers() {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", REQUESTER_ID);
+  }
+
+  private static final String MAX_DOWNLOADABLE_SIZE_IN_MB = "max-downloadable-size-in-mb";
+
+  @BeforeEach
+  void capDownloadsToZero() {
+    setApplicationConfig(MAX_DOWNLOADABLE_SIZE_IN_MB, "0");
+  }
+
+  @AfterEach
+  void restoreUncappedDownloads() {
+    clearApplicationConfig(MAX_DOWNLOADABLE_SIZE_IN_MB, null);
   }
 
   @Test

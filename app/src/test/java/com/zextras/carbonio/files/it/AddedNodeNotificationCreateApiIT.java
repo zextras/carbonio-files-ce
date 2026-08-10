@@ -20,13 +20,9 @@ import org.junit.jupiter.api.Test;
  * {@code com.zextras.carbonio.files.acceptance.AddedNodeNotificationCreateApiIT} rewritten as an
  * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: creating a node inside
  * a directory shared with another user notifies that user ({@code AddedNode} +, from the share
- * itself, {@code NewShare}). Only the enabled-notifications method is here — the seam's {@code
- * setNotificationsEnabled(false)} scenario is split into the sibling {@link
- * AddedNodeNotificationCreateDisabledIT} (`{@code application-config}` notifications toggle is a
- * boot-time snapshot for the WHOLE launched process, not settable per-method — see {@link
- * com.zextras.carbonio.files.it.support.config.NotificationsDisabledResource}). Seeding (API calls
- * capturing server-generated ids, replacing the fixed {@code 00000000-...} literals) and transport
- * changed; the scenario and assertion are otherwise preserved verbatim.
+ * itself, {@code NewShare}). Seeding (API calls capturing server-generated ids, replacing the fixed
+ * {@code 00000000-...} literals) and transport changed; the scenario and assertion are otherwise
+ * preserved verbatim.
  */
 class AddedNodeNotificationCreateApiIT extends AbstractFilesIT {
 

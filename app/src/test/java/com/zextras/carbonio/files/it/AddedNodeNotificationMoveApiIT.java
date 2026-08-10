@@ -20,10 +20,8 @@ import org.junit.jupiter.api.Test;
  * {@code com.zextras.carbonio.files.acceptance.AddedNodeNotificationMoveApiIT} rewritten as an
  * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: moving a node INTO a
  * directory shared with another user notifies that user ({@code AddedNode} +, from the share
- * itself, {@code NewShare}). Only the enabled-notifications method is here — the seam's {@code
- * setNotificationsEnabled(false)} scenario is split into the sibling {@link
- * AddedNodeNotificationMoveDisabledIT}. Seeding (API calls capturing server-generated ids) and
- * transport changed; the scenario and assertion are otherwise preserved verbatim.
+ * itself, {@code NewShare}). Seeding (API calls capturing server-generated ids) and transport
+ * changed; the scenario and assertion are otherwise preserved verbatim.
  */
 class AddedNodeNotificationMoveApiIT extends AbstractFilesIT {
 

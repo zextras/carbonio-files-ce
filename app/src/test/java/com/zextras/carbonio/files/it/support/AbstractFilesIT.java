@@ -189,6 +189,72 @@ public abstract class AbstractFilesIT {
         .post("/public/graphql/");
   }
 
+  // ------------------------------------------------------------------- runtime app-config (live KV)
+
+  /**
+   * Cookie for the config read-back: the fixed {@link FilesStackTestResource#AUTH_TOKEN} user, always
+   * registered at boot as an ACTIVE/INTERNAL/files-enabled account, so {@link #awaitApplicationConfig}
+   * never depends on a subclass's own token fixtures.
+   */
+  private static final String CONFIG_READBACK_COOKIE =
+      "ZM_AUTH_TOKEN=" + FilesStackTestResource.AUTH_TOKEN;
+
+  /**
+   * Publishes a runtime {@code application-config.<dashKey>} value via the shared Consul WireMock and
+   * blocks until the launched app reflects it (see {@link #awaitApplicationConfig}). This is how a
+   * config-variant scenario (an upload/download/version cap) is expressed on the ONE shared launched
+   * app instead of via a class-restricted {@code @WithTestResource} that forces an app restart. The
+   * {@code dashKey} is the dash-shaped own-service key ({@code max-uploadable-size-in-mb}, …), i.e.
+   * the same {@code name} {@code getConfigs} reports. Pair with {@link
+   * #clearApplicationConfigOverrides} in an {@code @AfterEach} to restore the default.
+   */
+  protected static void setApplicationConfig(String dashKey, String value) {
+    FilesStackTestResource.setApplicationConfigOverride(dashKey, value);
+    awaitApplicationConfig(dashKey, value);
+  }
+
+  /**
+   * Drops all runtime overrides published by {@link #setApplicationConfig} and blocks until {@code
+   * dashKey} has reverted to {@code expectedDefault} — {@code null} for the size caps (absence = "no
+   * limit"), or the string default for keys that have one ({@code max-number-of-versions} → {@code
+   * "30"}). Call from {@code @AfterEach} so a cap never leaks into the next test on the shared app.
+   */
+  protected static void clearApplicationConfig(String dashKey, String expectedDefault) {
+    FilesStackTestResource.clearApplicationConfigOverrides();
+    awaitApplicationConfig(dashKey, expectedDefault);
+  }
+
+  /**
+   * Polls the live {@code getConfigs} query until config {@code name} reads {@code expected} ({@code
+   * null} = absent / "no limit"), giving a DETERMINISTIC wait for a runtime Consul-KV change to
+   * propagate through the app's {@code ConsulKvWatcher} — no arbitrary {@code sleep}. The poll cadence
+   * is the HTTP round-trip itself. Fails if the value is not reached within the timeout.
+   */
+  protected static void awaitApplicationConfig(String name, String expected) {
+    long deadline = System.currentTimeMillis() + 15_000;
+    String last = "<unread>";
+    while (System.currentTimeMillis() < deadline) {
+      Response response = graphql("query { getConfigs { name value } }", CONFIG_READBACK_COOKIE);
+      if (response.getStatusCode() == 200) {
+        List<Map<String, Object>> configs =
+            TestUtils.jsonResponseToList(response.getBody().asString(), "getConfigs");
+        if (configs != null) {
+          last = null;
+          for (Map<String, Object> config : configs) {
+            if (name.equals(config.get("name"))) {
+              last = (String) config.get("value");
+            }
+          }
+          if (expected == null ? last == null : expected.equals(last)) {
+            return;
+          }
+        }
+      }
+    }
+    throw new AssertionError(
+        "getConfigs['" + name + "'] did not reach '" + expected + "' (last='" + last + "') in time");
+  }
+
   /**
    * {@code POST /upload}: creates a new node under {@code parentId} (or the account root, when
    * {@code null}) with the given content, matching {@code BlobResource#upload}'s header contract
@@ -684,7 +750,7 @@ public abstract class AbstractFilesIT {
    * rare API-observable-but-not-API-creatable pre-state (D1 rule 4) of "this node already has MORE
    * versions than the currently-configured cap allows". Unlike every other fixture on this class,
    * this one is NOT reachable by simply calling {@link #seedVersion} repeatedly under an ACTIVE
-   * {@code VersionCapResource}: {@code BlobService#uploadFileVersion} evicts the oldest surviving
+   * version cap ({@code max-number-of-versions}): {@code BlobService#uploadFileVersion} evicts the oldest surviving
    * version as soon as the existing count reaches the cap (see its {@code allFileVersion.size() >=
    * maxNumberOfVersions} eviction branch), so the API is SELF-CORRECTING and can never produce more
    * than {@code maxNumberOfVersions} concurrently-existing rows while the cap is continuously in

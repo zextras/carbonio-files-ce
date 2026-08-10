@@ -21,9 +21,8 @@ import org.junit.jupiter.api.Test;
  * {@code com.zextras.carbonio.files.acceptance.NewShareNotificationApiIT} rewritten as an
  * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: creating a share
  * notifies the share's target user ({@code NewShare}). Only the enabled-notifications method is
- * here — the seam's {@code setNotificationsEnabled(false)} scenario is split into the sibling
- * {@link NewShareNotificationDisabledIT}. Seeding (API calls capturing server-generated ids) and
- * transport changed; the scenario and assertion are otherwise preserved verbatim.
+ * here. Seeding (API calls capturing server-generated ids) and transport changed; the scenario and
+ * assertion are otherwise preserved verbatim.
  */
 class NewShareNotificationApiIT extends AbstractFilesIT {
 

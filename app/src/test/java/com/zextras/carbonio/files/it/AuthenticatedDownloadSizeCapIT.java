@@ -6,23 +6,21 @@ package com.zextras.carbonio.files.it;
 
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
-import com.zextras.carbonio.files.it.support.config.DownloadCapResource;
-import io.quarkus.test.common.TestResourceScope;
-import io.quarkus.test.common.WithTestResource;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
 import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
  * Config-split sibling of {@link AuthenticatedDownloadApiIT} (Batch E / D3 of the
  * acceptance-to-Quarkus-tests plan): carries the ONE scenario that needs an ACTUAL {@code
- * application-config.max-downloadable-size-in-mb} cap configured ({@link DownloadCapResource},
- * cap=0, class-restricted) to meaningfully assert the download-side 413 path. See {@link
+ * application-config.max-downloadable-size-in-mb} cap configured (cap=0, published at runtime via
+ * setApplicationConfig on the shared stack) to meaningfully assert the download-side 413 path. See {@link
  * AuthenticatedDownloadApiIT}'s javadoc for the full split mapping (8 base + 1 here = 9).
  */
-@WithTestResource(value = DownloadCapResource.class, scope = TestResourceScope.RESTRICTED_TO_CLASS)
 class AuthenticatedDownloadSizeCapIT extends AbstractFilesIT {
 
   private static final String REQUESTER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
@@ -33,9 +31,21 @@ class AuthenticatedDownloadSizeCapIT extends AbstractFilesIT {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", REQUESTER_ID);
   }
 
+  private static final String MAX_DOWNLOADABLE_SIZE_IN_MB = "max-downloadable-size-in-mb";
+
+  @BeforeEach
+  void capDownloadsToZero() {
+    setApplicationConfig(MAX_DOWNLOADABLE_SIZE_IN_MB, "0");
+  }
+
+  @AfterEach
+  void restoreUncappedDownloads() {
+    clearApplicationConfig(MAX_DOWNLOADABLE_SIZE_IN_MB, null);
+  }
+
   @Test
   void givenTheNodeSizeOverTheConfiguredCapDownloadShouldReturn413() {
-    // Given — a 0MB cap is configured (this class's DownloadCapResource): any non-empty node
+    // Given — a 0MB cap is configured (max-downloadable-size-in-mb=0, set in @BeforeEach): any non-empty node
     // exceeds it.
     String nodeId =
         seedFile(

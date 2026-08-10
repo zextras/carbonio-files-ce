@@ -14,11 +14,15 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.http.RequestMethod;
+import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import com.zextras.carbonio.files.it.support.MockStoragesService;
 import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 /**
@@ -84,6 +88,19 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
   private static com.zextras.carbonio.files.utilities.MockUserManagementService
       userManagementService;
   private static MockStoragesService storagesService;
+
+  /**
+   * Runtime {@code application-config.*} overrides layered on top of the base Consul KV recurse,
+   * keyed by RAW KV path ({@code carbonio-files/<dash-key>}). Lets an out-of-process
+   * {@code @QuarkusIntegrationTest} vary a live-read config value (e.g. an upload/download/version
+   * cap) WITHOUT relaunching the app: the change is published on the shared Consul WireMock and the
+   * app's {@code ConsulKvWatcher} picks it up into the live snapshot on its next poll. Replaces the
+   * per-class {@code @WithTestResource(..., RESTRICTED_TO_CLASS)} cap resources that forced a full
+   * app restart per class.
+   */
+  private static final Map<String, String> appConfigOverrides = new ConcurrentHashMap<>();
+
+  private static volatile StubMapping rootRecurseOverride;
 
   @Override
   public Map<String, String> start() {
@@ -260,8 +277,58 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
   public static void resetConsulStubs() {
     if (consulMock != null) {
       consulMock.resetMappings();
+      // resetMappings() also drops any runtime application-config override stub, so forget it too.
+      appConfigOverrides.clear();
+      rootRecurseOverride = null;
       setupConsulStubs(consulMock);
     }
+  }
+
+  /**
+   * Publishes (or updates) a runtime {@code application-config.<dashKey>} value on the shared Consul
+   * WireMock by re-serving the root {@code /v1/kv/?recurse} with the base credentials PLUS all
+   * current overrides, at a higher priority than the baseline stub. The app's {@code
+   * ConsulKvWatcher} observes the changed recurse body on its next poll and swaps it into the live
+   * {@code GlobalConfigSnapshot}, so a subsequent live read (e.g. {@code
+   * FilesConfig#getMaxUploadableFileSizeInMb}) returns the new value with NO app restart. Callers
+   * should wait for the change to be observable (see {@code AbstractFilesIT#awaitApplicationConfig})
+   * before asserting, since propagation is one watcher poll away.
+   */
+  public static synchronized void setApplicationConfigOverride(String dashKey, String value) {
+    appConfigOverrides.put("carbonio-files/" + dashKey, value);
+    restubRootRecurse();
+  }
+
+  /** Drops all runtime overrides, reverting the recurse to the base (credentials-only) view. */
+  public static synchronized void clearApplicationConfigOverrides() {
+    if (appConfigOverrides.isEmpty()) {
+      return;
+    }
+    appConfigOverrides.clear();
+    restubRootRecurse();
+  }
+
+  private static void restubRootRecurse() {
+    List<String[]> entries = new ArrayList<>();
+    entries.add(new String[] {"carbonio-files/database/credentials/db-name", DB_NAME});
+    entries.add(new String[] {"carbonio-files/database/credentials/db-username", DB_USER});
+    entries.add(new String[] {"carbonio-files/database/credentials/db-password", DB_PASSWORD});
+    appConfigOverrides.forEach((key, value) -> entries.add(new String[] {key, value}));
+
+    StubMapping mapping =
+        consulMock.stubFor(
+            get(urlPathEqualTo("/v1/kv/"))
+                .atPriority(0)
+                .willReturn(
+                    aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(buildKvArrayJson(entries.toArray(new String[0][])))));
+    // Add the fresh stub before removing the previous one so the recurse is never briefly unstubbed.
+    if (rootRecurseOverride != null) {
+      consulMock.removeStub(rootRecurseOverride);
+    }
+    rootRecurseOverride = mapping;
   }
 
   @Override

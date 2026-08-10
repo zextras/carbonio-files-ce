@@ -26,12 +26,12 @@ import org.junit.jupiter.api.Test;
  *
  * <ul>
  *   <li>{@code givenABodyOverTheConfiguredSizeCapUploadVersionShouldReturn413} (upload-size-cap=0)
- *       moved to {@link UploadFileVersionSizeCapIT} ({@code @WithTestResource(UploadCapResource)}).
+ *       moved to {@link UploadFileVersionSizeCapIT} (upload-size cap set at runtime on the shared stack).
  *   <li>{@code givenTheVersionCapIsExceededUploadVersionShouldReturn405}, {@code
  *       givenTheVersionCountAtTheCapUploadVersionShouldSucceedAndEvictTheOldestVersion} and {@code
  *       givenStoragesBulkDeleteReturnsANullResponseTheEvictedVersionIsStillDeleted} (all three set
  *       max-number-of-versions=2 in the original) moved to {@link UploadFileVersionCountCapIT}
- *       ({@code @WithTestResource(VersionCapResource)}).
+ *       (version cap set at runtime on the shared stack).
  * </ul>
  *
  * <p>This class keeps the remaining 5 methods on the shared default stack. Mapping: 5 (here) + 1

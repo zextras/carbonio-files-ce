@@ -7,25 +7,21 @@ package com.zextras.carbonio.files.it;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
-import com.zextras.carbonio.files.it.support.config.VersionCapResource;
-import io.quarkus.test.common.TestResourceScope;
-import io.quarkus.test.common.WithTestResource;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
  * Config-split sibling of {@link UploadFileVersionApiIT} (Batch D / D3): carries the THREE
- * scenarios that need {@code application-config.max-number-of-versions} capped to {@code 2} ({@link
- * VersionCapResource}, class-restricted). {@code FilesConfig}'s tunables are boot-time snapshots on
- * the launched out-of-process app, so these cannot share the base class's default
- * (unlimited-versions) stack. See {@link UploadFileVersionApiIT}'s javadoc for the full split
+ * scenarios that need {@code application-config.max-number-of-versions} capped to {@code 2}
+ * (published at runtime via setApplicationConfig on the shared stack). See {@link UploadFileVersionApiIT}'s javadoc for the full split
  * mapping (5 base + 1 in {@link UploadFileVersionSizeCapIT} + 3 here = 9).
  */
-@WithTestResource(value = VersionCapResource.class, scope = TestResourceScope.RESTRICTED_TO_CLASS)
 class UploadFileVersionCountCapIT extends AbstractFilesIT {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -38,9 +34,21 @@ class UploadFileVersionCountCapIT extends AbstractFilesIT {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", REQUESTER_ID);
   }
 
+  private static final String MAX_NUMBER_OF_VERSIONS = "max-number-of-versions";
+
+  @BeforeEach
+  void capVersionsToTwo() {
+    setApplicationConfig(MAX_NUMBER_OF_VERSIONS, "2");
+  }
+
+  @AfterEach
+  void restoreVersionCap() {
+    clearApplicationConfig(MAX_NUMBER_OF_VERSIONS, "30");
+  }
+
   @Test
   void givenTheVersionCapIsExceededUploadVersionShouldReturn405() throws Exception {
-    // Given — cap = 2 (this class's VersionCapResource), node already has 3 versions (3 > 2).
+    // Given — cap = 2 (max-number-of-versions=2, set in @BeforeEach), node already has 3 versions (3 > 2).
     // NOTE: v2/v3 are seeded via RAW JDBC (seedVersionRawJdbc), NOT the seedVersion API helper:
     // with the cap ACTIVELY enforced for this whole class, BlobService#uploadFileVersion evicts
     // the oldest surviving version as soon as the existing count reaches the cap, so calling the

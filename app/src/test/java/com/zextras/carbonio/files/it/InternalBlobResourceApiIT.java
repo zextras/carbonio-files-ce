@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Test;
  * surface bypasses the configured upload-size cap entirely — which requires an ACTUAL cap to be
  * configured to be a meaningful assertion (not a vacuous "succeeds because nothing is capped"). It
  * moved to the sibling {@link InternalBlobResourceSizeCapIT}
- * ({@code @WithTestResource(UploadCapResource.class)}, cap=0, so ANY non-empty body proves the
+ * (upload cap set to 0 at runtime, so ANY non-empty body proves the
  * bypass). This class keeps the remaining 8 methods on the shared default (uncapped) stack.
  * Mapping: 8 (here) + 1 ({@code InternalBlobResourceSizeCapIT}) = 9 (unchanged from the original).
  */

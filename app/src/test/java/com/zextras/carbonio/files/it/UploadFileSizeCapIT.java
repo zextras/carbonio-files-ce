@@ -6,30 +6,29 @@ package com.zextras.carbonio.files.it;
 
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
-import com.zextras.carbonio.files.it.support.config.UploadCapResource;
-import io.quarkus.test.common.TestResourceScope;
-import io.quarkus.test.common.WithTestResource;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
 import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
  * Config-split sibling of {@link UploadFileApiIT} (Batch D / D3 of the acceptance-to-Quarkus-tests
  * plan): carries the ONE scenario that needs {@code application-config.max-uploadable-size-in-mb}
- * capped to {@code 0} ({@link UploadCapResource}, class-restricted so it never leaks into other
- * classes sharing the suite-wide {@link FilesStackTestResource}). {@code FilesConfig}'s size cap is
- * a boot-time snapshot on the launched out-of-process app, so this scenario cannot share {@code
- * UploadFileApiIT}'s default (uncapped) stack.
+ * capped to {@code 0}.
  *
- * <p><b>Split mapping (Batch D config-split accounting):</b> {@code UploadFileApiIT} = 9 methods +
- * {@code UploadFileSizeCapIT} (this class) = 1 method → 10 total, unchanged from the original
- * {@code acceptance.UploadFileApiIT}.
+ * <p><b>Single-launch model:</b> instead of a class-restricted test resource — which forced a full
+ * out-of-process app restart for this one assertion — the cap is now published at RUNTIME on the
+ * shared Consul WireMock via {@link AbstractFilesIT#setApplicationConfig} and read live by {@code
+ * FilesConfig} (extension 1.13.0-1 keeps the Consul KV view live), so this class shares the
+ * suite-wide {@link FilesStackTestResource} launch with every other IT. {@code @AfterEach} restores
+ * the uncapped default so the cap never leaks to the next test on the shared app.
  */
-@WithTestResource(value = UploadCapResource.class, scope = TestResourceScope.RESTRICTED_TO_CLASS)
 class UploadFileSizeCapIT extends AbstractFilesIT {
 
+  private static final String MAX_UPLOADABLE_SIZE_IN_MB = "max-uploadable-size-in-mb";
   private static final String REQUESTER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
   private static final String REQUESTER_COOKIE = "ZM_AUTH_TOKEN=fake-token";
 
@@ -38,9 +37,19 @@ class UploadFileSizeCapIT extends AbstractFilesIT {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", REQUESTER_ID);
   }
 
+  @BeforeEach
+  void capUploadsToZero() {
+    setApplicationConfig(MAX_UPLOADABLE_SIZE_IN_MB, "0");
+  }
+
+  @AfterEach
+  void restoreUncappedUploads() {
+    clearApplicationConfig(MAX_UPLOADABLE_SIZE_IN_MB, null);
+  }
+
   @Test
   void givenABodyOverTheConfiguredSizeCapUploadShouldReturn413() {
-    // Given — a 0MB cap (this class's UploadCapResource) + a tiny (few-byte) body: BlobController
+    // Given — a 0MB cap (published at runtime above) + a tiny (few-byte) body: BlobController
     // rejects based on Content-Length alone, before reading any body bytes.
     byte[] oversizedBody = "over the 0MB cap".getBytes(StandardCharsets.UTF_8);
 

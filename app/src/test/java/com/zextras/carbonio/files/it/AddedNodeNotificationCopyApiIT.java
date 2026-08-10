@@ -20,12 +20,8 @@ import org.junit.jupiter.api.Test;
  * {@code com.zextras.carbonio.files.acceptance.AddedNodeNotificationCopyApiIT} rewritten as an
  * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: copying a node INTO a
  * directory shared with another user notifies that user ({@code AddedNode} +, from the share
- * itself, {@code NewShare}). Only the enabled-notifications method is here — the seam's {@code
- * setNotificationsEnabled(false)} scenario is split into the sibling {@link
- * AddedNodeNotificationCopyDisabledIT} (see {@link
- * com.zextras.carbonio.files.it.support.config.NotificationsDisabledResource}). Seeding (API calls
- * capturing server-generated ids) and transport changed; the scenario and assertion are otherwise
- * preserved verbatim. The copied node is a FOLDER, so no storages/Filestore copy is involved.
+ * itself, {@code NewShare}). Seeding (API calls capturing server-generated ids) and transport
+ * changed; the scenario and assertion are otherwise preserved verbatim. The copied node is a FOLDER, so no storages/Filestore copy is involved.
  */
 class AddedNodeNotificationCopyApiIT extends AbstractFilesIT {
 

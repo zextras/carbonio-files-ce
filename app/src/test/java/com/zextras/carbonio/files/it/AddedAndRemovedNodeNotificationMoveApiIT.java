@@ -21,10 +21,8 @@ import org.junit.jupiter.api.Test;
  * as an out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: moving a node
  * FROM one directory shared with a user TO another directory ALSO shared with the same user
  * produces BOTH an {@code AddedNode} (into the destination) and a {@code RemovedNode} (out of the
- * source) notification. Only the enabled-notifications method is here — the seam's {@code
- * setNotificationsEnabled(false)} scenario is split into the sibling {@link
- * AddedAndRemovedNodeNotificationMoveDisabledIT}. Seeding (API calls capturing server-generated
- * ids) and transport changed; the scenario and assertion are otherwise preserved verbatim.
+ * source) notification. Seeding (API calls capturing server-generated ids) and transport changed;
+ * the scenario and assertion are otherwise preserved verbatim.
  */
 class AddedAndRemovedNodeNotificationMoveApiIT extends AbstractFilesIT {
 
