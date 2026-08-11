@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -44,6 +45,37 @@ class FilesInternalClientTest {
     if (server != null) {
       server.stop(0);
     }
+  }
+
+  @Test
+  void builderApiReadTimeoutAbortsSlowMetadataCall() throws Exception {
+    server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          try {
+            Thread.sleep(1500);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          byte[] body = "{}".getBytes(StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.start();
+
+    FilesInternalClient client =
+        FilesInternalClient.builder("http://localhost:" + server.getAddress().getPort())
+            .apiReadTimeout(Duration.ofMillis(200))
+            .build();
+
+    assertTimeoutPreemptively(
+        Duration.ofSeconds(5),
+        () ->
+            assertThrows(
+                FilesInternalClientException.class, () -> client.getNode("user-1", "node-1")));
   }
 
   @Test

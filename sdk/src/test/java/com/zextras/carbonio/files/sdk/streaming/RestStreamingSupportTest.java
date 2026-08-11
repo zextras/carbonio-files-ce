@@ -61,9 +61,23 @@ class RestStreamingSupportTest {
 
   @Test
   void http1ClientUsesHttp11() {
-    HttpClient client = RestStreamingSupport.http1Client();
+    HttpClient client = RestStreamingSupport.http1Client(null);
 
     assertEquals(HttpClient.Version.HTTP_1_1, client.version());
+  }
+
+  @Test
+  void http1ClientAppliesConnectTimeout() {
+    HttpClient client = RestStreamingSupport.http1Client(Duration.ofSeconds(7));
+
+    assertEquals(java.util.Optional.of(Duration.ofSeconds(7)), client.connectTimeout());
+  }
+
+  @Test
+  void http1ClientWithNullConnectTimeoutHasNone() {
+    HttpClient client = RestStreamingSupport.http1Client((Duration) null);
+
+    assertTrue(client.connectTimeout().isEmpty());
   }
 
   @Test
@@ -83,7 +97,7 @@ class RestStreamingSupportTest {
         });
     server.start();
 
-    HttpClient client = RestStreamingSupport.http1Client();
+    HttpClient client = RestStreamingSupport.http1Client(null);
     URI uri = URI.create("http://localhost:" + server.getAddress().getPort() + "/download");
 
     byte[] received =
@@ -121,7 +135,7 @@ class RestStreamingSupportTest {
         });
     server.start();
 
-    HttpClient client = RestStreamingSupport.http1Client();
+    HttpClient client = RestStreamingSupport.http1Client(null);
     URI uri = URI.create("http://localhost:" + server.getAddress().getPort() + "/upload-raw");
 
     assertTimeoutPreemptively(
@@ -178,7 +192,7 @@ class RestStreamingSupportTest {
         });
     server.start();
 
-    HttpClient client = RestStreamingSupport.http1Client();
+    HttpClient client = RestStreamingSupport.http1Client(null);
     URI uri =
         URI.create(
             "http://localhost:" + server.getAddress().getPort() + "/upload-raw-content-length");
@@ -243,7 +257,7 @@ class RestStreamingSupportTest {
         });
     server.start();
 
-    HttpClient client = RestStreamingSupport.http1Client();
+    HttpClient client = RestStreamingSupport.http1Client(null);
     URI uri =
         URI.create("http://localhost:" + server.getAddress().getPort() + "/upload-raw-headers");
 
@@ -292,7 +306,7 @@ class RestStreamingSupportTest {
         });
     server.start();
 
-    HttpClient client = RestStreamingSupport.http1Client();
+    HttpClient client = RestStreamingSupport.http1Client(null);
     URI uri = URI.create("http://localhost:" + server.getAddress().getPort() + "/upload-raw-error");
 
     IOException thrown =
@@ -344,7 +358,7 @@ class RestStreamingSupportTest {
         });
     server.start();
 
-    HttpClient client = RestStreamingSupport.http1Client();
+    HttpClient client = RestStreamingSupport.http1Client(null);
     URI uri =
         URI.create("http://localhost:" + server.getAddress().getPort() + "/upload-raw-repeat");
 

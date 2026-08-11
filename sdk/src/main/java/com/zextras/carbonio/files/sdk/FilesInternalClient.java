@@ -23,6 +23,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -83,12 +84,20 @@ public final class FilesInternalClient {
   private final InternalNodeResourceApi nodeApi;
   private final HttpClient blobHttpClient;
 
-  private FilesInternalClient(String url) {
+  private FilesInternalClient(Builder builder) {
     ApiClient apiClient = new ApiClient();
-    apiClient.updateBaseUri(url);
+    apiClient.updateBaseUri(builder.url);
+    // Must be set before constructing InternalNodeResourceApi: its constructor snapshots the
+    // ApiClient's timeouts into final fields, so setting them afterwards would be a silent no-op.
+    if (builder.apiConnectTimeout != null) {
+      apiClient.setConnectTimeout(builder.apiConnectTimeout);
+    }
+    if (builder.apiReadTimeout != null) {
+      apiClient.setReadTimeout(builder.apiReadTimeout);
+    }
     this.baseUrl = apiClient.getBaseUri();
     this.nodeApi = new InternalNodeResourceApi(apiClient);
-    this.blobHttpClient = RestStreamingSupport.http1Client();
+    this.blobHttpClient = RestStreamingSupport.http1Client(builder.blobConnectTimeout);
   }
 
   /**
@@ -98,7 +107,54 @@ public final class FilesInternalClient {
    * @return an instance of the {@link FilesInternalClient}.
    */
   public static FilesInternalClient atURL(String url) {
-    return new FilesInternalClient(url);
+    return builder(url).build();
+  }
+
+  public static Builder builder(String url) {
+    return new Builder(url);
+  }
+
+  /**
+   * Fluent builder for {@link FilesInternalClient}. Timeouts follow the call class and mirror the
+   * generated {@code ApiClient}: nothing is set unless the caller sets it — this SDK has NO defaults
+   * of its own.
+   *
+   * <ul>
+   *   <li>non-blob (JSON metadata) ops carry {@link #apiConnectTimeout} + {@link #apiReadTimeout};
+   *   <li>blob (streamed upload/download) ops carry only {@link #blobConnectTimeout}. There is
+   *       deliberately no blob read/request timeout: a request timeout is a single absolute deadline
+   *       over the whole exchange — harmless on a streamed download but fatal on a large upload — so
+   *       blob transfers always run to completion; the connect timeout is the only guard.
+   * </ul>
+   */
+  public static final class Builder {
+    private final String url;
+    private Duration apiConnectTimeout;
+    private Duration apiReadTimeout;
+    private Duration blobConnectTimeout;
+
+    private Builder(String url) {
+      this.url = url;
+    }
+
+    public Builder apiConnectTimeout(Duration timeout) {
+      this.apiConnectTimeout = timeout;
+      return this;
+    }
+
+    public Builder apiReadTimeout(Duration timeout) {
+      this.apiReadTimeout = timeout;
+      return this;
+    }
+
+    public Builder blobConnectTimeout(Duration timeout) {
+      this.blobConnectTimeout = timeout;
+      return this;
+    }
+
+    public FilesInternalClient build() {
+      return new FilesInternalClient(this);
+    }
   }
 
   // -------------------------------------------------------------------------------------- getNode

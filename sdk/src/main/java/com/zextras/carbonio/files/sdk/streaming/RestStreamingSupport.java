@@ -39,22 +39,31 @@ import java.util.function.Supplier;
  */
 public final class RestStreamingSupport {
 
-  private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
-
   /** Upper bound on how much of a non-2xx response body is read into an exception message. */
   private static final int MAX_ERROR_BODY_BYTES = 2048;
 
   private RestStreamingSupport() {}
 
   /**
-   * Builds an HTTP/1.1 {@link HttpClient} suitable for streaming requests. HTTP/1.1 is pinned
-   * explicitly because the target services in this mesh only speak HTTP/1.1.
+   * Builds an HTTP/1.1 {@link HttpClient} for streaming requests. HTTP/1.1 is pinned explicitly
+   * because the target services in this mesh only speak HTTP/1.1.
+   *
+   * <p>This SDK imposes NO default timeout of its own — mirroring the generated {@code ApiClient},
+   * the caller (via {@code FilesInternalClient.builder}) decides.
+   *
+   * @param connectTimeout the TCP connect timeout, or {@code null} for none (the JDK/OS default
+   *     applies). There is deliberately no request/read timeout knob for blob transfers: a request
+   *     timeout is a single absolute deadline over the whole exchange — harmless on a streamed
+   *     download (bounds only time-to-first-response) but fatal on a large upload (bounds the whole
+   *     body send) — so streamed transfers always run to completion; the connect timeout is the
+   *     only guard.
    */
-  public static HttpClient http1Client() {
-    return HttpClient.newBuilder()
-        .version(Version.HTTP_1_1)
-        .connectTimeout(CONNECT_TIMEOUT)
-        .build();
+  public static HttpClient http1Client(Duration connectTimeout) {
+    HttpClient.Builder builder = HttpClient.newBuilder().version(Version.HTTP_1_1);
+    if (connectTimeout != null) {
+      builder.connectTimeout(connectTimeout);
+    }
+    return builder.build();
   }
 
   /**
