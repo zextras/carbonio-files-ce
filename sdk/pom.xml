@@ -76,6 +76,22 @@ SPDX-License-Identifier: AGPL-3.0-only
           <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
         </configuration>
       </plugin>
+      <!-- Skip generating the java.time RFC3339 helpers (RFC3339JavaTimeModule/RFC3339InstantDeserializer):
+           the latter references jackson 2.16's JavaTimeFeature, which breaks this SDK on carbonio-mailbox's
+           jackson 2.15. The /internal DTOs carry no date fields, so a tiny empty RFC3339JavaTimeModule
+           (src/main/java) stands in and the rest of the generated client is kept as-is. -->
+      <plugin>
+        <groupId>org.openapitools</groupId>
+        <artifactId>openapi-generator-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>generate-rest-client</id>
+            <configuration>
+              <ignoreFileOverride>${project.basedir}/.openapi-generator-ignore</ignoreFileOverride>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 </project>
