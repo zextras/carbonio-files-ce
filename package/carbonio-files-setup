@@ -10,45 +10,65 @@ if [[ $(id -u) -ne 0 ]]; then
 fi
 
 # Decrypt the bootstrap token, asking the password to the sys admin
-# --setup checks for SETUP_CONSUL_TOKEN env variable and uses it
+# --setup check for SETUP_CONSUL_TOKEN env. variable and uses it
 # to avoid re-asking for the password
 echo -n "Insert the cluster credential password: "
-SETUP_CONSUL_TOKEN=$(service-discover bootstrap-token --setup)
+export CONSUL_HTTP_TOKEN
+CONSUL_HTTP_TOKEN=$(service-discover bootstrap-token --setup)
 EXIT_CODE="$?"
-export SETUP_CONSUL_TOKEN
 echo ""
 if [[ "${EXIT_CODE}" != "0" ]]; then
   echo "Cannot access to bootstrap token"
   exit 1;
 fi
-
-# Standard setup via quarkus-extensions (policy, token, KV migration, systemd override)
-/opt/zextras/common/bin/java \
-  -jar /usr/share/carbonio/carbonio-files-ce.jar \
-  --setup http://127.0.0.1:8500
-SETUP_EXIT_CODE="$?"
-
-# Do not mark the pending-setup as done (and do not restart) if --setup failed.
-if [[ "${SETUP_EXIT_CODE}" != "0" ]]; then
-  # Limit secret visibility as much as possible
-  export -n SETUP_CONSUL_TOKEN
-  echo "Setup failed (exit ${SETUP_EXIT_CODE}); leaving pending-setup to be retried."
-  exit "${SETUP_EXIT_CODE}"
-fi
-
-# Files-specific: declare the service-router that overrides the RequestTimeout for the download,
-# upload and upload-version endpoints. The quarkus-extensions --setup writes the policy, token,
-# intentions and service-protocol, but not this custom router. consul CLI reads CONSUL_HTTP_TOKEN
-# (not SETUP_CONSUL_TOKEN).
-CONSUL_HTTP_TOKEN="${SETUP_CONSUL_TOKEN}" \
-  consul config write /etc/carbonio/files/service-discover/service-router.json
-
-# Reload the consul agent with the bootstrap token (consul CLI reads CONSUL_HTTP_TOKEN,
-# not SETUP_CONSUL_TOKEN) before dropping the token from the environment.
-CONSUL_HTTP_TOKEN="${SETUP_CONSUL_TOKEN}" consul reload
-
 # Limit secret visibility as much as possible
 export -n SETUP_CONSUL_TOKEN
 
+POLICY_NAME='carbonio-files-policy'
+POLICY_DESCRIPTION='Carbonio Files service policy for service and sidecar proxy'
+
+# Create or update policy for the specific service (this will be shared across cluster)
+if ! consul acl policy create -name "${POLICY_NAME}" -description "${POLICY_DESCRIPTION}" -rules @/etc/carbonio/files/service-discover/policies.json >/dev/null 2>&1; then
+    if ! consul acl policy update -no-merge -name "${POLICY_NAME}" -description "${POLICY_DESCRIPTION}" -rules @/etc/carbonio/files/service-discover/policies.json; then
+      echo "Setup failed: Cannot update policy for ${POLICY_NAME}"
+      exit 1
+    fi
+fi
+
+# Declare the service as http
+consul config write /etc/carbonio/files/service-discover/service-protocol.json
+
+# Allow other services to contact this service
+consul config write /etc/carbonio/files/service-discover/intentions.json
+
+# Declare the service-router containing the override of the RequestTimeout
+# config for the download, upload and upload-version endpoints
+consul config write /etc/carbonio/files/service-discover/service-router.json
+
+if [[ ! -f "/etc/carbonio/files/service-discover/token" ]]; then
+    # Create the token
+    consul acl token create -format json -policy-name "${POLICY_NAME}" -description "Token for
+    carbonio-files/$(hostname -A)" |
+      jq -r '.SecretID' > /etc/carbonio/files/service-discover/token;
+    chown carbonio-files:carbonio-files /etc/carbonio/files/service-discover/token
+    chmod 0600 /etc/carbonio/files/service-discover/token
+
+    # To pass the token to consul-template we need to inject it to a env. variable
+    # since it doesn't accept a file as an argument
+    mkdir -p /etc/systemd/system/carbonio-files.service.d/
+    cat >/etc/systemd/system/carbonio-files.service.d/override.conf <<EOF
+[Service]
+Environment="CONSUL_HTTP_TOKEN=$(cat /etc/carbonio/files/service-discover/token)"
+EOF
+    chmod 0600 /etc/systemd/system/carbonio-files.service.d/override.conf
+    systemctl daemon-reload
+fi
+
+consul reload
+
+# Limit token visibility as much as possible
+export -n CONSUL_HTTP_TOKEN
+
 systemctl restart carbonio-files.service
+systemctl restart carbonio-files-watches.service
 systemctl restart carbonio-files-sidecar.service

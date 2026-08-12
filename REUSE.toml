@@ -52,6 +52,12 @@ SPDX-FileCopyrightText = "2023 Zextras s.r.l"
 SPDX-License-Identifier = "AGPL-3.0-only"
 
 [[annotations]]
+path = ".ci/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Zextras <https://www.zextras.com>"
+SPDX-License-Identifier = "AGPL-3.0-only"
+
+[[annotations]]
 path = ["mvnw", "mvnw.cmd"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2001-2024 The Apache Software Foundation <https://www.apache.org>"
