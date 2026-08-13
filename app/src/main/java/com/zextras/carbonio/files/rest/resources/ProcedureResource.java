@@ -23,9 +23,9 @@ import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.io.InputStream;
 import java.text.MessageFormat;
 import java.util.NoSuchElementException;
 import org.slf4j.Logger;
@@ -49,9 +49,9 @@ public class ProcedureResource {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   // Legacy parity: the Netty pipeline's HttpObjectAggregator(256 * 1024) rejected an oversized
-  // /upload-to body BEFORE the request ever reached auth-handler/procedure-handler, with an empty
-  // 413 response. RESTeasy Reactive has no per-route aggregator stage, so this Content-Length
-  // check is done first-thing here, ahead of authentication, to reproduce the same ordering.
+  // /upload-to body BEFORE the request ever reached auth-handler/procedure-handler. The body is
+  // read as a raw InputStream (see readBoundedUtf8) BEFORE authentication so the cap is enforced
+  // on actual bytes, not a trusted Content-Length header (bypassed by chunked transfer-encoding).
   private static final long UPLOAD_TO_MAX_BODY_SIZE_BYTES = 256L * 1024;
 
   private final ProcedureService procedureService;
@@ -75,13 +75,10 @@ public class ProcedureResource {
   public Response uploadTo(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
-      @HeaderParam(HttpHeaders.CONTENT_LENGTH) Long contentLength,
-      String jsonBody) {
+      InputStream requestBody) {
 
-    if (contentLength != null && contentLength > UPLOAD_TO_MAX_BODY_SIZE_BYTES) {
-      return Response.status(413).build();
-    }
-
+    String jsonBody =
+        RequestBodyLimits.readBoundedUtf8(requestBody, UPLOAD_TO_MAX_BODY_SIZE_BYTES);
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
     String requesterCookies =
         (cookieHeader != null && !cookieHeader.isBlank())

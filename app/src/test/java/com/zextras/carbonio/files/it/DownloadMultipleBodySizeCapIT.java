@@ -127,4 +127,21 @@ class DownloadMultipleBodySizeCapIT extends AbstractFilesIT {
 
     Assertions.assertThat(response.statusCode()).isEqualTo(413);
   }
+
+  /**
+   * F3 (Quarkus-rewrite hardening restoration): the legacy Netty pipeline capped the {@code
+   * /upload-to} body at 256 KiB with {@code new HttpObjectAggregator(256 * 1024)}, before auth.
+   * Sent without a cookie (unauthenticated) to prove the cap fires before authentication.
+   */
+  @Test
+  void givenAnOversizedChunkedBodyUploadToShouldReturn413() throws Exception {
+    HttpResponse<String> response =
+        postChunked(
+            "/upload-to",
+            "application/json",
+            oversizedBody("{\"nodeId\":\""),
+            null);
+
+    Assertions.assertThat(response.statusCode()).isEqualTo(413);
+  }
 }
