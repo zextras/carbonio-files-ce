@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.zextras.carbonio.files.Constants.API.Headers;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
+import com.zextras.carbonio.files.exceptions.RequestEntityTooLargeException;
 import com.zextras.carbonio.files.rest.services.ProcedureService;
 import com.zextras.carbonio.files.rest.types.UploadAttachmentResponse;
 import com.zextras.carbonio.files.rest.types.UploadToRequest;
@@ -77,8 +78,14 @@ public class ProcedureResource {
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
       InputStream requestBody) {
 
-    String jsonBody =
-        RequestBodyLimits.readBoundedUtf8(requestBody, UPLOAD_TO_MAX_BODY_SIZE_BYTES);
+    String jsonBody;
+    try {
+      jsonBody = RequestBodyLimits.readBoundedUtf8(requestBody, UPLOAD_TO_MAX_BODY_SIZE_BYTES);
+    } catch (RequestEntityTooLargeException e) {
+      // Legacy parity: the Netty HttpObjectAggregator(256 * 1024) rejected an oversized body with an
+      // EMPTY 413 (before auth), so return an empty 413 here rather than BlobExceptionMapper's body.
+      return Response.status(413).build();
+    }
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
     String requesterCookies =
         (cookieHeader != null && !cookieHeader.isBlank())
