@@ -1044,11 +1044,6 @@ paths:
   /upload-to:
     post:
       parameters:
-      - name: Content-Length
-        in: header
-        schema:
-          type: integer
-          format: int64
       - name: Cookie
         in: header
         schema:
@@ -1062,6 +1057,7 @@ paths:
           application/json:
             schema:
               type: string
+              format: binary
         required: true
       responses:
         "200":
