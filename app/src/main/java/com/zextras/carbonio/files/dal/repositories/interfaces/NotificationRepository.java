@@ -28,6 +28,8 @@ public interface NotificationRepository {
 
   UserNotificationsInfo createUserNotificationsInfo(String userId);
 
+  UserNotificationsInfo upsertUserNotificationsInfo(String userId, long lastSeen, int unread);
+
   Optional<SnapshotUser> getSnapshotUser(String snapshotUserId);
 
   Optional<SnapshotUser> getLatestSnapshotOfUser(String userId);

@@ -746,8 +746,12 @@ public class NodeDataFetcher {
               List<String> nodesInError =
                   nodesIds.stream().filter(nodeId -> !flaggableNodes.contains(nodeId)).toList();
 
-              flaggableNodes.forEach(
-                  nodeId -> nodeRepository.flagForUser(nodeId, requesterId, starNodes));
+              QuarkusTransaction.requiringNew()
+                  .run(
+                      () ->
+                          flaggableNodes.forEach(
+                              nodeId ->
+                                  nodeRepository.flagForUser(nodeId, requesterId, starNodes)));
 
               return new DataFetcherResult.Builder<List<String>>()
                   .data(flaggableNodes)
@@ -801,44 +805,57 @@ public class NodeDataFetcher {
                       .collect(Collectors.toList());
 
               if (!trashableNodes.isEmpty()) {
-                nodeRepository
-                    .getNodes(trashableNodes, Optional.empty())
-                    .forEach(
-                        trashedNode -> {
-                          String nodeParentId = trashedNode.getParentId().get();
+                List<Runnable> pendingNotifications = new ArrayList<>();
+                QuarkusTransaction.requiringNew()
+                    .run(
+                        () ->
+                            nodeRepository
+                                .getNodes(trashableNodes, Optional.empty())
+                                .forEach(
+                                    trashedNode -> {
+                                      String nodeParentId = trashedNode.getParentId().get();
 
-                          List<String> usersToNotify =
-                              new ArrayList<>(
-                                  shareRepository.getSharesUsersIds(
-                                      trashedNode.getId(), List.of()));
-                          usersToNotify.remove(requesterId);
+                                      List<String> usersToNotify =
+                                          new ArrayList<>(
+                                              shareRepository.getSharesUsersIds(
+                                                  trashedNode.getId(), List.of()));
+                                      usersToNotify.remove(requesterId);
 
-                          // If the requester is the owner of the parent folder, do not notify him
-                          // since he did the upload himself
-                          // Also exclude uploads on root, since root can't be shared and does not
-                          // have an owner
-                          Node parent =
-                              nodeRepository.getNode(trashedNode.getParentId().get()).get();
-                          if (!parent.getNodeType().equals(NodeType.ROOT)
-                              && !requesterId.equals(parent.getOwnerId())
-                              && !usersToNotify.contains(parent.getOwnerId())) {
-                            usersToNotify.add(parent.getOwnerId());
-                          }
+                                      // If the requester is the owner of the parent folder, do not
+                                      // notify him since he did the upload himself
+                                      // Also exclude uploads on root, since root can't be shared
+                                      // and
+                                      // does not have an owner
+                                      Node parent =
+                                          nodeRepository
+                                              .getNode(trashedNode.getParentId().get())
+                                              .get();
+                                      if (!parent.getNodeType().equals(NodeType.ROOT)
+                                          && !requesterId.equals(parent.getOwnerId())
+                                          && !usersToNotify.contains(parent.getOwnerId())) {
+                                        usersToNotify.add(parent.getOwnerId());
+                                      }
 
-                          if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled())
-                            notificationRepository.createRemovedNodeNotification(
-                                trashedNode,
-                                parent,
-                                requester,
-                                RemovedNodeType.DELETE,
-                                usersToNotify);
+                                      if (!usersToNotify.isEmpty()
+                                          && filesConfig.areNotificationsEnabled())
+                                        pendingNotifications.add(
+                                            () ->
+                                                notificationRepository
+                                                    .createRemovedNodeNotification(
+                                                        trashedNode,
+                                                        parent,
+                                                        requester,
+                                                        RemovedNodeType.DELETE,
+                                                        usersToNotify));
 
-                          trashedNode.setAncestorIds(Constants.Db.RootId.TRASH_ROOT);
-                          trashedNode.setParentId(RootId.TRASH_ROOT);
-                          nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
-                          nodeRepository.updateNode(trashedNode);
-                          cascadeUpdateAncestors(trashedNode);
-                        });
+                                      trashedNode.setAncestorIds(Constants.Db.RootId.TRASH_ROOT);
+                                      trashedNode.setParentId(RootId.TRASH_ROOT);
+                                      nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
+                                      nodeRepository.updateNode(trashedNode);
+                                      cascadeUpdateAncestors(trashedNode);
+                                    }));
+
+                pendingNotifications.forEach(Runnable::run);
               }
 
               return new DataFetcherResult.Builder<List<String>>()
@@ -893,89 +910,91 @@ public class NodeDataFetcher {
                       .filter(nodeId -> !restorableNodeIds.contains(nodeId))
                       .collect(Collectors.toList());
 
-              List<Node> restoredNodes =
-                  nodeRepository
-                      .getNodes(restorableNodeIds, Optional.empty())
-                      .map(
-                          node -> {
-                            TrashedNode trashedNode =
-                                nodeRepository.getTrashedNode(node.getId()).get();
-                            Optional<Node> parentNode =
-                                nodeRepository.getNode(trashedNode.getParentId());
-                            if (!parentNode.isPresent()
-                                || parentNode
-                                    .get()
-                                    .getAncestorsList()
-                                    .contains(RootId.TRASH_ROOT)) {
-                              node.setParentId(RootId.LOCAL_ROOT);
-                              node.setAncestorIds(RootId.LOCAL_ROOT);
-
-                              // If the fatherless node has indirect shares then they should become
-                              // direct
-                              shareRepository
-                                  .getShares(node.getId(), Collections.emptyList())
-                                  .stream()
-                                  .filter(share -> !share.isDirect())
-                                  .forEach(
-                                      share -> {
-                                        share.setDirect(true);
-                                        shareRepository.updateShare(share); // This can be optimized
-                                      });
-
-                            } else {
-                              String parentId = parentNode.get().getId();
-                              node.setParentId(parentId);
-
-                              String newAncestors =
-                                  NodeType.ROOT.equals(parentNode.get().getNodeType())
-                                      ? parentId
-                                      : parentNode.get().getAncestorIds()
-                                          + Node.ANCESTORS_SEPARATOR
-                                          + parentId;
-
-                              node.setAncestorIds(newAncestors);
-
-                              shareRepository
-                                  .getShares(parentId, Collections.emptyList())
-                                  .forEach(
-                                      share -> {
-                                        shareRepository.upsertShare(
-                                            node.getId(),
-                                            share.getTargetUserId(),
-                                            share.getPermissions(),
-                                            false,
-                                            false,
-                                            share.getExpiredAt());
-
-                                        if (node.getNodeType() == NodeType.FOLDER) {
-                                          shareDataFetcher.cascadeUpsertShare(
-                                              node.getId(),
-                                              share.getTargetUserId(),
-                                              share.getPermissions(),
-                                              share.getExpiredAt());
-                                        }
-                                      });
-                            }
-                            String newName =
-                                searchAlternativeName(
-                                    nodeRepository,
-                                    node.getFullName(),
-                                    node.getParentId().get(),
-                                    node.getOwnerId());
-                            node.setFullName(newName);
-                            nodeRepository.restoreNode(node.getId());
-                            nodeRepository.updateNode(node);
-                            cascadeUpdateAncestors(node);
-                            return node;
-                          })
-                      .collect(Collectors.toList());
-
               ResultPath path = environment.getExecutionStepInfo().getPath();
 
               List<DataFetcherResult<Map<String, Object>>> results =
-                  restoredNodes.stream()
-                      .map(node -> convertNodeToDataFetcherResult(node, requesterId, path))
-                      .collect(Collectors.toList());
+                  QuarkusTransaction.requiringNew()
+                      .call(
+                          () ->
+                              nodeRepository
+                                  .getNodes(restorableNodeIds, Optional.empty())
+                                  .map(
+                                      node -> {
+                                        TrashedNode trashedNode =
+                                            nodeRepository.getTrashedNode(node.getId()).get();
+                                        Optional<Node> parentNode =
+                                            nodeRepository.getNode(trashedNode.getParentId());
+                                        String destParentId;
+                                        String destAncestors;
+                                        if (!parentNode.isPresent()
+                                            || parentNode
+                                                .get()
+                                                .getAncestorsList()
+                                                .contains(RootId.TRASH_ROOT)) {
+                                          destParentId = RootId.LOCAL_ROOT;
+                                          destAncestors = RootId.LOCAL_ROOT;
+
+                                          // If the fatherless node has indirect shares then they
+                                          // should become
+                                          // direct
+                                          shareRepository
+                                              .getShares(node.getId(), Collections.emptyList())
+                                              .stream()
+                                              .filter(share -> !share.isDirect())
+                                              .forEach(
+                                                  share -> {
+                                                    share.setDirect(true);
+                                                    shareRepository.updateShare(
+                                                        share); // This can be optimized
+                                                  });
+
+                                        } else {
+                                          destParentId = parentNode.get().getId();
+
+                                          destAncestors =
+                                              NodeType.ROOT.equals(parentNode.get().getNodeType())
+                                                  ? destParentId
+                                                  : parentNode.get().getAncestorIds()
+                                                      + Node.ANCESTORS_SEPARATOR
+                                                      + destParentId;
+
+                                          shareRepository
+                                              .getShares(destParentId, Collections.emptyList())
+                                              .forEach(
+                                                  share -> {
+                                                    shareRepository.upsertShare(
+                                                        node.getId(),
+                                                        share.getTargetUserId(),
+                                                        share.getPermissions(),
+                                                        false,
+                                                        false,
+                                                        share.getExpiredAt());
+
+                                                    if (node.getNodeType() == NodeType.FOLDER) {
+                                                      shareDataFetcher.cascadeUpsertShare(
+                                                          node.getId(),
+                                                          share.getTargetUserId(),
+                                                          share.getPermissions(),
+                                                          share.getExpiredAt());
+                                                    }
+                                                  });
+                                        }
+                                        String newName =
+                                            searchAlternativeName(
+                                                nodeRepository,
+                                                node.getFullName(),
+                                                destParentId,
+                                                node.getOwnerId());
+                                        node.setParentId(destParentId);
+                                        node.setAncestorIds(destAncestors);
+                                        node.setFullName(newName);
+                                        nodeRepository.restoreNode(node.getId());
+                                        nodeRepository.updateNode(node);
+                                        cascadeUpdateAncestors(node);
+                                        return convertNodeToDataFetcherResult(
+                                            node, requesterId, path);
+                                      })
+                                  .collect(Collectors.toList()));
 
               results.addAll(
                   nodesInError.stream()
@@ -1365,133 +1384,165 @@ public class NodeDataFetcher {
 
                   List<DataFetcherResult<Map<String, Object>>> movedNodesResult = new ArrayList<>();
                   if (!nodeIdsToMove.isEmpty()) {
-                    nodeIdsToMove.forEach(
-                        nodeId -> {
-                          Node node = nodeRepository.getNode(nodeId).get();
+                    List<Runnable> pendingNotifications = new ArrayList<>();
+                    QuarkusTransaction.requiringNew()
+                        .run(
+                            () -> {
+                              nodeIdsToMove.forEach(
+                                  nodeId -> {
+                                    Node node = nodeRepository.getNode(nodeId).get();
 
-                          // Search for a new name only if not moving to same parent directory
-                          // because obviously if so
-                          // there will always be a node with that name already present causing node
-                          // to be wrongly renamed
-                          if (node.getParentId().isPresent()
-                              && !node.getParentId().get().equals(destinationFolderId)) {
-                            String newName =
-                                searchAlternativeName(
-                                    nodeRepository,
-                                    node.getFullName(),
-                                    destinationFolderId,
-                                    node.getOwnerId());
-                            node.setFullName(newName);
-                          }
-
-                          nodeRepository.updateNode(node);
-
-                          // Remove node notification snapshot & creation
-                          List<String> usersToNotifyRemoveNode =
-                              new ArrayList<>(
-                                  shareRepository.getSharesUsersIds(node.getId(), List.of()));
-                          usersToNotifyRemoveNode.remove(requesterId);
-
-                          Node parent = nodeRepository.getNode(node.getParentId().get()).get();
-                          if (!parent.getNodeType().equals(NodeType.ROOT)
-                              && !requesterId.equals(parent.getOwnerId())
-                              && !usersToNotifyRemoveNode.contains(parent.getOwnerId())) {
-                            usersToNotifyRemoveNode.add(parent.getOwnerId());
-                          }
-
-                          if (!usersToNotifyRemoveNode.isEmpty()
-                              && filesConfig.areNotificationsEnabled())
-                            notificationRepository.createRemovedNodeNotification(
-                                node,
-                                parent,
-                                requester,
-                                RemovedNodeType.MOVE,
-                                usersToNotifyRemoveNode);
-                        });
-
-                    nodeRepository.moveNodes(nodeIdsToMove, optDestinationFolder.get());
-
-                    /*
-                     We must align ancestors of moved nodes
-                     We must align shares of moved nodes and it can be done in two steps:
-                     1. Remove every share of the node to move (and its child up to the leaves, if it is a folder)
-                     2. Create all the shares of the destination folder (if it has at least one) for the node to move
-                        (and for its child up to the leaves, if it is a folder)
-                    */
-
-                    nodeIdsToMove.forEach(
-                        nodeId -> {
-                          Node node = nodeRepository.getNode(nodeId).get();
-
-                          cascadeUpdateAncestors(node);
-                          // Remove inherited shares on source node
-                          shareRepository.getShares(nodeId, Collections.emptyList()).stream()
-                              .filter(share -> !share.isDirect())
-                              .forEach(
-                                  share -> {
-                                    shareRepository.deleteShare(nodeId, share.getTargetUserId());
-                                    shareDataFetcher.cascadeDeleteShare(
-                                        nodeId, share.getTargetUserId());
-                                  });
-                          // Add new inherited shares from destination node
-                          List<String> usersToNotifyAddNode = new ArrayList<>();
-                          shareRepository
-                              .getShares(destinationFolderId, Collections.emptyList())
-                              .forEach(
-                                  share -> {
-                                    Optional<Share> sourceShare =
-                                        shareRepository.getShare(nodeId, share.getTargetUserId());
-                                    usersToNotifyAddNode.add(share.getTargetUserId());
-                                    // If there's a share on source node is one of the direct shares
-                                    // i did not delete on previous step
-                                    // I still added the second condition because of safety reasons
-                                    // and to be sure i only operate on
-                                    // inherited share if other operations in future make it so
-                                    // shares are still present
-                                    if (!sourceShare.isPresent() || !sourceShare.get().isDirect()) {
-                                      shareRepository.upsertShare(
-                                          nodeId,
-                                          share.getTargetUserId(),
-                                          share.getPermissions(),
-                                          false,
-                                          false,
-                                          share.getExpiredAt());
-                                      shareDataFetcher.cascadeUpsertShare(
-                                          nodeId,
-                                          share.getTargetUserId(),
-                                          share.getPermissions(),
-                                          share.getExpiredAt());
+                                    // Search for a new name only if not moving to same parent
+                                    // directory
+                                    // because obviously if so
+                                    // there will always be a node with that name already present
+                                    // causing node
+                                    // to be wrongly renamed
+                                    if (node.getParentId().isPresent()
+                                        && !node.getParentId().get().equals(destinationFolderId)) {
+                                      String newName =
+                                          searchAlternativeName(
+                                              nodeRepository,
+                                              node.getFullName(),
+                                              destinationFolderId,
+                                              node.getOwnerId());
+                                      node.setFullName(newName);
                                     }
+
+                                    nodeRepository.updateNode(node);
+
+                                    // Remove node notification snapshot & creation
+                                    List<String> usersToNotifyRemoveNode =
+                                        new ArrayList<>(
+                                            shareRepository.getSharesUsersIds(
+                                                node.getId(), List.of()));
+                                    usersToNotifyRemoveNode.remove(requesterId);
+
+                                    Node parent =
+                                        nodeRepository.getNode(node.getParentId().get()).get();
+                                    if (!parent.getNodeType().equals(NodeType.ROOT)
+                                        && !requesterId.equals(parent.getOwnerId())
+                                        && !usersToNotifyRemoveNode.contains(parent.getOwnerId())) {
+                                      usersToNotifyRemoveNode.add(parent.getOwnerId());
+                                    }
+
+                                    if (!usersToNotifyRemoveNode.isEmpty()
+                                        && filesConfig.areNotificationsEnabled())
+                                      pendingNotifications.add(
+                                          () ->
+                                              notificationRepository.createRemovedNodeNotification(
+                                                  node,
+                                                  parent,
+                                                  requester,
+                                                  RemovedNodeType.MOVE,
+                                                  usersToNotifyRemoveNode));
                                   });
 
-                          usersToNotifyAddNode.remove(requesterId); // remove requester if present
+                              nodeRepository.moveNodes(nodeIdsToMove, optDestinationFolder.get());
 
-                          // If the requester is the owner of the parent folder, do not notify him
-                          // since he did the upload himself
-                          // Also exclude uploads on root, since root can't be shared and does not
-                          // have an owner
-                          if (!optDestinationFolder.get().getNodeType().equals(NodeType.ROOT)
-                              && !requesterId.equals(optDestinationFolder.get().getOwnerId())) {
-                            usersToNotifyAddNode.add(optDestinationFolder.get().getOwnerId());
-                          }
+                              /*
+                               We must align ancestors of moved nodes
+                               We must align shares of moved nodes and it can be done in two steps:
+                               1. Remove every share of the node to move (and its child up to the leaves, if it is a folder)
+                               2. Create all the shares of the destination folder (if it has at least one) for the node to move
+                                  (and for its child up to the leaves, if it is a folder)
+                              */
 
-                          if (!usersToNotifyAddNode.isEmpty()
-                              && filesConfig.areNotificationsEnabled())
-                            notificationRepository.createAddedNodeNotification(
-                                node,
-                                optDestinationFolder.get(),
-                                requester,
-                                AddedNodeType.MOVE,
-                                usersToNotifyAddNode);
-                        });
+                              nodeIdsToMove.forEach(
+                                  nodeId -> {
+                                    Node node = nodeRepository.getNode(nodeId).get();
 
-                    movedNodesResult.addAll(
-                        nodeRepository
-                            .getNodes(nodeIdsToMove, Optional.empty())
-                            .map(
-                                node ->
-                                    convertNodeToDataFetcherResult(node, requesterId, resultPath))
-                            .collect(Collectors.toList()));
+                                    cascadeUpdateAncestors(node);
+                                    // Remove inherited shares on source node
+                                    shareRepository
+                                        .getShares(nodeId, Collections.emptyList())
+                                        .stream()
+                                        .filter(share -> !share.isDirect())
+                                        .forEach(
+                                            share -> {
+                                              shareRepository.deleteShare(
+                                                  nodeId, share.getTargetUserId());
+                                              shareDataFetcher.cascadeDeleteShare(
+                                                  nodeId, share.getTargetUserId());
+                                            });
+                                    // Add new inherited shares from destination node
+                                    List<String> usersToNotifyAddNode = new ArrayList<>();
+                                    shareRepository
+                                        .getShares(destinationFolderId, Collections.emptyList())
+                                        .forEach(
+                                            share -> {
+                                              Optional<Share> sourceShare =
+                                                  shareRepository.getShare(
+                                                      nodeId, share.getTargetUserId());
+                                              usersToNotifyAddNode.add(share.getTargetUserId());
+                                              // If there's a share on source node is one of the
+                                              // direct shares
+                                              // i did not delete on previous step
+                                              // I still added the second condition because of
+                                              // safety reasons
+                                              // and to be sure i only operate on
+                                              // inherited share if other operations in future make
+                                              // it so
+                                              // shares are still present
+                                              if (!sourceShare.isPresent()
+                                                  || !sourceShare.get().isDirect()) {
+                                                shareRepository.upsertShare(
+                                                    nodeId,
+                                                    share.getTargetUserId(),
+                                                    share.getPermissions(),
+                                                    false,
+                                                    false,
+                                                    share.getExpiredAt());
+                                                shareDataFetcher.cascadeUpsertShare(
+                                                    nodeId,
+                                                    share.getTargetUserId(),
+                                                    share.getPermissions(),
+                                                    share.getExpiredAt());
+                                              }
+                                            });
+
+                                    usersToNotifyAddNode.remove(
+                                        requesterId); // remove requester if present
+
+                                    // If the requester is the owner of the parent folder, do not
+                                    // notify him
+                                    // since he did the upload himself
+                                    // Also exclude uploads on root, since root can't be shared and
+                                    // does not
+                                    // have an owner
+                                    if (!optDestinationFolder
+                                            .get()
+                                            .getNodeType()
+                                            .equals(NodeType.ROOT)
+                                        && !requesterId.equals(
+                                            optDestinationFolder.get().getOwnerId())) {
+                                      usersToNotifyAddNode.add(
+                                          optDestinationFolder.get().getOwnerId());
+                                    }
+
+                                    if (!usersToNotifyAddNode.isEmpty()
+                                        && filesConfig.areNotificationsEnabled())
+                                      pendingNotifications.add(
+                                          () ->
+                                              notificationRepository.createAddedNodeNotification(
+                                                  node,
+                                                  optDestinationFolder.get(),
+                                                  requester,
+                                                  AddedNodeType.MOVE,
+                                                  usersToNotifyAddNode));
+                                  });
+
+                              movedNodesResult.addAll(
+                                  nodeRepository
+                                      .getNodes(nodeIdsToMove, Optional.empty())
+                                      .map(
+                                          node ->
+                                              convertNodeToDataFetcherResult(
+                                                  node, requesterId, resultPath))
+                                      .collect(Collectors.toList()));
+                            });
+
+                    pendingNotifications.forEach(Runnable::run);
                   }
 
                   // List containing every node id that cannot be moved because:
@@ -2432,16 +2483,22 @@ public class NodeDataFetcher {
                     fileVersionRepository.getFileVersions(nodeId, versionsToKeepForever);
                 // Make update in batch
                 List<FileVersion> fileVersionsNotUpdated = new Vector<>();
+                List<FileVersion> fileVersionsToUpdate = new ArrayList<>();
                 for (FileVersion version : fileVersions) {
                   if (!keepForever || keepForeverCounter < maxNumberOfKeepVersions) {
                     version.keepForever(keepForever);
-                    fileVersionRepository.updateFileVersion(version);
+                    fileVersionsToUpdate.add(version);
                     keepForeverCounter =
                         keepForever ? keepForeverCounter + 1 : keepForeverCounter - 1;
                   } else {
                     fileVersionsNotUpdated.add(version);
                   }
                 }
+
+                QuarkusTransaction.requiringNew()
+                    .run(
+                        () ->
+                            fileVersionsToUpdate.forEach(fileVersionRepository::updateFileVersion));
 
                 List<Integer> versionsUpdated =
                     fileVersions.stream()
@@ -2453,16 +2510,6 @@ public class NodeDataFetcher {
                     fileVersionsNotUpdated.stream()
                         .map(version -> GraphQLResultErrors.tooManyVersionsError(nodeId, path))
                         .collect(Collectors.toList());
-
-                versionsNotUpdated.addAll(
-                    fileVersions.stream()
-                        .filter(versionsNotUpdated::contains)
-                        .filter(versionsUpdated::contains)
-                        .map(
-                            version ->
-                                GraphQLResultErrors.fileVersionNotFound(
-                                    nodeId, version.getVersion(), path))
-                        .collect(Collectors.toList()));
 
                 logger.debug(
                     MessageFormat.format(

@@ -226,17 +226,8 @@ public class NotificationDataFetcher {
                   NotificationPage.LAST_SEEN, userNotificationsInfo.getLastSeen().toString());
 
               if (Boolean.TRUE.equals(updateLastSeen) && filesConfig.areNotificationsEnabled()) {
-                if (optUserNotificationsInfo.isPresent()) {
-                  // User is present in table, so we update the last seen time and assume all news
-                  // are now read
-                  userNotificationsInfo.setLastSeen(System.currentTimeMillis());
-                  userNotificationsInfo.setUnread(0);
-                  notificationRepository.updateUserNotificationsInfo(userNotificationsInfo);
-                } else {
-                  // User is not present in table, we create it here for the first time as fallback,
-                  // setting last seen implicitly
-                  notificationRepository.createUserNotificationsInfo(requesterId);
-                }
+                notificationRepository.upsertUserNotificationsInfo(
+                    requesterId, System.currentTimeMillis(), 0);
               }
 
               return new Builder<Map<String, String>>()

@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl;
 
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.AddedNodeNotification;
@@ -153,6 +154,24 @@ public class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   @Override
+  @Transactional
+  public UserNotificationsInfo upsertUserNotificationsInfo(
+      String userId, long lastSeen, int unread) {
+    entityManager
+        .createNativeQuery(
+            "INSERT INTO "
+                + Constants.Db.Tables.USER_NOTIFICATIONS_INFO
+                + " (user_id, last_seen, unread) VALUES (:userId, :lastSeen, :unread) "
+                + "ON CONFLICT (user_id) DO UPDATE SET last_seen = EXCLUDED.last_seen, unread ="
+                + " EXCLUDED.unread")
+        .setParameter("userId", userId)
+        .setParameter("lastSeen", lastSeen)
+        .setParameter("unread", unread)
+        .executeUpdate();
+    return new UserNotificationsInfo(userId, lastSeen, unread);
+  }
+
+  @Override
   public Optional<SnapshotUser> getSnapshotUser(String snapshotUserId) {
     return Optional.ofNullable(entityManager.find(SnapshotUser.class, snapshotUserId));
   }
@@ -276,10 +295,11 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 
     usersIdsToNotify.forEach(
         userId -> {
+          UserNotificationsInfo existing =
+              getUserNotificationsInfo(userId)
+                  .orElse(new UserNotificationsInfo(userId, System.currentTimeMillis(), 0));
           UserNotificationsInfo info =
-              getUserNotificationsInfo(userId).orElseGet(() -> createUserNotificationsInfo(userId));
-          info.setUnread(info.getUnread() + 1);
-          updateUserNotificationsInfo(info);
+              upsertUserNotificationsInfo(userId, existing.getLastSeen(), existing.getUnread() + 1);
           createUserNotification(info, notification);
         });
 

@@ -24,6 +24,7 @@ import graphql.execution.DataFetcherResult;
 import graphql.execution.DataFetcherResult.Builder;
 import graphql.schema.DataFetcher;
 import graphql.schema.idl.EnumValuesProvider;
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
@@ -160,18 +161,31 @@ public class ShareDataFetcher {
                               environment.getExecutionStepInfo().getPath()))
                       .build();
                 }
-                return shareRepository
-                    .upsertShare(
-                        sharedNodeId,
-                        targetUserId,
-                        ACL.decode(permissions),
-                        true,
-                        false,
-                        optExpiresAt)
+                Optional<Share> optCreatedShare =
+                    QuarkusTransaction.requiringNew()
+                        .call(
+                            () -> {
+                              Optional<Share> upsertedShare =
+                                  shareRepository.upsertShare(
+                                      sharedNodeId,
+                                      targetUserId,
+                                      ACL.decode(permissions),
+                                      true,
+                                      false,
+                                      optExpiresAt);
+                              upsertedShare.ifPresent(
+                                  share ->
+                                      cascadeUpsertShare(
+                                          sharedNodeId,
+                                          targetUserId,
+                                          ACL.decode(permissions),
+                                          optExpiresAt));
+                              return upsertedShare;
+                            });
+
+                return optCreatedShare
                     .map(
                         share -> {
-                          cascadeUpsertShare(
-                              sharedNodeId, targetUserId, ACL.decode(permissions), optExpiresAt);
                           DataFetcherResult<Map<String, Object>> result =
                               convertShareToDataFetcherResult(share);
 
@@ -385,39 +399,44 @@ public class ShareDataFetcher {
               List<DataFetcherResult<Map<String, Object>>> successShares = new ArrayList<>();
               List<GraphQLError> errors = new ArrayList<>();
 
-              for (String targetUserId : targetUserIds) {
-                if (!hasPermission) {
-                  errors.add(
-                      GraphQLResultErrors.shareNotfound(
-                          sharedNodeId,
-                          targetUserId,
-                          environment.getExecutionStepInfo().getPath()));
-                  continue;
-                }
+              QuarkusTransaction.requiringNew()
+                  .run(
+                      () -> {
+                        for (String targetUserId : targetUserIds) {
+                          if (!hasPermission) {
+                            errors.add(
+                                GraphQLResultErrors.shareNotfound(
+                                    sharedNodeId,
+                                    targetUserId,
+                                    environment.getExecutionStepInfo().getPath()));
+                            continue;
+                          }
 
-                Optional<Share> optShare = shareRepository.getShare(sharedNodeId, targetUserId);
-                if (optShare.isPresent()) {
-                  Share share = optShare.get();
-                  optNewPermissions.ifPresent(
-                      permissions -> {
-                        share.setPermissions(ACL.decode(permissions));
-                        cascadeUpsertShare(
-                            sharedNodeId,
-                            targetUserId,
-                            ACL.decode(optNewPermissions.get()),
-                            optNewExpiresAt);
+                          Optional<Share> optShare =
+                              shareRepository.getShare(sharedNodeId, targetUserId);
+                          if (optShare.isPresent()) {
+                            Share share = optShare.get();
+                            optNewPermissions.ifPresent(
+                                permissions -> share.setPermissions(ACL.decode(permissions)));
+                            optNewExpiresAt.ifPresent(share::setExpiredAt);
+                            Share updatedShare = shareRepository.updateShare(share);
+                            optNewPermissions.ifPresent(
+                                permissions ->
+                                    cascadeUpsertShare(
+                                        sharedNodeId,
+                                        targetUserId,
+                                        ACL.decode(permissions),
+                                        optNewExpiresAt));
+                            successShares.add(convertShareToDataFetcherResult(updatedShare));
+                          } else {
+                            errors.add(
+                                GraphQLResultErrors.shareNotfound(
+                                    sharedNodeId,
+                                    targetUserId,
+                                    environment.getExecutionStepInfo().getPath()));
+                          }
+                        }
                       });
-                  optNewExpiresAt.ifPresent(share::setExpiredAt);
-                  Share updatedShare = shareRepository.updateShare(share);
-                  successShares.add(convertShareToDataFetcherResult(updatedShare));
-                } else {
-                  errors.add(
-                      GraphQLResultErrors.shareNotfound(
-                          sharedNodeId,
-                          targetUserId,
-                          environment.getExecutionStepInfo().getPath()));
-                }
-              }
 
               return DataFetcherResult.<List<DataFetcherResult<Map<String, Object>>>>newResult()
                   .data(successShares)
@@ -467,42 +486,48 @@ public class ShareDataFetcher {
               List<String> deletedTargetUserIds = new ArrayList<>();
               List<GraphQLError> errors = new ArrayList<>();
 
-              for (String targetUserId : targetUserIds) {
-                boolean hasPermission =
-                    permissionsChecker
-                            .getPermissions(sharedNodeId, requesterId)
-                            .has(ACL.SharePermission.READ_AND_SHARE)
-                        || requesterId.equals(targetUserId);
+              QuarkusTransaction.requiringNew()
+                  .run(
+                      () -> {
+                        for (String targetUserId : targetUserIds) {
+                          boolean hasPermission =
+                              permissionsChecker
+                                      .getPermissions(sharedNodeId, requesterId)
+                                      .has(ACL.SharePermission.READ_AND_SHARE)
+                                  || requesterId.equals(targetUserId);
 
-                if (!hasPermission) {
-                  errors.add(
-                      GraphQLResultErrors.shareNotfound(
-                          sharedNodeId,
-                          targetUserId,
-                          environment.getExecutionStepInfo().getPath()));
-                  continue;
-                }
+                          if (!hasPermission) {
+                            errors.add(
+                                GraphQLResultErrors.shareNotfound(
+                                    sharedNodeId,
+                                    targetUserId,
+                                    environment.getExecutionStepInfo().getPath()));
+                            continue;
+                          }
 
-                Optional<Share> optShare = shareRepository.getShare(sharedNodeId, targetUserId);
-                if (optShare.isPresent()) {
-                  Share share = optShare.get();
-                  shareRepository.deleteShare(share.getNodeId(), share.getTargetUserId());
+                          Optional<Share> optShare =
+                              shareRepository.getShare(sharedNodeId, targetUserId);
+                          if (optShare.isPresent()) {
+                            Share share = optShare.get();
+                            shareRepository.deleteShare(share.getNodeId(), share.getTargetUserId());
 
-                  // Recursively delete all the indirect share of targetUser (even for the trashed
-                  // nodes)
-                  if (nodeRepository.getNode(sharedNodeId).get().getNodeType() == NodeType.FOLDER) {
-                    cascadeDeleteShare(sharedNodeId, targetUserId);
-                  }
+                            // Recursively delete all the indirect share of targetUser (even for the
+                            // trashed nodes)
+                            if (nodeRepository.getNode(sharedNodeId).get().getNodeType()
+                                == NodeType.FOLDER) {
+                              cascadeDeleteShare(sharedNodeId, targetUserId);
+                            }
 
-                  deletedTargetUserIds.add(targetUserId);
-                } else {
-                  errors.add(
-                      GraphQLResultErrors.shareNotfound(
-                          sharedNodeId,
-                          targetUserId,
-                          environment.getExecutionStepInfo().getPath()));
-                }
-              }
+                            deletedTargetUserIds.add(targetUserId);
+                          } else {
+                            errors.add(
+                                GraphQLResultErrors.shareNotfound(
+                                    sharedNodeId,
+                                    targetUserId,
+                                    environment.getExecutionStepInfo().getPath()));
+                          }
+                        }
+                      });
 
               return DataFetcherResult.<List<String>>newResult()
                   .data(deletedTargetUserIds)
