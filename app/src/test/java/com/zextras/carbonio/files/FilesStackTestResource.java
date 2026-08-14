@@ -285,14 +285,15 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
   }
 
   /**
-   * Publishes (or updates) a runtime {@code application-config.<dashKey>} value on the shared Consul
-   * WireMock by re-serving the root {@code /v1/kv/?recurse} with the base credentials PLUS all
-   * current overrides, at a higher priority than the baseline stub. The app's {@code
+   * Publishes (or updates) a runtime {@code application-config.<dashKey>} value on the shared
+   * Consul WireMock by re-serving the root {@code /v1/kv/?recurse} with the base credentials PLUS
+   * all current overrides, at a higher priority than the baseline stub. The app's {@code
    * ConsulKvWatcher} observes the changed recurse body on its next poll and swaps it into the live
    * {@code GlobalConfigSnapshot}, so a subsequent live read (e.g. {@code
    * FilesConfig#getMaxUploadableFileSizeInMb}) returns the new value with NO app restart. Callers
-   * should wait for the change to be observable (see {@code AbstractFilesIT#awaitApplicationConfig})
-   * before asserting, since propagation is one watcher poll away.
+   * should wait for the change to be observable (see {@code
+   * AbstractFilesIT#awaitApplicationConfig}) before asserting, since propagation is one watcher
+   * poll away.
    */
   public static synchronized void setApplicationConfigOverride(String dashKey, String value) {
     appConfigOverrides.put("carbonio-files/" + dashKey, value);
@@ -324,7 +325,8 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody(buildKvArrayJson(entries.toArray(new String[0][])))));
-    // Add the fresh stub before removing the previous one so the recurse is never briefly unstubbed.
+    // Add the fresh stub before removing the previous one so the recurse is never briefly
+    // unstubbed.
     if (rootRecurseOverride != null) {
       consulMock.removeStub(rootRecurseOverride);
     }

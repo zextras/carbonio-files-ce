@@ -18,8 +18,8 @@ import org.junit.jupiter.api.Test;
  * Config-split sibling of {@link UploadFileVersionApiIT} (Batch D / D3): carries the ONE scenario
  * that needs {@code application-config.max-uploadable-size-in-mb} capped to {@code 0} (published at
  * runtime via setApplicationConfig on the shared stack). See {@link UploadFileVersionApiIT}'s
- * javadoc for the full
- * split mapping (5 base + 1 here + 3 in {@link UploadFileVersionCountCapIT} = 9).
+ * javadoc for the full split mapping (5 base + 1 here + 3 in {@link UploadFileVersionCountCapIT} =
+ * 9).
  */
 class UploadFileVersionSizeCapIT extends AbstractFilesIT {
 
@@ -45,7 +45,8 @@ class UploadFileVersionSizeCapIT extends AbstractFilesIT {
 
   @Test
   void givenABodyOverTheConfiguredSizeCapUploadVersionShouldReturn413() {
-    // Given — a 0MB cap (max-uploadable-size-in-mb=0, set in @BeforeEach) is active for the WHOLE class, including
+    // Given — a 0MB cap (max-uploadable-size-in-mb=0, set in @BeforeEach) is active for the WHOLE
+    // class, including
     // the fixture-seeding upload below: an EMPTY (0-byte) body is NOT "over" a 0MB cap (0 > 0 is
     // false, see BlobResource#isRequestSizeOverLimit), so the pre-existing v1 must be seeded with
     // zero bytes to succeed under this class's stack; only the actual assertion body is non-empty.

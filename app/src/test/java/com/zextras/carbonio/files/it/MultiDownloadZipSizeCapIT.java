@@ -20,9 +20,8 @@ import org.junit.jupiter.api.Test;
  * actual streamed-download variant) that need an ACTUAL {@code
  * application-config.max-downloadable-size-in-mb} cap of {@code 0} configured (cap=0, published at
  * runtime via setApplicationConfig on the shared stack) to meaningfully assert the
- * total-size-over-cap 413 path.
- * See {@link MultiDownloadZipApiIT}'s javadoc for the full split mapping (21 base + 2 here + 1
- * {@link MultiDownloadZipGenerousSizeCapIT} = 24).
+ * total-size-over-cap 413 path. See {@link MultiDownloadZipApiIT}'s javadoc for the full split
+ * mapping (21 base + 2 here + 1 {@link MultiDownloadZipGenerousSizeCapIT} = 24).
  */
 class MultiDownloadZipSizeCapIT extends AbstractFilesIT {
 

@@ -19,8 +19,9 @@ import org.junit.jupiter.api.Test;
 /**
  * Config-split sibling of {@link UploadFileVersionApiIT} (Batch D / D3): carries the THREE
  * scenarios that need {@code application-config.max-number-of-versions} capped to {@code 2}
- * (published at runtime via setApplicationConfig on the shared stack). See {@link UploadFileVersionApiIT}'s javadoc for the full split
- * mapping (5 base + 1 in {@link UploadFileVersionSizeCapIT} + 3 here = 9).
+ * (published at runtime via setApplicationConfig on the shared stack). See {@link
+ * UploadFileVersionApiIT}'s javadoc for the full split mapping (5 base + 1 in {@link
+ * UploadFileVersionSizeCapIT} + 3 here = 9).
  */
 class UploadFileVersionCountCapIT extends AbstractFilesIT {
 
@@ -48,7 +49,8 @@ class UploadFileVersionCountCapIT extends AbstractFilesIT {
 
   @Test
   void givenTheVersionCapIsExceededUploadVersionShouldReturn405() throws Exception {
-    // Given — cap = 2 (max-number-of-versions=2, set in @BeforeEach), node already has 3 versions (3 > 2).
+    // Given — cap = 2 (max-number-of-versions=2, set in @BeforeEach), node already has 3 versions
+    // (3 > 2).
     // NOTE: v2/v3 are seeded via RAW JDBC (seedVersionRawJdbc), NOT the seedVersion API helper:
     // with the cap ACTIVELY enforced for this whole class, BlobService#uploadFileVersion evicts
     // the oldest surviving version as soon as the existing count reaches the cap, so calling the

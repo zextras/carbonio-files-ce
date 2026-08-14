@@ -20,9 +20,8 @@ import org.junit.jupiter.api.Test;
  * Config-split sibling of {@link InternalBlobResourceApiIT} (Batch D / D3): carries the ONE
  * scenario that needs an ACTUAL {@code application-config.max-uploadable-size-in-mb} cap configured
  * (cap=0, published at runtime via setApplicationConfig on the shared stack) to meaningfully assert
- * that the trusted
- * {@code /internal/accounts/{userId}/upload} route bypasses it entirely. See {@link
- * InternalBlobResourceApiIT}'s javadoc for the full split mapping (8 base + 1 here = 9).
+ * that the trusted {@code /internal/accounts/{userId}/upload} route bypasses it entirely. See
+ * {@link InternalBlobResourceApiIT}'s javadoc for the full split mapping (8 base + 1 here = 9).
  */
 class InternalBlobResourceSizeCapIT extends AbstractFilesIT {
 
@@ -55,7 +54,8 @@ class InternalBlobResourceSizeCapIT extends AbstractFilesIT {
 
   @Test
   void givenABodyOverTheConfiguredSizeCapInternalUploadShouldStillSucceed() throws Exception {
-    // Given — a 0MB cap is configured (max-uploadable-size-in-mb=0, set in @BeforeEach): ANY non-empty body is
+    // Given — a 0MB cap is configured (max-uploadable-size-in-mb=0, set in @BeforeEach): ANY
+    // non-empty body is
     // "over" it, so a plain few-KB body already proves the bypass; kept sizeable (2MB, as in the
     // original) to also document that the bypass is not merely a small-body coincidence.
     byte[] oversizedBody = new byte[2 * 1024 * 1024]; // 2MB, definitely over the 0MB cap

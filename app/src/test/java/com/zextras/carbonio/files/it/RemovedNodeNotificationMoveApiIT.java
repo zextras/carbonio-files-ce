@@ -21,9 +21,9 @@ import org.junit.jupiter.api.Test;
  * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: moving a node OUT of a
  * directory shared with another user notifies that user ({@code RemovedNode} +, from the share
  * itself, {@code NewShare}). Seeding (API calls capturing server-generated ids) and transport
- * changed; the scenario and assertion are otherwise preserved verbatim. The share is
- * created AFTER the node, so node creation itself never generates an AddedNode notification — only
- * the share (NewShare) and the subsequent move-away (RemovedNode).
+ * changed; the scenario and assertion are otherwise preserved verbatim. The share is created AFTER
+ * the node, so node creation itself never generates an AddedNode notification — only the share
+ * (NewShare) and the subsequent move-away (RemovedNode).
  */
 class RemovedNodeNotificationMoveApiIT extends AbstractFilesIT {
 

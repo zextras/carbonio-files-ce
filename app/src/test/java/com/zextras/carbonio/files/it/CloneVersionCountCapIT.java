@@ -21,9 +21,9 @@ import org.junit.jupiter.api.Test;
 /**
  * Config-split sibling of {@link CloneVersionApiIT} (Batch G / D3): carries the ONE scenario that
  * needs {@code application-config.max-number-of-versions} capped (cap=2, published at runtime via
- * setApplicationConfig on the shared stack) — {@code cloneVersionFetcher}'s total-version-cap check ({@code
- * fileVersionRepository.getFileVersions(...).size() >= maxNumberOfVersions}) runs BEFORE any
- * filestore copy, so no storages stub is needed for this scenario to reach its error.
+ * setApplicationConfig on the shared stack) — {@code cloneVersionFetcher}'s total-version-cap check
+ * ({@code fileVersionRepository.getFileVersions(...).size() >= maxNumberOfVersions}) runs BEFORE
+ * any filestore copy, so no storages stub is needed for this scenario to reach its error.
  */
 class CloneVersionCountCapIT extends AbstractFilesIT {
 
@@ -50,7 +50,8 @@ class CloneVersionCountCapIT extends AbstractFilesIT {
   @Test
   void givenTheTotalVersionCapAlreadyReachedCloningShouldReturnTooManyVersionsError()
       throws SQLException {
-    // Given — cap is 2 (max-number-of-versions=2, set in @BeforeEach); node already has exactly 2 versions
+    // Given — cap is 2 (max-number-of-versions=2, set in @BeforeEach); node already has exactly 2
+    // versions
     // (2 >= 2 -> the cap check trips before any copy attempt is made)
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);

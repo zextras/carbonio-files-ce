@@ -136,11 +136,7 @@ class DownloadMultipleBodySizeCapIT extends AbstractFilesIT {
   @Test
   void givenAnOversizedChunkedBodyUploadToShouldReturn413() throws Exception {
     HttpResponse<String> response =
-        postChunked(
-            "/upload-to",
-            "application/json",
-            oversizedBody("{\"nodeId\":\""),
-            null);
+        postChunked("/upload-to", "application/json", oversizedBody("{\"nodeId\":\""), null);
 
     Assertions.assertThat(response.statusCode()).isEqualTo(413);
   }

@@ -82,8 +82,10 @@ public class ProcedureResource {
     try {
       jsonBody = RequestBodyLimits.readBoundedUtf8(requestBody, UPLOAD_TO_MAX_BODY_SIZE_BYTES);
     } catch (RequestEntityTooLargeException e) {
-      // Legacy parity: the Netty HttpObjectAggregator(256 * 1024) rejected an oversized body with an
-      // EMPTY 413 (before auth), so return an empty 413 here rather than BlobExceptionMapper's body.
+      // Legacy parity: the Netty HttpObjectAggregator(256 * 1024) rejected an oversized body with
+      // an
+      // EMPTY 413 (before auth), so return an empty 413 here rather than BlobExceptionMapper's
+      // body.
       return Response.status(413).build();
     }
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);

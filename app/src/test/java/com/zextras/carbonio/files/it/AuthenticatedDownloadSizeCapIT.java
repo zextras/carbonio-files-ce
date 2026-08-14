@@ -18,8 +18,8 @@ import org.junit.jupiter.api.Test;
  * Config-split sibling of {@link AuthenticatedDownloadApiIT} (Batch E / D3 of the
  * acceptance-to-Quarkus-tests plan): carries the ONE scenario that needs an ACTUAL {@code
  * application-config.max-downloadable-size-in-mb} cap configured (cap=0, published at runtime via
- * setApplicationConfig on the shared stack) to meaningfully assert the download-side 413 path. See {@link
- * AuthenticatedDownloadApiIT}'s javadoc for the full split mapping (8 base + 1 here = 9).
+ * setApplicationConfig on the shared stack) to meaningfully assert the download-side 413 path. See
+ * {@link AuthenticatedDownloadApiIT}'s javadoc for the full split mapping (8 base + 1 here = 9).
  */
 class AuthenticatedDownloadSizeCapIT extends AbstractFilesIT {
 
@@ -45,7 +45,8 @@ class AuthenticatedDownloadSizeCapIT extends AbstractFilesIT {
 
   @Test
   void givenTheNodeSizeOverTheConfiguredCapDownloadShouldReturn413() {
-    // Given — a 0MB cap is configured (max-downloadable-size-in-mb=0, set in @BeforeEach): any non-empty node
+    // Given — a 0MB cap is configured (max-downloadable-size-in-mb=0, set in @BeforeEach): any
+    // non-empty node
     // exceeds it.
     String nodeId =
         seedFile(

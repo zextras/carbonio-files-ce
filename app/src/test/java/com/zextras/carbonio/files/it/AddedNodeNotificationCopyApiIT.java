@@ -21,7 +21,8 @@ import org.junit.jupiter.api.Test;
  * out-of-process {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: copying a node INTO a
  * directory shared with another user notifies that user ({@code AddedNode} +, from the share
  * itself, {@code NewShare}). Seeding (API calls capturing server-generated ids) and transport
- * changed; the scenario and assertion are otherwise preserved verbatim. The copied node is a FOLDER, so no storages/Filestore copy is involved.
+ * changed; the scenario and assertion are otherwise preserved verbatim. The copied node is a
+ * FOLDER, so no storages/Filestore copy is involved.
  */
 class AddedNodeNotificationCopyApiIT extends AbstractFilesIT {
 

@@ -76,7 +76,8 @@ class KeepVersionsCountCapIT extends AbstractFilesIT {
   @Test
   void givenTheKeepCapAlreadyReachedMarkingAVersionShouldReturnTooManyVersionsError()
       throws Exception {
-    // Given — cap is 0 (maxNumberOfKeepVersions, derived from max-number-of-versions=2 set in @BeforeEach); v1
+    // Given — cap is 0 (maxNumberOfKeepVersions, derived from max-number-of-versions=2 set in
+    // @BeforeEach); v1
     // (current) exists, no version is kept-forever yet
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);

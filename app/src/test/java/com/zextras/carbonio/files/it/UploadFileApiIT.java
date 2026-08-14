@@ -28,8 +28,8 @@ import org.junit.jupiter.api.Test;
  * upload-size-cap=0 scenario ({@code givenABodyOverTheConfiguredSizeCapUploadShouldReturn413})
  * lives in the sibling {@link UploadFileSizeCapIT}, which publishes the cap at RUNTIME on the
  * shared stack (via {@link AbstractFilesIT#setApplicationConfig}) instead of forcing a separate
- * launch. This class keeps the remaining 9 methods on the shared default (uncapped) stack.
- * Mapping: 9 methods here + 1 in {@code UploadFileSizeCapIT} = 10 (unchanged from the original).
+ * launch. This class keeps the remaining 9 methods on the shared default (uncapped) stack. Mapping:
+ * 9 methods here + 1 in {@code UploadFileSizeCapIT} = 10 (unchanged from the original).
  *
  * <p><b>FINDING (carried over verbatim from the seam original):</b> the "missing {@code
  * Content-Length} header -> 500" scenario is NOT reproducible on either the old seam or this

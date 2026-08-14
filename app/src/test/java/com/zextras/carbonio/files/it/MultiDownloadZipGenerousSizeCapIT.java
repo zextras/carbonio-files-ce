@@ -17,10 +17,11 @@ import org.junit.jupiter.api.Test;
 /**
  * Config-split sibling of {@link MultiDownloadZipApiIT} (Batch E / D3): carries the ONE scenario
  * that needs a cap PRESENT-but-NOT-exceeded (100MB cap, published at runtime via
- * setApplicationConfig on the shared stack) — genuinely distinct, at the {@code BlobService#checkDownloadMultipleInternal}
- * branch level, from the default (uncapped) stack's {@code Optional.empty()} short-circuit that
- * {@link MultiDownloadZipApiIT}'s other methods run under. See {@link MultiDownloadZipApiIT}'s
- * javadoc for the full split mapping (21 base + 2 {@link MultiDownloadZipSizeCapIT} + 1 here = 24).
+ * setApplicationConfig on the shared stack) — genuinely distinct, at the {@code
+ * BlobService#checkDownloadMultipleInternal} branch level, from the default (uncapped) stack's
+ * {@code Optional.empty()} short-circuit that {@link MultiDownloadZipApiIT}'s other methods run
+ * under. See {@link MultiDownloadZipApiIT}'s javadoc for the full split mapping (21 base + 2 {@link
+ * MultiDownloadZipSizeCapIT} + 1 here = 24).
  */
 class MultiDownloadZipGenerousSizeCapIT extends AbstractFilesIT {
 

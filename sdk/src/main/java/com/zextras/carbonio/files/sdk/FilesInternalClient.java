@@ -116,15 +116,16 @@ public final class FilesInternalClient {
 
   /**
    * Fluent builder for {@link FilesInternalClient}. Timeouts follow the call class and mirror the
-   * generated {@code ApiClient}: nothing is set unless the caller sets it — this SDK has NO defaults
-   * of its own.
+   * generated {@code ApiClient}: nothing is set unless the caller sets it — this SDK has NO
+   * defaults of its own.
    *
    * <ul>
    *   <li>non-blob (JSON metadata) ops carry {@link #apiConnectTimeout} + {@link #apiReadTimeout};
    *   <li>blob (streamed upload/download) ops carry only {@link #blobConnectTimeout}. There is
-   *       deliberately no blob read/request timeout: a request timeout is a single absolute deadline
-   *       over the whole exchange — harmless on a streamed download but fatal on a large upload — so
-   *       blob transfers always run to completion; the connect timeout is the only guard.
+   *       deliberately no blob read/request timeout: a request timeout is a single absolute
+   *       deadline over the whole exchange — harmless on a streamed download but fatal on a large
+   *       upload — so blob transfers always run to completion; the connect timeout is the only
+   *       guard.
    * </ul>
    */
   public static final class Builder {

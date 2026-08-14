@@ -26,7 +26,8 @@ import org.junit.jupiter.api.Test;
  *
  * <ul>
  *   <li>{@code givenABodyOverTheConfiguredSizeCapUploadVersionShouldReturn413} (upload-size-cap=0)
- *       moved to {@link UploadFileVersionSizeCapIT} (upload-size cap set at runtime on the shared stack).
+ *       moved to {@link UploadFileVersionSizeCapIT} (upload-size cap set at runtime on the shared
+ *       stack).
  *   <li>{@code givenTheVersionCapIsExceededUploadVersionShouldReturn405}, {@code
  *       givenTheVersionCountAtTheCapUploadVersionShouldSucceedAndEvictTheOldestVersion} and {@code
  *       givenStoragesBulkDeleteReturnsANullResponseTheEvictedVersionIsStillDeleted} (all three set

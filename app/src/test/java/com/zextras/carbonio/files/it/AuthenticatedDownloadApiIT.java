@@ -37,8 +37,8 @@ import org.junit.jupiter.api.Test;
  * <p><b>Config-split (D3):</b> the original held 9 methods. ONE ({@code
  * givenTheNodeSizeOverTheConfiguredCapDownloadShouldReturn413}) needs an ACTUAL {@code
  * application-config.max-downloadable-size-in-mb} cap configured; it moved to the sibling {@link
- * AuthenticatedDownloadSizeCapIT} (download cap set at runtime on the shared stack). This
- * class keeps the remaining 8 methods on the shared default (uncapped) stack. Mapping: 8 (here) + 1
+ * AuthenticatedDownloadSizeCapIT} (download cap set at runtime on the shared stack). This class
+ * keeps the remaining 8 methods on the shared default (uncapped) stack. Mapping: 8 (here) + 1
  * ({@code AuthenticatedDownloadSizeCapIT}) = 9 (unchanged from the original).
  */
 class AuthenticatedDownloadApiIT extends AbstractFilesIT {
