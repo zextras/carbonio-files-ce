@@ -5,8 +5,10 @@
 package com.zextras.carbonio.files.utilities;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.any;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 
@@ -56,6 +58,17 @@ public class MockUserManagementService {
   private final Map<String, StubMapping> byEmailStubs = new ConcurrentHashMap<>();
 
   /**
+   * userId -> its {@code UserInfoDto} JSON, backing the batch {@code POST /internal/users} stub
+   * (the bulk endpoint {@code UserBatchLoader} calls). The batch stub returns ALL
+   * currently-registered users; {@code UserBatchLoader} maps them back by id and ignores the
+   * extras, so a superset response is equivalent to the real endpoint for these tests.
+   */
+  private final Map<String, String> userInfoJsonById = new ConcurrentHashMap<>();
+
+  /** The currently-registered {@code POST /internal/users} batch stub, rebuilt on every change. */
+  private volatile StubMapping batchStub;
+
+  /**
    * userId -> its currently-registered email, so changing/removing a user also cleans up its email
    * stub.
    */
@@ -96,6 +109,28 @@ public class MockUserManagementService {
         get(urlPathMatching("/internal/users/email/.*"))
             .atPriority(10)
             .willReturn(aResponse().withStatus(404)));
+    refreshBatchStub();
+  }
+
+  /**
+   * (Re)installs the {@code POST /internal/users} batch stub so it returns every currently
+   * registered user (an empty array when none). Called whenever the registered-user set changes.
+   */
+  private synchronized void refreshBatchStub() {
+    if (batchStub != null) {
+      server.removeStub(batchStub);
+      batchStub = null;
+    }
+    String body = "[" + String.join(",", userInfoJsonById.values()) + "]";
+    batchStub =
+        server.stubFor(
+            post(urlPathEqualTo("/internal/users"))
+                .atPriority(5)
+                .willReturn(
+                    aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(body)));
   }
 
   /** The port the fake user-management REST server is listening on. */
@@ -108,7 +143,7 @@ public class MockUserManagementService {
       if (downStub == null) {
         downStub =
             server.stubFor(
-                get(urlPathMatching("/internal/users/.*"))
+                any(urlPathMatching("/internal/users.*"))
                     .atPriority(1)
                     .willReturn(aResponse().withStatus(503)));
       }
@@ -186,6 +221,8 @@ public class MockUserManagementService {
         server.removeStub(oldByEmail);
       }
     }
+    userInfoJsonById.remove(userId);
+    refreshBatchStub();
   }
 
   /**
@@ -207,6 +244,8 @@ public class MockUserManagementService {
     byIdStubs.clear();
     byEmailStubs.clear();
     userIdToEmail.clear();
+    userInfoJsonById.clear();
+    batchStub = null;
     downStub = null;
     setupCatchAll();
   }
@@ -252,6 +291,9 @@ public class MockUserManagementService {
                         .withHeader("Content-Type", "application/json")
                         .withBody(infoJson)));
     byEmailStubs.put(email, emailStub);
+
+    userInfoJsonById.put(userId, infoJson);
+    refreshBatchStub();
   }
 
   /** Builds a {@code UserInfoDto}-shaped JSON body. */
