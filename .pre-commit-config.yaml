@@ -74,7 +74,7 @@ repos:
     rev: v0.3.4
     hooks:
       - id: maven
-        args: [ 'compile' ]
+        args: [ 'package', '--', '-DskipTests' ]
 
   - repo: local
     hooks:
