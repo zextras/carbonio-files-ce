@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.Constants.GraphQL.DataLoaders;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.graphql.dataloaders.NodeBatchLoader;
 import com.zextras.carbonio.files.graphql.dataloaders.ShareBatchLoader;
+import com.zextras.carbonio.files.graphql.dataloaders.UserBatchLoader;
 import graphql.ExecutionInput;
 import graphql.ExecutionResult;
 import graphql.GraphQL;
@@ -26,6 +27,7 @@ import jakarta.inject.Inject;
 import java.util.HashMap;
 import java.util.Map;
 import org.dataloader.DataLoaderFactory;
+import org.dataloader.DataLoaderOptions;
 import org.dataloader.DataLoaderRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,17 +72,20 @@ public class FilesGraphQLRoutes {
   private final GraphQL publicGraphQL;
   private final NodeBatchLoader nodeBatchLoader;
   private final ShareBatchLoader shareBatchLoader;
+  private final UserBatchLoader userBatchLoader;
 
   @Inject
   public FilesGraphQLRoutes(
       GraphQLProvider graphQLProvider,
       PublicGraphQLProvider publicGraphQLProvider,
       NodeBatchLoader nodeBatchLoader,
-      ShareBatchLoader shareBatchLoader) {
+      ShareBatchLoader shareBatchLoader,
+      UserBatchLoader userBatchLoader) {
     this.graphQL = graphQLProvider.getGraphQL();
     this.publicGraphQL = publicGraphQLProvider.getGraphQL();
     this.nodeBatchLoader = nodeBatchLoader;
     this.shareBatchLoader = shareBatchLoader;
+    this.userBatchLoader = userBatchLoader;
   }
 
   /** Registers the POST routes when Quarkus publishes the {@link Router} CDI event at startup. */
@@ -218,6 +223,12 @@ public class FilesGraphQLRoutes {
         DataLoaders.NODE_BATCH_LOADER, DataLoaderFactory.newDataLoaderWithTry(nodeBatchLoader));
     registry.register(
         DataLoaders.SHARE_BATCH_LOADER, DataLoaderFactory.newDataLoader(shareBatchLoader));
+    // maxBatchSize(100): the user-management POST /internal/users endpoint rejects lists > 100, so
+    // cap each batch at 100 ids (DataLoader splits larger sets into 100-id sub-batches).
+    registry.register(
+        DataLoaders.USER_BATCH_LOADER,
+        DataLoaderFactory.newMappedDataLoader(
+            userBatchLoader, DataLoaderOptions.newOptions().setMaxBatchSize(100).build()));
     return registry;
   }
 }

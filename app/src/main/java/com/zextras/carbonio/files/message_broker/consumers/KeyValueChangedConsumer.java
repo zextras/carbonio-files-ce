@@ -4,15 +4,12 @@
 
 package com.zextras.carbonio.files.message_broker.consumers;
 
-import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Envelope;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.message_broker.config.EventConfig;
 import com.zextras.carbonio.message_broker.consumer.BaseConsumer;
 import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
 import com.zextras.carbonio.message_broker.events.services.service_discover.KeyValueChanged;
-import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.List;
@@ -33,6 +30,15 @@ import org.slf4j.LoggerFactory;
  * <p>P5: this is the LIVE-config bridge kept from the legacy stack (max-number-of-versions KV
  * changes still prune {@link FileVersion}s live, as opposed to the other KV consumers that a
  * config-migration batch job could otherwise absorb).
+ *
+ * <p>Transaction model (legacy parity): {@code doHandle} does NOT wrap the whole prune in one
+ * transaction. Each repository call it makes ({@code getFileVersionsRelatedTo...}, {@code
+ * deleteFileVersion}) is transactional on its own via the injected repository CDI proxy, so a DB
+ * connection is acquired and released per operation and none is held for the whole (potentially
+ * large) trim. The RabbitMQ delivery stays unacked until {@code doHandle} returns — that ack is
+ * {@link BaseConsumer}'s responsibility and is inherent (it must reflect whether processing
+ * succeeded); only the DB-connection hold was shortened. The trim is idempotent, so a mid-run
+ * failure is safely retried on redelivery.
  */
 @ApplicationScoped
 public class KeyValueChangedConsumer extends BaseConsumer {
@@ -49,23 +55,6 @@ public class KeyValueChangedConsumer extends BaseConsumer {
   @Override
   protected EventConfig getEventConfig() {
     return EventConfig.KV_CHANGED;
-  }
-
-  /**
-   * This consumer is invoked by the message-broker SDK on its own RabbitMQ client thread, off the
-   * request thread, so there is no ambient CDI request/transaction context the way there would be
-   * for a REST/GraphQL request handler. Opening a fresh transaction/{@code EntityManager} scope
-   * here (rather than relying on {@code @Transactional} on {@link #doHandle}, which the SDK calls
-   * via a plain, non-proxied {@code this} reference and would therefore silently skip the
-   * interceptor) guarantees {@link #doHandle} always runs with a valid persistence context, whether
-   * invoked here or directly (e.g. by a unit test with a mocked repository, which needs no
-   * transaction at all).
-   */
-  @Override
-  public void handleDelivery(
-      String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
-    QuarkusTransaction.requiringNew()
-        .run(() -> super.handleDelivery(consumerTag, envelope, properties, body));
   }
 
   @Override

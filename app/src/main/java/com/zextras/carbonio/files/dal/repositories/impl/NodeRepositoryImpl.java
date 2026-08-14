@@ -364,6 +364,7 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   @Override
+  @Transactional
   public List<Node> getAllTrashedNodes(Long retentionTimestamp) {
     return entityManager
         .createQuery(

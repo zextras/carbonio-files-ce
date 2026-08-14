@@ -23,6 +23,7 @@ public class TombstoneRepositoryImpl
     implements TombstoneRepository, PanacheRepositoryBase<Tombstone, TombstonePK> {
 
   @Override
+  @Transactional
   public List<Tombstone> getTombstones() {
     return listAll();
   }

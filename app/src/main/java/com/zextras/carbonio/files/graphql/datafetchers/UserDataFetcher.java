@@ -58,15 +58,13 @@ public class UserDataFetcher {
     this.userRepository = userRepository;
   }
 
-  private DataFetcherResult<Map<String, Object>> fetchUserByIdAndConvertToDataFetcherResult(
-      String cookies, String userId, ResultPath path) {
-    return userRepository
-        .getUserById(cookies, userId)
-        .map(this::convertUserToDataFetcherResult)
-        .orElse(
-            new DataFetcherResult.Builder<Map<String, Object>>()
-                .error(GraphQLResultErrors.accountNotFound(userId, path))
-                .build());
+  private DataFetcherResult<Map<String, Object>> convertUserOrNotFound(
+      UserInfo user, String userId, ResultPath path) {
+    return user != null
+        ? convertUserToDataFetcherResult(user)
+        : new DataFetcherResult.Builder<Map<String, Object>>()
+            .error(GraphQLResultErrors.accountNotFound(userId, path))
+            .build();
   }
 
   private DataFetcherResult<Map<String, Object>> fetchUserByEmailAndConvertToDataFetcherResult(
@@ -110,30 +108,33 @@ public class UserDataFetcher {
    *     values of the user.
    */
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>> getUserFetcher() {
-    return (environment) ->
-        SyncCompletableFuture.supplyAsync(
-            () -> {
-              String userId =
-                  Optional.ofNullable((String) environment.getArgument(GetUser.USER_ID))
-                      .orElseGet(
-                          () ->
-                              Optional.ofNullable(environment.getLocalContext())
-                                  .map(
-                                      context ->
-                                          ((Map<String, String>) context)
-                                              .get(environment.getField().getName()))
-                                  .orElse(null));
-              return Optional.ofNullable(userId)
-                  .map(
-                      uId ->
-                          fetchUserByIdAndConvertToDataFetcherResult(
-                              environment
-                                  .getGraphQlContext()
-                                  .get(Constants.GraphQL.Context.COOKIES),
-                              userId,
-                              environment.getExecutionStepInfo().getPath()))
-                  .orElseGet(() -> new DataFetcherResult.Builder<Map<String, Object>>().build());
-            });
+    return (environment) -> {
+      ResultPath path = environment.getExecutionStepInfo().getPath();
+      String userId =
+          Optional.ofNullable((String) environment.getArgument(GetUser.USER_ID))
+              .orElseGet(
+                  () ->
+                      Optional.ofNullable(environment.getLocalContext())
+                          .map(
+                              context ->
+                                  ((Map<String, String>) context)
+                                      .get(environment.getField().getName()))
+                          .orElse(null));
+      // Resolve the user via the request-scoped UserBatchLoader so that all owner/creator/
+      // last_editor/share-target ids requested at this level coalesce into ONE batched
+      // user-management call (see UserBatchLoader). A missing user resolves to null -> not-found.
+      return Optional.ofNullable(userId)
+          .map(
+              uId ->
+                  environment
+                      .getDataLoader(Constants.GraphQL.DataLoaders.USER_BATCH_LOADER)
+                      .load(uId)
+                      .thenApply(user -> convertUserOrNotFound((UserInfo) user, uId, path)))
+          .orElseGet(
+              () ->
+                  CompletableFuture.completedFuture(
+                      new DataFetcherResult.Builder<Map<String, Object>>().build()));
+    };
   }
 
   /**
@@ -228,18 +229,16 @@ public class UserDataFetcher {
    */
   public DataFetcher<CompletableFuture<DataFetcherResult<Map<String, Object>>>>
       shareTargetUserFetcher() {
-    return environment ->
-        SyncCompletableFuture.supplyAsync(
-            () -> {
-              String userId =
-                  ((Map<String, String>) environment.getLocalContext())
-                      .get(Constants.GraphQL.Share.SHARE_TARGET);
-
-              return fetchUserByIdAndConvertToDataFetcherResult(
-                  environment.getGraphQlContext().get(Constants.GraphQL.Context.COOKIES),
-                  userId,
-                  environment.getExecutionStepInfo().getPath());
-            });
+    return environment -> {
+      ResultPath path = environment.getExecutionStepInfo().getPath();
+      String userId =
+          ((Map<String, String>) environment.getLocalContext())
+              .get(Constants.GraphQL.Share.SHARE_TARGET);
+      return environment
+          .getDataLoader(Constants.GraphQL.DataLoaders.USER_BATCH_LOADER)
+          .load(userId)
+          .thenApply(user -> convertUserOrNotFound((UserInfo) user, userId, path));
+    };
   }
 
   /**

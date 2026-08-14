@@ -13,6 +13,7 @@ import io.smallrye.mutiny.subscription.UniEmitter;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerResponse;
 import jakarta.ws.rs.core.HttpHeaders;
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -157,7 +158,10 @@ final class TransferStreaming {
    */
   private static void writeZip(ZipDownload zip, BlobService blobService, HttpServerResponse resp)
       throws IOException {
-    OutputStream sink = new BackpressuredResponseOutputStream(resp);
+    // Coalesce the deflater's tiny (<=512 B) writes into 64 KiB flushes before they reach the
+    // blocking cross-thread Vert.x write, restoring the decoupling the legacy 256 KiB pipe gave.
+    OutputStream sink =
+        new BufferedOutputStream(new BackpressuredResponseOutputStream(resp), 64 * 1024);
     try (ZipOutputStream zos = new ZipOutputStream(sink)) {
       for (ZipItem item : zip.getItems()) {
         if (item.isFolder()) {

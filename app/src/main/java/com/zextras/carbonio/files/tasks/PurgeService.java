@@ -19,7 +19,6 @@ import com.zextras.filestore.model.IdentifierType;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,18 +32,24 @@ import org.slf4j.LoggerFactory;
  * P5: Quarkus/{@code quarkus-scheduler} port of the legacy Guice {@code PurgeService}, which used a
  * raw {@link java.util.concurrent.ScheduledExecutorService}.
  *
- * <p>{@link #purgeTrashedNodes} and {@link #purgeTombstones} are individually
- * {@code @Transactional} (and package-private, like the legacy version) so integration tests can
- * invoke either directly, without going through the scheduler, inside its own transaction/{@code
- * EntityManager} scope. {@link #scheduledRun} is the {@code @Scheduled} entry point the real
- * runtime uses; it is ALSO {@code @Transactional} so that its two self-invoked calls (which, being
- * plain {@code this.foo()} calls rather than calls through the CDI proxy, would otherwise bypass
- * their own {@code @Transactional} interceptor) still execute under an already-active ambient
- * transaction.
+ * <p><b>No DB transaction ever wraps the {@code fileStore.bulkDelete} storages round-trips.</b>
+ * {@link #purgeTrashedNodes}, {@link #purgeTombstones} and {@link #scheduledRun} are deliberately
+ * NOT {@code @Transactional}: they orchestrate, interleaving short DB operations with the blocking
+ * storages calls. Each DB read/write is transactional at the repository layer (e.g. {@code
+ * getAllTrashedNodes}/{@code getFileVersions}/{@code getTombstones} and {@code deleteNodes}/{@code
+ * deleteTombstonesByNodeAndVersion}/{@code updateTombstone}), so a connection is acquired and
+ * released per operation and NONE is held (idle-in-transaction) across a bulkDelete. This restores
+ * the legacy Ebean transaction-per-query behaviour: the tradeoff is that a mid-run crash leaves a
+ * partially-purged state, which the next cycle finishes (the deletes are idempotent and the
+ * tombstone retry scheme self-heals).
  *
- * <p>{@code quarkus.scheduler.enabled=false} in {@code %test} (see {@code application.properties})
- * keeps the scheduler from firing during the DAL/GraphQL/REST/purge integration tests, which invoke
- * {@link #purgeTrashedNodes}/{@link #purgeTombstones} directly.
+ * <p>{@link #scheduledRun} uses {@code concurrentExecution = SKIP} so a purge that outlives the
+ * interval is never overlapped by the next tick (the legacy single-thread {@code
+ * ScheduledExecutorService.scheduleAtFixedRate} serialised runs the same way).
+ *
+ * <p>The purge methods stay package-private so unit tests can invoke either directly; {@code
+ * quarkus.scheduler.enabled=false} in {@code %test} (see {@code application.properties}) keeps the
+ * scheduler from firing during the DAL/GraphQL/REST/purge tests.
  */
 @ApplicationScoped
 public class PurgeService {
@@ -58,7 +63,6 @@ public class PurgeService {
   @Inject TombstoneRepository tombstoneRepository;
   @Inject Filestore fileStore;
 
-  @Transactional
   void purgeTrashedNodes(long retentionDays) {
     long retentionTimestamp = System.currentTimeMillis() - (retentionDays * 86400 * 1000);
 
@@ -157,7 +161,6 @@ public class PurgeService {
     }
   }
 
-  @Transactional
   void purgeTombstones() {
     List<Tombstone> tombstones = tombstoneRepository.getTombstones();
     if (tombstones.isEmpty()) {
@@ -235,8 +238,8 @@ public class PurgeService {
   @Scheduled(
       every = "${carbonio.files.purge.interval:30m}",
       delay = 1,
-      delayUnit = TimeUnit.MINUTES)
-  @Transactional
+      delayUnit = TimeUnit.MINUTES,
+      concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
   void scheduledRun() {
     purgeTombstones();
     purgeTrashedNodes(Config.PurgeService.RETENTION_TRASHED_ITEMS_IN_DAYS);

@@ -84,6 +84,17 @@ public class UserRepositoryImpl implements UserRepository {
   }
 
   @Override
+  public List<UserInfo> getUsers(List<String> userIds) {
+    try {
+      List<UserInfoDto> response = userResourceApi.internalUsersPost(userIds);
+      return response == null ? List.of() : response.stream().map(this::mapToUserInfo).toList();
+    } catch (ApiException e) {
+      logger.error("Failed to get users in batch via REST: {}", e.getMessage());
+      return List.of();
+    }
+  }
+
+  @Override
   public Optional<UserInfo> getUserByEmail(String cookies, String userEmail) {
     try {
       UserInfoDto response = userResourceApi.internalUsersEmailEmailGet(userEmail);

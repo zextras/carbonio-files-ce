@@ -62,6 +62,7 @@ public class FileVersionRepositoryImpl
   }
 
   @Override
+  @Transactional
   public List<FileVersion> getFileVersions(String nodeId, List<FileVersionSort> sorts) {
     String orderBy =
         sorts.isEmpty()
@@ -107,6 +108,7 @@ public class FileVersionRepositoryImpl
   }
 
   @Override
+  @Transactional
   public Map<String, List<FileVersion>> getFileVersionsRelatedToNodesHavingVersionsGreaterThan(
       int maxNumberOfVersions) {
     // No ORM association from FileVersion to Node is used here on purpose (see the P5a comment on

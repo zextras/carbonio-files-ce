@@ -435,6 +435,7 @@ public final class Constants {
 
       public static final String NODE_BATCH_LOADER = "NodeBatchLoader";
       public static final String SHARE_BATCH_LOADER = "ShareBatchLoader";
+      public static final String USER_BATCH_LOADER = "UserBatchLoader";
     }
 
     /** Names of queries */
