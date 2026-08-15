@@ -53,7 +53,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <hsqldb.version>2.7.4</hsqldb.version>
     <jackson.version>2.22</jackson.version>
     <jackson-databind.version>2.22.1</jackson-databind.version>
-    <junit5.version>5.14.4</junit5.version>
+    <junit5.version>6.1.3</junit5.version>
     <logback-classic.version>1.5.38</logback-classic.version>
     <micrometer.version>1.17.0</micrometer.version>
     <mockito.version>5.23.0</mockito.version>
