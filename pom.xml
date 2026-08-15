@@ -59,7 +59,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <mockito.version>5.23.0</mockito.version>
     <mock-server.version>5.15.0</mock-server.version>
     <netty.version>4.2.16.Final</netty.version>
-    <postgresql.version>42.7.11</postgresql.version>
+    <postgresql.version>42.7.12</postgresql.version>
     <testcontainers.version>2.0.5</testcontainers.version>
     <testcontainers.junit.jupiter.version>1.21.4</testcontainers.junit.jupiter.version>
     <testcontainers.postgresql.version>1.21.4</testcontainers.postgresql.version>
