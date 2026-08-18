@@ -10,16 +10,11 @@ After=network-online.target
 PartOf=carbonio.target
 
 [Service]
+# Type=notify: the carbonio-quarkus-extensions bootstrap signals readiness via sd_notify
+# (carbonio-notify). /usr/bin/carbonio-files execs java, so java is MAINPID -> NotifyAccess=main.
 Type=notify
 NotifyAccess=main
-ExecStart=/opt/zextras/common/bin/java \
-  --enable-preview \
-  --enable-native-access=ALL-UNNAMED \
-  -Djava.net.preferIPv4Stack=true \
-  -Xmx4096m \
-  -Xms4096m \
-  -DFILES_LOG_LEVEL=warn \
-  -jar /usr/share/carbonio/carbonio-files.jar
+ExecStart=/usr/bin/carbonio-files
 User=carbonio-files
 Group=carbonio-files
 Restart=on-failure

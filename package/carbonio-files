@@ -1,14 +1,15 @@
 #!/bin/bash
 
-# SPDX-FileCopyrightText: 2023 Zextras <https://www.zextras.com>
+# SPDX-FileCopyrightText: 2022 Zextras <https://www.zextras.com>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-JAVA_HOME="/usr/share/carbonio/files:/opt/zextras/common/lib/jvm/java"
-export JAVA_HOME
-/opt/zextras/common/bin/java \
+# JVM uber-jar (mirrors carbonio-user-management). --enable-preview + --enable-native-access are
+# required by the carbonio-quarkus-extensions bootstrap sd_notify (systemd Type=notify) which uses
+# the Java 21 Foreign Function & Memory API (preview). `exec` keeps java as the systemd MAINPID so
+# NotifyAccess=main accepts its readiness notification.
+exec /opt/zextras/common/bin/java \
+  --enable-preview \
+  --enable-native-access=ALL-UNNAMED \
   -Djava.net.preferIPv4Stack=true \
-  -Xmx4096m \
-  -Xms4096m \
-  -DFILES_LOG_LEVEL=warn \
-  -jar /usr/share/carbonio/carbonio-files.jar
+  -jar /usr/share/carbonio/carbonio-files-ce.jar

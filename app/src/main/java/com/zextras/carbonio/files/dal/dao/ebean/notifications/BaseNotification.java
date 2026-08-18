@@ -1,0 +1,54 @@
+// SPDX-FileCopyrightText: 2025 Zextras <https://www.zextras.com>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package com.zextras.carbonio.files.dal.dao.ebean.notifications;
+
+import jakarta.persistence.*;
+
+@MappedSuperclass
+public abstract class BaseNotification {
+
+  /** Protected no-arg constructor required by Hibernate/JPA. */
+  protected BaseNotification() {}
+
+  @Id
+  @Column(name = "notification_id")
+  private String notificationId;
+
+  @OneToOne(cascade = CascadeType.ALL)
+  @MapsId
+  @JoinColumn(name = "notification_id")
+  private Notification notification;
+
+  protected BaseNotification(String notificationId, Long createdAt, String typeCode) {
+    this.notification = new Notification();
+    this.notification.setNotificationId(notificationId);
+    this.notification.setCreatedAt(createdAt);
+    this.notification.setNotificationType(typeCode);
+  }
+
+  public String getNotificationId() {
+    return notification.getNotificationId();
+  }
+
+  public void setNotificationId(String notificationId) {
+    this.notification.setNotificationId(notificationId);
+  }
+
+  public Long getCreatedAt() {
+    return this.notification.getCreatedAt();
+  }
+
+  public void setCreatedAt(Long createdAt) {
+    this.notification.setCreatedAt(createdAt);
+  }
+
+  public String getNotificationType() {
+    return this.notification.getNotificationType();
+  }
+
+  public void setNotificationType(String notificationType) {
+    this.notification.setNotificationType(notificationType);
+  }
+}

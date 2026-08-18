@@ -1,0 +1,1756 @@
+{
+  "openapi" : "3.1.0",
+  "paths" : {
+    "/download-multiple" : {
+      "post" : {
+        "parameters" : [ {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/x-www-form-urlencoded" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "binary"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "ZIP archive of the requested nodes",
+            "content" : {
+              "application/zip" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Missing or malformed nodeIds"
+          },
+          "404" : {
+            "description" : "Some nodes do not exist or are not accessible"
+          }
+        },
+        "summary" : "Download Multiple",
+        "tags" : [ "Blob Resource" ]
+      }
+    },
+    "/download-multiple/check" : {
+      "post" : {
+        "parameters" : [ {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "binary"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "summary" : "Check Download Multiple",
+        "tags" : [ "Blob Resource" ]
+      }
+    },
+    "/download/{nodeId}" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "File bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
+          }
+        },
+        "summary" : "Download",
+        "tags" : [ "Blob Resource" ]
+      }
+    },
+    "/download/{nodeId}/check" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "summary" : "Check Download",
+        "tags" : [ "Blob Resource" ]
+      }
+    },
+    "/download/{nodeId}/{version}" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "version",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "File bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
+          }
+        },
+        "summary" : "Download Version",
+        "tags" : [ "Blob Resource" ]
+      }
+    },
+    "/health" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "summary" : "Health",
+        "tags" : [ "Health Resource" ]
+      }
+    },
+    "/health/live" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "summary" : "Health Live",
+        "tags" : [ "Health Resource" ]
+      }
+    },
+    "/health/ready" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "summary" : "Health Ready",
+        "tags" : [ "Health Resource" ]
+      }
+    },
+    "/internal/accounts/{userId}/download/{nodeId}" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "File bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
+          }
+        },
+        "summary" : "Download",
+        "tags" : [ "Internal Blob Resource" ]
+      }
+    },
+    "/internal/accounts/{userId}/download/{nodeId}/{version}" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "version",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "File bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
+          }
+        },
+        "summary" : "Download Version",
+        "tags" : [ "Internal Blob Resource" ]
+      }
+    },
+    "/internal/accounts/{userId}/nodes/{nodeId}" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InternalNodeDto"
+                }
+              }
+            }
+          }
+        },
+        "summary" : "Get Node",
+        "tags" : [ "Internal Node Resource" ]
+      }
+    },
+    "/internal/accounts/{userId}/upload" : {
+      "post" : {
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Content-Length",
+          "in" : "header",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "Description",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Filename",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ParentId",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "*/*" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "binary"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "summary" : "Upload",
+        "tags" : [ "Internal Blob Resource" ]
+      }
+    },
+    "/internal/accounts/{userId}/upload-version" : {
+      "post" : {
+        "parameters" : [ {
+          "name" : "userId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Content-Length",
+          "in" : "header",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "Filename",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "NodeId",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "OverwriteVersion",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "*/*" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "binary"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "summary" : "Upload Version",
+        "tags" : [ "Internal Blob Resource" ]
+      }
+    },
+    "/internal/folders" : {
+      "post" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateFolderRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InternalNodeIdDto"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request"
+          }
+        },
+        "summary" : "Create Folder",
+        "tags" : [ "Internal Node Resource" ]
+      }
+    },
+    "/internal/links" : {
+      "post" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreatePublicLinkRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PublicLinkDto"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request"
+          }
+        },
+        "summary" : "Create Public Link",
+        "tags" : [ "Internal Node Resource" ]
+      }
+    },
+    "/internal/nodes" : {
+      "delete" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeleteAllRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeleteAllResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary" : "Delete All Nodes And Blobs",
+        "tags" : [ "Internal Node Resource" ]
+      }
+    },
+    "/invite/{invitationId}" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "invitationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "pattern" : "\\w{8}"
+          }
+        }, {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "summary" : "Invite",
+        "tags" : [ "Collaboration Link Resource" ]
+      }
+    },
+    "/link/{publicLinkId}" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "publicLinkId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "File bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "307" : {
+            "description" : "Redirect to the access-code page (access-code-protected link)"
+          },
+          "404" : {
+            "description" : "Link or node not found"
+          }
+        },
+        "summary" : "Download By Public Link",
+        "tags" : [ "Public Blob Resource" ]
+      }
+    },
+    "/preview/document/{nodeId}" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "crop",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "name" : "first_page",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "last_page",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "output_format",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "quality",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "shape",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "version",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Preview bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not modified (ETag matched)"
+          },
+          "400" : {
+            "description" : "Unsupported mimetype for this preview type"
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
+          }
+        },
+        "summary" : "Preview Document",
+        "tags" : [ "Preview Resource" ]
+      }
+    },
+    "/preview/document/{nodeId}/{area}/thumbnail" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "area",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "pattern" : "[\\d]*x[\\d]*"
+          }
+        }, {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "crop",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "name" : "first_page",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "last_page",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "output_format",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "quality",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "shape",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "version",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Preview bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not modified (ETag matched)"
+          },
+          "400" : {
+            "description" : "Unsupported mimetype for this preview type"
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
+          }
+        },
+        "summary" : "Thumbnail Document",
+        "tags" : [ "Preview Resource" ]
+      }
+    },
+    "/preview/image/{nodeId}/{area}" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "area",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "pattern" : "[\\d]*x[\\d]*"
+          }
+        }, {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "crop",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "name" : "first_page",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "last_page",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "output_format",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "quality",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "shape",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "version",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Preview bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not modified (ETag matched)"
+          },
+          "400" : {
+            "description" : "Unsupported mimetype for this preview type"
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
+          }
+        },
+        "summary" : "Preview Image",
+        "tags" : [ "Preview Resource" ]
+      }
+    },
+    "/preview/image/{nodeId}/{area}/thumbnail" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "area",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "pattern" : "[\\d]*x[\\d]*"
+          }
+        }, {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "crop",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "name" : "first_page",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "last_page",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "output_format",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "quality",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "shape",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "version",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Preview bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not modified (ETag matched)"
+          },
+          "400" : {
+            "description" : "Unsupported mimetype for this preview type"
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
+          }
+        },
+        "summary" : "Thumbnail Image",
+        "tags" : [ "Preview Resource" ]
+      }
+    },
+    "/preview/pdf/{nodeId}" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "crop",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "name" : "first_page",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "last_page",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "output_format",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "quality",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "shape",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "version",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Preview bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not modified (ETag matched)"
+          },
+          "400" : {
+            "description" : "Unsupported mimetype for this preview type"
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
+          }
+        },
+        "summary" : "Preview Pdf",
+        "tags" : [ "Preview Resource" ]
+      }
+    },
+    "/preview/pdf/{nodeId}/{area}/thumbnail" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "area",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "pattern" : "[\\d]*x[\\d]*"
+          }
+        }, {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "crop",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "name" : "first_page",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "last_page",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "output_format",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "quality",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "shape",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "version",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Preview bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not modified (ETag matched)"
+          },
+          "400" : {
+            "description" : "Unsupported mimetype for this preview type"
+          },
+          "404" : {
+            "description" : "Node not found or not accessible"
+          }
+        },
+        "summary" : "Thumbnail Pdf",
+        "tags" : [ "Preview Resource" ]
+      }
+    },
+    "/preview/{unmatched}" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "unmatched",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "pattern" : ".*"
+          }
+        }, {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "summary" : "Unmatched Preview Path",
+        "tags" : [ "Preview Resource" ]
+      }
+    },
+    "/public/download-multiple" : {
+      "post" : {
+        "requestBody" : {
+          "content" : {
+            "application/x-www-form-urlencoded" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "binary"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "ZIP archive of the requested nodes",
+            "content" : {
+              "application/zip" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Missing or malformed parameters"
+          },
+          "404" : {
+            "description" : "Nodes not accessible via the link"
+          }
+        },
+        "summary" : "Download Public Multiple",
+        "tags" : [ "Public Blob Resource" ]
+      }
+    },
+    "/public/download-multiple/check" : {
+      "post" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "binary"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "summary" : "Check Download Public Multiple",
+        "tags" : [ "Public Blob Resource" ]
+      }
+    },
+    "/public/download/{nodeId}" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "access_code",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "node_link_id",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "File bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Node not found or not accessible via the link"
+          }
+        },
+        "summary" : "Download Public File",
+        "tags" : [ "Public Blob Resource" ]
+      }
+    },
+    "/public/download/{nodeId}/check" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "nodeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "access_code",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "node_link_id",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "summary" : "Check Download Public File",
+        "tags" : [ "Public Blob Resource" ]
+      }
+    },
+    "/public/link/download/{publicLinkId}" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "publicLinkId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "File bytes",
+            "content" : {
+              "application/octet-stream" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "307" : {
+            "description" : "Redirect to the access-code page (access-code-protected link)"
+          },
+          "404" : {
+            "description" : "Link or node not found"
+          }
+        },
+        "summary" : "Download Via Public Link",
+        "tags" : [ "Public Blob Resource" ]
+      }
+    },
+    "/upload" : {
+      "post" : {
+        "parameters" : [ {
+          "name" : "Content-Length",
+          "in" : "header",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Description",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Filename",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ParentId",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "*/*" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "binary"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "summary" : "Upload",
+        "tags" : [ "Blob Resource" ]
+      }
+    },
+    "/upload-to" : {
+      "post" : {
+        "parameters" : [ {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "binary"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "summary" : "Upload To",
+        "tags" : [ "Procedure Resource" ]
+      }
+    },
+    "/upload-version" : {
+      "post" : {
+        "parameters" : [ {
+          "name" : "Content-Length",
+          "in" : "header",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Filename",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "NodeId",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "OverwriteVersion",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "*/*" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "binary"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "summary" : "Upload Version",
+        "tags" : [ "Blob Resource" ]
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "CreateFolderRequest" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string"
+          },
+          "destinationId" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        }
+      },
+      "CreatePublicLinkRequest" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string"
+          },
+          "nodeId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "DeleteAllRequest" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "DeleteAllResponse" : {
+        "type" : "object",
+        "properties" : {
+          "deleted" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "InternalNodeDto" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "extension" : {
+            "type" : "string"
+          },
+          "mimeType" : {
+            "type" : "string"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "updatedAt" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "owner" : {
+            "$ref" : "#/components/schemas/OwnerDto"
+          },
+          "parent" : {
+            "$ref" : "#/components/schemas/ParentDto"
+          },
+          "permissions" : {
+            "$ref" : "#/components/schemas/PermissionsDto"
+          }
+        }
+      },
+      "InternalNodeIdDto" : {
+        "type" : "object",
+        "properties" : {
+          "nodeId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "OwnerDto" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ParentDto" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          }
+        }
+      },
+      "PermissionsDto" : {
+        "type" : "object",
+        "properties" : {
+          "canWriteFile" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "PublicLinkDto" : {
+        "type" : "object",
+        "properties" : {
+          "url" : {
+            "type" : "string"
+          }
+        }
+      }
+    }
+  },
+  "info" : {
+    "title" : "carbonio-files-ce-app API",
+    "version" : "unversioned"
+  },
+  "servers" : [ {
+    "url" : "http://localhost:8080",
+    "description" : "Auto generated value"
+  }, {
+    "url" : "http://0.0.0.0:8080",
+    "description" : "Auto generated value"
+  } ]
+}

@@ -7,40 +7,35 @@ WORKDIR /staging
 COPY ../../. .
 
 RUN mkdir -p package && \
-    cp ./boot/target/carbonio-files-ce-*-jar-with-dependencies.jar package/carbonio-files.jar && \
+    cp ./app/target/*-runner.jar package/carbonio-files-ce.jar && \
     cp ./package/watches/* package/ 2>/dev/null
 
 # Stage Ubuntu 20.04 (Focal)
-# yap-ubuntu-focal has no v2 image upstream; kept on 1.x intentionally
 FROM docker.io/m0rf30/yap-ubuntu-focal:1.55 AS ubuntu-focal-builder
 WORKDIR /tmp/staging
 COPY --from=prep /staging .
 RUN yap build ubuntu-focal /tmp/staging/
 
 # Stage Ubuntu 22.04 (Jammy)
-FROM docker.io/m0rf30/yap-ubuntu-jammy:2.4 AS ubuntu-jammy-builder
-USER root
+FROM docker.io/m0rf30/yap-ubuntu-jammy:1.55 AS ubuntu-jammy-builder
 WORKDIR /tmp/staging
 COPY --from=prep /staging .
 RUN yap build ubuntu-jammy /tmp/staging/
 
 # Stage Ubuntu 24.04 (Noble)
-FROM docker.io/m0rf30/yap-ubuntu-noble:2.4 AS ubuntu-noble-builder
-USER root
+FROM docker.io/m0rf30/yap-ubuntu-noble:1.55 AS ubuntu-noble-builder
 WORKDIR /tmp/staging
 COPY --from=prep /staging .
 RUN yap build ubuntu-noble /tmp/staging/
 
 # Stage RHEL/Rocky 8
-FROM docker.io/m0rf30/yap-rocky-8:2.4 AS rocky-8-builder
-USER root
+FROM docker.io/m0rf30/yap-rocky-8:1.55 AS rocky-8-builder
 WORKDIR /tmp/staging
 COPY --from=prep /staging .
 RUN yap build rocky-8 /tmp/staging/
 
 # Stage RHEL/Rocky 9
-FROM docker.io/m0rf30/yap-rocky-9:2.4 AS rocky-9-builder
-USER root
+FROM docker.io/m0rf30/yap-rocky-9:1.55 AS rocky-9-builder
 WORKDIR /tmp/staging
 COPY --from=prep /staging .
 RUN yap build rocky-9 /tmp/staging/

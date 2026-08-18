@@ -3,6 +3,9 @@ List of third-party dependencies grouped by their license type.
 
     AGPL-3.0-only:
 
+        * Carbonio Quarkus Extensions - Bootstrap Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-bootstrap:1.14.0-1 - no url defined)
+        * Carbonio Quarkus Extensions - Database Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-database:1.14.0-1 - no url defined)
+        * Carbonio Quarkus Extensions - REST Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-rest:1.14.0-1 - no url defined)
         * Carbonio Systemd Notify (com.zextras.carbonio:carbonio-systemd-notify:1.0.1 - https://github.com/zextras/carbonio-systemd-notify)
         * Carbonio User Management - REST SDK (com.zextras.carbonio.user-management:carbonio-user-management-rest-sdk:1.3.0-1 - no url defined)
         * carbonio-message-broker-sdk (com.zextras.carbonio.message-broker:carbonio-message-broker-sdk:1.1.0-1 - no url defined)
@@ -15,121 +18,217 @@ List of third-party dependencies grouped by their license type.
 
     Apache 2.0:
 
-        * error-prone annotations (com.google.errorprone:error_prone_annotations:2.18.0 - https://errorprone.info/error_prone_annotations)
-        * Gson (com.google.code.gson:gson:2.8.5 - https://github.com/google/gson/gson)
+        * cron-utils (com.cronutils:cron-utils:9.2.1 - http://cron-parser.com/)
+        * error-prone annotations (com.google.errorprone:error_prone_annotations:2.49.0 - https://errorprone.info/error_prone_annotations)
         * OkHttp (com.squareup.okhttp3:okhttp:3.14.9 - https://github.com/square/okhttp/okhttp)
         * Okio (com.squareup.okio:okio:1.17.2 - https://github.com/square/okio/okio)
 
     Apache License 2.0:
 
+        * Agroal API (io.agroal:agroal-api:3.2.1 - https://github.com/agroal)
+        * Agroal Connection Pool (io.agroal:agroal-pool:3.2.1 - https://github.com/agroal)
+        * Agroal Narayana Integration (io.agroal:agroal-narayana:3.2.1 - https://github.com/agroal)
+        * Brotli4j (com.aayushatharva.brotli4j:brotli4j:1.23.0 - https://github.com/hyperxpro/Brotli4j/brotli4j)
+        * Brotli4j (com.aayushatharva.brotli4j:native-linux-x86_64:1.23.0 - https://github.com/hyperxpro/Brotli4j/natives/native-linux-x86_64)
+        * Brotli4j (com.aayushatharva.brotli4j:service:1.23.0 - https://github.com/hyperxpro/Brotli4j/service)
+        * CDI APIs (jakarta.enterprise:jakarta.enterprise.cdi-api:4.1.0 - http://cdi-spec.org)
+        * CDI Language Model (jakarta.enterprise:jakarta.enterprise.lang-model:4.1.0 - https://projects.eclipse.org/projects/ee4j/jakarta.enterprise.cdi-parent/jakarta.enterprise.lang-model)
+        * Commons Logging to JBoss Logging (org.jboss.logging:commons-logging-jboss-logging:2.0.0.Final - http://www.jboss.org)
+        * Hibernate Validator Engine (org.hibernate.validator:hibernate-validator:9.1.1.Final - https://hibernate.org/validator)
+        * Jakarta Validation API (jakarta.validation:jakarta.validation-api:3.1.1 - https://beanvalidation.org)
+        * JBoss Log Manager (org.jboss.logmanager:jboss-logmanager:3.2.2.Final - http://www.jboss.org)
+        * JBoss Logging 3 (org.jboss.logging:jboss-logging:3.6.3.Final - https://www.jboss.org)
+        * JBoss Threads (org.jboss.threads:jboss-threads:3.9.2 - https://github.com/jbossas/jboss-threads)
+        * Local-only Hibernate Cache for Quarkus (org.hibernate.local-cache:quarkus-local-cache:0.5.0 - https://github.com/hibernate/quarkus-local-cache)
+        * SLF4J: JBoss Log Manager (org.jboss.slf4j:slf4j-jboss-logmanager:2.0.2.Final - http://www.jboss.org)
+        * SmallRye Certificate Generator - Private Key PEM utilities (io.smallrye.certs:smallrye-private-key-pem-parser:0.9.3 - https://github.com/cescoffier/certificate-generator)
         * swagger-annotations-jakarta (io.swagger.core.v3:swagger-annotations-jakarta:2.2.22 - https://github.com/swagger-api/swagger-core/modules/swagger-annotations-jakarta)
+        * wildfly-common (org.wildfly.common:wildfly-common:2.0.1 - http://www.jboss.org)
+
+    Apache License Version 2.0:
+
+        * Hibernate Models (org.hibernate.models:hibernate-models:1.1.1 - https://github.com/hibernate/hibernate-models)
 
     Apache License, Version 2.0:
 
-        * Apache Commons Codec (commons-codec:commons-codec:1.11 - http://commons.apache.org/proper/commons-codec/)
+        * Apache Commons BeanUtils (commons-beanutils:commons-beanutils:1.9.4 - https://commons.apache.org/proper/commons-beanutils/)
+        * Apache Commons Collections (commons-collections:commons-collections:3.2.2 - http://commons.apache.org/collections/)
         * Apache HttpClient (org.apache.httpcomponents:httpclient:4.5.14 - http://hc.apache.org/httpcomponents-client-ga)
         * Apache HttpClient Mime (org.apache.httpcomponents:httpmime:4.5.14 - http://hc.apache.org/httpcomponents-client-ga)
         * Apache HttpCore (org.apache.httpcomponents:httpcore:4.4.16 - http://hc.apache.org/httpcomponents-core-ga)
-        * flyway-core (org.flywaydb:flyway-core:11.20.3 - https://flywaydb.org/flyway-core)
-        * flyway-database-postgresql (org.flywaydb:flyway-database-postgresql:11.20.3 - https://flywaydb.org/flyway-database-postgresql)
-        * Guava: Google Core Libraries for Java (com.google.guava:guava:31.0.1-jre - https://github.com/google/guava)
-        * Java Concurrency Tools Core Library (org.jctools:jctools-core:4.0.6 - https://github.com/JCTools)
-        * Netty/All-in-One (io.netty:netty-all:4.2.16.Final - https://netty.io/netty-all/)
-        * Netty/Buffer (io.netty:netty-buffer:4.2.16.Final - https://netty.io/netty-buffer/)
-        * Netty/Codec (io.netty:netty-codec:4.2.16.Final - https://netty.io/netty-codec/)
-        * Netty/Codec/Base (io.netty:netty-codec-base:4.2.16.Final - https://netty.io/netty-codec-base/)
-        * Netty/Codec/Classes/Quic (io.netty:netty-codec-classes-quic:4.2.16.Final - https://netty.io/netty-codec-classes-quic/)
-        * Netty/Codec/Compression (io.netty:netty-codec-compression:4.2.16.Final - https://netty.io/netty-codec-compression/)
-        * Netty/Codec/DNS (io.netty:netty-codec-dns:4.2.16.Final - https://netty.io/netty-codec-dns/)
-        * Netty/Codec/HAProxy (io.netty:netty-codec-haproxy:4.2.16.Final - https://netty.io/netty-codec-haproxy/)
-        * Netty/Codec/HTTP (io.netty:netty-codec-http:4.2.16.Final - https://netty.io/netty-codec-http/)
-        * Netty/Codec/HTTP2 (io.netty:netty-codec-http2:4.2.16.Final - https://netty.io/netty-codec-http2/)
-        * Netty/Codec/Http3 (io.netty:netty-codec-http3:4.2.16.Final - https://netty.io/netty-codec-http3/)
-        * Netty/Codec/Marshalling (io.netty:netty-codec-marshalling:4.2.16.Final - https://netty.io/netty-codec-marshalling/)
-        * Netty/Codec/Memcache (io.netty:netty-codec-memcache:4.2.16.Final - https://netty.io/netty-codec-memcache/)
-        * Netty/Codec/MQTT (io.netty:netty-codec-mqtt:4.2.16.Final - https://netty.io/netty-codec-mqtt/)
-        * Netty/Codec/Native/Quic (io.netty:netty-codec-native-quic:4.2.16.Final - https://netty.io/netty-codec-native-quic/)
-        * Netty/Codec/Protobuf (io.netty:netty-codec-protobuf:4.2.16.Final - https://netty.io/netty-codec-protobuf/)
-        * Netty/Codec/Redis (io.netty:netty-codec-redis:4.2.16.Final - https://netty.io/netty-codec-redis/)
-        * Netty/Codec/SMTP (io.netty:netty-codec-smtp:4.2.16.Final - https://netty.io/netty-codec-smtp/)
-        * Netty/Codec/Socks (io.netty:netty-codec-socks:4.2.16.Final - https://netty.io/netty-codec-socks/)
-        * Netty/Codec/Stomp (io.netty:netty-codec-stomp:4.2.16.Final - https://netty.io/netty-codec-stomp/)
-        * Netty/Codec/XML (io.netty:netty-codec-xml:4.2.16.Final - https://netty.io/netty-codec-xml/)
-        * Netty/Common (io.netty:netty-common:4.2.16.Final - https://netty.io/netty-common/)
-        * Netty/Handler (io.netty:netty-handler:4.2.16.Final - https://netty.io/netty-handler/)
-        * Netty/Handler/Proxy (io.netty:netty-handler-proxy:4.2.16.Final - https://netty.io/netty-handler-proxy/)
-        * Netty/Handler/Ssl/Ocsp (io.netty:netty-handler-ssl-ocsp:4.2.16.Final - https://netty.io/netty-handler-ssl-ocsp/)
-        * Netty/Resolver (io.netty:netty-resolver:4.2.16.Final - https://netty.io/netty-resolver/)
-        * Netty/Resolver/DNS (io.netty:netty-resolver-dns:4.2.16.Final - https://netty.io/netty-resolver-dns/)
-        * Netty/Resolver/DNS/Classes/MacOS (io.netty:netty-resolver-dns-classes-macos:4.2.16.Final - https://netty.io/netty-resolver-dns-classes-macos/)
-        * Netty/Resolver/DNS/Native/MacOS (io.netty:netty-resolver-dns-native-macos:4.2.16.Final - https://netty.io/netty-resolver-dns-native-macos/)
-        * Netty/Transport (io.netty:netty-transport:4.2.16.Final - https://netty.io/netty-transport/)
-        * Netty/Transport/Classes/Epoll (io.netty:netty-transport-classes-epoll:4.2.16.Final - https://netty.io/netty-transport-classes-epoll/)
-        * Netty/Transport/Classes/io_uring (io.netty:netty-transport-classes-io_uring:4.2.16.Final - https://netty.io/netty-transport-classes-io_uring/)
-        * Netty/Transport/Classes/KQueue (io.netty:netty-transport-classes-kqueue:4.2.16.Final - https://netty.io/netty-transport-classes-kqueue/)
-        * Netty/Transport/Native/Epoll (io.netty:netty-transport-native-epoll:4.2.16.Final - https://netty.io/netty-transport-native-epoll/)
-        * Netty/Transport/Native/io_uring (io.netty:netty-transport-native-io_uring:4.2.16.Final - https://netty.io/netty-transport-native-io_uring/)
-        * Netty/Transport/Native/KQueue (io.netty:netty-transport-native-kqueue:4.2.16.Final - https://netty.io/netty-transport-native-kqueue/)
-        * Netty/Transport/Native/Unix/Common (io.netty:netty-transport-native-unix-common:4.2.16.Final - https://netty.io/netty-transport-native-unix-common/)
-        * Netty/Transport/RXTX (io.netty:netty-transport-rxtx:4.2.16.Final - https://netty.io/netty-transport-rxtx/)
-        * Netty/Transport/SCTP (io.netty:netty-transport-sctp:4.2.16.Final - https://netty.io/netty-transport-sctp/)
-        * Netty/Transport/UDT (io.netty:netty-transport-udt:4.2.16.Final - https://netty.io/netty-transport-udt/)
+        * ArC - Runtime (io.quarkus.arc:arc:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Caffeine cache (com.github.ben-manes.caffeine:caffeine:3.2.4 - https://github.com/ben-manes/caffeine)
+        * ClassMate (com.fasterxml:classmate:1.7.1 - https://github.com/FasterXML/java-classmate)
+        * flyway-core (org.flywaydb:flyway-core:12.0.0 - https://flywaydb.org/flyway-core)
+        * Guava: Google Core Libraries for Java (com.google.guava:guava:33.4.8-jre - https://github.com/google/guava)
+        * Hibernate ORM - hibernate-core (org.hibernate.orm:hibernate-core:7.4.4.Final - https://hibernate.org/orm)
+        * Hibernate ORM - hibernate-graalvm (org.hibernate.orm:hibernate-graalvm:7.4.4.Final - https://hibernate.org/orm)
+        * J2ObjC Annotations (com.google.j2objc:j2objc-annotations:2.8 - https://github.com/google/j2objc/)
+        * Jandex: Core (io.smallrye:jandex:3.6.0 - https://smallrye.io)
+        * Java Concurrency Tools Core Library (org.jctools:jctools-core:4.0.5 - https://github.com/JCTools)
+        * MicroProfile Config API (org.eclipse.microprofile.config:microprofile-config-api:3.1.1 - https://microprofile.io/project/eclipse/microprofile-config/microprofile-config-api)
+        * MicroProfile Context Propagation (org.eclipse.microprofile.context-propagation:microprofile-context-propagation-api:1.3 - http://microprofile.io/microprofile-context-propagation-api)
+        * MicroProfile Health API (org.eclipse.microprofile.health:microprofile-health-api:4.0.1 - https://microprofile.io/project/eclipse/microprofile-health/microprofile-health-api)
+        * MicroProfile OpenAPI API (org.eclipse.microprofile.openapi:microprofile-openapi-api:4.1.1 - http://microprofile.io/microprofile-openapi-parent/microprofile-openapi-api)
+        * Netty/Buffer (io.netty:netty-buffer:4.1.135.Final - https://netty.io/netty-buffer/)
+        * Netty/Codec (io.netty:netty-codec:4.1.135.Final - https://netty.io/netty-codec/)
+        * Netty/Codec/DNS (io.netty:netty-codec-dns:4.1.135.Final - https://netty.io/netty-codec-dns/)
+        * Netty/Codec/HAProxy (io.netty:netty-codec-haproxy:4.1.135.Final - https://netty.io/netty-codec-haproxy/)
+        * Netty/Codec/HTTP (io.netty:netty-codec-http:4.1.135.Final - https://netty.io/netty-codec-http/)
+        * Netty/Codec/HTTP2 (io.netty:netty-codec-http2:4.1.135.Final - https://netty.io/netty-codec-http2/)
+        * Netty/Codec/Socks (io.netty:netty-codec-socks:4.1.135.Final - https://netty.io/netty-codec-socks/)
+        * Netty/Common (io.netty:netty-common:4.1.135.Final - https://netty.io/netty-common/)
+        * Netty/Handler (io.netty:netty-handler:4.1.135.Final - https://netty.io/netty-handler/)
+        * Netty/Handler/Proxy (io.netty:netty-handler-proxy:4.1.135.Final - https://netty.io/netty-handler-proxy/)
+        * Netty/Resolver (io.netty:netty-resolver:4.1.135.Final - https://netty.io/netty-resolver/)
+        * Netty/Resolver/DNS (io.netty:netty-resolver-dns:4.1.135.Final - https://netty.io/netty-resolver-dns/)
+        * Netty/Transport (io.netty:netty-transport:4.1.135.Final - https://netty.io/netty-transport/)
+        * Netty/Transport/Native/Unix/Common (io.netty:netty-transport-native-unix-common:4.1.135.Final - https://netty.io/netty-transport-native-unix-common/)
+        * Quarkus - Bootstrap - Classloader common utilities (io.quarkus:quarkus-classloader-commons:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Bootstrap - Runner (io.quarkus:quarkus-bootstrap-runner:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - FS Util (io.quarkus:quarkus-fs-util:1.4.2 - https://quarkus.io/)
+        * Quarkus - Value Registry (io.quarkus:quarkus-value-registry:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Vert.x Utils (io.quarkus.vertx.utils:quarkus-vertx-utils:3.37.3 - https://quarkus.io)
+        * RESTEasy Reactive - Common Runtime (io.quarkus.resteasy.reactive:resteasy-reactive-common:3.37.3 - https://github.com/quarkusio/quarkus)
+        * RESTEasy Reactive - Common Types (io.quarkus.resteasy.reactive:resteasy-reactive-common-types:3.37.3 - https://github.com/quarkusio/quarkus)
+        * RESTEasy Reactive - Jackson Support - Runtime (io.quarkus.resteasy.reactive:resteasy-reactive-jackson:3.37.3 - https://github.com/quarkusio/quarkus)
+        * RESTEasy Reactive - Runtime (io.quarkus.resteasy.reactive:resteasy-reactive:3.37.3 - https://github.com/quarkusio/quarkus)
+        * RESTEasy Reactive - Vert.x Support - Runtime (io.quarkus.resteasy.reactive:resteasy-reactive-vertx:3.37.3 - https://github.com/quarkusio/quarkus)
+        * SmallRye Common: Annotations (io.smallrye.common:smallrye-common-annotation:2.18.1 - http://smallrye.io)
+        * SmallRye Common: Classloader (io.smallrye.common:smallrye-common-classloader:2.18.1 - http://smallrye.io)
+        * SmallRye Common: Constraints (io.smallrye.common:smallrye-common-constraint:2.18.1 - http://smallrye.io)
+        * SmallRye Common: CPU (io.smallrye.common:smallrye-common-cpu:2.18.1 - http://smallrye.io)
+        * SmallRye Common: Expressions (io.smallrye.common:smallrye-common-expression:2.18.1 - http://smallrye.io)
+        * SmallRye Common: Functions (io.smallrye.common:smallrye-common-function:2.18.1 - http://smallrye.io)
+        * SmallRye Common: IO (io.smallrye.common:smallrye-common-io:2.18.1 - http://smallrye.io)
+        * SmallRye Common: Net (io.smallrye.common:smallrye-common-net:2.18.1 - http://smallrye.io)
+        * SmallRye Common: OS (io.smallrye.common:smallrye-common-os:2.18.1 - http://smallrye.io)
+        * SmallRye Common: References (io.smallrye.common:smallrye-common-ref:2.18.1 - http://smallrye.io)
+        * SmallRye Common: Vert.x 4 Context Utilities (io.smallrye.common:smallrye-common-vertx-context:2.18.1 - http://smallrye.io)
+        * SmallRye Config: CDI (io.smallrye.config:smallrye-config:3.17.2 - https://smallrye.io)
+        * SmallRye Config: Common (io.smallrye.config:smallrye-config-common:3.17.2 - https://smallrye.io)
+        * SmallRye Config: Core (io.smallrye.config:smallrye-config-core:3.17.2 - https://smallrye.io)
+        * SmallRye Config: Validator (io.smallrye.config:smallrye-config-validator:3.17.2 - https://smallrye.io)
+        * SmallRye Fault Tolerance: Vert.x Integration (io.smallrye:smallrye-fault-tolerance-vertx:6.11.1 - https://smallrye.io)
+        * SmallRye Health: API (io.smallrye:smallrye-health-api:4.3.0 - http://smallrye.io)
+        * SmallRye Health: Implementation (io.smallrye:smallrye-health:4.3.0 - http://smallrye.io)
+        * SmallRye Health: Provided Health Checks (io.smallrye:smallrye-health-provided-checks:4.3.0 - http://smallrye.io)
+        * SmallRye Mutiny - Core library (io.smallrye.reactive:mutiny:3.2.1 - https://smallrye.io/smallrye-mutiny)
+        * SmallRye Mutiny - Integration with SmallRye Context Propagation (io.smallrye.reactive:mutiny-smallrye-context-propagation:3.2.1 - https://smallrye.io/smallrye-mutiny)
+        * SmallRye Mutiny Zero JDK Flow / Reactive Streams Adapters (io.smallrye.reactive:mutiny-zero-flow-adapters:1.2.1 - https://smallrye.io)
+        * SmallRye: OpenAPI Core (io.smallrye:smallrye-open-api-core:4.3.3 - http://smallrye.io)
+        * SmallRye: OpenAPI Model (io.smallrye:smallrye-open-api-model:4.3.3 - http://smallrye.io)
+        * SnakeYAML (org.yaml:snakeyaml:2.6 - https://bitbucket.org/snakeyaml/snakeyaml)
 
     Apache-2.0:
 
-        * Apache Commons BeanUtils (commons-beanutils:commons-beanutils:1.11.0 - https://commons.apache.org/proper/commons-beanutils)
-        * Apache Commons IO (commons-io:commons-io:2.14.0 - https://commons.apache.org/proper/commons-io/)
+        * Apache Commons Codec (commons-codec:commons-codec:1.22.0 - https://commons.apache.org/proper/commons-codec/)
         * Apache Commons Lang (org.apache.commons:commons-lang3:3.20.0 - https://commons.apache.org/proper/commons-lang/)
-        * Apache Commons Logging (commons-logging:commons-logging:1.3.5 - https://commons.apache.org/proper/commons-logging/)
-        * Apache Commons Validator (commons-validator:commons-validator:1.10.1 - https://commons.apache.org/proper/commons-validator/)
+        * Apache Commons Logging (commons-logging:commons-logging:1.3.2 - https://commons.apache.org/proper/commons-logging/)
+        * Apache Commons Validator (commons-validator:commons-validator:1.9.0 - http://commons.apache.org/proper/commons-validator/)
+        * Gson (com.google.code.gson:gson:2.14.0 - https://github.com/google/gson)
+        * Kotlin Stdlib (org.jetbrains.kotlin:kotlin-stdlib:2.4.0 - https://kotlinlang.org/)
+        * kotlinx-coroutines-core (org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0 - https://github.com/Kotlin/kotlinx.coroutines)
+        * kotlinx-coroutines-core (org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.11.0 - https://github.com/Kotlin/kotlinx.coroutines)
+        * Narayana: ArjunaJTA narayana-jta (org.jboss.narayana.jta:narayana-jta:7.3.4.Final - https://narayana.io)
+        * Narayana: ArjunaJTS integration (org.jboss.narayana.jts:narayana-jts-integration:7.3.4.Final - https://narayana.io)
 
     BSD-2-Clause:
 
+        * crac (org.crac:crac:1.5.0 - https://github.com/crac/org.crac)
         * HdrHistogram (org.hdrhistogram:HdrHistogram:2.2.2 - http://hdrhistogram.github.io/HdrHistogram/)
-        * PostgreSQL JDBC Driver (org.postgresql:postgresql:42.7.11 - https://jdbc.postgresql.org)
+        * PostgreSQL JDBC Driver (org.postgresql:postgresql:42.7.13 - https://jdbc.postgresql.org)
 
     BSD-3-Clause:
 
-        * ANTLR 4 Runtime (org.antlr:antlr4-runtime:4.13.1 - https://www.antlr.org/antlr4-runtime/)
-
-    CC0:
-
-        * reactive-streams (org.reactivestreams:reactive-streams:1.0.3 - http://www.reactive-streams.org/)
+        * ANTLR 4 Runtime (org.antlr:antlr4-runtime:4.13.2 - https://www.antlr.org/antlr4-runtime/)
 
     CDDL + GPLv2 with classpath exception:
 
         * javax.annotation API (javax.annotation:javax.annotation-api:1.3.2 - http://jcp.org/en/jsr/detail?id=250)
 
+    EDL 1.0:
+
+        * Angus Activation Registries (org.eclipse.angus:angus-activation:2.0.3 - https://github.com/eclipse-ee4j/angus-activation/angus-activation)
+        * Jakarta Activation API (jakarta.activation:jakarta.activation-api:2.1.4 - https://github.com/jakartaee/jaf-api)
+
     EPL 2.0:
 
         * Jakarta Annotations API (jakarta.annotation:jakarta.annotation-api:3.0.0 - https://projects.eclipse.org/projects/ee4j.ca)
+        * Jakarta Interceptors (jakarta.interceptor:jakarta.interceptor-api:2.2.0 - https://github.com/jakartaee/interceptors)
+        * jakarta.resource API (jakarta.resource:jakarta.resource-api:2.1.0 - https://github.com/eclipse-ee4j/jca-api)
+        * jakarta.transaction API (jakarta.transaction:jakarta.transaction-api:2.0.1 - https://projects.eclipse.org/projects/ee4j.jta)
 
     EPL-2.0:
 
-        * Logback Classic Module (ch.qos.logback:logback-classic:1.5.38 - http://logback.qos.ch/logback-classic)
-        * Logback Core Module (ch.qos.logback:logback-core:1.5.38 - http://logback.qos.ch/logback-core)
+        * Jakarta RESTful WS API (jakarta.ws.rs:jakarta.ws.rs-api:3.1.0 - https://github.com/eclipse-ee4j/jaxrs-api)
+
+    Eclipse Distribution License - v 1.0:
+
+        * istack common utility code runtime (com.sun.istack:istack-commons-runtime:4.1.2 - https://projects.eclipse.org/projects/ee4j/istack-commons/istack-commons-runtime)
+        * Jakarta XML Binding API (jakarta.xml.bind:jakarta.xml.bind-api:4.0.5 - https://github.com/jakartaee/jaxb-api/jakarta.xml.bind-api)
+        * JAXB Core (org.glassfish.jaxb:jaxb-core:4.0.9 - https://eclipse-ee4j.github.io/jaxb-ri/)
+        * JAXB Runtime (org.glassfish.jaxb:jaxb-runtime:4.0.9 - https://eclipse-ee4j.github.io/jaxb-ri/)
+        * TXW2 Runtime (org.glassfish.jaxb:txw2:4.0.9 - https://eclipse-ee4j.github.io/jaxb-ri/)
+
+    Eclipse Distribution License v. 1.0:
+
+        * Jakarta Persistence API (jakarta.persistence:jakarta.persistence-api:3.2.0 - https://github.com/jakartaee/persistence)
 
     Eclipse Public License - v 1.0:
 
-        * persistence-api (io.ebean:persistence-api:3.0 - https://avaje.io/persistence-api)
+        * Vert.x Auth Common (io.vertx:vertx-auth-common:4.5.28 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-auth-parent/vertx-auth-common)
+        * Vert.x Bridge Common (io.vertx:vertx-bridge-common:4.5.28 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-bridge-common)
+        * Vert.x Codegen (io.vertx:vertx-codegen:4.5.28 - https://github.com/vert-x3/vertx-parent/vertx-codegen)
+        * Vert.x URI Template (io.vertx:vertx-uri-template:4.5.28 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-uri-template)
+        * Vert.x Web Common (io.vertx:vertx-web-common:4.5.28 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-web-parent/vertx-web-common)
+
+    Eclipse Public License - v 2.0:
+
+        * Vert.x Core (io.vertx:vertx-core:4.5.28 - https://github.com/vert-x3/vertx-parent/vertx-core)
+        * Vert.x Web (io.vertx:vertx-web:4.5.28 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-web-parent/vertx-web)
+
+    Eclipse Public License 2.0:
+
+        * Eclipse Parsson (org.eclipse.parsson:parsson:1.1.9 - https://github.com/eclipse-ee4j/parsson/parsson)
+        * Jakarta JSON Processing API (jakarta.json:jakarta.json-api:2.1.3 - https://github.com/eclipse-ee4j/jsonp)
+
+    Eclipse Public License v. 2.0:
+
+        * Eclipse Expressly (org.glassfish.expressly:expressly:6.0.0 - https://projects.eclipse.org/projects/ee4j.expressly)
+        * Jakarta Expression Language API (jakarta.el:jakarta.el-api:6.0.1 - https://projects.eclipse.org/projects/ee4j.el)
+        * Jakarta Persistence API (jakarta.persistence:jakarta.persistence-api:3.2.0 - https://github.com/jakartaee/persistence)
+
+    GNU General Public License, version 2 with the GNU Classpath Exception:
+
+        * Eclipse Expressly (org.glassfish.expressly:expressly:6.0.0 - https://projects.eclipse.org/projects/ee4j.expressly)
+        * Eclipse Parsson (org.eclipse.parsson:parsson:1.1.9 - https://github.com/eclipse-ee4j/parsson/parsson)
+        * Jakarta Expression Language API (jakarta.el:jakarta.el-api:6.0.1 - https://projects.eclipse.org/projects/ee4j.el)
+        * Jakarta JSON Processing API (jakarta.json:jakarta.json-api:2.1.3 - https://github.com/eclipse-ee4j/jsonp)
 
     GPL v2:
 
         * RabbitMQ Java Client (com.rabbitmq:amqp-client:5.21.0 - https://www.rabbitmq.com)
 
+    GPL-2.0-with-classpath-exception:
+
+        * Jakarta RESTful WS API (jakarta.ws.rs:jakarta.ws.rs-api:3.1.0 - https://github.com/eclipse-ee4j/jaxrs-api)
+
     GPL2 w/ CPE:
 
         * Jakarta Annotations API (jakarta.annotation:jakarta.annotation-api:3.0.0 - https://projects.eclipse.org/projects/ee4j.ca)
-
-    LGPL-2.1-only:
-
-        * Logback Classic Module (ch.qos.logback:logback-classic:1.5.38 - http://logback.qos.ch/logback-classic)
-        * Logback Core Module (ch.qos.logback:logback-core:1.5.38 - http://logback.qos.ch/logback-core)
+        * Jakarta Interceptors (jakarta.interceptor:jakarta.interceptor-api:2.2.0 - https://github.com/jakartaee/interceptors)
+        * jakarta.resource API (jakarta.resource:jakarta.resource-api:2.1.0 - https://github.com/eclipse-ee4j/jca-api)
+        * jakarta.transaction API (jakarta.transaction:jakarta.transaction-api:2.0.1 - https://projects.eclipse.org/projects/ee4j.jta)
 
     MIT:
 
-        * graphql-java (com.graphql-java:graphql-java:22.4 - https://github.com/graphql-java/graphql-java)
-        * SLF4J API Module (org.slf4j:slf4j-api:2.0.17 - http://www.slf4j.org)
+        * graphql-java (com.graphql-java:graphql-java:25.0 - https://github.com/graphql-java/graphql-java)
+        * SLF4J API Module (org.slf4j:slf4j-api:2.0.18 - http://www.slf4j.org)
+
+    MIT-0:
+
+        * reactive-streams (org.reactivestreams:reactive-streams:1.0.4 - http://www.reactive-streams.org/)
 
     MPL 2.0:
 
@@ -138,71 +237,119 @@ List of third-party dependencies grouped by their license type.
     Public Domain:
 
         * AOP alliance (aopalliance:aopalliance:1.0 - http://aopalliance.sourceforge.net)
+        * JBoss Transaction SPI (org.jboss:jboss-transaction-spi:8.0.0.Final - http://www.jboss.org)
 
     Public Domain, per Creative Commons CC0:
 
         * HdrHistogram (org.hdrhistogram:HdrHistogram:2.2.2 - http://hdrhistogram.github.io/HdrHistogram/)
+        * LatencyUtils (org.latencyutils:LatencyUtils:2.0.3 - http://latencyutils.github.io/LatencyUtils/)
 
     The Apache License, Version 2.0:
 
         * JSpecify annotations (org.jspecify:jspecify:1.0.0 - http://jspecify.org/)
+        * OpenTelemetry Instrumentation for Java (io.opentelemetry.instrumentation:opentelemetry-instrumentation-api:2.26.1 - https://github.com/open-telemetry/opentelemetry-java-instrumentation)
+        * OpenTelemetry Java (io.opentelemetry:opentelemetry-api:1.60.1 - https://github.com/open-telemetry/opentelemetry-java)
+        * OpenTelemetry Java (io.opentelemetry:opentelemetry-api-incubator:1.60.1-alpha - https://github.com/open-telemetry/opentelemetry-java)
+        * OpenTelemetry Java (io.opentelemetry:opentelemetry-common:1.60.1 - https://github.com/open-telemetry/opentelemetry-java)
+        * OpenTelemetry Java (io.opentelemetry:opentelemetry-context:1.60.1 - https://github.com/open-telemetry/opentelemetry-java)
+        * OpenTelemetry Semantic Conventions Java (io.opentelemetry.semconv:opentelemetry-semconv:1.40.0 - https://github.com/open-telemetry/semantic-conventions-java)
 
     The Apache Software License, Version 2.0:
 
-        * avaje-applog (io.avaje:avaje-applog:1.0 - https://avaje.io/avaje-applog)
-        * avaje-applog-slf4j (io.avaje:avaje-applog-slf4j:1.0 - https://avaje.io/avaje-applog-slf4j)
-        * avaje-config (io.avaje:avaje-config:3.10 - https://avaje.io/avaje-config)
-        * avaje-lang (io.avaje:avaje-lang:1.1 - https://avaje.io/avaje-lang)
-        * classpath-scanner (io.avaje:classpath-scanner:7.1 - http://www.avaje.org/classpath-scanner)
-        * classpath-scanner-api (io.avaje:classpath-scanner-api:7.1 - http://www.avaje.org/classpath-scanner-api)
         * Commons Digester (commons-digester:commons-digester:2.1 - http://commons.apache.org/digester/)
         * Converter: Gson (com.squareup.retrofit2:converter-gson:2.9.0 - https://github.com/square/retrofit)
-        * ebean api (io.ebean:ebean-api:13.26.1 - https://ebean.io/ebean-api/)
-        * ebean core (io.ebean:ebean-core:13.26.1 - https://ebean.io/)
-        * ebean core type (io.ebean:ebean-core-type:13.26.1 - https://ebean.io/ebean-core-type/)
-        * ebean datasource (io.ebean:ebean-datasource:8.11 - https://avaje.io/ebean-datasource-parent/ebean-datasource)
-        * ebean datasource api (io.ebean:ebean-datasource-api:8.11 - https://avaje.io/ebean-datasource-parent/ebean-datasource-api)
-        * ebean ddl runner (io.ebean:ebean-ddl-runner:2.3 - https://ebean.io/)
-        * ebean external mapping api (io.ebean:ebean-externalmapping-api:13.18.0 - https://ebean.io/ebean-externalmapping-api/)
-        * ebean querybean (io.ebean:ebean-querybean:13.26.1 - https://ebean.io/ebean-querybean/)
-        * ebean-annotation (io.ebean:ebean-annotation:8.4 - https://avaje.io/ebean-annotation)
-        * ebean-migration (io.ebean:ebean-migration:13.11.1 - https://avaje.io/ebean-migration)
-        * ebean-migration-auto (io.ebean:ebean-migration-auto:1.2 - https://avaje.io/ebean-migration-auto)
-        * ebean-platform-postgres (io.ebean:ebean-platform-postgres:13.26.1 - https://ebean.io/ebean-platform-postgres/)
-        * ebean-postgres (io.ebean:ebean-postgres:13.26.1 - https://ebean.io/ebean-postgres/)
-        * ebean-types (io.ebean:ebean-types:3.0 - https://avaje.io/ebean-types)
-        * FindBugs-jsr305 (com.google.code.findbugs:jsr305:3.0.2 - http://findbugs.sourceforge.net/)
-        * Google Guice - Core Library (com.google.inject:guice:6.0.0 - https://github.com/google/guice/guice)
-        * Google Guice - Extensions - AssistedInject (com.google.inject.extensions:guice-assistedinject:6.0.0 - https://github.com/google/guice/extensions-parent/guice-assistedinject)
+        * Google Guice - Core Library (com.google.inject:guice:7.0.0 - https://github.com/google/guice/guice)
         * Guava InternalFutureFailureAccess and InternalFutures (com.google.guava:failureaccess:1.0.1 - https://github.com/google/guava/failureaccess)
-        * Guava ListenableFuture only (com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava - https://github.com/google/guava/listenablefuture)
-        * HikariCP (com.zaxxer:HikariCP:5.1.0 - https://github.com/brettwooldridge/HikariCP)
-        * J2ObjC Annotations (com.google.j2objc:j2objc-annotations:1.3 - https://github.com/google/j2objc/)
-        * Jackson datatype: jdk8 (com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.22.1 - https://github.com/FasterXML/jackson-modules-java8/jackson-datatype-jdk8)
+        * Jackson datatype: jdk8 (com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.22.0 - https://github.com/FasterXML/jackson-modules-java8/jackson-datatype-jdk8)
         * Jackson datatype: JSR310 (com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.0 - https://github.com/FasterXML/jackson-modules-java8/jackson-datatype-jsr310)
         * Jackson-annotations (com.fasterxml.jackson.core:jackson-annotations:2.22 - https://github.com/FasterXML/jackson)
-        * Jackson-core (com.fasterxml.jackson.core:jackson-core:2.22.1 - https://github.com/FasterXML/jackson-core)
-        * jackson-databind (com.fasterxml.jackson.core:jackson-databind:2.22.1 - https://github.com/FasterXML/jackson)
+        * Jackson-core (com.fasterxml.jackson.core:jackson-core:2.22.0 - https://github.com/FasterXML/jackson-core)
+        * jackson-databind (com.fasterxml.jackson.core:jackson-databind:2.22.0 - https://github.com/FasterXML/jackson)
+        * Jackson-dataformat-YAML (com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.22.0 - https://github.com/FasterXML/jackson-dataformats-text)
+        * Jackson-module-parameter-names (com.fasterxml.jackson.module:jackson-module-parameter-names:2.22.0 - https://github.com/FasterXML/jackson-modules-java8/jackson-module-parameter-names)
         * Jakarta Dependency Injection (jakarta.inject:jakarta.inject-api:2.0.1 - https://github.com/eclipse-ee4j/injection-api)
-        * java-dataloader (com.graphql-java:java-dataloader:3.3.0 - https://github.com/graphql-java/java-dataloader)
-        * javax.inject (javax.inject:javax.inject:1 - http://code.google.com/p/atinject/)
-        * micrometer-commons (io.micrometer:micrometer-commons:1.17.0 - https://github.com/micrometer-metrics/micrometer)
-        * micrometer-core (io.micrometer:micrometer-core:1.17.0 - https://github.com/micrometer-metrics/micrometer)
-        * micrometer-observation (io.micrometer:micrometer-observation:1.17.0 - https://github.com/micrometer-metrics/micrometer)
-        * micrometer-registry-prometheus (io.micrometer:micrometer-registry-prometheus:1.17.0 - https://github.com/micrometer-metrics/micrometer)
-        * Prometheus Metrics Config (io.prometheus:prometheus-metrics-config:1.7.0 - http://github.com/prometheus/client_java/client_java/prometheus-metrics-config)
-        * Prometheus Metrics Core (io.prometheus:prometheus-metrics-core:1.7.0 - http://github.com/prometheus/client_java/client_java/prometheus-metrics-core)
-        * Prometheus Metrics Exposition Formats (io.prometheus:prometheus-metrics-exposition-formats:1.7.0 - http://github.com/prometheus/client_java/client_java/prometheus-metrics-exposition-formats)
-        * Prometheus Metrics Exposition Text Formats (io.prometheus:prometheus-metrics-exposition-textformats:1.7.0 - http://github.com/prometheus/client_java/client_java/prometheus-metrics-exposition-textformats)
-        * Prometheus Metrics Model (io.prometheus:prometheus-metrics-model:1.7.0 - http://github.com/prometheus/client_java/client_java/prometheus-metrics-model)
-        * Prometheus Metrics Tracer Common (io.prometheus:prometheus-metrics-tracer-common:1.7.0 - http://github.com/prometheus/client_java/client_java/prometheus-metrics-tracer/prometheus-metrics-tracer-common)
+        * java-dataloader (com.graphql-java:java-dataloader:6.0.0 - https://github.com/graphql-java/java-dataloader)
+        * JetBrains Java Annotations (org.jetbrains:annotations:26.1.0 - https://github.com/JetBrains/java-annotations)
+        * micrometer-commons (io.micrometer:micrometer-commons:1.16.6 - https://github.com/micrometer-metrics/micrometer)
+        * micrometer-core (io.micrometer:micrometer-core:1.16.6 - https://github.com/micrometer-metrics/micrometer)
+        * micrometer-observation (io.micrometer:micrometer-observation:1.16.6 - https://github.com/micrometer-metrics/micrometer)
+        * micrometer-registry-prometheus-simpleclient (io.micrometer:micrometer-registry-prometheus-simpleclient:1.16.6 - https://github.com/micrometer-metrics/micrometer)
+        * Netty/TomcatNative [OpenSSL - Classes] (io.netty:netty-tcnative-classes:2.0.77.Final - https://github.com/netty/netty-tcnative/netty-tcnative-classes/)
+        * Prometheus Java Simpleclient (io.prometheus:simpleclient:0.16.0 - http://github.com/prometheus/client_java/simpleclient)
+        * Prometheus Java Simpleclient Common (io.prometheus:simpleclient_common:0.16.0 - http://github.com/prometheus/client_java/simpleclient_common)
+        * Prometheus Java Span Context Supplier - Common (io.prometheus:simpleclient_tracer_common:0.16.0 - http://github.com/prometheus/client_java/simpleclient_tracer/simpleclient_tracer_common)
+        * Prometheus Java Span Context Supplier - OpenTelemetry (io.prometheus:simpleclient_tracer_otel:0.16.0 - http://github.com/prometheus/client_java/simpleclient_tracer/simpleclient_tracer_otel)
+        * Prometheus Java Span Context Supplier - OpenTelemetry Agent (io.prometheus:simpleclient_tracer_otel_agent:0.16.0 - http://github.com/prometheus/client_java/simpleclient_tracer/simpleclient_tracer_otel_agent)
+        * Quarkus - Agroal - Runtime (io.quarkus:quarkus-agroal:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - ArC - Runtime (io.quarkus:quarkus-arc:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Caffeine - Runtime (io.quarkus:quarkus-caffeine:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Core - Runtime (io.quarkus:quarkus-core:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Credentials - Runtime (io.quarkus:quarkus-credentials:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Datasource - Common (io.quarkus:quarkus-datasource-common:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Datasource - Runtime (io.quarkus:quarkus-datasource:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Development mode - SPI (io.quarkus:quarkus-development-mode-spi:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - DevServices - Runtime (io.quarkus:quarkus-devservices:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Flyway - Runtime (io.quarkus:quarkus-flyway:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Hibernate ORM - Runtime (io.quarkus:quarkus-hibernate-orm:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Hibernate ORM with Panache - Common - Runtime (io.quarkus:quarkus-hibernate-orm-panache-common:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Hibernate ORM with Panache - Runtime (io.quarkus:quarkus-hibernate-orm-panache:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Hibernate Validator - Runtime (io.quarkus:quarkus-hibernate-validator:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - IDE Launcher (io.quarkus:quarkus-ide-launcher:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Jackson - Runtime (io.quarkus:quarkus-jackson:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - JDBC - PostgreSQL - Runtime (io.quarkus:quarkus-jdbc-postgresql:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - JSON-P - Runtime (io.quarkus:quarkus-jsonp:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Micrometer - Runtime (io.quarkus:quarkus-micrometer:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Micrometer Registry - Prometheus Runtime (io.quarkus:quarkus-micrometer-registry-prometheus:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Mutiny - Runtime (io.quarkus:quarkus-mutiny:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Narayana JTA - Runtime (io.quarkus:quarkus-narayana-jta:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Netty - Runtime (io.quarkus:quarkus-netty:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Panache - Common - Runtime (io.quarkus:quarkus-panache-common:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Panache - Hibernate - Common - Runtime (io.quarkus:quarkus-panache-hibernate-common:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - REST - Common - Runtime (io.quarkus:quarkus-rest-common:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - REST - Jackson - Runtime (io.quarkus:quarkus-rest-jackson:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - REST - Jackson Common Bits - Runtime (io.quarkus:quarkus-rest-jackson-common:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - REST - Runtime (io.quarkus:quarkus-rest:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Scheduler - API (io.quarkus:quarkus-scheduler-api:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Scheduler - Common (io.quarkus:quarkus-scheduler-common:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Scheduler - Kotlin (io.quarkus:quarkus-scheduler-kotlin:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Scheduler - Runtime (io.quarkus:quarkus-scheduler:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Scheduler - SPI (io.quarkus:quarkus-scheduler-spi:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Security - Runtime SPI (io.quarkus:quarkus-security-runtime-spi:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - SmallRye Context Propagation - Runtime (io.quarkus:quarkus-smallrye-context-propagation:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - SmallRye Health - Runtime (io.quarkus:quarkus-smallrye-health:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - SmallRye OpenAPI - Runtime (io.quarkus:quarkus-smallrye-openapi:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Swagger UI - Runtime (io.quarkus:quarkus-swagger-ui:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - TLS Registry - Runtime (io.quarkus:quarkus-tls-registry:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - TLS Registry - Runtime SPI (io.quarkus:quarkus-tls-registry-spi:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Transaction Annotations - Runtime (io.quarkus:quarkus-transaction-annotations:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Vert.x - HTTP - Runtime (io.quarkus:quarkus-vertx-http:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Vert.x - Runtime (io.quarkus:quarkus-vertx:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Vert.x Late Bound MDC Provider (io.quarkus:quarkus-vertx-latebound-mdc-provider:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Virtual Threads - Runtime (io.quarkus:quarkus-virtual-threads:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus Security API (io.quarkus.security:quarkus-security:2.3.2 - http://www.jboss.org)
         * Retrofit (com.squareup.retrofit2:retrofit:2.9.0 - https://github.com/square/retrofit)
-        * Vavr (io.vavr:vavr:0.11.0 - https://vavr.io)
-        * Vavr Match (io.vavr:vavr-match:0.11.0 - https://vavr.io)
-
-    The MIT License:
-
-        * Checker Qual (org.checkerframework:checker-qual:3.12.0 - https://checkerframework.org)
+        * SmallRye Context Propagation: API (io.smallrye:smallrye-context-propagation-api:2.3.0 - https://github.com/smallrye/smallrye-context-propagation)
+        * SmallRye Context Propagation: Core (io.smallrye:smallrye-context-propagation:2.3.0 - https://github.com/smallrye/smallrye-context-propagation)
+        * SmallRye Context Propagation: JTA (io.smallrye:smallrye-context-propagation-jta:2.3.0 - https://github.com/smallrye/smallrye-context-propagation)
+        * SmallRye Context Propagation: Storage (io.smallrye:smallrye-context-propagation-storage:2.3.0 - https://github.com/smallrye/smallrye-context-propagation)
+        * SmallRye Mutiny - Runtime Helpers (io.smallrye.reactive:smallrye-mutiny-vertx-runtime:3.22.2 - https://smallrye.io/smallrye-mutiny-vertx-bindings)
+        * SmallRye Mutiny - Vert.x Auth Common (io.smallrye.reactive:smallrye-mutiny-vertx-auth-common:3.22.2 - https://smallrye.io/smallrye-mutiny-vertx-bindings)
+        * SmallRye Mutiny - Vert.x Bridge Common (io.smallrye.reactive:smallrye-mutiny-vertx-bridge-common:3.22.2 - https://smallrye.io/smallrye-mutiny-vertx-bindings)
+        * SmallRye Mutiny - Vert.x Core (io.smallrye.reactive:smallrye-mutiny-vertx-core:3.22.2 - https://smallrye.io/smallrye-mutiny-vertx-bindings)
+        * SmallRye Mutiny - Vert.x URI Template (io.smallrye.reactive:smallrye-mutiny-vertx-uri-template:3.22.2 - https://smallrye.io/smallrye-mutiny-vertx-bindings)
+        * SmallRye Mutiny - Vert.x Web (io.smallrye.reactive:smallrye-mutiny-vertx-web:3.22.2 - https://smallrye.io/smallrye-mutiny-vertx-bindings)
+        * SmallRye Mutiny - Vert.x Web Common (io.smallrye.reactive:smallrye-mutiny-vertx-web-common:3.22.2 - https://smallrye.io/smallrye-mutiny-vertx-bindings)
+        * SmallRye Reactive Converters: API (io.smallrye.reactive:smallrye-reactive-converter-api:3.0.3 - https://smallrye.io)
+        * SmallRye Reactive Converters: Mutiny (io.smallrye.reactive:smallrye-reactive-converter-mutiny:3.0.3 - https://smallrye.io)
+        * Vavr (io.vavr:vavr:0.10.4 - http://vavr.io)
+        * Vavr Match (io.vavr:vavr-match:0.10.4 - http://vavr.io)
+        * Vert.x Auth Common (io.vertx:vertx-auth-common:4.5.28 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-auth-parent/vertx-auth-common)
+        * Vert.x Bridge Common (io.vertx:vertx-bridge-common:4.5.28 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-bridge-common)
+        * Vert.x Codegen (io.vertx:vertx-codegen:4.5.28 - https://github.com/vert-x3/vertx-parent/vertx-codegen)
+        * Vert.x Core (io.vertx:vertx-core:4.5.28 - https://github.com/vert-x3/vertx-parent/vertx-core)
+        * Vert.x URI Template (io.vertx:vertx-uri-template:4.5.28 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-uri-template)
+        * Vert.x Web (io.vertx:vertx-web:4.5.28 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-web-parent/vertx-web)
+        * Vert.x Web Common (io.vertx:vertx-web-common:4.5.28 - https://github.com/vert-x3/vertx-parent/vertx-ext/vertx-ext-parent/vertx-web-parent/vertx-web-common)
 
     Unknown license:
 

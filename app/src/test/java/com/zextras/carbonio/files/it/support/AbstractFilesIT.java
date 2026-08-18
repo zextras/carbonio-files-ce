@@ -1,0 +1,951 @@
+// SPDX-FileCopyrightText: 2026 Zextras <https://www.zextras.com>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package com.zextras.carbonio.files.it.support;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+
+import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
+import com.github.tomakehurst.wiremock.stubbing.StubMapping;
+import com.zextras.carbonio.files.FilesStackTestResource;
+import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
+import com.zextras.carbonio.files.dal.dao.ebean.ACL;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import io.quarkus.test.common.WithTestResource;
+import io.quarkus.test.junit.QuarkusIntegrationTest;
+import io.restassured.RestAssured;
+import io.restassured.response.Response;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import org.junit.jupiter.api.AfterEach;
+
+/**
+ * The ONE base class for the out-of-process (native-binary-capable) black-box IT suite (D1/D2 of
+ * the acceptance-to-Quarkus-tests plan): {@code @QuarkusIntegrationTest} — the app under test runs
+ * as a SEPARATE launched process (packaged jar today, {@code -Dnative} periodically) — plus
+ * {@code @WithTestResource(FilesStackTestResource.class)}, the same stack the seam-based
+ * {@code @QuarkusTest} acceptance classes still use during the migration window.
+ *
+ * <p><b>NO {@code @Inject}/Arc anywhere in this class or its subclasses.</b> Out-of-process, the
+ * test JVM and the app JVM are different processes; CDI beans are simply not resolvable from here.
+ * Every capability below is either (a) a RestAssured HTTP call against the launched app's real
+ * port, or (b) a raw JDBC connection to the shared Postgres Testcontainer via {@link
+ * FilesStackTestResource#POSTGRES_JDBC_URL}.
+ *
+ * <p><b>Seeding is API-first.</b> The {@code seedXxx} helpers below replace {@code
+ * DatabasePopulator}'s direct repository writes: they drive the same public GraphQL/REST surface a
+ * real client would, and return the SERVER-GENERATED id from the response — subclasses must never
+ * hard-code a node/share/link id, since API-seeding cannot produce a caller-chosen id. A second
+ * user-management token (registered via {@link FilesStackTestResource#getUserManagementService()})
+ * is how a subclass seeds a foreign-owner node (create as that user, then act as the requester).
+ *
+ * <p><b>Cleanup is raw JDBC.</b> {@link #resetDb()} runs after every test method and mirrors the
+ * seam's {@code QuarkusTestDataAccess#resetDatabase} exactly (same DELETE/TRUNCATE statements),
+ * plus resetting the shared {@code MockStoragesService} fake so blob-presence assertions do not
+ * leak across tests.
+ *
+ * <p><b>GOTCHA — the cookie/token convention is GLOBAL, not per-class.</b> Unlike the old seam (one
+ * fresh in-process {@code FilesTestApp}/user-management fake PER TEST CLASS), {@link
+ * FilesStackTestResource#getUserManagementService()} is a single static singleton shared by the
+ * ENTIRE out-of-process test run. Its {@code registerToken(token, userId)} 2-arg overload is a
+ * NO-OP if the token is already registered — so whichever class runs FIRST in the suite "wins" a
+ * given cookie label for every class that reuses it afterward. ALL subclasses MUST reuse the SAME
+ * fixed convention for the standard fixture users: {@code "fake-token"} → {@code
+ * aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa}, {@code "fake-token-b"} → {@code
+ * bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb}, {@code "fake-token-c"} → {@code
+ * cccccccc-cccc-cccc-cccc-cccccccccccc}. Deviating (e.g. mapping {@code "fake-token-b"} to a
+ * different id in just one class) silently binds that cookie to WHICHEVER id some other class
+ * registered first, corrupting ownership/permission assertions in a way that only reproduces when
+ * the whole suite (or an unlucky subset) runs together — see the fix in {@code FlagNodesApiIT}.
+ */
+@QuarkusIntegrationTest
+@WithTestResource(FilesStackTestResource.class)
+public abstract class AbstractFilesIT {
+
+  /**
+   * The fixed root-folder pseudo-id accepted by {@code createFolder}/{@code upload}'s ParentId
+   * header.
+   */
+  protected static final String LOCAL_ROOT = "LOCAL_ROOT";
+
+  // --------------------------------------------------------------------------------- lifecycle
+
+  /**
+   * Raw-JDBC cleanup, run after every test method. Mirrors the seam's {@code
+   * QuarkusTestDataAccess#resetDatabase} verbatim (same statements) since {@code @Inject}/Arc
+   * repositories are not available out-of-process. Also resets the shared storages fake so
+   * upload/download/failure-injection state never leaks into the next test.
+   *
+   * <p><b>Tombstones</b> are NOT FK-linked to {@code node} either (mirrors the seam's explicit
+   * {@code clearTombstones()} call, which classes exercising {@code deleteNodes}'
+   * tombstone-retention behaviour — e.g. {@code DeleteNodesApiIT} — used to call themselves in
+   * their own {@code @AfterEach}); truncated here instead so EVERY class gets a clean tombstone
+   * table without having to remember to do so itself.
+   */
+  @AfterEach
+  void resetDb() throws SQLException {
+    try (Connection connection = jdbcConnection();
+        Statement statement = connection.createStatement()) {
+      // Delete test nodes but preserve ROOT nodes (LOCAL_ROOT/TRASH_ROOT, null owner_id). FK
+      // cascades wipe activity/custom/link/revision/share/trashed.
+      statement.execute("DELETE FROM node WHERE owner_id IS NOT NULL");
+      // Notification + snapshot + tombstone tables are not FK-linked to node, so the cascade
+      // above misses them.
+      statement.execute(
+          "TRUNCATE user_notification_interest, notification, snapshot_node, snapshot_user,"
+              + " user_notifications_info, tombstone CASCADE");
+    }
+    FilesStackTestResource.getStoragesService().reset();
+    FilesStackTestResource.getStoragesService().clearAll();
+  }
+
+  // ------------------------------------------------------------------------------------- JDBC
+
+  /** Opens a raw JDBC connection to the shared Postgres Testcontainer (test/test credentials). */
+  protected static Connection jdbcConnection() throws SQLException {
+    return DriverManager.getConnection(FilesStackTestResource.POSTGRES_JDBC_URL, "test", "test");
+  }
+
+  /**
+   * The rare non-API read-back: number of tombstone rows for a given node (any version). Prefer
+   * {@link #download(String, int, String)} → 200/404 for API-observable version state; use this
+   * only when the state genuinely has no API-observable equivalent (e.g. asserting a tombstone was
+   * recorded after a forced storages bulk-delete failure).
+   */
+  protected static int tombstoneRowsForNode(String nodeId) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("SELECT COUNT(*) FROM tombstone WHERE node_id = ?")) {
+      statement.setString(1, nodeId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        resultSet.next();
+        return resultSet.getInt(1);
+      }
+    }
+  }
+
+  /** The rare non-API read-back: the set of surviving version numbers for a node, ascending. */
+  protected static List<Integer> versionRows(String nodeId) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT version FROM revision WHERE node_id = ? ORDER BY version ASC")) {
+      statement.setString(1, nodeId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<Integer> versions = new ArrayList<>();
+        while (resultSet.next()) {
+          versions.add(resultSet.getInt(1));
+        }
+        return versions;
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------------------ RestAssured
+
+  /** POSTs an authenticated GraphQL {@code query}/{@code mutation} string to {@code /graphql/}. */
+  protected static Response graphql(String query, String cookie) {
+    var request =
+        RestAssured.given().contentType("application/json").body(TestUtils.queryPayload(query));
+    if (cookie != null) {
+      request = request.header("Cookie", cookie);
+    }
+    return request.post("/graphql/");
+  }
+
+  /**
+   * POSTs an UNAUTHENTICATED GraphQL {@code query}/{@code mutation} string to {@code
+   * /public/graphql/}.
+   */
+  protected static Response publicGraphql(String query) {
+    return RestAssured.given()
+        .contentType("application/json")
+        .body(TestUtils.queryPayload(query))
+        .post("/public/graphql/");
+  }
+
+  // ------------------------------------------------------------------- runtime app-config (live
+  // KV)
+
+  /**
+   * Cookie for the config read-back: the fixed {@link FilesStackTestResource#AUTH_TOKEN} user,
+   * always registered at boot as an ACTIVE/INTERNAL/files-enabled account, so {@link
+   * #awaitApplicationConfig} never depends on a subclass's own token fixtures.
+   */
+  private static final String CONFIG_READBACK_COOKIE =
+      "ZM_AUTH_TOKEN=" + FilesStackTestResource.AUTH_TOKEN;
+
+  /**
+   * Publishes a runtime {@code application-config.<dashKey>} value via the shared Consul WireMock
+   * and blocks until the launched app reflects it (see {@link #awaitApplicationConfig}). This is
+   * how a config-variant scenario (an upload/download/version cap) is expressed on the ONE shared
+   * launched app instead of via a class-restricted {@code @WithTestResource} that forces an app
+   * restart. The {@code dashKey} is the dash-shaped own-service key ({@code
+   * max-uploadable-size-in-mb}, …), i.e. the same {@code name} {@code getConfigs} reports. Pair
+   * with {@link #clearApplicationConfigOverrides} in an {@code @AfterEach} to restore the default.
+   */
+  protected static void setApplicationConfig(String dashKey, String value) {
+    FilesStackTestResource.setApplicationConfigOverride(dashKey, value);
+    awaitApplicationConfig(dashKey, value);
+  }
+
+  /**
+   * Drops all runtime overrides published by {@link #setApplicationConfig} and blocks until {@code
+   * dashKey} has reverted to {@code expectedDefault} — {@code null} for the size caps (absence =
+   * "no limit"), or the string default for keys that have one ({@code max-number-of-versions} →
+   * {@code "30"}). Call from {@code @AfterEach} so a cap never leaks into the next test on the
+   * shared app.
+   */
+  protected static void clearApplicationConfig(String dashKey, String expectedDefault) {
+    FilesStackTestResource.clearApplicationConfigOverrides();
+    awaitApplicationConfig(dashKey, expectedDefault);
+  }
+
+  /**
+   * Polls the live {@code getConfigs} query until config {@code name} reads {@code expected}
+   * ({@code null} = absent / "no limit"), giving a DETERMINISTIC wait for a runtime Consul-KV
+   * change to propagate through the app's {@code ConsulKvWatcher} — no arbitrary {@code sleep}. The
+   * poll cadence is the HTTP round-trip itself. Fails if the value is not reached within the
+   * timeout.
+   */
+  protected static void awaitApplicationConfig(String name, String expected) {
+    long deadline = System.currentTimeMillis() + 15_000;
+    String last = "<unread>";
+    while (System.currentTimeMillis() < deadline) {
+      Response response = graphql("query { getConfigs { name value } }", CONFIG_READBACK_COOKIE);
+      if (response.getStatusCode() == 200) {
+        List<Map<String, Object>> configs =
+            TestUtils.jsonResponseToList(response.getBody().asString(), "getConfigs");
+        if (configs != null) {
+          last = null;
+          for (Map<String, Object> config : configs) {
+            if (name.equals(config.get("name"))) {
+              last = (String) config.get("value");
+            }
+          }
+          if (expected == null ? last == null : expected.equals(last)) {
+            return;
+          }
+        }
+      }
+    }
+    throw new AssertionError(
+        "getConfigs['"
+            + name
+            + "'] did not reach '"
+            + expected
+            + "' (last='"
+            + last
+            + "') in time");
+  }
+
+  /**
+   * {@code POST /upload}: creates a new node under {@code parentId} (or the account root, when
+   * {@code null}) with the given content, matching {@code BlobResource#upload}'s header contract
+   * ({@code Filename} base64, optional {@code ParentId}/{@code Description}, raw byte body — NOT
+   * multipart).
+   */
+  protected static Response upload(
+      String parentId, String description, byte[] content, String filename, String cookie) {
+    var request = RestAssured.given().header("Filename", base64(filename));
+    if (parentId != null) {
+      request = request.header("ParentId", parentId);
+    }
+    if (description != null) {
+      request = request.header("Description", description);
+    }
+    if (cookie != null) {
+      request = request.header("Cookie", cookie);
+    }
+    return request.body(content).post("/upload");
+  }
+
+  /**
+   * {@code POST /upload-version}: uploads a new version of {@code nodeId}, matching {@code
+   * BlobResource#uploadVersion}'s header contract ({@code NodeId}, {@code Filename} base64, {@code
+   * OverwriteVersion}, raw byte body).
+   */
+  protected static Response uploadVersion(
+      String nodeId, byte[] content, String filename, boolean overwrite, String cookie) {
+    var request =
+        RestAssured.given()
+            .header("NodeId", nodeId)
+            .header("Filename", base64(filename))
+            .header("OverwriteVersion", String.valueOf(overwrite));
+    if (cookie != null) {
+      request = request.header("Cookie", cookie);
+    }
+    return request.body(content).post("/upload-version");
+  }
+
+  /** {@code GET /download/{nodeId}}: downloads the current version. */
+  protected static Response download(String nodeId, String cookie) {
+    var request = RestAssured.given();
+    if (cookie != null) {
+      request = request.header("Cookie", cookie);
+    }
+    return request.get("/download/" + nodeId);
+  }
+
+  /** {@code GET /download/{nodeId}/{version}}: downloads a specific version. */
+  protected static Response download(String nodeId, int version, String cookie) {
+    var request = RestAssured.given();
+    if (cookie != null) {
+      request = request.header("Cookie", cookie);
+    }
+    return request.get("/download/" + nodeId + "/" + version);
+  }
+
+  private static String base64(String value) {
+    return Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8));
+  }
+
+  /**
+   * {@code POST /download-multiple} (form-encoded {@code nodeIds=<url-encoded JSON array>}):
+   * downloads a ZIP of the given node ids. Node ids are plain UUIDs (never containing a quote), so
+   * the JSON array is built by hand rather than pulling in Jackson for this one call site.
+   */
+  protected static Response downloadMultiple(List<String> nodeIds, String cookie) {
+    String jsonArray =
+        "[" + nodeIds.stream().map(id -> "\"" + id + "\"").collect(Collectors.joining(",")) + "]";
+    String requestBody = "nodeIds=" + URLEncoder.encode(jsonArray, StandardCharsets.UTF_8);
+    return downloadMultipleRaw(requestBody, cookie);
+  }
+
+  /**
+   * {@code POST /download-multiple} with an already-built (or deliberately malformed/absent) raw
+   * form body — for the missing-body/invalid-JSON/wrong-parameter edge cases {@link
+   * #downloadMultiple} cannot express. {@code rawFormBody == null} sends NO body at all.
+   */
+  protected static Response downloadMultipleRaw(String rawFormBody, String cookie) {
+    var request = RestAssured.given().contentType("application/x-www-form-urlencoded");
+    if (cookie != null) {
+      request = request.header("Cookie", cookie);
+    }
+    if (rawFormBody != null) {
+      request = request.body(rawFormBody);
+    }
+    return request.post("/download-multiple");
+  }
+
+  /**
+   * {@code POST /download-multiple/check} with a raw JSON body (or {@code null} for none — the
+   * missing-body edge case). Callers build the {@code {"nodeIds":[...]}} payload themselves.
+   */
+  protected static Response checkDownloadMultiple(String jsonBody, String cookie) {
+    var request = RestAssured.given().contentType("application/json");
+    if (cookie != null) {
+      request = request.header("Cookie", cookie);
+    }
+    if (jsonBody != null) {
+      request = request.body(jsonBody);
+    }
+    return request.post("/download-multiple/check");
+  }
+
+  /**
+   * Parses a downloaded ZIP archive's bytes into its entry names (folder entries end with {@code
+   * "/"}, matching {@code TransferStreaming#writeZip}'s {@code ZipEntry} naming exactly). Used to
+   * assert ZIP contents precisely now that {@code @QuarkusIntegrationTest} drives real HTTP end to
+   * end — the old seam's embedded transport could never fully drain a streamed multi-frame body
+   * (see the deleted {@code MultiDownloadZipApiIT}'s class-level FINDING), forcing lossy substring
+   * matching over a partially-decoded body; RestAssured's real socket client has no such
+   * limitation.
+   */
+  protected static Set<String> zipEntryNames(byte[] zipBytes) throws IOException {
+    Set<String> names = new LinkedHashSet<>();
+    try (ZipInputStream zipInputStream = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
+      ZipEntry entry;
+      while ((entry = zipInputStream.getNextEntry()) != null) {
+        names.add(entry.getName());
+        zipInputStream.closeEntry();
+      }
+    }
+    return names;
+  }
+
+  // ------------------------------------------------------------------------- preview / mailbox
+
+  /**
+   * id -> request pattern, so {@link #verifyPreviewServed} can verify the matching preview call.
+   */
+  private static final Map<String, RequestPatternBuilder> PREVIEW_EXPECTATIONS =
+      new ConcurrentHashMap<>();
+
+  /**
+   * {@code GET} a {@code /preview/...}/{@code /preview/.../thumbnail} path against the launched
+   * app, with an optional {@code If-None-Match} header (pass {@code null} to omit it).
+   */
+  protected static Response previewGet(String path, String cookie, String ifNoneMatch) {
+    var request = RestAssured.given();
+    if (cookie != null) {
+      request = request.header("Cookie", cookie);
+    }
+    if (ifNoneMatch != null) {
+      request = request.header("If-None-Match", ifNoneMatch);
+    }
+    return request.get(path);
+  }
+
+  /**
+   * Stubs the shared carbonio-preview/carbonio-mailbox WireMock ({@link
+   * FilesStackTestResource#getPreviewMailboxWireMock()}) to serve {@code content}/{@code mediaType}
+   * for the given preview/thumbnail {@code pathEndpoint}, matching the {@code service_type=files}
+   * query param and {@code FileOwnerId} header {@code PreviewClient} always sends (plus, for {@code
+   * document} paths, the {@code lang_tag=en} query param). Returns an expectation id for {@link
+   * #verifyPreviewServed}. Ports the seam's {@code QuarkusMocks#previewServes} verbatim (same
+   * stub/verify shape), replacing its in-process per-app-instance map with a static one
+   * (out-of-process, no per-class app instance).
+   */
+  protected static String previewServes(
+      String pathEndpoint, String fileOwnerId, byte[] content, String mediaType) {
+    var mappingBuilder =
+        get(urlPathEqualTo(pathEndpoint))
+            .atPriority(5)
+            .withQueryParam("service_type", equalTo("files"))
+            .withHeader("FileOwnerId", equalTo(fileOwnerId));
+    if (pathEndpoint.contains("document")) {
+      mappingBuilder = mappingBuilder.withQueryParam("lang_tag", equalTo("en"));
+    }
+    mappingBuilder =
+        mappingBuilder.willReturn(
+            aResponse().withStatus(200).withHeader("Content-Type", mediaType).withBody(content));
+    StubMapping stub = FilesStackTestResource.getPreviewMailboxWireMock().stubFor(mappingBuilder);
+
+    RequestPatternBuilder verify =
+        getRequestedFor(urlPathEqualTo(pathEndpoint))
+            .withQueryParam("service_type", equalTo("files"))
+            .withHeader("FileOwnerId", equalTo(fileOwnerId));
+    if (pathEndpoint.contains("document")) {
+      verify = verify.withQueryParam("lang_tag", equalTo("en"));
+    }
+    String id = stub.getId().toString();
+    PREVIEW_EXPECTATIONS.put(id, verify);
+    return id;
+  }
+
+  /** Verifies the preview/mailbox request matching {@code expectationId}'s stub was made. */
+  protected static void verifyPreviewServed(String expectationId) {
+    RequestPatternBuilder pattern = PREVIEW_EXPECTATIONS.remove(expectationId);
+    if (pattern == null) {
+      throw new AssertionError("Unknown preview expectation id: " + expectationId);
+    }
+    FilesStackTestResource.getPreviewMailboxWireMock().verify(pattern);
+  }
+
+  /**
+   * Stubs {@code pathEndpoint} on the preview/mailbox WireMock to fail with an HTTP 500, simulating
+   * a carbonio-preview outage. Ports {@code QuarkusMocks#previewFails} verbatim.
+   */
+  protected static void previewFails(String pathEndpoint) {
+    var mappingBuilder =
+        get(urlPathEqualTo(pathEndpoint))
+            .atPriority(5)
+            .withQueryParam("service_type", equalTo("files"));
+    if (pathEndpoint.contains("document")) {
+      mappingBuilder = mappingBuilder.withQueryParam("lang_tag", equalTo("en"));
+    }
+    FilesStackTestResource.getPreviewMailboxWireMock()
+        .stubFor(mappingBuilder.willReturn(aResponse().withStatus(500)));
+  }
+
+  // ----------------------------------------------------------------------------- API seeding
+
+  /**
+   * Creates a folder via the public {@code createFolder} GraphQL mutation and returns the
+   * SERVER-GENERATED id. Replaces {@code DatabasePopulator#addNode(SimplePopulatorFolder)}.
+   */
+  protected static String seedFolder(String name, String parentId, String ownerCookie) {
+    String mutation =
+        GraphqlCommandBuilder.aMutationBuilder("createFolder")
+            .withString("destination_id", parentId)
+            .withString("name", name)
+            .withWantedResultFormat("{ id }")
+            .build();
+    Response response = graphql(mutation, ownerCookie);
+    Map<String, Object> folder =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "createFolder");
+    String id = folder == null ? null : (String) folder.get("id");
+    if (id == null) {
+      throw new IllegalStateException("seedFolder failed: " + response.getBody().asString());
+    }
+    return id;
+  }
+
+  /**
+   * Creates a file via {@code POST /upload} (version 1) and returns the SERVER-GENERATED node id.
+   * Replaces {@code DatabasePopulator#addNode(SimplePopulatorTextFile)}.
+   */
+  protected static String seedFile(
+      String name, String parentId, byte[] content, String ownerCookie) {
+    Response response = upload(parentId, null, content, name, ownerCookie);
+    Map<String, Object> json = response.jsonPath().getMap("$");
+    String nodeId = json == null ? null : (String) json.get("nodeId");
+    if (nodeId == null) {
+      throw new IllegalStateException("seedFile failed: " + response.getBody().asString());
+    }
+    return nodeId;
+  }
+
+  /**
+   * Uploads a new version of an existing node via {@code POST /upload-version} and returns the new
+   * version number. Replaces {@code DatabasePopulator#addVersion}. {@code keepForever} is NOT
+   * settable via the public API (it is not exposed as an upload parameter); a scenario that needs a
+   * kept-forever version seeded directly (rather than exercised via the {@code updateNode}
+   * mutation) is a candidate for the JDBC-seed escape hatch, not this helper.
+   */
+  protected static int seedVersion(
+      String nodeId, byte[] content, String filename, String ownerCookie) {
+    Response response = uploadVersion(nodeId, content, filename, false, ownerCookie);
+    Map<String, Object> json = response.jsonPath().getMap("$");
+    Object version = json == null ? null : json.get("version");
+    if (version == null) {
+      // UploadVersionResponse#setVersion only serialises values > 1 (Wave-0 quirk); version 2 is
+      // the first version-bump reachable via this helper's normal (non-overwrite) path, so an
+      // absent field here means the upload itself failed.
+      throw new IllegalStateException("seedVersion failed: " + response.getBody().asString());
+    }
+    return ((Number) version).intValue();
+  }
+
+  /**
+   * Creates a share via the {@code createShare} GraphQL mutation. Replaces {@code
+   * DatabasePopulator#addShare}.
+   */
+  protected static void seedShare(
+      String nodeId, String targetUserId, ACL.SharePermission permission, String ownerCookie) {
+    String mutation =
+        GraphqlCommandBuilder.aMutationBuilder("createShare")
+            .withString("node_id", nodeId)
+            .withString("share_target_id", targetUserId)
+            .withEnum("permission", permission)
+            .withWantedResultFormat("{ created_at }")
+            .build();
+    Response response = graphql(mutation, ownerCookie);
+    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
+    if (!errors.isEmpty()) {
+      throw new IllegalStateException("seedShare failed: " + errors);
+    }
+  }
+
+  /**
+   * Creates a public link via the {@code createLink} GraphQL mutation and returns its id. Replaces
+   * {@code DatabasePopulator#addLink}.
+   */
+  protected static String seedLink(String nodeId, String ownerCookie) {
+    String mutation =
+        GraphqlCommandBuilder.aMutationBuilder("createLink")
+            .withString("node_id", nodeId)
+            .withWantedResultFormat("{ id }")
+            .build();
+    Response response = graphql(mutation, ownerCookie);
+    Map<String, Object> link =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "createLink");
+    String id = link == null ? null : (String) link.get("id");
+    if (id == null) {
+      throw new IllegalStateException("seedLink failed: " + response.getBody().asString());
+    }
+    return id;
+  }
+
+  /**
+   * Flags a node for the given requester via the {@code flagNodes} GraphQL mutation. Replaces
+   * {@code DatabasePopulator#addFlag}.
+   */
+  protected static void seedFlag(String nodeId, String cookie) {
+    String mutation =
+        GraphqlCommandBuilder.aMutationBuilder("flagNodes")
+            .withListOfStrings("node_ids", new String[] {nodeId})
+            .withBoolean("flag", true)
+            .withWantedResultFormat("")
+            .build();
+    Response response = graphql(mutation, cookie);
+    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
+    if (!errors.isEmpty()) {
+      throw new IllegalStateException("seedFlag failed: " + errors);
+    }
+  }
+
+  /**
+   * Trashes a node via the {@code trashNodes} GraphQL mutation. Replaces {@code
+   * DatabasePopulator#addNodeToTrash}.
+   */
+  protected static void seedTrashed(String nodeId, String cookie) {
+    String mutation =
+        GraphqlCommandBuilder.aMutationBuilder("trashNodes")
+            .withListOfStrings("node_ids", new String[] {nodeId})
+            .withWantedResultFormat("")
+            .build();
+    Response response = graphql(mutation, cookie);
+    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
+    if (!errors.isEmpty()) {
+      throw new IllegalStateException("seedTrashed failed: " + errors);
+    }
+  }
+
+  /**
+   * API-observable existence check replacing the seam's backdoor {@code
+   * TestDataAccess#nodeExists(String)} (which resolved {@code NodeRepository} from Arc —
+   * unavailable out-of-process): queries {@code getNode} and returns {@code true} iff it resolves
+   * without a GraphQL error.
+   */
+  protected static boolean nodeExists(String nodeId, String cookie) {
+    String query =
+        GraphqlCommandBuilder.aQueryBuilder("getNode")
+            .withString("node_id", nodeId)
+            .withWantedResultFormat("{ id }")
+            .build();
+    Response response = graphql(query, cookie);
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    return node != null && node.get("id") != null;
+  }
+
+  /**
+   * API-observable existence check replacing the seam's backdoor {@code
+   * TestDataAccess#shareExists(String, String)}. Deliberately does NOT use the {@code
+   * Node.share(share_target_id)} singular field: that field has NO bound resolver anywhere in
+   * {@code GraphQLProvider} (confirmed/pinned by {@code DeadFieldsDocumentingApiIT}) and always
+   * returns {@code null} regardless of arguments. The plural {@code shares(limit, cursor, sorts)}
+   * field IS bound ({@code ShareDataFetcher#getSharesFetcher}), so existence is checked by fetching
+   * the node's share list and matching {@code share_target}'s id (a {@code User}/{@code
+   * DistributionList} union — targets in this suite are always {@code User}).
+   */
+  @SuppressWarnings("unchecked")
+  protected static boolean shareExists(String nodeId, String targetUserId, String cookie) {
+    String query =
+        GraphqlCommandBuilder.aQueryBuilder("getNode")
+            .withString("node_id", nodeId)
+            .withWantedResultFormat(
+                "{ shares(limit: 200) { share_target { ... on User { id } } } }")
+            .build();
+    Response response = graphql(query, cookie);
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    if (node == null) {
+      return false;
+    }
+    List<Map<String, Object>> shares = (List<Map<String, Object>>) node.get("shares");
+    if (shares == null) {
+      return false;
+    }
+    return shares.stream()
+        .anyMatch(
+            share -> {
+              Map<String, Object> target = (Map<String, Object>) share.get("share_target");
+              return target != null && targetUserId.equals(target.get("id"));
+            });
+  }
+
+  /**
+   * Waits until the system clock advances by at least 1ms. Ports {@code
+   * DatabasePopulator#delay()}'s rationale verbatim: consecutive API-seeding calls must land on
+   * distinct {@code creation_timestamp}/{@code updated_timestamp} millis for time-ordering
+   * assertions (sort-by-updated-at, pagination-by-time) to be deterministic.
+   */
+  protected static void tickClock() {
+    long start = System.currentTimeMillis();
+    while (System.currentTimeMillis() == start) {
+      Thread.onSpinWait();
+    }
+  }
+
+  // ------------------------------------------------------------------ rare JDBC-only seeding
+
+  /**
+   * Raw-JDBC seed for a node (+ matching version-1 {@code revision} row for non-folder types) whose
+   * creator/owner topology is NOT producible via the public API — e.g. a child whose owner differs
+   * from its structural parent's owner (the real {@code createFolder}/{@code upload} mutations
+   * always inherit the parent's owner), or a ghost creator/owner id never registered with
+   * user-management (the real API always stamps the AUTHENTICATED caller as creator/owner). Mirrors
+   * exactly what {@code NodeRepositoryImpl#createNewNode} + {@code
+   * FileVersionRepositoryImpl#createNewFileVersion} (the production code the old seam's {@code
+   * DatabasePopulator#addNode} drove via Arc) persist for a freshly-created node: {@code
+   * index_status=1}, {@code hidden=false}, {@code current_version=1} for non-{@code FOLDER}/{@code
+   * ROOT} types (left {@code NULL} otherwise), one {@code revision} row (version 1, {@code
+   * editor_id = ownerId}, empty digest, {@code keep_forever=false}) for any non-folder type.
+   *
+   * <p>Use ONLY for the rare API-observable-but-not-API-creatable pre-state (D1 rule 4 of the
+   * acceptance-to-Quarkus-tests plan); every other fixture must go through the {@code seedXxx} API
+   * helpers above.
+   */
+  protected static void seedInconsistentNode(
+      String nodeId,
+      String creatorId,
+      String ownerId,
+      String parentId,
+      String name,
+      NodeType type,
+      String ancestorIds,
+      long size,
+      String mimeType)
+      throws SQLException {
+    long now = System.currentTimeMillis();
+    boolean isFolderLike = type == NodeType.FOLDER || type == NodeType.ROOT;
+    short nodeCategory = type == NodeType.ROOT ? (short) 0 : isFolderLike ? (short) 1 : (short) 2;
+
+    try (Connection connection = jdbcConnection()) {
+      try (PreparedStatement node =
+          connection.prepareStatement(
+              "INSERT INTO node (owner_id, node_id, folder_id, name, node_type, node_category,"
+                  + " description, index_status, creation_timestamp, updated_timestamp,"
+                  + " creator_id, editor_id, current_version, ancestor_ids, size, hidden)"
+                  + " VALUES (?, ?, ?, ?, ?, ?, '', 1, ?, ?, ?, NULL, ?, ?, ?, false)")) {
+        node.setString(1, ownerId);
+        node.setString(2, nodeId);
+        node.setString(3, parentId);
+        node.setString(4, name);
+        node.setString(5, type.name());
+        node.setShort(6, nodeCategory);
+        node.setLong(7, now);
+        node.setLong(8, now);
+        node.setString(9, creatorId);
+        if (isFolderLike) {
+          node.setNull(10, Types.INTEGER);
+        } else {
+          node.setInt(10, 1);
+        }
+        node.setString(11, ancestorIds);
+        node.setLong(12, size);
+        node.executeUpdate();
+      }
+
+      if (!isFolderLike) {
+        try (PreparedStatement revision =
+            connection.prepareStatement(
+                "INSERT INTO revision (node_id, version, mime_type, size, digest, editor_id,"
+                    + " timestamp, is_autosave, keep_forever, cloned_from_version)"
+                    + " VALUES (?, 1, ?, ?, '', ?, ?, false, false, NULL)")) {
+          revision.setString(1, nodeId);
+          revision.setString(2, mimeType);
+          revision.setLong(3, size);
+          revision.setString(4, ownerId);
+          revision.setLong(5, now);
+          revision.executeUpdate();
+        }
+      }
+    }
+    tickClock();
+  }
+
+  /**
+   * Raw-JDBC {@code revision} row insert for an EXISTING node, plus the matching {@code
+   * node.current_version}/{@code size}/{@code editor_id}/{@code updated_timestamp} update — the
+   * rare API-observable-but-not-API-creatable pre-state (D1 rule 4) of "this node already has MORE
+   * versions than the currently-configured cap allows". Unlike every other fixture on this class,
+   * this one is NOT reachable by simply calling {@link #seedVersion} repeatedly under an ACTIVE
+   * version cap ({@code max-number-of-versions}): {@code BlobService#uploadFileVersion} evicts the
+   * oldest surviving version as soon as the existing count reaches the cap (see its {@code
+   * allFileVersion.size() >= maxNumberOfVersions} eviction branch), so the API is SELF-CORRECTING
+   * and can never produce more than {@code maxNumberOfVersions} concurrently-existing rows while
+   * the cap is continuously in effect — exactly the real-world case this seeds (an admin LOWERING
+   * the cap after a node already accumulated more versions under a higher/no cap). Mirrors {@code
+   * FileVersionRepositoryImpl#createNewFileVersion}'s persisted {@code revision} row shape and
+   * {@code NodeRepositoryImpl#updateNode}'s node-side mutation exactly (see {@code BlobService
+   * #uploadFileVersionOperationLocked}, lines ~729-742): {@code is_autosave=false}, {@code
+   * keep_forever=false}, {@code cloned_from_version=NULL}.
+   */
+  protected static void seedVersionRawJdbc(
+      String nodeId, int version, String mimeType, long size, String editorId) throws SQLException {
+    long now = System.currentTimeMillis();
+    try (Connection connection = jdbcConnection()) {
+      try (PreparedStatement revision =
+          connection.prepareStatement(
+              "INSERT INTO revision (node_id, version, mime_type, size, digest, editor_id,"
+                  + " timestamp, is_autosave, keep_forever, cloned_from_version)"
+                  + " VALUES (?, ?, ?, ?, '', ?, ?, false, false, NULL)")) {
+        revision.setString(1, nodeId);
+        revision.setInt(2, version);
+        revision.setString(3, mimeType);
+        revision.setLong(4, size);
+        revision.setString(5, editorId);
+        revision.setLong(6, now);
+        revision.executeUpdate();
+      }
+      try (PreparedStatement node =
+          connection.prepareStatement(
+              "UPDATE node SET current_version = ?, size = ?, editor_id = ?, updated_timestamp = ?"
+                  + " WHERE node_id = ?")) {
+        node.setInt(1, version);
+        node.setLong(2, size);
+        node.setString(3, editorId);
+        node.setLong(4, now);
+        node.setString(5, nodeId);
+        node.executeUpdate();
+      }
+    }
+    tickClock();
+  }
+
+  /**
+   * Raw-JDBC {@code share} row insert for a target-equals-owner "share with myself" pre-state:
+   * {@code createShareFetcher} explicitly REJECTS {@code targetUserId.equals(ownerId)} with a
+   * {@code shareCreationError} (see {@code ShareDataFetcher#createShareFetcher}), so a node shared
+   * with its own owner is NOT producible via the public API. Mirrors {@code
+   * ShareRepository#upsertShare(nodeId, targetUserId, ACL.decode(permission), true, false,
+   * Optional.empty())}'s persisted row shape exactly (direct=true, created_via_link=false, no
+   * expiry).
+   */
+  protected static void seedShareRawJdbc(
+      String nodeId, String targetUserId, ACL.SharePermission permission) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "INSERT INTO share (node_id, rights, timestamp, target_uuid, expire_date, direct,"
+                    + " created_via_link) VALUES (?, ?, ?, ?, NULL, true, false)")) {
+      statement.setString(1, nodeId);
+      statement.setShort(2, permission.encode());
+      statement.setLong(3, System.currentTimeMillis());
+      statement.setString(4, targetUserId);
+      statement.executeUpdate();
+    }
+  }
+
+  /**
+   * Raw-JDBC override of an already-recorded {@code trashed.parent_id} (the "original parent"
+   * column). The node must ALREADY be genuinely trashed via the real {@code trashNodes} mutation
+   * (which always records the node's TRUE current parent at the moment of trashing) — there is no
+   * public mutation that lets a caller record an ARBITRARY/inconsistent original-parent value, so
+   * forcing it to a never-existed id (or to another real, itself-trashed node's id) to build the
+   * {@code restoreNodes} "fatherless" pre-states is the rare API-observable-but-not-API-creatable
+   * case (D1 rule 4). Mirrors {@code TrashedNode}'s schema exactly (table {@code trashed}, PK
+   * {@code node_id}, {@code CHARACTER(36)} columns).
+   */
+  protected static void forceTrashedOldParentId(String nodeId, String forcedOldParentId)
+      throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("UPDATE trashed SET parent_id = ? WHERE node_id = ?")) {
+      statement.setString(1, forcedOldParentId);
+      statement.setString(2, nodeId);
+      statement.executeUpdate();
+    }
+  }
+
+  /**
+   * Raw-JDBC {@code link} row insert for a pre-state whose {@code public_id} the public API cannot
+   * produce: {@code LinkDataFetcher#createLinkFetcher} always generates a random 50-char {@code
+   * publicId} (see {@code createLink}'s javadoc on the migrated {@code CreatePublicLinkApiIT}), so
+   * a legacy-format short public id (the {@code link} table's original {@code CHARACTER(8)} column
+   * width, widened to {@code VARCHAR(255)} by migration {@code V6__migration.sql} for backward
+   * compatibility with links created before that widening) is the rare API-observable-but-not-API-
+   * creatable pre-state (D1 rule 4) — {@code getLinks}/{@code getPublicNode} must still resolve it
+   * correctly. Mirrors {@code LinkRepositoryImpl#createLink}'s persisted row shape exactly (table
+   * {@code link}, columns {@code id}/{@code node_id}/{@code public_id}/{@code created_at}/{@code
+   * expire_at}/{@code description}/{@code access_code}).
+   */
+  protected static void seedLinkRawJdbc(
+      String linkId,
+      String nodeId,
+      String publicId,
+      Long expiresAt,
+      String description,
+      String accessCode)
+      throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "INSERT INTO link (id, node_id, public_id, created_at, expire_at, description,"
+                    + " access_code) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+      statement.setString(1, linkId);
+      statement.setString(2, nodeId);
+      statement.setString(3, publicId);
+      statement.setLong(4, System.currentTimeMillis());
+      if (expiresAt != null) {
+        statement.setLong(5, expiresAt);
+      } else {
+        statement.setNull(5, Types.BIGINT);
+      }
+      if (description != null) {
+        statement.setString(6, description);
+      } else {
+        statement.setNull(6, Types.VARCHAR);
+      }
+      if (accessCode != null) {
+        statement.setString(7, accessCode);
+      } else {
+        statement.setNull(7, Types.VARCHAR);
+      }
+      statement.executeUpdate();
+    }
+    tickClock();
+  }
+
+  // ------------------------------------------------------------------------------ page tokens
+
+  /**
+   * Forges a {@code findNodes} page-token JSON (base64-encoded) with the {@code signature} field
+   * OMITTED entirely. Ported verbatim (pure string building, no {@code @Inject}/in-JVM secret) from
+   * the deleted seam's {@code QuarkusTestDataAccess#forgeTamperedPageTokenMissingSignature}.
+   */
+  protected static String forgeTamperedPageTokenMissingSignature() {
+    return Base64.getEncoder()
+        .encodeToString(buildTamperedPageTokenJson(null).getBytes(StandardCharsets.UTF_8));
+  }
+
+  /**
+   * Forges a {@code findNodes} page-token JSON (base64-encoded) with a deliberately WRONG {@code
+   * signature} value. Ported verbatim from {@code
+   * QuarkusTestDataAccess#forgeTamperedPageTokenWithWrongSignature}.
+   */
+  protected static String forgeTamperedPageTokenWithWrongSignature(String wrongSignature) {
+    return Base64.getEncoder()
+        .encodeToString(
+            buildTamperedPageTokenJson(wrongSignature).getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static String buildTamperedPageTokenJson(String signature) {
+    String jsonKeySet =
+        "{\"operator\":\"OR\",\"expressions\":["
+            + "{\"column\":\"node_category\",\"order\":\"ASCENDING\",\"value\":1},"
+            + "{\"operator\":\"AND\",\"expressions\":["
+            + "{\"column\":\"node_category\",\"order\":\"EQUAL\",\"value\":1},"
+            + "{\"column\":\"name\",\"order\":\"ASCENDING\",\"value\":\"folder child\"}]}]}";
+
+    String signatureField = signature == null ? "" : "\"signature\": \"" + signature + "\",\n  ";
+
+    return String.format(
+        """
+        {
+          %s"limit": 1,
+          "keywords": [],
+          "keySet": %s,
+          "sort": "NAME_ASC",
+          "flagged": null,
+          "folderId": "77777777-7777-7777-7777-777777777777",
+          "cascade": null,
+          "sharedWithMe": null,
+          "sharedByMe": null,
+          "directShare": null,
+          "nodeType": null,
+          "ownerId": null
+        }\
+        """,
+        signatureField, jsonKeySet);
+  }
+}

@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Zextras <https://www.zextras.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Skip the java.time RFC3339 helpers: RFC3339InstantDeserializer references jackson 2.16's
+# JavaTimeFeature, which breaks this SDK on carbonio-mailbox's jackson 2.15. The /internal DTOs
+# carry no date fields, so an empty RFC3339JavaTimeModule (src/main/java) stands in.
+**/RFC3339JavaTimeModule.java
+**/RFC3339InstantDeserializer.java

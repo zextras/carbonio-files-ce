@@ -1,0 +1,14 @@
+{
+  "comment": [
+    "P7 native-image metadata. The storages-ce-sdk builds its HTTP client with Retrofit, which",
+    "creates a JDK dynamic proxy per service interface (Retrofit.create -> Proxy.newProxyInstance).",
+    "GraalVM must know these proxy interfaces at build time; otherwise the first call fails at",
+    "runtime with MissingReflectionRegistrationError. StoragesClientImp uses Filestore (blob",
+    "bulkDelete via NodeDataFetcher/FilestoreProducer), Checks (liveness) and Config."
+  ],
+  "reflection": [
+    { "type": { "proxy": ["com.zextras.storages.internal.retrofitinterface.Filestore"] } },
+    { "type": { "proxy": ["com.zextras.storages.internal.retrofitinterface.Checks"] } },
+    { "type": { "proxy": ["com.zextras.storages.internal.retrofitinterface.Config"] } }
+  ]
+}

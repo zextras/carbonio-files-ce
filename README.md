@@ -43,16 +43,29 @@ sudo yum install carbonio-files-ce
 After the installation you must run `pending-setups` in order to register the service in `service-discover`.
 
 ## How to build ⚙
-Build using maven:
+This is a Quarkus service; the deployable is the `app` module.
+
+JVM build:
 ```bash
 mvn clean install
 ```
-It will generate a fat-jar inside the `boot/target` folder.
+Native build (Mandrel/GraalVM):
+```bash
+mvn clean install -Dnative
+```
 
 ## How to run 🚀
-With the generated fat-jar:
+JVM mode:
 ```bash
-java -Djava.net.preferIPv4Stack=true -jar boot/target/carbonio-files-ce-*-jar-with-dependencies.jar
+java -Djava.net.preferIPv4Stack=true -jar app/target/quarkus-app/quarkus-run.jar
+```
+Native binary (`app/target/*-runner`, the artifact packaged and shipped):
+```bash
+./app/target/carbonio-files-ce-runner -Djava.net.preferIPv4Stack=true
+```
+Dev mode with live reload:
+```bash
+mvn -pl app quarkus:dev
 ```
 ## Development 🛠
 
@@ -76,15 +89,6 @@ generated and bot-committed (Jenkins now only verifies them):
 If a hook regenerates a file, `pre-commit` will fail that commit (by design — it does not
 auto-stage changes for you). Review the diff, `git add` the regenerated file(s), and
 re-run `git commit`.
-
-Note: this service is not doc-less — it uses GraphQL Java directly (not the Quarkus
-`smallrye-graphql`/`smallrye-openapi` extensions that other Carbonio services rely on to
-generate a schema), so there is no `mvn package` step that produces an `app/docs` or
-`boot/docs` directory. The Jenkinsfile's `appModule: 'boot'` therefore makes Jenkins'
-"API Docs" gate diff `boot/docs`, a directory that does not exist here; the gate always
-passes trivially and protects nothing today. If this repo ever grows a documentable
-JAX-RS/GraphQL surface with an actual generated-docs step, add a matching path to this
-file's `&generated-files` anchor and to the Jenkinsfile's docs gate at the same time.
 
 ## License 📚
 

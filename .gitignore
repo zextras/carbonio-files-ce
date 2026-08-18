@@ -13,15 +13,10 @@
 
 # Maven
 target/
+.flattened-pom.xml
 dist/
 .project
 .settings/
-boot/.classpath
-boot/.project
-boot/.settings/
-core/.classpath
-core/.project
-core/.settings/
 
 # JetBrains IDE
 .idea/

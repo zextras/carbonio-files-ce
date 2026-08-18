@@ -11,31 +11,36 @@ library(
     ])
 )
 
-// carbonio-files-ce uses a maven-shade fat JAR (boot/target/carbonio-files-*-jar-with-dependencies.jar),
-// not a Quarkus *-runner.jar. dt3_pipeline's jarBuild copies only *-runner.jar patterns, so we use
-// appModule: 'boot' to enable the Java build stage and handle the JAR + watches copy via
-// packaging.overrides.preBuildScript (runs in the yap container after workspace unstash, before yap build).
-// dt3_buildWithZextrasRepo merges its own preBuildScript (repo injection) before ours, so
-// the order is: [repo setup] → [jar copy + watches copy] → yap build.
+properties(defaultPipelineProperties())
+
+// Quarkus JVM uber-jar build (NON-native for now — mirrors carbonio-user-management on devel).
+// jarBuild copies the app module's `*-runner.jar` (the Quarkus uber-jar, produced because
+// application.properties sets quarkus.package.jar.type=uber-jar) into package/ as
+// `carbonio-files-ce.jar`, consumed by package/PKGBUILD (install to /usr/share/carbonio) and
+// docker/Dockerfile. No nativeBuild block => no GraalVM/Mandrel stage. mavenPublish still ships
+// the sdk AND the app: the app's *thin* jar (Quarkus keeps the -runner suffix on the uber-jar, so
+// the plain classes jar stays the Maven main artifact) is what carbonio-files (Advanced) consumes.
 dt3_pipeline(
     repoName: 'carbonio-files-ce',
-    appModule: 'boot',
+    mavenPublish: ['sdk', 'app'],
+    jarBuild: [jarName: 'carbonio-files-ce.jar'],
     packaging: [
-        addCarbonioRepos: true,
-        preBuildScript: '''
-                    cp -a boot/target/carbonio-files-*-jar-with-dependencies.jar package/carbonio-files.jar
-                    cp -a package/watches/* package/
-                ''',
+        buildFlags: '-ds',
+        // Stage the live-config watch bridge (package/watches/*, the pika Consul-KV ->
+        // message-broker republisher) into package/ before yap runs, so the PKGBUILD can install
+        // carbonio-files-watches.service / -start-watches.sh / -handle-kv-changes.py. Mirrors
+        // carbonio-files (Advanced); the uber-jar is staged automatically from jarBuild.jarName.
+        preBuildScript: 'cp -a package/watches/* package/',
     ],
-    docker: [[
-        dockerfile: 'docker/Dockerfile',
-        imageName: 'carbonio-files-ce',
-        title: 'Carbonio Files CE',
-        description: 'Carbonio Files Community Edition',
-        platforms: ['linux/amd64', 'linux/arm64'] as Set,
-    ]],
+    docker: [
+        [dockerfile: 'docker/Dockerfile',
+         imageName: 'carbonio-files-ce',
+         title: 'Carbonio Files CE',
+         description: 'Carbonio Files Community Edition',
+         platforms: ['linux/amd64', 'linux/arm64'] as Set],
+    ],
     reuse: [projectType: 'CE'],
     flywayGuard: [
-        migrationPaths: ['core/src/main/resources/db/migration'],
-    ],
+        migrationPaths: ['app/src/main/resources/db/migration'],
+    ]
 )
