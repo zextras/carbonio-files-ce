@@ -161,14 +161,34 @@ public final class FilesInternalClient {
   // -------------------------------------------------------------------------------------- getNode
 
   /**
-   * Fetches a node's metadata, as {@code userId} sees it (permissions included).
+   * Fetches the CURRENT version's metadata of {@code nodeId}, as {@code userId} sees it
+   * (permissions included). Unchanged, backward-compatible surface: existing consumers that do not
+   * care about a historical version keep calling this two-argument method exactly as before.
    *
    * @throws FilesInternalClientException wrapping a 404 (node does not exist) or 403 (exists, but
    *     {@code userId} cannot read it) response, or any transport-level failure.
    */
   public InternalNodeDto getNode(String userId, String nodeId) {
     try {
-      return nodeApi.internalAccountsUserIdNodesNodeIdGet(nodeId, userId);
+      return nodeApi.internalAccountsUserIdNodesNodeIdGet(nodeId, userId, null);
+    } catch (ApiException e) {
+      throw mapApiException("getNode", e);
+    }
+  }
+
+  /**
+   * Fetches a SPECIFIC {@code version}'s metadata of {@code nodeId}, as {@code userId} sees it
+   * (permissions included) — the version-scoped fields (size, updatedAt, mimeType) reflect the
+   * requested version rather than the current one. Restores parity with the retired GraphQL SDK's
+   * {@code getNode(node_id, version)} for consumers (e.g. docs-connector WOPI) that open a
+   * historical version and need its metadata to match the bytes served by {@link #downloadFile}.
+   *
+   * @throws FilesInternalClientException wrapping a 404 (node does not exist, {@code userId} cannot
+   *     read it, or the node has no such {@code version}) response, or any transport-level failure.
+   */
+  public InternalNodeDto getNode(String userId, String nodeId, int version) {
+    try {
+      return nodeApi.internalAccountsUserIdNodesNodeIdGet(nodeId, userId, version);
     } catch (ApiException e) {
       throw mapApiException("getNode", e);
     }
