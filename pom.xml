@@ -33,7 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <properties>
     <!-- Maven CI Friendly properties -->
-    <revision>1.4.2</revision>
+    <revision>2.0.0</revision>
 
     <!-- Quarkus migration -->
     <quarkus.version>3.37.3</quarkus.version>
