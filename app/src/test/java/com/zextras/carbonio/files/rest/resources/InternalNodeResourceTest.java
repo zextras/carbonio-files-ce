@@ -80,7 +80,7 @@ class InternalNodeResourceTest {
   void getNode_returns404WhenNodeNotFound() {
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.empty());
 
-    RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID);
+    RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID, null);
 
     assertThat(response.getStatus()).isEqualTo(404);
     verify(permissionsChecker, never()).getPermissions(any(), any());
@@ -93,7 +93,7 @@ class InternalNodeResourceTest {
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
     when(permissionsChecker.getPermissions(NODE_ID, USER_ID)).thenReturn(ACL.decode(ACL.NONE));
 
-    RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID);
+    RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID, null);
 
     assertThat(response.getStatus()).isEqualTo(403);
   }
@@ -110,7 +110,7 @@ class InternalNodeResourceTest {
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(folder));
     when(permissionsChecker.getPermissions(NODE_ID, USER_ID)).thenReturn(ACL.decode(ACL.OWNER));
 
-    RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID);
+    RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID, null);
 
     assertThat(response.getStatus()).isEqualTo(200);
     InternalNodeDto dto = response.getEntity();
@@ -152,7 +152,7 @@ class InternalNodeResourceTest {
     when(permissionsChecker.getPermissions(NODE_ID, USER_ID))
         .thenReturn(ACL.decode(SharePermission.READ_ONLY));
 
-    RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID);
+    RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID, null);
 
     assertThat(response.getStatus()).isEqualTo(200);
     InternalNodeDto dto = response.getEntity();
@@ -163,6 +163,110 @@ class InternalNodeResourceTest {
     // The resolved (current, version 2) FileVersion's timestamp, NOT the node's 1000L.
     assertThat(dto.updatedAt()).isEqualTo(2000L);
     assertThat(dto.permissions().canWriteFile()).isFalse();
+  }
+
+  @Test
+  void getNode_withExplicitOlderVersion_returnsThatVersionsMetadata_notTheCurrent() {
+    // Version-aware getNode: an explicit ?version=1 must resolve version 1's size/updatedAt even
+    // though version 2 is the current one, matching the retired GraphQL getNode(node_id, version).
+    Node file = mock(Node.class);
+    when(file.getId()).thenReturn(NODE_ID);
+    when(file.getName()).thenReturn("report");
+    when(file.getNodeType()).thenReturn(NodeType.TEXT);
+    when(file.getOwnerId()).thenReturn(OWNER_ID);
+    when(file.getParentId()).thenReturn(Optional.of(PARENT_ID));
+    when(file.getExtension()).thenReturn(Optional.of("pdf"));
+
+    FileVersion versionOne =
+        new FileVersion(NODE_ID, "editor-1", 500L, 1, "application/pdf", 111L, "digest1", false);
+    FileVersion versionTwo =
+        new FileVersion(NODE_ID, "editor-2", 2000L, 2, "application/pdf", 222L, "digest2", false);
+    when(file.getFileVersions()).thenReturn(List.of(versionOne, versionTwo));
+
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(file));
+    when(permissionsChecker.getPermissions(NODE_ID, USER_ID))
+        .thenReturn(ACL.decode(SharePermission.READ_ONLY));
+
+    RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID, 1);
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    InternalNodeDto dto = response.getEntity();
+    assertThat(dto.version()).isEqualTo(1);
+    assertThat(dto.size()).isEqualTo(111L);
+    // Version 1's timestamp, NOT version 2's (2000L) nor the node-level fallback.
+    assertThat(dto.updatedAt()).isEqualTo(500L);
+    // getCurrentVersion() must NOT be consulted when an explicit version is requested.
+    verify(file, never()).getCurrentVersion();
+  }
+
+  @Test
+  void getNode_withExplicitCurrentVersion_matchesTheNoVersionCall() {
+    Node file = mock(Node.class);
+    when(file.getId()).thenReturn(NODE_ID);
+    when(file.getName()).thenReturn("report");
+    when(file.getNodeType()).thenReturn(NodeType.TEXT);
+    when(file.getOwnerId()).thenReturn(OWNER_ID);
+    when(file.getParentId()).thenReturn(Optional.of(PARENT_ID));
+    when(file.getExtension()).thenReturn(Optional.of("pdf"));
+
+    FileVersion versionOne =
+        new FileVersion(NODE_ID, "editor-1", 500L, 1, "application/pdf", 111L, "digest1", false);
+    FileVersion versionTwo =
+        new FileVersion(NODE_ID, "editor-2", 2000L, 2, "application/pdf", 222L, "digest2", false);
+    when(file.getFileVersions()).thenReturn(List.of(versionOne, versionTwo));
+
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(file));
+    when(permissionsChecker.getPermissions(NODE_ID, USER_ID))
+        .thenReturn(ACL.decode(SharePermission.READ_ONLY));
+
+    RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID, 2);
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    InternalNodeDto dto = response.getEntity();
+    assertThat(dto.version()).isEqualTo(2);
+    assertThat(dto.size()).isEqualTo(222L);
+    assertThat(dto.updatedAt()).isEqualTo(2000L);
+  }
+
+  @Test
+  void getNode_withNonExistentVersion_returns404() {
+    Node file = mock(Node.class);
+    when(file.getNodeType()).thenReturn(NodeType.TEXT);
+
+    FileVersion versionOne =
+        new FileVersion(NODE_ID, "editor-1", 500L, 1, "application/pdf", 111L, "digest1", false);
+    when(file.getFileVersions()).thenReturn(List.of(versionOne));
+
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(file));
+    when(permissionsChecker.getPermissions(NODE_ID, USER_ID))
+        .thenReturn(ACL.decode(SharePermission.READ_ONLY));
+
+    RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID, 99);
+
+    assertThat(response.getStatus()).isEqualTo(404);
+  }
+
+  @Test
+  void getNode_versionOnAFolderIsIgnored() {
+    // Folders carry no file versions; a stray ?version=1 must NOT 404 — it is silently ignored,
+    // exactly as the GraphQL datafetcher skipped the file-version block for FOLDER/ROOT.
+    Node folder = mock(Node.class);
+    when(folder.getId()).thenReturn(NODE_ID);
+    when(folder.getName()).thenReturn("My Folder");
+    when(folder.getNodeType()).thenReturn(NodeType.FOLDER);
+    when(folder.getOwnerId()).thenReturn(OWNER_ID);
+    when(folder.getParentId()).thenReturn(Optional.of(PARENT_ID));
+    when(folder.getUpdatedAt()).thenReturn(1000L);
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(folder));
+    when(permissionsChecker.getPermissions(NODE_ID, USER_ID)).thenReturn(ACL.decode(ACL.OWNER));
+
+    RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID, 1);
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    InternalNodeDto dto = response.getEntity();
+    assertThat(dto.version()).isNull();
+    assertThat(dto.size()).isNull();
+    assertThat(dto.updatedAt()).isEqualTo(1000L);
   }
 
   @Test
@@ -177,7 +281,7 @@ class InternalNodeResourceTest {
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(root));
     when(permissionsChecker.getPermissions(NODE_ID, USER_ID)).thenReturn(ACL.decode(ACL.OWNER));
 
-    RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID);
+    RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID, null);
 
     assertThat(response.getEntity().parent()).isNull();
   }

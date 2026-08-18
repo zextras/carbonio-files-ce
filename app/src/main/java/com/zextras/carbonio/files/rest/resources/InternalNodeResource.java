@@ -37,6 +37,7 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response.Status;
 import java.util.Optional;
@@ -56,8 +57,11 @@ import org.jboss.resteasy.reactive.RestResponse;
  * — no business logic is duplicated here:
  *
  * <ul>
- *   <li>{@code GET /internal/accounts/{userId}/nodes/{nodeId}} → {@link NodeRepository#getNode} +
- *       {@link PermissionsChecker#getPermissions}, assembled into an {@link InternalNodeDto}.
+ *   <li>{@code GET /internal/accounts/{userId}/nodes/{nodeId}[?version=N]} → {@link
+ *       NodeRepository#getNode} + {@link PermissionsChecker#getPermissions}, assembled into an
+ *       {@link InternalNodeDto}. The optional {@code version} query parameter selects a historical
+ *       file version's metadata (size/updatedAt/mimeType); when omitted the current version is
+ *       returned, replicating the retired GraphQL {@code getNode(node_id, version)} query.
  *   <li>{@code POST /internal/folders} → {@link NodeDataFetcher#createFolder} (the extracted core
  *       of the GraphQL {@code createFolder} mutation).
  *   <li>{@code POST /internal/links} → {@link LinkDataFetcher#createPublicLink} + {@link
@@ -96,7 +100,9 @@ public class InternalNodeResource {
   @Path("/accounts/{userId}/nodes/{nodeId}")
   @Blocking
   public RestResponse<InternalNodeDto> getNode(
-      @PathParam("userId") String userId, @PathParam("nodeId") String nodeId) {
+      @PathParam("userId") String userId,
+      @PathParam("nodeId") String nodeId,
+      @QueryParam("version") Integer version) {
     Optional<Node> optNode = nodeRepository.getNode(nodeId);
     if (optNode.isEmpty()) {
       return RestResponse.status(Status.NOT_FOUND);
@@ -107,18 +113,37 @@ public class InternalNodeResource {
       return RestResponse.status(Status.FORBIDDEN);
     }
 
-    return RestResponse.ok(toInternalNodeDto(optNode.get(), permissions));
+    Node node = optNode.get();
+    Optional<FileVersion> optFileVersion = Optional.empty();
+
+    if (node.getNodeType() != NodeType.FOLDER && node.getNodeType() != NodeType.ROOT) {
+      int resolvedVersion = version != null ? version : node.getCurrentVersion();
+      optFileVersion =
+          node.getFileVersions().stream()
+              .filter(fileVersion -> fileVersion.getVersion() == resolvedVersion)
+              .findFirst();
+
+      // An explicitly-requested missing version is a 404 (mirrors the GraphQL getNode
+      // fileVersionNotFound); an omitted version keeps today's tolerant current-version resolution.
+      if (version != null && optFileVersion.isEmpty()) {
+        return RestResponse.status(Status.NOT_FOUND);
+      }
+    }
+
+    return RestResponse.ok(toInternalNodeDto(node, optFileVersion, permissions));
   }
 
   /**
    * Assembles the {@link InternalNodeDto} for a node the requester can read. Mirrors the relevant
    * slice of {@code NodeDataFetcher#convertNodeToDataFetcherResult}: core fields come from {@link
    * Node}, but for a file the {@code mimeType}/{@code size}/{@code version}/{@code updatedAt}
-   * quadruplet is resolved from its current {@link FileVersion} and — CRITICALLY — {@code
+   * quadruplet is resolved from the already-selected {@link FileVersion} ({@code optFileVersion} —
+   * the requested version, or the current one when none was requested) and — CRITICALLY — {@code
    * updatedAt} is the FILE VERSION's timestamp, not the node's, replicating the GraphQL map's
    * silent same-key override (see the class javadoc of {@link InternalNodeDto}).
    */
-  private InternalNodeDto toInternalNodeDto(Node node, ACL permissions) {
+  private InternalNodeDto toInternalNodeDto(
+      Node node, Optional<FileVersion> optFileVersion, ACL permissions) {
     String extension = null;
     String mimeType = null;
     Long size = null;
@@ -127,12 +152,6 @@ public class InternalNodeResource {
 
     if (node.getNodeType() != NodeType.FOLDER && node.getNodeType() != NodeType.ROOT) {
       extension = node.getExtension().orElse(null);
-
-      Integer currentVersion = node.getCurrentVersion();
-      Optional<FileVersion> optFileVersion =
-          node.getFileVersions().stream()
-              .filter(fileVersion -> currentVersion.equals(fileVersion.getVersion()))
-              .findFirst();
 
       if (optFileVersion.isPresent()) {
         FileVersion fileVersion = optFileVersion.get();

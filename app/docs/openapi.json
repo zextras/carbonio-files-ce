@@ -364,6 +364,13 @@
           "schema" : {
             "type" : "string"
           }
+        }, {
+          "name" : "version",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
         } ],
         "responses" : {
           "200" : {

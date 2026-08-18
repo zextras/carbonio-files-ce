@@ -79,6 +79,76 @@ class FilesInternalClientTest {
   }
 
   @Test
+  void getNodeWithVersionSendsTheVersionQueryParamAndParsesThatVersionsMetadata() throws Exception {
+    AtomicReference<String> receivedRawQuery = new AtomicReference<>();
+
+    server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+    server.createContext(
+        "/internal/accounts/user-1/nodes/node-1",
+        exchange -> {
+          try {
+            receivedRawQuery.set(exchange.getRequestURI().getRawQuery());
+            byte[] body =
+                "{\"id\":\"node-1\",\"version\":1,\"size\":111}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+              os.write(body);
+            }
+          } finally {
+            exchange.close();
+          }
+        });
+    server.start();
+
+    FilesInternalClient client =
+        FilesInternalClient.atURL("http://localhost:" + server.getAddress().getPort());
+
+    var node =
+        assertTimeoutPreemptively(
+            Duration.ofSeconds(10), () -> client.getNode("user-1", "node-1", 1), "getNode hung");
+
+    assertEquals("version=1", receivedRawQuery.get());
+    assertEquals(1, node.getVersion());
+    assertEquals(111L, node.getSize());
+  }
+
+  @Test
+  void getNodeWithoutVersionSendsNoVersionQueryParam() throws Exception {
+    AtomicReference<String> receivedRawQuery = new AtomicReference<>();
+
+    server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+    server.createContext(
+        "/internal/accounts/user-1/nodes/node-1",
+        exchange -> {
+          try {
+            receivedRawQuery.set(exchange.getRequestURI().getRawQuery());
+            byte[] body =
+                "{\"id\":\"node-1\",\"version\":2,\"size\":222}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+              os.write(body);
+            }
+          } finally {
+            exchange.close();
+          }
+        });
+    server.start();
+
+    FilesInternalClient client =
+        FilesInternalClient.atURL("http://localhost:" + server.getAddress().getPort());
+
+    var node =
+        assertTimeoutPreemptively(
+            Duration.ofSeconds(10), () -> client.getNode("user-1", "node-1"), "getNode hung");
+
+    // The two-argument (current-version) call must NOT append a version query param.
+    assertTrue(receivedRawQuery.get() == null || receivedRawQuery.get().isEmpty());
+    assertEquals(2, node.getVersion());
+  }
+
+  @Test
   void uploadFileSendsRealContentLengthAndReturnsNodeId() throws Exception {
     byte[] payload = randomBytes(PAYLOAD_SIZE);
     AtomicReference<String> receivedContentLength = new AtomicReference<>();
