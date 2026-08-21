@@ -7,10 +7,10 @@
 # stage would require QEMU and fail (exec format error) on arm64 cross-builds. Quarkus maps
 # NETWORKING_CONFIG_CARBONIO_* / QUARKUS_* environment variables straight onto its config at
 # runtime, so no env->config.properties entrypoint is needed.
-FROM --platform=$BUILDPLATFORM docker.io/library/eclipse-temurin:21-jdk-alpine AS prep
+FROM --platform=$BUILDPLATFORM docker.io/library/eclipse-temurin:26-jdk-alpine AS prep
 RUN mkdir -p /out/etc/carbonio/files
 
-FROM docker.io/library/eclipse-temurin:21-jdk-alpine
+FROM docker.io/library/eclipse-temurin:26-jdk-alpine
 
 LABEL maintainer="Zextras <https://www.zextras.com>"
 LABEL description="Carbonio Files CE - File management service"
