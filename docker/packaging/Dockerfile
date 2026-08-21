@@ -35,7 +35,7 @@ COPY --from=prep /staging .
 RUN yap build rocky-8 /tmp/staging/
 
 # Stage RHEL/Rocky 9
-FROM docker.io/m0rf30/yap-rocky-9:1.55 AS rocky-9-builder
+FROM docker.io/m0rf30/yap-rocky-9:2.6 AS rocky-9-builder
 WORKDIR /tmp/staging
 COPY --from=prep /staging .
 RUN yap build rocky-9 /tmp/staging/
