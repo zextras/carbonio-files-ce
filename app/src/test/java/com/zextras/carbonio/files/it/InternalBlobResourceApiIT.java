@@ -237,6 +237,25 @@ class InternalBlobResourceApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void internalDownloadShouldSendAnAsciiRfc8187ContentDispositionForANonAsciiFilename()
+      throws Exception {
+    // Regression: the internal download Content-Disposition must be RFC 8187 filename* (pure ASCII,
+    // %20 not +). Not read by FilesInternalClient, but must stay a valid header for any client.
+    byte[] content = "hi".getBytes(StandardCharsets.UTF_8);
+    Response uploadResponse = internalUpload(REQUESTER_ID, null, toBase64("Привет.txt"), content);
+    String nodeId =
+        (String)
+            OBJECT_MAPPER.readValue(uploadResponse.getBody().asString(), Map.class).get("nodeId");
+
+    Response downloadResponse = internalDownload(REQUESTER_ID, nodeId, null);
+
+    Assertions.assertThat(downloadResponse.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(downloadResponse.getHeader("Content-Disposition"))
+        .isEqualTo("attachment; filename*=UTF-8''%D0%9F%D1%80%D0%B8%D0%B2%D0%B5%D1%82.txt")
+        .doesNotContain("+");
+  }
+
+  @Test
   void internalDownloadShouldServeAnExplicitOlderVersion() throws Exception {
     // Given — v1 then v2 uploaded through the trusted surface
     byte[] v1 = "version one".getBytes(StandardCharsets.UTF_8);

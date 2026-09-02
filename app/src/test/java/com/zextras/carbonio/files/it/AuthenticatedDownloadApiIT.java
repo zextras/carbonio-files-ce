@@ -85,6 +85,23 @@ class AuthenticatedDownloadApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenACyrillicFilenameTheDownloadShouldReturnAnAsciiRfc8187ContentDisposition() {
+    // Regression: the download Content-Disposition must be RFC 8187 filename* (pure ASCII, space as
+    // %20 not +), so a non-ASCII name is neither mangled nor sent with a literal '+' for the space.
+    byte[] content = "hello".getBytes(StandardCharsets.UTF_8);
+    String nodeId = seedFile("Привет мир.txt", LOCAL_ROOT, content, REQUESTER_COOKIE);
+
+    Response response = download(nodeId, REQUESTER_COOKIE);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.getHeader("Content-Disposition"))
+        .isEqualTo(
+            "attachment;"
+                + " filename*=UTF-8''%D0%9F%D1%80%D0%B8%D0%B2%D0%B5%D1%82%20%D0%BC%D0%B8%D1%80.txt")
+        .doesNotContain("+");
+  }
+
+  @Test
   void givenAVersionSuffixUrlTheDownloadShouldServeThatSpecificVersion() {
     // Given — two versions (v1, v2); the node's currently-current version is 2, but the URL
     // explicitly asks for v1
