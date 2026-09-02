@@ -1,3 +1,10 @@
+## [2.1.1](https://github.com/zextras/carbonio-files-ce/compare/v2.1.0...v2.1.1) (2026-09-02)
+
+### Bug Fixes
+
+* **ci:** bump jenkins-lib-common to v4.10.2 to fix semantic-release Release stage crash ([4e5565f](https://github.com/zextras/carbonio-files-ce/commit/4e5565fbb4388816f0a9f0f915eab840be0296f3))
+* **ci:** point semantic-release at main ahead of default-branch rename ([dde27cc](https://github.com/zextras/carbonio-files-ce/commit/dde27cc312b718b8a55e23d387d046320346001d))
+
 ## [2.1.0](https://github.com/zextras/carbonio-files-ce/compare/v2.0.0...v2.1.0) (2026-08-18)
 
 ## [2.0.0](https://github.com/zextras/carbonio-files-ce/compare/v1.4.2...v2.0.0) (2026-08-18)
