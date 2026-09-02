@@ -1,3 +1,9 @@
+## [2.1.2](https://github.com/zextras/carbonio-files-ce/compare/v2.1.1...v2.1.2) (2026-09-02)
+
+### Bug Fixes
+
+* RFC 8187 encode Content-Disposition for non-ASCII filenames ([#314](https://github.com/zextras/carbonio-files-ce/issues/314)) ([8ff1f6f](https://github.com/zextras/carbonio-files-ce/commit/8ff1f6f60d2e1bf9ab6f1c0a843e0eb4eadecbfe))
+
 ## [2.1.1](https://github.com/zextras/carbonio-files-ce/compare/v2.1.0...v2.1.1) (2026-09-02)
 
 ### Bug Fixes
