@@ -282,6 +282,44 @@ SPDX-License-Identifier: AGPL-3.0-only
       <version>${assertj.version}</version>
       <scope>test</scope>
     </dependency>
+    <!--
+      Code-first schema-contract gate (SchemaContractTest): render the SmallRye code-first schema
+      in-JVM and assert it is semantically equal to the frozen docs/schema.graphql. TEST scope only:
+      the runtime quarkus-smallrye-graphql extension is added in a later phase with the first
+      @GraphQLApi (adding it now against an empty schema would break build-time augmentation).
+      SchemaBuilder.build(index) -> Schema model; Bootstrap.bootstrap(model, true) -> GraphQLSchema.
+      org.jboss.jandex (io.smallrye:jandex, used to build the index over the compiled model/api class
+      dirs) is intentionally NOT declared here: it is already on the classpath transitively (and comes
+      with smallrye-graphql-schema-builder for tests), and declaring it directly at test scope would
+      demote the pre-existing runtime jandex off the compile/runtime classpath. BOM-managed versions.
+    -->
+    <dependency>
+      <groupId>io.smallrye</groupId>
+      <artifactId>smallrye-graphql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.smallrye</groupId>
+      <artifactId>smallrye-graphql-schema-builder</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!--
+      SmallRye's Bootstrap.bootstrap(...) touches JSON-B while generating the schema, but
+      smallrye-graphql declares jakarta.json.bind-api at 'provided' scope (the runtime container
+      supplies it) so it is absent from the test classpath. Add the JSON-B API plus a provider
+      (Yasson, which also transitively brings the JSON-P api + Parsson impl) so the render pipeline
+      runs standalone without a CDI/Vert.x container. BOM-managed versions.
+    -->
+    <dependency>
+      <groupId>jakarta.json.bind</groupId>
+      <artifactId>jakarta.json.bind-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse</groupId>
+      <artifactId>yasson</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>postgresql</artifactId>
