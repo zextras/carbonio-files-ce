@@ -314,6 +314,7 @@ List of third-party dependencies grouped by their license type.
         * Quarkus - Scheduler - Kotlin (io.quarkus:quarkus-scheduler-kotlin:3.37.3 - https://github.com/quarkusio/quarkus)
         * Quarkus - Scheduler - Runtime (io.quarkus:quarkus-scheduler:3.37.3 - https://github.com/quarkusio/quarkus)
         * Quarkus - Scheduler - SPI (io.quarkus:quarkus-scheduler-spi:3.37.3 - https://github.com/quarkusio/quarkus)
+        * Quarkus - Security - Runtime (io.quarkus:quarkus-security:3.37.3 - https://github.com/quarkusio/quarkus)
         * Quarkus - Security - Runtime SPI (io.quarkus:quarkus-security-runtime-spi:3.37.3 - https://github.com/quarkusio/quarkus)
         * Quarkus - SmallRye Context Propagation - Runtime (io.quarkus:quarkus-smallrye-context-propagation:3.37.3 - https://github.com/quarkusio/quarkus)
         * Quarkus - SmallRye Health - Runtime (io.quarkus:quarkus-smallrye-health:3.37.3 - https://github.com/quarkusio/quarkus)

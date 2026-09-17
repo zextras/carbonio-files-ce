@@ -62,6 +62,15 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <!--
+      Security extension: provides the CurrentIdentityAssociation CDI producer (SecurityIdentity
+      bean) required by FilesGraphQLAuthMechanism and AuthenticatedUserProducer. BOM-managed version.
+    -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-security</artifactId>
+    </dependency>
+
+    <!--
       P4b: Prometheus scrape endpoint (default /q/metrics; legacy exposed /metrics — path
       reconciliation with the mesh .hcl prom_port=21500 is a P7 follow-up). Also brings the
       io.micrometer.core.instrument.MeterRegistry bean used by BlobService's upload counters.
