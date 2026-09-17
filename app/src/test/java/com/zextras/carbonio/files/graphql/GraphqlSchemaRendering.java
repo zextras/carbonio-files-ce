@@ -126,15 +126,19 @@ final class GraphqlSchemaRendering {
   }
 
   /**
-   * Prints a schema to a canonical SDL string: scalars included, schema definition / directives /
-   * descriptions excluded, and every element sorted by name so order is irrelevant. Descriptions
-   * are forced to {@code #} comments and then stripped together with blank lines, so no description
-   * can leak into the comparison.
+   * Prints a schema to a canonical SDL string: scalar type declarations, the schema definition,
+   * directives and descriptions are all excluded, and every element is sorted by name so order is
+   * irrelevant. Scalar DECLARATION lines are excluded on purpose: SmallRye always registers its
+   * built-in scalar set (BigInteger AND BigDecimal) regardless of use, so those {@code scalar X}
+   * lines are an engine artifact, not part of the application contract. Scalar USAGE is still fully
+   * compared — it appears in every field/argument type (e.g. {@code created_at: BigInteger!}), so a
+   * wrong scalar on any field is still caught. Descriptions are forced to {@code #} comments and
+   * then stripped together with blank lines, so no description can leak into the comparison.
    */
   static String canonicalPrint(GraphQLSchema schema) {
     SchemaPrinter.Options options =
         SchemaPrinter.Options.defaultOptions()
-            .includeScalarTypes(true)
+            .includeScalarTypes(false)
             .includeSchemaDefinition(false)
             .includeIntrospectionTypes(false)
             .includeDirectiveDefinitions(false)

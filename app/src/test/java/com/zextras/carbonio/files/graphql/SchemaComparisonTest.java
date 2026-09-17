@@ -93,8 +93,11 @@ class SchemaComparisonTest {
 
     assertThat(rendered).isNotBlank();
     assertThat(rendered).contains("type Query");
-    // long -> BigInteger, and the custom scalar is emitted by the printer.
-    assertThat(rendered).contains("scalar BigInteger");
+    // long -> BigInteger, verified via the field type. Scalar DECLARATION lines are excluded from
+    // the canonical form (engine built-in scalar set is not the contract); scalar usage is compared
+    // through field types instead.
+    assertThat(rendered).contains("BigInteger");
+    assertThat(rendered).doesNotContain("scalar ");
   }
 
   // --- P1: noise-insensitive ------------------------------------------------------------------
