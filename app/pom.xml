@@ -262,6 +262,19 @@ SPDX-License-Identifier: AGPL-3.0-only
       <artifactId>kotlinx-coroutines-core</artifactId>
     </dependency>
 
+    <!--
+      Code-first model annotations (Phase 2). Provides org.eclipse.microprofile.graphql.* (@Type,
+      @Interface, @Enum, @Name, @Id, @Ignore, @NonNull) and io.smallrye.graphql.api.Union.
+      BOM-managed; no version here. Compile scope so annotations are available at build time.
+      Do NOT add quarkus-smallrye-graphql (runtime extension) here — that comes in Phase 3 with
+      the first @GraphQLApi; adding it before any @Query triggers build-time augmentation failure.
+    -->
+    <dependency>
+      <groupId>io.smallrye</groupId>
+      <artifactId>smallrye-graphql-api</artifactId>
+      <scope>compile</scope>
+    </dependency>
+
     <!-- Test -->
     <dependency>
       <groupId>io.quarkus</groupId>

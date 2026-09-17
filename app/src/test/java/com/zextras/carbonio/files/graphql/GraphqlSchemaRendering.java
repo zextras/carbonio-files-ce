@@ -75,6 +75,11 @@ final class GraphqlSchemaRendering {
   static String renderFromIndex(IndexView index) {
     Schema schemaModel = SchemaBuilder.build(index);
     GraphQLSchema schema = Bootstrap.bootstrap(schemaModel, true);
+    // Bootstrap returns null when no @GraphQLApi operations are present (phases 2-3 transition).
+    // Return empty string so the gate fails with a clean assertion diff rather than NPE.
+    if (schema == null) {
+      return "";
+    }
     return canonicalPrint(schema);
   }
 
