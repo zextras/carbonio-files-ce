@@ -15,8 +15,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Out-of-process {@code @QuarkusIntegrationTest} (via {@link AbstractFilesIT}) proving the schema
- * history (V1..V11, ported verbatim from {@code core/}) boots cleanly under {@code quarkus-flyway}
- * against the real Postgres Testcontainer. Rewritten off the former {@code @Inject
+ * history (V1..V12; V12 adds the hierarchical-config tables) boots cleanly under {@code
+ * quarkus-flyway} against the real Postgres Testcontainer. Rewritten off the former {@code @Inject
  * Flyway}/{@code @Inject DataSource} (unavailable out-of-process) onto raw JDBC via {@link
  * AbstractFilesIT#jdbcConnection()} — migrations having applied at all is implicitly proven by the
  * launched app booting successfully (an out-of-process app that failed Flyway validation would
@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 class FlywayBootstrapIT extends AbstractFilesIT {
 
   @Test
-  void flywayShouldMigrateSchemaUpToV11() throws Exception {
+  void flywayShouldMigrateSchemaUpToV12() throws Exception {
     try (Connection connection = jdbcConnection();
         PreparedStatement statement =
             connection.prepareStatement(
@@ -34,7 +34,7 @@ class FlywayBootstrapIT extends AbstractFilesIT {
                     + " ORDER BY installed_rank DESC LIMIT 1");
         ResultSet resultSet = statement.executeQuery()) {
       assertThat(resultSet.next()).as("at least one successful migration recorded").isTrue();
-      assertThat(resultSet.getString(1)).isEqualTo("11");
+      assertThat(resultSet.getString(1)).isEqualTo("12");
     }
   }
 

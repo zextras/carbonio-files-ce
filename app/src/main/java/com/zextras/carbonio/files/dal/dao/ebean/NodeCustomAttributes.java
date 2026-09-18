@@ -9,8 +9,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 /**
  * Represents an Ebean {@link NodeCustomAttributes} entity that matches a record of the {@link
@@ -36,7 +34,6 @@ public class NodeCustomAttributes {
       updatable = false)
   private String mUserId;
 
-  @JdbcTypeCode(SqlTypes.CHAR)
   @Column(
       name = Constants.Db.NodeCustomAttributes.NODE_ID,
       nullable = false,

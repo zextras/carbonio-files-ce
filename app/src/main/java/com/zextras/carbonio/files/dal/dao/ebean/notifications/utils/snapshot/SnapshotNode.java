@@ -9,8 +9,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import jakarta.persistence.*;
 import java.util.Objects;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = Constants.Db.Tables.SNAPSHOT_NODE)
@@ -20,18 +18,16 @@ public class SnapshotNode {
   protected SnapshotNode() {}
 
   @Id
-  @JdbcTypeCode(SqlTypes.CHAR)
   @Column(name = Constants.Db.SnapshotNode.SNAPSHOT_NODE_ID, length = 36, nullable = false)
   private String snapshotNodeId;
 
   @Column(name = Constants.Db.SnapshotNode.SNAPSHOT_TIMESTAMP, nullable = false)
   private Long snapshotTimestamp;
 
-  @JdbcTypeCode(SqlTypes.CHAR)
   @Column(name = Constants.Db.SnapshotNode.NODE_ID, length = 36, nullable = false)
   private String nodeId;
 
-  @Column(name = Constants.Db.SnapshotNode.OWNER_ID, length = 256)
+  @Column(name = Constants.Db.SnapshotNode.OWNER_ID, length = 36)
   private String ownerId;
 
   @Column(name = Constants.Db.SnapshotNode.CREATION_TIMESTAMP, nullable = false)

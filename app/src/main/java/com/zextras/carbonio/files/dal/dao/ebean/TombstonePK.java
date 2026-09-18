@@ -9,8 +9,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import java.io.Serializable;
 import java.util.Objects;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 /**
  * This class represents the primary key of the {@link Constants.Db.Tables#TOMBSTONE}. It is
@@ -29,8 +27,7 @@ public class TombstonePK implements Serializable {
   /** Protected no-arg constructor required by Hibernate/JPA. */
   protected TombstonePK() {}
 
-  @JdbcTypeCode(SqlTypes.CHAR)
-  @Column(name = Constants.Db.Tombstone.NODE_ID, nullable = false, length = 36)
+  @Column(name = Constants.Db.Tombstone.NODE_ID, nullable = false)
   private String mNodeId;
 
   @Column(name = Constants.Db.Tombstone.VERSION, nullable = false)
