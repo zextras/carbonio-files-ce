@@ -20,6 +20,7 @@ import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.ShareModel;
 import com.zextras.carbonio.files.graphql.model.SharePermission;
 import com.zextras.carbonio.files.graphql.model.ShareSort;
+import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
@@ -63,6 +64,20 @@ public class ShareApi {
         share.getExpiredAt().orElse(null),
         share.getNodeId(),
         share.getTargetUserId());
+  }
+
+  // ─── Single-item @Source resolvers — Share.node ──────────────────────────────
+
+  @Name("node")
+  @NonNull
+  public NodeModel node(@Source ShareModel share) throws FilesGraphQLException {
+    String me = requester.getId().getUserId();
+    return nodeRepository
+        .getNode(share.getNodeId())
+        .map(n -> NodeModelFactory.from(n, null, me))
+        .orElseThrow(
+            () ->
+                FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", share.getNodeId()));
   }
 
   // ─── Single-item @Source resolvers — Node.shares / Node.share ─────────────────

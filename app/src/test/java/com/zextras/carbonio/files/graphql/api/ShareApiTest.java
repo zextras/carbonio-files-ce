@@ -19,6 +19,7 @@ import com.zextras.carbonio.files.dal.dao.UserId;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -480,5 +481,52 @@ class ShareApiTest {
     ShareModel result = shareApi.share(node, TARGET_ID_1);
 
     assertThat(result).isNull();
+  }
+
+  // ─── node @Source (ShareModel → Node) ────────────────────────────────────────
+
+  private Node mockFullFolderNode(String id) {
+    Node node = mock(Node.class);
+    when(node.getId()).thenReturn(id);
+    when(node.getName()).thenReturn("folder");
+    when(node.getNodeType()).thenReturn(NodeType.FOLDER);
+    when(node.getNodeCategory()).thenReturn(NodeCategory.FOLDER);
+    when(node.getDescription()).thenReturn(Optional.empty());
+    when(node.getParentId()).thenReturn(Optional.of("parent-id"));
+    when(node.getOwnerId()).thenReturn("owner-id");
+    when(node.getCreatorId()).thenReturn("creator-id");
+    when(node.getLastEditorId()).thenReturn(Optional.empty());
+    when(node.getCreatedAt()).thenReturn(1000L);
+    when(node.getUpdatedAt()).thenReturn(2000L);
+    when(node.getAncestorsList()).thenReturn(List.of("LOCAL_ROOT"));
+    when(node.getCustomAttributes()).thenReturn(List.of());
+    return node;
+  }
+
+  @Test
+  void node_fromShare_returnsNodeModel() throws FilesGraphQLException {
+    ShareModel shareModel =
+        new ShareModel(1000L, SharePermission.READ_ONLY, null, NODE_ID, TARGET_ID_1);
+    Node node = mockFullFolderNode(NODE_ID);
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
+
+    NodeModel result = shareApi.node(shareModel);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getId()).isEqualTo(NODE_ID);
+  }
+
+  @Test
+  void node_fromShare_notFound_throws() {
+    ShareModel shareModel =
+        new ShareModel(1000L, SharePermission.READ_ONLY, null, NODE_ID, TARGET_ID_1);
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> shareApi.node(shareModel))
+        .isInstanceOf(FilesGraphQLException.class)
+        .satisfies(
+            ex ->
+                assertThat(((FilesGraphQLException) ex).getErrorCode())
+                    .isEqualTo(ErrorCodes.NODE_NOT_FOUND));
   }
 }

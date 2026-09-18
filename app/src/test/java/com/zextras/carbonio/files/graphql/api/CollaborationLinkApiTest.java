@@ -16,10 +16,15 @@ import com.zextras.carbonio.files.dal.dao.UserId;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
+import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.CollaborationLinkModel;
+import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.SharePermission;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
@@ -40,12 +45,14 @@ class CollaborationLinkApiTest {
   private static final UUID COLLAB_UUID_2 = UUID.fromString("00000000-0000-0000-0000-000000000020");
 
   private CollaborationLinkRepository collaborationLinkRepository;
+  private NodeRepository nodeRepository;
   private PermissionsChecker permissionsChecker;
   private CollaborationLinkApi collaborationLinkApi;
 
   @BeforeEach
   void setUp() {
     collaborationLinkRepository = mock(CollaborationLinkRepository.class);
+    nodeRepository = mock(NodeRepository.class);
     permissionsChecker = mock(PermissionsChecker.class);
 
     UserMyself requester = mock(UserMyself.class);
@@ -54,6 +61,7 @@ class CollaborationLinkApiTest {
 
     collaborationLinkApi = new CollaborationLinkApi();
     collaborationLinkApi.collaborationLinkRepository = collaborationLinkRepository;
+    collaborationLinkApi.nodeRepository = nodeRepository;
     collaborationLinkApi.permissionsChecker = permissionsChecker;
     collaborationLinkApi.validator = new GraphQLInputValidator();
     collaborationLinkApi.requester = requester;
@@ -214,5 +222,85 @@ class CollaborationLinkApiTest {
               List<String> partial = (List<String>) fex.getPartialResults();
               assertThat(partial).containsExactly(COLLAB_UUID_1.toString());
             });
+  }
+
+  // ─── collaboration_links @Source ──────────────────────────────────────────────
+
+  private Node mockFullFolderNode(String id) {
+    Node node = mock(Node.class);
+    when(node.getId()).thenReturn(id);
+    when(node.getName()).thenReturn("folder");
+    when(node.getNodeType()).thenReturn(NodeType.FOLDER);
+    when(node.getNodeCategory()).thenReturn(NodeCategory.FOLDER);
+    when(node.getDescription()).thenReturn(Optional.empty());
+    when(node.getParentId()).thenReturn(Optional.of("parent-id"));
+    when(node.getOwnerId()).thenReturn("owner-id");
+    when(node.getCreatorId()).thenReturn("creator-id");
+    when(node.getLastEditorId()).thenReturn(Optional.empty());
+    when(node.getCreatedAt()).thenReturn(1000L);
+    when(node.getUpdatedAt()).thenReturn(2000L);
+    when(node.getAncestorsList()).thenReturn(List.of("LOCAL_ROOT"));
+    when(node.getCustomAttributes()).thenReturn(List.of());
+    return node;
+  }
+
+  @Test
+  void collaborationLinks_permitted_returnsFilteredLinks() {
+    NodeModel nodeModel = mock(NodeModel.class);
+    when(nodeModel.getId()).thenReturn(NODE_ID);
+    ACL acl = ACL.decode(ACL.SharePermission.READ_WRITE_AND_SHARE);
+    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID)).thenReturn(acl);
+
+    CollaborationLink link1 =
+        mockCollaborationLink(COLLAB_UUID_1, NODE_ID, ACL.SharePermission.READ_AND_SHARE);
+    CollaborationLink link2 =
+        mockCollaborationLink(COLLAB_UUID_2, NODE_ID, ACL.SharePermission.READ_WRITE_AND_SHARE);
+    when(collaborationLinkRepository.getLinksByNodeId(NODE_ID)).thenReturn(Stream.of(link1, link2));
+
+    List<CollaborationLinkModel> result = collaborationLinkApi.collaborationLinks(nodeModel);
+
+    assertThat(result).hasSize(2);
+  }
+
+  @Test
+  void collaborationLinks_notPermitted_returnsEmpty() {
+    NodeModel nodeModel = mock(NodeModel.class);
+    when(nodeModel.getId()).thenReturn(NODE_ID);
+    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
+        .thenReturn(ACL.decode(ACL.SharePermission.READ_ONLY));
+
+    List<CollaborationLinkModel> result = collaborationLinkApi.collaborationLinks(nodeModel);
+
+    assertThat(result).isEmpty();
+    verify(collaborationLinkRepository, never()).getLinksByNodeId(any());
+  }
+
+  // ─── node @Source (CollaborationLinkModel → Node) ────────────────────────────
+
+  @Test
+  void node_fromCollaborationLink_returnsNodeModel() throws Exception {
+    CollaborationLinkModel clModel = mock(CollaborationLinkModel.class);
+    when(clModel.getNodeId()).thenReturn(NODE_ID);
+    Node node = mockFullFolderNode(NODE_ID);
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
+
+    NodeModel result = collaborationLinkApi.node(clModel);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getId()).isEqualTo(NODE_ID);
+  }
+
+  @Test
+  void node_fromCollaborationLink_notFound_throws() {
+    CollaborationLinkModel clModel = mock(CollaborationLinkModel.class);
+    when(clModel.getNodeId()).thenReturn(NODE_ID);
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> collaborationLinkApi.node(clModel))
+        .isInstanceOf(FilesGraphQLException.class)
+        .satisfies(
+            ex ->
+                assertThat(((FilesGraphQLException) ex).getErrorCode())
+                    .isEqualTo(ErrorCodes.NODE_NOT_FOUND));
   }
 }

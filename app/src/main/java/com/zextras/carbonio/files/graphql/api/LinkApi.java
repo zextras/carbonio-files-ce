@@ -19,6 +19,8 @@ import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.LinkModel;
+import com.zextras.carbonio.files.graphql.model.NodeModel;
+import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.quarkus.security.Authenticated;
@@ -36,6 +38,7 @@ import org.eclipse.microprofile.graphql.Mutation;
 import org.eclipse.microprofile.graphql.Name;
 import org.eclipse.microprofile.graphql.NonNull;
 import org.eclipse.microprofile.graphql.Query;
+import org.eclipse.microprofile.graphql.Source;
 
 @GraphQLApi
 @Authenticated
@@ -60,6 +63,38 @@ public class LinkApi {
         link.getDescription().orElse(null),
         link.getAccessCode().orElse(null),
         link.getNodeId());
+  }
+
+  // ─── Single-item @Source resolvers ────────────────────────────────────────────
+
+  @Name("links")
+  @NonNull
+  public List<LinkModel> links(@Source NodeModel node) {
+    String me = requester.getId().getUserId();
+    if (!permissionsChecker.getPermissions(node.getId(), me).has(SharePermission.READ_AND_SHARE)) {
+      return List.of();
+    }
+    Optional<Node> optNode = nodeRepository.getNode(node.getId());
+    if (optNode.isEmpty()) {
+      return List.of();
+    }
+    boolean isFolder = optNode.get().getNodeType().equals(NodeType.FOLDER);
+    String domain = requester.getDomain();
+    return linkRepository
+        .getLinksByNodeId(node.getId(), LinkSort.CREATED_AT_DESC)
+        .map(link -> toModel(link, domain, isFolder))
+        .collect(Collectors.toList());
+  }
+
+  @Name("node")
+  @NonNull
+  public NodeModel node(@Source LinkModel link) throws FilesGraphQLException {
+    String me = requester.getId().getUserId();
+    return nodeRepository
+        .getNode(link.getNodeId())
+        .map(n -> NodeModelFactory.from(n, null, me))
+        .orElseThrow(
+            () -> FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", link.getNodeId()));
   }
 
   @Query("getLinks")

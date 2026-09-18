@@ -20,9 +20,13 @@ import com.zextras.carbonio.files.graphql.auth.AuthenticatedUserProducer;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.Account;
+import com.zextras.carbonio.files.graphql.model.DistributionListModel;
 import com.zextras.carbonio.files.graphql.model.FolderModel;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.NodeType;
+import com.zextras.carbonio.files.graphql.model.ShareModel;
+import com.zextras.carbonio.files.graphql.model.SharePermission;
+import com.zextras.carbonio.files.graphql.model.SharedTarget;
 import com.zextras.carbonio.files.graphql.model.UserModel;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import java.util.Collections;
@@ -260,5 +264,43 @@ class UserApiTest {
   @Test
   void partition_emptyList_yieldsNoChunks() {
     assertThat(UserApi.partition(List.of(), 100)).isEmpty();
+  }
+
+  // ─── share_target @Source ─────────────────────────────────────────────────────
+
+  @Test
+  void shareTarget_found_returnsUserModel() {
+    ShareModel shareModel =
+        new ShareModel(1000L, SharePermission.READ_ONLY, null, "node-id", USER_ID);
+    UserInfo userInfo = makeUserInfo(USER_ID, EMAIL, "Test User");
+    when(userRepository.getUsers(List.of(USER_ID))).thenReturn(List.of(userInfo));
+
+    SharedTarget result = userApi.shareTarget(shareModel);
+
+    assertThat(result).isNotNull().isInstanceOf(UserModel.class);
+    assertThat(((UserModel) result).getId()).isEqualTo(USER_ID);
+    assertThat(((UserModel) result).getEmail()).isEqualTo(EMAIL);
+  }
+
+  @Test
+  void shareTarget_notFound_returnsNull() {
+    ShareModel shareModel =
+        new ShareModel(1000L, SharePermission.READ_ONLY, null, "node-id", "unknown-id");
+    when(userRepository.getUsers(List.of("unknown-id"))).thenReturn(List.of());
+
+    SharedTarget result = userApi.shareTarget(shareModel);
+
+    assertThat(result).isNull();
+  }
+
+  // ─── users @Source (DistributionList) ────────────────────────────────────────
+
+  @Test
+  void users_alwaysReturnsEmptyList() {
+    DistributionListModel dl = new DistributionListModel("dl-id", "My DL");
+
+    List<UserModel> result = userApi.users(dl, 10, null);
+
+    assertThat(result).isEmpty();
   }
 }

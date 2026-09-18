@@ -9,11 +9,14 @@ import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.CollaborationLinkModel;
+import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.SharePermission;
+import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.quarkus.security.Authenticated;
@@ -32,12 +35,14 @@ import org.eclipse.microprofile.graphql.Mutation;
 import org.eclipse.microprofile.graphql.Name;
 import org.eclipse.microprofile.graphql.NonNull;
 import org.eclipse.microprofile.graphql.Query;
+import org.eclipse.microprofile.graphql.Source;
 
 @GraphQLApi
 @Authenticated
 public class CollaborationLinkApi {
 
   @Inject CollaborationLinkRepository collaborationLinkRepository;
+  @Inject NodeRepository nodeRepository;
   @Inject PermissionsChecker permissionsChecker;
   @Inject GraphQLInputValidator validator;
   @Inject @AuthenticatedUser UserMyself requester;
@@ -49,6 +54,36 @@ public class CollaborationLinkApi {
     SharePermission perm = SharePermission.valueOf(link.getPermissions().name());
     return new CollaborationLinkModel(
         link.getId().toString(), url, link.getCreatedAt().toEpochMilli(), perm, link.getNodeId());
+  }
+
+  // ─── Single-item @Source resolvers ────────────────────────────────────────────
+
+  @Name("collaboration_links")
+  @NonNull
+  public List<CollaborationLinkModel> collaborationLinks(@Source NodeModel node) {
+    String me = requester.getId().getUserId();
+    ACL acl = permissionsChecker.getPermissions(node.getId(), me);
+    if (!acl.has(ACL.SharePermission.READ_AND_SHARE)
+        && !acl.has(ACL.SharePermission.READ_WRITE_AND_SHARE)) {
+      return List.of();
+    }
+    String domain = requester.getDomain();
+    return collaborationLinkRepository
+        .getLinksByNodeId(node.getId())
+        .filter(link -> acl.has(link.getPermissions()))
+        .map(link -> toModel(link, domain))
+        .collect(Collectors.toList());
+  }
+
+  @Name("node")
+  @NonNull
+  public NodeModel node(@Source CollaborationLinkModel cl) throws FilesGraphQLException {
+    String me = requester.getId().getUserId();
+    return nodeRepository
+        .getNode(cl.getNodeId())
+        .map(n -> NodeModelFactory.from(n, null, me))
+        .orElseThrow(
+            () -> FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", cl.getNodeId()));
   }
 
   @Query("getCollaborationLinks")

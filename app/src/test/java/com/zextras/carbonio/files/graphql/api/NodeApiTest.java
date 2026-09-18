@@ -29,6 +29,8 @@ import com.zextras.carbonio.files.graphql.model.FileModel;
 import com.zextras.carbonio.files.graphql.model.FolderModel;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.NodePageModel;
+import com.zextras.carbonio.files.graphql.model.NodeSort;
+import com.zextras.carbonio.files.graphql.model.PermissionsModel;
 import com.zextras.carbonio.files.graphql.model.RootModel;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
@@ -455,5 +457,74 @@ class NodeApiTest {
     assertThat(result).hasSize(2);
     assertThat(result.get(0)).isNull();
     assertThat(result.get(1)).isNull();
+  }
+
+  // ─── permissions @Source ──────────────────────────────────────────────────────
+
+  @Test
+  void permissions_mapsAclFromPermissionsChecker() {
+    NodeModel node = makeFolderModel(NODE_ID, null);
+    ACL acl = ACL.decode(SharePermission.READ_ONLY);
+    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID)).thenReturn(acl);
+
+    PermissionsModel result = nodeApi.permissions(node);
+
+    assertThat(result).isNotNull();
+    assertThat(result.isCanRead()).isTrue();
+    assertThat(result.isCanShare()).isFalse();
+  }
+
+  // ─── children @Source ─────────────────────────────────────────────────────────
+
+  @Test
+  void children_delegatesCorrectlyToFindNodes() {
+    FolderModel folder = (FolderModel) makeFolderModel(NODE_ID, null);
+    Node childNode = mockFolderNode(NODE_ID + "-child");
+    when(nodeRepository.findNodes(
+            eq(REQUESTER_ID),
+            any(),
+            eq(Optional.empty()),
+            eq(Optional.of(NODE_ID)),
+            eq(Optional.of(false)),
+            eq(Optional.empty()),
+            eq(Optional.empty()),
+            eq(Optional.empty()),
+            eq(Optional.of(10)),
+            eq(Optional.empty()),
+            eq(Optional.empty()),
+            eq(Collections.emptyList()),
+            eq(Optional.empty())))
+        .thenReturn(ImmutablePair.of(List.of(childNode), null));
+
+    NodePageModel result = nodeApi.children(folder, 10, NodeSort.NAME_ASC, null);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getNodes()).hasSize(1);
+    assertThat(result.getNodes().get(0).getId()).isEqualTo(NODE_ID + "-child");
+  }
+
+  @Test
+  void children_withPageToken_passesPageTokenToFindNodes() {
+    FolderModel folder = (FolderModel) makeFolderModel(NODE_ID, null);
+    when(nodeRepository.findNodes(
+            eq(REQUESTER_ID),
+            any(),
+            eq(Optional.empty()),
+            eq(Optional.of(NODE_ID)),
+            eq(Optional.of(false)),
+            eq(Optional.empty()),
+            eq(Optional.empty()),
+            eq(Optional.empty()),
+            eq(Optional.of(5)),
+            eq(Optional.empty()),
+            eq(Optional.empty()),
+            eq(Collections.emptyList()),
+            eq(Optional.of("tok"))))
+        .thenReturn(ImmutablePair.of(List.of(), "next-tok"));
+
+    NodePageModel result = nodeApi.children(folder, 5, NodeSort.NAME_DESC, "tok");
+
+    assertThat(result.getNodes()).isEmpty();
+    assertThat(result.getPageToken()).isEqualTo("next-tok");
   }
 }

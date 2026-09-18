@@ -29,10 +29,12 @@ import com.zextras.carbonio.files.graphql.errors.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.FileModel;
+import com.zextras.carbonio.files.graphql.model.FolderModel;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.NodePageModel;
 import com.zextras.carbonio.files.graphql.model.NodeSort;
 import com.zextras.carbonio.files.graphql.model.NodeType;
+import com.zextras.carbonio.files.graphql.model.PermissionsModel;
 import com.zextras.carbonio.files.graphql.model.RootModel;
 import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
@@ -243,6 +245,48 @@ public class NodeApi {
     return nodeRepository.getRootsList().stream()
         .map(root -> new RootModel(root.getId(), root.getName()))
         .collect(Collectors.toList());
+  }
+
+  // ─── Single-item @Source resolvers ────────────────────────────────────────────
+
+  @Name("permissions")
+  @NonNull
+  public PermissionsModel permissions(@Source NodeModel node) {
+    String me = requester.getId().getUserId();
+    return new PermissionsModel(permissionsChecker.getPermissions(node.getId(), me));
+  }
+
+  @Name("children")
+  @NonNull
+  public NodePageModel children(
+      @Source FolderModel folder,
+      @Name("limit") @NonNull int limit,
+      @Name("sort") @NonNull NodeSort sort,
+      @Name("page_token") String pageToken) {
+    String me = requester.getId().getUserId();
+    com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort dalSort =
+        com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort.valueOf(
+            sort.name());
+    var result =
+        nodeRepository.findNodes(
+            me,
+            Optional.of(dalSort),
+            Optional.empty(),
+            Optional.of(folder.getId()),
+            Optional.of(false),
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
+            Optional.of(limit),
+            Optional.empty(),
+            Optional.empty(),
+            Collections.emptyList(),
+            Optional.ofNullable(pageToken));
+    List<NodeModel> nodes =
+        result.getLeft().stream()
+            .map(n -> NodeModelFactory.from(n, null, me))
+            .collect(Collectors.toList());
+    return new NodePageModel(nodes, result.getRight());
   }
 
   // ─── Batch @Source resolvers — Node.parent ────────────────────────────────────

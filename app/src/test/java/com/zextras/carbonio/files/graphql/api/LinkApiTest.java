@@ -18,12 +18,14 @@ import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.LinkModel;
+import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import java.util.List;
@@ -89,6 +91,85 @@ class LinkApiTest {
     when(link.getDescription()).thenReturn(Optional.empty());
     when(link.getAccessCode()).thenReturn(Optional.empty());
     return link;
+  }
+
+  private Node mockFullFolderNode(String id) {
+    Node node = mock(Node.class);
+    when(node.getId()).thenReturn(id);
+    when(node.getName()).thenReturn("folder");
+    when(node.getNodeType()).thenReturn(NodeType.FOLDER);
+    when(node.getNodeCategory()).thenReturn(NodeCategory.FOLDER);
+    when(node.getDescription()).thenReturn(Optional.empty());
+    when(node.getParentId()).thenReturn(Optional.of("parent-id"));
+    when(node.getOwnerId()).thenReturn("owner-id");
+    when(node.getCreatorId()).thenReturn("creator-id");
+    when(node.getLastEditorId()).thenReturn(Optional.empty());
+    when(node.getCreatedAt()).thenReturn(1000L);
+    when(node.getUpdatedAt()).thenReturn(2000L);
+    when(node.getAncestorsList()).thenReturn(List.of("LOCAL_ROOT"));
+    when(node.getCustomAttributes()).thenReturn(List.of());
+    return node;
+  }
+
+  // ─── links @Source ────────────────────────────────────────────────────────────
+
+  @Test
+  void links_permitted_returnsLinks() {
+    NodeModel nodeModel = mock(NodeModel.class);
+    when(nodeModel.getId()).thenReturn(NODE_ID);
+    Node node = mockFileNode();
+    Link link = mockLink(LINK_ID_1, NODE_ID, "pub1234567890123456789012345678901234567890123456");
+    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
+        .thenReturn(ACL.decode(ACL.SharePermission.READ_AND_SHARE));
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
+    when(linkRepository.getLinksByNodeId(eq(NODE_ID), any())).thenReturn(Stream.of(link));
+
+    List<LinkModel> result = linkApi.links(nodeModel);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).getNodeId()).isEqualTo(NODE_ID);
+  }
+
+  @Test
+  void links_notPermitted_returnsEmpty() {
+    NodeModel nodeModel = mock(NodeModel.class);
+    when(nodeModel.getId()).thenReturn(NODE_ID);
+    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
+        .thenReturn(ACL.decode(ACL.SharePermission.READ_ONLY));
+
+    List<LinkModel> result = linkApi.links(nodeModel);
+
+    assertThat(result).isEmpty();
+    verify(linkRepository, never()).getLinksByNodeId(any(), any());
+  }
+
+  // ─── node @Source (LinkModel → Node) ─────────────────────────────────────────
+
+  @Test
+  void node_fromLink_returnsNodeModel() throws Exception {
+    LinkModel linkModel = mock(LinkModel.class);
+    when(linkModel.getNodeId()).thenReturn(NODE_ID);
+    Node node = mockFullFolderNode(NODE_ID);
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
+
+    NodeModel result = linkApi.node(linkModel);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getId()).isEqualTo(NODE_ID);
+  }
+
+  @Test
+  void node_fromLink_nodeNotFound_throwsException() {
+    LinkModel linkModel = mock(LinkModel.class);
+    when(linkModel.getNodeId()).thenReturn(NODE_ID);
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> linkApi.node(linkModel))
+        .isInstanceOf(FilesGraphQLException.class)
+        .satisfies(
+            ex ->
+                assertThat(((FilesGraphQLException) ex).getErrorCode())
+                    .isEqualTo(ErrorCodes.NODE_NOT_FOUND));
   }
 
   // ─── getLinks ──────────────────────────────────────────────────────────────────

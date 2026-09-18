@@ -12,7 +12,10 @@ import com.zextras.carbonio.files.graphql.auth.AuthenticatedUserProducer;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.Account;
+import com.zextras.carbonio.files.graphql.model.DistributionListModel;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
+import com.zextras.carbonio.files.graphql.model.ShareModel;
+import com.zextras.carbonio.files.graphql.model.SharedTarget;
 import com.zextras.carbonio.files.graphql.model.UserModel;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import io.quarkus.security.Authenticated;
@@ -84,6 +87,27 @@ public class UserApi {
       result.add(list.subList(i, Math.min(i + size, list.size())));
     }
     return result;
+  }
+
+  // ─── Single-item @Source resolvers ────────────────────────────────────────────
+
+  @Name("share_target")
+  public SharedTarget shareTarget(@Source ShareModel share) {
+    List<UserInfo> users = userRepository.getUsers(List.of(share.getShareTargetId()));
+    if (users.isEmpty()) {
+      return null;
+    }
+    UserInfo u = users.get(0);
+    return new UserModel(u.getId().getUserId(), u.getEmail(), u.getFullName());
+  }
+
+  @Name("users")
+  @NonNull
+  public List<UserModel> users(
+      @Source DistributionListModel dl,
+      @Name("limit") @NonNull int limit,
+      @Name("cursor") String cursor) {
+    return List.of();
   }
 
   @Query("getUserById")
