@@ -4,13 +4,25 @@
 
 BEGIN;
 
-CREATE TABLE carbonio_config (
-  scope_type  varchar(16)  NOT NULL,
-  scope_id    varchar(256) NOT NULL,
-  config_key  varchar(256) NOT NULL,
-  value       text,
-  PRIMARY KEY (scope_type, scope_id, config_key)
+CREATE TABLE carbonio_account_config (
+  account_id varchar(256) NOT NULL,
+  config_key varchar(256) NOT NULL,
+  value      text,
+  PRIMARY KEY (account_id, config_key)
 );
-CREATE INDEX idx_carbonio_config_lookup ON carbonio_config (config_key, scope_type, scope_id);
+
+CREATE TABLE carbonio_cos_config (
+  cos_id     varchar(256) NOT NULL,
+  config_key varchar(256) NOT NULL,
+  value      text,
+  PRIMARY KEY (cos_id, config_key)
+);
+
+CREATE TABLE carbonio_domain_config (
+  domain_id  varchar(256) NOT NULL,
+  config_key varchar(256) NOT NULL,
+  value      text,
+  PRIMARY KEY (domain_id, config_key)
+);
 
 COMMIT;
