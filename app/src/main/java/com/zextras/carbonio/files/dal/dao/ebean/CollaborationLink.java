@@ -14,6 +14,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Represents an Ebean {@link CollaborationLink} entity that matches a record of the {@link
@@ -44,9 +46,11 @@ public class CollaborationLink {
   @Column(name = Db.CollaborationLink.ID, nullable = false, length = 36)
   private UUID id;
 
+  @JdbcTypeCode(SqlTypes.CHAR)
   @Column(name = Db.CollaborationLink.NODE_ID, nullable = false, length = 36)
   private String nodeId;
 
+  @JdbcTypeCode(SqlTypes.CHAR)
   @Column(name = Db.CollaborationLink.INVITATION_ID, nullable = false, length = 8)
   private String invitationId;
 

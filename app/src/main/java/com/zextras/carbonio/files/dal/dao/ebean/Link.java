@@ -12,6 +12,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.Optional;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Represents an Ebean {@link Link} entity that matches a record of the {@link Constants.Db.Link}
@@ -40,9 +42,11 @@ public class Link {
   protected Link() {}
 
   @Id
+  @JdbcTypeCode(SqlTypes.CHAR)
   @Column(name = Db.Link.ID, nullable = false, length = 36)
   private String id;
 
+  @JdbcTypeCode(SqlTypes.CHAR)
   @Column(name = Db.Link.NODE_ID, nullable = false, length = 36)
   private String nodeId;
 

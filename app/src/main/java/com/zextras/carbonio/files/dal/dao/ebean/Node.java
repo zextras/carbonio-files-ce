@@ -22,6 +22,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Represents an Ebean {@link Node} entity that matches a record of the {@link
@@ -41,18 +43,22 @@ public class Node {
   public static final String ANCESTORS_SEPARATOR = ",";
 
   @Id
+  @JdbcTypeCode(SqlTypes.CHAR)
   @Column(name = Constants.Db.Node.ID, length = 36, nullable = false)
   private String mId;
 
   @Column(name = Constants.Db.Node.OWNER_ID, length = 36)
   private String mOwnerId;
 
+  @JdbcTypeCode(SqlTypes.CHAR)
   @Column(name = Constants.Db.Node.CREATOR_ID, length = 36)
   private String mCreatorId;
 
-  @Column(name = Constants.Db.Node.EDITOR_ID, length = 256)
+  @JdbcTypeCode(SqlTypes.CHAR)
+  @Column(name = Constants.Db.Node.EDITOR_ID, length = 36)
   private String mLastEditorId;
 
+  @JdbcTypeCode(SqlTypes.CHAR)
   @Column(name = Constants.Db.Node.PARENT_ID, length = 36)
   private String mParentId;
 
@@ -81,6 +87,7 @@ public class Node {
   @Column(name = Constants.Db.Node.CURRENT_VERSION, nullable = true)
   private Integer mCurrentVersion;
 
+  @JdbcTypeCode(SqlTypes.SMALLINT)
   @Column(name = Constants.Db.Node.INDEX_STATUS, nullable = false)
   private Integer mIndexStatus;
 

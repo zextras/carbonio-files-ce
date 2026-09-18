@@ -9,6 +9,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import java.io.Serializable;
 import java.util.Objects;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * This class represents the primary key of the {@link Constants.Db.Tables#SHARE}. It is composed by
@@ -28,6 +30,7 @@ public class SharePK implements Serializable {
   /** Protected no-arg constructor required by Hibernate/JPA. */
   protected SharePK() {}
 
+  @JdbcTypeCode(SqlTypes.CHAR)
   @Column(name = Constants.Db.Share.NODE_ID, length = 36, nullable = false)
   private String mNodeId;
 
