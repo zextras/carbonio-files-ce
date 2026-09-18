@@ -32,12 +32,13 @@ import java.util.Set;
 /**
  * HTTP-level authentication mechanism for the SmallRye GraphQL endpoint ({@code POST /graphql}).
  *
- * <p>The mechanism handles ONLY requests whose ORIGINAL HTTP path starts with {@code /graphql}
- * (checked via {@code ctx.request().path()}, which is NOT updated by Vert.x {@code reroute()}).
- * This ensures that requests originally sent to {@code /public/graphql} (rerouted by {@link
- * com.zextras.carbonio.files.graphql.PublicGraphQLRoute} to {@code /graphql}) receive an anonymous
- * identity and can reach the {@code @PermitAll} public resolvers, while direct {@code /graphql}
- * calls without a valid {@code ZM_AUTH_TOKEN} cookie are rejected at HTTP level (CO-3482).
+ * <p>The mechanism handles ONLY requests whose path starts with {@code /graphql}; all other paths
+ * receive {@code nullItem} so other mechanisms (or the default) can handle them.
+ *
+ * <p>For requests on {@code /graphql}: no {@code ZM_AUTH_TOKEN} cookie → anonymous identity ({@code
+ * nullItem}), which allows {@code @PermitAll} public operations ({@code getPublicNode}, {@code
+ * findPublicNodes}) to run unauthenticated (CO-3482). A cookie that cannot be resolved to a known
+ * user → 401. An authenticated-but-not-entitled user → 403.
  *
  * <p>Auth/forbidden challenge bodies: for 401 challenges ({@link AuthenticationFailedException}),
  * Quarkus calls {@link #sendChallenge} on this mechanism — overridden to write the stored message
@@ -87,27 +88,16 @@ public class FilesGraphQLAuthMechanism implements HttpAuthenticationMechanism {
 
   @Override
   public Uni<SecurityIdentity> authenticate(RoutingContext ctx, IdentityProviderManager idm) {
-    // Requests rerouted from /public/graphql carry a routing-context marker set by
-    // PublicGraphQLRoute before it calls ctx.reroute(). Both ctx.normalizedPath() and
-    // ctx.request().path() reflect the NEW path (/graphql) after the reroute — using either would
-    // mis-classify the rerouted request as a direct /graphql call and reject it as unauthenticated.
-    // The marker persists across the reroute because ctx is the same object; checking it first
-    // lets us return an anonymous identity and allow @PermitAll resolvers to run.
-    if (Boolean.TRUE.equals(ctx.get("files.auth.public.rerouted"))) {
-      return Uni.createFrom().nullItem();
-    }
-
     String path = ctx.normalizedPath();
     if (!"/graphql".equals(path) && !path.startsWith("/graphql/")) {
       return Uni.createFrom().nullItem();
     }
 
-    // From here: direct POST /graphql (or /graphql/) requests without the public-reroute marker.
+    // No cookie → anonymous identity; @PermitAll ops (getPublicNode, findPublicNodes) succeed
+    // unauthenticated on /graphql. A present-but-unresolvable cookie → 401.
     Cookie zmCookie = ctx.request().getCookie(Headers.COOKIE_ZM_AUTH_TOKEN);
     if (zmCookie == null) {
-      ctx.put(CTX_STATUS, 401);
-      ctx.put(CTX_MESSAGE, "Missing cookies");
-      return Uni.createFrom().failure(new AuthenticationFailedException("Missing cookies"));
+      return Uni.createFrom().nullItem();
     }
     String header = ctx.request().getHeader("Cookie");
     String cookies =
@@ -124,12 +114,11 @@ public class FilesGraphQLAuthMechanism implements HttpAuthenticationMechanism {
     }
     UserMyself user = optUser.get();
 
-    // For forbidden cases (authenticated-but-not-entitled), throw AuthenticationFailedException
-    // with
-    // status 403 stored in the routing context. Quarkus calls sendChallenge() for this exception
-    // type (not for ForbiddenException, which Quarkus handles with an empty 403 that bypasses
-    // sendChallenge entirely). Our sendChallenge() override reads the stored status/message and
-    // writes the correct HTTP body, preserving the legacy FilesAuthenticationFilter contract.
+    /*
+     * Authenticated-but-not-entitled: store status 403 and throw AuthenticationFailedException so
+     * sendChallenge() writes the body. ForbiddenException would bypass sendChallenge entirely and
+     * produce an empty 403; AuthenticationFailedException routes through our override correctly.
+     */
     if (!UserStatus.ACTIVE.equals(user.getStatus())) {
       ctx.put(CTX_STATUS, 403);
       ctx.put(CTX_MESSAGE, "User is not active");

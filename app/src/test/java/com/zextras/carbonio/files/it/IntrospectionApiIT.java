@@ -22,18 +22,13 @@ import org.junit.jupiter.api.Test;
  * {@code __schema}/{@code __type} introspection on the authenticated {@code /graphql/} endpoint via
  * {@code GraphQLProvider#buildSchema}'s {@code BlockedFields.newBlock().addPattern("__.*")}
  * field-visibility transform. The SmallRye code-first engine has no equivalent mechanism: it serves
- * a single unified schema for both the authenticated ({@code /graphql}) and public ({@code
- * /public/graphql}) paths, and graphql-java's {@code BlockedFields} API does not exist in the
- * SmallRye runtime. Applying {@code quarkus.smallrye-graphql.schema-introspection.enabled=false}
- * would block introspection on BOTH paths (same unified schema), which is a net security
- * improvement but contradicts the established {@link PublicGraphQLIntrospectionApiIT} contract that
- * pin-documents the current (unblocked) behaviour on the public path. The pragmatic resolution is
- * to accept introspection as ALLOWED on the unified schema and update this test accordingly.
+ * a single unified schema on {@code /graphql}, and graphql-java's {@code BlockedFields} API does
+ * not exist in the SmallRye runtime. The pragmatic resolution is to accept introspection as ALLOWED
+ * on the unified schema and update this test accordingly.
  *
  * <p>The old test's secondary purpose ("Doubles as a native-smoke surface under {@code -Dnative}
- * (broad schema-reflection coverage)") is preserved: the introspection query now verifies that the
- * SmallRye schema is correctly exposed and contains the expected types, exactly as {@link
- * PublicGraphQLIntrospectionApiIT} does for the public path.
+ * (broad schema-reflection coverage)") is preserved: the introspection query verifies that the
+ * SmallRye schema is correctly exposed and contains the expected types.
  */
 class IntrospectionApiIT extends AbstractFilesIT {
 

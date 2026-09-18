@@ -24,15 +24,13 @@ import org.junit.jupiter.api.Test;
  * per-operation ApiIT classes:
  *
  * <ol>
- *   <li>{@code /public/graphql} reroute parity: the same {@code @PermitAll} query posted to {@code
- *       /public/graphql} (no cookie, legacy path — rerouted by {@link
- *       com.zextras.carbonio.files.graphql.PublicGraphQLRoute}) returns the IDENTICAL JSON body as
- *       the direct {@code /graphql} call with a valid cookie. This proves the Vert.x reroute
- *       preserves the POST body end-to-end (CO-FIXME: public-graphql forward).
  *   <li>Authenticated happy-path for a READ ({@code getNode}) and a WRITE ({@code createFolder})
  *       via the SmallRye code-first resolvers against the real Postgres Testcontainer: the JSON
  *       response shape matches the contract ({@code id}, {@code name}, {@code created_at} as a
  *       non-zero long/BigInteger on the wire).
+ *   <li>Unauthenticated {@code @PermitAll} public ops ({@code getPublicNode}, {@code
+ *       findPublicNodes}) succeed on {@code POST /graphql} without a cookie.
+ *   <li>{@code /public/graphql} is gone: {@code POST /public/graphql} now returns 404.
  *   <li>Auth 401/403/happy on {@code /graphql}: exhaustively covered by {@link AuthApiIT} — NOT
  *       duplicated here.
  *   <li>Per-operation public-op / find-public-nodes / get-public-node behaviors: covered by {@link
@@ -71,64 +69,19 @@ class CodeFirstGraphQLEndToEndIT extends AbstractFilesIT {
     return url.substring(url.length() - 50);
   }
 
-  // ── /public/graphql reroute parity ────────────────────────────────────────────
+  // ── /public/graphql endpoint is gone (documents removal) ────────────────────
 
-  /**
-   * Posts {@code getPublicNode} to {@code /public/graphql} (no cookie, the legacy path rerouted by
-   * {@code PublicGraphQLRoute}) and to {@code /graphql} (with a valid cookie, where {@code
-   * getPublicNode} is {@code @PermitAll}). Both must return HTTP 200 with identical JSON, proving
-   * the Vert.x reroute preserves the POST body end-to-end and that the unified SmallRye schema
-   * serves the same resolver regardless of which path the request originated from.
-   */
+  /** {@code POST /public/graphql} is no longer mounted — the server returns 404. */
   @Test
-  void givenPublicLinkWhenSameQueryPostedToLegacyAndDirectEndpointsThenResponseBodiesMatch() {
-    // Given — a file with a public link.
-    String fileId =
-        seedFile(
-            "parity-file.txt", LOCAL_ROOT, "parity".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
-    String publicId = createLinkAndGetPublicId(fileId);
-
-    String query =
-        GraphqlCommandBuilder.aQueryBuilder("getPublicNode")
-            .withString("node_link_id", publicId)
-            .withWantedResultFormat("{ ... on PublicFile { id name } }")
-            .build();
-    String payload = TestUtils.queryPayload(query);
-
-    // When — POST to /public/graphql (no cookie, legacy path, rerouted)
-    Response legacyResponse =
-        RestAssured.given().contentType("application/json").body(payload).post("/public/graphql/");
-
-    // When — POST to /graphql (with a valid cookie; getPublicNode is @PermitAll so it succeeds)
-    Response directResponse =
+  void givenRemovedPublicEndpointWhenPostedThenReturns404() {
+    Response response =
         RestAssured.given()
             .contentType("application/json")
-            .header("Cookie", OWNER_COOKIE)
-            .body(payload)
-            .post("/graphql/");
-
-    // Then — both 200, same JSON body.
-    Assertions.assertThat(legacyResponse.getStatusCode())
-        .as("/public/graphql (rerouted) must return 200")
-        .isEqualTo(200);
-    Assertions.assertThat(directResponse.getStatusCode())
-        .as("/graphql (direct, with cookie) must return 200")
-        .isEqualTo(200);
-
-    // No GraphQL errors on either path.
-    Assertions.assertThat(TestUtils.jsonResponseToErrors(legacyResponse.getBody().asString()))
-        .as("no errors on /public/graphql")
-        .isEmpty();
-    Assertions.assertThat(TestUtils.jsonResponseToErrors(directResponse.getBody().asString()))
-        .as("no errors on /graphql")
-        .isEmpty();
-
-    // Bodies are identical — the reroute preserved the POST payload end-to-end.
-    Assertions.assertThat(legacyResponse.getBody().asString())
-        .as(
-            "/public/graphql (rerouted) and /graphql (direct) must return the same JSON for the"
-                + " same @PermitAll getPublicNode query")
-        .isEqualTo(directResponse.getBody().asString());
+            .body("{\"query\":\"{ __typename }\"}")
+            .post("/public/graphql/");
+    Assertions.assertThat(response.getStatusCode())
+        .as("/public/graphql must return 404 after the reroute was removed")
+        .isEqualTo(404);
   }
 
   // ── authenticated happy-path: getNode (read) ─────────────────────────────────
@@ -198,13 +151,13 @@ class CodeFirstGraphQLEndToEndIT extends AbstractFilesIT {
         .isGreaterThan(0L);
   }
 
-  // ── unauthenticated findPublicNodes on /public/graphql ────────────────────────
+  // ── unauthenticated @PermitAll ops on /graphql ────────────────────────────────
 
   /**
-   * {@code findPublicNodes} (a {@code @PermitAll} op) via {@code /public/graphql} (no cookie)
-   * succeeds and returns a {@code PublicNodePage} with the child node. Complements {@link
-   * PublicFindNodesApiIT}'s per-scenario coverage with a smoke check that the rerouted path reaches
-   * the correct code-first resolver.
+   * {@code findPublicNodes} (a {@code @PermitAll} op) posted to {@code /graphql} without a cookie
+   * (anonymous identity) succeeds and returns a {@code PublicNodePage} with the child node.
+   * Complements {@link PublicFindNodesApiIT}'s per-scenario coverage with a smoke check that the
+   * code-first resolver is reached from an unauthenticated request.
    *
    * <p>{@code findPublicNodes} takes the ACTUAL folder UUID as {@code folder_id} plus the
    * 50-character {@code node_link_id} (the public link's {@code public_id}) — same convention as
@@ -212,7 +165,7 @@ class CodeFirstGraphQLEndToEndIT extends AbstractFilesIT {
    */
   @Test
   @SuppressWarnings("unchecked")
-  void givenPublicFolderLinkWhenFindPublicNodesCalledViaLegacyEndpointThenPageIsReturned() {
+  void givenPublicFolderLinkWhenFindPublicNodesCalledUnauthenticatedOnGraphqlThenPageIsReturned() {
     // Given — a public-link folder with one file child.
     String folderId = seedFolder("public-parent", LOCAL_ROOT, OWNER_COOKIE);
     seedFile("public-child.txt", folderId, "data".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
@@ -226,7 +179,7 @@ class CodeFirstGraphQLEndToEndIT extends AbstractFilesIT {
             .withWantedResultFormat("{ nodes { ... on PublicFile { id name } } }")
             .build();
 
-    // When — via /public/graphql (no cookie, rerouted to /graphql with anonymous identity)
+    // When — POST /graphql, no cookie (anonymous identity → @PermitAll resolvers succeed)
     Response response = publicGraphql(query);
 
     // Then — 200, no errors, at least the child is returned
