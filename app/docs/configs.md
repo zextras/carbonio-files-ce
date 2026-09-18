@@ -45,7 +45,5 @@ Overridable using admin panel
 
 | Key | Default |
 | --- | ------- |
-| `poc.max-versions` | `100` |
-| `poc.sample-empty` | *(not set)* |
 | `shares-enabled` | `true` |
 

@@ -14,14 +14,6 @@ public final class HierarchicalConfigKeys {
 
     @ConfigKey(
         description =
-            "Max file versions retained (per account/cos/domain override; base default 100)")
-    String MAX_VERSIONS = "poc.max-versions";
-
-    @ConfigKey(description = "Example key with empty base default")
-    String SAMPLE_EMPTY = "poc.sample-empty";
-
-    @ConfigKey(
-        description =
             "Whether sharing is enabled (per account/cos/domain override; base default true)")
     String SHARES_ENABLED = "shares-enabled";
   }
