@@ -4,8 +4,6 @@
 
 package com.zextras.carbonio.files.graphql.api;
 
-import static com.zextras.carbonio.files.Constants.Config.Link.MAX_LINKS_PER_NODE;
-
 import com.zextras.carbonio.files.Constants.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
@@ -21,6 +19,7 @@ import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.LinkModel;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
+import com.zextras.carbonio.files.graphql.support.LinkCreationHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.quarkus.security.Authenticated;
@@ -29,9 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Id;
 import org.eclipse.microprofile.graphql.Mutation;
@@ -49,6 +46,7 @@ public class LinkApi {
   @Inject PermissionsChecker permissionsChecker;
   @Inject GraphQLInputValidator validator;
   @Inject @AuthenticatedUser UserMyself requester;
+  @Inject LinkCreationHelper linkCreationHelper;
 
   private static LinkModel toModel(Link link, String domain, boolean isFolder) {
     String url =
@@ -128,26 +126,25 @@ public class LinkApi {
         .checkLinkAccessCode(accessCode)
         .validate();
     String me = requester.getId().getUserId();
-    Optional<Node> optNode = nodeRepository.getNode(nodeId);
-    if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_SHARE)
-        || optNode.isEmpty()
-        || optNode.get().getNodeType() == NodeType.ROOT) {
+    try {
+      Link created =
+          linkCreationHelper.createPublicLink(
+              me,
+              nodeId,
+              Optional.ofNullable(expiresAt),
+              Optional.ofNullable(description),
+              Optional.ofNullable(accessCode));
+      boolean isFolder =
+          nodeRepository
+              .getNode(nodeId)
+              .map(n -> n.getNodeType().equals(NodeType.FOLDER))
+              .orElse(false);
+      return toModel(created, requester.getDomain(), isFolder);
+    } catch (LinkCreationHelper.LinkLimitReachedException e) {
+      throw FilesGraphQLException.of(ErrorCodes.LINK_LIMIT_EXCEEDED, "node_id", nodeId);
+    } catch (LinkCreationHelper.NodeAccessException e) {
       throw FilesGraphQLException.of(ErrorCodes.NODE_WRITE_ERROR, "node_id", nodeId);
     }
-    if (linkRepository.getLinkCountByNode(optNode.get()) >= MAX_LINKS_PER_NODE) {
-      throw FilesGraphQLException.of(ErrorCodes.LINK_LIMIT_EXCEEDED, "node_id", nodeId);
-    }
-    String publicId = RandomStringUtils.secure().nextAlphanumeric(50);
-    Link created =
-        linkRepository.createLink(
-            UUID.randomUUID().toString(),
-            nodeId,
-            publicId,
-            Optional.ofNullable(expiresAt),
-            Optional.ofNullable(description),
-            Optional.ofNullable(accessCode));
-    boolean isFolder = optNode.get().getNodeType().equals(NodeType.FOLDER);
-    return toModel(created, requester.getDomain(), isFolder);
   }
 
   @Mutation("updateLink")

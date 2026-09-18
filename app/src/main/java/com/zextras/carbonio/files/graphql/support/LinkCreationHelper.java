@@ -21,13 +21,10 @@ import java.util.UUID;
 import org.apache.commons.lang3.RandomStringUtils;
 
 /**
- * Trusted-caller-reusable public-link business logic, extracted verbatim from the retired {@code
- * LinkDataFetcher} (schema-first graphql-java) so it survives the code-first cutover. The GraphQL
- * layer (code-first {@code LinkApi} {@code @GraphQLApi}) keeps its own request-scoped {@code
- * createLink} mutation; this bean is the single home for the identical logic reused by the
- * trusted-caller REST surface ({@code InternalNodeResource}: {@code POST /internal/links}), which
- * carries the acting {@code userId} explicitly instead of resolving it from the authenticated
- * cookie.
+ * Shared public-link business logic, originally extracted from the retired {@code LinkDataFetcher}
+ * (schema-first graphql-java). Both the code-first GraphQL layer ({@code LinkApi @GraphQLApi}) and
+ * the trusted-caller REST surface ({@code InternalNodeResource}: {@code POST /internal/links})
+ * delegate to this bean so the creation logic lives in exactly one place.
  */
 @ApplicationScoped
 public class LinkCreationHelper {

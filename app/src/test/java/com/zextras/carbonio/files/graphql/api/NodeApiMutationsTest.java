@@ -31,11 +31,11 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
-import com.zextras.carbonio.files.graphql.errors.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.FolderModel;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
+import com.zextras.carbonio.files.graphql.support.NodeCreationHelper;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
@@ -65,8 +65,8 @@ class NodeApiMutationsTest {
   private NotificationRepository notificationRepository;
   private TombstoneRepository tombstoneRepository;
   private Filestore fileStore;
-  private CopyFailureClassifier copyFailureClassifier;
   private ShareCascadeHelper shareCascade;
+  private NodeCreationHelper nodeCreationHelper;
   private FilesConfig filesConfig;
   private NodeApi nodeApi;
 
@@ -79,13 +79,24 @@ class NodeApiMutationsTest {
     notificationRepository = mock(NotificationRepository.class);
     tombstoneRepository = mock(TombstoneRepository.class);
     fileStore = mock(Filestore.class);
-    copyFailureClassifier = mock(CopyFailureClassifier.class);
     shareCascade = mock(ShareCascadeHelper.class);
     filesConfig = mock(FilesConfig.class);
 
     UserMyself requester = mock(UserMyself.class);
     UserId userId = new UserId(REQUESTER_ID);
     when(requester.getId()).thenReturn(userId);
+
+    nodeCreationHelper =
+        new NodeCreationHelper(
+            nodeRepository,
+            shareRepository,
+            notificationRepository,
+            filesConfig,
+            fileVersionRepository,
+            tombstoneRepository,
+            fileStore,
+            permissionsChecker,
+            shareCascade);
 
     nodeApi = new NodeApi();
     nodeApi.nodeRepository = nodeRepository;
@@ -95,9 +106,9 @@ class NodeApiMutationsTest {
     nodeApi.notificationRepository = notificationRepository;
     nodeApi.tombstoneRepository = tombstoneRepository;
     nodeApi.fileStore = fileStore;
-    nodeApi.copyFailureClassifier = copyFailureClassifier;
     nodeApi.shareCascade = shareCascade;
     nodeApi.filesConfig = filesConfig;
+    nodeApi.nodeCreationHelper = nodeCreationHelper;
     nodeApi.validator = new GraphQLInputValidator();
     nodeApi.requester = requester;
   }

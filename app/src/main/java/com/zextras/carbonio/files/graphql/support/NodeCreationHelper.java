@@ -41,13 +41,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Trusted-caller-reusable node business logic, extracted verbatim from the retired {@code
- * NodeDataFetcher} (schema-first graphql-java) so it survives the code-first cutover. The GraphQL
- * layer (code-first {@code NodeApi} {@code @GraphQLApi}) keeps its own request-scoped copies of
- * these operations; this bean is the single home for the identical logic reused by the
- * trusted-caller REST surface ({@code InternalNodeResource}: {@code POST /internal/folders} and
- * {@code DELETE /internal/nodes}), which carries the acting {@code userId} explicitly instead of
- * resolving it from the authenticated cookie.
+ * Shared node business logic, originally extracted from the retired {@code NodeDataFetcher}
+ * (schema-first graphql-java). Both the code-first GraphQL layer ({@code NodeApi @GraphQLApi}) and
+ * the trusted-caller REST surface ({@code InternalNodeResource}: {@code POST /internal/folders} and
+ * {@code DELETE /internal/nodes}) delegate to this bean so each operation lives in exactly one
+ * place.
  */
 @ApplicationScoped
 public class NodeCreationHelper {

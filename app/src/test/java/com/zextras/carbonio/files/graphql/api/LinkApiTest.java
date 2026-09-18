@@ -26,6 +26,7 @@ import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.LinkModel;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
+import com.zextras.carbonio.files.graphql.support.LinkCreationHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import java.util.List;
@@ -45,6 +46,7 @@ class LinkApiTest {
   private LinkRepository linkRepository;
   private NodeRepository nodeRepository;
   private PermissionsChecker permissionsChecker;
+  private LinkCreationHelper linkCreationHelper;
   private LinkApi linkApi;
 
   @BeforeEach
@@ -52,6 +54,7 @@ class LinkApiTest {
     linkRepository = mock(LinkRepository.class);
     nodeRepository = mock(NodeRepository.class);
     permissionsChecker = mock(PermissionsChecker.class);
+    linkCreationHelper = new LinkCreationHelper(linkRepository, nodeRepository, permissionsChecker);
 
     UserMyself requester = mock(UserMyself.class);
     when(requester.getId()).thenReturn(new UserId(REQUESTER_ID));
@@ -61,6 +64,7 @@ class LinkApiTest {
     linkApi.linkRepository = linkRepository;
     linkApi.nodeRepository = nodeRepository;
     linkApi.permissionsChecker = permissionsChecker;
+    linkApi.linkCreationHelper = linkCreationHelper;
     linkApi.validator = new GraphQLInputValidator();
     linkApi.requester = requester;
   }

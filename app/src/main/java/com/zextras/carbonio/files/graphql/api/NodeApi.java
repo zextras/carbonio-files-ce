@@ -25,7 +25,6 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationReposi
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
-import com.zextras.carbonio.files.graphql.errors.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.FileModel;
@@ -37,6 +36,7 @@ import com.zextras.carbonio.files.graphql.model.NodeType;
 import com.zextras.carbonio.files.graphql.model.PermissionsModel;
 import com.zextras.carbonio.files.graphql.model.RootModel;
 import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
+import com.zextras.carbonio.files.graphql.support.NodeCreationHelper;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
@@ -100,8 +100,8 @@ public class NodeApi {
   @Inject TombstoneRepository tombstoneRepository;
   @Inject NotificationRepository notificationRepository;
   @Inject Filestore fileStore;
-  @Inject CopyFailureClassifier copyFailureClassifier;
   @Inject ShareCascadeHelper shareCascade;
+  @Inject NodeCreationHelper nodeCreationHelper;
 
   // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -323,59 +323,14 @@ public class NodeApi {
       @Name("destination_id") @NonNull String destinationId, @Name("name") @NonNull String name)
       throws FilesGraphQLException {
     String me = requester.getId().getUserId();
-    if (!permissionsChecker.getPermissions(destinationId, me).has(SharePermission.READ_AND_WRITE)) {
+    try {
+      Node createdFolder = nodeCreationHelper.createFolder(me, destinationId, name, requester);
+      return NodeModelFactory.from(createdFolder, null, me);
+    } catch (NodeCreationHelper.NodeAccessException e) {
       throw FilesGraphQLException.of(ErrorCodes.NODE_WRITE_ERROR, "destination_id", destinationId);
+    } catch (NodeCreationHelper.NodeNotFoundException e) {
+      throw FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "destination_id", destinationId);
     }
-    Node parent =
-        nodeRepository
-            .getNode(destinationId)
-            .filter(
-                p ->
-                    com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER.equals(p.getNodeType())
-                        || com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                            p.getNodeType()))
-            .orElseThrow(
-                () ->
-                    FilesGraphQLException.of(
-                        ErrorCodes.NODE_NOT_FOUND, "destination_id", destinationId));
-
-    String ownerId =
-        (com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(parent.getNodeType())
-                || me.equals(parent.getOwnerId()))
-            ? me
-            : parent.getOwnerId();
-
-    String folderName = searchAlternativeName(nodeRepository, name.trim(), parent.getId(), ownerId);
-
-    Node createdFolder =
-        nodeRepository.createNewNode(
-            UUID.randomUUID().toString(),
-            me,
-            ownerId,
-            parent.getId(),
-            folderName,
-            "",
-            com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER,
-            com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(parent.getNodeType())
-                ? destinationId
-                : parent.getAncestorIds() + "," + destinationId,
-            0L);
-
-    List<String> usersToNotify = createIndirectShare(destinationId, createdFolder);
-    usersToNotify.remove(me);
-
-    if (!parent.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
-        && !me.equals(parent.getOwnerId())
-        && !usersToNotify.contains(parent.getOwnerId())) {
-      usersToNotify.add(parent.getOwnerId());
-    }
-
-    if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled()) {
-      notificationRepository.createAddedNodeNotification(
-          createdFolder, parent, requester, AddedNodeType.CREATE, usersToNotify);
-    }
-
-    return NodeModelFactory.from(createdFolder, null, me);
   }
 
   @Mutation("updateNode")
