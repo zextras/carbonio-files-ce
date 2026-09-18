@@ -82,6 +82,12 @@ SPDX-License-Identifier: AGPL-3.0-only
       <version>${carbonio-quarkus-extensions.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.zextras.carbonio.quarkus</groupId>
+      <artifactId>carbonio-quarkus-extensions-config-hierarchical</artifactId>
+      <version>${carbonio-quarkus-extensions.version}</version>
+    </dependency>
+
     <!-- systemd readiness (FFM sd_notify); requires preview + native-access at runtime. -->
     <dependency>
       <groupId>com.zextras.carbonio</groupId>
