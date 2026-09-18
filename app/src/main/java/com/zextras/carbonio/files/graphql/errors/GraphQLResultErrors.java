@@ -355,4 +355,21 @@ public class GraphQLResultErrors {
         .path(path.toList())
         .build();
   }
+
+  /**
+   * This method generates an error when the requester has sharing disabled via hierarchical config.
+   *
+   * @param path the graphQl resultPath extrapolated from the environment to insert into the error
+   *     to know in which part of the tree the error happened
+   * @return
+   */
+  public static GraphQLError sharesDisabled(ResultPath path) {
+    Map<String, Object> errorData = new HashMap<>();
+    errorData.put("errorCode", ErrorCodes.SHARES_DISABLED);
+    return GraphqlErrorException.newErrorException()
+        .message("Sharing is disabled for this user")
+        .extensions(errorData)
+        .path(path.toList())
+        .build();
+  }
 }

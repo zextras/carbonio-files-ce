@@ -18,6 +18,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.graphql.SyncCompletableFuture;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.files.utilities.SharesEnabledGuard;
 import graphql.GraphQLError;
 import graphql.execution.AbortExecutionException;
 import graphql.execution.DataFetcherResult;
@@ -66,6 +67,7 @@ public class ShareDataFetcher {
   private final NodeRepository nodeRepository;
   private final PermissionsChecker permissionsChecker;
   private final NotificationRepository notificationRepository;
+  private final SharesEnabledGuard sharesEnabledGuard;
 
   @Inject
   public ShareDataFetcher(
@@ -73,12 +75,14 @@ public class ShareDataFetcher {
       NodeRepository nodeRepository,
       ShareRepository shareRepository,
       PermissionsChecker permissionsChecker,
-      NotificationRepository notificationRepository) {
+      NotificationRepository notificationRepository,
+      SharesEnabledGuard sharesEnabledGuard) {
     this.filesConfig = filesConfig;
     this.shareRepository = shareRepository;
     this.nodeRepository = nodeRepository;
     this.permissionsChecker = permissionsChecker;
     this.notificationRepository = notificationRepository;
+    this.sharesEnabledGuard = sharesEnabledGuard;
   }
 
   private DataFetcherResult<Map<String, Object>> convertShareToDataFetcherResult(Share share) {
@@ -136,6 +140,13 @@ public class ShareDataFetcher {
                   (UserMyself)
                       environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
               String requesterId = requesterUser.getId().getUserId();
+              if (!sharesEnabledGuard.isEnabledFor(requesterId)) {
+                return new Builder<Map<String, Object>>()
+                    .error(
+                        GraphQLResultErrors.sharesDisabled(
+                            environment.getExecutionStepInfo().getPath()))
+                    .build();
+              }
               String sharedNodeId =
                   environment.getArgument(Constants.GraphQL.InputParameters.Share.NODE_ID);
               String targetUserId =
@@ -268,6 +279,13 @@ public class ShareDataFetcher {
                           environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER))
                       .getId()
                       .getUserId();
+              if (!sharesEnabledGuard.isEnabledFor(requesterId)) {
+                return new Builder<Map<String, Object>>()
+                    .error(
+                        GraphQLResultErrors.sharesDisabled(
+                            environment.getExecutionStepInfo().getPath()))
+                    .build();
+              }
               String sharedNodeId =
                   environment.getArgument(Constants.GraphQL.InputParameters.Share.NODE_ID);
               String targetUserId =
@@ -300,6 +318,19 @@ public class ShareDataFetcher {
   public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>>
       getSharesFetcher() {
     return environment -> {
+      String requesterId =
+          ((UserMyself) environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER))
+              .getId()
+              .getUserId();
+      if (!sharesEnabledGuard.isEnabledFor(requesterId)) {
+        return CompletableFuture.completedFuture(
+            Collections.singletonList(
+                new Builder<Map<String, Object>>()
+                    .error(
+                        GraphQLResultErrors.sharesDisabled(
+                            environment.getExecutionStepInfo().getPath()))
+                    .build()));
+      }
       String sharedNodeId =
           ((Map<String, String>) environment.getLocalContext()).get(Constants.GraphQL.Node.ID);
 
@@ -379,6 +410,13 @@ public class ShareDataFetcher {
                           environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER))
                       .getId()
                       .getUserId();
+              if (!sharesEnabledGuard.isEnabledFor(requesterId)) {
+                return DataFetcherResult.<List<DataFetcherResult<Map<String, Object>>>>newResult()
+                    .error(
+                        GraphQLResultErrors.sharesDisabled(
+                            environment.getExecutionStepInfo().getPath()))
+                    .build();
+              }
               String sharedNodeId =
                   environment.getArgument(Constants.GraphQL.InputParameters.Share.NODE_ID);
               List<String> targetUserIds =
