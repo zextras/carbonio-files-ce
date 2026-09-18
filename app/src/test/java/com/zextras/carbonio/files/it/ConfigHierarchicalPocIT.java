@@ -4,12 +4,13 @@
 
 package com.zextras.carbonio.files.it;
 
+import static com.zextras.carbonio.files.config.HierarchicalConfigKeys.HierarchicalConfig.MAX_VERSIONS;
+import static com.zextras.carbonio.files.config.HierarchicalConfigKeys.HierarchicalConfig.SAMPLE_EMPTY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigAdminService;
 import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigResolver;
-import com.zextras.carbonio.quarkus.extensions.confighierarchical.ScopeType;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
@@ -20,39 +21,71 @@ import org.junit.jupiter.api.Test;
 @QuarkusTestResource(FilesStackTestResource.class)
 class ConfigHierarchicalPocIT {
 
+  private static final String ACC = "poc-acc1";
+  private static final String COS = "poc-cos1";
+  private static final String DOM = "poc-dom1";
+
   @Inject ConfigResolver resolver;
 
   @Inject ConfigAdminService adminService;
 
   @AfterEach
   void cleanup() {
-    adminService.delete(ScopeType.ACCOUNT, "acc1", "poc.key");
-    adminService.delete(ScopeType.COS, "cos1", "poc.key");
-    adminService.delete(ScopeType.DOMAIN, "dom1", "poc.key");
-    adminService.delete(ScopeType.ACCOUNT, "acc1", "poc.default.key");
+    adminService.deleteForAccount(ACC, MAX_VERSIONS);
+    adminService.deleteForCos(COS, MAX_VERSIONS);
+    adminService.deleteForDomain(DOM, MAX_VERSIONS);
+    adminService.deleteForAccount(ACC, SAMPLE_EMPTY);
+    adminService.deleteForCos(COS, SAMPLE_EMPTY);
+    adminService.deleteForDomain(DOM, SAMPLE_EMPTY);
   }
 
   @Test
-  void hierarchyPrecedence() {
-    adminService.put(ScopeType.ACCOUNT, "acc1", "poc.key", "vAcc");
-    adminService.put(ScopeType.COS, "cos1", "poc.key", "vCos");
-    adminService.put(ScopeType.DOMAIN, "dom1", "poc.key", "vDom");
+  void skipAbsent_cosWinsWhenNoAccountRow() {
+    adminService.setForDomain(DOM, MAX_VERSIONS, "vDom");
+    adminService.setForCos(COS, MAX_VERSIONS, "vCos");
 
-    assertThat(resolver.get("acc1", "cos1", "dom1", "poc.key")).hasValue("vAcc");
-    assertThat(resolver.get(null, "cos1", "dom1", "poc.key")).hasValue("vCos");
-    assertThat(resolver.get(null, null, "dom1", "poc.key")).hasValue("vDom");
+    assertThat(resolver.get(ACC, COS, DOM, MAX_VERSIONS)).hasValue("vCos");
   }
 
   @Test
-  void nullScopesWithNoRowsFallsBack() {
-    assertThat(resolver.get(null, null, null, "poc.key")).isEmpty();
+  void skipAbsent_accountWinsWhenNoCosRow() {
+    adminService.setForAccount(ACC, MAX_VERSIONS, "vAcc");
+    adminService.setForDomain(DOM, MAX_VERSIONS, "vDom");
+
+    assertThat(resolver.get(ACC, COS, DOM, MAX_VERSIONS)).hasValue("vAcc");
   }
 
   @Test
-  void globalDefaultAndDbOverride() {
-    assertThat(resolver.get(null, null, null, "poc.default.key")).hasValue("global-value");
+  void skipAbsent_domainWinsWhenOnlyDomainRow() {
+    adminService.setForDomain(DOM, MAX_VERSIONS, "vDom");
 
-    adminService.put(ScopeType.ACCOUNT, "acc1", "poc.default.key", "override");
-    assertThat(resolver.get("acc1", null, null, "poc.default.key")).hasValue("override");
+    assertThat(resolver.get(ACC, COS, DOM, MAX_VERSIONS)).hasValue("vDom");
+  }
+
+  @Test
+  void namespacedDefault_noRowsReturnBaseDefault() {
+    assertThat(resolver.get(ACC, COS, DOM, MAX_VERSIONS)).hasValue("100");
+  }
+
+  @Test
+  void namespacedDefault_scopeRowOverridesBaseDefault() {
+    adminService.setForAccount(ACC, MAX_VERSIONS, "99");
+
+    assertThat(resolver.get(ACC, COS, DOM, MAX_VERSIONS)).hasValue("99");
+  }
+
+  @Test
+  void emptyDefault_noRowsReturnsEmpty() {
+    assertThat(resolver.get(ACC, COS, DOM, SAMPLE_EMPTY)).isEmpty();
+  }
+
+  @Test
+  void rawGetter_returnsOnlyDomainRowWithNoHierarchy() {
+    adminService.setForAccount(ACC, MAX_VERSIONS, "vAcc");
+    adminService.setForDomain(DOM, MAX_VERSIONS, "vDom");
+
+    assertThat(adminService.getRawFromDomain(DOM, MAX_VERSIONS)).hasValue("vDom");
+    assertThat(adminService.getRawFromAccount(ACC, MAX_VERSIONS)).hasValue("vAcc");
+    assertThat(adminService.getRawFromCos(COS, MAX_VERSIONS)).isEmpty();
   }
 }

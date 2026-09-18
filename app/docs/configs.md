@@ -39,3 +39,12 @@ Overridable by Consul KV
 | `carbonio-files/server/max-threads` | *(not set)* | Quarkus default: 200 |
 | `carbonio-files/server/queue-size` | *(not set)* | Quarkus default: unbounded |
 
+## Hierarchical Config
+
+Per-account/cos/domain overridable at runtime; value below is the base default
+
+| Key | Default |
+| --- | ------- |
+| `poc.max-versions` | `100` |
+| `poc.sample-empty` | *(not set)* |
+
