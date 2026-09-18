@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.graphql.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -15,6 +16,8 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
+import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
@@ -37,16 +40,19 @@ class PublicApiTest {
 
   private LinkRepository linkRepository;
   private NodeRepository nodeRepository;
+  private FileVersionRepository fileVersionRepository;
   private PublicApi publicApi;
 
   @BeforeEach
   void setUp() {
     linkRepository = mock(LinkRepository.class);
     nodeRepository = mock(NodeRepository.class);
+    fileVersionRepository = mock(FileVersionRepository.class);
 
     publicApi = new PublicApi();
     publicApi.linkRepository = linkRepository;
     publicApi.nodeRepository = nodeRepository;
+    publicApi.fileVersionRepository = fileVersionRepository;
   }
 
   private Link mockLink(String nodeId, Optional<String> accessCode) {
@@ -80,7 +86,8 @@ class PublicApiTest {
     when(node.getNodeType()).thenReturn(NodeType.TEXT);
     when(node.getExtension()).thenReturn(Optional.of("txt"));
     when(node.getSize()).thenReturn(512L);
-    when(node.getFileVersions()).thenReturn(List.of(fv));
+    when(fileVersionRepository.getFileVersions(eq(id), eq(List.of(FileVersionSort.VERSION_DESC))))
+        .thenReturn(List.of(fv));
     return node;
   }
 

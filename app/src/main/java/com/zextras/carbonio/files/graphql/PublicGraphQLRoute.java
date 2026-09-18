@@ -34,6 +34,17 @@ import jakarta.enterprise.event.Observes;
 public class PublicGraphQLRoute {
 
   public void register(@Observes Router router) {
-    router.post("/public/graphql").handler(ctx -> ctx.reroute(HttpMethod.POST, "/graphql"));
+    for (String path : new String[] {"/public/graphql", "/public/graphql/"}) {
+      router
+          .post(path)
+          .handler(
+              ctx -> {
+                // Mark this routing context as originating from the public endpoint so that the
+                // FilesGraphQLAuthMechanism, which re-runs after reroute(), skips cookie validation
+                // and returns an anonymous identity for the rerouted /graphql dispatch.
+                ctx.put("files.auth.public.rerouted", Boolean.TRUE);
+                ctx.reroute(HttpMethod.POST, "/graphql");
+              });
+    }
   }
 }

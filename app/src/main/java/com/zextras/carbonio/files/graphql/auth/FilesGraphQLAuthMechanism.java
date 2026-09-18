@@ -10,7 +10,6 @@ import com.zextras.carbonio.files.dal.dao.UserStatus;
 import com.zextras.carbonio.files.dal.dao.UserType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import io.quarkus.security.AuthenticationFailedException;
-import io.quarkus.security.ForbiddenException;
 import io.quarkus.security.credential.Credential;
 import io.quarkus.security.identity.IdentityProviderManager;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -18,8 +17,10 @@ import io.quarkus.vertx.http.runtime.security.ChallengeData;
 import io.quarkus.vertx.http.runtime.security.HttpAuthenticationMechanism;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.Cookie;
+import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import java.security.Permission;
 import java.security.Principal;
@@ -28,10 +29,30 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * HTTP-level authentication mechanism for the SmallRye GraphQL endpoint ({@code POST /graphql}).
+ *
+ * <p>The mechanism handles ONLY requests whose ORIGINAL HTTP path starts with {@code /graphql}
+ * (checked via {@code ctx.request().path()}, which is NOT updated by Vert.x {@code reroute()}).
+ * This ensures that requests originally sent to {@code /public/graphql} (rerouted by {@link
+ * com.zextras.carbonio.files.graphql.PublicGraphQLRoute} to {@code /graphql}) receive an anonymous
+ * identity and can reach the {@code @PermitAll} public resolvers, while direct {@code /graphql}
+ * calls without a valid {@code ZM_AUTH_TOKEN} cookie are rejected at HTTP level (CO-3482).
+ *
+ * <p>Auth/forbidden challenge bodies: for 401 challenges ({@link AuthenticationFailedException}),
+ * Quarkus calls {@link #sendChallenge} on this mechanism — overridden to write the stored message
+ * as the plain-text body. For 403 rejections ({@link ForbiddenException}), Quarkus calls {@code
+ * ctx.fail(403)} which bypasses the mechanism's challenge path entirely. A Vert.x failure handler
+ * registered in {@link #registerForbiddenBodyHandler(Router)} intercepts these 403 failures on the
+ * {@code /graphql} routes and writes the stored message body (same routing-context key).
+ */
 @ApplicationScoped
 public class FilesGraphQLAuthMechanism implements HttpAuthenticationMechanism {
 
   public static final String IDENTITY_ATTRIBUTE = "carbonio.files.userMyself";
+
+  static final String CTX_STATUS = "files.auth.status";
+  static final String CTX_MESSAGE = "files.auth.message";
 
   private final UserRepository userRepository;
 
@@ -40,16 +61,53 @@ public class FilesGraphQLAuthMechanism implements HttpAuthenticationMechanism {
     this.userRepository = userRepository;
   }
 
+  /**
+   * Registers a router-level 403 error handler that writes the stored challenge message as the
+   * response body. Quarkus handles {@link ForbiddenException} thrown from {@code authenticate()}
+   * via {@code ctx.fail(403, ex)}, which bypasses {@link #sendChallenge} entirely — the Vert.x
+   * {@code router.errorHandler(403, ...)} hook is the correct intercept point.
+   *
+   * <p>The handler only acts when {@code CTX_MESSAGE} is present (set exclusively by this
+   * mechanism), so it does not interfere with other 403 responses in the application. If the
+   * message is absent, the handler calls {@code ctx.next()} to pass control to Vert.x's default 403
+   * responder.
+   */
+  public void registerForbiddenBodyHandler(@Observes Router router) {
+    router.errorHandler(
+        403,
+        ctx -> {
+          if (ctx.response().ended()) {
+            return;
+          }
+          Object msg = ctx.get(CTX_MESSAGE);
+          String body = msg instanceof String s ? s : "Forbidden";
+          ctx.response().setStatusCode(403).end(body);
+        });
+  }
+
   @Override
   public Uni<SecurityIdentity> authenticate(RoutingContext ctx, IdentityProviderManager idm) {
+    // Requests rerouted from /public/graphql carry a routing-context marker set by
+    // PublicGraphQLRoute before it calls ctx.reroute(). Both ctx.normalizedPath() and
+    // ctx.request().path() reflect the NEW path (/graphql) after the reroute — using either would
+    // mis-classify the rerouted request as a direct /graphql call and reject it as unauthenticated.
+    // The marker persists across the reroute because ctx is the same object; checking it first
+    // lets us return an anonymous identity and allow @PermitAll resolvers to run.
+    if (Boolean.TRUE.equals(ctx.get("files.auth.public.rerouted"))) {
+      return Uni.createFrom().nullItem();
+    }
+
     String path = ctx.normalizedPath();
     if (!"/graphql".equals(path) && !path.startsWith("/graphql/")) {
       return Uni.createFrom().nullItem();
     }
 
+    // From here: direct POST /graphql (or /graphql/) requests without the public-reroute marker.
     Cookie zmCookie = ctx.request().getCookie(Headers.COOKIE_ZM_AUTH_TOKEN);
     if (zmCookie == null) {
-      return Uni.createFrom().nullItem();
+      ctx.put(CTX_STATUS, 401);
+      ctx.put(CTX_MESSAGE, "Missing cookies");
+      return Uni.createFrom().failure(new AuthenticationFailedException("Missing cookies"));
     }
     String header = ctx.request().getHeader("Cookie");
     String cookies =
@@ -59,16 +117,36 @@ public class FilesGraphQLAuthMechanism implements HttpAuthenticationMechanism {
 
     Optional<UserMyself> optUser = userRepository.getUserMyselfByCookie(cookies);
     if (optUser.isEmpty()) {
-      return Uni.createFrom().failure(new AuthenticationFailedException("Invalid token"));
+      ctx.put(CTX_STATUS, 401);
+      ctx.put(CTX_MESSAGE, "Unable to find requested user");
+      return Uni.createFrom()
+          .failure(new AuthenticationFailedException("Unable to find requested user"));
     }
     UserMyself user = optUser.get();
-    if (!UserStatus.ACTIVE.equals(user.getStatus())
-        || UserType.GUEST.equals(user.getType())
-        || !"TRUE"
-            .equals(
-                user.getCarbonioAttributes()
-                    .getOrDefault("carbonioFeatureFilesEnabled", "FALSE"))) {
-      return Uni.createFrom().failure(new ForbiddenException());
+
+    // For forbidden cases (authenticated-but-not-entitled), throw AuthenticationFailedException
+    // with
+    // status 403 stored in the routing context. Quarkus calls sendChallenge() for this exception
+    // type (not for ForbiddenException, which Quarkus handles with an empty 403 that bypasses
+    // sendChallenge entirely). Our sendChallenge() override reads the stored status/message and
+    // writes the correct HTTP body, preserving the legacy FilesAuthenticationFilter contract.
+    if (!UserStatus.ACTIVE.equals(user.getStatus())) {
+      ctx.put(CTX_STATUS, 403);
+      ctx.put(CTX_MESSAGE, "User is not active");
+      return Uni.createFrom().failure(new AuthenticationFailedException("User is not active"));
+    }
+    if (UserType.GUEST.equals(user.getType())) {
+      ctx.put(CTX_STATUS, 403);
+      ctx.put(CTX_MESSAGE, "User is not internal");
+      return Uni.createFrom().failure(new AuthenticationFailedException("User is not internal"));
+    }
+    if (!"TRUE"
+        .equals(
+            user.getCarbonioAttributes().getOrDefault("carbonioFeatureFilesEnabled", "FALSE"))) {
+      ctx.put(CTX_STATUS, 403);
+      ctx.put(CTX_MESSAGE, "Files feature is not enabled for user");
+      return Uni.createFrom()
+          .failure(new AuthenticationFailedException("Files feature is not enabled for user"));
     }
 
     Map<String, Object> attrs = new HashMap<>();
@@ -132,9 +210,43 @@ public class FilesGraphQLAuthMechanism implements HttpAuthenticationMechanism {
     return Uni.createFrom().item(identity);
   }
 
+  /**
+   * Writes the stored challenge message (set by {@link #authenticate} into the routing-context
+   * attributes) as the plain-text HTTP response body, preserving the status/message contract that
+   * the legacy {@code FilesAuthenticationFilter} wrote directly: 401 for genuine auth failures
+   * (missing/unresolvable credentials) and 403 for authenticated-but-not-entitled users (CO-3482).
+   *
+   * <p>Called by Quarkus for {@link AuthenticationFailedException} (401 path). For {@link
+   * ForbiddenException} (403 path), Quarkus uses {@code ctx.fail(403)} and the failure handler
+   * registered by {@link #registerForbiddenBodyHandler(Router)} writes the body instead.
+   */
+  @Override
+  public Uni<Boolean> sendChallenge(RoutingContext ctx) {
+    Object rawStatus = ctx.get(CTX_STATUS);
+    Object rawMessage = ctx.get(CTX_MESSAGE);
+    int status = rawStatus instanceof Integer ? (Integer) rawStatus : 401;
+    String message = rawMessage instanceof String ? (String) rawMessage : "Unauthorized";
+    return Uni.createFrom()
+        .emitter(
+            emitter ->
+                ctx.response()
+                    .setStatusCode(status)
+                    .end(message)
+                    .onComplete(
+                        ar -> {
+                          if (ar.succeeded()) {
+                            emitter.complete(true);
+                          } else {
+                            emitter.fail(ar.cause());
+                          }
+                        }));
+  }
+
   @Override
   public Uni<ChallengeData> getChallenge(RoutingContext ctx) {
-    return Uni.createFrom().item(new ChallengeData(401, null, "Unauthorized"));
+    Object rawStatus = ctx.get(CTX_STATUS);
+    int status = rawStatus instanceof Integer ? (Integer) rawStatus : 401;
+    return Uni.createFrom().item(new ChallengeData(status, null, null));
   }
 
   @Override
