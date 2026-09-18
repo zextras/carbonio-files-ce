@@ -31,12 +31,12 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
-import com.zextras.carbonio.files.graphql.datafetchers.ShareDataFetcher;
 import com.zextras.carbonio.files.graphql.errors.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.FolderModel;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
+import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.filestore.api.Filestore;
@@ -66,7 +66,7 @@ class NodeApiMutationsTest {
   private TombstoneRepository tombstoneRepository;
   private Filestore fileStore;
   private CopyFailureClassifier copyFailureClassifier;
-  private ShareDataFetcher shareDataFetcher;
+  private ShareCascadeHelper shareCascade;
   private FilesConfig filesConfig;
   private NodeApi nodeApi;
 
@@ -80,7 +80,7 @@ class NodeApiMutationsTest {
     tombstoneRepository = mock(TombstoneRepository.class);
     fileStore = mock(Filestore.class);
     copyFailureClassifier = mock(CopyFailureClassifier.class);
-    shareDataFetcher = mock(ShareDataFetcher.class);
+    shareCascade = mock(ShareCascadeHelper.class);
     filesConfig = mock(FilesConfig.class);
 
     UserMyself requester = mock(UserMyself.class);
@@ -96,7 +96,7 @@ class NodeApiMutationsTest {
     nodeApi.tombstoneRepository = tombstoneRepository;
     nodeApi.fileStore = fileStore;
     nodeApi.copyFailureClassifier = copyFailureClassifier;
-    nodeApi.shareDataFetcher = shareDataFetcher;
+    nodeApi.shareCascade = shareCascade;
     nodeApi.filesConfig = filesConfig;
     nodeApi.validator = new GraphQLInputValidator();
     nodeApi.requester = requester;

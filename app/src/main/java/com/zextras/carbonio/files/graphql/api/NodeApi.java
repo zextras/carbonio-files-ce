@@ -25,7 +25,6 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationReposi
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
-import com.zextras.carbonio.files.graphql.datafetchers.ShareDataFetcher;
 import com.zextras.carbonio.files.graphql.errors.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
@@ -36,6 +35,7 @@ import com.zextras.carbonio.files.graphql.model.NodeSort;
 import com.zextras.carbonio.files.graphql.model.NodeType;
 import com.zextras.carbonio.files.graphql.model.RootModel;
 import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
+import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.filestore.api.Filestore;
@@ -88,7 +88,7 @@ public class NodeApi {
   @Inject NotificationRepository notificationRepository;
   @Inject Filestore fileStore;
   @Inject CopyFailureClassifier copyFailureClassifier;
-  @Inject ShareDataFetcher shareDataFetcher;
+  @Inject ShareCascadeHelper shareCascade;
 
   // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -555,7 +555,7 @@ public class NodeApi {
                                           if (node.getNodeType()
                                               == com.zextras.carbonio.files.dal.dao.ebean.NodeType
                                                   .FOLDER) {
-                                            shareDataFetcher.cascadeUpsertShare(
+                                            shareCascade.cascadeUpsertShare(
                                                 node.getId(),
                                                 share.getTargetUserId(),
                                                 share.getPermissions(),
@@ -691,8 +691,7 @@ public class NodeApi {
                           .forEach(
                               share -> {
                                 shareRepository.deleteShare(nodeId, share.getTargetUserId());
-                                shareDataFetcher.cascadeDeleteShare(
-                                    nodeId, share.getTargetUserId());
+                                shareCascade.cascadeDeleteShare(nodeId, share.getTargetUserId());
                               });
 
                       List<String> usersToNotifyAdd = new ArrayList<>();
@@ -711,7 +710,7 @@ public class NodeApi {
                                       false,
                                       false,
                                       share.getExpiredAt());
-                                  shareDataFetcher.cascadeUpsertShare(
+                                  shareCascade.cascadeUpsertShare(
                                       nodeId,
                                       share.getTargetUserId(),
                                       share.getPermissions(),
@@ -1224,7 +1223,7 @@ public class NodeApi {
               if (nodeToShare
                   .getNodeType()
                   .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER)) {
-                shareDataFetcher.cascadeUpsertShare(
+                shareCascade.cascadeUpsertShare(
                     nodeToShare.getId(),
                     share.getTargetUserId(),
                     share.getPermissions(),

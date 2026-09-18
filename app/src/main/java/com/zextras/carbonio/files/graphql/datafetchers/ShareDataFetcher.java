@@ -17,6 +17,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationReposi
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.graphql.SyncCompletableFuture;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
+import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import graphql.GraphQLError;
 import graphql.execution.AbortExecutionException;
@@ -66,6 +67,7 @@ public class ShareDataFetcher {
   private final NodeRepository nodeRepository;
   private final PermissionsChecker permissionsChecker;
   private final NotificationRepository notificationRepository;
+  private final ShareCascadeHelper shareCascadeHelper;
 
   @Inject
   public ShareDataFetcher(
@@ -73,12 +75,14 @@ public class ShareDataFetcher {
       NodeRepository nodeRepository,
       ShareRepository shareRepository,
       PermissionsChecker permissionsChecker,
-      NotificationRepository notificationRepository) {
+      NotificationRepository notificationRepository,
+      ShareCascadeHelper shareCascadeHelper) {
     this.filesConfig = filesConfig;
     this.shareRepository = shareRepository;
     this.nodeRepository = nodeRepository;
     this.permissionsChecker = permissionsChecker;
     this.notificationRepository = notificationRepository;
+    this.shareCascadeHelper = shareCascadeHelper;
   }
 
   private DataFetcherResult<Map<String, Object>> convertShareToDataFetcherResult(Share share) {
@@ -220,21 +224,7 @@ public class ShareDataFetcher {
 
   public void cascadeUpsertShare(
       String nodeId, String userId, ACL permission, Optional<Long> expiredAt) {
-    List<String> childrenIds =
-        nodeRepository.getChildrenIds(nodeId, Optional.empty(), Optional.empty(), false);
-    if (!childrenIds.isEmpty()) {
-      List<Node> childrenNodes =
-          nodeRepository.getNodes(childrenIds, Optional.empty()).collect(Collectors.toList());
-      List<Node> folderNodes =
-          childrenNodes.stream()
-              .filter(n -> n.getNodeType() == NodeType.FOLDER)
-              .collect(Collectors.toList());
-
-      shareRepository.upsertShareBulk(childrenIds, userId, permission, false, false, expiredAt);
-
-      folderNodes.forEach(
-          folderNode -> cascadeUpsertShare(folderNode.getId(), userId, permission, expiredAt));
-    }
+    shareCascadeHelper.cascadeUpsertShare(nodeId, userId, permission, expiredAt);
   }
 
   /**
@@ -537,41 +527,6 @@ public class ShareDataFetcher {
   }
 
   public void cascadeDeleteShare(String nodeId, String userId) {
-    // NodeRepositoryImpl#getChildrenIds returns an unmodifiable list (Stream#toList), so it must be
-    // copied into a mutable one before appending the trashed children below.
-    List<String> childrenIds =
-        new ArrayList<>(
-            nodeRepository.getChildrenIds(nodeId, Optional.empty(), Optional.empty(), true));
-    List<String> trashedChildrenIds = nodeRepository.getTrashedNodeIdsByOldParent(nodeId);
-    childrenIds.addAll(trashedChildrenIds);
-    if (!childrenIds.isEmpty()) {
-      List<Node> childrenNodes =
-          nodeRepository.getNodes(childrenIds, Optional.empty()).collect(Collectors.toList());
-      // Retrieve all the direct shares of the children nodes of the folder
-      List<Share> shares =
-          shareRepository
-              .getShares(
-                  childrenNodes.stream().map(Node::getId).collect(Collectors.toList()), userId)
-              .stream()
-              .filter(Share::isDirect)
-              .collect(Collectors.toList());
-      // I delete the shares only for nodes that don't have a direct share for the user i'm
-      // propagating
-      List<Node> deletableNodes =
-          childrenNodes.stream()
-              .filter(
-                  node ->
-                      shares.stream().noneMatch(share -> share.getNodeId().equals(node.getId())))
-              .collect(Collectors.toList());
-      List<Node> folderNodes =
-          deletableNodes.stream()
-              .filter(n -> n.getNodeType() == NodeType.FOLDER)
-              .collect(Collectors.toList());
-
-      shareRepository.deleteSharesBulk(
-          deletableNodes.stream().map(Node::getId).collect(Collectors.toList()), userId);
-
-      folderNodes.forEach(folderNode -> cascadeDeleteShare(folderNode.getId(), userId));
-    }
+    shareCascadeHelper.cascadeDeleteShare(nodeId, userId);
   }
 }
