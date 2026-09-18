@@ -536,7 +536,7 @@ public class ShareDataFetcher {
             });
   }
 
-  void cascadeDeleteShare(String nodeId, String userId) {
+  public void cascadeDeleteShare(String nodeId, String userId) {
     // NodeRepositoryImpl#getChildrenIds returns an unmodifiable list (Stream#toList), so it must be
     // copied into a mutable one before appending the trashed children below.
     List<String> childrenIds =
