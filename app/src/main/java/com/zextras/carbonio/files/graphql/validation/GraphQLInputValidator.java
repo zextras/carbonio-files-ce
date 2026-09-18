@@ -40,6 +40,10 @@ public class GraphQLInputValidator {
     return new Chain().checkLinkId(value);
   }
 
+  public Chain checkLinkIds(List<String> values) {
+    return new Chain().checkLinkIds(values);
+  }
+
   public Chain checkLinkDescription(String value) {
     return new Chain().checkLinkDescription(value);
   }
@@ -98,6 +102,17 @@ public class GraphQLInputValidator {
 
     public Chain checkLinkId(String value) {
       validateLinkId(value).ifPresent(errors::add);
+      return this;
+    }
+
+    public Chain checkLinkIds(List<String> values) {
+      if (values != null) {
+        values.stream()
+            .map(this::validateLinkId)
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .forEach(errors::add);
+      }
       return this;
     }
 
