@@ -11,7 +11,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import org.apache.commons.validator.routines.EmailValidator;
+import java.util.regex.Pattern;
 
 @ApplicationScoped
 public class GraphQLInputValidator {
@@ -60,6 +60,12 @@ public class GraphQLInputValidator {
 
     private static final int LENGTH_NODE_ID = 36;
     private static final int LENGTH_LINK_ID = 36;
+
+    // RFC-lite email pattern: a local part, a single '@', a dotted domain with a 2+ char TLD.
+    // Replaces the removed commons-validator EmailValidator; keeps the same behaviour (invalid /
+    // null email -> error).
+    private static final Pattern EMAIL_PATTERN =
+        Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
     private final List<String> errors = new ArrayList<>();
 
@@ -170,7 +176,7 @@ public class GraphQLInputValidator {
     }
 
     private Optional<String> validateEmail(String email) {
-      return EmailValidator.getInstance().isValid(email)
+      return (email != null && EMAIL_PATTERN.matcher(email).matches())
           ? Optional.empty()
           : Optional.of("Invalid Email");
     }

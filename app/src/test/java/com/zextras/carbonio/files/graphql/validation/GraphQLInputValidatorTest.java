@@ -163,8 +163,22 @@ class GraphQLInputValidatorTest {
   }
 
   @Test
+  void checkEmailThrowsForEmailWithoutTld() {
+    // Inline RFC-lite regex (commons-validator removed) still requires a dotted domain with a TLD.
+    assertThatThrownBy(() -> validator.checkEmail("user@nodomain").validate())
+        .isInstanceOf(FilesGraphQLException.class)
+        .satisfies(
+            e -> {
+              FilesGraphQLException fge = (FilesGraphQLException) e;
+              assertThat(fge.getErrorCode()).isEqualTo(ErrorCodes.MISSING_FIELD);
+            });
+  }
+
+  @Test
   void checkEmailPassesForValidEmail() {
     assertThatCode(() -> validator.checkEmail("user@example.com").validate())
+        .doesNotThrowAnyException();
+    assertThatCode(() -> validator.checkEmail("first.last+tag@sub.example.co").validate())
         .doesNotThrowAnyException();
   }
 

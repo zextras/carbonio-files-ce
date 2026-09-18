@@ -14,8 +14,8 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
-import com.zextras.carbonio.files.graphql.datafetchers.LinkDataFetcher;
-import com.zextras.carbonio.files.graphql.datafetchers.NodeDataFetcher;
+import com.zextras.carbonio.files.graphql.support.LinkCreationHelper;
+import com.zextras.carbonio.files.graphql.support.NodeCreationHelper;
 import com.zextras.carbonio.files.rest.types.internal.CreateFolderRequest;
 import com.zextras.carbonio.files.rest.types.internal.CreatePublicLinkRequest;
 import com.zextras.carbonio.files.rest.types.internal.DeleteAllRequest;
@@ -62,11 +62,12 @@ import org.jboss.resteasy.reactive.RestResponse;
  *       {@link InternalNodeDto}. The optional {@code version} query parameter selects a historical
  *       file version's metadata (size/updatedAt/mimeType); when omitted the current version is
  *       returned, replicating the retired GraphQL {@code getNode(node_id, version)} query.
- *   <li>{@code POST /internal/folders} → {@link NodeDataFetcher#createFolder} (the extracted core
- *       of the GraphQL {@code createFolder} mutation).
- *   <li>{@code POST /internal/links} → {@link LinkDataFetcher#createPublicLink} + {@link
- *       LinkDataFetcher#buildPublicLinkUrl}, mirroring {@code FilesGrpcService#createPublicLink}.
- *   <li>{@code DELETE /internal/nodes} → {@link NodeDataFetcher#deleteAllNodesAndBlobsForUser}.
+ *   <li>{@code POST /internal/folders} → {@link NodeCreationHelper#createFolder} (the extracted
+ *       core of the code-first {@code createFolder} mutation).
+ *   <li>{@code POST /internal/links} → {@link LinkCreationHelper#createPublicLink} + {@link
+ *       LinkCreationHelper#buildPublicLinkUrl}, mirroring {@code
+ *       FilesGrpcService#createPublicLink}.
+ *   <li>{@code DELETE /internal/nodes} → {@link NodeCreationHelper#deleteAllNodesAndBlobsForUser}.
  * </ul>
  */
 @Path("/internal")
@@ -77,21 +78,21 @@ public class InternalNodeResource {
   private final NodeRepository nodeRepository;
   private final UserRepository userRepository;
   private final PermissionsChecker permissionsChecker;
-  private final NodeDataFetcher nodeDataFetcher;
-  private final LinkDataFetcher linkDataFetcher;
+  private final NodeCreationHelper nodeCreationHelper;
+  private final LinkCreationHelper linkCreationHelper;
 
   @Inject
   public InternalNodeResource(
       NodeRepository nodeRepository,
       UserRepository userRepository,
       PermissionsChecker permissionsChecker,
-      NodeDataFetcher nodeDataFetcher,
-      LinkDataFetcher linkDataFetcher) {
+      NodeCreationHelper nodeCreationHelper,
+      LinkCreationHelper linkCreationHelper) {
     this.nodeRepository = nodeRepository;
     this.userRepository = userRepository;
     this.permissionsChecker = permissionsChecker;
-    this.nodeDataFetcher = nodeDataFetcher;
-    this.linkDataFetcher = linkDataFetcher;
+    this.nodeCreationHelper = nodeCreationHelper;
+    this.linkCreationHelper = linkCreationHelper;
   }
 
   // -------------------------------------------------------------------------------------- getNode
@@ -189,15 +190,15 @@ public class InternalNodeResource {
   public RestResponse<InternalNodeIdDto> createFolder(CreateFolderRequest request) {
     try {
       Node createdFolder =
-          nodeDataFetcher.createFolder(
+          nodeCreationHelper.createFolder(
               request.userId(),
               request.destinationId(),
               request.name(),
               trustedRequester(request.userId()));
       return RestResponse.ok(new InternalNodeIdDto(createdFolder.getId()));
-    } catch (NodeDataFetcher.NodeAccessException e) {
+    } catch (NodeCreationHelper.NodeAccessException e) {
       return RestResponse.status(Status.FORBIDDEN);
-    } catch (NodeDataFetcher.NodeNotFoundException e) {
+    } catch (NodeCreationHelper.NodeNotFoundException e) {
       return RestResponse.status(Status.NOT_FOUND);
     }
   }
@@ -208,8 +209,8 @@ public class InternalNodeResource {
   /**
    * Mirrors {@code FilesGrpcService#createPublicLink} exactly: the requester's domain is resolved
    * the same trusted-caller way (a direct {@link UserRepository#getUserById} call, cookie ignored),
-   * then {@link LinkDataFetcher#createPublicLink} + {@link LinkDataFetcher#buildPublicLinkUrl}
-   * build the link, identically to the gRPC RPC.
+   * then {@link LinkCreationHelper#createPublicLink} + {@link
+   * LinkCreationHelper#buildPublicLinkUrl} build the link, identically to the gRPC RPC.
    */
   @POST
   @Path("/links")
@@ -231,17 +232,17 @@ public class InternalNodeResource {
 
     try {
       Link link =
-          linkDataFetcher.createPublicLink(
+          linkCreationHelper.createPublicLink(
               userId, nodeId, Optional.empty(), Optional.empty(), Optional.empty());
 
       String url =
-          linkDataFetcher.buildPublicLinkUrl(
+          linkCreationHelper.buildPublicLinkUrl(
               link, requester.get().getDomain(), node.get().getNodeType().equals(NodeType.FOLDER));
 
       return RestResponse.ok(new PublicLinkDto(url));
-    } catch (LinkDataFetcher.LinkLimitReachedException e) {
+    } catch (LinkCreationHelper.LinkLimitReachedException e) {
       return RestResponse.status(Status.TOO_MANY_REQUESTS);
-    } catch (LinkDataFetcher.NodeAccessException e) {
+    } catch (LinkCreationHelper.NodeAccessException e) {
       return RestResponse.status(Status.FORBIDDEN);
     }
   }
@@ -254,7 +255,7 @@ public class InternalNodeResource {
   @Consumes(MediaType.APPLICATION_JSON)
   @Blocking
   public RestResponse<DeleteAllResponse> deleteAllNodesAndBlobs(DeleteAllRequest request) {
-    nodeDataFetcher.deleteAllNodesAndBlobsForUser(request.userId());
+    nodeCreationHelper.deleteAllNodesAndBlobsForUser(request.userId());
     return RestResponse.ok(new DeleteAllResponse(true));
   }
 

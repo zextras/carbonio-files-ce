@@ -136,32 +136,6 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <!--
-      P3b: framework-agnostic GraphQL support layer + DataLoaders (schema-first graphql-java,
-      NOT SmallRye). graphql-java is managed by quarkus-bom (25.0); java-dataloader is not
-      BOM-managed, pinned explicitly. DataFetchers/providers/routes are ported in later phases
-      (P3c-P3e); this only needs the library on the compile classpath.
-    -->
-    <dependency>
-      <groupId>com.graphql-java</groupId>
-      <artifactId>graphql-java</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.graphql-java</groupId>
-      <artifactId>java-dataloader</artifactId>
-      <version>6.0.0</version>
-    </dependency>
-
-    <!--
-      commons-validator: GenericControllerEvaluator uses EmailValidator for GraphQL input
-      validation. Not BOM-managed; version matches the pin used by the old Guice+Netty stack.
-    -->
-    <dependency>
-      <groupId>commons-validator</groupId>
-      <artifactId>commons-validator</artifactId>
-      <version>1.9.0</version>
-    </dependency>
-
-    <!--
       commons-lang3: repository interfaces (NodeRepository, NotificationRepository) use
       org.apache.commons.lang3.tuple.ImmutablePair. Version managed by the imported quarkus-bom.
     -->
@@ -263,16 +237,26 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <!--
-      Code-first model annotations (Phase 2). Provides org.eclipse.microprofile.graphql.* (@Type,
-      @Interface, @Enum, @Name, @Id, @Ignore, @NonNull) and io.smallrye.graphql.api.Union.
-      BOM-managed; no version here. Compile scope so annotations are available at build time.
-      Do NOT add quarkus-smallrye-graphql (runtime extension) here — that comes in Phase 3 with
-      the first @GraphQLApi; adding it before any @Query triggers build-time augmentation failure.
+      Code-first model annotations. Provides org.eclipse.microprofile.graphql.* (@Type, @Interface,
+      @Enum, @Name, @Id, @Ignore, @NonNull) and io.smallrye.graphql.api.Union. BOM-managed; no
+      version. Compile scope so annotations are available at build time.
     -->
     <dependency>
       <groupId>io.smallrye</groupId>
       <artifactId>smallrye-graphql-api</artifactId>
       <scope>compile</scope>
+    </dependency>
+
+    <!--
+      Code-first GraphQL runtime extension. Serves the SmallRye code-first schema (auto-discovered
+      @GraphQLApi/@Type beans) at /graphql, replacing the retired schema-first graphql-java stack
+      (GraphQLProvider/PublicGraphQLProvider/FilesGraphQLRoutes and the datafetchers/dataloaders).
+      BOM-managed; no version. It also transitively brings graphql-java, which the TEST-scope
+      schema-contract gate (SchemaContractTest) uses to render/compare the schema.
+    -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-smallrye-graphql</artifactId>
     </dependency>
 
     <!-- Test -->
@@ -306,20 +290,19 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
     <!--
       Code-first schema-contract gate (SchemaContractTest): render the SmallRye code-first schema
-      in-JVM and assert it is semantically equal to the frozen docs/schema.graphql. TEST scope only:
-      the runtime quarkus-smallrye-graphql extension is added in a later phase with the first
-      @GraphQLApi (adding it now against an empty schema would break build-time augmentation).
+      in-JVM and assert it is semantically equal to the frozen docs/schema.graphql.
       SchemaBuilder.build(index) -> Schema model; Bootstrap.bootstrap(model, true) -> GraphQLSchema.
+      smallrye-graphql (core, provides Bootstrap) and graphql-java now reach BOTH the compile and the
+      test classpath TRANSITIVELY via quarkus-smallrye-graphql -> smallrye-graphql-cdi -> smallrye-
+      graphql, so they are NOT re-declared here: a direct test-scope smallrye-graphql declaration
+      would DEMOTE that transitive compile-scope engine off the runtime/compile classpath (the same
+      demotion hazard documented for jandex below). Only smallrye-graphql-schema-builder (the
+      build-time schema model builder, not on the runtime path) is added for the in-JVM gate.
       org.jboss.jandex (io.smallrye:jandex, used to build the index over the compiled model/api class
       dirs) is intentionally NOT declared here: it is already on the classpath transitively (and comes
       with smallrye-graphql-schema-builder for tests), and declaring it directly at test scope would
       demote the pre-existing runtime jandex off the compile/runtime classpath. BOM-managed versions.
     -->
-    <dependency>
-      <groupId>io.smallrye</groupId>
-      <artifactId>smallrye-graphql</artifactId>
-      <scope>test</scope>
-    </dependency>
     <dependency>
       <groupId>io.smallrye</groupId>
       <artifactId>smallrye-graphql-schema-builder</artifactId>
@@ -405,6 +388,13 @@ SPDX-License-Identifier: AGPL-3.0-only
           <argLine>${argLine} --enable-preview --enable-native-access=ALL-UNNAMED</argLine>
           <systemPropertyVariables>
             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+            <!--
+              The in-JVM code-first contract gate (SchemaContractTest) renders the schema via
+              SmallRye Bootstrap directly. smallrye-graphql-cdi's MicroProfileConfig now auto-enables
+              Apollo Federation (federation-graphql-java-support is on the classpath), which would add
+              a _Service type absent from the frozen contract; disable it to match the runtime config.
+            -->
+            <smallrye.graphql.federation.enabled>false</smallrye.graphql.federation.enabled>
           </systemPropertyVariables>
         </configuration>
       </plugin>
@@ -417,6 +407,7 @@ SPDX-License-Identifier: AGPL-3.0-only
           <argLine>${argLine} --enable-preview --enable-native-access=ALL-UNNAMED</argLine>
           <systemPropertyVariables>
             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+            <smallrye.graphql.federation.enabled>false</smallrye.graphql.federation.enabled>
           </systemPropertyVariables>
         </configuration>
         <executions>

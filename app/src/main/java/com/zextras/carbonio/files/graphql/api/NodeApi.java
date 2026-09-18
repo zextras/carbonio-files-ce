@@ -74,6 +74,16 @@ import org.eclipse.microprofile.graphql.Source;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Code-first GraphQL API for the Node/File/Folder types, served by quarkus-smallrye-graphql at
+ * {@code /graphql}.
+ *
+ * <p><strong>CE/Advanced-edition seam:</strong> in the code-first model the schema is derived by
+ * SmallRye from the annotated beans it auto-discovers, so an additional edition (e.g. Advanced)
+ * extends the schema simply by shipping more {@code @GraphQLApi}/{@code @Type} beans on the
+ * classpath — no {@code SchemaContributor}/{@code WiringContributor} registration is needed (those
+ * belonged to the retired schema-first graphql-java stack).
+ */
 @GraphQLApi
 @Authenticated
 public class NodeApi {
