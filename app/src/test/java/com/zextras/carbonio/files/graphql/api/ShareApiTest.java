@@ -26,6 +26,8 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationReposi
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
+import com.zextras.carbonio.files.graphql.model.FolderModel;
+import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.ShareModel;
 import com.zextras.carbonio.files.graphql.model.SharePermission;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
@@ -381,5 +383,102 @@ class ShareApiTest {
                   assertThat(((FilesGraphQLException) ex).getErrorCode())
                       .isEqualTo(ErrorCodes.SHARE_NOT_FOUND));
     }
+  }
+
+  // ─── @Source: Node.shares ─────────────────────────────────────────────────────
+
+  private NodeModel makeNodeModel(String id) {
+    return new FolderModel(
+        id,
+        null,
+        "owner",
+        "creator",
+        null,
+        0L,
+        0L,
+        "folder",
+        "",
+        com.zextras.carbonio.files.graphql.model.NodeType.FOLDER,
+        false,
+        "root");
+  }
+
+  @Test
+  void shares_returnsLimitedSharesForNode() {
+    NodeModel node = makeNodeModel(NODE_ID);
+    Share s1 = mockShare(NODE_ID, TARGET_ID_1);
+    Share s2 = mockShare(NODE_ID, TARGET_ID_2);
+    when(shareRepository.getShares(NODE_ID, List.of())).thenReturn(List.of(s1, s2));
+
+    List<ShareModel> result = shareApi.shares(node, 1, null, null);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).getShareTargetId()).isEqualTo(TARGET_ID_1);
+  }
+
+  @Test
+  void shares_cursorSkipsPastCursorTarget() {
+    NodeModel node = makeNodeModel(NODE_ID);
+    Share s1 = mockShare(NODE_ID, TARGET_ID_1);
+    Share s2 = mockShare(NODE_ID, TARGET_ID_2);
+    when(shareRepository.getShares(NODE_ID, List.of())).thenReturn(List.of(s1, s2));
+
+    List<ShareModel> result = shareApi.shares(node, 10, TARGET_ID_1, null);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).getShareTargetId()).isEqualTo(TARGET_ID_2);
+  }
+
+  @Test
+  void shares_unknownCursorReturnsFromBeginning() {
+    NodeModel node = makeNodeModel(NODE_ID);
+    Share s1 = mockShare(NODE_ID, TARGET_ID_1);
+    when(shareRepository.getShares(NODE_ID, List.of())).thenReturn(List.of(s1));
+
+    List<ShareModel> result = shareApi.shares(node, 10, "unknown-cursor", null);
+
+    assertThat(result).hasSize(1);
+  }
+
+  // ─── @Source: Node.share ──────────────────────────────────────────────────────
+
+  @Test
+  void share_happyPathReturnsShareModel() {
+    NodeModel node = makeNodeModel(NODE_ID);
+    Share share = mockShare(NODE_ID, TARGET_ID_1);
+
+    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
+        .thenReturn(aclWith(ACL.SharePermission.READ_ONLY));
+    when(shareRepository.getShare(NODE_ID, TARGET_ID_1)).thenReturn(Optional.of(share));
+
+    ShareModel result = shareApi.share(node, TARGET_ID_1);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getShareTargetId()).isEqualTo(TARGET_ID_1);
+  }
+
+  @Test
+  void share_notFoundReturnsNull() {
+    NodeModel node = makeNodeModel(NODE_ID);
+
+    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
+        .thenReturn(aclWith(ACL.SharePermission.READ_ONLY));
+    when(shareRepository.getShare(NODE_ID, TARGET_ID_1)).thenReturn(Optional.empty());
+
+    ShareModel result = shareApi.share(node, TARGET_ID_1);
+
+    assertThat(result).isNull();
+  }
+
+  @Test
+  void share_permissionDeniedReturnsNull() {
+    NodeModel node = makeNodeModel(NODE_ID);
+
+    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
+        .thenReturn(aclWith(ACL.SharePermission.NONE));
+
+    ShareModel result = shareApi.share(node, TARGET_ID_1);
+
+    assertThat(result).isNull();
   }
 }

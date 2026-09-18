@@ -68,6 +68,7 @@ import org.eclipse.microprofile.graphql.Mutation;
 import org.eclipse.microprofile.graphql.Name;
 import org.eclipse.microprofile.graphql.NonNull;
 import org.eclipse.microprofile.graphql.Query;
+import org.eclipse.microprofile.graphql.Source;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -242,6 +243,23 @@ public class NodeApi {
     return nodeRepository.getRootsList().stream()
         .map(root -> new RootModel(root.getId(), root.getName()))
         .collect(Collectors.toList());
+  }
+
+  // ─── Batch @Source resolvers — Node.parent ────────────────────────────────────
+
+  @Name("parent")
+  public List<NodeModel> parents(@Source List<NodeModel> nodes) {
+    List<String> parentIds = nodes.stream().map(NodeModel::getParentId).toList();
+    Map<String, Node> byId =
+        nodeRepository
+            .getNodes(
+                parentIds.stream().filter(Objects::nonNull).distinct().toList(), Optional.empty())
+            .collect(Collectors.toMap(Node::getId, n -> n));
+    String me = requester.getId().getUserId();
+    return parentIds.stream()
+        .map(id -> id == null ? null : byId.get(id))
+        .map(n -> n == null ? null : NodeModelFactory.from(n, null, me))
+        .toList();
   }
 
   // ─── Mutations ────────────────────────────────────────────────────────────────

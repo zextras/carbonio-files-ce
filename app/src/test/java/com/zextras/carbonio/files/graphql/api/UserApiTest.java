@@ -6,7 +6,10 @@ package com.zextras.carbonio.files.graphql.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.zextras.carbonio.files.dal.dao.UserId;
@@ -17,10 +20,15 @@ import com.zextras.carbonio.files.graphql.auth.AuthenticatedUserProducer;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.Account;
+import com.zextras.carbonio.files.graphql.model.FolderModel;
+import com.zextras.carbonio.files.graphql.model.NodeModel;
+import com.zextras.carbonio.files.graphql.model.NodeType;
 import com.zextras.carbonio.files.graphql.model.UserModel;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -153,5 +161,104 @@ class UserApiTest {
   void getAccountsByEmail_invalidEmail_throwsValidationError() {
     assertThatThrownBy(() -> userApi.getAccountsByEmail(List.of("bad-email")))
         .isInstanceOf(FilesGraphQLException.class);
+  }
+
+  // ─── @Source batch resolvers ──────────────────────────────────────────────
+
+  private NodeModel makeNode(String id, String creatorId, String ownerId, String lastEditorId) {
+    return new FolderModel(
+        id,
+        "parent-id",
+        ownerId,
+        creatorId,
+        lastEditorId,
+        0L,
+        0L,
+        "name",
+        "",
+        NodeType.FOLDER,
+        false,
+        "root-id");
+  }
+
+  private UserInfo makeUserInfo(String id) {
+    return makeUserInfo(id, id + "@example.com", "User " + id);
+  }
+
+  @Test
+  void creators_positionalAlignment_nullIdYieldsNullSlot() {
+    NodeModel nodeA = makeNode("n1", "uid-A", "owner-A", null);
+    NodeModel nodeB = makeNode("n2", null, "owner-B", null);
+    NodeModel nodeC = makeNode("n3", "uid-A", "owner-C", null);
+
+    UserInfo uA = makeUserInfo("uid-A", "a@example.com", "User A");
+    when(userRepository.getUsers(anyList())).thenReturn(List.of(uA));
+
+    List<UserModel> result = userApi.creators(List.of(nodeA, nodeB, nodeC));
+
+    assertThat(result).hasSize(3);
+    assertThat(result.get(0)).isNotNull();
+    assertThat(result.get(0).getId()).isEqualTo("uid-A");
+    assertThat(result.get(1)).isNull();
+    assertThat(result.get(2)).isNotNull();
+    assertThat(result.get(2).getId()).isEqualTo("uid-A");
+  }
+
+  @Test
+  void creators_150DistinctIds_partitionsInto2Calls() {
+    List<NodeModel> nodes =
+        IntStream.range(0, 150)
+            .mapToObj(i -> makeNode("n" + i, "uid-" + i, "owner-" + i, null))
+            .toList();
+
+    when(userRepository.getUsers(anyList())).thenReturn(Collections.emptyList());
+
+    userApi.creators(nodes);
+
+    verify(userRepository, times(2)).getUsers(anyList());
+  }
+
+  @Test
+  void owners_nullIdYieldsNullSlot() {
+    NodeModel nodeA = makeNode("n1", "creator-A", "uid-O", null);
+    NodeModel nodeB = makeNode("n2", "creator-B", null, null);
+
+    UserInfo uO = makeUserInfo("uid-O", "o@example.com", "Owner");
+    when(userRepository.getUsers(anyList())).thenReturn(List.of(uO));
+
+    List<UserModel> result = userApi.owners(List.of(nodeA, nodeB));
+
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).getId()).isEqualTo("uid-O");
+    assertThat(result.get(1)).isNull();
+  }
+
+  @Test
+  void lastEditors_nullIdYieldsNullSlot() {
+    NodeModel nodeA = makeNode("n1", "c1", "o1", "uid-E");
+    NodeModel nodeB = makeNode("n2", "c2", "o2", null);
+
+    UserInfo uE = makeUserInfo("uid-E", "e@example.com", "Editor");
+    when(userRepository.getUsers(anyList())).thenReturn(List.of(uE));
+
+    List<UserModel> result = userApi.lastEditors(List.of(nodeA, nodeB));
+
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).getId()).isEqualTo("uid-E");
+    assertThat(result.get(1)).isNull();
+  }
+
+  @Test
+  void partition_150items_yieldsTwoChunks() {
+    List<Integer> list = IntStream.range(0, 150).boxed().toList();
+    List<List<Integer>> chunks = UserApi.partition(list, 100);
+    assertThat(chunks).hasSize(2);
+    assertThat(chunks.get(0)).hasSize(100);
+    assertThat(chunks.get(1)).hasSize(50);
+  }
+
+  @Test
+  void partition_emptyList_yieldsNoChunks() {
+    assertThat(UserApi.partition(List.of(), 100)).isEmpty();
   }
 }

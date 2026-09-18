@@ -16,24 +16,30 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
+import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.ShareModel;
 import com.zextras.carbonio.files.graphql.model.SharePermission;
+import com.zextras.carbonio.files.graphql.model.ShareSort;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.security.Authenticated;
+import io.smallrye.graphql.api.Nullable;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Id;
 import org.eclipse.microprofile.graphql.Mutation;
 import org.eclipse.microprofile.graphql.Name;
 import org.eclipse.microprofile.graphql.NonNull;
 import org.eclipse.microprofile.graphql.Query;
+import org.eclipse.microprofile.graphql.Source;
 
 @GraphQLApi
 @Authenticated
@@ -48,7 +54,7 @@ public class ShareApi {
   @Inject GraphQLInputValidator validator;
   @Inject @AuthenticatedUser UserMyself requester;
 
-  private static ShareModel toModel(Share share) {
+  static ShareModel toModel(Share share) {
     SharePermission perm =
         SharePermission.valueOf(share.getPermissions().getSharePermission().name());
     return new ShareModel(
@@ -57,6 +63,40 @@ public class ShareApi {
         share.getExpiredAt().orElse(null),
         share.getNodeId(),
         share.getTargetUserId());
+  }
+
+  // ─── Single-item @Source resolvers — Node.shares / Node.share ─────────────────
+
+  @Name("shares")
+  @NonNull
+  public List<ShareModel> shares(
+      @Source NodeModel node,
+      @Name("limit") @NonNull int limit,
+      @Name("cursor") String cursor,
+      @Name("sorts") @Nullable List<@NonNull ShareSort> sorts) {
+    List<Share> all = shareRepository.getShares(node.getId(), Collections.emptyList());
+    int skip = cursorIndex(all, cursor);
+    return all.stream().skip(skip).limit(limit).map(ShareApi::toModel).toList();
+  }
+
+  @Name("share")
+  public ShareModel share(
+      @Source NodeModel node, @Name("share_target_id") @Id @NonNull String shareTargetId) {
+    String me = requester.getId().getUserId();
+    if (!permissionsChecker.getPermissions(node.getId(), me).has(ACL.SharePermission.READ_ONLY)) {
+      return null;
+    }
+    return shareRepository
+        .getShare(node.getId(), shareTargetId)
+        .map(ShareApi::toModel)
+        .orElse(null);
+  }
+
+  private static int cursorIndex(List<Share> shares, String cursor) {
+    if (cursor == null) return 0;
+    int idx =
+        shares.stream().map(Share::getTargetUserId).collect(Collectors.toList()).indexOf(cursor);
+    return idx < 0 ? 0 : idx + 1;
   }
 
   @Query("getShare")

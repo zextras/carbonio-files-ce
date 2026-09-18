@@ -12,17 +12,22 @@ import com.zextras.carbonio.files.graphql.auth.AuthenticatedUserProducer;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.Account;
+import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.UserModel;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Id;
 import org.eclipse.microprofile.graphql.Name;
 import org.eclipse.microprofile.graphql.NonNull;
 import org.eclipse.microprofile.graphql.Query;
+import org.eclipse.microprofile.graphql.Source;
 
 @GraphQLApi
 @Authenticated
@@ -35,6 +40,50 @@ public class UserApi {
 
   private static UserModel toModel(UserInfo user) {
     return new UserModel(user.getId().getUserId(), user.getEmail(), user.getFullName());
+  }
+
+  // ─── Batch @Source resolvers — Node.creator / owner / last_editor ─────────────
+
+  @Name("creator")
+  @NonNull
+  public List<UserModel> creators(@Source List<NodeModel> nodes) {
+    return resolveUsers(nodes.stream().map(NodeModel::getCreatorId).toList());
+  }
+
+  @Name("owner")
+  public List<UserModel> owners(@Source List<NodeModel> nodes) {
+    return resolveUsers(nodes.stream().map(NodeModel::getOwnerId).toList());
+  }
+
+  @Name("last_editor")
+  public List<UserModel> lastEditors(@Source List<NodeModel> nodes) {
+    return resolveUsers(nodes.stream().map(NodeModel::getLastEditorId).toList());
+  }
+
+  private List<UserModel> resolveUsers(List<String> ids) {
+    Map<String, UserInfo> byId = new HashMap<>();
+    for (List<String> chunk :
+        partition(ids.stream().filter(Objects::nonNull).distinct().toList(), 100)) {
+      for (UserInfo u : userRepository.getUsers(chunk)) {
+        byId.put(u.getId().getUserId(), u);
+      }
+    }
+    return ids.stream()
+        .map(id -> id == null ? null : byId.get(id))
+        .map(
+            u ->
+                u == null
+                    ? null
+                    : new UserModel(u.getId().getUserId(), u.getEmail(), u.getFullName()))
+        .toList();
+  }
+
+  static <T> List<List<T>> partition(List<T> list, int size) {
+    List<List<T>> result = new ArrayList<>();
+    for (int i = 0; i < list.size(); i += size) {
+      result.add(list.subList(i, Math.min(i + size, list.size())));
+    }
+    return result;
   }
 
   @Query("getUserById")

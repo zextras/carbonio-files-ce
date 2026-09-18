@@ -403,4 +403,57 @@ class NodeApiTest {
     assertThat(path.get(0).getId()).isEqualTo("LOCAL_ROOT");
     assertThat(path.get(1).getId()).isEqualTo(NODE_ID);
   }
+
+  // ─── @Source batch: parents ───────────────────────────────────────────────
+
+  private NodeModel makeFolderModel(String id, String parentId) {
+    return new FolderModel(
+        id,
+        parentId,
+        "owner-id",
+        "creator-id",
+        null,
+        0L,
+        0L,
+        "name",
+        "",
+        com.zextras.carbonio.files.graphql.model.NodeType.FOLDER,
+        false,
+        "root-id");
+  }
+
+  @Test
+  void parents_positionalAlignmentAndNullParentId() {
+    NodeModel n1 = makeFolderModel("node-1", "parent-A");
+    NodeModel n2 = makeFolderModel("node-2", null);
+    NodeModel n3 = makeFolderModel("node-3", "parent-A");
+
+    Node parentA = mockFolderNode("parent-A");
+
+    when(nodeRepository.getNodes(eq(List.of("parent-A")), any()))
+        .thenReturn(List.of(parentA).stream());
+
+    List<NodeModel> result = nodeApi.parents(List.of(n1, n2, n3));
+
+    assertThat(result).hasSize(3);
+    assertThat(result.get(0)).isNotNull();
+    assertThat(result.get(0).getId()).isEqualTo("parent-A");
+    assertThat(result.get(1)).isNull();
+    assertThat(result.get(2)).isNotNull();
+    assertThat(result.get(2).getId()).isEqualTo("parent-A");
+  }
+
+  @Test
+  void parents_allNullParentIds_returnsAllNulls() {
+    NodeModel n1 = makeFolderModel("node-1", null);
+    NodeModel n2 = makeFolderModel("node-2", null);
+
+    when(nodeRepository.getNodes(eq(List.of()), any())).thenReturn(List.<Node>of().stream());
+
+    List<NodeModel> result = nodeApi.parents(List.of(n1, n2));
+
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0)).isNull();
+    assertThat(result.get(1)).isNull();
+  }
 }
