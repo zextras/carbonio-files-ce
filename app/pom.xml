@@ -123,7 +123,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>33.4.8-jre</version>
+      <version>33.7.1-jre</version>
     </dependency>
 
     <!--
@@ -149,7 +149,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>commons-validator</groupId>
       <artifactId>commons-validator</artifactId>
-      <version>1.9.0</version>
+      <version>1.11.0</version>
     </dependency>
 
     <!--
@@ -181,7 +181,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>io.vavr</groupId>
       <artifactId>vavr</artifactId>
-      <version>0.10.4</version>
+      <version>0.11.0</version>
     </dependency>
 
     <!--
@@ -301,7 +301,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>com.tngtech.archunit</groupId>
       <artifactId>archunit</artifactId>
-      <version>1.4.2</version>
+      <version>1.5.0</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
