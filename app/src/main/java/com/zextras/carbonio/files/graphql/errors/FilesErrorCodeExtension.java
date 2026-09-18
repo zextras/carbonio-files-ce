@@ -10,6 +10,8 @@ import jakarta.json.JsonValue;
 
 public class FilesErrorCodeExtension implements ErrorExtensionProvider {
 
+  private static final String UNAUTHORIZED_CLASS = "io.quarkus.security.UnauthorizedException";
+
   @Override
   public String getKey() {
     return "errorCode";
@@ -20,6 +22,20 @@ public class FilesErrorCodeExtension implements ErrorExtensionProvider {
     if (t instanceof FilesGraphQLException f) {
       return Json.createValue(f.getErrorCode().name());
     }
+    if (isUnauthenticated(t)) {
+      return Json.createValue(ErrorCodes.UNAUTHENTICATED.name());
+    }
     return null;
+  }
+
+  private static boolean isUnauthenticated(Throwable t) {
+    Class<?> c = t.getClass();
+    while (c != null && c != Object.class) {
+      if (UNAUTHORIZED_CLASS.equals(c.getName())) {
+        return true;
+      }
+      c = c.getSuperclass();
+    }
+    return false;
   }
 }

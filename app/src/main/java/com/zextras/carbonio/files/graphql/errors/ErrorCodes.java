@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.graphql.errors;
 
 public enum ErrorCodes {
+  UNAUTHENTICATED,
   ACCOUNT_NOT_FOUND,
   NODE_NOT_FOUND,
   FILE_VERSION_NOT_FOUND,

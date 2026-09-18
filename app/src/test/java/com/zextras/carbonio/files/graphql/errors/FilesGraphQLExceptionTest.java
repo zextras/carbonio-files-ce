@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.graphql.errors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.quarkus.security.UnauthorizedException;
 import jakarta.json.JsonString;
 import jakarta.json.JsonValue;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,15 @@ class FilesGraphQLExceptionTest {
 
     assertThat(value).isInstanceOf(JsonString.class);
     assertThat(((JsonString) value).getString()).isEqualTo("NODE_NOT_FOUND");
+  }
+
+  @Test
+  void extensionMapValueFromReturnsUnauthenticatedForUnauthorizedException() {
+    FilesErrorCodeExtension ext = new FilesErrorCodeExtension();
+    JsonValue value = ext.mapValueFrom(new UnauthorizedException());
+
+    assertThat(value).isInstanceOf(JsonString.class);
+    assertThat(((JsonString) value).getString()).isEqualTo("UNAUTHENTICATED");
   }
 
   @Test
