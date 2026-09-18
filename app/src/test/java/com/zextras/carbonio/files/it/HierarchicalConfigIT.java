@@ -18,11 +18,11 @@ import org.junit.jupiter.api.Test;
 
 @QuarkusTest
 @QuarkusTestResource(FilesStackTestResource.class)
-class ConfigHierarchicalPocIT {
+class HierarchicalConfigIT {
 
-  private static final String ACC = "poc-acc1";
-  private static final String COS = "poc-cos1";
-  private static final String DOM = "poc-dom1";
+  private static final String ACC = "account-1";
+  private static final String COS = "cos-1";
+  private static final String DOM = "domain-1";
 
   @Inject ConfigResolver resolver;
 
