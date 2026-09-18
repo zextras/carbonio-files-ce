@@ -7,10 +7,12 @@ package com.zextras.carbonio.files.graphql.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -386,7 +388,11 @@ class ShareApiTest {
     }
   }
 
-  // ─── @Source: Node.shares ─────────────────────────────────────────────────────
+  // ─── @Source: Node.shares (batch) ────────────────────────────────────────────
+
+  private static final String NODE_ID_2 = "00000000-0000-0000-0000-000000000002";
+  private static final String NODE_ID_3 = "00000000-0000-0000-0000-000000000003";
+  private static final String TARGET_ID_3 = "target-user-3";
 
   private NodeModel makeNodeModel(String id) {
     return new FolderModel(
@@ -409,12 +415,13 @@ class ShareApiTest {
     NodeModel node = makeNodeModel(NODE_ID);
     Share s1 = mockShare(NODE_ID, TARGET_ID_1);
     Share s2 = mockShare(NODE_ID, TARGET_ID_2);
-    when(shareRepository.getShares(NODE_ID, List.of())).thenReturn(List.of(s1, s2));
+    when(shareRepository.getShares(List.of(NODE_ID))).thenReturn(List.of(s1, s2));
 
-    List<ShareModel> result = shareApi.shares(node, 1, null, null);
+    List<List<ShareModel>> result = shareApi.shares(List.of(node), 1, null, null);
 
     assertThat(result).hasSize(1);
-    assertThat(result.get(0).getShareTargetId()).isEqualTo(TARGET_ID_1);
+    assertThat(result.get(0)).hasSize(1);
+    assertThat(result.get(0).get(0).getShareTargetId()).isEqualTo(TARGET_ID_1);
   }
 
   @Test
@@ -422,23 +429,49 @@ class ShareApiTest {
     NodeModel node = makeNodeModel(NODE_ID);
     Share s1 = mockShare(NODE_ID, TARGET_ID_1);
     Share s2 = mockShare(NODE_ID, TARGET_ID_2);
-    when(shareRepository.getShares(NODE_ID, List.of())).thenReturn(List.of(s1, s2));
+    when(shareRepository.getShares(List.of(NODE_ID))).thenReturn(List.of(s1, s2));
 
-    List<ShareModel> result = shareApi.shares(node, 10, TARGET_ID_1, null);
+    List<List<ShareModel>> result = shareApi.shares(List.of(node), 10, TARGET_ID_1, null);
 
     assertThat(result).hasSize(1);
-    assertThat(result.get(0).getShareTargetId()).isEqualTo(TARGET_ID_2);
+    assertThat(result.get(0)).hasSize(1);
+    assertThat(result.get(0).get(0).getShareTargetId()).isEqualTo(TARGET_ID_2);
   }
 
   @Test
   void shares_unknownCursorReturnsFromBeginning() {
     NodeModel node = makeNodeModel(NODE_ID);
     Share s1 = mockShare(NODE_ID, TARGET_ID_1);
-    when(shareRepository.getShares(NODE_ID, List.of())).thenReturn(List.of(s1));
+    when(shareRepository.getShares(List.of(NODE_ID))).thenReturn(List.of(s1));
 
-    List<ShareModel> result = shareApi.shares(node, 10, "unknown-cursor", null);
+    List<List<ShareModel>> result = shareApi.shares(List.of(node), 10, "unknown-cursor", null);
 
     assertThat(result).hasSize(1);
+    assertThat(result.get(0)).hasSize(1);
+  }
+
+  @Test
+  void shares_batchIssuesExactlyOneRepositoryCallAndAlignsByPosition() {
+    NodeModel node1 = makeNodeModel(NODE_ID);
+    NodeModel node2 = makeNodeModel(NODE_ID_2);
+    NodeModel node3 = makeNodeModel(NODE_ID_3);
+
+    Share s1a = mockShare(NODE_ID, TARGET_ID_1);
+    Share s1b = mockShare(NODE_ID, TARGET_ID_2);
+    Share s2a = mockShare(NODE_ID_2, TARGET_ID_3);
+
+    when(shareRepository.getShares(anyList())).thenReturn(List.of(s1a, s1b, s2a));
+
+    List<List<ShareModel>> result = shareApi.shares(List.of(node1, node2, node3), 10, null, null);
+
+    verify(shareRepository, times(1)).getShares(anyList());
+
+    assertThat(result).hasSize(3);
+    assertThat(result.get(0))
+        .extracting(ShareModel::getShareTargetId)
+        .containsExactly(TARGET_ID_1, TARGET_ID_2);
+    assertThat(result.get(1)).extracting(ShareModel::getShareTargetId).containsExactly(TARGET_ID_3);
+    assertThat(result.get(2)).isEmpty();
   }
 
   // ─── @Source: Node.share ──────────────────────────────────────────────────────

@@ -80,18 +80,26 @@ public class ShareApi {
                 FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", share.getNodeId()));
   }
 
-  // ─── Single-item @Source resolvers — Node.shares / Node.share ─────────────────
+  // ─── Batch @Source resolver — Node.shares ────────────────────────────────────
 
   @Name("shares")
   @NonNull
-  public List<ShareModel> shares(
-      @Source NodeModel node,
+  public List<List<ShareModel>> shares(
+      @Source List<NodeModel> nodes,
       @Name("limit") @NonNull int limit,
       @Name("cursor") String cursor,
       @Name("sorts") @Nullable List<@NonNull ShareSort> sorts) {
-    List<Share> all = shareRepository.getShares(node.getId(), Collections.emptyList());
-    int skip = cursorIndex(all, cursor);
-    return all.stream().skip(skip).limit(limit).map(ShareApi::toModel).toList();
+    List<String> nodeIds = nodes.stream().map(NodeModel::getId).toList();
+    List<Share> all = shareRepository.getShares(nodeIds);
+    Map<String, List<Share>> byNode = all.stream().collect(Collectors.groupingBy(Share::getNodeId));
+    return nodeIds.stream()
+        .map(
+            id -> {
+              List<Share> sharesForNode = byNode.getOrDefault(id, Collections.emptyList());
+              int skip = cursorIndex(sharesForNode, cursor);
+              return sharesForNode.stream().skip(skip).limit(limit).map(ShareApi::toModel).toList();
+            })
+        .toList();
   }
 
   @Name("share")
