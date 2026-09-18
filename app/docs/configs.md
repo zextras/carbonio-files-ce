@@ -41,10 +41,11 @@ Overridable by Consul KV
 
 ## Hierarchical Config
 
-Per-account/cos/domain overridable at runtime; value below is the base default
+Overridable using admin panel
 
 | Key | Default |
 | --- | ------- |
 | `poc.max-versions` | `100` |
 | `poc.sample-empty` | *(not set)* |
+| `shares-enabled` | `true` |
 

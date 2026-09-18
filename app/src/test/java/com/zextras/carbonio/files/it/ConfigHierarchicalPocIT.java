@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.it;
 
 import static com.zextras.carbonio.files.config.HierarchicalConfigKeys.HierarchicalConfig.MAX_VERSIONS;
 import static com.zextras.carbonio.files.config.HierarchicalConfigKeys.HierarchicalConfig.SAMPLE_EMPTY;
+import static com.zextras.carbonio.files.config.HierarchicalConfigKeys.HierarchicalConfig.SHARES_ENABLED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.zextras.carbonio.files.FilesStackTestResource;
@@ -37,6 +38,9 @@ class ConfigHierarchicalPocIT {
     adminService.deleteForAccount(ACC, SAMPLE_EMPTY);
     adminService.deleteForCos(COS, SAMPLE_EMPTY);
     adminService.deleteForDomain(DOM, SAMPLE_EMPTY);
+    adminService.deleteForAccount(ACC, SHARES_ENABLED);
+    adminService.deleteForCos(COS, SHARES_ENABLED);
+    adminService.deleteForDomain(DOM, SHARES_ENABLED);
   }
 
   @Test
@@ -87,5 +91,40 @@ class ConfigHierarchicalPocIT {
     assertThat(adminService.getRawFromDomain(DOM, MAX_VERSIONS)).hasValue("vDom");
     assertThat(adminService.getRawFromAccount(ACC, MAX_VERSIONS)).hasValue("vAcc");
     assertThat(adminService.getRawFromCos(COS, MAX_VERSIONS)).isEmpty();
+  }
+
+  // Values are strings "true"/"false" — the extension is string-valued; boolean interpretation is
+  // the caller's.
+
+  @Test
+  void sharesEnabled_hierarchyResolves() {
+    adminService.setForDomain(DOM, SHARES_ENABLED, "false");
+    adminService.setForCos(COS, SHARES_ENABLED, "true");
+
+    // cos beats domain when account row is absent
+    assertThat(resolver.get(ACC, COS, DOM, SHARES_ENABLED)).hasValue("true");
+
+    adminService.setForAccount(ACC, SHARES_ENABLED, "false");
+
+    // account is most-specific, wins over cos
+    assertThat(resolver.get(ACC, COS, DOM, SHARES_ENABLED)).hasValue("false");
+  }
+
+  @Test
+  void sharesEnabled_perScopeDbValuesIndependent() {
+    adminService.setForAccount(ACC, SHARES_ENABLED, "false");
+    adminService.setForCos(COS, SHARES_ENABLED, "true");
+    adminService.setForDomain(DOM, SHARES_ENABLED, "false");
+
+    assertThat(adminService.getRawFromAccount(ACC, SHARES_ENABLED)).hasValue("false");
+    assertThat(adminService.getRawFromCos(COS, SHARES_ENABLED)).hasValue("true");
+    assertThat(adminService.getRawFromDomain(DOM, SHARES_ENABLED)).hasValue("false");
+  }
+
+  @Test
+  void sharesEnabled_baseDefaultTrueWhenNoRows() {
+    // No DB rows set — falls back to hierarchical-config.shares-enabled=true in
+    // application.properties
+    assertThat(resolver.get(ACC, COS, DOM, SHARES_ENABLED)).hasValue("true");
   }
 }

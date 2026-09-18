@@ -19,5 +19,10 @@ public final class HierarchicalConfigKeys {
 
     @ConfigKey(description = "Example key with empty base default")
     String SAMPLE_EMPTY = "poc.sample-empty";
+
+    @ConfigKey(
+        description =
+            "Whether sharing is enabled (per account/cos/domain override; base default true)")
+    String SHARES_ENABLED = "shares-enabled";
   }
 }
