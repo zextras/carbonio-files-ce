@@ -8,7 +8,7 @@ List of third-party dependencies grouped by their license type.
         * Carbonio Quarkus Extensions - Database Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-database:1.14.0-SNAPSHOT.155.bd4b9d64 - no url defined)
         * Carbonio Quarkus Extensions - REST Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-rest:1.14.0-SNAPSHOT.155.bd4b9d64 - no url defined)
         * Carbonio Systemd Notify (com.zextras.carbonio:carbonio-systemd-notify:1.0.1 - https://github.com/zextras/carbonio-systemd-notify)
-        * Carbonio User Management - REST SDK (com.zextras.carbonio.user-management:carbonio-user-management-rest-sdk:1.3.0-1 - no url defined)
+        * Carbonio User Management - REST SDK (com.zextras.carbonio.user-management:carbonio-user-management-rest-sdk:1.3.8-1 - no url defined)
         * carbonio-message-broker-sdk (com.zextras.carbonio.message-broker:carbonio-message-broker-sdk:1.1.0-1 - no url defined)
         * filestore-sdk-common (com.zextras:filestore-sdk-common:0.0.15-20251106.164324-4 - https://github.com/Zextras/carbonio-storages-ce-java-sdk/filestore-sdk-common/)
         * storages-ce-sdk (com.zextras:storages-ce-sdk:0.0.15-20251106.164324-4 - https://github.com/Zextras/carbonio-storages-ce-java-sdk/storages-ce-sdk/)

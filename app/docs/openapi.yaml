@@ -1,6 +1,60 @@
 ---
 openapi: 3.1.0
 paths:
+  /config:
+    get:
+      parameters:
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+      summary: Get My Config
+      tags:
+      - Config Resource
+  /config/admin/{scope}/{scopeId}:
+    put:
+      parameters:
+      - name: scope
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: scopeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: ZM_ADMIN_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetConfigRequest"
+        required: true
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+      summary: Set Config
+      tags:
+      - Config Resource
   /download-multiple:
     post:
       parameters:
@@ -1194,6 +1248,13 @@ components:
       type: object
       properties:
         url:
+          type: string
+    SetConfigRequest:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
           type: string
 info:
   title: carbonio-files-ce-app API

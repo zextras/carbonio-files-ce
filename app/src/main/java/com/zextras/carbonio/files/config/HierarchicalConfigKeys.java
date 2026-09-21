@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.config;
 
 import com.zextras.carbonio.quarkus.extensions.bootstrap.ConfigKey;
+import java.util.List;
 
 public final class HierarchicalConfigKeys {
 
@@ -17,4 +18,10 @@ public final class HierarchicalConfigKeys {
             "Whether sharing is enabled (per account/cos/domain override; base default true)")
     String SHARES_ENABLED = "shares-enabled";
   }
+
+  /**
+   * Every hierarchical-config key files declares, used by the config read endpoint to return the
+   * caller's effective values. Add new {@link HierarchicalConfig} keys here too.
+   */
+  public static final List<String> ALL_KEYS = List.of(HierarchicalConfig.SHARES_ENABLED);
 }

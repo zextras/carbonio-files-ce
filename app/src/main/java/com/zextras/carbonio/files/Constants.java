@@ -961,6 +961,7 @@ public final class Constants {
       public static final String UPLOAD_NODE_ID = "NodeId";
       public static final String UPLOAD_OVERWRITE_VERSION = "OverwriteVersion";
       public static final String COOKIE_ZM_AUTH_TOKEN = "ZM_AUTH_TOKEN";
+      public static final String COOKIE_ZM_ADMIN_AUTH_TOKEN = "ZM_ADMIN_AUTH_TOKEN";
     }
 
     public static final class ContextAttribute {
