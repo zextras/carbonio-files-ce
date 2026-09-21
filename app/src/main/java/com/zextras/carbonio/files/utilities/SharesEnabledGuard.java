@@ -9,6 +9,7 @@ import static com.zextras.carbonio.files.config.HierarchicalConfigKeys.Hierarchi
 import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigResolver;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.Optional;
 
 @ApplicationScoped
 public class SharesEnabledGuard {
@@ -21,10 +22,16 @@ public class SharesEnabledGuard {
   }
 
   public boolean isEnabledFor(String requesterId) {
-    // cos and domain are passed as null: user-management does not return them yet; fill when it
-    // does.
+    // cos and domain are Optional.empty(): user-management does not return them yet; fill when it
+    // does (Optional.of(cosId) / Optional.of(domainId)).
     return !"false"
         .equalsIgnoreCase(
-            configResolver.get(requesterId, null, null, SHARES_ENABLED).orElse("true"));
+            configResolver
+                .get(
+                    Optional.ofNullable(requesterId),
+                    Optional.empty(),
+                    Optional.empty(),
+                    SHARES_ENABLED)
+                .orElse("true"));
   }
 }

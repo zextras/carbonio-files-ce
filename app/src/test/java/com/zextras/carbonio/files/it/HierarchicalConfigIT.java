@@ -13,6 +13,7 @@ import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigResolver
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -40,7 +41,8 @@ class HierarchicalConfigIT {
     adminService.setForDomain(DOM, SHARES_ENABLED, "false");
     adminService.setForCos(COS, SHARES_ENABLED, "true");
 
-    assertThat(resolver.get(ACC, COS, DOM, SHARES_ENABLED)).hasValue("true");
+    assertThat(resolver.get(Optional.of(ACC), Optional.of(COS), Optional.of(DOM), SHARES_ENABLED))
+        .hasValue("true");
   }
 
   @Test
@@ -48,14 +50,16 @@ class HierarchicalConfigIT {
     adminService.setForAccount(ACC, SHARES_ENABLED, "false");
     adminService.setForDomain(DOM, SHARES_ENABLED, "true");
 
-    assertThat(resolver.get(ACC, COS, DOM, SHARES_ENABLED)).hasValue("false");
+    assertThat(resolver.get(Optional.of(ACC), Optional.of(COS), Optional.of(DOM), SHARES_ENABLED))
+        .hasValue("false");
   }
 
   @Test
   void skipAbsent_domainWinsWhenOnlyDomainRow() {
     adminService.setForDomain(DOM, SHARES_ENABLED, "false");
 
-    assertThat(resolver.get(ACC, COS, DOM, SHARES_ENABLED)).hasValue("false");
+    assertThat(resolver.get(Optional.of(ACC), Optional.of(COS), Optional.of(DOM), SHARES_ENABLED))
+        .hasValue("false");
   }
 
   @Test
@@ -71,11 +75,13 @@ class HierarchicalConfigIT {
 
   @Test
   void baseDefaultTrueWhenNoRows() {
-    assertThat(resolver.get(ACC, COS, DOM, SHARES_ENABLED)).hasValue("true");
+    assertThat(resolver.get(Optional.of(ACC), Optional.of(COS), Optional.of(DOM), SHARES_ENABLED))
+        .hasValue("true");
   }
 
   @Test
   void undeclaredKeyNoRowsNoDefault_returnsEmpty() {
-    assertThat(resolver.get(ACC, COS, DOM, "no.such.key")).isEmpty();
+    assertThat(resolver.get(Optional.of(ACC), Optional.of(COS), Optional.of(DOM), "no.such.key"))
+        .isEmpty();
   }
 }
