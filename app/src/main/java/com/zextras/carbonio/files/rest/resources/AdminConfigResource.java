@@ -42,8 +42,8 @@ import org.jboss.resteasy.reactive.RestResponse;
  *       user):</b>
  *       <ul>
  *         <li>{@code GET /admin/config?userId=<id>} — every declared key RESOLVED for that user
- *             (account &gt; cos &gt; domain &gt; default), each with the {@code source} tier that
- *             produced it.
+ *             (account &gt; cos &gt; domain &gt; global &gt; default), each with the {@code source}
+ *             tier that produced it.
  *         <li>{@code GET /admin/config?userId=<id>&key=<key>} — a single resolved key + source; an
  *             undeclared key is a real absence and answers {@code 404}.
  *       </ul>
@@ -52,7 +52,13 @@ import org.jboss.resteasy.reactive.RestResponse;
  *       UserRepository#getUserById}.
  *   <li><b>Raw override management (under {@code /raw}, distinct from the resolved view):</b>
  *       <ul>
- *         <li>{@code GET /admin/config/raw/default} — base defaults (read-only, complete).
+ *         <li>{@code GET /admin/config/raw/default} — the DEFAULT tier only (namespaced
+ *             application.properties, NOT the global override); read-only, complete.
+ *         <li>{@code GET /admin/config/raw/global} — the RAW overrides at the GLOBAL tier
+ *             (singleton, no scope id); keys not overridden are absent.
+ *         <li>{@code PUT /admin/config/raw/global} — set one global override ({@code {key,value}}).
+ *         <li>{@code DELETE /admin/config/raw/global/{key}} — clear one global override,
+ *             idempotent.
  *         <li>{@code GET /admin/config/raw/{scope}/{scopeId}} — the RAW overrides set at exactly
  *             that scope (scope = account|cos|domain); keys not overridden are absent.
  *         <li>{@code PUT /admin/config/raw/{scope}/{scopeId}} — set one override ({@code
@@ -88,9 +94,10 @@ public class AdminConfigResource {
   public record SetConfigRequest(String key, String value) {}
 
   /**
-   * A resolved value together with the scope tier that produced it (account|cos|domain|default).
-   * The value may be {@code null} when the winning tier's value is empty (an empty value is itself
-   * the base default, not an absence); the source is always one of those four tiers.
+   * A resolved value together with the scope tier that produced it
+   * (account|cos|domain|global|default). The value may be {@code null} when the winning tier's
+   * value is empty (an empty value is itself the base default, not an absence); the source is
+   * always one of those five tiers.
    */
   public record ResolvedEntry(String value, String source) {}
 
@@ -150,15 +157,12 @@ public class AdminConfigResource {
       @CookieParam(Headers.COOKIE_ZM_ADMIN_AUTH_TOKEN) String adminToken) {
     adminAuthenticator.requireGlobalAdmin(adminToken);
 
-    // The base default is what the resolver returns with no scope at all. Complete (every key
-    // always present); null when the base default is empty/unset.
+    // The DEFAULT tier ONLY (namespaced application.properties) — never the GLOBAL override above
+    // it, so /raw/default stays distinct from /raw/global. Complete (every key present); null when
+    // the base default is empty/unset.
     Map<String, String> defaults = new LinkedHashMap<>();
     for (String key : HierarchicalConfigKeys.ALL_KEYS) {
-      defaults.put(
-          key,
-          configResolver
-              .get(Optional.empty(), Optional.empty(), Optional.empty(), key)
-              .orElse(null));
+      defaults.put(key, configResolver.getBaseDefault(key).orElse(null));
     }
     return RestResponse.ok(defaults);
   }
@@ -222,6 +226,52 @@ public class AdminConfigResource {
     }
     // Idempotent: clearing an override always yields "no override at this scope" (the key falls
     // back to the inherited/default value), whether or not a row existed — 204 regardless.
+    return RestResponse.status(Response.Status.NO_CONTENT);
+  }
+
+  // -------------------------------------------------------------------------
+  // Global scope (singleton, no scope id) — sits just above the base default
+  // -------------------------------------------------------------------------
+
+  @GET
+  @Path("/raw/global")
+  public RestResponse<Map<String, String>> getGlobalConfig(
+      @CookieParam(Headers.COOKIE_ZM_ADMIN_AUTH_TOKEN) String adminToken) {
+    adminAuthenticator.requireGlobalAdmin(adminToken);
+
+    // Sparse, like the per-scope raw view: only keys overridden at the global tier are present.
+    Map<String, String> overrides = new LinkedHashMap<>();
+    for (String key : HierarchicalConfigKeys.ALL_KEYS) {
+      configAdminService.getRawFromGlobal(key).ifPresent(value -> overrides.put(key, value));
+    }
+    return RestResponse.ok(overrides);
+  }
+
+  @PUT
+  @Path("/raw/global")
+  @Consumes(MediaType.APPLICATION_JSON)
+  public RestResponse<Void> setGlobalConfig(
+      @CookieParam(Headers.COOKIE_ZM_ADMIN_AUTH_TOKEN) String adminToken, SetConfigRequest body) {
+    adminAuthenticator.requireGlobalAdmin(adminToken);
+    if (body == null || body.key() == null || body.key().isBlank()) {
+      throw badRequest("Missing config key");
+    }
+    if (body.value() == null) {
+      throw badRequest("Missing config value");
+    }
+    configAdminService.setForGlobal(body.key(), body.value());
+    return RestResponse.status(Response.Status.NO_CONTENT);
+  }
+
+  @DELETE
+  @Path("/raw/global/{key}")
+  public RestResponse<Void> deleteGlobalConfig(
+      @CookieParam(Headers.COOKIE_ZM_ADMIN_AUTH_TOKEN) String adminToken,
+      @PathParam("key") String key) {
+    adminAuthenticator.requireGlobalAdmin(adminToken);
+    configAdminService.deleteForGlobal(key);
+    // Idempotent: 204 whether or not a row existed — clearing the global override lets the key fall
+    // back to the base default.
     return RestResponse.status(Response.Status.NO_CONTENT);
   }
 

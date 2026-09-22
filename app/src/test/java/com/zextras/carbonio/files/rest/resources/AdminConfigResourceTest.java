@@ -216,8 +216,7 @@ class AdminConfigResourceTest {
 
   @Test
   void getDefaultConfig_returnsBaseDefaultForEveryKey() {
-    when(configResolver.get(Optional.empty(), Optional.empty(), Optional.empty(), SHARES_ENABLED))
-        .thenReturn(Optional.of("true"));
+    when(configResolver.getBaseDefault(SHARES_ENABLED)).thenReturn(Optional.of("true"));
 
     RestResponse<Map<String, String>> response = resource.getDefaultConfig("admin-tok");
 
@@ -228,8 +227,7 @@ class AdminConfigResourceTest {
 
   @Test
   void getDefaultConfig_includesEveryKeyWithNullWhenDefaultEmpty() {
-    when(configResolver.get(Optional.empty(), Optional.empty(), Optional.empty(), SHARES_ENABLED))
-        .thenReturn(Optional.empty());
+    when(configResolver.getBaseDefault(SHARES_ENABLED)).thenReturn(Optional.empty());
 
     RestResponse<Map<String, String>> response = resource.getDefaultConfig("admin-tok");
 
@@ -407,6 +405,98 @@ class AdminConfigResourceTest {
             new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build()));
 
     assertThatThrownBy(() -> resource.deleteScopeConfig("user-tok", "cos", "cos-9", SHARES_ENABLED))
+        .isInstanceOf(WebApplicationException.class)
+        .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
+        .isEqualTo(Response.Status.UNAUTHORIZED.getStatusCode());
+
+    verifyNoInteractions(configAdminService);
+  }
+
+  // ---- Global raw endpoints (singleton, no scope id) ----
+
+  @Test
+  void getGlobalConfig_returnsOnlyGlobalOverrides() {
+    when(configAdminService.getRawFromGlobal(SHARES_ENABLED)).thenReturn(Optional.of("false"));
+
+    RestResponse<Map<String, String>> response = resource.getGlobalConfig("admin-tok");
+
+    verify(adminAuthenticator).requireGlobalAdmin("admin-tok");
+    assertThat(response.getStatus()).isEqualTo(200);
+    assertThat(response.getEntity()).containsEntry(SHARES_ENABLED, "false");
+  }
+
+  @Test
+  void getGlobalConfig_omitsKeysWithNoGlobalOverride() {
+    when(configAdminService.getRawFromGlobal(SHARES_ENABLED)).thenReturn(Optional.empty());
+
+    RestResponse<Map<String, String>> response = resource.getGlobalConfig("admin-tok");
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    assertThat(response.getEntity()).isEmpty();
+  }
+
+  @Test
+  void setGlobalConfig_delegatesAndReturns204() {
+    RestResponse<Void> response =
+        resource.setGlobalConfig(
+            "admin-tok", new AdminConfigResource.SetConfigRequest(SHARES_ENABLED, "false"));
+
+    verify(adminAuthenticator).requireGlobalAdmin("admin-tok");
+    verify(configAdminService).setForGlobal(SHARES_ENABLED, "false");
+    assertThat(response.getStatus()).isEqualTo(204);
+  }
+
+  @Test
+  void setGlobalConfig_missingKey_returns400() {
+    assertThatThrownBy(
+            () ->
+                resource.setGlobalConfig(
+                    "admin-tok", new AdminConfigResource.SetConfigRequest("  ", "false")))
+        .isInstanceOf(WebApplicationException.class)
+        .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
+        .isEqualTo(Response.Status.BAD_REQUEST.getStatusCode());
+
+    verifyNoInteractions(configAdminService);
+  }
+
+  @Test
+  void setGlobalConfig_missingValue_returns400() {
+    assertThatThrownBy(
+            () ->
+                resource.setGlobalConfig(
+                    "admin-tok", new AdminConfigResource.SetConfigRequest(SHARES_ENABLED, null)))
+        .isInstanceOf(WebApplicationException.class)
+        .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
+        .isEqualTo(Response.Status.BAD_REQUEST.getStatusCode());
+
+    verifyNoInteractions(configAdminService);
+  }
+
+  @Test
+  void deleteGlobalConfig_delegatesAndReturns204() {
+    RestResponse<Void> response = resource.deleteGlobalConfig("admin-tok", SHARES_ENABLED);
+
+    verify(adminAuthenticator).requireGlobalAdmin("admin-tok");
+    verify(configAdminService).deleteForGlobal(SHARES_ENABLED);
+    assertThat(response.getStatus()).isEqualTo(204);
+  }
+
+  @Test
+  void deleteGlobalConfig_isIdempotent_returns204EvenWhenNoOverrideExisted() {
+    when(configAdminService.deleteForGlobal(SHARES_ENABLED)).thenReturn(false);
+
+    RestResponse<Void> response = resource.deleteGlobalConfig("admin-tok", SHARES_ENABLED);
+
+    assertThat(response.getStatus()).isEqualTo(204);
+  }
+
+  @Test
+  void globalEndpoints_nonAdmin_propagatesTheAuthenticatorRejection() {
+    when(adminAuthenticator.requireGlobalAdmin("user-tok"))
+        .thenThrow(
+            new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build()));
+
+    assertThatThrownBy(() -> resource.getGlobalConfig("user-tok"))
         .isInstanceOf(WebApplicationException.class)
         .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
         .isEqualTo(Response.Status.UNAUTHORIZED.getStatusCode());
