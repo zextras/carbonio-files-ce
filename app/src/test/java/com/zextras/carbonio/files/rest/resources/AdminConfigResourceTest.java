@@ -249,4 +249,63 @@ class AdminConfigResourceTest {
 
     verifyNoInteractions(configAdminService);
   }
+
+  // ---- DELETE /admin/config/{scope}/{scopeId}/{key} — clear one override (revert to inherited)
+  // ----
+
+  @Test
+  void deleteScopeConfig_cos_delegatesAndReturns204() {
+    RestResponse<Void> response =
+        resource.deleteScopeConfig("admin-tok", "cos", "cos-9", SHARES_ENABLED);
+
+    verify(adminAuthenticator).requireGlobalAdmin("admin-tok");
+    verify(configAdminService).deleteForCos("cos-9", SHARES_ENABLED);
+    assertThat(response.getStatus()).isEqualTo(204);
+  }
+
+  @Test
+  void deleteScopeConfig_account_delegates() {
+    resource.deleteScopeConfig("admin-tok", "account", "acc-9", SHARES_ENABLED);
+    verify(configAdminService).deleteForAccount("acc-9", SHARES_ENABLED);
+  }
+
+  @Test
+  void deleteScopeConfig_domain_delegates() {
+    resource.deleteScopeConfig("admin-tok", "domain", "dom-9", SHARES_ENABLED);
+    verify(configAdminService).deleteForDomain("dom-9", SHARES_ENABLED);
+  }
+
+  @Test
+  void deleteScopeConfig_isIdempotent_returns204EvenWhenNoOverrideExisted() {
+    when(configAdminService.deleteForCos("cos-9", SHARES_ENABLED)).thenReturn(false);
+
+    RestResponse<Void> response =
+        resource.deleteScopeConfig("admin-tok", "cos", "cos-9", SHARES_ENABLED);
+
+    assertThat(response.getStatus()).isEqualTo(204);
+  }
+
+  @Test
+  void deleteScopeConfig_unknownScope_returns400() {
+    assertThatThrownBy(() -> resource.deleteScopeConfig("admin-tok", "bogus", "x", SHARES_ENABLED))
+        .isInstanceOf(WebApplicationException.class)
+        .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
+        .isEqualTo(Response.Status.BAD_REQUEST.getStatusCode());
+
+    verify(configAdminService, never()).deleteForCos(anyString(), anyString());
+  }
+
+  @Test
+  void deleteScopeConfig_nonAdmin_propagatesTheAuthenticatorRejection() {
+    when(adminAuthenticator.requireGlobalAdmin("user-tok"))
+        .thenThrow(
+            new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build()));
+
+    assertThatThrownBy(() -> resource.deleteScopeConfig("user-tok", "cos", "cos-9", SHARES_ENABLED))
+        .isInstanceOf(WebApplicationException.class)
+        .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
+        .isEqualTo(Response.Status.UNAUTHORIZED.getStatusCode());
+
+    verifyNoInteractions(configAdminService);
+  }
 }

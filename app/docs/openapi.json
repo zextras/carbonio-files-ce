@@ -248,6 +248,45 @@
         "tags" : [ "Admin Config Resource" ]
       }
     },
+    "/admin/config/{scope}/{scopeId}/{key}" : {
+      "delete" : {
+        "parameters" : [ {
+          "name" : "key",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "scope",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "scopeId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ZM_ADMIN_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Delete Scope Config",
+        "tags" : [ "Admin Config Resource" ]
+      }
+    },
     "/config" : {
       "get" : {
         "parameters" : [ {

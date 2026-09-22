@@ -12,6 +12,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.CookieParam;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
@@ -129,6 +130,27 @@ public class AdminConfigResource {
       case COS -> configAdminService.setForCos(scopeId, body.key(), body.value());
       case DOMAIN -> configAdminService.setForDomain(scopeId, body.key(), body.value());
     }
+    return RestResponse.status(Response.Status.NO_CONTENT);
+  }
+
+  @DELETE
+  @Path("/{scope}/{scopeId}/{key}")
+  public RestResponse<Void> deleteScopeConfig(
+      @CookieParam(Headers.COOKIE_ZM_ADMIN_AUTH_TOKEN) String adminToken,
+      @PathParam("scope") String scope,
+      @PathParam("scopeId") String scopeId,
+      @PathParam("key") String key) {
+    adminAuthenticator.requireGlobalAdmin(adminToken);
+    Scope resolved = parseScope(scope);
+
+    switch (resolved) {
+      case ACCOUNT -> configAdminService.deleteForAccount(scopeId, key);
+      case COS -> configAdminService.deleteForCos(scopeId, key);
+      case DOMAIN -> configAdminService.deleteForDomain(scopeId, key);
+    }
+    // Idempotent: clearing an override always yields "no override at this scope" (so the key falls
+    // back to the inherited/default value), whether or not a row existed — 204 regardless of the
+    // affected-row boolean. This is the "revert to inherited" action for the admin panel.
     return RestResponse.status(Response.Status.NO_CONTENT);
   }
 
