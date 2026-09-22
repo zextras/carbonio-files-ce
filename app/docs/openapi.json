@@ -135,6 +135,34 @@
     }
   },
   "paths" : {
+    "/admin/config/default" : {
+      "get" : {
+        "parameters" : [ {
+          "name" : "ZM_ADMIN_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : {
+                    "type" : "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary" : "Get Default Config",
+        "tags" : [ "Admin Config Resource" ]
+      }
+    },
     "/admin/config/{scope}/{scopeId}" : {
       "put" : {
         "parameters" : [ {

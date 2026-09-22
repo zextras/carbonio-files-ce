@@ -16,6 +16,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigAdminService;
+import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigResolver;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import java.util.Map;
@@ -32,13 +33,15 @@ class AdminConfigResourceTest {
 
   private AdminAuthenticator adminAuthenticator;
   private ConfigAdminService configAdminService;
+  private ConfigResolver configResolver;
   private AdminConfigResource resource;
 
   @BeforeEach
   void setUp() {
     adminAuthenticator = mock(AdminAuthenticator.class);
     configAdminService = mock(ConfigAdminService.class);
-    resource = new AdminConfigResource(adminAuthenticator, configAdminService);
+    configResolver = mock(ConfigResolver.class);
+    resource = new AdminConfigResource(adminAuthenticator, configAdminService, configResolver);
   }
 
   // ---- GET /admin/config/{scope}/{scopeId} — raw, no resolution ----
@@ -102,6 +105,45 @@ class AdminConfigResourceTest {
         .isEqualTo(Response.Status.UNAUTHORIZED.getStatusCode());
 
     verifyNoInteractions(configAdminService);
+  }
+
+  // ---- GET /admin/config/default — base defaults, no scope ----
+
+  @Test
+  void getDefaultConfig_returnsBaseDefaultForEveryKey() {
+    when(configResolver.get(Optional.empty(), Optional.empty(), Optional.empty(), SHARES_ENABLED))
+        .thenReturn(Optional.of("true"));
+
+    RestResponse<Map<String, String>> response = resource.getDefaultConfig("admin-tok");
+
+    verify(adminAuthenticator).requireGlobalAdmin("admin-tok");
+    assertThat(response.getStatus()).isEqualTo(200);
+    assertThat(response.getEntity()).containsEntry(SHARES_ENABLED, "true");
+  }
+
+  @Test
+  void getDefaultConfig_includesEveryKeyWithNullWhenDefaultEmpty() {
+    when(configResolver.get(Optional.empty(), Optional.empty(), Optional.empty(), SHARES_ENABLED))
+        .thenReturn(Optional.empty());
+
+    RestResponse<Map<String, String>> response = resource.getDefaultConfig("admin-tok");
+
+    assertThat(response.getEntity()).containsKey(SHARES_ENABLED);
+    assertThat(response.getEntity().get(SHARES_ENABLED)).isNull();
+  }
+
+  @Test
+  void getDefaultConfig_nonAdmin_propagatesTheAuthenticatorRejection() {
+    when(adminAuthenticator.requireGlobalAdmin("user-tok"))
+        .thenThrow(
+            new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build()));
+
+    assertThatThrownBy(() -> resource.getDefaultConfig("user-tok"))
+        .isInstanceOf(WebApplicationException.class)
+        .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
+        .isEqualTo(Response.Status.UNAUTHORIZED.getStatusCode());
+
+    verifyNoInteractions(configResolver);
   }
 
   // ---- PUT /admin/config/{scope}/{scopeId} — write ----

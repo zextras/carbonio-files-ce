@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.rest.resources;
 import com.zextras.carbonio.files.Constants.API.Headers;
 import com.zextras.carbonio.files.config.HierarchicalConfigKeys;
 import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigAdminService;
+import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigResolver;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -35,7 +36,11 @@ import org.jboss.resteasy.reactive.RestResponse;
  *       scope does not override is absent from the response, not null). {@code {}} means no
  *       overrides at this scope; a key present with {@code ""} is an explicit empty override. This
  *       lets the panel show, per scope, exactly what that account/cos/domain overrides.
+ *   <li>{@code GET /admin/config/default} — the base defaults (application.properties) for every
+ *       key, resolved with no scope. Read-only, complete (all keys, {@code null} when the default
+ *       is empty); the default has no id so it is a distinct path, not a {@code {scope}/{scopeId}}.
  *   <li>{@code PUT /admin/config/{scope}/{scopeId}} — set a single override ({@code {key, value}}).
+ *       {@code default} is not writable (it lives in application.properties, not the DB).
  * </ul>
  */
 @ApplicationScoped
@@ -45,12 +50,16 @@ public class AdminConfigResource {
 
   private final AdminAuthenticator adminAuthenticator;
   private final ConfigAdminService configAdminService;
+  private final ConfigResolver configResolver;
 
   @Inject
   public AdminConfigResource(
-      AdminAuthenticator adminAuthenticator, ConfigAdminService configAdminService) {
+      AdminAuthenticator adminAuthenticator,
+      ConfigAdminService configAdminService,
+      ConfigResolver configResolver) {
     this.adminAuthenticator = adminAuthenticator;
     this.configAdminService = configAdminService;
+    this.configResolver = configResolver;
   }
 
   /** Body for a per-scope config write: the key and its value. */
@@ -76,6 +85,25 @@ public class AdminConfigResource {
       rawGet(resolved, scopeId, key).ifPresent(value -> overrides.put(key, value));
     }
     return RestResponse.ok(overrides);
+  }
+
+  @GET
+  @Path("/default")
+  public RestResponse<Map<String, String>> getDefaultConfig(
+      @CookieParam(Headers.COOKIE_ZM_ADMIN_AUTH_TOKEN) String adminToken) {
+    adminAuthenticator.requireGlobalAdmin(adminToken);
+
+    // The base default is what the resolver returns with no scope at all. Complete (every key
+    // always present); null when the base default is empty/unset.
+    Map<String, String> defaults = new LinkedHashMap<>();
+    for (String key : HierarchicalConfigKeys.ALL_KEYS) {
+      defaults.put(
+          key,
+          configResolver
+              .get(Optional.empty(), Optional.empty(), Optional.empty(), key)
+              .orElse(null));
+    }
+    return RestResponse.ok(defaults);
   }
 
   @PUT
