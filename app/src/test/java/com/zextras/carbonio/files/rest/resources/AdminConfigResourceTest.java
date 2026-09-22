@@ -15,6 +15,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.zextras.carbonio.files.dal.dao.UserId;
+import com.zextras.carbonio.files.dal.dao.UserInfo;
+import com.zextras.carbonio.files.dal.dao.UserStatus;
+import com.zextras.carbonio.files.dal.dao.UserType;
+import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigAdminService;
 import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigResolver;
 import jakarta.ws.rs.WebApplicationException;
@@ -34,6 +39,7 @@ class AdminConfigResourceTest {
   private AdminAuthenticator adminAuthenticator;
   private ConfigAdminService configAdminService;
   private ConfigResolver configResolver;
+  private UserRepository userRepository;
   private AdminConfigResource resource;
 
   @BeforeEach
@@ -41,7 +47,96 @@ class AdminConfigResourceTest {
     adminAuthenticator = mock(AdminAuthenticator.class);
     configAdminService = mock(ConfigAdminService.class);
     configResolver = mock(ConfigResolver.class);
-    resource = new AdminConfigResource(adminAuthenticator, configAdminService, configResolver);
+    userRepository = mock(UserRepository.class);
+    resource =
+        new AdminConfigResource(
+            adminAuthenticator, configAdminService, configResolver, userRepository);
+  }
+
+  private UserInfo userWith(String cosId, String domainId) {
+    UserInfo user =
+        new UserInfo(
+            new UserId("user-9"),
+            "user@example.com",
+            "User",
+            "example.com",
+            UserStatus.ACTIVE,
+            UserType.INTERNAL);
+    user.setCosId(cosId);
+    user.setDomainId(domainId);
+    return user;
+  }
+
+  // ---- GET /admin/config?userId=..[&key=..] — resolved for a user, with source ----
+
+  @Test
+  void getResolvedConfig_returnsResolvedValueAndSourceForTheUser() {
+    when(userRepository.getUserById(null, "user-9"))
+        .thenReturn(Optional.of(userWith("cos-1", "dom-1")));
+    when(configResolver.resolve(
+            Optional.of("user-9"), Optional.of("cos-1"), Optional.of("dom-1"), SHARES_ENABLED))
+        .thenReturn(new ConfigResolver.Resolution(Optional.of("false"), ConfigResolver.Source.COS));
+
+    RestResponse<Map<String, AdminConfigResource.ResolvedEntry>> response =
+        resource.getResolvedConfig("admin-tok", "user-9", null);
+
+    verify(adminAuthenticator).requireGlobalAdmin("admin-tok");
+    assertThat(response.getStatus()).isEqualTo(200);
+    assertThat(response.getEntity())
+        .containsEntry(SHARES_ENABLED, new AdminConfigResource.ResolvedEntry("false", "cos"));
+  }
+
+  @Test
+  void getResolvedConfig_singleKey_resolvesOnlyThatKeyWithSource() {
+    when(userRepository.getUserById(null, "user-9"))
+        .thenReturn(Optional.of(userWith(null, "dom-1")));
+    when(configResolver.resolve(
+            Optional.of("user-9"), Optional.empty(), Optional.of("dom-1"), "some.other.key"))
+        .thenReturn(new ConfigResolver.Resolution(Optional.of("v"), ConfigResolver.Source.DEFAULT));
+
+    RestResponse<Map<String, AdminConfigResource.ResolvedEntry>> response =
+        resource.getResolvedConfig("admin-tok", "user-9", "some.other.key");
+
+    assertThat(response.getEntity())
+        .containsExactly(
+            org.assertj.core.api.Assertions.entry(
+                "some.other.key", new AdminConfigResource.ResolvedEntry("v", "default")));
+  }
+
+  @Test
+  void getResolvedConfig_missingUserId_returns400_andDoesNotResolve() {
+    assertThatThrownBy(() -> resource.getResolvedConfig("admin-tok", "  ", null))
+        .isInstanceOf(WebApplicationException.class)
+        .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
+        .isEqualTo(Response.Status.BAD_REQUEST.getStatusCode());
+
+    verifyNoInteractions(userRepository, configResolver);
+  }
+
+  @Test
+  void getResolvedConfig_unknownUser_returns404() {
+    when(userRepository.getUserById(null, "ghost")).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> resource.getResolvedConfig("admin-tok", "ghost", null))
+        .isInstanceOf(WebApplicationException.class)
+        .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
+        .isEqualTo(Response.Status.NOT_FOUND.getStatusCode());
+
+    verifyNoInteractions(configResolver);
+  }
+
+  @Test
+  void getResolvedConfig_nonAdmin_propagatesTheAuthenticatorRejection() {
+    when(adminAuthenticator.requireGlobalAdmin("user-tok"))
+        .thenThrow(
+            new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build()));
+
+    assertThatThrownBy(() -> resource.getResolvedConfig("user-tok", "user-9", null))
+        .isInstanceOf(WebApplicationException.class)
+        .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
+        .isEqualTo(Response.Status.UNAUTHORIZED.getStatusCode());
+
+    verifyNoInteractions(userRepository, configResolver);
   }
 
   // ---- GET /admin/config/{scope}/{scopeId} — raw, no resolution ----

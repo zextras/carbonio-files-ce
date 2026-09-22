@@ -79,6 +79,13 @@ components:
       properties:
         url:
           type: string
+    ResolvedEntry:
+      type: object
+      properties:
+        value:
+          type: string
+        source:
+          type: string
     SetConfigRequest:
       type: object
       properties:
@@ -87,7 +94,34 @@ components:
         value:
           type: string
 paths:
-  /admin/config/default:
+  /admin/config:
+    get:
+      parameters:
+      - name: key
+        in: query
+        schema:
+          type: string
+      - name: userId
+        in: query
+        schema:
+          type: string
+      - name: ZM_ADMIN_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: "#/components/schemas/ResolvedEntry"
+      summary: Get Resolved Config
+      tags:
+      - Admin Config Resource
+  /admin/config/raw/default:
     get:
       parameters:
       - name: ZM_ADMIN_AUTH_TOKEN
@@ -106,7 +140,7 @@ paths:
       summary: Get Default Config
       tags:
       - Admin Config Resource
-  /admin/config/{scope}/{scopeId}:
+  /admin/config/raw/{scope}/{scopeId}:
     put:
       parameters:
       - name: scope
@@ -165,7 +199,7 @@ paths:
       summary: Get Scope Config
       tags:
       - Admin Config Resource
-  /admin/config/{scope}/{scopeId}/{key}:
+  /admin/config/raw/{scope}/{scopeId}/{key}:
     delete:
       parameters:
       - name: key
@@ -196,6 +230,10 @@ paths:
   /config:
     get:
       parameters:
+      - name: key
+        in: query
+        schema:
+          type: string
       - name: Cookie
         in: header
         schema:

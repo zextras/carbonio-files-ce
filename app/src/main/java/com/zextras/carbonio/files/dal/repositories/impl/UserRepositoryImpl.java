@@ -157,13 +157,18 @@ public class UserRepositoryImpl implements UserRepository {
 
   /** Maps a {@link UserInfoDto} to the local {@link UserInfo} domain type. */
   private UserInfo mapToUserInfo(UserInfoDto info) {
-    return new UserInfo(
-        new UserId(info.getUserId()),
-        info.getEmail(),
-        info.getFullName(),
-        info.getDomain(),
-        mapStatus(info.getStatus()),
-        mapType(info.getType()));
+    UserInfo userInfo =
+        new UserInfo(
+            new UserId(info.getUserId()),
+            info.getEmail(),
+            info.getFullName(),
+            info.getDomain(),
+            mapStatus(info.getStatus()),
+            mapType(info.getType()));
+    // Hierarchical-config inputs (cosId may be null on the domain-default COS).
+    userInfo.setCosId(info.getCosId());
+    userInfo.setDomainId(info.getDomainId());
+    return userInfo;
   }
 
   /**

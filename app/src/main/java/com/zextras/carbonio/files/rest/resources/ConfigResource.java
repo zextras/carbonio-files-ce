@@ -15,8 +15,10 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.jboss.resteasy.reactive.RestResponse;
@@ -48,16 +50,21 @@ public class ConfigResource {
   @GET
   public RestResponse<Map<String, String>> getMyConfig(
       @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken) {
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @QueryParam("key") String key) {
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
 
     Optional<String> accountId = Optional.ofNullable(requester.getId()).map(id -> id.getUserId());
     Optional<String> cosId = Optional.ofNullable(requester.getCosId());
     Optional<String> domainId = Optional.ofNullable(requester.getDomainId());
 
+    // ?key=<key> resolves that single key; otherwise the full set of declared keys.
+    List<String> keys =
+        (key != null && !key.isBlank()) ? List.of(key) : HierarchicalConfigKeys.ALL_KEYS;
+
     Map<String, String> effective = new LinkedHashMap<>();
-    for (String key : HierarchicalConfigKeys.ALL_KEYS) {
-      effective.put(key, configResolver.get(accountId, cosId, domainId, key).orElse(null));
+    for (String k : keys) {
+      effective.put(k, configResolver.get(accountId, cosId, domainId, k).orElse(null));
     }
     return RestResponse.ok(effective);
   }

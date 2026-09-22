@@ -6,6 +6,8 @@ package com.zextras.carbonio.files.rest.resources;
 
 import com.zextras.carbonio.files.Constants.API.Headers;
 import com.zextras.carbonio.files.config.HierarchicalConfigKeys;
+import com.zextras.carbonio.files.dal.dao.UserInfo;
+import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigAdminService;
 import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigResolver;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -18,30 +20,45 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import org.jboss.resteasy.reactive.RestResponse;
 
 /**
- * Admin-only, per-scope hierarchical-config management for the admin panel. Global-admin gated
- * ({@code ZM_ADMIN_AUTH_TOKEN}, {@link AdminAuthenticator}), scope = {@code account|cos|domain}.
+ * Admin-only hierarchical-config management for the admin panel. Global-admin gated ({@code
+ * ZM_ADMIN_AUTH_TOKEN}, {@link AdminAuthenticator}).
+ *
+ * <p>Two families:
  *
  * <ul>
- *   <li>{@code GET /admin/config/{scope}/{scopeId}} — the RAW overrides set at exactly this scope,
- *       WITHOUT hierarchy resolution: only keys with an explicit row here are returned (a key the
- *       scope does not override is absent from the response, not null). {@code {}} means no
- *       overrides at this scope; a key present with {@code ""} is an explicit empty override. This
- *       lets the panel show, per scope, exactly what that account/cos/domain overrides.
- *   <li>{@code GET /admin/config/default} — the base defaults (application.properties) for every
- *       key, resolved with no scope. Read-only, complete (all keys, {@code null} when the default
- *       is empty); the default has no id so it is a distinct path, not a {@code {scope}/{scopeId}}.
- *   <li>{@code PUT /admin/config/{scope}/{scopeId}} — set a single override ({@code {key, value}}).
- *       {@code default} is not writable (it lives in application.properties, not the DB).
+ *   <li><b>Resolved view (mirrors the user {@code GET /config}, plus the source, for a target
+ *       user):</b>
+ *       <ul>
+ *         <li>{@code GET /admin/config?userId=<id>} — every declared key RESOLVED for that user
+ *             (account &gt; cos &gt; domain &gt; default), each with the {@code source} tier that
+ *             produced it.
+ *         <li>{@code GET /admin/config?userId=<id>&key=<key>} — a single resolved key + source.
+ *       </ul>
+ *       {@code userId} is mandatory. Resolution reuses the extension's {@link ConfigResolver}
+ *       precedence (no re-implementation here); the user's cos/domain come from {@link
+ *       UserRepository#getUserById}.
+ *   <li><b>Raw override management (under {@code /raw}, distinct from the resolved view):</b>
+ *       <ul>
+ *         <li>{@code GET /admin/config/raw/default} — base defaults (read-only, complete).
+ *         <li>{@code GET /admin/config/raw/{scope}/{scopeId}} — the RAW overrides set at exactly
+ *             that scope (scope = account|cos|domain); keys not overridden are absent.
+ *         <li>{@code PUT /admin/config/raw/{scope}/{scopeId}} — set one override ({@code
+ *             {key,value}}).
+ *         <li>{@code DELETE /admin/config/raw/{scope}/{scopeId}/{key}} — clear one override
+ *             (revert-to-inherited), idempotent.
+ *       </ul>
  * </ul>
  */
 @ApplicationScoped
@@ -52,19 +69,28 @@ public class AdminConfigResource {
   private final AdminAuthenticator adminAuthenticator;
   private final ConfigAdminService configAdminService;
   private final ConfigResolver configResolver;
+  private final UserRepository userRepository;
 
   @Inject
   public AdminConfigResource(
       AdminAuthenticator adminAuthenticator,
       ConfigAdminService configAdminService,
-      ConfigResolver configResolver) {
+      ConfigResolver configResolver,
+      UserRepository userRepository) {
     this.adminAuthenticator = adminAuthenticator;
     this.configAdminService = configAdminService;
     this.configResolver = configResolver;
+    this.userRepository = userRepository;
   }
 
   /** Body for a per-scope config write: the key and its value. */
   public record SetConfigRequest(String key, String value) {}
+
+  /**
+   * A resolved value together with the scope tier that produced it
+   * (account|cos|domain|default|none).
+   */
+  public record ResolvedEntry(String value, String source) {}
 
   private enum Scope {
     ACCOUNT,
@@ -72,24 +98,49 @@ public class AdminConfigResource {
     DOMAIN
   }
 
-  @GET
-  @Path("/{scope}/{scopeId}")
-  public RestResponse<Map<String, String>> getScopeConfig(
-      @CookieParam(Headers.COOKIE_ZM_ADMIN_AUTH_TOKEN) String adminToken,
-      @PathParam("scope") String scope,
-      @PathParam("scopeId") String scopeId) {
-    adminAuthenticator.requireGlobalAdmin(adminToken);
-    Scope resolved = parseScope(scope);
+  // -------------------------------------------------------------------------
+  // Resolved view for a target user (mirrors GET /config, + source)
+  // -------------------------------------------------------------------------
 
-    Map<String, String> overrides = new LinkedHashMap<>();
-    for (String key : HierarchicalConfigKeys.ALL_KEYS) {
-      rawGet(resolved, scopeId, key).ifPresent(value -> overrides.put(key, value));
+  @GET
+  public RestResponse<Map<String, ResolvedEntry>> getResolvedConfig(
+      @CookieParam(Headers.COOKIE_ZM_ADMIN_AUTH_TOKEN) String adminToken,
+      @QueryParam("userId") String userId,
+      @QueryParam("key") String key) {
+    adminAuthenticator.requireGlobalAdmin(adminToken);
+    if (userId == null || userId.isBlank()) {
+      throw badRequest("userId is required");
     }
-    return RestResponse.ok(overrides);
+
+    UserInfo user =
+        userRepository
+            .getUserById(null, userId)
+            .orElseThrow(() -> notFound("Unknown user: " + userId));
+
+    Optional<String> accountId = Optional.of(userId);
+    Optional<String> cosId = Optional.ofNullable(user.getCosId());
+    Optional<String> domainId = Optional.ofNullable(user.getDomainId());
+
+    List<String> keys =
+        (key != null && !key.isBlank()) ? List.of(key) : HierarchicalConfigKeys.ALL_KEYS;
+
+    Map<String, ResolvedEntry> resolved = new LinkedHashMap<>();
+    for (String k : keys) {
+      ConfigResolver.Resolution res = configResolver.resolve(accountId, cosId, domainId, k);
+      resolved.put(
+          k,
+          new ResolvedEntry(
+              res.value().orElse(null), res.source().name().toLowerCase(Locale.ROOT)));
+    }
+    return RestResponse.ok(resolved);
   }
 
+  // -------------------------------------------------------------------------
+  // Raw override management (/raw)
+  // -------------------------------------------------------------------------
+
   @GET
-  @Path("/default")
+  @Path("/raw/default")
   public RestResponse<Map<String, String>> getDefaultConfig(
       @CookieParam(Headers.COOKIE_ZM_ADMIN_AUTH_TOKEN) String adminToken) {
     adminAuthenticator.requireGlobalAdmin(adminToken);
@@ -107,8 +158,24 @@ public class AdminConfigResource {
     return RestResponse.ok(defaults);
   }
 
+  @GET
+  @Path("/raw/{scope}/{scopeId}")
+  public RestResponse<Map<String, String>> getScopeConfig(
+      @CookieParam(Headers.COOKIE_ZM_ADMIN_AUTH_TOKEN) String adminToken,
+      @PathParam("scope") String scope,
+      @PathParam("scopeId") String scopeId) {
+    adminAuthenticator.requireGlobalAdmin(adminToken);
+    Scope resolved = parseScope(scope);
+
+    Map<String, String> overrides = new LinkedHashMap<>();
+    for (String key : HierarchicalConfigKeys.ALL_KEYS) {
+      rawGet(resolved, scopeId, key).ifPresent(value -> overrides.put(key, value));
+    }
+    return RestResponse.ok(overrides);
+  }
+
   @PUT
-  @Path("/{scope}/{scopeId}")
+  @Path("/raw/{scope}/{scopeId}")
   @Consumes(MediaType.APPLICATION_JSON)
   public RestResponse<Void> setScopeConfig(
       @CookieParam(Headers.COOKIE_ZM_ADMIN_AUTH_TOKEN) String adminToken,
@@ -134,7 +201,7 @@ public class AdminConfigResource {
   }
 
   @DELETE
-  @Path("/{scope}/{scopeId}/{key}")
+  @Path("/raw/{scope}/{scopeId}/{key}")
   public RestResponse<Void> deleteScopeConfig(
       @CookieParam(Headers.COOKIE_ZM_ADMIN_AUTH_TOKEN) String adminToken,
       @PathParam("scope") String scope,
@@ -148,9 +215,8 @@ public class AdminConfigResource {
       case COS -> configAdminService.deleteForCos(scopeId, key);
       case DOMAIN -> configAdminService.deleteForDomain(scopeId, key);
     }
-    // Idempotent: clearing an override always yields "no override at this scope" (so the key falls
-    // back to the inherited/default value), whether or not a row existed — 204 regardless of the
-    // affected-row boolean. This is the "revert to inherited" action for the admin panel.
+    // Idempotent: clearing an override always yields "no override at this scope" (the key falls
+    // back to the inherited/default value), whether or not a row existed — 204 regardless.
     return RestResponse.status(Response.Status.NO_CONTENT);
   }
 
@@ -173,5 +239,10 @@ public class AdminConfigResource {
   private WebApplicationException badRequest(String reason) {
     return new WebApplicationException(
         Response.status(Response.Status.BAD_REQUEST).entity(reason).type("text/plain").build());
+  }
+
+  private WebApplicationException notFound(String reason) {
+    return new WebApplicationException(
+        Response.status(Response.Status.NOT_FOUND).entity(reason).type("text/plain").build());
   }
 }

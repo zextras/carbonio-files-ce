@@ -59,7 +59,7 @@ class ConfigResourceTest {
             Optional.of("acc-1"), Optional.of("cos-1"), Optional.of("dom-1"), SHARES_ENABLED))
         .thenReturn(Optional.of("false"));
 
-    RestResponse<Map<String, String>> response = resource.getMyConfig("cookie", "tok");
+    RestResponse<Map<String, String>> response = resource.getMyConfig("cookie", "tok", null);
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.getEntity()).containsEntry(SHARES_ENABLED, "false");
@@ -72,10 +72,25 @@ class ConfigResourceTest {
             Optional.of("acc-1"), Optional.of("cos-1"), Optional.of("dom-1"), SHARES_ENABLED))
         .thenReturn(Optional.empty());
 
-    RestResponse<Map<String, String>> response = resource.getMyConfig("cookie", "tok");
+    RestResponse<Map<String, String>> response = resource.getMyConfig("cookie", "tok", null);
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.getEntity()).containsKey(SHARES_ENABLED);
     assertThat(response.getEntity().get(SHARES_ENABLED)).isNull();
+  }
+
+  @Test
+  void getMyConfig_withKeyQueryParam_resolvesOnlyThatKey() {
+    when(authenticator.requireUser("cookie", "tok")).thenReturn(caller());
+    when(configResolver.get(
+            Optional.of("acc-1"), Optional.of("cos-1"), Optional.of("dom-1"), "some.other.key"))
+        .thenReturn(Optional.of("x"));
+
+    RestResponse<Map<String, String>> response =
+        resource.getMyConfig("cookie", "tok", "some.other.key");
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    assertThat(response.getEntity())
+        .containsExactly(org.assertj.core.api.Assertions.entry("some.other.key", "x"));
   }
 }
