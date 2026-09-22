@@ -6,7 +6,9 @@ package com.zextras.carbonio.files.rest.resources;
 
 import static com.zextras.carbonio.files.config.HierarchicalConfigKeys.HierarchicalConfig.SHARES_ENABLED;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.zextras.carbonio.files.dal.dao.UserId;
@@ -14,6 +16,8 @@ import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.UserStatus;
 import com.zextras.carbonio.files.dal.dao.UserType;
 import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigResolver;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -80,17 +84,29 @@ class ConfigResourceTest {
   }
 
   @Test
-  void getMyConfig_withKeyQueryParam_resolvesOnlyThatKey() {
+  void getMyConfig_withKeyQueryParam_resolvesOnlyThatDeclaredKey() {
     when(authenticator.requireUser("cookie", "tok")).thenReturn(caller());
     when(configResolver.get(
-            Optional.of("acc-1"), Optional.of("cos-1"), Optional.of("dom-1"), "some.other.key"))
-        .thenReturn(Optional.of("x"));
+            Optional.of("acc-1"), Optional.of("cos-1"), Optional.of("dom-1"), SHARES_ENABLED))
+        .thenReturn(Optional.of("false"));
 
     RestResponse<Map<String, String>> response =
-        resource.getMyConfig("cookie", "tok", "some.other.key");
+        resource.getMyConfig("cookie", "tok", SHARES_ENABLED);
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.getEntity())
-        .containsExactly(org.assertj.core.api.Assertions.entry("some.other.key", "x"));
+        .containsExactly(org.assertj.core.api.Assertions.entry(SHARES_ENABLED, "false"));
+  }
+
+  @Test
+  void getMyConfig_withUndeclaredKey_returns404_andDoesNotResolve() {
+    when(authenticator.requireUser("cookie", "tok")).thenReturn(caller());
+
+    assertThatThrownBy(() -> resource.getMyConfig("cookie", "tok", "does.not.exist"))
+        .isInstanceOf(WebApplicationException.class)
+        .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
+        .isEqualTo(Response.Status.NOT_FOUND.getStatusCode());
+
+    verifyNoInteractions(configResolver);
   }
 }

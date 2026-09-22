@@ -44,7 +44,8 @@ import org.jboss.resteasy.reactive.RestResponse;
  *         <li>{@code GET /admin/config?userId=<id>} — every declared key RESOLVED for that user
  *             (account &gt; cos &gt; domain &gt; default), each with the {@code source} tier that
  *             produced it.
- *         <li>{@code GET /admin/config?userId=<id>&key=<key>} — a single resolved key + source.
+ *         <li>{@code GET /admin/config?userId=<id>&key=<key>} — a single resolved key + source; an
+ *             undeclared key is a real absence and answers {@code 404}.
  *       </ul>
  *       {@code userId} is mandatory. Resolution reuses the extension's {@link ConfigResolver}
  *       precedence (no re-implementation here); the user's cos/domain come from {@link
@@ -87,8 +88,9 @@ public class AdminConfigResource {
   public record SetConfigRequest(String key, String value) {}
 
   /**
-   * A resolved value together with the scope tier that produced it
-   * (account|cos|domain|default|none).
+   * A resolved value together with the scope tier that produced it (account|cos|domain|default).
+   * The value may be {@code null} when the winning tier's value is empty (an empty value is itself
+   * the base default, not an absence); the source is always one of those four tiers.
    */
   public record ResolvedEntry(String value, String source) {}
 
@@ -110,6 +112,9 @@ public class AdminConfigResource {
     adminAuthenticator.requireGlobalAdmin(adminToken);
     if (userId == null || userId.isBlank()) {
       throw badRequest("userId is required");
+    }
+    if (key != null && !key.isBlank() && !HierarchicalConfigKeys.isDeclared(key)) {
+      throw notFound("Unknown config key: " + key);
     }
 
     UserInfo user =

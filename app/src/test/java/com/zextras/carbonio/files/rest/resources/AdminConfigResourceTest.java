@@ -87,20 +87,30 @@ class AdminConfigResourceTest {
   }
 
   @Test
-  void getResolvedConfig_singleKey_resolvesOnlyThatKeyWithSource() {
+  void getResolvedConfig_singleDeclaredKey_resolvesOnlyThatKeyWithSource() {
     when(userRepository.getUserById(null, "user-9"))
         .thenReturn(Optional.of(userWith(null, "dom-1")));
     when(configResolver.resolve(
-            Optional.of("user-9"), Optional.empty(), Optional.of("dom-1"), "some.other.key"))
+            Optional.of("user-9"), Optional.empty(), Optional.of("dom-1"), SHARES_ENABLED))
         .thenReturn(new ConfigResolver.Resolution(Optional.of("v"), ConfigResolver.Source.DEFAULT));
 
     RestResponse<Map<String, AdminConfigResource.ResolvedEntry>> response =
-        resource.getResolvedConfig("admin-tok", "user-9", "some.other.key");
+        resource.getResolvedConfig("admin-tok", "user-9", SHARES_ENABLED);
 
     assertThat(response.getEntity())
         .containsExactly(
             org.assertj.core.api.Assertions.entry(
-                "some.other.key", new AdminConfigResource.ResolvedEntry("v", "default")));
+                SHARES_ENABLED, new AdminConfigResource.ResolvedEntry("v", "default")));
+  }
+
+  @Test
+  void getResolvedConfig_undeclaredKey_returns404_andDoesNotLookUpOrResolve() {
+    assertThatThrownBy(() -> resource.getResolvedConfig("admin-tok", "user-9", "does.not.exist"))
+        .isInstanceOf(WebApplicationException.class)
+        .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
+        .isEqualTo(Response.Status.NOT_FOUND.getStatusCode());
+
+    verifyNoInteractions(userRepository, configResolver);
   }
 
   @Test

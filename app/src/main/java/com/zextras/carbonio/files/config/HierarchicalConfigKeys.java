@@ -24,4 +24,14 @@ public final class HierarchicalConfigKeys {
    * caller's effective values. Add new {@link HierarchicalConfig} keys here too.
    */
   public static final List<String> ALL_KEYS = List.of(HierarchicalConfig.SHARES_ENABLED);
+
+  /**
+   * Whether {@code key} is a declared hierarchical-config key. A key that is not declared is a real
+   * absence (it does not exist as config at all) — the read endpoints answer {@code 404} for it,
+   * whereas a declared key is always resolvable (its effective value may be empty/null, which is
+   * itself the base-default value, not an absence).
+   */
+  public static boolean isDeclared(String key) {
+    return ALL_KEYS.contains(key);
+  }
 }

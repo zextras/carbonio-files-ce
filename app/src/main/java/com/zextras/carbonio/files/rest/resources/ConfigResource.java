@@ -16,7 +16,9 @@ import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,8 +32,9 @@ import org.jboss.resteasy.reactive.RestResponse;
  * HierarchicalConfigKeys#ALL_KEYS}) resolved against the caller's own account &gt; cos &gt; domain
  * (cos/domain now come from user-management), falling back to the base default. Every key is always
  * present; the value is the resolved string, or {@code null} when the effective value is
- * empty/unset. This is the resolved view — for the raw per-scope overrides (admin) see {@link
- * AdminConfigResource}.
+ * empty/unset (an empty value is itself the base default, not an absence). {@code GET /config?key=}
+ * narrows to one declared key; an undeclared key is a real absence and answers {@code 404}. This is
+ * the resolved view — for the raw per-scope overrides (admin) see {@link AdminConfigResource}.
  */
 @ApplicationScoped
 @Path("/config")
@@ -58,14 +61,28 @@ public class ConfigResource {
     Optional<String> cosId = Optional.ofNullable(requester.getCosId());
     Optional<String> domainId = Optional.ofNullable(requester.getDomainId());
 
-    // ?key=<key> resolves that single key; otherwise the full set of declared keys.
-    List<String> keys =
-        (key != null && !key.isBlank()) ? List.of(key) : HierarchicalConfigKeys.ALL_KEYS;
+    // ?key=<key> resolves that single declared key; otherwise the full set of declared keys. An
+    // undeclared key does not exist as config at all → 404 (a declared key always resolves, even
+    // if its effective value is empty).
+    List<String> keys;
+    if (key != null && !key.isBlank()) {
+      if (!HierarchicalConfigKeys.isDeclared(key)) {
+        throw notFound("Unknown config key: " + key);
+      }
+      keys = List.of(key);
+    } else {
+      keys = HierarchicalConfigKeys.ALL_KEYS;
+    }
 
     Map<String, String> effective = new LinkedHashMap<>();
     for (String k : keys) {
       effective.put(k, configResolver.get(accountId, cosId, domainId, k).orElse(null));
     }
     return RestResponse.ok(effective);
+  }
+
+  private WebApplicationException notFound(String reason) {
+    return new WebApplicationException(
+        Response.status(Response.Status.NOT_FOUND).entity(reason).type("text/plain").build());
   }
 }
