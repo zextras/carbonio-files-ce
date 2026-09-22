@@ -23,7 +23,6 @@ class HierarchicalConfigIT {
 
   private static final String ACC = "account-1";
   private static final String COS = "cos-1";
-  private static final String DOM = "domain-1";
 
   @Inject ConfigResolver resolver;
 
@@ -33,55 +32,46 @@ class HierarchicalConfigIT {
   void cleanup() {
     adminService.deleteForAccount(ACC, SHARES_ENABLED);
     adminService.deleteForCos(COS, SHARES_ENABLED);
-    adminService.deleteForDomain(DOM, SHARES_ENABLED);
   }
 
   @Test
   void skipAbsent_cosWinsWhenNoAccountRow() {
-    adminService.setForDomain(DOM, SHARES_ENABLED, "false");
-    adminService.setForCos(COS, SHARES_ENABLED, "true");
+    adminService.setForCos(COS, SHARES_ENABLED, "false");
 
-    assertThat(resolver.get(Optional.of(ACC), Optional.of(COS), Optional.of(DOM), SHARES_ENABLED))
-        .hasValue("true");
+    assertThat(resolver.get(Optional.of(ACC), Optional.of(COS), SHARES_ENABLED)).hasValue("false");
   }
 
   @Test
   void skipAbsent_accountWinsWhenNoCosRow() {
     adminService.setForAccount(ACC, SHARES_ENABLED, "false");
-    adminService.setForDomain(DOM, SHARES_ENABLED, "true");
 
-    assertThat(resolver.get(Optional.of(ACC), Optional.of(COS), Optional.of(DOM), SHARES_ENABLED))
-        .hasValue("false");
+    assertThat(resolver.get(Optional.of(ACC), Optional.of(COS), SHARES_ENABLED)).hasValue("false");
   }
 
   @Test
-  void skipAbsent_domainWinsWhenOnlyDomainRow() {
-    adminService.setForDomain(DOM, SHARES_ENABLED, "false");
+  void accountWinsOverCos() {
+    adminService.setForAccount(ACC, SHARES_ENABLED, "false");
+    adminService.setForCos(COS, SHARES_ENABLED, "true");
 
-    assertThat(resolver.get(Optional.of(ACC), Optional.of(COS), Optional.of(DOM), SHARES_ENABLED))
-        .hasValue("false");
+    assertThat(resolver.get(Optional.of(ACC), Optional.of(COS), SHARES_ENABLED)).hasValue("false");
   }
 
   @Test
   void perScopeDbValuesIndependent() {
     adminService.setForAccount(ACC, SHARES_ENABLED, "false");
     adminService.setForCos(COS, SHARES_ENABLED, "true");
-    adminService.setForDomain(DOM, SHARES_ENABLED, "false");
 
     assertThat(adminService.getRawFromAccount(ACC, SHARES_ENABLED)).hasValue("false");
     assertThat(adminService.getRawFromCos(COS, SHARES_ENABLED)).hasValue("true");
-    assertThat(adminService.getRawFromDomain(DOM, SHARES_ENABLED)).hasValue("false");
   }
 
   @Test
   void baseDefaultTrueWhenNoRows() {
-    assertThat(resolver.get(Optional.of(ACC), Optional.of(COS), Optional.of(DOM), SHARES_ENABLED))
-        .hasValue("true");
+    assertThat(resolver.get(Optional.of(ACC), Optional.of(COS), SHARES_ENABLED)).hasValue("true");
   }
 
   @Test
   void undeclaredKeyNoRowsNoDefault_returnsEmpty() {
-    assertThat(resolver.get(Optional.of(ACC), Optional.of(COS), Optional.of(DOM), "no.such.key"))
-        .isEmpty();
+    assertThat(resolver.get(Optional.of(ACC), Optional.of(COS), "no.such.key")).isEmpty();
   }
 }

@@ -29,12 +29,12 @@ import org.jboss.resteasy.reactive.RestResponse;
  * The authenticated caller's effective hierarchical config.
  *
  * <p>{@code GET /config} returns a complete, stable snapshot: every declared key ({@link
- * HierarchicalConfigKeys#ALL_KEYS}) resolved against the caller's own account &gt; cos &gt; domain
- * (cos/domain now come from user-management), falling back to the base default. Every key is always
- * present; the value is the resolved string, or {@code null} when the effective value is
- * empty/unset (an empty value is itself the base default, not an absence). {@code GET /config?key=}
- * narrows to one declared key; an undeclared key is a real absence and answers {@code 404}. This is
- * the resolved view — for the raw per-scope overrides (admin) see {@link AdminConfigResource}.
+ * HierarchicalConfigKeys#ALL_KEYS}) resolved against the caller's own account &gt; cos (cos comes
+ * from user-management), falling back to the base default. Every key is always present; the value
+ * is the resolved string, or {@code null} when the effective value is empty/unset (an empty value
+ * is itself the base default, not an absence). {@code GET /config?key=} narrows to one declared
+ * key; an undeclared key is a real absence and answers {@code 404}. This is the resolved view — for
+ * the raw per-scope overrides (admin) see {@link AdminConfigResource}.
  */
 @ApplicationScoped
 @Path("/config")
@@ -59,7 +59,6 @@ public class ConfigResource {
 
     Optional<String> accountId = Optional.ofNullable(requester.getId()).map(id -> id.getUserId());
     Optional<String> cosId = Optional.ofNullable(requester.getCosId());
-    Optional<String> domainId = Optional.ofNullable(requester.getDomainId());
 
     // ?key=<key> resolves that single declared key; otherwise the full set of declared keys. An
     // undeclared key does not exist as config at all → 404 (a declared key always resolves, even
@@ -76,7 +75,7 @@ public class ConfigResource {
 
     Map<String, String> effective = new LinkedHashMap<>();
     for (String k : keys) {
-      effective.put(k, configResolver.get(accountId, cosId, domainId, k).orElse(null));
+      effective.put(k, configResolver.get(accountId, cosId, k).orElse(null));
     }
     return RestResponse.ok(effective);
   }

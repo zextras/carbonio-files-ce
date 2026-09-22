@@ -29,40 +29,35 @@ class SharesEnabledGuardTest {
 
   @Test
   void falseValueDisablesSharing() {
-    when(configResolver.get(
-            Optional.of(USER_ID), Optional.empty(), Optional.empty(), SHARES_ENABLED))
+    when(configResolver.get(Optional.of(USER_ID), Optional.empty(), SHARES_ENABLED))
         .thenReturn(Optional.of("false"));
     assertThat(guard.isEnabledFor(USER_ID)).isFalse();
   }
 
   @Test
   void trueValueKeepsSharingEnabled() {
-    when(configResolver.get(
-            Optional.of(USER_ID), Optional.empty(), Optional.empty(), SHARES_ENABLED))
+    when(configResolver.get(Optional.of(USER_ID), Optional.empty(), SHARES_ENABLED))
         .thenReturn(Optional.of("true"));
     assertThat(guard.isEnabledFor(USER_ID)).isTrue();
   }
 
   @Test
   void absentValueDefaultsToEnabled() {
-    when(configResolver.get(
-            Optional.of(USER_ID), Optional.empty(), Optional.empty(), SHARES_ENABLED))
+    when(configResolver.get(Optional.of(USER_ID), Optional.empty(), SHARES_ENABLED))
         .thenReturn(Optional.empty());
     assertThat(guard.isEnabledFor(USER_ID)).isTrue();
   }
 
   @Test
   void falseIsCaseInsensitiveUpperCase() {
-    when(configResolver.get(
-            Optional.of(USER_ID), Optional.empty(), Optional.empty(), SHARES_ENABLED))
+    when(configResolver.get(Optional.of(USER_ID), Optional.empty(), SHARES_ENABLED))
         .thenReturn(Optional.of("FALSE"));
     assertThat(guard.isEnabledFor(USER_ID)).isFalse();
   }
 
   @Test
   void falseIsCaseInsensitiveMixedCase() {
-    when(configResolver.get(
-            Optional.of(USER_ID), Optional.empty(), Optional.empty(), SHARES_ENABLED))
+    when(configResolver.get(Optional.of(USER_ID), Optional.empty(), SHARES_ENABLED))
         .thenReturn(Optional.of("False"));
     assertThat(guard.isEnabledFor(USER_ID)).isFalse();
   }

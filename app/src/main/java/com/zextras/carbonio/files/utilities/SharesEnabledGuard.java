@@ -22,16 +22,10 @@ public class SharesEnabledGuard {
   }
 
   public boolean isEnabledFor(String requesterId) {
-    // cos and domain are Optional.empty(): user-management does not return them yet; fill when it
-    // does (Optional.of(cosId) / Optional.of(domainId)).
     return !"false"
         .equalsIgnoreCase(
             configResolver
-                .get(
-                    Optional.ofNullable(requesterId),
-                    Optional.empty(),
-                    Optional.empty(),
-                    SHARES_ENABLED)
+                .get(Optional.ofNullable(requesterId), Optional.empty(), SHARES_ENABLED)
                 .orElse("true"));
   }
 }

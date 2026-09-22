@@ -57,10 +57,9 @@ class ConfigResourceTest {
   }
 
   @Test
-  void getMyConfig_resolvesEveryKeyForTheCallerAccountCosDomain() {
+  void getMyConfig_resolvesEveryKeyForTheCallerAccountCos() {
     when(authenticator.requireUser("cookie", "tok")).thenReturn(caller());
-    when(configResolver.get(
-            Optional.of("acc-1"), Optional.of("cos-1"), Optional.of("dom-1"), SHARES_ENABLED))
+    when(configResolver.get(Optional.of("acc-1"), Optional.of("cos-1"), SHARES_ENABLED))
         .thenReturn(Optional.of("false"));
 
     RestResponse<Map<String, String>> response = resource.getMyConfig("cookie", "tok", null);
@@ -72,8 +71,7 @@ class ConfigResourceTest {
   @Test
   void getMyConfig_includesEveryKeyWithNullWhenResolverEmpty() {
     when(authenticator.requireUser("cookie", "tok")).thenReturn(caller());
-    when(configResolver.get(
-            Optional.of("acc-1"), Optional.of("cos-1"), Optional.of("dom-1"), SHARES_ENABLED))
+    when(configResolver.get(Optional.of("acc-1"), Optional.of("cos-1"), SHARES_ENABLED))
         .thenReturn(Optional.empty());
 
     RestResponse<Map<String, String>> response = resource.getMyConfig("cookie", "tok", null);
@@ -86,8 +84,7 @@ class ConfigResourceTest {
   @Test
   void getMyConfig_withKeyQueryParam_resolvesOnlyThatDeclaredKey() {
     when(authenticator.requireUser("cookie", "tok")).thenReturn(caller());
-    when(configResolver.get(
-            Optional.of("acc-1"), Optional.of("cos-1"), Optional.of("dom-1"), SHARES_ENABLED))
+    when(configResolver.get(Optional.of("acc-1"), Optional.of("cos-1"), SHARES_ENABLED))
         .thenReturn(Optional.of("false"));
 
     RestResponse<Map<String, String>> response =

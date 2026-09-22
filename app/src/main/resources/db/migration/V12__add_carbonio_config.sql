@@ -18,17 +18,4 @@ CREATE TABLE carbonio_cos_config (
   PRIMARY KEY (cos_id, config_key)
 );
 
-CREATE TABLE carbonio_domain_config (
-  domain_id  varchar(256) NOT NULL,
-  config_key varchar(256) NOT NULL,
-  value      text,
-  PRIMARY KEY (domain_id, config_key)
-);
-
-CREATE TABLE carbonio_global_config (
-  config_key varchar(256) NOT NULL,
-  value      text,
-  PRIMARY KEY (config_key)
-);
-
 COMMIT;

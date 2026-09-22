@@ -73,8 +73,7 @@ class AdminConfigResourceTest {
   void getResolvedConfig_returnsResolvedValueAndSourceForTheUser() {
     when(userRepository.getUserById(null, "user-9"))
         .thenReturn(Optional.of(userWith("cos-1", "dom-1")));
-    when(configResolver.resolve(
-            Optional.of("user-9"), Optional.of("cos-1"), Optional.of("dom-1"), SHARES_ENABLED))
+    when(configResolver.resolve(Optional.of("user-9"), Optional.of("cos-1"), SHARES_ENABLED))
         .thenReturn(new ConfigResolver.Resolution(Optional.of("false"), ConfigResolver.Source.COS));
 
     RestResponse<Map<String, AdminConfigResource.ResolvedEntry>> response =
@@ -90,8 +89,7 @@ class AdminConfigResourceTest {
   void getResolvedConfig_singleDeclaredKey_resolvesOnlyThatKeyWithSource() {
     when(userRepository.getUserById(null, "user-9"))
         .thenReturn(Optional.of(userWith(null, "dom-1")));
-    when(configResolver.resolve(
-            Optional.of("user-9"), Optional.empty(), Optional.of("dom-1"), SHARES_ENABLED))
+    when(configResolver.resolve(Optional.of("user-9"), Optional.empty(), SHARES_ENABLED))
         .thenReturn(new ConfigResolver.Resolution(Optional.of("v"), ConfigResolver.Source.DEFAULT));
 
     RestResponse<Map<String, AdminConfigResource.ResolvedEntry>> response =
@@ -173,19 +171,6 @@ class AdminConfigResourceTest {
         resource.getScopeConfig("admin-tok", "account", "acc-9");
 
     assertThat(response.getEntity()).containsEntry(SHARES_ENABLED, "true");
-  }
-
-  @Test
-  void getScopeConfig_omitsKeysWithNoOverrideAtThisScope() {
-    // The domain does not override shares-enabled → the key is absent from the response (not null),
-    // so the panel can tell "not overridden here" from "overridden to empty".
-    when(configAdminService.getRawFromDomain("dom-9", SHARES_ENABLED)).thenReturn(Optional.empty());
-
-    RestResponse<Map<String, String>> response =
-        resource.getScopeConfig("admin-tok", "domain", "dom-9");
-
-    assertThat(response.getStatus()).isEqualTo(200);
-    assertThat(response.getEntity()).isEmpty();
   }
 
   @Test
@@ -276,16 +261,6 @@ class AdminConfigResourceTest {
   }
 
   @Test
-  void setScopeConfig_domain_delegates() {
-    resource.setScopeConfig(
-        "admin-tok",
-        "domain",
-        "dom-9",
-        new AdminConfigResource.SetConfigRequest(SHARES_ENABLED, "false"));
-    verify(configAdminService).setForDomain("dom-9", SHARES_ENABLED, "false");
-  }
-
-  @Test
   void setScopeConfig_unknownScope_returns400_andDoesNotWrite() {
     assertThatThrownBy(
             () ->
@@ -373,12 +348,6 @@ class AdminConfigResourceTest {
   }
 
   @Test
-  void deleteScopeConfig_domain_delegates() {
-    resource.deleteScopeConfig("admin-tok", "domain", "dom-9", SHARES_ENABLED);
-    verify(configAdminService).deleteForDomain("dom-9", SHARES_ENABLED);
-  }
-
-  @Test
   void deleteScopeConfig_isIdempotent_returns204EvenWhenNoOverrideExisted() {
     when(configAdminService.deleteForCos("cos-9", SHARES_ENABLED)).thenReturn(false);
 
@@ -405,98 +374,6 @@ class AdminConfigResourceTest {
             new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build()));
 
     assertThatThrownBy(() -> resource.deleteScopeConfig("user-tok", "cos", "cos-9", SHARES_ENABLED))
-        .isInstanceOf(WebApplicationException.class)
-        .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
-        .isEqualTo(Response.Status.UNAUTHORIZED.getStatusCode());
-
-    verifyNoInteractions(configAdminService);
-  }
-
-  // ---- Global raw endpoints (singleton, no scope id) ----
-
-  @Test
-  void getGlobalConfig_returnsOnlyGlobalOverrides() {
-    when(configAdminService.getRawFromGlobal(SHARES_ENABLED)).thenReturn(Optional.of("false"));
-
-    RestResponse<Map<String, String>> response = resource.getGlobalConfig("admin-tok");
-
-    verify(adminAuthenticator).requireGlobalAdmin("admin-tok");
-    assertThat(response.getStatus()).isEqualTo(200);
-    assertThat(response.getEntity()).containsEntry(SHARES_ENABLED, "false");
-  }
-
-  @Test
-  void getGlobalConfig_omitsKeysWithNoGlobalOverride() {
-    when(configAdminService.getRawFromGlobal(SHARES_ENABLED)).thenReturn(Optional.empty());
-
-    RestResponse<Map<String, String>> response = resource.getGlobalConfig("admin-tok");
-
-    assertThat(response.getStatus()).isEqualTo(200);
-    assertThat(response.getEntity()).isEmpty();
-  }
-
-  @Test
-  void setGlobalConfig_delegatesAndReturns204() {
-    RestResponse<Void> response =
-        resource.setGlobalConfig(
-            "admin-tok", new AdminConfigResource.SetConfigRequest(SHARES_ENABLED, "false"));
-
-    verify(adminAuthenticator).requireGlobalAdmin("admin-tok");
-    verify(configAdminService).setForGlobal(SHARES_ENABLED, "false");
-    assertThat(response.getStatus()).isEqualTo(204);
-  }
-
-  @Test
-  void setGlobalConfig_missingKey_returns400() {
-    assertThatThrownBy(
-            () ->
-                resource.setGlobalConfig(
-                    "admin-tok", new AdminConfigResource.SetConfigRequest("  ", "false")))
-        .isInstanceOf(WebApplicationException.class)
-        .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
-        .isEqualTo(Response.Status.BAD_REQUEST.getStatusCode());
-
-    verifyNoInteractions(configAdminService);
-  }
-
-  @Test
-  void setGlobalConfig_missingValue_returns400() {
-    assertThatThrownBy(
-            () ->
-                resource.setGlobalConfig(
-                    "admin-tok", new AdminConfigResource.SetConfigRequest(SHARES_ENABLED, null)))
-        .isInstanceOf(WebApplicationException.class)
-        .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
-        .isEqualTo(Response.Status.BAD_REQUEST.getStatusCode());
-
-    verifyNoInteractions(configAdminService);
-  }
-
-  @Test
-  void deleteGlobalConfig_delegatesAndReturns204() {
-    RestResponse<Void> response = resource.deleteGlobalConfig("admin-tok", SHARES_ENABLED);
-
-    verify(adminAuthenticator).requireGlobalAdmin("admin-tok");
-    verify(configAdminService).deleteForGlobal(SHARES_ENABLED);
-    assertThat(response.getStatus()).isEqualTo(204);
-  }
-
-  @Test
-  void deleteGlobalConfig_isIdempotent_returns204EvenWhenNoOverrideExisted() {
-    when(configAdminService.deleteForGlobal(SHARES_ENABLED)).thenReturn(false);
-
-    RestResponse<Void> response = resource.deleteGlobalConfig("admin-tok", SHARES_ENABLED);
-
-    assertThat(response.getStatus()).isEqualTo(204);
-  }
-
-  @Test
-  void globalEndpoints_nonAdmin_propagatesTheAuthenticatorRejection() {
-    when(adminAuthenticator.requireGlobalAdmin("user-tok"))
-        .thenThrow(
-            new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build()));
-
-    assertThatThrownBy(() -> resource.getGlobalConfig("user-tok"))
         .isInstanceOf(WebApplicationException.class)
         .extracting(e -> ((WebApplicationException) e).getResponse().getStatus())
         .isEqualTo(Response.Status.UNAUTHORIZED.getStatusCode());
