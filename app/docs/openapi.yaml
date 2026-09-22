@@ -1,30 +1,93 @@
 ---
 openapi: 3.1.0
+components:
+  schemas:
+    CreateFolderRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        destinationId:
+          type: string
+        name:
+          type: string
+    CreatePublicLinkRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        nodeId:
+          type: string
+    DeleteAllRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+    DeleteAllResponse:
+      type: object
+      properties:
+        deleted:
+          type: boolean
+    InternalNodeDto:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        extension:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+          format: int64
+        version:
+          type: integer
+          format: int32
+        updatedAt:
+          type: integer
+          format: int64
+        owner:
+          $ref: "#/components/schemas/OwnerDto"
+        parent:
+          $ref: "#/components/schemas/ParentDto"
+        permissions:
+          $ref: "#/components/schemas/PermissionsDto"
+    InternalNodeIdDto:
+      type: object
+      properties:
+        nodeId:
+          type: string
+    OwnerDto:
+      type: object
+      properties:
+        id:
+          type: string
+    ParentDto:
+      type: object
+      properties:
+        id:
+          type: string
+    PermissionsDto:
+      type: object
+      properties:
+        canWriteFile:
+          type: boolean
+    PublicLinkDto:
+      type: object
+      properties:
+        url:
+          type: string
+    SetConfigRequest:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
 paths:
-  /config:
-    get:
-      parameters:
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties:
-                  type: string
-      summary: Get My Config
-      tags:
-      - Config Resource
-  /config/admin/{scope}/{scopeId}:
+  /admin/config/{scope}/{scopeId}:
     put:
       parameters:
       - name: scope
@@ -52,7 +115,58 @@ paths:
           description: No Content
         "400":
           description: Bad Request
-      summary: Set Config
+      summary: Set Scope Config
+      tags:
+      - Admin Config Resource
+    get:
+      parameters:
+      - name: scope
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: scopeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: ZM_ADMIN_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+      summary: Get Scope Config
+      tags:
+      - Admin Config Resource
+  /config:
+    get:
+      parameters:
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+      summary: Get My Config
       tags:
       - Config Resource
   /download-multiple:
@@ -1170,92 +1284,6 @@ paths:
       summary: Upload Version
       tags:
       - Blob Resource
-components:
-  schemas:
-    CreateFolderRequest:
-      type: object
-      properties:
-        userId:
-          type: string
-        destinationId:
-          type: string
-        name:
-          type: string
-    CreatePublicLinkRequest:
-      type: object
-      properties:
-        userId:
-          type: string
-        nodeId:
-          type: string
-    DeleteAllRequest:
-      type: object
-      properties:
-        userId:
-          type: string
-    DeleteAllResponse:
-      type: object
-      properties:
-        deleted:
-          type: boolean
-    InternalNodeDto:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        extension:
-          type: string
-        mimeType:
-          type: string
-        size:
-          type: integer
-          format: int64
-        version:
-          type: integer
-          format: int32
-        updatedAt:
-          type: integer
-          format: int64
-        owner:
-          $ref: "#/components/schemas/OwnerDto"
-        parent:
-          $ref: "#/components/schemas/ParentDto"
-        permissions:
-          $ref: "#/components/schemas/PermissionsDto"
-    InternalNodeIdDto:
-      type: object
-      properties:
-        nodeId:
-          type: string
-    OwnerDto:
-      type: object
-      properties:
-        id:
-          type: string
-    ParentDto:
-      type: object
-      properties:
-        id:
-          type: string
-    PermissionsDto:
-      type: object
-      properties:
-        canWriteFile:
-          type: boolean
-    PublicLinkDto:
-      type: object
-      properties:
-        url:
-          type: string
-    SetConfigRequest:
-      type: object
-      properties:
-        key:
-          type: string
-        value:
-          type: string
 info:
   title: carbonio-files-ce-app API
   version: unversioned
