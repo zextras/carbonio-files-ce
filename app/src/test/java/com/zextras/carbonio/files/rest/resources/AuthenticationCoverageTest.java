@@ -30,9 +30,10 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Cross-cutting guard (F5, Quarkus-rewrite hardening restoration): every JAX-RS resource method in
- * {@code app/src/main} must EITHER call {@link BlobAuthenticator#requireUser} (directly, via a
- * private same-class helper, or via a lambda body — see {@link #resolvesRequireUserCall}) OR be
- * named on the {@link #ALLOWLIST} below, with a one-line reason.
+ * {@code app/src/main} must EITHER call an authenticator — {@link BlobAuthenticator#requireUser}
+ * (normal user) or {@link AdminAuthenticator#requireGlobalAdmin} (admin-only endpoints) — directly,
+ * via a private same-class helper, or via a lambda body (see {@link #resolvesAuthenticationCall})
+ * OR be named on the {@link #ALLOWLIST} below, with a one-line reason.
  *
  * <p>This is the test that would have caught F3 on its own: {@code
  * PreviewResource#unmatchedPreviewPath} silently stopped calling {@code requireUser} during the
@@ -125,7 +126,7 @@ class AuthenticationCoverageTest {
           continue;
         }
 
-        if (!resolvesRequireUserCall(method)) {
+        if (!resolvesAuthenticationCall(method)) {
           offendingMethods.add(className + "#" + methodName);
         }
       }
@@ -133,13 +134,13 @@ class AuthenticationCoverageTest {
 
     assertThat(offendingMethods)
         .as(
-            "The following JAX-RS resource method(s) neither call"
-                + " BlobAuthenticator#requireUser (directly, via a private helper, or via a lambda"
-                + " body) NOR appear on AuthenticationCoverageTest's ALLOWLIST: %s -- either add"
-                + " the missing authenticator.requireUser(...) call, or justify the method as an"
-                + " explicit, documented allowlist entry (with a one-line reason) if it is"
-                + " genuinely meant to be unauthenticated (e.g. a /public/** link-based route or an"
-                + " /internal/** mesh-trusted route).",
+            "The following JAX-RS resource method(s) neither call an authenticator"
+                + " (BlobAuthenticator#requireUser or AdminAuthenticator#requireGlobalAdmin;"
+                + " directly, via a private helper, or via a lambda body) NOR appear on"
+                + " AuthenticationCoverageTest's ALLOWLIST: %s -- either add the missing"
+                + " authenticator call, or justify the method as an explicit, documented allowlist"
+                + " entry (with a one-line reason) if it is genuinely meant to be unauthenticated"
+                + " (e.g. a /public/** link-based route or an /internal/** mesh-trusted route).",
             offendingMethods)
         .isEmpty();
   }
@@ -156,7 +157,8 @@ class AuthenticationCoverageTest {
   /**
    * {@code true} if {@code method} (or a same-class method it is bound to — a direct call, a
    * private helper reached transitively, or a lambda body compiled from within it) contains a
-   * bytecode call to {@code BlobAuthenticator#requireUser}.
+   * bytecode call to an authenticator: {@code BlobAuthenticator#requireUser} (normal user) or
+   * {@code AdminAuthenticator#requireGlobalAdmin} (admin-only endpoints).
    *
    * <p>Two indirection shapes exist in this codebase and both must be followed:
    *
@@ -172,7 +174,7 @@ class AuthenticationCoverageTest {
    *       of a call-graph edge.
    * </ul>
    */
-  private static boolean resolvesRequireUserCall(JavaMethod method) {
+  private static boolean resolvesAuthenticationCall(JavaMethod method) {
     JavaClass owner = method.getOwner();
     Pattern lambdaPattern =
         Pattern.compile("^lambda\\$" + Pattern.quote(method.getName()) + "\\$\\d+$");
@@ -195,8 +197,10 @@ class AuthenticationCoverageTest {
 
       for (JavaMethodCall call : current.getMethodCallsFromSelf()) {
         MethodCallTarget target = call.getTarget();
-        if (target.getOwner().isEquivalentTo(BlobAuthenticator.class)
-            && target.getName().equals("requireUser")) {
+        if ((target.getOwner().isEquivalentTo(BlobAuthenticator.class)
+                && target.getName().equals("requireUser"))
+            || (target.getOwner().isEquivalentTo(AdminAuthenticator.class)
+                && target.getName().equals("requireGlobalAdmin"))) {
           return true;
         }
         if (target.getOwner().equals(owner)) {
