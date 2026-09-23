@@ -3,9 +3,10 @@ List of third-party dependencies grouped by their license type.
 
     AGPL-3.0-only:
 
-        * Carbonio Quarkus Extensions - Bootstrap Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-bootstrap:1.14.0-1 - no url defined)
-        * Carbonio Quarkus Extensions - Database Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-database:1.14.0-1 - no url defined)
-        * Carbonio Quarkus Extensions - REST Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-rest:1.14.0-1 - no url defined)
+        * Carbonio Quarkus Extensions - Bootstrap Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-bootstrap:1.15.1-1 - no url defined)
+        * Carbonio Quarkus Extensions - Database Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-database:1.15.1-1 - no url defined)
+        * Carbonio Quarkus Extensions - GraphQL Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-graphql:1.15.1-1 - no url defined)
+        * Carbonio Quarkus Extensions - REST Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-rest:1.15.1-1 - no url defined)
         * Carbonio Systemd Notify (com.zextras.carbonio:carbonio-systemd-notify:1.0.1 - https://github.com/zextras/carbonio-systemd-notify)
         * Carbonio User Management - REST SDK (com.zextras.carbonio.user-management:carbonio-user-management-rest-sdk:1.3.0-1 - no url defined)
         * carbonio-message-broker-sdk (com.zextras.carbonio.message-broker:carbonio-message-broker-sdk:1.1.0-1 - no url defined)
@@ -176,6 +177,7 @@ List of third-party dependencies grouped by their license type.
     Eclipse Distribution License v. 1.0:
 
         * Jakarta Persistence API (jakarta.persistence:jakarta.persistence-api:3.2.0 - https://github.com/jakartaee/persistence)
+        * Yasson (org.eclipse:yasson:3.0.4 - https://projects.eclipse.org/projects/ee4j.yasson)
 
     Eclipse Public License - v 1.0:
 
@@ -193,6 +195,7 @@ List of third-party dependencies grouped by their license type.
     Eclipse Public License 2.0:
 
         * Eclipse Parsson (org.eclipse.parsson:parsson:1.1.9 - https://github.com/eclipse-ee4j/parsson/parsson)
+        * Jakarta JSON Binding API (jakarta.json.bind:jakarta.json.bind-api:3.0.2 - https://projects.eclipse.org/projects/ee4j.jsonb/jakarta.json.bind-api)
         * Jakarta JSON Processing API (jakarta.json:jakarta.json-api:2.1.3 - https://github.com/eclipse-ee4j/jsonp)
 
     Eclipse Public License v. 2.0:
@@ -200,12 +203,14 @@ List of third-party dependencies grouped by their license type.
         * Eclipse Expressly (org.glassfish.expressly:expressly:6.0.0 - https://projects.eclipse.org/projects/ee4j.expressly)
         * Jakarta Expression Language API (jakarta.el:jakarta.el-api:6.0.1 - https://projects.eclipse.org/projects/ee4j.el)
         * Jakarta Persistence API (jakarta.persistence:jakarta.persistence-api:3.2.0 - https://github.com/jakartaee/persistence)
+        * Yasson (org.eclipse:yasson:3.0.4 - https://projects.eclipse.org/projects/ee4j.yasson)
 
     GNU General Public License, version 2 with the GNU Classpath Exception:
 
         * Eclipse Expressly (org.glassfish.expressly:expressly:6.0.0 - https://projects.eclipse.org/projects/ee4j.expressly)
         * Eclipse Parsson (org.eclipse.parsson:parsson:1.1.9 - https://github.com/eclipse-ee4j/parsson/parsson)
         * Jakarta Expression Language API (jakarta.el:jakarta.el-api:6.0.1 - https://projects.eclipse.org/projects/ee4j.el)
+        * Jakarta JSON Binding API (jakarta.json.bind:jakarta.json.bind-api:3.0.2 - https://projects.eclipse.org/projects/ee4j.jsonb/jakarta.json.bind-api)
         * Jakarta JSON Processing API (jakarta.json:jakarta.json-api:2.1.3 - https://github.com/eclipse-ee4j/jsonp)
 
     GPL v2:

@@ -1,0 +1,331 @@
+union Account = DistributionList | User
+
+type AddedNode {
+  added_node: SnapshotNode!
+  added_node_type: AddedNodeType!
+  created_at: BigInteger!
+  destination_folder: SnapshotNode!
+  id: ID!
+  notification_type: NotificationType!
+  triggering_user: SnapshotUser!
+}
+
+enum AddedNodeType {
+  COPY
+  CREATE
+  MOVE
+  UPLOAD
+}
+
+type CollaborationLink {
+  created_at: BigInteger!
+  id: ID!
+  node: Node!
+  permission: SharePermission!
+  url: String!
+}
+
+type Config {
+  name: String!
+  value: String
+}
+
+type DistributionList {
+  id: ID!
+  name: String!
+  users(cursor: String, limit: Int!): [User]!
+}
+
+type File implements Node {
+  cloned_from_version: Int
+  collaboration_links: [CollaborationLink]!
+  created_at: BigInteger!
+  creator: User!
+  description: String!
+  digest: String!
+  extension: String
+  flagged: Boolean!
+  id: ID!
+  keep_forever: Boolean!
+  last_editor: User
+  links: [Link]!
+  mime_type: String!
+  name: String!
+  owner: User
+  parent: Node
+  permissions: Permissions!
+  rootId: ID
+  share(share_target_id: ID!): Share
+  shares(cursor: String, limit: Int!, sorts: [ShareSort!]): [Share]!
+  size: Float!
+  type: NodeType!
+  updated_at: BigInteger!
+  version: Int!
+}
+
+type Folder implements Node {
+  children(limit: Int!, page_token: String, sort: NodeSort!): NodePage!
+  collaboration_links: [CollaborationLink]!
+  created_at: BigInteger!
+  creator: User!
+  description: String!
+  flagged: Boolean!
+  id: ID!
+  last_editor: User
+  links: [Link]!
+  name: String!
+  owner: User
+  parent: Node
+  permissions: Permissions!
+  rootId: ID
+  share(share_target_id: ID!): Share
+  shares(cursor: String, limit: Int!, sorts: [ShareSort!]): [Share]!
+  type: NodeType!
+  updated_at: BigInteger!
+}
+
+type Link {
+  access_code: String
+  created_at: BigInteger!
+  description: String
+  expires_at: BigInteger
+  id: ID!
+  node: Node!
+  url: String
+}
+
+"Mutation root"
+type Mutation {
+  cloneVersion(node_id: ID!, version: Int!): File!
+  copyNodes(destination_id: ID!, node_ids: [String!]): [Node!]
+  createCollaborationLink(node_id: ID!, permission: SharePermission!): CollaborationLink!
+  createFolder(destination_id: String!, name: String!): Node!
+  createLink(access_code: String, description: String, expires_at: BigInteger, node_id: ID!): Link!
+  createShare(custom_message: String, expires_at: BigInteger, node_id: ID!, permission: SharePermission!, share_target_id: ID!): Share!
+  deleteCollaborationLinks(collaboration_link_ids: [String!]!): [ID]!
+  deleteLinks(link_ids: [String!]!): [ID]!
+  deleteNodes(node_ids: [String!]): [ID!]
+  deleteShares(node_id: ID!, share_target_ids: [String!]!): [ID]!
+  deleteVersions(node_id: ID!, versions: [Int!]): [Int]!
+  flagNodes(flag: Boolean!, node_ids: [String!]): [ID!]
+  keepVersions(keep_forever: Boolean!, node_id: ID!, versions: [Int!]!): [Int]!
+  moveNodes(destination_id: ID!, node_ids: [String!]): [Node!]
+  restoreNodes(node_ids: [String!]): [Node]
+  trashNodes(node_ids: [String!]): [ID!]
+  updateLink(access_code: String, description: String, expires_at: BigInteger, link_id: ID!): Link
+  updateNode(description: String, flagged: Boolean, name: String, node_id: String!): Node!
+  updateShares(expires_at: BigInteger, node_id: ID!, permission: SharePermission, share_target_ids: [String!]!): [Share]!
+}
+
+type NewShare {
+  created_at: BigInteger!
+  id: ID!
+  node: SnapshotNode!
+  notification_type: NotificationType!
+  triggering_user: SnapshotUser!
+}
+
+interface Node {
+  collaboration_links: [CollaborationLink]!
+  created_at: BigInteger!
+  creator: User!
+  description: String!
+  flagged: Boolean!
+  id: ID!
+  last_editor: User
+  links: [Link]!
+  name: String!
+  owner: User
+  parent: Node
+  permissions: Permissions!
+  rootId: ID
+  share(share_target_id: ID!): Share
+  shares(cursor: String, limit: Int!, sorts: [ShareSort!]): [Share]!
+  type: NodeType!
+  updated_at: BigInteger!
+}
+
+type NodePage {
+  nodes: [Node]!
+  page_token: String
+}
+
+enum NodeSort {
+  LAST_EDITOR_ASC
+  LAST_EDITOR_DESC
+  NAME_ASC
+  NAME_DESC
+  OWNER_ASC
+  OWNER_DESC
+  SIZE_ASC
+  SIZE_DESC
+  TYPE_ASC
+  TYPE_DESC
+  UPDATED_AT_ASC
+  UPDATED_AT_DESC
+}
+
+enum NodeType {
+  APPLICATION
+  AUDIO
+  FOLDER
+  IMAGE
+  MESSAGE
+  OTHER
+  PRESENTATION
+  ROOT
+  SPREADSHEET
+  TEXT
+  VIDEO
+}
+
+union Notification = AddedNode | NewShare | RemovedNode
+
+type NotificationPage {
+  last_seen: BigInteger!
+  notifications: [Notification]!
+  page_token: String
+  unread: Int!
+}
+
+enum NotificationType {
+  ADDED_NODE
+  NEW_SHARE
+  REMOVED_NODE
+  SUCCEEDED_RECORDING
+  TRANSFERRED_OWNERSHIP
+}
+
+type Permissions {
+  can_add_version: Boolean!
+  can_change_link: Boolean!
+  can_change_share: Boolean!
+  can_delete: Boolean!
+  can_read: Boolean!
+  can_read_link: Boolean!
+  can_read_share: Boolean!
+  can_share: Boolean!
+  can_write_file: Boolean!
+  can_write_folder: Boolean!
+}
+
+type PublicFile implements PublicNode {
+  created_at: BigInteger!
+  extension: String
+  id: ID!
+  mime_type: String!
+  name: String!
+  size: Float!
+  type: NodeType!
+  updated_at: BigInteger!
+}
+
+type PublicFolder implements PublicNode {
+  created_at: BigInteger!
+  id: ID!
+  name: String!
+  type: NodeType!
+  updated_at: BigInteger!
+}
+
+interface PublicNode {
+  created_at: BigInteger!
+  id: ID!
+  name: String!
+  type: NodeType!
+  updated_at: BigInteger!
+}
+
+type PublicNodePage {
+  nodes: [PublicNode]!
+  page_token: String
+}
+
+"Query root"
+type Query {
+  findNodes(cascade: Boolean, direct_share: Boolean, flagged: Boolean, folder_id: String, keywords: [String!], limit: Int, owner_id: String, page_token: String, shared_by_me: Boolean, shared_with_me: Boolean, sort: NodeSort, type: NodeType): NodePage
+  findPublicNodes(access_code: String, folder_id: ID!, limit: Int, node_link_id: String, page_token: String): PublicNodePage
+  getAccountByEmail(email: String!): Account
+  getAccountsByEmail(emails: [String!]!): [Account]!
+  getCollaborationLinks(node_id: ID!): [CollaborationLink]!
+  getConfigs: [Config]!
+  getLinks(node_id: ID!): [Link]!
+  getNode(node_id: ID!, version: Int): Node
+  getNotifications(limit: Int, page_token: String, update_last_seen: Boolean!): NotificationPage
+  getPath(node_id: ID!): [Node]!
+  getPublicNode(access_code: String, node_link_id: String!): PublicNode
+  getRootsList: [Root]!
+  getShare(node_id: ID!, share_target_id: ID!): Share
+  getUserById(user_id: ID!): User
+  getVersions(node_id: ID!, versions: [Int!]): [File]!
+}
+
+type RemovedNode {
+  created_at: BigInteger!
+  id: ID!
+  notification_type: NotificationType!
+  origin_folder: SnapshotNode!
+  removed_node: SnapshotNode!
+  removed_node_type: RemovedNodeType!
+  triggering_user: SnapshotUser!
+}
+
+enum RemovedNodeType {
+  DELETE
+  MOVE
+}
+
+type Root {
+  id: ID!
+  name: String!
+}
+
+type Share {
+  created_at: BigInteger!
+  expires_at: BigInteger
+  node: Node!
+  permission: SharePermission!
+  share_target: SharedTarget
+}
+
+enum SharePermission {
+  READ_AND_SHARE
+  READ_AND_WRITE
+  READ_ONLY
+  READ_WRITE_AND_SHARE
+}
+
+enum ShareSort {
+  CREATION_ASC
+  CREATION_DESC
+  EXPIRATION_ASC
+  EXPIRATION_DESC
+  SHARE_PERMISSIONS_ASC
+  SHARE_PERMISSIONS_DESC
+  TARGET_USER_ASC
+  TARGET_USER_DESC
+}
+
+union SharedTarget = DistributionList | User
+
+type SnapshotNode {
+  created_at: BigInteger!
+  name: String!
+  node_id: ID!
+  owner_id: ID
+  snapshot_node_id: ID!
+  type: NodeType!
+}
+
+type SnapshotUser {
+  email: String!
+  full_name: String!
+  snapshot_user_id: ID!
+  user_id: ID!
+}
+
+type User {
+  email: String!
+  full_name: String!
+  id: ID!
+}
