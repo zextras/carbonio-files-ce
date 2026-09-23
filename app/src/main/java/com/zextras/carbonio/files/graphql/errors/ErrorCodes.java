@@ -20,4 +20,11 @@ public enum ErrorCodes {
   ACCESS_CODE_REQUIRED,
   WRONG_ACCESS_CODE,
   LINK_LIMIT_EXCEEDED,
+  // Never produced by CE (no quota concept). Reserved for the Advanced edition's
+  // CopyFailureClassifier
+  // seam, which maps a storage over-quota (Powerstore HTTP 422) during copy/clone to this code so
+  // the
+  // frontend can show the over-quota UX. Not part of the GraphQL schema (error codes are
+  // extensions).
+  OVER_QUOTA_REACHED,
 }

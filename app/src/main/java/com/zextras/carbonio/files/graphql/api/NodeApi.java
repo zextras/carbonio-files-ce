@@ -36,6 +36,7 @@ import com.zextras.carbonio.files.graphql.model.NodeType;
 import com.zextras.carbonio.files.graphql.model.PermissionsModel;
 import com.zextras.carbonio.files.graphql.model.RootModel;
 import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
+import com.zextras.carbonio.files.graphql.spi.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.support.NodeCreationHelper;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
@@ -95,6 +96,7 @@ public class NodeApi {
   @Inject PermissionsChecker permissionsChecker;
   @Inject ShareRepository shareRepository;
   @Inject FilesConfig filesConfig;
+  @Inject CopyFailureClassifier copyFailureClassifier;
   @Inject GraphQLInputValidator validator;
   @Inject @AuthenticatedUser UserMyself requester;
   @Inject TombstoneRepository tombstoneRepository;
@@ -1013,11 +1015,14 @@ public class NodeApi {
 
     boolean hasErrors = !nodesWithoutPermission.isEmpty() || !copyErrors.isEmpty();
     if (hasErrors) {
+      ErrorCodes code =
+          copyErrors.stream()
+              .map(copyFailureClassifier::classify)
+              .filter(c -> c != ErrorCodes.NODE_COPY_ERROR)
+              .findFirst()
+              .orElse(ErrorCodes.NODE_COPY_ERROR);
       throw new FilesGraphQLException(
-          ErrorCodes.NODE_COPY_ERROR,
-          ErrorCodes.NODE_COPY_ERROR.name(),
-          copiedNodesResult,
-          Map.of("copyNodes", copiedNodesResult));
+          code, code.name(), copiedNodesResult, Map.of("copyNodes", copiedNodesResult));
     }
     return copiedNodesResult;
   }
@@ -1227,7 +1232,7 @@ public class NodeApi {
       String error =
           MessageFormat.format("Copy error with nodeId: {0} and version {1}", nodeId, version);
       logger.error(error);
-      throw FilesGraphQLException.of(ErrorCodes.NODE_COPY_ERROR, "node_id", nodeId);
+      throw FilesGraphQLException.of(copyFailureClassifier.classify(e), "node_id", nodeId);
     }
   }
 
