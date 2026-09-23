@@ -135,12 +135,9 @@ class NodePermissionsFieldApiIT extends AbstractFilesIT {
     // When
     Response response = graphql(bodyPayload, NO_RELATIONSHIP_COOKIE);
 
-    // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find node with id " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_NOT_FOUND");
 
     Map<String, Object> node =
         TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");

@@ -99,11 +99,6 @@ class KeepVersionsCountCapIT extends AbstractFilesIT {
                 TestUtils.jsonResponseToValue(response.getBody().asString(), "keepVersions")
                     .orElse(List.of()))
         .isEmpty();
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly(
-            "There was a problem while executing requested operation on node: " + nodeId);
     Assertions.assertThat(errorCodes(response.getBody().asString()))
         .containsExactly("VERSIONS_LIMIT_REACHED");
 

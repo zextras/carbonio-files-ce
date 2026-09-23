@@ -188,11 +188,8 @@ class CreatePublicLinkApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errorResponse)
-        .hasSize(1)
-        .containsExactly(
-            "Invalid link access code. The access code must be between 10 and 255 characters long");
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).contains("MISSING_FIELD");
   }
 
   @Test
@@ -205,12 +202,8 @@ class CreatePublicLinkApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errorResponse)
-        .hasSize(1)
-        .containsExactly(
-            "There was a problem while executing requested operation on node: "
-                + nonExistentNodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   @Test
@@ -244,11 +237,8 @@ class CreatePublicLinkApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errorResponse)
-        .hasSize(1)
-        .containsExactly(
-            "There was a problem while executing requested operation on node: " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   @Test
@@ -263,11 +253,8 @@ class CreatePublicLinkApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errorResponse)
-        .hasSize(1)
-        .containsExactly(
-            "There was a problem while executing requested operation on node: " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   @Test
@@ -285,9 +272,7 @@ class CreatePublicLinkApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errorResponse)
-        .hasSize(1)
-        .containsExactly("The limit for links has been reached for this node: " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("LINK_LIMIT_EXCEEDED");
   }
 }

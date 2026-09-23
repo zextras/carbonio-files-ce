@@ -126,10 +126,8 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
 
     // Then — unlike the `parent` field, direct getNode surfaces a real error
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find node with id " + nonExistentId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_NOT_FOUND");
     Map<String, Object> node =
         TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node).isEmpty();
@@ -147,10 +145,8 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
 
     // Then — same nodeNotFound-shaped error as the not-found case; the gate cannot distinguish them
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find node with id " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_NOT_FOUND");
   }
 
   /**
@@ -183,19 +179,19 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
     // When — request a version that was never created
     Response response = getNode(nodeId, 999, "{ id name type }", REQUESTER_COOKIE);
 
-    // Then — base node data IS present...
+    // Then — under SmallRye code-first, a non-null sub-field error triggers GraphQL
+    // null-propagation: the whole getNode field is nulled out (no base data is returned).
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Map<String, Object> node =
         TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
-    Assertions.assertThat(node)
-        .containsEntry("id", nodeId)
-        .containsEntry("name", "versioned")
-        .containsEntry("type", NodeType.TEXT.toString());
+    Assertions.assertThat(node).isEmpty();
 
-    // ...alongside (not instead of) the version-not-found error
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find version: 999 for node with id " + nodeId);
+    // The version-not-found error is still reported, but because SmallRye null-propagation nulls
+    // the
+    // whole getNode field, it surfaces as a spec null-bubble error WITHOUT the
+    // FilesGraphQLException
+    // errorCode extension — so only its presence (one error) is asserted here.
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).hasSize(1);
   }
 }

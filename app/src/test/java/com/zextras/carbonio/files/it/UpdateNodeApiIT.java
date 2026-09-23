@@ -89,10 +89,8 @@ class UpdateNodeApiIT extends AbstractFilesIT {
 
     // Then — updateNodeFetcher's permission-denied branch returns nodeNotFound, not nodeWriteError
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find node with id " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_NOT_FOUND");
   }
 
   @Test
@@ -111,13 +109,8 @@ class UpdateNodeApiIT extends AbstractFilesIT {
 
     // Then — REJECTED with duplicateNode, unlike createFolder's silent " (1)" auto-rename
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly(
-            "Trying to create a duplicate for the node "
-                + nodeId
-                + " in destination folder LOCAL_ROOT");
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_DUPLICATED");
 
     // the node was NOT renamed
     Assertions.assertThat(nodeExists(nodeId, REQUESTER_COOKIE)).isTrue();
