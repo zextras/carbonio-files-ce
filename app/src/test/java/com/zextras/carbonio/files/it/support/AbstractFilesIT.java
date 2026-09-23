@@ -179,14 +179,14 @@ public abstract class AbstractFilesIT {
   }
 
   /**
-   * POSTs an UNAUTHENTICATED GraphQL {@code query}/{@code mutation} string to {@code
-   * /public/graphql/}.
+   * POSTs an UNAUTHENTICATED GraphQL {@code query}/{@code mutation} string to {@code /graphql/} (no
+   * cookie — anonymous identity, so only {@code @PermitAll} public operations succeed).
    */
   protected static Response publicGraphql(String query) {
     return RestAssured.given()
         .contentType("application/json")
         .body(TestUtils.queryPayload(query))
-        .post("/public/graphql/");
+        .post("/graphql/");
   }
 
   // ------------------------------------------------------------------- runtime app-config (live

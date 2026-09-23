@@ -5,8 +5,6 @@
 package com.zextras.carbonio.files.config;
 
 import com.zextras.carbonio.files.dal.repositories.impl.NodeRepositoryImpl;
-import com.zextras.carbonio.files.graphql.types.Permissions;
-import com.zextras.carbonio.files.graphql.types.PublicNode;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
 import com.zextras.carbonio.files.rest.types.UploadAttachmentResponse;
@@ -20,32 +18,22 @@ import com.zextras.carbonio.user_management.sdk.rest.model.UserInfoDto;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 /**
- * Registers, for the GraalVM native image, the POJOs that are (de)serialized by Jackson or read
- * reflectively by graphql-java at runtime but that Quarkus does not auto-register at build time.
+ * Registers, for the GraalVM native image, the Jackson JSON DTOs that are (de)serialized manually
+ * (not through a JAX-RS body) but that Quarkus does not auto-register at build time.
  *
- * <p>Two categories:
+ * <p>The upload/blob/preview REST DTOs are returned through an opaque {@code
+ * jakarta.ws.rs.core.Response} or serialized manually, so Quarkus REST cannot infer the type and
+ * they are registered defensively. This also covers {@link NodeRepositoryImpl.PageToken}, the
+ * keyset pagination cursor that {@code NodeRepositoryImpl} (de)serialises with a raw {@link
+ * com.fasterxml.jackson.databind.ObjectMapper} to Base64 JSON; it never appears in any JAX-RS type
+ * signature Quarkus scans, so without this entry the native image cannot introspect it and every
+ * paginated {@code children}/{@code findNodes} response throws "Unable to serialize page token".
  *
- * <ul>
- *   <li><b>graphql-java property data fetching</b> — the public schema DataFetchers return {@link
- *       PublicNode} / {@link Permissions} POJOs (rather than {@code Map<String,Object>}); graphql's
- *       default {@code PropertyDataFetcher} reads their fields reflectively. (Most other fetchers
- *       already return Maps, which need no reflection.)
- *   <li><b>Jackson JSON DTOs serialized/deserialized manually (not through a JAX-RS body)</b> — the
- *       upload/blob/preview REST DTOs are returned through an opaque {@code
- *       jakarta.ws.rs.core.Response} or serialized manually, so Quarkus REST cannot infer the type
- *       and they are registered defensively. This category also covers {@link
- *       NodeRepositoryImpl.PageToken}, the keyset pagination cursor that {@code NodeRepositoryImpl}
- *       (de)serialises with a raw {@link com.fasterxml.jackson.databind.ObjectMapper} to Base64
- *       JSON; it never appears in any JAX-RS/GraphQL type signature Quarkus scans, so without this
- *       entry the native image cannot introspect it and every paginated {@code children}/{@code
- *       findNodes} response throws "Unable to serialize page token".
- * </ul>
+ * <p>The code-first GraphQL model/API types are auto-registered for reflection by
+ * quarkus-smallrye-graphql at build time, so they need no entry here.
  */
 @RegisterForReflection(
     targets = {
-      // graphql-java property data fetching (public schema)
-      PublicNode.class,
-      Permissions.class,
       // Jackson JSON DTOs returned/consumed via an opaque Response or serialized manually
       BlobResponse.class,
       UploadAttachmentResponse.class,

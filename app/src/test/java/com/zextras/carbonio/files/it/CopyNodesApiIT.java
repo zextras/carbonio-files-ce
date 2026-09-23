@@ -247,15 +247,9 @@ class CopyNodesApiIT extends AbstractFilesIT {
     // When
     Response response = copyNodes(new String[] {parentFolderId}, childFolderId, REQUESTER_COOKIE);
 
-    // Then — the single blocked source node bubbles TWO errors: the app's own nodeWriteError, PLUS
-    // a graphql-java-generated null-propagation error (see class javadoc) because the schema
-    // declares `copyNodes: [Node!]` (non-null items) and this one item resolved with a null value.
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(2)
-        .contains(
-            "There was a problem while executing requested operation on node: " + parentFolderId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_COPY_ERROR");
     Assertions.assertThat(copiedNodes(response)).isEmpty();
     Assertions.assertThat(childrenOf(childFolderId, REQUESTER_COOKIE)).isEmpty();
   }
@@ -291,13 +285,9 @@ class CopyNodesApiIT extends AbstractFilesIT {
     // When
     Response response = copyNodes(new String[] {sourceId}, nonExistentDest, REQUESTER_COOKIE);
 
-    // Then — see the descendant-block test above for why this is 2 errors, not 1
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(2)
-        .contains(
-            "There was a problem while executing requested operation on node: " + nonExistentDest);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
     Assertions.assertThat(copiedNodes(response)).isEmpty();
   }
 
@@ -318,12 +308,9 @@ class CopyNodesApiIT extends AbstractFilesIT {
     // When
     Response response = copyNodes(new String[] {sourceId}, destFileId, REQUESTER_COOKIE);
 
-    // Then — see the descendant-block test above for why this is 2 errors, not 1
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(2)
-        .contains("There was a problem while executing requested operation on node: " + destFileId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   @Test
@@ -337,13 +324,9 @@ class CopyNodesApiIT extends AbstractFilesIT {
     // When
     Response response = copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE);
 
-    // Then — see the descendant-block test above for why this is 2 errors, not 1
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(2)
-        .contains(
-            "There was a problem while executing requested operation on node: " + destFolderId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   @Test
@@ -359,13 +342,10 @@ class CopyNodesApiIT extends AbstractFilesIT {
     Response response = copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE);
 
     // Then — copyFile's Try#onFailure deletes the just-created node row and reports the error
-    // using the SOURCE node's id/version (a freshly-seeded file's current version is 1). See the
-    // descendant-block test above for why this is 2 errors, not 1.
+    // using the SOURCE node's id/version.
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(2)
-        .contains("There was a problem while copying the node " + sourceId + " with version 1");
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_COPY_ERROR");
     Assertions.assertThat(copiedNodes(response)).isEmpty();
 
     // the source is untouched, and no orphan row was left behind in the destination

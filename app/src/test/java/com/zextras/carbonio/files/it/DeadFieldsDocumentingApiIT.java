@@ -79,30 +79,23 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAnyUserIdGetUserByIdShouldAlwaysReturnNullWithNoError() {
-    // Given — a syntactically valid-looking id and an obviously invalid one; the finding is that
-    // NEITHER path is even reachable, so both behave identically.
-    String validLookingId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
-    String invalidId = "";
+  void getUserByIdReturnsTheUserForARegisteredId() {
+    // getUserById was previously an unreachable ("dead") field documented here; it is now wired to
+    // a
+    // real resolver, so a registered user id resolves to that user's public fields, with no error.
+    String userId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getUserById")
+            .withString("user_id", userId)
+            .withWantedResultFormat("{ id email full_name }")
+            .build();
 
-    for (String userId : List.of(validLookingId, invalidId)) {
-      String bodyPayload =
-          GraphqlCommandBuilder.aQueryBuilder("getUserById")
-              .withString("user_id", userId)
-              .withWantedResultFormat("{ id email full_name }")
-              .build();
+    Response response = execute(bodyPayload);
 
-      // When
-      Response response = execute(bodyPayload);
-
-      // Then
-      Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-      Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
-          .isEmpty();
-      Assertions.assertThat(
-              TestUtils.jsonResponseToValue(response.getBody().asString(), "getUserById"))
-          .isEmpty();
-    }
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
+    var user = TestUtils.jsonResponseToMap(response.getBody().asString(), "getUserById");
+    Assertions.assertThat(user).containsEntry("id", userId);
   }
 
   @Test
@@ -171,6 +164,9 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
 
     // Then — both must be error-free (all three targets are registered UM users) and, crucially,
     // the ORDER of target ids must be IDENTICAL between the two calls: `sorts` changed nothing.
+    // POSSIBLE REAL BUG: share_target ids are returning truncated/wrong values (e.g.
+    // "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb3") — this is a data integrity failure in the share
+    // resolver or the seeding logic; the three registered target ids are not what is returned.
     Assertions.assertThat(TestUtils.jsonResponseToErrors(withSortsResponse.getBody().asString()))
         .isEmpty();
     Assertions.assertThat(TestUtils.jsonResponseToErrors(withoutSortsResponse.getBody().asString()))

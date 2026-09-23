@@ -130,6 +130,8 @@ class InviteRedirectApiIT extends AbstractFilesIT {
     Response response = clickInvite(invitationId, INVITEE_COOKIE);
 
     // Then
+    // POSSIBLE REAL BUG: the 307 redirect occurs but shareExists() returns false — the
+    // collaboration-link share auto-creation is not happening under the Quarkus port.
     Assertions.assertThat(response.getStatusCode()).isEqualTo(307);
     Assertions.assertThat(response.getHeader("location")).isEqualTo(expectedLocation(nodeId));
     Assertions.assertThat(response.getHeader("content-length")).isEqualTo("0");
@@ -153,6 +155,8 @@ class InviteRedirectApiIT extends AbstractFilesIT {
     Response response = clickInvite(invitationId, INVITEE_COOKIE);
 
     // Then — same share row, but its permission tier is now updated, not duplicated
+    // POSSIBLE REAL BUG: the 307 redirect occurs but shareExists() returns false — the
+    // collaboration-link share auto-creation / update is not happening under the Quarkus port.
     Assertions.assertThat(response.getStatusCode()).isEqualTo(307);
     Assertions.assertThat(response.getHeader("location")).isEqualTo(expectedLocation(nodeId));
     Assertions.assertThat(shareExists(nodeId, INVITEE_ID, OWNER_COOKIE)).isTrue();

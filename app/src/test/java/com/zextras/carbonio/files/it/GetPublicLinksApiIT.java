@@ -182,7 +182,7 @@ class GetPublicLinksApiIT extends AbstractFilesIT {
     List<Map<String, Object>> publicLinks = getLinks(nonExistentNodeId, OWNER_COOKIE, "{ id }");
 
     // Then
-    Assertions.assertThat(publicLinks).first().isNull();
+    Assertions.assertThat(publicLinks).isEmpty();
   }
 
   // TODO it should return an error message
@@ -198,7 +198,7 @@ class GetPublicLinksApiIT extends AbstractFilesIT {
     List<Map<String, Object>> publicLinks = getLinks(nodeId, TARGET_COOKIE, "{ id }");
 
     // Then
-    Assertions.assertThat(publicLinks).first().isNull();
+    Assertions.assertThat(publicLinks).isEmpty();
   }
 
   // TODO it should return an error message
@@ -215,7 +215,7 @@ class GetPublicLinksApiIT extends AbstractFilesIT {
     List<Map<String, Object>> publicLinks = getLinks(nodeId, TARGET_COOKIE, "{ id }");
 
     // Then
-    Assertions.assertThat(publicLinks).first().isNull();
+    Assertions.assertThat(publicLinks).isEmpty();
   }
 
   @Test

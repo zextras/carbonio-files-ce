@@ -92,10 +92,8 @@ class DeleteSharesApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(deletedIds(response)).hasSize(1).containsExactly(TARGET_B_ID);
 
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find share for node: " + nodeId + " and user " + TARGET_C_ID);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("SHARE_NOT_FOUND");
   }
 
   @Test
@@ -128,8 +126,8 @@ class DeleteSharesApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(deletedIds(response)).isEmpty();
 
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("SHARE_NOT_FOUND");
   }
 
   @Test
@@ -146,9 +144,7 @@ class DeleteSharesApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(deletedIds(response)).hasSize(1).containsExactly(TARGET_B_ID);
 
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find share for node: " + nodeId + " and user " + OWNER_ID);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("SHARE_NOT_FOUND");
   }
 }

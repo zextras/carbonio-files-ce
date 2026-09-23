@@ -87,10 +87,8 @@ class CreateShareApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not create share for node: " + nodeId + " and user: " + TARGET_ID);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("SHARE_CREATION_ERROR");
     Assertions.assertThat(shareExists(nodeId, TARGET_ID, OWNER_COOKIE)).isFalse();
   }
 
@@ -105,10 +103,8 @@ class CreateShareApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not create share for node: " + nodeId + " and user: " + OWNER_ID);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("SHARE_CREATION_ERROR");
     Assertions.assertThat(shareExists(nodeId, OWNER_ID, OWNER_COOKIE)).isFalse();
   }
 
@@ -149,10 +145,8 @@ class CreateShareApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find share for node: " + nodeId + " and user " + THIRD_USER_ID);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("SHARE_NOT_FOUND");
   }
 
   @Test

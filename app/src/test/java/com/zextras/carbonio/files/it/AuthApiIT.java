@@ -17,27 +17,34 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.AuthApiIT} rewritten as an out-of-process
- * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. Covers every non-happy branch of
- * {@code AuthenticationHandler}: missing cookie, cookie without {@code ZM_AUTH_TOKEN}, an
- * unresolvable token, an inactive user, a guest user, and a user with the Files feature flag
- * disabled. All six are driven through the same authenticated GraphQL route ({@code POST
- * /graphql/}).
+ * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}. Covers every non-happy branch of the
+ * unified {@code POST /graphql} endpoint's auth flow.
  *
- * <p>CO-3482 (devel #301): a genuine auth failure (missing/invalid credentials, unresolvable user)
- * returns 401, while an authenticated-but-not-entitled user (inactive account, guest, or Files
- * feature disabled) returns 403 instead. The two response families are covered by separate
- * parameterized tests below — carried over VERBATIM from the seam version (commit 70dbf4c5, which
- * fixed these from a uniform 401 to the 401/403 split): do NOT regress these back to 401.
+ * <p><b>Unified-endpoint paradigm (feat/graphql-code-first):</b> {@code FilesGraphQLAuthMechanism}
+ * returns an ANONYMOUS identity when no {@code ZM_AUTH_TOKEN} cookie is present — this is REQUIRED
+ * so {@code @PermitAll} public operations ({@code getPublicNode}, {@code findPublicNodes}) succeed
+ * unauthenticated. A no-cookie call to an {@code @Authenticated} operation therefore fails DURING
+ * GraphQL execution (Quarkus security throws {@code UnauthorizedException}), which SmallRye renders
+ * as HTTP 200 with a GraphQL error whose {@code extensions.errorCode} is {@code "UNAUTHENTICATED"}
+ * and whose {@code data} is {@code null}. This is security-safe (no data leak) and
+ * machine-detectable.
  *
- * <p>{@code GET /download/{id}} is guarded by an equivalent-but-distinct JAX-RS handler ({@code
- * BlobAuthenticator}, the REST counterpart of the GraphQL {@code FilesAuthenticationFilter}); it
- * applies the identical checks and status codes, verified by the trailing tests (including the
- * parameterized 403 coverage on this route).
+ * <p>Three distinct HTTP outcomes on the {@code /graphql} route:
  *
- * <p>All 8 methods/scenarios (2 parameterized ×3 + 1 plain + 1 parameterized ×3) and their
- * assertions are preserved verbatim; only the transport (RestAssured instead of the seam) and the
- * user-fixture registration ({@link FilesStackTestResource#getUserManagementService()}'s 5-arg
- * {@code registerToken}, replacing {@code Mocks#registerUser}) changed.
+ * <ol>
+ *   <li>No {@code ZM_AUTH_TOKEN} cookie (missing entirely, or cookie present but without the token)
+ *       → HTTP <b>200</b> + GraphQL error with {@code errorCode:"UNAUTHENTICATED"} + {@code
+ *       "data":null}.
+ *   <li>Cookie present but token not resolvable by user-management → HTTP <b>401</b> (mechanism
+ *       throws {@code AuthenticationFailedException} → {@code sendChallenge} writes plain-text
+ *       body).
+ *   <li>Authenticated but not entitled (inactive / GUEST / files-feature-off) → HTTP <b>403</b>.
+ * </ol>
+ *
+ * <p>CO-3482 (devel #301): the 401/403 split is preserved and must never regress.
+ *
+ * <p>{@code GET /download/{id}} is guarded by {@code BlobAuthenticator} (the REST counterpart); it
+ * applies identical checks and status codes, verified by the trailing tests.
  */
 class AuthApiIT extends AbstractFilesIT {
 
@@ -64,14 +71,10 @@ class AuthApiIT extends AbstractFilesIT {
     // "unknown-token" is deliberately never registered on either UM fixture map.
   }
 
-  static Stream<Arguments> unauthorizedAuthScenarios() {
+  static Stream<Arguments> noCookieScenarios() {
     return Stream.of(
-        Arguments.of("missing Cookie header entirely", null, "Missing cookies"),
-        Arguments.of("Cookie header without ZM_AUTH_TOKEN", "other=1", "Missing cookies"),
-        Arguments.of(
-            "token not resolvable by user-management",
-            "ZM_AUTH_TOKEN=unknown-token",
-            "Unable to find requested user"));
+        Arguments.of("missing Cookie header entirely", (String) null),
+        Arguments.of("Cookie header without ZM_AUTH_TOKEN", "other=1"));
   }
 
   static Stream<Arguments> forbiddenAuthScenarios() {
@@ -88,16 +91,31 @@ class AuthApiIT extends AbstractFilesIT {
   }
 
   @ParameterizedTest(name = "{0}")
-  @MethodSource("unauthorizedAuthScenarios")
-  void givenUnauthorizedAuthBranchOnGraphqlThenRequestIsRejectedWith401(
-      String scenarioName, String cookie, String expectedMessageFragment) {
-    // Given — genuine auth failure: missing/invalid credentials or unresolvable user.
+  @MethodSource("noCookieScenarios")
+  void givenNoCookieOnGraphqlThenReturns200WithUnauthenticatedErrorCode(
+      String scenarioName, String cookie) {
+    // Given — no cookie → anonymous identity → @Authenticated throws UnauthorizedException in
+    // DataFetcher → HTTP 200 with errorCode:"UNAUTHENTICATED", data:null (no leak).
     // When
     Response response = graphql(TRIVIAL_QUERY, cookie);
 
     // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    String body = response.getBody().asString();
+    Assertions.assertThat(body).contains("UNAUTHENTICATED");
+    Assertions.assertThat(body).contains("\"data\":null");
+  }
+
+  @Test
+  void givenUnresolvableTokenOnGraphqlThenRequestIsRejectedWith401() {
+    // Given — ZM_AUTH_TOKEN present but unknown to user-management → mechanism throws
+    // AuthenticationFailedException → sendChallenge writes 401 + plain-text body.
+    // When
+    Response response = graphql(TRIVIAL_QUERY, "ZM_AUTH_TOKEN=unknown-token");
+
+    // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(401);
-    Assertions.assertThat(response.getBody().asString()).contains(expectedMessageFragment);
+    Assertions.assertThat(response.getBody().asString()).contains("Unable to find requested user");
   }
 
   @ParameterizedTest(name = "{0}")

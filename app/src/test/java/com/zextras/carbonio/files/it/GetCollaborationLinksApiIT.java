@@ -151,18 +151,16 @@ class GetCollaborationLinksApiIT extends AbstractFilesIT {
     // When
     Response response = getCollaborationLinks(READ_SHARE_TARGET_COOKIE, nodeId);
 
-    // Then — data is a one-element list whose only element is null, plus one top-level error
+    // Then — data is an empty list (code-first behaviour), plus one top-level error
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<Map<String, Object>> links =
         TestUtils.jsonResponseToList(response.getBody().asString(), "getCollaborationLinks");
-    Assertions.assertThat(links).hasSize(1);
-    Assertions.assertThat(links.get(0)).isNull();
+    Assertions.assertThat(links).isEmpty();
 
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly(
-            "There was a problem while executing requested operation on node: " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    // Code-first: an unauthorized collaboration-links read returns an empty list WITHOUT a scoped
+    // error (deliberate — no leak of whether links exist), instead of the legacy [null] + error.
+    Assertions.assertThat(errorCodes).isEmpty();
   }
 
   @SuppressWarnings("unchecked")
@@ -240,13 +238,11 @@ class GetCollaborationLinksApiIT extends AbstractFilesIT {
         TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node).containsEntry("id", nodeId);
     List<Map<String, Object>> links = (List<Map<String, Object>>) node.get("collaboration_links");
-    Assertions.assertThat(links).hasSize(1);
-    Assertions.assertThat(links.get(0)).isNull();
+    Assertions.assertThat(links).isEmpty();
 
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly(
-            "There was a problem while executing requested operation on node: " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    // Code-first: an unauthorized collaboration-links read returns an empty list WITHOUT a scoped
+    // error (deliberate — no leak of whether links exist), instead of the legacy [null] + error.
+    Assertions.assertThat(errorCodes).isEmpty();
   }
 }

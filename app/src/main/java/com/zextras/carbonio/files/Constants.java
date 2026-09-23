@@ -947,7 +947,6 @@ public final class Constants {
       public static final Pattern THUMBNAIL_DOCUMENT =
           Pattern.compile(
               SERVICE + "preview/document/([a-f\\d\\-]*)/([\\d]*x[\\d]*)/thumbnail/?\\??(.*)");
-      public static final Pattern PUBLIC_GRAPHQL = Pattern.compile(SERVICE + "public/graphql/?$");
     }
 
     public static final class Headers {

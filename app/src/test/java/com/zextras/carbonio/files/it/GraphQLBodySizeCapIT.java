@@ -19,11 +19,11 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * F2 (Quarkus-rewrite hardening restoration): the legacy Netty pipeline capped both GraphQL routes'
+ * F2 (Quarkus-rewrite hardening restoration): the legacy Netty pipeline capped the GraphQL route's
  * body at 256KB with {@code new HttpObjectAggregator(256 * 1024)} (see {@code
- * core/.../HttpRoutingHandler#channelRead0}, lines ~99-108 for {@code /graphql}, ~199-207 for
- * {@code /public/graphql}). {@code FilesGraphQLRoutes} ported the Vert.x {@code BodyHandler} but
- * never set a body limit on it (Vert.x's default is unlimited), so the cap was silently dropped.
+ * core/.../HttpRoutingHandler#channelRead0}, lines ~99-108 for {@code /graphql}). {@code
+ * FilesGraphQLRoutes} ported the Vert.x {@code BodyHandler} but never set a body limit on it
+ * (Vert.x's default is unlimited), so the cap was silently dropped.
  *
  * <p>Every request is sent via the JDK {@link HttpClient} with {@code BodyPublishers.ofInputStream}
  * (chunked transfer-encoding, no {@code Content-Length} header) to prove the cap holds against
@@ -31,12 +31,9 @@ import org.junit.jupiter.api.Test;
  * byte count itself as data arrives, so this is also a genuine test of that (rather than only its
  * Content-Length pre-check).
  *
- * <p>{@code /graphql} needs a VALID authenticated cookie: {@code FilesAuthenticationFilter} is
- * registered at a lower Vert.x route order ({@code -100}) than the GraphQL POST route, so it runs
- * BEFORE the body-size check — an unauthenticated oversized request would be rejected with 401
- * before ever reaching the body limit, which would not exercise this fix at all. This auth-before-
- * body-limit ordering pre-dates this change and is out of scope here (F2 restores the SIZE cap
- * only). {@code /public/graphql} has no auth filter at all, so no cookie is needed there.
+ * <p>A valid authenticated cookie is sent with the {@code /graphql} request to ensure the body-size
+ * check is the cause of any rejection (not an auth failure). The body size cap applies to all
+ * requests on {@code /graphql}, authenticated or not.
  */
 class GraphQLBodySizeCapIT extends AbstractFilesIT {
 
@@ -83,13 +80,6 @@ class GraphQLBodySizeCapIT extends AbstractFilesIT {
   @Test
   void givenAnOversizedChunkedBodyGraphqlShouldReturn413() throws Exception {
     HttpResponse<String> response = postChunked("/graphql", oversizedJsonBody(), REQUESTER_COOKIE);
-
-    Assertions.assertThat(response.statusCode()).isEqualTo(413);
-  }
-
-  @Test
-  void givenAnOversizedChunkedBodyPublicGraphqlShouldReturn413() throws Exception {
-    HttpResponse<String> response = postChunked("/public/graphql", oversizedJsonBody(), null);
 
     Assertions.assertThat(response.statusCode()).isEqualTo(413);
   }
