@@ -27,7 +27,10 @@ import com.zextras.carbonio.files.graphql.model.RemovedNodeModel;
 import com.zextras.carbonio.files.graphql.model.RemovedNodeType;
 import com.zextras.carbonio.files.graphql.model.SnapshotNodeModel;
 import com.zextras.carbonio.files.graphql.model.SnapshotUserModel;
+import com.zextras.carbonio.files.graphql.spi.NotificationModelContributor;
 import io.quarkus.security.Authenticated;
+import jakarta.enterprise.inject.Any;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.util.Collections;
 import java.util.List;
@@ -46,6 +49,7 @@ public class NotificationApi {
   @Inject FilesConfig filesConfig;
   @Inject NotificationRepository notificationRepository;
   @Inject @AuthenticatedUser UserMyself requester;
+  @Inject @Any Instance<NotificationModelContributor> notificationModelContributors;
 
   private static SnapshotNodeModel toSnapshotNodeModel(SnapshotNode node) {
     if (node == null) return null;
@@ -64,7 +68,7 @@ public class NotificationApi {
         user.getSnapshotUserId(), user.getUserId(), user.getFullName(), user.getEmail());
   }
 
-  private static Notification toNotificationModel(BaseNotification notification) {
+  private Notification toNotificationModel(BaseNotification notification) {
     String id = notification.getNotificationId();
     long createdAt = notification.getCreatedAt();
     NotificationType type = NotificationType.valueOf(notification.getNotificationType());
@@ -101,9 +105,16 @@ public class NotificationApi {
             toSnapshotUserModel(n.getTriggeringUserSnapshot()),
             RemovedNodeType.valueOf(n.getRemovedNodeType().name()));
       }
-      default ->
-          throw new IllegalStateException(
-              "Unknown notification type: " + notification.getNotificationType());
+      default -> {
+        for (NotificationModelContributor contributor : notificationModelContributors) {
+          Optional<Notification> model = contributor.toModel(notification);
+          if (model.isPresent()) {
+            yield model.get();
+          }
+        }
+        throw new IllegalStateException(
+            "Unknown notification type: " + notification.getNotificationType());
+      }
     };
   }
 
@@ -121,9 +132,7 @@ public class NotificationApi {
             : new ImmutablePair<>(Collections.emptyList(), null);
 
     List<Notification> notifications =
-        findResult.getLeft().stream()
-            .map(NotificationApi::toNotificationModel)
-            .collect(Collectors.toList());
+        findResult.getLeft().stream().map(this::toNotificationModel).collect(Collectors.toList());
 
     Optional<UserNotificationsInfo> optUserInfo =
         filesConfig.areNotificationsEnabled()

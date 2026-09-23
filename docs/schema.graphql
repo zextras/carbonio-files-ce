@@ -55,6 +55,8 @@ enum NotificationType {
     NEW_SHARE
     ADDED_NODE
     REMOVED_NODE
+    TRANSFERRED_OWNERSHIP
+    SUCCEEDED_RECORDING
 }
 
 enum AddedNodeType {

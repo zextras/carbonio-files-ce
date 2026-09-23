@@ -10,5 +10,9 @@ import org.eclipse.microprofile.graphql.Enum;
 public enum NotificationType {
   NEW_SHARE,
   ADDED_NODE,
-  REMOVED_NODE
+  REMOVED_NODE,
+  // Inert in CE: carried here so Advanced's union types can share this enum across the jar boundary
+  // (a Java enum cannot be extended by another module); produced only by carbonio-files (Advanced).
+  TRANSFERRED_OWNERSHIP,
+  SUCCEEDED_RECORDING
 }
