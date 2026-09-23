@@ -37,7 +37,8 @@ class GraphQLInputValidatorTest {
             e -> {
               FilesGraphQLException fge = (FilesGraphQLException) e;
               assertThat(fge.getErrorCode()).isEqualTo(ErrorCodes.MISSING_FIELD);
-              assertThat(fge.getMessage()).isEqualTo("MISSING_FIELD");
+              assertThat(fge.getMessage())
+                  .isEqualTo("Invalid node ID: \"short-id\". Length must be 36 characters");
             });
   }
 
@@ -85,7 +86,10 @@ class GraphQLInputValidatorTest {
             e -> {
               FilesGraphQLException fge = (FilesGraphQLException) e;
               assertThat(fge.getErrorCode()).isEqualTo(ErrorCodes.MISSING_FIELD);
-              assertThat(fge.getMessage()).isEqualTo("MISSING_FIELD");
+              assertThat(fge.getMessage())
+                  .isEqualTo(
+                      "Invalid node name. The name cannot be empty, longer than 1024 characters,"
+                          + " nor be composed only by blank spaces.");
             });
   }
 

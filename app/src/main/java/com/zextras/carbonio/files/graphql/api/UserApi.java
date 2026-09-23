@@ -93,12 +93,13 @@ public class UserApi {
 
   @Name("share_target")
   public SharedTarget shareTarget(@Source ShareModel share) {
-    List<UserInfo> users = userRepository.getUsers(List.of(share.getShareTargetId()));
-    if (users.isEmpty()) {
-      return null;
-    }
-    UserInfo u = users.get(0);
-    return new UserModel(u.getId().getUserId(), u.getEmail(), u.getFullName());
+    String targetId = share.getShareTargetId();
+    return userRepository.getUsers(List.of(targetId)).stream()
+        .filter(u -> targetId.equals(u.getId().getUserId()))
+        .findFirst()
+        .map(
+            u -> (SharedTarget) new UserModel(u.getId().getUserId(), u.getEmail(), u.getFullName()))
+        .orElse(null);
   }
 
   @Name("users")

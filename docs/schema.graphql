@@ -401,17 +401,17 @@ type Mutation {
         flagged: Boolean
     ): Node!
 
-    flagNodes(node_ids: [ID!], flag: Boolean!) : [ID!]
+    flagNodes(node_ids: [String!], flag: Boolean!) : [ID!]
 
-    trashNodes(node_ids: [ID!]) : [ID!]
+    trashNodes(node_ids: [String!]) : [ID!]
 
-    restoreNodes(node_ids: [ID!]) : [Node]
+    restoreNodes(node_ids: [String!]) : [Node]
 
-    moveNodes(node_ids: [ID!], destination_id: ID!) : [Node!]
+    moveNodes(node_ids: [String!], destination_id: ID!) : [Node!]
 
-    deleteNodes(node_ids: [ID!]): [ID!]
+    deleteNodes(node_ids: [String!]): [ID!]
 
-    copyNodes(node_ids: [ID!], destination_id: ID!): [Node!]
+    copyNodes(node_ids: [String!], destination_id: ID!): [Node!]
 
     deleteVersions(node_id: ID!, versions: [Int!]): [Int]!
 
@@ -429,14 +429,14 @@ type Mutation {
 
     updateShares(
         node_id: ID!
-        share_target_ids: [ID!]!
+        share_target_ids: [String!]!
         permission: SharePermission
         expires_at: BigInteger
     ) : [Share]!
 
     deleteShares(
         node_id: ID!
-        share_target_ids: [ID!]!
+        share_target_ids: [String!]!
     ) : [ID]!
 
     createLink(
@@ -454,7 +454,7 @@ type Mutation {
     ): Link
 
     deleteLinks(
-        link_ids: [ID!]!
+        link_ids: [String!]!
     ): [ID]!
 
     createCollaborationLink(
@@ -463,7 +463,7 @@ type Mutation {
     ): CollaborationLink!
 
     deleteCollaborationLinks(
-        collaboration_link_ids: [ID!]!
+        collaboration_link_ids: [String!]!
     ): [ID]!
 }
 

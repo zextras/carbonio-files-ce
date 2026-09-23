@@ -208,7 +208,7 @@ public class ShareApi {
   @Mutation("updateShares")
   public @NonNull List<ShareModel> updateShares(
       @Name("node_id") @Id @NonNull String nodeId,
-      @Name("share_target_ids") @NonNull @Id List<@NonNull String> shareTargetIds,
+      @Name("share_target_ids") @NonNull List<@NonNull String> shareTargetIds,
       @Name("permission") SharePermission permission,
       @Name("expires_at") Long expiresAt)
       throws FilesGraphQLException {
@@ -261,7 +261,7 @@ public class ShareApi {
   @Mutation("deleteShares")
   public @NonNull @Id List<String> deleteShares(
       @Name("node_id") @Id @NonNull String nodeId,
-      @Name("share_target_ids") @NonNull @Id List<@NonNull String> shareTargetIds)
+      @Name("share_target_ids") @NonNull List<@NonNull String> shareTargetIds)
       throws FilesGraphQLException {
     String me = requester.getId().getUserId();
 

@@ -184,7 +184,7 @@ public class LinkApi {
 
   @Mutation("deleteLinks")
   public @NonNull @Id List<String> deleteLinks(
-      @Name("link_ids") @NonNull @Id List<@NonNull String> linkIds) throws FilesGraphQLException {
+      @Name("link_ids") @NonNull List<@NonNull String> linkIds) throws FilesGraphQLException {
     validator.checkLinkIds(linkIds).validate();
     String me = requester.getId().getUserId();
     List<String> toDelete = new ArrayList<>();

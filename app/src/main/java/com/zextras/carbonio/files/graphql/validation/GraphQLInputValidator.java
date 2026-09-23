@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -54,6 +55,10 @@ public class GraphQLInputValidator {
 
   public Chain checkEmail(String value) {
     return new Chain().checkEmail(value);
+  }
+
+  public Chain checkLimitPagination(int limit) {
+    return new Chain().checkLimitPagination(limit);
   }
 
   public static final class Chain {
@@ -143,10 +148,17 @@ public class GraphQLInputValidator {
       return this;
     }
 
+    public Chain checkLimitPagination(int limit) {
+      if (limit > 50) {
+        errors.add("Invalid limit value. The allowed range is between 0 and 50.");
+      }
+      return this;
+    }
+
     public void validate() throws FilesGraphQLException {
       if (!errors.isEmpty()) {
-        throw FilesGraphQLException.of(
-            ErrorCodes.MISSING_FIELD, "errors", String.join("; ", errors));
+        String joined = String.join("; ", errors);
+        throw new FilesGraphQLException(ErrorCodes.MISSING_FIELD, joined, Map.of("errors", joined));
       }
     }
 

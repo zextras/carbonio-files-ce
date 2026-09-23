@@ -272,11 +272,15 @@ public class NodeApi {
       @Source FolderModel folder,
       @Name("limit") @NonNull int limit,
       @Name("sort") @NonNull NodeSort sort,
-      @Name("page_token") String pageToken) {
+      @Name("page_token") String pageToken)
+      throws FilesGraphQLException {
+    validator.checkLimitPagination(limit).validate();
     String me = requester.getId().getUserId();
     com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort dalSort =
         com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort.valueOf(
             sort.name());
+    Optional<String> optOwnerId =
+        RootId.LOCAL_ROOT.equals(folder.getId()) ? Optional.of(me) : Optional.empty();
     var result =
         nodeRepository.findNodes(
             me,
@@ -289,7 +293,7 @@ public class NodeApi {
             Optional.empty(),
             Optional.of(limit),
             Optional.empty(),
-            Optional.empty(),
+            optOwnerId,
             Collections.emptyList(),
             Optional.ofNullable(pageToken));
     List<NodeModel> nodes =
@@ -312,7 +316,13 @@ public class NodeApi {
     String me = requester.getId().getUserId();
     return parentIds.stream()
         .map(id -> id == null ? null : byId.get(id))
-        .map(n -> n == null ? null : NodeModelFactory.from(n, null, me))
+        .map(
+            n -> {
+              if (n == null) return null;
+              if (!permissionsChecker.getPermissions(n.getId(), me).has(SharePermission.READ_ONLY))
+                return null;
+              return NodeModelFactory.from(n, null, me);
+            })
         .toList();
   }
 
@@ -340,6 +350,7 @@ public class NodeApi {
       @Name("description") String description,
       @Name("flagged") Boolean flagged)
       throws FilesGraphQLException {
+    validator.checkNodeId(nodeId).checkNodeName(name).checkNodeDescription(description).validate();
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
       throw FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", nodeId);
@@ -375,7 +386,7 @@ public class NodeApi {
 
   @Mutation("flagNodes")
   public @Nullable @Id List<@NonNull String> flagNodes(
-      @Name("node_ids") @Nullable @Id List<@NonNull String> nodeIds,
+      @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("flag") @NonNull Boolean flag)
       throws FilesGraphQLException {
     if (nodeIds == null) return Collections.emptyList();
@@ -415,7 +426,7 @@ public class NodeApi {
 
   @Mutation("trashNodes")
   public @Nullable @Id List<@NonNull String> trashNodes(
-      @Name("node_ids") @Nullable @Id List<@NonNull String> nodeIds) throws FilesGraphQLException {
+      @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     if (nodeIds == null) return Collections.emptyList();
     String me = requester.getId().getUserId();
 
@@ -500,7 +511,7 @@ public class NodeApi {
 
   @Mutation("restoreNodes")
   public @Nullable List<NodeModel> restoreNodes(
-      @Name("node_ids") @Nullable @Id List<@NonNull String> nodeIds) throws FilesGraphQLException {
+      @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     if (nodeIds == null) return Collections.emptyList();
     String me = requester.getId().getUserId();
 
@@ -618,7 +629,7 @@ public class NodeApi {
 
   @Mutation("moveNodes")
   public @Nullable List<@NonNull NodeModel> moveNodes(
-      @Name("node_ids") @Nullable @Id List<@NonNull String> nodeIds,
+      @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("destination_id") @Id @NonNull String destinationId)
       throws FilesGraphQLException {
     if (nodeIds == null) return Collections.emptyList();
@@ -787,7 +798,7 @@ public class NodeApi {
 
   @Mutation("deleteNodes")
   public @Nullable @Id List<@NonNull String> deleteNodes(
-      @Name("node_ids") @Nullable @Id List<@NonNull String> nodeIds) throws FilesGraphQLException {
+      @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     if (nodeIds == null) return Collections.emptyList();
     String me = requester.getId().getUserId();
 
@@ -899,7 +910,7 @@ public class NodeApi {
 
   @Mutation("copyNodes")
   public @Nullable List<@NonNull NodeModel> copyNodes(
-      @Name("node_ids") @Nullable @Id List<@NonNull String> nodeIds,
+      @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("destination_id") @Id @NonNull String destinationId)
       throws FilesGraphQLException {
     if (nodeIds == null) return Collections.emptyList();

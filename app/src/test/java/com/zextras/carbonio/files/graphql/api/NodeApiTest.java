@@ -434,6 +434,7 @@ class NodeApiTest {
 
     when(nodeRepository.getNodes(eq(List.of("parent-A")), any()))
         .thenReturn(List.of(parentA).stream());
+    when(permissionsChecker.getPermissions("parent-A", REQUESTER_ID)).thenReturn(aclWith(true));
 
     List<NodeModel> result = nodeApi.parents(List.of(n1, n2, n3));
 
@@ -477,7 +478,7 @@ class NodeApiTest {
   // ─── children @Source ─────────────────────────────────────────────────────────
 
   @Test
-  void children_delegatesCorrectlyToFindNodes() {
+  void children_delegatesCorrectlyToFindNodes() throws FilesGraphQLException {
     FolderModel folder = (FolderModel) makeFolderModel(NODE_ID, null);
     Node childNode = mockFolderNode(NODE_ID + "-child");
     when(nodeRepository.findNodes(
@@ -504,7 +505,7 @@ class NodeApiTest {
   }
 
   @Test
-  void children_withPageToken_passesPageTokenToFindNodes() {
+  void children_withPageToken_passesPageTokenToFindNodes() throws FilesGraphQLException {
     FolderModel folder = (FolderModel) makeFolderModel(NODE_ID, null);
     when(nodeRepository.findNodes(
             eq(REQUESTER_ID),

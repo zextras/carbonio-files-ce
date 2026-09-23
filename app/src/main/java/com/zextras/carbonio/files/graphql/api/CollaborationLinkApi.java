@@ -132,7 +132,7 @@ public class CollaborationLinkApi {
 
   @Mutation("deleteCollaborationLinks")
   public @NonNull @Id List<String> deleteCollaborationLinks(
-      @Name("collaboration_link_ids") @NonNull @Id List<@NonNull String> collaborationLinkIds)
+      @Name("collaboration_link_ids") @NonNull List<@NonNull String> collaborationLinkIds)
       throws FilesGraphQLException {
     validator.checkLinkIds(collaborationLinkIds).validate();
     String me = requester.getId().getUserId();
