@@ -140,7 +140,7 @@ public class ShareDataFetcher {
                   (UserMyself)
                       environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
               String requesterId = requesterUser.getId().getUserId();
-              if (!sharesEnabledGuard.isEnabledFor(requesterId)) {
+              if (!sharesEnabledGuard.isEnabledFor(requesterUser)) {
                 return new Builder<Map<String, Object>>()
                     .error(
                         GraphQLResultErrors.sharesDisabled(
@@ -274,12 +274,11 @@ public class ShareDataFetcher {
     return environment ->
         SyncCompletableFuture.supplyAsync(
             () -> {
-              String requesterId =
-                  ((UserMyself)
-                          environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER))
-                      .getId()
-                      .getUserId();
-              if (!sharesEnabledGuard.isEnabledFor(requesterId)) {
+              UserMyself requesterUser =
+                  (UserMyself)
+                      environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
+              String requesterId = requesterUser.getId().getUserId();
+              if (!sharesEnabledGuard.isEnabledFor(requesterUser)) {
                 return new Builder<Map<String, Object>>()
                     .error(
                         GraphQLResultErrors.sharesDisabled(
@@ -318,11 +317,9 @@ public class ShareDataFetcher {
   public DataFetcher<CompletableFuture<List<DataFetcherResult<Map<String, Object>>>>>
       getSharesFetcher() {
     return environment -> {
-      String requesterId =
-          ((UserMyself) environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER))
-              .getId()
-              .getUserId();
-      if (!sharesEnabledGuard.isEnabledFor(requesterId)) {
+      UserMyself requesterUser =
+          (UserMyself) environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
+      if (!sharesEnabledGuard.isEnabledFor(requesterUser)) {
         return CompletableFuture.completedFuture(
             Collections.singletonList(
                 new Builder<Map<String, Object>>()
@@ -405,12 +402,11 @@ public class ShareDataFetcher {
     return environment ->
         SyncCompletableFuture.supplyAsync(
             () -> {
-              String requesterId =
-                  ((UserMyself)
-                          environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER))
-                      .getId()
-                      .getUserId();
-              if (!sharesEnabledGuard.isEnabledFor(requesterId)) {
+              UserMyself requesterUser =
+                  (UserMyself)
+                      environment.getGraphQlContext().get(Constants.GraphQL.Context.REQUESTER);
+              String requesterId = requesterUser.getId().getUserId();
+              if (!sharesEnabledGuard.isEnabledFor(requesterUser)) {
                 return DataFetcherResult.<List<DataFetcherResult<Map<String, Object>>>>newResult()
                     .error(
                         GraphQLResultErrors.sharesDisabled(

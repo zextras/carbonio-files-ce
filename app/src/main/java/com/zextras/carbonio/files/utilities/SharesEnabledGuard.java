@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.utilities;
 
 import static com.zextras.carbonio.files.config.HierarchicalConfigKeys.HierarchicalConfig.SHARES_ENABLED;
 
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigResolver;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -21,11 +22,16 @@ public class SharesEnabledGuard {
     this.configResolver = configResolver;
   }
 
-  public boolean isEnabledFor(String requesterId) {
+  // Resolves through the full hierarchy: the requester's cos must be passed, else the COS tier is
+  // skipped and a cos-level override is not enforced (account > cos > default).
+  public boolean isEnabledFor(UserMyself requester) {
     return !"false"
         .equalsIgnoreCase(
             configResolver
-                .get(Optional.ofNullable(requesterId), Optional.empty(), SHARES_ENABLED)
+                .get(
+                    Optional.ofNullable(requester.getId().getUserId()),
+                    Optional.ofNullable(requester.getCosId()),
+                    SHARES_ENABLED)
                 .orElse("true"));
   }
 }
