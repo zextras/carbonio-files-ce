@@ -275,11 +275,12 @@ class UserApiTest {
     UserInfo userInfo = makeUserInfo(USER_ID, EMAIL, "Test User");
     when(userRepository.getUsers(List.of(USER_ID))).thenReturn(List.of(userInfo));
 
-    SharedTarget result = userApi.shareTarget(shareModel);
+    List<SharedTarget> result = userApi.shareTargets(List.of(shareModel));
 
-    assertThat(result).isNotNull().isInstanceOf(UserModel.class);
-    assertThat(((UserModel) result).getId()).isEqualTo(USER_ID);
-    assertThat(((UserModel) result).getEmail()).isEqualTo(EMAIL);
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0)).isNotNull().isInstanceOf(UserModel.class);
+    assertThat(((UserModel) result.get(0)).getId()).isEqualTo(USER_ID);
+    assertThat(((UserModel) result.get(0)).getEmail()).isEqualTo(EMAIL);
   }
 
   @Test
@@ -288,9 +289,27 @@ class UserApiTest {
         new ShareModel(1000L, SharePermission.READ_ONLY, null, "node-id", "unknown-id");
     when(userRepository.getUsers(List.of("unknown-id"))).thenReturn(List.of());
 
-    SharedTarget result = userApi.shareTarget(shareModel);
+    List<SharedTarget> result = userApi.shareTargets(List.of(shareModel));
 
-    assertThat(result).isNull();
+    assertThat(result).containsExactly((SharedTarget) null);
+  }
+
+  @Test
+  void shareTargets_multipleShares_coalesceIntoSingleUserLookup() {
+    ShareModel s1 = new ShareModel(1000L, SharePermission.READ_ONLY, null, "node-id", USER_ID);
+    ShareModel s2 = new ShareModel(1000L, SharePermission.READ_ONLY, null, "node-id", "user-id-2");
+    when(userRepository.getUsers(List.of(USER_ID, "user-id-2")))
+        .thenReturn(
+            List.of(
+                makeUserInfo(USER_ID, EMAIL, "Test User"),
+                makeUserInfo("user-id-2", "two@example.com", "User Two")));
+
+    List<SharedTarget> result = userApi.shareTargets(List.of(s1, s2));
+
+    assertThat(result).hasSize(2);
+    assertThat(((UserModel) result.get(0)).getId()).isEqualTo(USER_ID);
+    assertThat(((UserModel) result.get(1)).getId()).isEqualTo("user-id-2");
+    verify(userRepository, times(1)).getUsers(anyList());
   }
 
   // ─── users @Source (DistributionList) ────────────────────────────────────────

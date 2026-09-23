@@ -64,6 +64,14 @@ public class UserApi {
   }
 
   private List<UserModel> resolveUsers(List<String> ids) {
+    Map<String, UserInfo> byId = fetchUsersById(ids);
+    return ids.stream()
+        .map(id -> id == null ? null : byId.get(id))
+        .map(u -> u == null ? null : toModel(u))
+        .toList();
+  }
+
+  private Map<String, UserInfo> fetchUsersById(List<String> ids) {
     Map<String, UserInfo> byId = new HashMap<>();
     for (List<String> chunk :
         partition(ids.stream().filter(Objects::nonNull).distinct().toList(), 100)) {
@@ -71,14 +79,7 @@ public class UserApi {
         byId.put(u.getId().getUserId(), u);
       }
     }
-    return ids.stream()
-        .map(id -> id == null ? null : byId.get(id))
-        .map(
-            u ->
-                u == null
-                    ? null
-                    : new UserModel(u.getId().getUserId(), u.getEmail(), u.getFullName()))
-        .toList();
+    return byId;
   }
 
   static <T> List<List<T>> partition(List<T> list, int size) {
@@ -89,17 +90,18 @@ public class UserApi {
     return result;
   }
 
-  // ─── Single-item @Source resolvers ────────────────────────────────────────────
+  // ─── Batch @Source resolver — Share.share_target ──────────────────────────────
 
+  // Batched to coalesce per-share target lookups into one user-management call per request,
+  // restoring the pre-Quarkus USER_BATCH_LOADER coalescing (renders the same schema field).
   @Name("share_target")
-  public SharedTarget shareTarget(@Source ShareModel share) {
-    String targetId = share.getShareTargetId();
-    return userRepository.getUsers(List.of(targetId)).stream()
-        .filter(u -> targetId.equals(u.getId().getUserId()))
-        .findFirst()
-        .map(
-            u -> (SharedTarget) new UserModel(u.getId().getUserId(), u.getEmail(), u.getFullName()))
-        .orElse(null);
+  public List<SharedTarget> shareTargets(@Source List<ShareModel> shares) {
+    Map<String, UserInfo> byId =
+        fetchUsersById(shares.stream().map(ShareModel::getShareTargetId).toList());
+    return shares.stream()
+        .map(share -> byId.get(share.getShareTargetId()))
+        .map(u -> u == null ? null : (SharedTarget) toModel(u))
+        .toList();
   }
 
   @Name("users")
