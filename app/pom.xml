@@ -170,7 +170,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>com.zextras</groupId>
       <artifactId>storages-ce-sdk</artifactId>
-      <version>0.0.15-SNAPSHOT</version>
+      <version>0.0.16</version>
     </dependency>
 
     <!--
@@ -198,7 +198,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>com.zextras.carbonio.message-broker</groupId>
       <artifactId>carbonio-message-broker-sdk</artifactId>
-      <version>1.1.0-1</version>
+      <version>1.1.1-1</version>
       <exclusions>
         <exclusion>
           <groupId>ch.qos.logback</groupId>
