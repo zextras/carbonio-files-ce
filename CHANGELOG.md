@@ -1,3 +1,20 @@
+## [2.1.4](https://github.com/zextras/carbonio-files-ce/compare/v2.1.3...v2.1.4) (2026-09-16)
+
+## [2.1.3](https://github.com/zextras/carbonio-files-ce/compare/v2.1.2...v2.1.3) (2026-09-11)
+
+## [2.1.2](https://github.com/zextras/carbonio-files-ce/compare/v2.1.1...v2.1.2) (2026-09-02)
+
+### Bug Fixes
+
+* RFC 8187 encode Content-Disposition for non-ASCII filenames ([#314](https://github.com/zextras/carbonio-files-ce/issues/314)) ([8ff1f6f](https://github.com/zextras/carbonio-files-ce/commit/8ff1f6f60d2e1bf9ab6f1c0a843e0eb4eadecbfe))
+
+## [2.1.1](https://github.com/zextras/carbonio-files-ce/compare/v2.1.0...v2.1.1) (2026-09-02)
+
+### Bug Fixes
+
+* **ci:** bump jenkins-lib-common to v4.10.2 to fix semantic-release Release stage crash ([4e5565f](https://github.com/zextras/carbonio-files-ce/commit/4e5565fbb4388816f0a9f0f915eab840be0296f3))
+* **ci:** point semantic-release at main ahead of default-branch rename ([dde27cc](https://github.com/zextras/carbonio-files-ce/commit/dde27cc312b718b8a55e23d387d046320346001d))
+
 ## [2.1.0](https://github.com/zextras/carbonio-files-ce/compare/v2.0.0...v2.1.0) (2026-08-18)
 
 ## [2.0.0](https://github.com/zextras/carbonio-files-ce/compare/v1.4.2...v2.0.0) (2026-08-18)

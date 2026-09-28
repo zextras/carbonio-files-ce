@@ -5,7 +5,9 @@
 package com.zextras.carbonio.files.it;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -196,6 +198,36 @@ class UploadToApiIT extends AbstractFilesIT {
         .containsEntry(
             "attachmentId",
             "85e4b3d9-1f41-4292-9dc8-e933194cc1f2:dbca72a2-8b05-45c5-a83f-bbae05ab907c");
+  }
+
+  @Test
+  void givenACyrillicFilenameUploadToShouldReturn200AndSendAnAsciiContentDisposition()
+      throws Exception {
+    // Regression: a non-ASCII filename must not be embedded raw in Content-Disposition (the JDK
+    // HttpClient rejects header values with a char > 0xFF -> 424); it must be RFC 8187 filename*.
+    String fileId =
+        seedFile(
+            "Привет.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    mailboxAccepts("85e4b3d9-1f41-4292-9dc8-e933194cc1f2:11111111-2222-3333-4444-555555555555");
+    String body = uploadToBody(fileId, TargetModule.MAILS);
+
+    // When
+    Response response = uploadTo("POST", REQUESTER_COOKIE, body);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Map<String, Object> json = OBJECT_MAPPER.readValue(response.getBody().asString(), Map.class);
+    Assertions.assertThat(json)
+        .containsEntry(
+            "attachmentId",
+            "85e4b3d9-1f41-4292-9dc8-e933194cc1f2:11111111-2222-3333-4444-555555555555");
+    FilesStackTestResource.getPreviewMailboxWireMock()
+        .verify(
+            postRequestedFor(urlPathMatching("/service/upload.*"))
+                .withHeader(
+                    "Content-Disposition",
+                    equalTo(
+                        "attachment; filename*=UTF-8''%D0%9F%D1%80%D0%B8%D0%B2%D0%B5%D1%82.txt")));
   }
 
   @Test

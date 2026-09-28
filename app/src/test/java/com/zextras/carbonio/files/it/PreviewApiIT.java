@@ -47,6 +47,26 @@ class PreviewApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenACyrillicFilenameThePdfPreviewShouldSendAnAsciiRfc8187ContentDisposition() {
+    // Regression: the preview Content-Disposition (the node's full name) must be RFC 8187 filename*
+    // (%20 not +). The attachment disposition itself is pre-existing and unchanged.
+    String nodeId =
+        seedFile("Документ.pdf", LOCAL_ROOT, "0".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    String expectationId =
+        previewServes(
+            "/preview/pdf/" + nodeId + "/1/", OWNER_ID, "0".getBytes(), "application/pdf");
+
+    Response response = previewGet("/preview/pdf/" + nodeId, OWNER_COOKIE, null);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.getHeader("Content-Disposition"))
+        .isEqualTo(
+            "attachment; filename*=UTF-8''%D0%94%D0%BE%D0%BA%D1%83%D0%BC%D0%B5%D0%BD%D1%82.pdf")
+        .doesNotContain("+");
+    verifyPreviewServed(expectationId);
+  }
+
+  @Test
   void givenAnExistingDocumentTheGetPreviewApiShouldGetAndReturnThePreviewWithLangTag() {
     // Given
     String nodeId =

@@ -4,8 +4,7 @@
 
 package com.zextras.carbonio.files.rest.resources;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import com.zextras.carbonio.files.utilities.ContentDispositionUtils;
 
 /**
  * Shared transport-only helper for the streamed blob/ZIP HTTP responses used by {@link
@@ -19,7 +18,6 @@ final class BlobHttpResponses {
   private BlobHttpResponses() {}
 
   static String contentDisposition(String filename) {
-    String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8);
-    return String.format("attachment; filename*=UTF-8''%s", encoded);
+    return ContentDispositionUtils.attachment(filename);
   }
 }

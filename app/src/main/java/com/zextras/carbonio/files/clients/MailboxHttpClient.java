@@ -7,19 +7,18 @@ package com.zextras.carbonio.files.clients;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.exceptions.DependencyException;
 import com.zextras.carbonio.files.exceptions.RequestEntityTooLargeException;
+import com.zextras.carbonio.files.utilities.ContentDispositionUtils;
 import com.zextras.carbonio.quarkus.extensions.bootstrap.NetworkingConfigService;
 import io.vavr.control.Try;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
-import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
 import java.util.Arrays;
 import org.slf4j.Logger;
@@ -88,12 +87,7 @@ public class MailboxHttpClient {
               .uri(URI.create(mailboxUrl + UPLOAD_FILE_ENDPOINT))
               .header("Cookie", cookies)
               .header("Content-Type", mimeType)
-              .header(
-                  "Content-Disposition",
-                  "attachment; filename=\""
-                      + fullFilename
-                      + "\"; filename*=UTF-8''"
-                      + URLEncoder.encode(fullFilename, StandardCharsets.UTF_8))
+              .header("Content-Disposition", ContentDispositionUtils.attachment(fullFilename))
               .POST(BodyPublishers.ofInputStream(() -> file))
               .build();
 

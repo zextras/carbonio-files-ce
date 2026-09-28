@@ -350,6 +350,21 @@ class MultiDownloadZipApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenASingleCyrillicFolderTheDownloadMultipleShouldNameTheZipWithRfc8187() {
+    // Regression: a single-node ZIP is named "<name>.zip"; for a non-ASCII folder the
+    // Content-Disposition must be RFC 8187 filename* (%20 not +). ZIP entry names are unchanged.
+    String folderId = seedFolder("Папка", LOCAL_ROOT, REQUESTER_COOKIE);
+    seedFile("child.txt", folderId, "c".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+
+    Response response = downloadMultiple(List.of(folderId), REQUESTER_COOKIE);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.getHeader("Content-Disposition"))
+        .isEqualTo("attachment; filename*=UTF-8''%D0%9F%D0%B0%D0%BF%D0%BA%D0%B0.zip")
+        .doesNotContain("+");
+  }
+
+  @Test
   void givenEmptyFolderAlongsideAFileTheDownloadMultipleShouldIncludeBothEntries()
       throws Exception {
     String emptyFolderId = seedFolder("empty", LOCAL_ROOT, REQUESTER_COOKIE);

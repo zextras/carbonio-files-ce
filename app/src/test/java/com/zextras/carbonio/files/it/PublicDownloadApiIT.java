@@ -96,6 +96,24 @@ class PublicDownloadApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenACyrillicFilenameThePublicDownloadShouldReturnAnAsciiRfc8187ContentDisposition() {
+    // Regression: the public download Content-Disposition must be RFC 8187 filename* (pure ASCII,
+    // %20 not +) so a non-ASCII name is neither mangled nor rejected.
+    String nodeId =
+        seedFile(
+            "Привет.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    String publicId = createLink(nodeId, null, null, OWNER_COOKIE);
+    FilesStackTestResource.getStoragesService().reset();
+
+    Response response = publicDownloadByNodeId(nodeId, publicId, null, null);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.getHeader("Content-Disposition"))
+        .isEqualTo("attachment; filename*=UTF-8''%D0%9F%D1%80%D0%B8%D0%B2%D0%B5%D1%82.txt")
+        .doesNotContain("+");
+  }
+
+  @Test
   void givenAnExistingFileAndAnExpiredLinkThePublicDownloadByNodeIdShouldReturnA404StatusCode() {
     // Given
     String nodeId =
