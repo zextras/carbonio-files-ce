@@ -1,3 +1,9 @@
+## [2.1.5](https://github.com/zextras/carbonio-files-ce/compare/v2.1.4...v2.1.5) (2026-09-28)
+
+### Bug Fixes
+
+* **deps:** update all patch updates ([#294](https://github.com/zextras/carbonio-files-ce/issues/294)) ([66ed9ed](https://github.com/zextras/carbonio-files-ce/commit/66ed9edabe4248ce3a719cd77eca604a27179b63))
+
 ## [2.1.4](https://github.com/zextras/carbonio-files-ce/compare/v2.1.3...v2.1.4) (2026-09-16)
 
 ## [2.1.3](https://github.com/zextras/carbonio-files-ce/compare/v2.1.2...v2.1.3) (2026-09-11)
