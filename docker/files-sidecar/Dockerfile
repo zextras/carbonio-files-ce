@@ -1,7 +1,8 @@
 # apt-installing a JRE in the final stage needs QEMU on arm64; copy temurin's instead.
+ARG SIDECAR_IMAGE=registry.dev.zextras.com/dev/carbonio-sidecar:main
 FROM docker.io/library/eclipse-temurin:21-jre-jammy AS jre
 
-FROM registry.dev.zextras.com/dev/carbonio-sidecar:devel
+FROM ${SIDECAR_IMAGE}
 
 COPY --from=jre /opt/java/openjdk /opt/java/openjdk
 ENV JAVA_HOME=/opt/java/openjdk
