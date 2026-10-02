@@ -38,6 +38,11 @@ dt3_pipeline(
          title: 'Carbonio Files CE',
          description: 'Carbonio Files Community Edition',
          platforms: ['linux/amd64', 'linux/arm64'] as Set],
+        [dockerfile: 'docker/files-sidecar/Dockerfile',
+         imageName: 'carbonio-files-ce-sidecar',
+         title: 'Carbonio Files CE Sidecar',
+         description: 'Carbonio Files Community Edition Sidecar',
+         platforms: ['linux/amd64', 'linux/arm64'] as Set],
     ],
     reuse: [projectType: 'CE'],
     flywayGuard: [
