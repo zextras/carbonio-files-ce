@@ -104,6 +104,8 @@ class AuthApiIT extends AbstractFilesIT {
     String body = response.getBody().asString();
     Assertions.assertThat(body).contains("UNAUTHENTICATED");
     Assertions.assertThat(body).contains("\"data\":null");
+    Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
+        .isEqualTo("Authentication required");
   }
 
   @Test

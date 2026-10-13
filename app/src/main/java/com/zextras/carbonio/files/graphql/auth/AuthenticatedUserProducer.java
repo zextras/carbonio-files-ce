@@ -22,7 +22,7 @@ public class AuthenticatedUserProducer {
   public UserMyself authenticatedUser() {
     UserMyself user = identity.getAttribute(FilesGraphQLAuthMechanism.IDENTITY_ATTRIBUTE);
     if (user == null) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException(UnauthenticatedMessageInterceptor.MESSAGE);
     }
     return user;
   }
