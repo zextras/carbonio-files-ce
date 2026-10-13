@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# SPDX-FileCopyrightText: 2026 Zextras <https://www.zextras.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+export SETUP_CONSUL_TOKEN="${CONSUL_HTTP_TOKEN:-00000000-0000-0000-0000-000000000000}"
+
+java -jar /usr/share/carbonio/carbonio-files-ce.jar \
+  --setup "${CONSUL_HTTP_ADDR:-http://127.0.0.1:8500}"
+
+consul config write /etc/carbonio/files/service-discover/service-router.json

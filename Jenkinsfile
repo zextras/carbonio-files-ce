@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 library(
-    identifier: 'jenkins-lib-common@v4.10.11',
+    identifier: 'jenkins-lib-common@v4.13.0',
     retriever: modernSCM([
         $class: 'GitSCMSource',
         credentialsId: 'jenkins-integration-with-github-account',
@@ -37,6 +37,11 @@ dt3_pipeline(
          imageName: 'carbonio-files-ce',
          title: 'Carbonio Files CE',
          description: 'Carbonio Files Community Edition',
+         platforms: ['linux/amd64', 'linux/arm64'] as Set],
+        [dockerfile: 'docker/files-sidecar/Dockerfile',
+         imageName: 'carbonio-files-ce-sidecar',
+         title: 'Carbonio Files CE Sidecar',
+         description: 'Carbonio Files Community Edition Sidecar',
          platforms: ['linux/amd64', 'linux/arm64'] as Set],
     ],
     reuse: [projectType: 'CE'],
