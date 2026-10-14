@@ -39,3 +39,11 @@ Overridable by Consul KV
 | `carbonio-files/server/max-threads` | *(not set)* | Quarkus default: 200 |
 | `carbonio-files/server/queue-size` | *(not set)* | Quarkus default: unbounded |
 
+## Hierarchical Config
+
+Overridable using admin panel
+
+| Key | Default |
+| --- | ------- |
+| `shares-enabled` | `true` |
+

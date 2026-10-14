@@ -14,6 +14,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
+import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLErrors;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
@@ -24,6 +25,7 @@ import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.files.utilities.SharesEnabledGuard;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.security.Authenticated;
 import io.smallrye.graphql.api.Nullable;
@@ -53,7 +55,15 @@ public class ShareApi {
   @Inject NotificationRepository notificationRepository;
   @Inject FilesConfig filesConfig;
   @Inject GraphQLInputValidator validator;
+  @Inject SharesEnabledGuard sharesEnabledGuard;
   @Inject @AuthenticatedUser UserMyself requester;
+
+  private void requireSharesEnabled() throws FilesGraphQLException {
+    if (!sharesEnabledGuard.isEnabledFor(requester)) {
+      throw new FilesGraphQLException(
+          ErrorCodes.SHARES_DISABLED, "Sharing is disabled for this user", Map.of());
+    }
+  }
 
   static ShareModel toModel(Share share) {
     SharePermission perm =
@@ -147,6 +157,7 @@ public class ShareApi {
       @Name("expires_at") Long expiresAt,
       @Name("custom_message") String customMessage)
       throws FilesGraphQLException {
+    requireSharesEnabled();
     validator.checkNodeId(nodeId).checkUserId(shareTargetId).validate();
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_AND_SHARE)) {
@@ -197,6 +208,7 @@ public class ShareApi {
       @Name("permission") SharePermission permission,
       @Name("expires_at") Long expiresAt)
       throws FilesGraphQLException {
+    requireSharesEnabled();
     validator.checkNodeId(nodeId).checkUserIds(shareTargetIds).validate();
     String me = requester.getId().getUserId();
     boolean hasPermission =

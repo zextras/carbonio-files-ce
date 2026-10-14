@@ -1,6 +1,259 @@
 ---
 openapi: 3.1.0
+components:
+  schemas:
+    CreateFolderRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        destinationId:
+          type: string
+        name:
+          type: string
+    CreatePublicLinkRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        nodeId:
+          type: string
+    DeleteAllRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+    DeleteAllResponse:
+      type: object
+      properties:
+        deleted:
+          type: boolean
+    InternalNodeDto:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        extension:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+          format: int64
+        version:
+          type: integer
+          format: int32
+        updatedAt:
+          type: integer
+          format: int64
+        owner:
+          $ref: "#/components/schemas/OwnerDto"
+        parent:
+          $ref: "#/components/schemas/ParentDto"
+        permissions:
+          $ref: "#/components/schemas/PermissionsDto"
+    InternalNodeIdDto:
+      type: object
+      properties:
+        nodeId:
+          type: string
+    OwnerDto:
+      type: object
+      properties:
+        id:
+          type: string
+    ParentDto:
+      type: object
+      properties:
+        id:
+          type: string
+    PermissionsDto:
+      type: object
+      properties:
+        canWriteFile:
+          type: boolean
+    PublicLinkDto:
+      type: object
+      properties:
+        url:
+          type: string
+    ResolvedEntry:
+      type: object
+      properties:
+        value:
+          type: string
+        source:
+          type: string
+    SetConfigRequest:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
 paths:
+  /admin/config:
+    get:
+      parameters:
+      - name: key
+        in: query
+        schema:
+          type: string
+      - name: userId
+        in: query
+        schema:
+          type: string
+      - name: ZM_ADMIN_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: "#/components/schemas/ResolvedEntry"
+      summary: Get Resolved Config
+      tags:
+      - Admin Config Resource
+  /admin/config/raw/default:
+    get:
+      parameters:
+      - name: ZM_ADMIN_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+      summary: Get Default Config
+      tags:
+      - Admin Config Resource
+  /admin/config/raw/{scope}/{scopeId}:
+    put:
+      parameters:
+      - name: scope
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: scopeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: ZM_ADMIN_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetConfigRequest"
+        required: true
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+      summary: Set Scope Config
+      tags:
+      - Admin Config Resource
+    get:
+      parameters:
+      - name: scope
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: scopeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: ZM_ADMIN_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+      summary: Get Scope Config
+      tags:
+      - Admin Config Resource
+  /admin/config/raw/{scope}/{scopeId}/{key}:
+    delete:
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: scope
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: scopeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: ZM_ADMIN_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+      summary: Delete Scope Config
+      tags:
+      - Admin Config Resource
+  /config:
+    get:
+      parameters:
+      - name: key
+        in: query
+        schema:
+          type: string
+      - name: Cookie
+        in: header
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+      summary: Get My Config
+      tags:
+      - Config Resource
   /download-multiple:
     post:
       parameters:
@@ -1116,85 +1369,6 @@ paths:
       summary: Upload Version
       tags:
       - Blob Resource
-components:
-  schemas:
-    CreateFolderRequest:
-      type: object
-      properties:
-        userId:
-          type: string
-        destinationId:
-          type: string
-        name:
-          type: string
-    CreatePublicLinkRequest:
-      type: object
-      properties:
-        userId:
-          type: string
-        nodeId:
-          type: string
-    DeleteAllRequest:
-      type: object
-      properties:
-        userId:
-          type: string
-    DeleteAllResponse:
-      type: object
-      properties:
-        deleted:
-          type: boolean
-    InternalNodeDto:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        extension:
-          type: string
-        mimeType:
-          type: string
-        size:
-          type: integer
-          format: int64
-        version:
-          type: integer
-          format: int32
-        updatedAt:
-          type: integer
-          format: int64
-        owner:
-          $ref: "#/components/schemas/OwnerDto"
-        parent:
-          $ref: "#/components/schemas/ParentDto"
-        permissions:
-          $ref: "#/components/schemas/PermissionsDto"
-    InternalNodeIdDto:
-      type: object
-      properties:
-        nodeId:
-          type: string
-    OwnerDto:
-      type: object
-      properties:
-        id:
-          type: string
-    ParentDto:
-      type: object
-      properties:
-        id:
-          type: string
-    PermissionsDto:
-      type: object
-      properties:
-        canWriteFile:
-          type: boolean
-    PublicLinkDto:
-      type: object
-      properties:
-        url:
-          type: string
 info:
   title: carbonio-files-ce-app API
   version: unversioned

@@ -36,11 +36,13 @@ import com.zextras.carbonio.files.graphql.model.SharePermission;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.files.utilities.SharesEnabledGuard;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.narayana.jta.TransactionRunnerOptions;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -59,6 +61,7 @@ class ShareApiTest {
   private ShareCascadeHelper shareCascade;
   private NotificationRepository notificationRepository;
   private FilesConfig filesConfig;
+  private SharesEnabledGuard sharesEnabledGuard;
   private ShareApi shareApi;
 
   @BeforeEach
@@ -69,6 +72,7 @@ class ShareApiTest {
     shareCascade = mock(ShareCascadeHelper.class);
     notificationRepository = mock(NotificationRepository.class);
     filesConfig = mock(FilesConfig.class);
+    sharesEnabledGuard = mock(SharesEnabledGuard.class);
 
     UserMyself requester = mock(UserMyself.class);
     UserId userId = new UserId(REQUESTER_ID);
@@ -83,6 +87,8 @@ class ShareApiTest {
     shareApi.filesConfig = filesConfig;
     shareApi.validator = new GraphQLInputValidator();
     shareApi.requester = requester;
+    shareApi.sharesEnabledGuard = sharesEnabledGuard;
+    when(sharesEnabledGuard.isEnabledFor(requester)).thenReturn(true);
   }
 
   private ACL aclWith(ACL.SharePermission perm) {
@@ -561,5 +567,75 @@ class ShareApiTest {
             ex ->
                 assertThat(((FilesGraphQLException) ex).getErrorCode())
                     .isEqualTo(ErrorCodes.NODE_NOT_FOUND));
+  }
+
+  // ─── shares-enabled gate ──────────────────────────────────────────────────────
+
+  private void disableShares() {
+    when(sharesEnabledGuard.isEnabledFor(any())).thenReturn(false);
+  }
+
+  private static void assertSharesDisabled(ThrowingCallable call) {
+    assertThatThrownBy(call)
+        .isInstanceOf(FilesGraphQLException.class)
+        .satisfies(
+            ex ->
+                assertThat(((FilesGraphQLException) ex).getErrorCode())
+                    .isEqualTo(ErrorCodes.SHARES_DISABLED));
+  }
+
+  @Test
+  void createAndUpdateThrowSharesDisabledWithoutTouchingRepositories() {
+    disableShares();
+
+    assertSharesDisabled(
+        () -> shareApi.createShare(NODE_ID, TARGET_ID_1, SharePermission.READ_ONLY, null, null));
+    assertSharesDisabled(
+        () ->
+            shareApi.updateShares(NODE_ID, List.of(TARGET_ID_1), SharePermission.READ_ONLY, null));
+
+    Mockito.verifyNoInteractions(shareRepository, permissionsChecker, shareCascade);
+  }
+
+  @Test
+  void readsAreNotGatedWhenSharesDisabled() throws FilesGraphQLException {
+    disableShares();
+    Share share = mockShare(NODE_ID, TARGET_ID_1);
+    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
+        .thenReturn(aclWith(ACL.SharePermission.READ_ONLY));
+    when(shareRepository.getShare(NODE_ID, TARGET_ID_1)).thenReturn(Optional.of(share));
+    when(shareRepository.getShares(List.of(NODE_ID))).thenReturn(List.of(share));
+
+    assertThat(shareApi.getShare(NODE_ID, TARGET_ID_1).getShareTargetId()).isEqualTo(TARGET_ID_1);
+    assertThat(shareApi.share(makeNodeModel(NODE_ID), TARGET_ID_1)).isNotNull();
+    assertThat(shareApi.shares(List.of(makeNodeModel(NODE_ID)), 10, null, null))
+        .singleElement()
+        .satisfies(list -> assertThat(list).hasSize(1));
+  }
+
+  @Test
+  void deleteSharesIsNotGatedWhenSharesDisabled() throws Exception {
+    disableShares();
+    Share share1 = mockShare(NODE_ID, TARGET_ID_1);
+    Node node = mockFileNode(NODE_ID, "owner-id");
+    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
+        .thenReturn(aclWith(ACL.SharePermission.READ_AND_SHARE));
+    when(shareRepository.getShare(NODE_ID, TARGET_ID_1)).thenReturn(Optional.of(share1));
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
+
+    try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
+      TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
+      doAnswer(
+              inv -> {
+                ((Runnable) inv.getArgument(0)).run();
+                return null;
+              })
+          .when(runOptions)
+          .run(any(Runnable.class));
+      txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
+
+      assertThat(shareApi.deleteShares(NODE_ID, List.of(TARGET_ID_1))).containsExactly(TARGET_ID_1);
+      verify(shareRepository).deleteShare(NODE_ID, TARGET_ID_1);
+    }
   }
 }

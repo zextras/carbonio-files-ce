@@ -29,4 +29,5 @@ public enum ErrorCodes {
   OVER_QUOTA_REACHED,
   // Never produced by CE; reserved for the Advanced edition's transferOwnership.
   TRANSFER_OWNERSHIP_ERROR,
+  SHARES_DISABLED,
 }
