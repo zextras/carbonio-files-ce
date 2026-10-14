@@ -148,17 +148,23 @@ class UserApiTest {
   }
 
   @Test
-  void getAccountsByEmail_someNotFound_returnsNullSlots() throws FilesGraphQLException {
+  void getAccountsByEmail_someNotFound_throwsAccountNotFoundWithPartialResults() {
     String email2 = "missing@example.com";
     UserInfo info1 = makeUserInfo(USER_ID, EMAIL, "User One");
     when(userRepository.getUserByEmail(COOKIES, EMAIL)).thenReturn(Optional.of(info1));
     when(userRepository.getUserByEmail(COOKIES, email2)).thenReturn(Optional.empty());
 
-    List<Account> result = userApi.getAccountsByEmail(List.of(EMAIL, email2));
-
-    assertThat(result).hasSize(2);
-    assertThat(result.get(0)).isInstanceOf(UserModel.class);
-    assertThat(result.get(1)).isNull();
+    assertThatThrownBy(() -> userApi.getAccountsByEmail(List.of(EMAIL, email2)))
+        .isInstanceOf(FilesGraphQLException.class)
+        .satisfies(
+            e -> {
+              FilesGraphQLException ex = (FilesGraphQLException) e;
+              assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.ACCOUNT_NOT_FOUND);
+              List<?> partial = (List<?>) ex.getPartialResults();
+              assertThat(partial).hasSize(2);
+              assertThat(partial.get(0)).isInstanceOf(UserModel.class);
+              assertThat(partial.get(1)).isNull();
+            });
   }
 
   @Test
@@ -206,6 +212,39 @@ class UserApiTest {
     assertThat(result.get(1)).isNull();
     assertThat(result.get(2)).isNotNull();
     assertThat(result.get(2).getId()).isEqualTo("uid-A");
+  }
+
+  @Test
+  void creators_unresolvedId_yieldsAccountNotFoundExceptionElement() {
+    NodeModel nodeA = makeNode("n1", "uid-A", "owner-A", null);
+    NodeModel nodeB = makeNode("n2", "ghost", "owner-B", null);
+    when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("uid-A")));
+
+    List<?> result = userApi.creators(List.of(nodeA, nodeB));
+
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0)).isInstanceOf(UserModel.class);
+    assertThat(result.get(1)).isInstanceOf(FilesGraphQLException.class);
+    assertThat(((FilesGraphQLException) result.get(1)).getErrorCode())
+        .isEqualTo(ErrorCodes.ACCOUNT_NOT_FOUND);
+  }
+
+  @Test
+  void owners_unresolvedId_yieldsAccountNotFoundExceptionElement() {
+    when(userRepository.getUsers(anyList())).thenReturn(List.of());
+
+    List<?> result = userApi.owners(List.of(makeNode("n1", "c", "ghost", null)));
+
+    assertThat(result.get(0)).isInstanceOf(FilesGraphQLException.class);
+  }
+
+  @Test
+  void lastEditors_unresolvedId_yieldsAccountNotFoundExceptionElement() {
+    when(userRepository.getUsers(anyList())).thenReturn(List.of());
+
+    List<?> result = userApi.lastEditors(List.of(makeNode("n1", "c", "o", "ghost")));
+
+    assertThat(result.get(0)).isInstanceOf(FilesGraphQLException.class);
   }
 
   @Test
@@ -284,14 +323,17 @@ class UserApiTest {
   }
 
   @Test
-  void shareTarget_notFound_returnsNull() {
+  void shareTarget_notFound_yieldsAccountNotFoundExceptionElement() {
     ShareModel shareModel =
         new ShareModel(1000L, SharePermission.READ_ONLY, null, "node-id", "unknown-id");
     when(userRepository.getUsers(List.of("unknown-id"))).thenReturn(List.of());
 
-    List<SharedTarget> result = userApi.shareTargets(List.of(shareModel));
+    List<?> result = userApi.shareTargets(List.of(shareModel));
 
-    assertThat(result).containsExactly((SharedTarget) null);
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0)).isInstanceOf(FilesGraphQLException.class);
+    assertThat(((FilesGraphQLException) result.get(0)).getErrorCode())
+        .isEqualTo(ErrorCodes.ACCOUNT_NOT_FOUND);
   }
 
   @Test

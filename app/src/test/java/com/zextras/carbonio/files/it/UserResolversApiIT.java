@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.it;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
@@ -11,6 +12,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +64,24 @@ class UserResolversApiIT extends AbstractFilesIT {
 
   private Response execute(String bodyPayload) {
     return graphql(bodyPayload, REQUESTER_COOKIE);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<Map<String, Object>> rawErrors(Response response) {
+    try {
+      Map<String, Object> body =
+          new ObjectMapper().readValue(response.getBody().asString(), Map.class);
+      List<Map<String, Object>> errors = (List<Map<String, Object>>) body.get("errors");
+      return errors == null ? List.of() : errors;
+    } catch (IOException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  private static List<List<Object>> errorPaths(Response response) {
+    return rawErrors(response).stream()
+        .map(e -> (List<Object>) e.get("path"))
+        .collect(java.util.stream.Collectors.toList());
   }
 
   @Test
@@ -137,12 +157,9 @@ class UserResolversApiIT extends AbstractFilesIT {
         .containsEntry("email", KNOWN_EMAIL);
     Assertions.assertThat(accounts.get(2)).isNull();
 
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    // Under the new SmallRye single-error contract, missing items in a batch operation are
-    // returned as null list entries without per-item errors in the errors array.
-    // POSSIBLE REAL BUG: per-item ACCOUNT_NOT_FOUND errors are silently dropped; callers cannot
-    // distinguish "user not found" from a null item caused by any other reason.
-    Assertions.assertThat(errors).isEmpty();
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("ACCOUNT_NOT_FOUND");
+    Assertions.assertThat(errorPaths(response)).containsExactly(List.of("getAccountsByEmail"));
   }
 
   @Test
@@ -175,11 +192,9 @@ class UserResolversApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    // Under SmallRye the unresolvable User! field surfaces as a GraphQL null-propagation message
-    // rather than the resolver's own "account not found" message.
-    Assertions.assertThat(errors)
-        .anyMatch(e -> e.contains("/getNode/creator") && e.contains("non null type"));
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("ACCOUNT_NOT_FOUND");
+    Assertions.assertThat(errorPaths(response)).containsExactly(List.of("getNode", "creator"));
 
     // creator: User! is NON-NULL in the schema (unlike owner/last_editor), so per GraphQL
     // null-propagation a null-data DataFetcherResult on `creator` bubbles up to the nearest
@@ -233,12 +248,10 @@ class UserResolversApiIT extends AbstractFilesIT {
     Assertions.assertThat(node.get("owner")).isNull();
     Assertions.assertThat(node.get("last_editor")).isNull();
 
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    // Under the new SmallRye single-error contract, nullable User fields (owner, last_editor) that
-    // cannot be resolved return null without surfacing per-field errors.
-    // POSSIBLE REAL BUG: per-field ACCOUNT_NOT_FOUND errors for owner/last_editor are silently
-    // dropped; two separate ghost-id lookup failures now produce no error at all.
-    Assertions.assertThat(errors).isEmpty();
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactlyInAnyOrder("ACCOUNT_NOT_FOUND", "ACCOUNT_NOT_FOUND");
+    Assertions.assertThat(errorPaths(response))
+        .containsExactlyInAnyOrder(List.of("getNode", "owner"), List.of("getNode", "last_editor"));
   }
 
   @Test
@@ -266,5 +279,110 @@ class UserResolversApiIT extends AbstractFilesIT {
         TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node).containsEntry("id", folderId);
     Assertions.assertThat(node.get("last_editor")).isNull();
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void givenAGhostShareTargetTheShareTargetShouldBeNullWithScopedErrorAndOtherSharesIntact()
+      throws SQLException {
+    String ghostTargetId = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+    String nodeId =
+        seedFile(
+            "ghost-share.txt",
+            LOCAL_ROOT,
+            "content".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+    seedShareRawJdbc(nodeId, ghostTargetId, ACL.SharePermission.READ_ONLY);
+    seedShareRawJdbc(nodeId, REQUESTER_ID, ACL.SharePermission.READ_ONLY);
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getNode")
+            .withString("node_id", nodeId)
+            .withWantedResultFormat(
+                "{ id shares(limit: 10) { permission share_target { ... on User { id } } } }")
+            .build();
+
+    Response response = execute(bodyPayload);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Assertions.assertThat(node).containsEntry("id", nodeId);
+    List<Map<String, Object>> shares = (List<Map<String, Object>>) node.get("shares");
+    Assertions.assertThat(shares).hasSize(2);
+    Assertions.assertThat(shares).filteredOn(sh -> sh.get("share_target") == null).hasSize(1);
+    Assertions.assertThat(shares)
+        .filteredOn(sh -> sh.get("share_target") != null)
+        .singleElement()
+        .satisfies(
+            sh ->
+                Assertions.assertThat((Map<String, Object>) sh.get("share_target"))
+                    .containsEntry("id", REQUESTER_ID));
+    int ghostIndex = shares.get(0).get("share_target") == null ? 0 : 1;
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("ACCOUNT_NOT_FOUND");
+    Assertions.assertThat(errorPaths(response))
+        .containsExactly(List.of("getNode", "shares", ghostIndex, "share_target"));
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void givenAMixedBatchOfNodesOnlyTheNodeWithTheGhostOwnerShouldSurfaceAnError()
+      throws SQLException {
+    String folderId = seedFolder("mixed-batch", LOCAL_ROOT, REQUESTER_COOKIE);
+    String goodId =
+        seedFile(
+            "good.txt",
+            folderId,
+            "content".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+    String ghostOwnerId = "99999999-9999-9999-9999-999999999999";
+    String ghostNodeId = "00000000-0000-0000-0000-000000000003";
+    seedInconsistentNode(
+        ghostNodeId,
+        REQUESTER_ID,
+        ghostOwnerId,
+        folderId,
+        "ghost-owned.txt",
+        NodeType.TEXT,
+        "LOCAL_ROOT," + folderId,
+        1L,
+        "text/plain");
+    seedShareRawJdbc(ghostNodeId, REQUESTER_ID, ACL.SharePermission.READ_ONLY);
+
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", folderId)
+            .withEnumLiteral("sort", "NAME_ASC")
+            .withInteger("limit", 50)
+            .withWantedResultFormat("{ nodes { id owner { id } } }")
+            .build();
+
+    Response response = execute(bodyPayload);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+    List<Map<String, Object>> nodes = (List<Map<String, Object>>) page.get("nodes");
+    Assertions.assertThat(nodes).hasSize(2);
+    Map<String, Object> good =
+        nodes.stream().filter(n -> goodId.equals(n.get("id"))).findFirst().orElseThrow();
+    Map<String, Object> ghost =
+        nodes.stream().filter(n -> ghostNodeId.equals(n.get("id"))).findFirst().orElseThrow();
+    Assertions.assertThat((Map<String, Object>) good.get("owner"))
+        .containsEntry("id", REQUESTER_ID);
+    Assertions.assertThat(ghost.get("owner")).isNull();
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("ACCOUNT_NOT_FOUND");
+    Assertions.assertThat(errorPaths(response)).hasSize(1);
+    Assertions.assertThat(errorPaths(response).get(0))
+        .containsExactly("findNodes", "nodes", ghostIndexOf(nodes, ghostNodeId), "owner");
+  }
+
+  private static int ghostIndexOf(List<Map<String, Object>> nodes, String id) {
+    for (int i = 0; i < nodes.size(); i++) {
+      if (id.equals(nodes.get(i).get("id"))) return i;
+    }
+    return -1;
   }
 }

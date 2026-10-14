@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Id;
 import org.eclipse.microprofile.graphql.Name;
@@ -64,11 +65,24 @@ public class UserApi {
   }
 
   private List<UserModel> resolveUsers(List<String> ids) {
+    return resolveEach(ids, UserApi::toModel);
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private <T> List<T> resolveEach(List<String> ids, Function<UserInfo, T> mapper) {
     Map<String, UserInfo> byId = fetchUsersById(ids);
-    return ids.stream()
-        .map(id -> id == null ? null : byId.get(id))
-        .map(u -> u == null ? null : toModel(u))
-        .toList();
+    List out = new ArrayList<>(ids.size());
+    for (String id : ids) {
+      if (id == null) {
+        out.add(null);
+      } else if (byId.containsKey(id)) {
+        out.add(mapper.apply(byId.get(id)));
+      } else {
+        // Exception element: fails only this dataloader key (a throw fails the whole batch).
+        out.add(FilesGraphQLException.of(ErrorCodes.ACCOUNT_NOT_FOUND, "identifier", id));
+      }
+    }
+    return out;
   }
 
   private Map<String, UserInfo> fetchUsersById(List<String> ids) {
@@ -96,12 +110,8 @@ public class UserApi {
   // restoring the pre-Quarkus USER_BATCH_LOADER coalescing (renders the same schema field).
   @Name("share_target")
   public List<SharedTarget> shareTargets(@Source List<ShareModel> shares) {
-    Map<String, UserInfo> byId =
-        fetchUsersById(shares.stream().map(ShareModel::getShareTargetId).toList());
-    return shares.stream()
-        .map(share -> byId.get(share.getShareTargetId()))
-        .map(u -> u == null ? null : (SharedTarget) toModel(u))
-        .toList();
+    return resolveEach(
+        shares.stream().map(ShareModel::getShareTargetId).toList(), u -> (SharedTarget) toModel(u));
   }
 
   @Name("users")
@@ -138,11 +148,20 @@ public class UserApi {
       @Name("emails") @NonNull List<@NonNull String> emails) throws FilesGraphQLException {
     String cookies = producer.cookies();
     List<Account> result = new ArrayList<>();
+    boolean anyMissing = false;
     for (String email : emails) {
       validator.checkEmail(email).validate();
       Account account =
           userRepository.getUserByEmail(cookies, email).map(u -> (Account) toModel(u)).orElse(null);
+      anyMissing |= account == null;
       result.add(account);
+    }
+    if (anyMissing) {
+      throw new FilesGraphQLException(
+          ErrorCodes.ACCOUNT_NOT_FOUND,
+          ErrorCodes.ACCOUNT_NOT_FOUND.name(),
+          result,
+          Map.of("getAccountsByEmail", result));
     }
     return result;
   }
