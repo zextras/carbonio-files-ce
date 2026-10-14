@@ -188,8 +188,12 @@ class CreatePublicLinkApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
-    Assertions.assertThat(errorCodes).contains("MISSING_FIELD");
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+        .containsExactly(
+            "Invalid link access code. The access code must be between 10 and 255 characters"
+                + " long");
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .doesNotContain("MISSING_FIELD");
   }
 
   @Test

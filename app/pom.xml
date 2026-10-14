@@ -136,6 +136,16 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <!--
+      commons-validator: GraphQLInputValidator uses EmailValidator for GraphQL input validation.
+      Not BOM-managed; same version as the pre-migration stack.
+    -->
+    <dependency>
+      <groupId>commons-validator</groupId>
+      <artifactId>commons-validator</artifactId>
+      <version>1.9.0</version>
+    </dependency>
+
+    <!--
       commons-lang3: repository interfaces (NodeRepository, NotificationRepository) use
       org.apache.commons.lang3.tuple.ImmutablePair. Version managed by the imported quarkus-bom.
     -->

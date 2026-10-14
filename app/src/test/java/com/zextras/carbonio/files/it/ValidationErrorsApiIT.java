@@ -4,6 +4,8 @@
 
 package com.zextras.carbonio.files.it;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
@@ -13,6 +15,8 @@ import java.util.List;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.ValidationErrorsApiIT} rewritten as an
@@ -33,6 +37,9 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
 
   private static final String REQUESTER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
   private static final String REQUESTER_COOKIE = "ZM_AUTH_TOKEN=fake-token";
+  private static final String INVALID_NODE_NAME =
+      "Invalid node name. The name cannot be empty, longer than 1024 characters, nor be composed"
+          + " only by blank spaces.";
   private static final String VALID_NODE_ID = "00000000-0000-0000-0000-000000000042";
 
   @BeforeAll
@@ -42,6 +49,33 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
 
   private static Response execute(String bodyPayload) {
     return graphql(bodyPayload, REQUESTER_COOKIE);
+  }
+
+  private static void assertValidationError(
+      Response response, String expectedMessage, String... expectedPath) {
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    JsonNode body;
+    try {
+      body = new ObjectMapper().readTree(response.getBody().asString());
+    } catch (Exception e) {
+      throw new AssertionError(e);
+    }
+    JsonNode errors = body.get("errors");
+    Assertions.assertThat(errors).hasSize(1);
+    JsonNode error = errors.get(0);
+    Assertions.assertThat(error.get("message").asText()).isEqualTo(expectedMessage);
+    Assertions.assertThat(error.get("path")).hasSize(expectedPath.length);
+    for (int i = 0; i < expectedPath.length; i++) {
+      Assertions.assertThat(error.get("path").get(i).asText()).isEqualTo(expectedPath[i]);
+    }
+    JsonNode errorCode = error.path("extensions").path("errorCode");
+    Assertions.assertThat(errorCode.isMissingNode() || errorCode.isNull())
+        .as("validation errors carry no errorCode")
+        .isTrue();
+    JsonNode data = body.get("data");
+    Assertions.assertThat(data == null || data.isNull() || data.path(expectedPath[0]).isNull())
+        .as("validation errors return no data")
+        .isTrue();
   }
 
   @Test
@@ -57,11 +91,7 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
-    // POSSIBLE REAL BUG: SmallRye maps the custom "Invalid Email" validator to "MISSING_FIELD";
-    // the original semantic meaning (invalid format, not a missing field) is lost.
-    Assertions.assertThat(errorCodes).containsExactly("MISSING_FIELD");
+    assertValidationError(response, "Invalid Email", "getAccountByEmail");
   }
 
   /**
@@ -115,11 +145,11 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    // Under SmallRye the limit-validation exception surfaces as "System error" rather than the
-    // original custom message from GenericControllerEvaluator.
-    Assertions.assertThat(errors).anyMatch(e -> e.contains("System error"));
+    assertValidationError(
+        response,
+        "Invalid limit value. The allowed range is between 0 and 50.",
+        "getNode",
+        "children");
   }
 
   @Test
@@ -139,8 +169,6 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    // POSSIBLE REAL BUG: FieldValidationInstrumentation no longer fires for updateNode — the
-    // resolver runs (returning NODE_NOT_FOUND) instead of aborting with the validation message.
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly(
@@ -163,8 +191,6 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    // POSSIBLE REAL BUG: FieldValidationInstrumentation no longer fires for updateNode — the
-    // resolver runs (returning NODE_NOT_FOUND) instead of aborting with the validation message.
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly(
@@ -187,8 +213,6 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    // POSSIBLE REAL BUG: FieldValidationInstrumentation no longer fires for updateNode — the
-    // resolver runs (returning NODE_NOT_FOUND) instead of aborting with the validation message.
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly("Invalid node ID: \"short-id\". Length must be 36 characters");
@@ -207,11 +231,10 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
-    // POSSIBLE REAL BUG: SmallRye maps the custom link-ID length validator to "MISSING_FIELD";
-    // the original semantic meaning (invalid ID format) is lost.
-    Assertions.assertThat(errorCodes).containsExactly("MISSING_FIELD");
+    assertValidationError(
+        response,
+        "Invalid link ID: \"short-link-id\". Length must be 36 characters",
+        "deleteLinks");
   }
 
   @Test
@@ -229,11 +252,10 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
-    // POSSIBLE REAL BUG: SmallRye maps the custom link-description length validator to
-    // "MISSING_FIELD"; the original semantic meaning (too long, not a missing field) is lost.
-    Assertions.assertThat(errorCodes).containsExactly("MISSING_FIELD");
+    assertValidationError(
+        response,
+        "Invalid link description. The description cannot be longer than 300 characters",
+        "createLink");
   }
 
   /**
@@ -260,8 +282,6 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    // POSSIBLE REAL BUG: FieldValidationInstrumentation no longer fires for updateNode — the
-    // resolver runs (returning NODE_NOT_FOUND) instead of aborting with the validation message.
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly(
@@ -289,13 +309,11 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    // POSSIBLE REAL BUG: FieldValidationInstrumentation returns NO error for limit=999 on
-    // getNode.children (over-cap case); the validation is completely absent for this branch.
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Invalid limit value. The allowed range is between 0 and 50.");
+    assertValidationError(
+        response,
+        "Invalid limit value. The allowed range is between 0 and 50.",
+        "getNode",
+        "children");
   }
 
   @Test
@@ -312,10 +330,174 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     Response response = execute(bodyPayload);
 
     // Then
+    assertValidationError(response, "Invalid user ID. Length cannot be empty", "getShare");
+  }
+
+  @Test
+  void givenEmptyShareTargetIdOnCreateShareThenValidationError() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("createShare")
+            .withString("node_id", VALID_NODE_ID)
+            .withString("share_target_id", "")
+            .withEnumLiteral("permission", "READ_ONLY")
+            .withWantedResultFormat("{ permission }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(response, "Invalid user ID. Length cannot be empty", "createShare");
+  }
+
+  @Test
+  void givenWrongLengthNodeIdOnCreateShareThenValidationError() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("createShare")
+            .withString("node_id", "short-id")
+            .withString("share_target_id", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+            .withEnumLiteral("permission", "READ_ONLY")
+            .withWantedResultFormat("{ permission }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(
+        response, "Invalid node ID: \"short-id\". Length must be 36 characters", "createShare");
+  }
+
+  @Test
+  void givenEmptyShareTargetIdOnUpdateSharesThenValidationError() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("updateShares")
+            .withString("node_id", VALID_NODE_ID)
+            .withListOfStrings("share_target_ids", new String[] {""})
+            .withEnumLiteral("permission", "READ_ONLY")
+            .withWantedResultFormat("{ permission }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(response, "Invalid user ID. Length cannot be empty", "updateShares");
+  }
+
+  @Test
+  void givenEmptyShareTargetIdOnDeleteSharesThenValidationError() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("deleteShares")
+            .withString("node_id", VALID_NODE_ID)
+            .withListOfStrings("share_target_ids", new String[] {""})
+            .withWantedResultFormat("")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(response, "Invalid user ID. Length cannot be empty", "deleteShares");
+  }
+
+  @Test
+  void givenBlankNameOnCreateFolderThenValidationError() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("createFolder")
+            .withString("destination_id", "LOCAL_ROOT")
+            .withString("name", "   ")
+            .withWantedResultFormat("{ id name }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(response, INVALID_NODE_NAME, "createFolder");
+  }
+
+  @Test
+  void givenTooLongNameOnCreateFolderThenValidationError() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("createFolder")
+            .withString("destination_id", "LOCAL_ROOT")
+            .withString("name", "a".repeat(1025))
+            .withWantedResultFormat("{ id name }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(response, INVALID_NODE_NAME, "createFolder");
+  }
+
+  @Test
+  void givenWrongLengthDestinationIdOnCreateFolderThenValidationError() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("createFolder")
+            .withString("destination_id", "short-id")
+            .withString("name", "folder")
+            .withWantedResultFormat("{ id name }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(
+        response, "Invalid node ID: \"short-id\". Length must be 36 characters", "createFolder");
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "x@example..com",
+        ".leading@example.com",
+        "trailing.@example.com",
+        "user@host.local",
+        "user@host.internal",
+        "not-an-email"
+      })
+  void givenEmailRejectedByCommonsValidatorOnGetAccountByEmailThenValidationError(String email) {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getAccountByEmail")
+            .withString("email", email)
+            .withWantedResultFormat("{ ... on User { id } }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(response, "Invalid Email", "getAccountByEmail");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"o'brien@example.com", "first.last+tag@sub.example.co"})
+  void givenEmailAcceptedByCommonsValidatorOnGetAccountByEmailThenPassesValidation(String email) {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getAccountByEmail")
+            .withString("email", email)
+            .withWantedResultFormat("{ ... on User { id } }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
-    // POSSIBLE REAL BUG: SmallRye maps the custom empty-user-ID validator to "MISSING_FIELD";
-    // the original semantic meaning (invalid user ID, not a missing field) is lost.
-    Assertions.assertThat(errorCodes).containsExactly("MISSING_FIELD");
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+        .noneMatch(m -> m.contains("Invalid Email"));
   }
 }

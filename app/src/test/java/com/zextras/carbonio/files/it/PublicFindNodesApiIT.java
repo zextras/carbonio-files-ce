@@ -279,8 +279,6 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
     Assertions.assertThat(errorCodes).containsExactly("NODE_NOT_FOUND");
-    // POSSIBLE REAL BUG: expired public link returns NODE_NOT_FOUND instead of a distinct
-    // link-expiry error; a separate error code (e.g. LINK_EXPIRED) would be more informative.
   }
 
   @DisplayName(

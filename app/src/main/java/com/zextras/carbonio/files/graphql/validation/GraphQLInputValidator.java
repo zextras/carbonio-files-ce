@@ -4,15 +4,15 @@
 
 package com.zextras.carbonio.files.graphql.validation;
 
+import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.Db.RootId;
-import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
+import com.zextras.carbonio.files.graphql.errors.InputValidationException;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Pattern;
+import org.apache.commons.validator.routines.EmailValidator;
 
 @ApplicationScoped
 public class GraphQLInputValidator {
@@ -35,6 +35,10 @@ public class GraphQLInputValidator {
 
   public Chain checkUserId(String value) {
     return new Chain().checkUserId(value);
+  }
+
+  public Chain checkUserIds(List<String> values) {
+    return new Chain().checkUserIds(values);
   }
 
   public Chain checkLinkId(String value) {
@@ -65,12 +69,6 @@ public class GraphQLInputValidator {
 
     private static final int LENGTH_NODE_ID = 36;
     private static final int LENGTH_LINK_ID = 36;
-
-    // RFC-lite email pattern: a local part, a single '@', a dotted domain with a 2+ char TLD.
-    // Replaces the removed commons-validator EmailValidator; keeps the same behaviour (invalid /
-    // null email -> error).
-    private static final Pattern EMAIL_PATTERN =
-        Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
     private final List<String> errors = new ArrayList<>();
 
@@ -108,6 +106,17 @@ public class GraphQLInputValidator {
 
     public Chain checkUserId(String value) {
       validateUserId(value).ifPresent(errors::add);
+      return this;
+    }
+
+    public Chain checkUserIds(List<String> values) {
+      if (values != null) {
+        values.stream()
+            .map(this::validateUserId)
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .forEach(errors::add);
+      }
       return this;
     }
 
@@ -149,16 +158,19 @@ public class GraphQLInputValidator {
     }
 
     public Chain checkLimitPagination(int limit) {
-      if (limit > 50) {
-        errors.add("Invalid limit value. The allowed range is between 0 and 50.");
+      if (limit < 0 || limit > Constants.GraphQL.LIMIT_ELEMENTS_FOR_PAGE) {
+        errors.add(
+            "Invalid limit value. The allowed range is between 0 and "
+                + Constants.GraphQL.LIMIT_ELEMENTS_FOR_PAGE
+                + ".");
       }
       return this;
     }
 
     public void validate() throws FilesGraphQLException {
       if (!errors.isEmpty()) {
-        String joined = String.join("; ", errors);
-        throw new FilesGraphQLException(ErrorCodes.MISSING_FIELD, joined, Map.of("errors", joined));
+        String joined = String.join("\n", errors);
+        throw new InputValidationException(joined);
       }
     }
 
@@ -188,7 +200,7 @@ public class GraphQLInputValidator {
     }
 
     private Optional<String> validateEmail(String email) {
-      return (email != null && EMAIL_PATTERN.matcher(email).matches())
+      return EmailValidator.getInstance().isValid(email)
           ? Optional.empty()
           : Optional.of("Invalid Email");
     }

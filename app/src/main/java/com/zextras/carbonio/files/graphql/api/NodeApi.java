@@ -334,6 +334,7 @@ public class NodeApi {
   public @NonNull NodeModel createFolder(
       @Name("destination_id") @NonNull String destinationId, @Name("name") @NonNull String name)
       throws FilesGraphQLException {
+    validator.checkNodeId(destinationId).checkNodeName(name).validate();
     String me = requester.getId().getUserId();
     try {
       Node createdFolder = nodeCreationHelper.createFolder(me, destinationId, name, requester);

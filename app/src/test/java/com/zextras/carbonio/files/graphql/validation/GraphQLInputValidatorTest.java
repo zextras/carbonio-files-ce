@@ -8,8 +8,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
+import com.zextras.carbonio.files.graphql.errors.InputValidationException;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +36,7 @@ class GraphQLInputValidatorTest {
         .satisfies(
             e -> {
               FilesGraphQLException fge = (FilesGraphQLException) e;
-              assertThat(fge.getErrorCode()).isEqualTo(ErrorCodes.MISSING_FIELD);
+              assertThat(fge.getErrorCode()).isNull();
               assertThat(fge.getMessage())
                   .isEqualTo("Invalid node ID: \"short-id\". Length must be 36 characters");
             });
@@ -74,7 +74,7 @@ class GraphQLInputValidatorTest {
         .satisfies(
             e -> {
               FilesGraphQLException fge = (FilesGraphQLException) e;
-              assertThat(fge.getErrorCode()).isEqualTo(ErrorCodes.MISSING_FIELD);
+              assertThat(fge.getErrorCode()).isNull();
             });
   }
 
@@ -85,7 +85,7 @@ class GraphQLInputValidatorTest {
         .satisfies(
             e -> {
               FilesGraphQLException fge = (FilesGraphQLException) e;
-              assertThat(fge.getErrorCode()).isEqualTo(ErrorCodes.MISSING_FIELD);
+              assertThat(fge.getErrorCode()).isNull();
               assertThat(fge.getMessage())
                   .isEqualTo(
                       "Invalid node name. The name cannot be empty, longer than 1024 characters,"
@@ -112,7 +112,7 @@ class GraphQLInputValidatorTest {
         .satisfies(
             e -> {
               FilesGraphQLException fge = (FilesGraphQLException) e;
-              assertThat(fge.getErrorCode()).isEqualTo(ErrorCodes.MISSING_FIELD);
+              assertThat(fge.getErrorCode()).isNull();
             });
   }
 
@@ -135,7 +135,7 @@ class GraphQLInputValidatorTest {
         .satisfies(
             e -> {
               FilesGraphQLException fge = (FilesGraphQLException) e;
-              assertThat(fge.getErrorCode()).isEqualTo(ErrorCodes.MISSING_FIELD);
+              assertThat(fge.getErrorCode()).isNull();
             });
   }
 
@@ -162,19 +162,18 @@ class GraphQLInputValidatorTest {
         .satisfies(
             e -> {
               FilesGraphQLException fge = (FilesGraphQLException) e;
-              assertThat(fge.getErrorCode()).isEqualTo(ErrorCodes.MISSING_FIELD);
+              assertThat(fge.getErrorCode()).isNull();
             });
   }
 
   @Test
   void checkEmailThrowsForEmailWithoutTld() {
-    // Inline RFC-lite regex (commons-validator removed) still requires a dotted domain with a TLD.
     assertThatThrownBy(() -> validator.checkEmail("user@nodomain").validate())
         .isInstanceOf(FilesGraphQLException.class)
         .satisfies(
             e -> {
               FilesGraphQLException fge = (FilesGraphQLException) e;
-              assertThat(fge.getErrorCode()).isEqualTo(ErrorCodes.MISSING_FIELD);
+              assertThat(fge.getErrorCode()).isNull();
             });
   }
 
@@ -184,6 +183,35 @@ class GraphQLInputValidatorTest {
         .doesNotThrowAnyException();
     assertThatCode(() -> validator.checkEmail("first.last+tag@sub.example.co").validate())
         .doesNotThrowAnyException();
+  }
+
+  @Test
+  void checkEmailMatchesCommonsValidator() {
+    assertThatCode(() -> validator.checkEmail("o'brien@example.com").validate())
+        .doesNotThrowAnyException();
+    assertThatThrownBy(() -> validator.checkEmail("x@example..com").validate())
+        .isInstanceOf(InputValidationException.class)
+        .hasMessage("Invalid Email");
+    assertThatThrownBy(() -> validator.checkEmail("user@host.local").validate())
+        .isInstanceOf(InputValidationException.class);
+  }
+
+  @Test
+  void checkLimitPaginationRejectsNegativeAndOverCap() {
+    assertThatCode(() -> validator.checkLimitPagination(0).validate()).doesNotThrowAnyException();
+    assertThatCode(() -> validator.checkLimitPagination(50).validate()).doesNotThrowAnyException();
+    assertThatThrownBy(() -> validator.checkLimitPagination(-1).validate())
+        .isInstanceOf(InputValidationException.class)
+        .hasMessage("Invalid limit value. The allowed range is between 0 and 50.");
+    assertThatThrownBy(() -> validator.checkLimitPagination(51).validate())
+        .isInstanceOf(InputValidationException.class);
+  }
+
+  @Test
+  void checkUserIdsRejectsEmptyEntries() {
+    assertThatThrownBy(() -> validator.checkUserIds(List.of("ok", "")).validate())
+        .isInstanceOf(InputValidationException.class)
+        .hasMessage("Invalid user ID. Length cannot be empty");
   }
 
   @Test

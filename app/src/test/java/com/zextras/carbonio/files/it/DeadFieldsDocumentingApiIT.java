@@ -164,9 +164,6 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
 
     // Then — both must be error-free (all three targets are registered UM users) and, crucially,
     // the ORDER of target ids must be IDENTICAL between the two calls: `sorts` changed nothing.
-    // POSSIBLE REAL BUG: share_target ids are returning truncated/wrong values (e.g.
-    // "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb3") — this is a data integrity failure in the share
-    // resolver or the seeding logic; the three registered target ids are not what is returned.
     Assertions.assertThat(TestUtils.jsonResponseToErrors(withSortsResponse.getBody().asString()))
         .isEmpty();
     Assertions.assertThat(TestUtils.jsonResponseToErrors(withoutSortsResponse.getBody().asString()))

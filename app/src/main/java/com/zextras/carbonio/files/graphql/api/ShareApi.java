@@ -153,6 +153,7 @@ public class ShareApi {
       @Name("expires_at") Long expiresAt,
       @Name("custom_message") String customMessage)
       throws FilesGraphQLException {
+    validator.checkNodeId(nodeId).checkUserId(shareTargetId).validate();
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_AND_SHARE)) {
       throw FilesGraphQLException.of(
@@ -212,6 +213,7 @@ public class ShareApi {
       @Name("permission") SharePermission permission,
       @Name("expires_at") Long expiresAt)
       throws FilesGraphQLException {
+    validator.checkNodeId(nodeId).checkUserIds(shareTargetIds).validate();
     String me = requester.getId().getUserId();
     boolean hasPermission =
         permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_AND_SHARE);
@@ -263,6 +265,7 @@ public class ShareApi {
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("share_target_ids") @NonNull List<@NonNull String> shareTargetIds)
       throws FilesGraphQLException {
+    validator.checkNodeId(nodeId).checkUserIds(shareTargetIds).validate();
     String me = requester.getId().getUserId();
 
     List<String> deleted = new ArrayList<>();
