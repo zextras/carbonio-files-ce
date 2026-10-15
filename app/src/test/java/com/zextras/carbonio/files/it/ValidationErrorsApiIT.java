@@ -12,10 +12,13 @@ import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.util.List;
+import java.util.stream.Stream;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
@@ -314,6 +317,128 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
         "Invalid limit value. The allowed range is between 0 and 50.",
         "getNode",
         "children");
+  }
+
+  private static final String SHORT_ID_MESSAGE =
+      "Invalid node ID: \"short-id\". Length must be 36 characters";
+
+  static Stream<Arguments> malformedNodeIdOperations() {
+    return Stream.of(
+        Arguments.of(
+            "getPath",
+            GraphqlCommandBuilder.aQueryBuilder("getPath")
+                .withString("node_id", "short-id")
+                .withWantedResultFormat("{ id }")
+                .build(),
+            SHORT_ID_MESSAGE,
+            "getPath"),
+        Arguments.of(
+            "trashNodes",
+            GraphqlCommandBuilder.aMutationBuilder("trashNodes")
+                .withListOfStrings("node_ids", new String[] {"short-id"})
+                .withWantedResultFormat("")
+                .build(),
+            SHORT_ID_MESSAGE,
+            "trashNodes"),
+        Arguments.of(
+            "restoreNodes",
+            GraphqlCommandBuilder.aMutationBuilder("restoreNodes")
+                .withListOfStrings("node_ids", new String[] {"short-id"})
+                .withWantedResultFormat("{ id }")
+                .build(),
+            SHORT_ID_MESSAGE,
+            "restoreNodes"),
+        Arguments.of(
+            "deleteNodes",
+            GraphqlCommandBuilder.aMutationBuilder("deleteNodes")
+                .withListOfStrings("node_ids", new String[] {"short-id"})
+                .withWantedResultFormat("")
+                .build(),
+            SHORT_ID_MESSAGE,
+            "deleteNodes"),
+        Arguments.of(
+            "moveNodes",
+            GraphqlCommandBuilder.aMutationBuilder("moveNodes")
+                .withListOfStrings("node_ids", new String[] {"short-id", "other"})
+                .withString("destination_id", VALID_NODE_ID)
+                .withWantedResultFormat("{ id }")
+                .build(),
+            SHORT_ID_MESSAGE + "\nInvalid node ID: \"other\". Length must be 36 characters",
+            "moveNodes"),
+        Arguments.of(
+            "moveNodesDestination",
+            GraphqlCommandBuilder.aMutationBuilder("moveNodes")
+                .withListOfStrings("node_ids", new String[] {VALID_NODE_ID})
+                .withString("destination_id", "short-id")
+                .withWantedResultFormat("{ id }")
+                .build(),
+            SHORT_ID_MESSAGE,
+            "moveNodes"),
+        Arguments.of(
+            "copyNodes",
+            GraphqlCommandBuilder.aMutationBuilder("copyNodes")
+                .withListOfStrings("node_ids", new String[] {"short-id"})
+                .withString("destination_id", VALID_NODE_ID)
+                .withWantedResultFormat("{ id }")
+                .build(),
+            SHORT_ID_MESSAGE,
+            "copyNodes"),
+        Arguments.of(
+            "copyNodesDestination",
+            GraphqlCommandBuilder.aMutationBuilder("copyNodes")
+                .withListOfStrings("node_ids", new String[] {VALID_NODE_ID})
+                .withString("destination_id", "short-id")
+                .withWantedResultFormat("{ id }")
+                .build(),
+            SHORT_ID_MESSAGE,
+            "copyNodes"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("malformedNodeIdOperations")
+  void givenMalformedNodeIdsThenExactlyOneValidationErrorBeforeAnyExecution(
+      String name, String bodyPayload, String expectedMessage, String path) {
+    assertValidationError(execute(bodyPayload), expectedMessage, path);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"LOCAL_ROOT", "TRASH_ROOT"})
+  void givenRootPseudoIdsThenNodeIdValidationAcceptsThem(String rootId) {
+    List<String> payloads =
+        List.of(
+            GraphqlCommandBuilder.aQueryBuilder("getPath")
+                .withString("node_id", rootId)
+                .withWantedResultFormat("{ id }")
+                .build(),
+            GraphqlCommandBuilder.aMutationBuilder("trashNodes")
+                .withListOfStrings("node_ids", new String[] {rootId})
+                .withWantedResultFormat("")
+                .build(),
+            GraphqlCommandBuilder.aMutationBuilder("deleteNodes")
+                .withListOfStrings("node_ids", new String[] {rootId})
+                .withWantedResultFormat("")
+                .build(),
+            GraphqlCommandBuilder.aMutationBuilder("restoreNodes")
+                .withListOfStrings("node_ids", new String[] {rootId})
+                .withWantedResultFormat("{ id }")
+                .build(),
+            GraphqlCommandBuilder.aMutationBuilder("moveNodes")
+                .withListOfStrings("node_ids", new String[] {rootId})
+                .withString("destination_id", rootId)
+                .withWantedResultFormat("{ id }")
+                .build(),
+            GraphqlCommandBuilder.aMutationBuilder("copyNodes")
+                .withListOfStrings("node_ids", new String[] {rootId})
+                .withString("destination_id", rootId)
+                .withWantedResultFormat("{ id }")
+                .build());
+    for (String payload : payloads) {
+      Response response = execute(payload);
+      Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+      Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+          .as(payload)
+          .noneMatch(message -> message.contains("Invalid node ID"));
+    }
   }
 
   @Test

@@ -413,4 +413,67 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
             Constants.Config.Pagination.LIMIT)
         .isLessThanOrEqualTo(Constants.Config.Pagination.LIMIT);
   }
+
+  private static Response findNodesWithToken(String folderId, String pageToken) {
+    GraphqlCommandBuilder builder =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", folderId)
+            .withInteger("limit", 1);
+    if (pageToken != null) {
+      builder = builder.withString("page_token", pageToken);
+    }
+    return graphql(
+        builder.withWantedResultFormat("{ nodes { id } page_token }").build(), OWNER_COOKIE);
+  }
+
+  @Test
+  void givenAGarbagePageTokenFindNodesShouldSurfaceTheMalformedTokenMessage() {
+    String folderId = seedFolder("pta garbage folder", LOCAL_ROOT, OWNER_COOKIE);
+
+    Response response = findNodesWithToken(folderId, "garbage");
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+        .containsExactly("Malformed page token");
+    Assertions.assertThat(TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes"))
+        .isEmpty();
+  }
+
+  @Test
+  void givenAGarbagePageTokenChildrenShouldSurfaceTheMalformedTokenMessage() {
+    String query =
+        GraphqlCommandBuilder.aQueryBuilder("getNode")
+            .withString("node_id", LOCAL_ROOT)
+            .withWantedResultFormat(
+                "{ ... on Folder { children(limit: 1, sort: NAME_ASC, page_token: \\\"garbage\\\")"
+                    + " { nodes { id } } } }")
+            .build();
+
+    Response response = graphql(query, OWNER_COOKIE);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+        .containsExactly("Malformed page token");
+  }
+
+  @Test
+  void givenATamperedSignatureFindNodesShouldSurfaceTheInvalidSignatureMessage() throws Exception {
+    String folderId = seedFolder("pta signature folder", LOCAL_ROOT, OWNER_COOKIE);
+    seedFile("a.txt", folderId, "a".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    seedFile("b.txt", folderId, "b".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    Response firstPage = findNodesWithToken(folderId, null);
+    String legitToken =
+        (String)
+            TestUtils.jsonResponseToMap(firstPage.getBody().asString(), "findNodes")
+                .get("page_token");
+    Assertions.assertThat(legitToken).isNotNull();
+    NodeRepositoryImpl.PageToken tampered = decode(legitToken);
+    tampered.limit = 5;
+
+    Response response = findNodesWithToken(folderId, encodeTampered(tampered));
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+        .containsExactly("Invalid page token signature");
+  }
 }

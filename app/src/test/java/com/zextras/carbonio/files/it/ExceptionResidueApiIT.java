@@ -141,7 +141,6 @@ class ExceptionResidueApiIT extends AbstractFilesIT {
     // port's actual PageToken), so it fails to Jackson-deserialize at all: a MALFORMED token, not
     // a signature mismatch (see NodeRepositoryImpl#decodeToken) — the message must not claim a
     // signature was checked when the failure never got that far.
-    // Under SmallRye the internal exception surfaces as "System error".
-    Assertions.assertThat(errors).anyMatch(e -> e.contains("System error"));
+    Assertions.assertThat(errors).containsExactly("Malformed page token");
   }
 }

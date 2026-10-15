@@ -214,6 +214,7 @@ public class NodeApi {
   @Query("getPath")
   public @NonNull List<NodeModel> getPath(@Name("node_id") @Id @NonNull String nodeId)
       throws FilesGraphQLException {
+    validator.checkNodeId(nodeId).validate();
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_ONLY)) {
       throw pathNodeNotFound(nodeId);
@@ -430,6 +431,7 @@ public class NodeApi {
   @Mutation("trashNodes")
   public @Nullable @Id List<@NonNull String> trashNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
+    validator.checkNodeIds(nodeIds).validate();
     if (nodeIds == null) return Collections.emptyList();
     String me = requester.getId().getUserId();
 
@@ -512,6 +514,7 @@ public class NodeApi {
   @Mutation("restoreNodes")
   public @Nullable List<NodeModel> restoreNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
+    validator.checkNodeIds(nodeIds).validate();
     if (nodeIds == null) return Collections.emptyList();
     String me = requester.getId().getUserId();
 
@@ -629,6 +632,7 @@ public class NodeApi {
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("destination_id") @Id @NonNull String destinationId)
       throws FilesGraphQLException {
+    validator.checkNodeIds(nodeIds).checkNodeId(destinationId).validate();
     if (nodeIds == null) return Collections.emptyList();
     String me = requester.getId().getUserId();
 
@@ -791,6 +795,7 @@ public class NodeApi {
   @Mutation("deleteNodes")
   public @Nullable @Id List<@NonNull String> deleteNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
+    validator.checkNodeIds(nodeIds).validate();
     if (nodeIds == null) return Collections.emptyList();
     String me = requester.getId().getUserId();
 
@@ -901,6 +906,7 @@ public class NodeApi {
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("destination_id") @Id @NonNull String destinationId)
       throws FilesGraphQLException {
+    validator.checkNodeIds(nodeIds).checkNodeId(destinationId).validate();
     if (nodeIds == null) return Collections.emptyList();
     String me = requester.getId().getUserId();
 
