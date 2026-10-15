@@ -101,6 +101,9 @@ public final class FilesGraphQLErrors {
 
   public static FilesGraphQLException nodeCopyError(
       ErrorCodes code, String nodeId, Integer version) {
+    if (code == ErrorCodes.OVER_QUOTA_REACHED) {
+      return overQuota(nodeId);
+    }
     return build(
         code,
         MessageFormat.format(
@@ -113,6 +116,9 @@ public final class FilesGraphQLErrors {
 
   public static FilesGraphQLException cloneCopyError(
       ErrorCodes code, String nodeId, Integer version) {
+    if (code == ErrorCodes.OVER_QUOTA_REACHED) {
+      return overQuota(nodeId);
+    }
     return build(
         code, MessageFormat.format("Copy error with nodeId: {0} and version {1}", nodeId, version));
   }
@@ -120,6 +126,10 @@ public final class FilesGraphQLErrors {
   public static FilesGraphQLException dataFetching(String path, String message) {
     return new FilesGraphQLException(
         null, "Exception while fetching data (" + path + ") : " + message, Map.of());
+  }
+
+  private static FilesGraphQLException overQuota(String nodeId) {
+    return build(ErrorCodes.OVER_QUOTA_REACHED, "User quota has been reached for user " + nodeId);
   }
 
   public static FilesGraphQLException accessCodeRequired(String publicLinkId) {

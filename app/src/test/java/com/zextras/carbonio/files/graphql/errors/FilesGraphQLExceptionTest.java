@@ -44,6 +44,18 @@ class FilesGraphQLExceptionTest {
   }
 
   @Test
+  void overQuotaCopyErrorsCarryMainsMessageWithTheNodeIdAndNoExtras() {
+    for (FilesGraphQLException ex :
+        List.of(
+            FilesGraphQLErrors.nodeCopyError(ErrorCodes.OVER_QUOTA_REACHED, "n", 2),
+            FilesGraphQLErrors.cloneCopyError(ErrorCodes.OVER_QUOTA_REACHED, "n", 2))) {
+      assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.OVER_QUOTA_REACHED);
+      assertThat(ex.getMessage()).isEqualTo("User quota has been reached for user n");
+      assertThat(ex.getExtensions()).isEmpty();
+    }
+  }
+
+  @Test
   void missingFieldHasNoExtraExtensions() {
     FilesGraphQLException ex = FilesGraphQLErrors.missingField();
 

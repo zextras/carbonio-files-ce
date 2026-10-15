@@ -503,6 +503,11 @@ class NodeApiMutationsTest {
     assertThatThrownBy(() -> nodeApi.cloneVersion(NODE_ID_1, 1))
         .isInstanceOfSatisfying(
             FilesGraphQLException.class,
-            ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.OVER_QUOTA_REACHED));
+            ex -> {
+              assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.OVER_QUOTA_REACHED);
+              assertThat(ex.getMessage())
+                  .isEqualTo("User quota has been reached for user " + NODE_ID_1);
+              assertThat(ex.getExtensions()).isEmpty();
+            });
   }
 }
