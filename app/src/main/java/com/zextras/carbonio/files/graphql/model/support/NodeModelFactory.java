@@ -9,9 +9,12 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.graphql.errors.FilesGraphQLErrors;
+import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.FileModel;
 import com.zextras.carbonio.files.graphql.model.FolderModel;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
+import java.util.List;
 
 public final class NodeModelFactory {
 
@@ -41,7 +44,7 @@ public final class NodeModelFactory {
           node.getParentId().orElse(null),
           node.getOwnerId(),
           node.getCreatorId(),
-          node.getLastEditorId().orElse(null),
+          null,
           node.getCreatedAt(),
           node.getUpdatedAt(),
           node.getName(),
@@ -57,10 +60,31 @@ public final class NodeModelFactory {
         node.getFileVersions().stream()
             .filter(fileVersion -> resolvedVersion == fileVersion.getVersion())
             .findFirst()
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "FileVersion " + resolvedVersion + " not found for node " + node.getId()));
+            .orElse(null);
+
+    if (fv == null) {
+      return new FileModel(
+          node.getId(),
+          node.getParentId().orElse(null),
+          node.getOwnerId(),
+          node.getCreatorId(),
+          null,
+          node.getCreatedAt(),
+          node.getUpdatedAt(),
+          node.getName(),
+          node.getExtension().orElse(null),
+          description,
+          gqlType,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          flagged,
+          rootId,
+          resolvedVersion);
+    }
 
     return new FileModel(
         node.getId(),
@@ -75,12 +99,28 @@ public final class NodeModelFactory {
         description,
         gqlType,
         fv.getMimeType(),
-        fv.getSize(),
+        (double) fv.getSize(),
         fv.getDigest(),
         fv.getVersion(),
         fv.isKeptForever(),
         fv.getClonedFromVersion().orElse(null),
         flagged,
-        rootId);
+        rootId,
+        null);
+  }
+
+  public static void requireVersion(NodeModel model, Object partialResult)
+      throws FilesGraphQLException {
+    if (model instanceof FileModel file && file.isVersionMissing()) {
+      throw FilesGraphQLErrors.fileVersionNotFound(
+          file.getId(), file.getMissingVersion(), partialResult);
+    }
+  }
+
+  public static void requireVersions(List<? extends NodeModel> models, Object partialResult)
+      throws FilesGraphQLException {
+    for (NodeModel model : models) {
+      requireVersion(model, partialResult);
+    }
   }
 }

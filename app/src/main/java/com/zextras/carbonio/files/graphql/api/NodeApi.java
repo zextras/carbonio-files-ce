@@ -119,7 +119,9 @@ public class NodeApi {
     }
     Node node =
         nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
-    return NodeModelFactory.from(node, version, me);
+    NodeModel model = NodeModelFactory.from(node, version, me);
+    NodeModelFactory.requireVersion(model, model);
+    return model;
   }
 
   @Query("findNodes")
@@ -135,7 +137,8 @@ public class NodeApi {
       @Name("owner_id") String ownerId,
       @Name("limit") Integer limit,
       @Name("page_token") String pageToken,
-      @Name("sort") NodeSort sort) {
+      @Name("sort") NodeSort sort)
+      throws FilesGraphQLException {
     String me = requester.getId().getUserId();
 
     Optional<com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort> optSort =
@@ -169,7 +172,9 @@ public class NodeApi {
             .map(n -> NodeModelFactory.from(n, null, me))
             .collect(Collectors.toList());
 
-    return new NodePageModel(nodes, findResult.getRight());
+    NodePageModel page = new NodePageModel(nodes, findResult.getRight());
+    NodeModelFactory.requireVersions(nodes, page);
+    return page;
   }
 
   @Query("getVersions")
@@ -198,9 +203,12 @@ public class NodeApi {
     Node node =
         nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
 
-    return versionNumbers.stream()
-        .map(ver -> (FileModel) NodeModelFactory.from(node, ver, me))
-        .collect(Collectors.toList());
+    List<FileModel> result =
+        versionNumbers.stream()
+            .map(ver -> (FileModel) NodeModelFactory.from(node, ver, me))
+            .collect(Collectors.toList());
+    NodeModelFactory.requireVersions(result, result);
+    return result;
   }
 
   @Query("getPath")
@@ -224,9 +232,7 @@ public class NodeApi {
 
     if (node.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
         || node.getOwnerId().equals(me)) {
-      return treeNodes.stream()
-          .map(n -> NodeModelFactory.from(n, null, me))
-          .collect(Collectors.toList());
+      return toPathModels(treeNodes, me);
     }
 
     List<Share> shares =
@@ -239,9 +245,16 @@ public class NodeApi {
                 treeNode -> shares.stream().anyMatch(s -> s.getNodeId().equals(treeNode.getId())))
             .collect(Collectors.toList());
 
-    return treeNodes.subList(treeNodes.indexOf(sharedNodes.get(0)), treeNodes.size()).stream()
-        .map(n -> NodeModelFactory.from(n, null, me))
-        .collect(Collectors.toList());
+    return toPathModels(
+        treeNodes.subList(treeNodes.indexOf(sharedNodes.get(0)), treeNodes.size()), me);
+  }
+
+  private static List<NodeModel> toPathModels(List<Node> nodes, String me)
+      throws FilesGraphQLException {
+    List<NodeModel> models =
+        nodes.stream().map(n -> NodeModelFactory.from(n, null, me)).collect(Collectors.toList());
+    NodeModelFactory.requireVersions(models, models);
+    return models;
   }
 
   @Query("getRootsList")
@@ -294,7 +307,9 @@ public class NodeApi {
         result.getLeft().stream()
             .map(n -> NodeModelFactory.from(n, null, me))
             .collect(Collectors.toList());
-    return new NodePageModel(nodes, result.getRight());
+    NodePageModel page = new NodePageModel(nodes, result.getRight());
+    NodeModelFactory.requireVersions(nodes, page);
+    return page;
   }
 
   // ─── Batch @Source resolvers — Node.parent ────────────────────────────────────
@@ -370,7 +385,9 @@ public class NodeApi {
     nodeRepository.updateNode(nodeToUpdate);
     Node updated =
         nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
-    return NodeModelFactory.from(updated, null, me);
+    NodeModel model = NodeModelFactory.from(updated, null, me);
+    NodeModelFactory.requireVersion(model, model);
+    return model;
   }
 
   @Mutation("flagNodes")
@@ -600,6 +617,7 @@ public class NodeApi {
                             })
                         .collect(Collectors.toList()));
 
+    NodeModelFactory.requireVersions(results, results);
     if (!nodesInError.isEmpty()) {
       throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0)).withPartialResults(results);
     }
@@ -762,6 +780,7 @@ public class NodeApi {
       pendingNotifications.forEach(Runnable::run);
     }
 
+    NodeModelFactory.requireVersions(movedNodesResult, movedNodesResult);
     if (!nodesInError.isEmpty()) {
       throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0))
           .withPartialResults(movedNodesResult);
@@ -977,6 +996,7 @@ public class NodeApi {
     List<Node> nodesWithoutPermission =
         nodes.stream().filter(node -> !nodesToCopy.contains(node)).collect(Collectors.toList());
 
+    NodeModelFactory.requireVersions(copiedNodesResult, copiedNodesResult);
     boolean hasErrors = !nodesWithoutPermission.isEmpty() || !copyErrors.isEmpty();
     if (hasErrors) {
       Optional<CopyFailure> classified =

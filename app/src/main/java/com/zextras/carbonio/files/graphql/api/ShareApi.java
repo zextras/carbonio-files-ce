@@ -72,10 +72,13 @@ public class ShareApi {
   @NonNull
   public NodeModel node(@Source ShareModel share) throws FilesGraphQLException {
     String me = requester.getId().getUserId();
-    return nodeRepository
-        .getNode(share.getNodeId())
-        .map(n -> NodeModelFactory.from(n, null, me))
-        .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(share.getNodeId()));
+    NodeModel model =
+        nodeRepository
+            .getNode(share.getNodeId())
+            .map(n -> NodeModelFactory.from(n, null, me))
+            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(share.getNodeId()));
+    NodeModelFactory.requireVersion(model, model);
+    return model;
   }
 
   // ─── Batch @Source resolver — Node.shares ────────────────────────────────────

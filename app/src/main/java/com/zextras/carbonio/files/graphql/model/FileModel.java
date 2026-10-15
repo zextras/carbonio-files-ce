@@ -25,13 +25,14 @@ public class FileModel implements NodeModel {
   private final String description;
   private final NodeType type;
   private final String mimeType;
-  private final double size;
+  private final Double size;
   private final String digest;
-  private final int version;
-  private final boolean keepForever;
+  private final Integer version;
+  private final Boolean keepForever;
   private final Integer clonedFromVersion;
   private final boolean flagged;
   private final String rootId;
+  private final Integer missingVersion;
 
   public FileModel(
       String id,
@@ -46,13 +47,14 @@ public class FileModel implements NodeModel {
       String description,
       NodeType type,
       String mimeType,
-      double size,
+      Double size,
       String digest,
-      int version,
-      boolean keepForever,
+      Integer version,
+      Boolean keepForever,
       Integer clonedFromVersion,
       boolean flagged,
-      String rootId) {
+      String rootId,
+      Integer missingVersion) {
     this.id = id;
     this.parentId = parentId;
     this.ownerId = ownerId;
@@ -72,6 +74,7 @@ public class FileModel implements NodeModel {
     this.clonedFromVersion = clonedFromVersion;
     this.flagged = flagged;
     this.rootId = rootId;
+    this.missingVersion = missingVersion;
   }
 
   @Override
@@ -157,7 +160,8 @@ public class FileModel implements NodeModel {
     return mimeType;
   }
 
-  public double getSize() {
+  @NonNull
+  public Double getSize() {
     return size;
   }
 
@@ -166,17 +170,29 @@ public class FileModel implements NodeModel {
     return digest;
   }
 
-  public int getVersion() {
+  @NonNull
+  public Integer getVersion() {
     return version;
   }
 
+  @NonNull
   @Name("keep_forever")
-  public boolean isKeepForever() {
+  public Boolean getKeepForever() {
     return keepForever;
   }
 
   @Name("cloned_from_version")
   public Integer getClonedFromVersion() {
     return clonedFromVersion;
+  }
+
+  @Ignore
+  public boolean isVersionMissing() {
+    return version == null;
+  }
+
+  @Ignore
+  public Integer getMissingVersion() {
+    return missingVersion;
   }
 }

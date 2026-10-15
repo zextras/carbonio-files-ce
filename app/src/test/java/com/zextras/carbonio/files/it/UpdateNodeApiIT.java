@@ -117,6 +117,30 @@ class UpdateNodeApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenAFolderRenamedByAnotherUserItsLastEditorShouldStayNull() {
+    String folderId = seedFolder("shared-folder", LOCAL_ROOT, REQUESTER_COOKIE);
+    seedShare(folderId, OTHER_USER_ID, SharePermission.READ_AND_WRITE, REQUESTER_COOKIE);
+
+    Response rename = updateNode(folderId, "renamed-by-b", null, null, OTHER_COOKIE);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(rename.getBody().asString())).isEmpty();
+
+    String query =
+        GraphqlCommandBuilder.aQueryBuilder("getNode")
+            .withString("node_id", folderId)
+            .withWantedResultFormat("{ id name last_editor { id } }")
+            .build();
+    Response response = graphql(query, REQUESTER_COOKIE);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Assertions.assertThat(node)
+        .containsEntry("name", "renamed-by-b")
+        .containsEntry("last_editor", null);
+  }
+
+  @Test
   void givenOnlyADescriptionUpdateNodeShouldUpdateItWithoutTouchingTheName() {
     // Given — closes the `optName.isPresent()` FALSE branch: no rename search is performed at all
     String nodeId =

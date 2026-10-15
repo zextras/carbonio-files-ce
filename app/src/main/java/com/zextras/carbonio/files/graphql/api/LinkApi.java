@@ -87,10 +87,13 @@ public class LinkApi {
   @NonNull
   public NodeModel node(@Source LinkModel link) throws FilesGraphQLException {
     String me = requester.getId().getUserId();
-    return nodeRepository
-        .getNode(link.getNodeId())
-        .map(n -> NodeModelFactory.from(n, null, me))
-        .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(link.getNodeId()));
+    NodeModel model =
+        nodeRepository
+            .getNode(link.getNodeId())
+            .map(n -> NodeModelFactory.from(n, null, me))
+            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(link.getNodeId()));
+    NodeModelFactory.requireVersion(model, model);
+    return model;
   }
 
   @Query("getLinks")

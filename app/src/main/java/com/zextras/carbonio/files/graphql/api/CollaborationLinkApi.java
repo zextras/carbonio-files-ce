@@ -78,10 +78,13 @@ public class CollaborationLinkApi {
   @NonNull
   public NodeModel node(@Source CollaborationLinkModel cl) throws FilesGraphQLException {
     String me = requester.getId().getUserId();
-    return nodeRepository
-        .getNode(cl.getNodeId())
-        .map(n -> NodeModelFactory.from(n, null, me))
-        .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(cl.getNodeId()));
+    NodeModel model =
+        nodeRepository
+            .getNode(cl.getNodeId())
+            .map(n -> NodeModelFactory.from(n, null, me))
+            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(cl.getNodeId()));
+    NodeModelFactory.requireVersion(model, model);
+    return model;
   }
 
   @Query("getCollaborationLinks")
