@@ -4,31 +4,20 @@
 
 package com.zextras.carbonio.files.it;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
-import java.util.List;
-import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@code com.zextras.carbonio.files.acceptance.IntrospectionApiIT} rewritten as an out-of-process
- * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}.
- *
- * <p><b>Behavior change (code-first cutover, legitimate):</b> the legacy graphql-java stack blocked
- * {@code __schema}/{@code __type} introspection on the authenticated {@code /graphql/} endpoint via
- * {@code GraphQLProvider#buildSchema}'s {@code BlockedFields.newBlock().addPattern("__.*")}
- * field-visibility transform. The SmallRye code-first engine has no equivalent mechanism: it serves
- * a single unified schema on {@code /graphql}, and graphql-java's {@code BlockedFields} API does
- * not exist in the SmallRye runtime. The pragmatic resolution is to accept introspection as ALLOWED
- * on the unified schema and update this test accordingly.
- *
- * <p>The old test's secondary purpose ("Doubles as a native-smoke surface under {@code -Dnative}
- * (broad schema-reflection coverage)") is preserved: the introspection query verifies that the
- * SmallRye schema is correctly exposed and contains the expected types.
+ * Introspection is blocked in production, as on main (where {@code BlockedFields} hid {@code
+ * __.*}): {@code %prod.quarkus.smallrye-graphql.field-visibility=no-introspection} makes {@code
+ * __schema} and {@code __type} fail validation, for anonymous and authenticated callers alike,
+ * while {@code __typename} stays available.
  */
 class IntrospectionApiIT extends AbstractFilesIT {
 
@@ -42,43 +31,73 @@ class IntrospectionApiIT extends AbstractFilesIT {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", REQUESTER_ID);
   }
 
-  /**
-   * SmallRye serves the unified schema without introspection blocking on the authenticated
-   * endpoint. The introspection query succeeds and discloses the schema types.
-   *
-   * <p>Changed from the legacy expectation (errors non-empty, "Validation error") to the new
-   * SmallRye expectation (no errors, full schema disclosed) — legitimate consequence of the
-   * code-first cutover removing the {@code BlockedFields} graphql-java transform.
-   */
-  @SuppressWarnings("unchecked")
-  @Test
-  void givenIntrospectionIsAllowedWhenIntrospectionQueryIsSentToAuthEndpointThenItSucceeds()
-      throws Exception {
-    // Given — the same query that was blocked by the old BlockedFields transform.
-    String introspectionQuery = "query introspectionQuery { __schema { types { name } } }";
-
-    // When
-    Response response = graphql(introspectionQuery, REQUESTER_COOKIE);
-
-    // Then — 200, NO errors (SmallRye does not block __schema on the authenticated endpoint).
+  private static JsonNode body(Response response) throws Exception {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    return OBJECT_MAPPER.readTree(response.getBody().asString());
+  }
 
-    Map<String, Object> result = OBJECT_MAPPER.readValue(response.getBody().asString(), Map.class);
+  private static void assertRejected(JsonNode body, String field) {
+    Assertions.assertThat(body.path("errors")).isNotEmpty();
+    body.path("errors")
+        .forEach(
+            error ->
+                Assertions.assertThat(error.path("extensions").path("classification").asText())
+                    .isEqualTo("ValidationError"));
+    JsonNode data = body.path("data");
+    Assertions.assertThat(data.isMissingNode() || data.isNull() || data.path(field).isMissingNode())
+        .as("no %s data is disclosed", field)
+        .isTrue();
+  }
 
-    Assertions.assertThat(result.get("errors"))
-        .as(
-            "SmallRye does not block introspection on /graphql/ — no errors expected (changed from"
-                + " the graphql-java BlockedFields behaviour)")
-        .isNull();
+  @Test
+  void givenAnAnonymousCallerSchemaIntrospectionShouldBeRejected() throws Exception {
+    JsonNode body = body(publicGraphql("query { __schema { mutationType { fields { name } } } }"));
 
-    Map<String, Object> data = (Map<String, Object>) result.get("data");
-    Map<String, Object> schema = (Map<String, Object>) data.get("__schema");
-    List<Map<String, Object>> types = (List<Map<String, Object>>) schema.get("types");
+    assertRejected(body, "__schema");
+  }
 
-    Assertions.assertThat(types).isNotEmpty();
-    Assertions.assertThat(types)
-        .extracting(type -> type.get("name"))
-        .as("the unified schema's own types are disclosed via introspection on /graphql/")
-        .contains("Query", "Mutation");
+  @Test
+  void givenAnAnonymousCallerTypeIntrospectionShouldBeRejected() throws Exception {
+    JsonNode body = body(publicGraphql("query { __type(name: \\\"Mutation\\\") { name } }"));
+
+    assertRejected(body, "__type");
+  }
+
+  @Test
+  void givenAnAuthenticatedCallerSchemaIntrospectionShouldBeRejected() throws Exception {
+    JsonNode body =
+        body(graphql("query introspectionQuery { __schema { types { name } } }", REQUESTER_COOKIE));
+
+    assertRejected(body, "__schema");
+  }
+
+  @Test
+  void givenAnAuthenticatedCallerTypeIntrospectionShouldBeRejected() throws Exception {
+    JsonNode body =
+        body(graphql("query { __type(name: \\\"Mutation\\\") { name } }", REQUESTER_COOKIE));
+
+    assertRejected(body, "__type");
+  }
+
+  @Test
+  void givenTypenameFieldsTheyShouldStillResolve() throws Exception {
+    JsonNode body =
+        body(
+            graphql(
+                "query { __typename getNode(node_id: \\\"LOCAL_ROOT\\\") { __typename id } }",
+                REQUESTER_COOKIE));
+
+    Assertions.assertThat(body.path("errors").isMissingNode() || body.path("errors").isEmpty())
+        .isTrue();
+    Assertions.assertThat(body.path("data").path("__typename").asText()).isEqualTo("Query");
+    Assertions.assertThat(body.path("data").path("getNode").path("__typename").asText())
+        .isEqualTo("Folder");
+  }
+
+  @Test
+  void givenAnAnonymousCallerTypenameShouldStillResolve() throws Exception {
+    JsonNode body = body(publicGraphql("query { __typename }"));
+
+    Assertions.assertThat(body.path("data").path("__typename").asText()).isEqualTo("Query");
   }
 }
