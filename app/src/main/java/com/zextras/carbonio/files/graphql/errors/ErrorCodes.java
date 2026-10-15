@@ -27,4 +27,6 @@ public enum ErrorCodes {
   // frontend can show the over-quota UX. Not part of the GraphQL schema (error codes are
   // extensions).
   OVER_QUOTA_REACHED,
+  // Never produced by CE; reserved for the Advanced edition's transferOwnership.
+  TRANSFER_OWNERSHIP_ERROR,
 }
