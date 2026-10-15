@@ -16,6 +16,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
+import com.zextras.carbonio.files.dal.repositories.impl.InvalidPageTokenException;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.RemovedNodeType;
@@ -49,6 +50,7 @@ import com.zextras.filestore.model.FilesIdentifier;
 import com.zextras.filestore.model.IdentifierType;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.security.Authenticated;
+import io.smallrye.graphql.api.Context;
 import io.smallrye.graphql.api.Nullable;
 import io.vavr.control.Try;
 import jakarta.inject.Inject;
@@ -66,6 +68,7 @@ import java.util.UUID;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Id;
 import org.eclipse.microprofile.graphql.Mutation;
@@ -99,6 +102,7 @@ public class NodeApi {
   @Inject FilesConfig filesConfig;
   @Inject CopyFailureClassifier copyFailureClassifier;
   @Inject GraphQLInputValidator validator;
+  @Inject Context gqlContext;
   @Inject @AuthenticatedUser UserMyself requester;
   @Inject TombstoneRepository tombstoneRepository;
   @Inject NotificationRepository notificationRepository;
@@ -151,21 +155,26 @@ public class NodeApi {
         Optional.ofNullable(type)
             .map(t -> com.zextras.carbonio.files.dal.dao.ebean.NodeType.valueOf(t.name()));
 
-    var findResult =
-        nodeRepository.findNodes(
-            me,
-            optSort,
-            Optional.ofNullable(flagged),
-            Optional.ofNullable(folderId),
-            Optional.ofNullable(cascade),
-            Optional.ofNullable(sharedWithMe),
-            Optional.ofNullable(sharedByMe),
-            Optional.ofNullable(directShare),
-            Optional.ofNullable(limit),
-            optNodeType,
-            Optional.ofNullable(ownerId),
-            keywords != null ? keywords : Collections.emptyList(),
-            Optional.ofNullable(pageToken));
+    ImmutablePair<List<Node>, String> findResult;
+    try {
+      findResult =
+          nodeRepository.findNodes(
+              me,
+              optSort,
+              Optional.ofNullable(flagged),
+              Optional.ofNullable(folderId),
+              Optional.ofNullable(cascade),
+              Optional.ofNullable(sharedWithMe),
+              Optional.ofNullable(sharedByMe),
+              Optional.ofNullable(directShare),
+              Optional.ofNullable(limit),
+              optNodeType,
+              Optional.ofNullable(ownerId),
+              keywords != null ? keywords : Collections.emptyList(),
+              Optional.ofNullable(pageToken));
+    } catch (InvalidPageTokenException e) {
+      throw FilesGraphQLErrors.dataFetching(gqlContext.getPath(), e.getMessage());
+    }
 
     List<NodeModel> nodes =
         findResult.getLeft().stream()
@@ -289,21 +298,26 @@ public class NodeApi {
             sort.name());
     Optional<String> optOwnerId =
         RootId.LOCAL_ROOT.equals(folder.getId()) ? Optional.of(me) : Optional.empty();
-    var result =
-        nodeRepository.findNodes(
-            me,
-            Optional.of(dalSort),
-            Optional.empty(),
-            Optional.of(folder.getId()),
-            Optional.of(false),
-            Optional.empty(),
-            Optional.empty(),
-            Optional.empty(),
-            Optional.of(limit),
-            Optional.empty(),
-            optOwnerId,
-            Collections.emptyList(),
-            Optional.ofNullable(pageToken));
+    ImmutablePair<List<Node>, String> result;
+    try {
+      result =
+          nodeRepository.findNodes(
+              me,
+              Optional.of(dalSort),
+              Optional.empty(),
+              Optional.of(folder.getId()),
+              Optional.of(false),
+              Optional.empty(),
+              Optional.empty(),
+              Optional.empty(),
+              Optional.of(limit),
+              Optional.empty(),
+              optOwnerId,
+              Collections.emptyList(),
+              Optional.ofNullable(pageToken));
+    } catch (InvalidPageTokenException e) {
+      throw FilesGraphQLErrors.dataFetching(gqlContext.getPath(), e.getMessage());
+    }
     List<NodeModel> nodes =
         result.getLeft().stream()
             .map(n -> NodeModelFactory.from(n, null, me))
@@ -1212,7 +1226,11 @@ public class NodeApi {
       String error =
           MessageFormat.format("Copy error with nodeId: {0} and version {1}", nodeId, version);
       logger.error(error);
-      throw FilesGraphQLErrors.cloneCopyError(copyFailureClassifier.classify(e), nodeId, version);
+      ErrorCodes code = copyFailureClassifier.classify(e);
+      if (code == ErrorCodes.NODE_COPY_ERROR) {
+        throw FilesGraphQLErrors.dataFetching(gqlContext.getPath(), error);
+      }
+      throw FilesGraphQLErrors.cloneCopyError(code, nodeId, version);
     }
   }
 

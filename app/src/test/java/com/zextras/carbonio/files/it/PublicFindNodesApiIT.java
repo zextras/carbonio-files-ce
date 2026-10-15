@@ -352,7 +352,8 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     // actual PageToken), so it fails to Jackson-deserialize at all: a MALFORMED token, not a
     // signature mismatch — the message must say so (see NodeRepositoryImpl#decodeToken), not claim
     // a signature check ran when none did.
-    Assertions.assertThat(errors).containsExactly("Malformed page token");
+    Assertions.assertThat(errors)
+        .containsExactly("Exception while fetching data (/findPublicNodes) : Malformed page token");
   }
 
   @Test
@@ -375,7 +376,8 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     // Same as above: this is still the legacy PageQuery JSON shape (now WITH a signature field,
     // but also still WITH the legacy keySet field, foreign to the port's PageToken) — it fails to
     // deserialize, so it is MALFORMED, not a signature mismatch.
-    Assertions.assertThat(errors).containsExactly("Malformed page token");
+    Assertions.assertThat(errors)
+        .containsExactly("Exception while fetching data (/findPublicNodes) : Malformed page token");
   }
 
   @Test

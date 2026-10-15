@@ -8,6 +8,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
+import com.zextras.carbonio.files.dal.repositories.impl.InvalidPageTokenException;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
@@ -20,6 +21,7 @@ import com.zextras.carbonio.files.graphql.model.PublicFolderModel;
 import com.zextras.carbonio.files.graphql.model.PublicNodeModel;
 import com.zextras.carbonio.files.graphql.model.PublicNodePageModel;
 import com.zextras.carbonio.files.graphql.model.support.PublicNodeModelFactory;
+import io.smallrye.graphql.api.Context;
 import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
 import java.util.List;
@@ -36,6 +38,7 @@ public class PublicApi {
   @Inject LinkRepository linkRepository;
   @Inject NodeRepository nodeRepository;
   @Inject FileVersionRepository fileVersionRepository;
+  @Inject Context gqlContext;
 
   @Query("getPublicNode")
   @PermitAll
@@ -90,8 +93,12 @@ public class PublicApi {
       throw FilesGraphQLErrors.accessCodeRequired(nodeLinkId);
     }
 
-    ImmutablePair<List<Node>, String> findResult =
-        nodeRepository.publicFindNodes(folderId, limit, pageToken);
+    ImmutablePair<List<Node>, String> findResult;
+    try {
+      findResult = nodeRepository.publicFindNodes(folderId, limit, pageToken);
+    } catch (InvalidPageTokenException e) {
+      throw FilesGraphQLErrors.dataFetching(gqlContext.getPath(), e.getMessage());
+    }
 
     List<PublicNodeModel> nodes = findResult.getLeft().stream().map(this::buildPublicNode).toList();
 

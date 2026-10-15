@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.it;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.FilesStackTestResource;
@@ -434,9 +435,8 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
-        .containsExactly("Malformed page token");
-    Assertions.assertThat(TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes"))
-        .isEmpty();
+        .containsExactly("Exception while fetching data (/findNodes) : Malformed page token");
+    assertDataFetchingErrorWithNullCode(response, "findNodes");
   }
 
   @Test
@@ -453,7 +453,22 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
-        .containsExactly("Malformed page token");
+        .containsExactly(
+            "Exception while fetching data (/getNode/children) : Malformed page token");
+    assertDataFetchingErrorWithNullCode(response, "getNode");
+  }
+
+  @Test
+  void givenAGarbagePageTokenFindPublicNodesShouldSurfaceTheMalformedTokenMessage() {
+    String folderId = seedFolder("pta public garbage folder", LOCAL_ROOT, OWNER_COOKIE);
+    String publicId = createLink(folderId, OWNER_COOKIE);
+
+    Response response = publicFindNodes(folderId, 1, publicId, "garbage");
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+        .containsExactly("Exception while fetching data (/findPublicNodes) : Malformed page token");
+    assertDataFetchingErrorWithNullCode(response, "findPublicNodes");
   }
 
   @Test
@@ -474,6 +489,23 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
-        .containsExactly("Invalid page token signature");
+        .containsExactly(
+            "Exception while fetching data (/findNodes) : Invalid page token signature");
+    assertDataFetchingErrorWithNullCode(response, "findNodes");
+  }
+
+  private static void assertDataFetchingErrorWithNullCode(Response response, String field) {
+    try {
+      JsonNode body = new ObjectMapper().readTree(response.getBody().asString());
+      JsonNode extensions = body.get("errors").get(0).get("extensions");
+      Assertions.assertThat(extensions.get("classification").asText())
+          .isEqualTo("DataFetchingException");
+      Assertions.assertThat(extensions.has("errorCode")).isTrue();
+      Assertions.assertThat(extensions.get("errorCode").isNull()).isTrue();
+      Assertions.assertThat(body.get("data").has(field)).isTrue();
+      Assertions.assertThat(body.get("data").get(field).isNull()).isTrue();
+    } catch (Exception e) {
+      throw new AssertionError(e);
+    }
   }
 }

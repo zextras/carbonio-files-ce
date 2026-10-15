@@ -117,6 +117,11 @@ public final class FilesGraphQLErrors {
         code, MessageFormat.format("Copy error with nodeId: {0} and version {1}", nodeId, version));
   }
 
+  public static FilesGraphQLException dataFetching(String path, String message) {
+    return new FilesGraphQLException(
+        null, "Exception while fetching data (" + path + ") : " + message, Map.of());
+  }
+
   public static FilesGraphQLException accessCodeRequired(String publicLinkId) {
     return build(
         ErrorCodes.ACCESS_CODE_REQUIRED,

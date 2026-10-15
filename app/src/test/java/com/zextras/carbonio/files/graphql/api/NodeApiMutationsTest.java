@@ -26,6 +26,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
@@ -35,6 +36,7 @@ import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.FolderModel;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
+import com.zextras.carbonio.files.graphql.spi.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.support.NodeCreationHelper;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
@@ -42,6 +44,7 @@ import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.filestore.api.Filestore;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.narayana.jta.TransactionRunnerOptions;
+import io.smallrye.graphql.api.Context;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -68,6 +71,8 @@ class NodeApiMutationsTest {
   private ShareCascadeHelper shareCascade;
   private NodeCreationHelper nodeCreationHelper;
   private FilesConfig filesConfig;
+  private CopyFailureClassifier copyFailureClassifier;
+  private Context gqlContext;
   private NodeApi nodeApi;
 
   @BeforeEach
@@ -81,6 +86,8 @@ class NodeApiMutationsTest {
     fileStore = mock(Filestore.class);
     shareCascade = mock(ShareCascadeHelper.class);
     filesConfig = mock(FilesConfig.class);
+    copyFailureClassifier = mock(CopyFailureClassifier.class);
+    gqlContext = mock(Context.class);
 
     UserMyself requester = mock(UserMyself.class);
     UserId userId = new UserId(REQUESTER_ID);
@@ -111,6 +118,8 @@ class NodeApiMutationsTest {
     nodeApi.nodeCreationHelper = nodeCreationHelper;
     nodeApi.validator = new GraphQLInputValidator();
     nodeApi.requester = requester;
+    nodeApi.copyFailureClassifier = copyFailureClassifier;
+    nodeApi.gqlContext = gqlContext;
   }
 
   private Node mockFolderNode(String id, String parentId) {
@@ -451,5 +460,49 @@ class NodeApiMutationsTest {
                 assertThat(fex.getErrorCode()).isEqualTo(ErrorCodes.NODE_NOT_FOUND);
               });
     }
+  }
+
+  // ─── cloneVersion copy failures ───────────────────────────────────────────────
+
+  private void givenACloneVersionWhoseStorageCopyFails() throws Exception {
+    Node node = mockFileNode(NODE_ID_1, PARENT_ID);
+    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
+    when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node));
+    when(filesConfig.getMaxNumberOfVersions()).thenReturn(10);
+    when(fileVersionRepository.getFileVersions(NODE_ID_1, List.of(FileVersionSort.VERSION_DESC)))
+        .thenReturn(List.of());
+    when(fileVersionRepository.getFileVersion(NODE_ID_1, 1))
+        .thenReturn(Optional.of(mock(FileVersion.class)));
+    when(fileStore.copy(any(), any(), anyBoolean())).thenThrow(new RuntimeException("boom"));
+  }
+
+  @Test
+  void cloneVersionCopyFailureThatIsNotQuotaHasMainsMessageAndNoErrorCode() throws Exception {
+    givenACloneVersionWhoseStorageCopyFails();
+    when(copyFailureClassifier.classify(any())).thenReturn(ErrorCodes.NODE_COPY_ERROR);
+    when(gqlContext.getPath()).thenReturn("/cloneVersion");
+
+    assertThatThrownBy(() -> nodeApi.cloneVersion(NODE_ID_1, 1))
+        .isInstanceOfSatisfying(
+            FilesGraphQLException.class,
+            ex -> {
+              assertThat(ex.getErrorCode()).isNull();
+              assertThat(ex.getMessage())
+                  .isEqualTo(
+                      "Exception while fetching data (/cloneVersion) : Copy error with nodeId: "
+                          + NODE_ID_1
+                          + " and version 1");
+            });
+  }
+
+  @Test
+  void cloneVersionCopyFailureClassifiedAsQuotaKeepsTheClassifiedCode() throws Exception {
+    givenACloneVersionWhoseStorageCopyFails();
+    when(copyFailureClassifier.classify(any())).thenReturn(ErrorCodes.OVER_QUOTA_REACHED);
+
+    assertThatThrownBy(() -> nodeApi.cloneVersion(NODE_ID_1, 1))
+        .isInstanceOfSatisfying(
+            FilesGraphQLException.class,
+            ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.OVER_QUOTA_REACHED));
   }
 }

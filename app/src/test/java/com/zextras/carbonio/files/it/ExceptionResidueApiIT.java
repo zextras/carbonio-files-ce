@@ -141,6 +141,7 @@ class ExceptionResidueApiIT extends AbstractFilesIT {
     // port's actual PageToken), so it fails to Jackson-deserialize at all: a MALFORMED token, not
     // a signature mismatch (see NodeRepositoryImpl#decodeToken) — the message must not claim a
     // signature was checked when the failure never got that far.
-    Assertions.assertThat(errors).containsExactly("Malformed page token");
+    Assertions.assertThat(errors)
+        .containsExactly("Exception while fetching data (/findPublicNodes) : Malformed page token");
   }
 }

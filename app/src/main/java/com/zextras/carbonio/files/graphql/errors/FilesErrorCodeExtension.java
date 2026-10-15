@@ -19,11 +19,8 @@ public class FilesErrorCodeExtension implements ErrorExtensionProvider {
 
   @Override
   public JsonValue mapValueFrom(Throwable t) {
-    if (t instanceof InputValidationException) {
-      return null;
-    }
     if (t instanceof FilesGraphQLException f) {
-      return Json.createValue(f.getErrorCode().name());
+      return f.getErrorCode() == null ? null : Json.createValue(f.getErrorCode().name());
     }
     if (isUnauthenticated(t)) {
       return Json.createValue(ErrorCodes.UNAUTHENTICATED.name());
