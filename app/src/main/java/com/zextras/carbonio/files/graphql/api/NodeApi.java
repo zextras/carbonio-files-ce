@@ -68,6 +68,7 @@ import java.util.UUID;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Id;
@@ -967,7 +968,15 @@ public class NodeApi {
     List<NodeModel> copiedNodesResult = new ArrayList<>();
     List<CopyFailure> copyErrors = new ArrayList<>();
 
-    nodesToCopy.forEach(
+    List<Node> nodesInCopyOrder =
+        Stream.concat(
+                nodesToCopy.stream()
+                    .filter(n -> targetFolderChildrenNames.contains(n.getFullName())),
+                nodesToCopy.stream()
+                    .filter(n -> !targetFolderChildrenNames.contains(n.getFullName())))
+            .toList();
+
+    nodesInCopyOrder.forEach(
         node -> {
           Optional<String> newName =
               targetFolderChildrenNames.contains(node.getFullName())
@@ -1339,11 +1348,7 @@ public class NodeApi {
     if (!nodesWithoutPermission.isEmpty()) {
       return FilesGraphQLErrors.nodeWriteError(nodesWithoutPermission.get(0).getId());
     }
-    CopyFailure failure =
-        copyErrors.stream()
-            .filter(f -> copyFailureClassifier.classify(f.cause()) != ErrorCodes.NODE_COPY_ERROR)
-            .findFirst()
-            .orElse(copyErrors.get(0));
+    CopyFailure failure = copyErrors.get(0);
     return copyError(copyFailureClassifier.classify(failure.cause()), failure);
   }
 

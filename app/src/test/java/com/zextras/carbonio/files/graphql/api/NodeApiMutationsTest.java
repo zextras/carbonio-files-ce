@@ -558,4 +558,23 @@ class NodeApiMutationsTest {
         .hasMessage("db down");
     verify(copyFailureClassifier, never()).classify(any());
   }
+
+  @Test
+  void copyFailureErrorReportsTheFirstFailureInProcessingOrderWhateverItsClassification() {
+    Node first = mockFileNode(NODE_ID_1, PARENT_ID);
+    Node second = mockFileNode(NODE_ID_2, PARENT_ID);
+    Throwable generic = new RuntimeException("generic");
+    Throwable quota = new RuntimeException("quota");
+    when(copyFailureClassifier.classify(generic)).thenReturn(ErrorCodes.NODE_COPY_ERROR);
+    when(copyFailureClassifier.classify(quota)).thenReturn(ErrorCodes.OVER_QUOTA_REACHED);
+
+    FilesGraphQLException error =
+        nodeApi.copyFailureError(
+            List.of(),
+            List.of(
+                new NodeApi.CopyFailure(first, generic), new NodeApi.CopyFailure(second, quota)));
+
+    assertThat(error.getErrorCode()).isEqualTo(ErrorCodes.NODE_COPY_ERROR);
+    assertThat(error.getExtensions()).containsKey("nodeId");
+  }
 }

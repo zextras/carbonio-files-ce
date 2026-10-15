@@ -255,6 +255,26 @@ class CopyNodesApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenANameCollisionTheCollidingNodeIsCopiedFirstAsOnMain() {
+    String sourceFolderId = seedFolder("order-src", LOCAL_ROOT, REQUESTER_COOKIE);
+    String destFolderId = seedFolder("order-dest", LOCAL_ROOT, REQUESTER_COOKIE);
+    seedFile("x.txt", destFolderId, "d".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String plainId =
+        seedFile("y.txt", sourceFolderId, "y".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String collidingId =
+        seedFile("x.txt", sourceFolderId, "x".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+
+    Response response =
+        copyNodes(new String[] {plainId, collidingId}, destFolderId, REQUESTER_COOKIE);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
+    Assertions.assertThat(copiedNodes(response))
+        .extracting(node -> node.get("name"))
+        .containsExactly("x (1)", "y");
+  }
+
+  @Test
   void givenAnUnreadableSourceCopyShouldReportNodeWriteErrorAndStillCopyTheReadableOne() {
     String readableId =
         seedFile("mine.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
