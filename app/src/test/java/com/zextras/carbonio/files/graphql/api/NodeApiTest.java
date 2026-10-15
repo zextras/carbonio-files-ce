@@ -316,15 +316,17 @@ class NodeApiTest {
   // --- getVersions ---
 
   @Test
-  void getVersionsThrowsNodeNotFoundWhenPermissionDenied() throws Exception {
+  void getVersionsThrowsNodeWriteErrorWithNullElementWhenPermissionDenied() throws Exception {
     when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID)).thenReturn(aclWith(false));
 
     assertThatThrownBy(() -> nodeApi.getVersions(NODE_ID, null))
         .isInstanceOf(FilesGraphQLException.class)
         .satisfies(
-            ex ->
-                assertThat(((FilesGraphQLException) ex).getErrorCode())
-                    .isEqualTo(ErrorCodes.NODE_NOT_FOUND));
+            ex -> {
+              FilesGraphQLException fex = (FilesGraphQLException) ex;
+              assertThat(fex.getErrorCode()).isEqualTo(ErrorCodes.NODE_WRITE_ERROR);
+              assertThat(fex.getPartialResults()).isEqualTo(Collections.singletonList(null));
+            });
   }
 
   @Test

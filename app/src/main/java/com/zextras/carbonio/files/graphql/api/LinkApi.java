@@ -14,7 +14,7 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.LinkSort
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
-import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
+import com.zextras.carbonio.files.graphql.errors.FilesGraphQLErrors;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.LinkModel;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
@@ -26,7 +26,6 @@ import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.eclipse.microprofile.graphql.GraphQLApi;
@@ -91,8 +90,7 @@ public class LinkApi {
     return nodeRepository
         .getNode(link.getNodeId())
         .map(n -> NodeModelFactory.from(n, null, me))
-        .orElseThrow(
-            () -> FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", link.getNodeId()));
+        .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(link.getNodeId()));
   }
 
   @Query("getLinks")
@@ -141,9 +139,9 @@ public class LinkApi {
               .orElse(false);
       return toModel(created, requester.getDomain(), isFolder);
     } catch (LinkCreationHelper.LinkLimitReachedException e) {
-      throw FilesGraphQLException.of(ErrorCodes.LINK_LIMIT_EXCEEDED, "node_id", nodeId);
+      throw FilesGraphQLErrors.linkLimitExceeded(nodeId);
     } catch (LinkCreationHelper.NodeAccessException e) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_WRITE_ERROR, "node_id", nodeId);
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
   }
 
@@ -163,16 +161,15 @@ public class LinkApi {
     Link link =
         linkRepository
             .getLinkById(linkId)
-            .orElseThrow(
-                () -> FilesGraphQLException.of(ErrorCodes.LINK_NOT_FOUND, "link_id", linkId));
+            .orElseThrow(() -> FilesGraphQLErrors.linkNotFound(linkId));
     if (!permissionsChecker
         .getPermissions(link.getNodeId(), me)
         .has(SharePermission.READ_AND_SHARE)) {
-      throw FilesGraphQLException.of(ErrorCodes.LINK_NOT_FOUND, "link_id", linkId);
+      throw FilesGraphQLErrors.linkNotFound(linkId);
     }
     Optional<Node> optNode = nodeRepository.getNode(link.getNodeId());
     if (optNode.isEmpty()) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_WRITE_ERROR, "node_id", link.getNodeId());
+      throw FilesGraphQLErrors.nodeNotFound(link.getNodeId());
     }
     Optional.ofNullable(expiresAt).ifPresent(link::setExpiresAt);
     Optional.ofNullable(description).ifPresent(link::setDescription);
@@ -207,11 +204,7 @@ public class LinkApi {
     }
     linkRepository.deleteLinksBulk(toDelete);
     if (!failed.isEmpty()) {
-      throw new FilesGraphQLException(
-          ErrorCodes.LINK_NOT_FOUND,
-          ErrorCodes.LINK_NOT_FOUND.name(),
-          toDelete,
-          Map.of("deleteLinks", toDelete));
+      throw FilesGraphQLErrors.linkNotFound(failed.get(0)).withPartialResults(toDelete);
     }
     return toDelete;
   }

@@ -320,6 +320,26 @@ class LinkApiTest {
   }
 
   @Test
+  void updateLinkThrowsNodeNotFoundWhenTheLinkedNodeIsMissing() {
+    Link link =
+        mockLink(LINK_ID_1, NODE_ID, "pub1234567890123456789012345678901234567890123456789");
+    when(linkRepository.getLinkById(LINK_ID_1)).thenReturn(Optional.of(link));
+    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
+        .thenReturn(aclWith(ACL.SharePermission.READ_AND_SHARE));
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> linkApi.updateLink(LINK_ID_1, null, null, null))
+        .isInstanceOf(FilesGraphQLException.class)
+        .satisfies(
+            ex -> {
+              FilesGraphQLException fex = (FilesGraphQLException) ex;
+              assertThat(fex.getErrorCode()).isEqualTo(ErrorCodes.NODE_NOT_FOUND);
+              assertThat(fex.getMessage()).isEqualTo("Could not find node with id " + NODE_ID);
+            });
+    verify(linkRepository, never()).updateLink(any());
+  }
+
+  @Test
   void updateLinkThrowsLinkNotFoundWhenPermissionDenied() {
     Link link =
         mockLink(LINK_ID_1, NODE_ID, "pub1234567890123456789012345678901234567890123456789");

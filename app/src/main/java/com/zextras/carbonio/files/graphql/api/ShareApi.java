@@ -14,7 +14,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
-import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
+import com.zextras.carbonio.files.graphql.errors.FilesGraphQLErrors;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.ShareModel;
@@ -75,9 +75,7 @@ public class ShareApi {
     return nodeRepository
         .getNode(share.getNodeId())
         .map(n -> NodeModelFactory.from(n, null, me))
-        .orElseThrow(
-            () ->
-                FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", share.getNodeId()));
+        .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(share.getNodeId()));
   }
 
   // ─── Batch @Source resolver — Node.shares ────────────────────────────────────
@@ -130,19 +128,12 @@ public class ShareApi {
     validator.checkNodeId(nodeId).checkUserId(shareTargetId).validate();
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_ONLY)) {
-      throw FilesGraphQLException.of(ErrorCodes.SHARE_NOT_FOUND, "node_id", nodeId);
+      throw FilesGraphQLErrors.shareNotFound(nodeId, shareTargetId);
     }
     return shareRepository
         .getShare(nodeId, shareTargetId)
         .map(ShareApi::toModel)
-        .orElseThrow(
-            () ->
-                FilesGraphQLException.of(
-                    ErrorCodes.SHARE_NOT_FOUND,
-                    "node_id",
-                    nodeId,
-                    "share_target_id",
-                    shareTargetId));
+        .orElseThrow(() -> FilesGraphQLErrors.shareNotFound(nodeId, shareTargetId));
   }
 
   @Mutation("createShare")
@@ -156,18 +147,15 @@ public class ShareApi {
     validator.checkNodeId(nodeId).checkUserId(shareTargetId).validate();
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_AND_SHARE)) {
-      throw FilesGraphQLException.of(
-          ErrorCodes.SHARE_CREATION_ERROR, "node_id", nodeId, "share_target_id", shareTargetId);
+      throw FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId);
     }
 
     Node sharedNode =
         nodeRepository
             .getNode(nodeId)
-            .orElseThrow(
-                () -> FilesGraphQLException.of(ErrorCodes.SHARE_CREATION_ERROR, "node_id", nodeId));
+            .orElseThrow(() -> FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId));
     if (shareTargetId.equals(sharedNode.getOwnerId())) {
-      throw FilesGraphQLException.of(
-          ErrorCodes.SHARE_CREATION_ERROR, "node_id", nodeId, "share_target_id", shareTargetId);
+      throw FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId);
     }
 
     Optional<Long> optExpiresAt = Optional.ofNullable(expiresAt);
@@ -196,14 +184,7 @@ public class ShareApi {
               }
               return toModel(share);
             })
-        .orElseThrow(
-            () ->
-                FilesGraphQLException.of(
-                    ErrorCodes.SHARE_CREATION_ERROR,
-                    "node_id",
-                    nodeId,
-                    "share_target_id",
-                    shareTargetId));
+        .orElseThrow(() -> FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId));
   }
 
   @Mutation("updateShares")
@@ -251,11 +232,7 @@ public class ShareApi {
             });
 
     if (!failed.isEmpty()) {
-      throw new FilesGraphQLException(
-          ErrorCodes.SHARE_NOT_FOUND,
-          ErrorCodes.SHARE_NOT_FOUND.name(),
-          updated,
-          Map.of("updateShares", updated));
+      throw FilesGraphQLErrors.shareNotFound(nodeId, failed.get(0)).withPartialResults(updated);
     }
     return updated;
   }
@@ -299,11 +276,7 @@ public class ShareApi {
             });
 
     if (!failed.isEmpty()) {
-      throw new FilesGraphQLException(
-          ErrorCodes.SHARE_NOT_FOUND,
-          ErrorCodes.SHARE_NOT_FOUND.name(),
-          deleted,
-          Map.of("deleteShares", deleted));
+      throw FilesGraphQLErrors.shareNotFound(nodeId, failed.get(0)).withPartialResults(deleted);
     }
     return deleted;
   }

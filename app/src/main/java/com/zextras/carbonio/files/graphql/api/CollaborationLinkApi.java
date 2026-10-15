@@ -11,7 +11,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
-import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
+import com.zextras.carbonio.files.graphql.errors.FilesGraphQLErrors;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.CollaborationLinkModel;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
@@ -24,7 +24,6 @@ import jakarta.inject.Inject;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -82,8 +81,7 @@ public class CollaborationLinkApi {
     return nodeRepository
         .getNode(cl.getNodeId())
         .map(n -> NodeModelFactory.from(n, null, me))
-        .orElseThrow(
-            () -> FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", cl.getNodeId()));
+        .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(cl.getNodeId()));
   }
 
   @Query("getCollaborationLinks")
@@ -113,7 +111,7 @@ public class CollaborationLinkApi {
     String me = requester.getId().getUserId();
     ACL.SharePermission aclPerm = ACL.SharePermission.valueOf(permission.name());
     if (!permissionsChecker.getPermissions(nodeId, me).has(aclPerm)) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_WRITE_ERROR, "node_id", nodeId);
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
     CollaborationLink link =
         collaborationLinkRepository
@@ -159,11 +157,7 @@ public class CollaborationLinkApi {
     collaborationLinkRepository.deleteLinks(toDelete);
     List<String> deleted = toDelete.stream().map(UUID::toString).collect(Collectors.toList());
     if (!failed.isEmpty()) {
-      throw new FilesGraphQLException(
-          ErrorCodes.MISSING_FIELD,
-          ErrorCodes.MISSING_FIELD.name(),
-          deleted,
-          Map.of("deleteCollaborationLinks", deleted));
+      throw FilesGraphQLErrors.missingField().withPartialResults(deleted);
     }
     return deleted;
   }

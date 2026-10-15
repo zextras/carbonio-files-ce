@@ -4,11 +4,16 @@
 
 package com.zextras.carbonio.files.graphql.errors;
 
-import java.util.HashMap;
+import graphql.ErrorClassification;
+import graphql.GraphQLError;
+import graphql.language.SourceLocation;
+import jakarta.json.Json;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.eclipse.microprofile.graphql.GraphQLException;
 
-public class FilesGraphQLException extends GraphQLException {
+public class FilesGraphQLException extends GraphQLException implements GraphQLError {
   private final ErrorCodes errorCode;
   private final Map<String, Object> data;
 
@@ -33,9 +38,31 @@ public class FilesGraphQLException extends GraphQLException {
     return data;
   }
 
-  public static FilesGraphQLException of(ErrorCodes code, Object... kv) {
-    Map<String, Object> d = new HashMap<>();
-    for (int i = 0; i + 1 < kv.length; i += 2) d.put(String.valueOf(kv[i]), kv[i + 1]);
-    return new FilesGraphQLException(code, code.name(), d);
+  public FilesGraphQLException withPartialResults(Object partialResults) {
+    return new FilesGraphQLException(errorCode, getMessage(), partialResults, data);
+  }
+
+  @Override
+  public List<SourceLocation> getLocations() {
+    return null;
+  }
+
+  @Override
+  public ErrorClassification getErrorType() {
+    return null;
+  }
+
+  @Override
+  public Map<String, Object> getExtensions() {
+    Map<String, Object> extensions = new LinkedHashMap<>();
+    data.forEach(
+        (key, value) -> {
+          if (value instanceof Integer i) {
+            extensions.put(key, Json.createValue(i));
+          } else if (value != null) {
+            extensions.put(key, Json.createValue(value.toString()));
+          }
+        });
+    return extensions;
   }
 }

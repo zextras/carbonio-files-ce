@@ -9,6 +9,6 @@ import java.util.Map;
 public class InputValidationException extends FilesGraphQLException {
 
   public InputValidationException(String message) {
-    super(null, message, Map.of("errors", message));
+    super(null, message, Map.of());
   }
 }

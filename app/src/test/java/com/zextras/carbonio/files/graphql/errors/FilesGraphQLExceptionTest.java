@@ -7,27 +7,66 @@ package com.zextras.carbonio.files.graphql.errors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.quarkus.security.UnauthorizedException;
+import jakarta.json.JsonNumber;
 import jakarta.json.JsonString;
 import jakarta.json.JsonValue;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class FilesGraphQLExceptionTest {
 
   @Test
-  void ofBuildsExceptionWithCorrectErrorCodeAndMessage() {
-    FilesGraphQLException ex = FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node", "x");
+  void nodeNotFoundMirrorsLegacyMessageAndExtensions() {
+    FilesGraphQLException ex = FilesGraphQLErrors.nodeNotFound("x");
 
     assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.NODE_NOT_FOUND);
-    assertThat(ex.getMessage()).isEqualTo(ErrorCodes.NODE_NOT_FOUND.name());
-    assertThat(ex.getData()).containsEntry("node", "x");
+    assertThat(ex.getMessage()).isEqualTo("Could not find node with id x");
+    assertThat(ex.getExtensions()).containsOnlyKeys("nodeId");
+    assertThat(((JsonString) ex.getExtensions().get("nodeId")).getString()).isEqualTo("x");
   }
 
   @Test
-  void ofWithMultipleKvPopulatesDataMap() {
-    FilesGraphQLException ex =
-        FilesGraphQLException.of(ErrorCodes.MISSING_FIELD, "key1", "val1", "key2", 42);
+  void duplicateNodeCarriesBothIds() {
+    FilesGraphQLException ex = FilesGraphQLErrors.duplicateNode("n", "d");
 
-    assertThat(ex.getData()).containsEntry("key1", "val1").containsEntry("key2", 42);
+    assertThat(ex.getMessage())
+        .isEqualTo("Trying to create a duplicate for the node n in destination folder d");
+    assertThat(ex.getExtensions()).containsOnlyKeys("nodeId", "destinationFolderId");
+  }
+
+  @Test
+  void fileVersionNotFoundEmitsVersionAsJsonNumber() {
+    FilesGraphQLException ex = FilesGraphQLErrors.fileVersionNotFound("n", 3);
+
+    assertThat(ex.getMessage()).isEqualTo("Could not find version: 3 for node with id n");
+    assertThat(ex.getExtensions()).containsOnlyKeys("nodeId", "fileVersion");
+    assertThat(((JsonNumber) ex.getExtensions().get("fileVersion")).intValue()).isEqualTo(3);
+  }
+
+  @Test
+  void missingFieldHasNoExtraExtensions() {
+    FilesGraphQLException ex = FilesGraphQLErrors.missingField();
+
+    assertThat(ex.getMessage()).isEqualTo("Could not find data to retrieve for requested field");
+    assertThat(ex.getExtensions()).isEmpty();
+  }
+
+  @Test
+  void inputValidationExceptionHasNoErrorCodeAndNoExtensions() {
+    InputValidationException ex = new InputValidationException("Invalid Email");
+
+    assertThat(ex.getErrorCode()).isNull();
+    assertThat(ex.getExtensions()).isEmpty();
+  }
+
+  @Test
+  void withPartialResultsKeepsCodeMessageAndExtensions() {
+    FilesGraphQLException ex = FilesGraphQLErrors.linkNotFound("l").withPartialResults(List.of(1));
+
+    assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.LINK_NOT_FOUND);
+    assertThat(ex.getMessage()).isEqualTo("Could not find link with id l");
+    assertThat(ex.getPartialResults()).isEqualTo(List.of(1));
+    assertThat(ex.getExtensions()).containsOnlyKeys("linkId");
   }
 
   @Test
@@ -39,7 +78,7 @@ class FilesGraphQLExceptionTest {
   @Test
   void extensionMapValueFromReturnsJsonStringForFilesException() {
     FilesErrorCodeExtension ext = new FilesErrorCodeExtension();
-    FilesGraphQLException ex = FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND);
+    FilesGraphQLException ex = FilesGraphQLErrors.nodeNotFound("x");
 
     JsonValue value = ext.mapValueFrom(ex);
 

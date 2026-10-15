@@ -61,6 +61,10 @@ public class GraphQLInputValidator {
     return new Chain().checkEmail(value);
   }
 
+  public Chain checkEmails(List<String> values) {
+    return new Chain().checkEmails(values);
+  }
+
   public Chain checkLimitPagination(int limit) {
     return new Chain().checkLimitPagination(limit);
   }
@@ -154,6 +158,13 @@ public class GraphQLInputValidator {
 
     public Chain checkEmail(String value) {
       validateEmail(value).ifPresent(errors::add);
+      return this;
+    }
+
+    public Chain checkEmails(List<String> values) {
+      if (values != null) {
+        values.forEach(this::checkEmail);
+      }
       return this;
     }
 

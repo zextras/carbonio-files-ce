@@ -12,7 +12,7 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVers
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
+import com.zextras.carbonio.files.graphql.errors.FilesGraphQLErrors;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.NodeType;
 import com.zextras.carbonio.files.graphql.model.PublicFileModel;
@@ -23,7 +23,6 @@ import com.zextras.carbonio.files.graphql.model.support.PublicNodeModelFactory;
 import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
 import java.util.List;
-import java.util.Map;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Id;
@@ -47,37 +46,23 @@ public class PublicApi {
     Link link =
         linkRepository
             .getLinkByNotExpiredPublicId(nodeLinkId)
-            .orElseThrow(
-                () ->
-                    new FilesGraphQLException(
-                        ErrorCodes.LINK_NOT_FOUND,
-                        "Could not find link with id " + nodeLinkId,
-                        Map.of("node_link_id", nodeLinkId)));
+            .orElseThrow(() -> FilesGraphQLErrors.linkNotFound(nodeLinkId));
 
     Node node =
         nodeRepository
             .getNode(link.getNodeId())
-            .orElseThrow(
-                () ->
-                    FilesGraphQLException.of(
-                        ErrorCodes.NODE_NOT_FOUND, "node_id", link.getNodeId()));
+            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(link.getNodeId()));
 
     if (nodeRepository.getTrashedNode(node.getId()).isPresent()) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", node.getId());
+      throw FilesGraphQLErrors.nodeNotFound(link.getNodeId());
     }
 
     var linkAccessCode = link.getAccessCode();
     if (linkAccessCode.isPresent()) {
       if (accessCode == null) {
-        throw new FilesGraphQLException(
-            ErrorCodes.ACCESS_CODE_REQUIRED,
-            "Access code is required for accessing the resource with public link id: " + nodeLinkId,
-            Map.of("node_link_id", nodeLinkId));
+        throw FilesGraphQLErrors.accessCodeRequired(nodeLinkId);
       } else if (!linkAccessCode.get().equals(accessCode)) {
-        throw new FilesGraphQLException(
-            ErrorCodes.WRONG_ACCESS_CODE,
-            "The access code for link with public id " + nodeLinkId + " is not correct",
-            Map.of("node_link_id", nodeLinkId));
+        throw FilesGraphQLErrors.wrongAccessCode(nodeLinkId);
       }
     }
 
@@ -97,12 +82,12 @@ public class PublicApi {
     var optFolder = nodeRepository.getNode(folderId);
 
     if (optFolder.isEmpty() || !linkRepository.isLinkValidForNode(nodeLinkId, optFolder.get())) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "folder_id", folderId);
+      throw FilesGraphQLErrors.nodeNotFound(folderId);
     }
 
     Link link = linkRepository.getLinkByNotExpiredPublicId(nodeLinkId).get();
     if (link.getAccessCode().isPresent() && !link.getAccessCode().get().equals(accessCode)) {
-      throw FilesGraphQLException.of(ErrorCodes.ACCESS_CODE_REQUIRED, "node_link_id", nodeLinkId);
+      throw FilesGraphQLErrors.accessCodeRequired(nodeLinkId);
     }
 
     ImmutablePair<List<Node>, String> findResult =

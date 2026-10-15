@@ -26,6 +26,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
+import com.zextras.carbonio.files.graphql.errors.FilesGraphQLErrors;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.FileModel;
 import com.zextras.carbonio.files.graphql.model.FolderModel;
@@ -114,13 +115,10 @@ public class NodeApi {
     validator.checkNodeId(nodeId).validate();
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_ONLY)) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", nodeId);
+      throw FilesGraphQLErrors.nodeNotFound(nodeId);
     }
     Node node =
-        nodeRepository
-            .getNode(nodeId)
-            .orElseThrow(
-                () -> FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", nodeId));
+        nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
     return NodeModelFactory.from(node, version, me);
   }
 
@@ -181,7 +179,8 @@ public class NodeApi {
       throws FilesGraphQLException {
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_ONLY)) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", nodeId);
+      throw FilesGraphQLErrors.nodeWriteError(nodeId)
+          .withPartialResults(Collections.singletonList(null));
     }
 
     List<Integer> versionNumbers;
@@ -197,10 +196,7 @@ public class NodeApi {
     }
 
     Node node =
-        nodeRepository
-            .getNode(nodeId)
-            .orElseThrow(
-                () -> FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", nodeId));
+        nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
 
     return versionNumbers.stream()
         .map(ver -> (FileModel) NodeModelFactory.from(node, ver, me))
@@ -212,14 +208,10 @@ public class NodeApi {
       throws FilesGraphQLException {
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_ONLY)) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", nodeId);
+      throw pathNodeNotFound(nodeId);
     }
 
-    Node node =
-        nodeRepository
-            .getNode(nodeId)
-            .orElseThrow(
-                () -> FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", nodeId));
+    Node node = nodeRepository.getNode(nodeId).orElseThrow(() -> pathNodeNotFound(nodeId));
 
     List<String> pathNodeIds = new ArrayList<>(node.getAncestorsList());
     pathNodeIds.add(nodeId);
@@ -340,9 +332,9 @@ public class NodeApi {
       Node createdFolder = nodeCreationHelper.createFolder(me, destinationId, name, requester);
       return NodeModelFactory.from(createdFolder, null, me);
     } catch (NodeCreationHelper.NodeAccessException e) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_WRITE_ERROR, "destination_id", destinationId);
+      throw FilesGraphQLErrors.nodeWriteError(destinationId.trim());
     } catch (NodeCreationHelper.NodeNotFoundException e) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "destination_id", destinationId);
+      throw FilesGraphQLErrors.nodeNotFound(destinationId.trim());
     }
   }
 
@@ -356,13 +348,10 @@ public class NodeApi {
     validator.checkNodeId(nodeId).checkNodeName(name).checkNodeDescription(description).validate();
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", nodeId);
+      throw FilesGraphQLErrors.nodeNotFound(nodeId);
     }
     Node nodeToUpdate =
-        nodeRepository
-            .getNode(nodeId)
-            .orElseThrow(
-                () -> FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", nodeId));
+        nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
 
     String parentFolderId = nodeToUpdate.getParentId().orElse(RootId.LOCAL_ROOT);
 
@@ -371,7 +360,7 @@ public class NodeApi {
       if (!searchAlternativeName(
               nodeRepository, nodeFullName, parentFolderId, nodeToUpdate.getOwnerId())
           .equals(nodeFullName)) {
-        throw FilesGraphQLException.of(ErrorCodes.NODE_DUPLICATED, "node_id", nodeId);
+        throw FilesGraphQLErrors.duplicateNode(nodeId, parentFolderId);
       }
       nodeToUpdate.setName(name);
     }
@@ -380,10 +369,7 @@ public class NodeApi {
     nodeToUpdate.setLastEditorId(me);
     nodeRepository.updateNode(nodeToUpdate);
     Node updated =
-        nodeRepository
-            .getNode(nodeId)
-            .orElseThrow(
-                () -> FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", nodeId));
+        nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
     return NodeModelFactory.from(updated, null, me);
   }
 
@@ -418,11 +404,8 @@ public class NodeApi {
         .run(() -> flaggableNodes.forEach(nodeId -> nodeRepository.flagForUser(nodeId, me, flag)));
 
     if (!nodesInError.isEmpty()) {
-      throw new FilesGraphQLException(
-          ErrorCodes.NODE_WRITE_ERROR,
-          ErrorCodes.NODE_WRITE_ERROR.name(),
-          flaggableNodes,
-          Map.of("flagNodes", flaggableNodes));
+      throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0))
+          .withPartialResults(flaggableNodes);
     }
     return flaggableNodes;
   }
@@ -503,11 +486,8 @@ public class NodeApi {
     }
 
     if (!nodesInError.isEmpty()) {
-      throw new FilesGraphQLException(
-          ErrorCodes.NODE_WRITE_ERROR,
-          ErrorCodes.NODE_WRITE_ERROR.name(),
-          trashableNodes,
-          Map.of("trashNodes", trashableNodes));
+      throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0))
+          .withPartialResults(trashableNodes);
     }
     return trashableNodes;
   }
@@ -621,11 +601,7 @@ public class NodeApi {
                         .collect(Collectors.toList()));
 
     if (!nodesInError.isEmpty()) {
-      throw new FilesGraphQLException(
-          ErrorCodes.NODE_WRITE_ERROR,
-          ErrorCodes.NODE_WRITE_ERROR.name(),
-          results,
-          Map.of("restoreNodes", results));
+      throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0)).withPartialResults(results);
     }
     return results;
   }
@@ -639,7 +615,7 @@ public class NodeApi {
     String me = requester.getId().getUserId();
 
     if (!permissionsChecker.getPermissions(destinationId, me).has(SharePermission.READ_AND_WRITE)) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_WRITE_ERROR, "destination_id", destinationId);
+      throw FilesGraphQLErrors.nodeWriteError(destinationId);
     }
 
     Node destinationFolder =
@@ -650,10 +626,7 @@ public class NodeApi {
                     com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER.equals(p.getNodeType())
                         || com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
                             p.getNodeType()))
-            .orElseThrow(
-                () ->
-                    FilesGraphQLException.of(
-                        ErrorCodes.NODE_WRITE_ERROR, "destination_id", destinationId));
+            .orElseThrow(() -> FilesGraphQLErrors.nodeWriteError(destinationId));
 
     List<String> rootIds =
         nodeRepository.getRootsList().stream().map(Node::getId).collect(Collectors.toList());
@@ -790,11 +763,8 @@ public class NodeApi {
     }
 
     if (!nodesInError.isEmpty()) {
-      throw new FilesGraphQLException(
-          ErrorCodes.NODE_WRITE_ERROR,
-          ErrorCodes.NODE_WRITE_ERROR.name(),
-          movedNodesResult,
-          Map.of("moveNodes", movedNodesResult));
+      throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0))
+          .withPartialResults(movedNodesResult);
     }
     return movedNodesResult;
   }
@@ -862,7 +832,7 @@ public class NodeApi {
               });
     } catch (RuntimeException e) {
       logger.error("DB error during deleteNodes, rolling back: {}", e.getMessage());
-      throw FilesGraphQLException.of(ErrorCodes.NODE_WRITE_ERROR, "node_ids", nodeIds.toString());
+      throw deleteNodesFailure(nodeIds, requestedNodeIds);
     }
 
     fileVersionsByOwner.forEach(
@@ -902,11 +872,7 @@ public class NodeApi {
     List<String> errorIds = nodeIds.stream().filter(id -> !requestedNodeIds.contains(id)).toList();
 
     if (!errorIds.isEmpty()) {
-      throw new FilesGraphQLException(
-          ErrorCodes.NODE_NOT_FOUND,
-          ErrorCodes.NODE_NOT_FOUND.name(),
-          successIds,
-          Map.of("deleteNodes", successIds));
+      throw FilesGraphQLErrors.nodeNotFound(errorIds.get(0)).withPartialResults(successIds);
     }
     return successIds;
   }
@@ -920,7 +886,7 @@ public class NodeApi {
     String me = requester.getId().getUserId();
 
     if (!permissionsChecker.getPermissions(destinationId, me).has(SharePermission.READ_AND_WRITE)) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_WRITE_ERROR, "destination_id", destinationId);
+      throw FilesGraphQLErrors.nodeWriteError(destinationId);
     }
 
     Node destinationFolder =
@@ -931,10 +897,7 @@ public class NodeApi {
                     com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER.equals(p.getNodeType())
                         || com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
                             p.getNodeType()))
-            .orElseThrow(
-                () ->
-                    FilesGraphQLException.of(
-                        ErrorCodes.NODE_WRITE_ERROR, "destination_id", destinationId));
+            .orElseThrow(() -> FilesGraphQLErrors.nodeWriteError(destinationId));
 
     List<Node> nodes =
         nodeRepository.getNodes(nodeIds, Optional.empty()).collect(Collectors.toList());
@@ -960,7 +923,7 @@ public class NodeApi {
             .collect(Collectors.toList());
 
     List<NodeModel> copiedNodesResult = new ArrayList<>();
-    List<Throwable> copyErrors = new ArrayList<>();
+    List<CopyFailure> copyErrors = new ArrayList<>();
 
     nodesToCopy.forEach(
         node -> {
@@ -1006,7 +969,7 @@ public class NodeApi {
                     copiedNode, destinationFolder, requester, AddedNodeType.COPY, usersToNotify);
               }
             } else {
-              copyErrors.add(outcome.failure());
+              copyErrors.add(new CopyFailure(node, outcome.failure()));
             }
           }
         });
@@ -1016,14 +979,20 @@ public class NodeApi {
 
     boolean hasErrors = !nodesWithoutPermission.isEmpty() || !copyErrors.isEmpty();
     if (hasErrors) {
-      ErrorCodes code =
+      Optional<CopyFailure> classified =
           copyErrors.stream()
-              .map(copyFailureClassifier::classify)
-              .filter(c -> c != ErrorCodes.NODE_COPY_ERROR)
-              .findFirst()
-              .orElse(ErrorCodes.NODE_COPY_ERROR);
-      throw new FilesGraphQLException(
-          code, code.name(), copiedNodesResult, Map.of("copyNodes", copiedNodesResult));
+              .filter(f -> copyFailureClassifier.classify(f.cause()) != ErrorCodes.NODE_COPY_ERROR)
+              .findFirst();
+      FilesGraphQLException error;
+      if (classified.isPresent()) {
+        error =
+            copyError(copyFailureClassifier.classify(classified.get().cause()), classified.get());
+      } else if (!nodesWithoutPermission.isEmpty()) {
+        error = FilesGraphQLErrors.nodeWriteError(nodesWithoutPermission.get(0).getId());
+      } else {
+        error = copyError(ErrorCodes.NODE_COPY_ERROR, copyErrors.get(0));
+      }
+      throw error.withPartialResults(copiedNodesResult);
     }
     return copiedNodesResult;
   }
@@ -1035,14 +1004,11 @@ public class NodeApi {
       throws FilesGraphQLException {
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_WRITE_ERROR, "node_id", nodeId);
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
     Node node =
-        nodeRepository
-            .getNode(nodeId)
-            .orElseThrow(
-                () -> FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", nodeId));
+        nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
 
     List<FileVersion> fileVersionsToDelete =
         (versions != null
@@ -1068,7 +1034,7 @@ public class NodeApi {
                 });
       } catch (RuntimeException e) {
         logger.error("DB error during deleteVersions, rolling back: {}", e.getMessage());
-        throw FilesGraphQLException.of(ErrorCodes.NODE_WRITE_ERROR, "node_id", nodeId);
+        throw FilesGraphQLErrors.nodeWriteError(nodeId);
       }
 
       List<BulkDeleteRequestItem> deleteRequests =
@@ -1106,11 +1072,8 @@ public class NodeApi {
       List<Integer> notDeleted =
           versions.stream().filter(v -> !versionsToDelete.contains(v)).toList();
       if (!notDeleted.isEmpty()) {
-        throw new FilesGraphQLException(
-            ErrorCodes.FILE_VERSION_NOT_FOUND,
-            ErrorCodes.FILE_VERSION_NOT_FOUND.name(),
-            versionsToDelete,
-            Map.of("deleteVersions", versionsToDelete));
+        throw FilesGraphQLErrors.fileVersionNotFound(nodeId, notDeleted.get(0))
+            .withPartialResults(versionsToDelete);
       }
     }
     return versionsToDelete;
@@ -1124,7 +1087,7 @@ public class NodeApi {
       throws FilesGraphQLException {
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_WRITE_ERROR, "node_id", nodeId);
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
     int maxNumberOfKeepVersions = getMaxNumberOfKeepVersions();
@@ -1158,11 +1121,7 @@ public class NodeApi {
             .collect(Collectors.toList());
 
     if (!fileVersionsNotUpdated.isEmpty()) {
-      throw new FilesGraphQLException(
-          ErrorCodes.VERSIONS_LIMIT_REACHED,
-          ErrorCodes.VERSIONS_LIMIT_REACHED.name(),
-          versionsUpdated,
-          Map.of("keepVersions", versionsUpdated));
+      throw FilesGraphQLErrors.tooManyVersionsError(nodeId).withPartialResults(versionsUpdated);
     }
     return versionsUpdated;
   }
@@ -1173,30 +1132,24 @@ public class NodeApi {
       throws FilesGraphQLException {
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
-      throw FilesGraphQLException.of(ErrorCodes.NODE_WRITE_ERROR, "node_id", nodeId);
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
     Node node =
-        nodeRepository
-            .getNode(nodeId)
-            .orElseThrow(
-                () -> FilesGraphQLException.of(ErrorCodes.NODE_NOT_FOUND, "node_id", nodeId));
+        nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
 
     int maxNumberOfVersions = getMaxNumberOfVersions();
     if (fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)).size()
         >= maxNumberOfVersions) {
       logger.debug(
           "Node {} has reached max versions ({}), cannot add more", nodeId, maxNumberOfVersions);
-      throw FilesGraphQLException.of(ErrorCodes.VERSIONS_LIMIT_REACHED, "node_id", nodeId);
+      throw FilesGraphQLErrors.tooManyVersionsError(nodeId);
     }
 
     FileVersion fileVersion =
         fileVersionRepository
             .getFileVersion(nodeId, version)
-            .orElseThrow(
-                () ->
-                    FilesGraphQLException.of(
-                        ErrorCodes.FILE_VERSION_NOT_FOUND, "version", version));
+            .orElseThrow(() -> FilesGraphQLErrors.fileVersionNotFound(nodeId, version));
 
     Integer newVersion = node.getCurrentVersion() + 1;
 
@@ -1233,7 +1186,7 @@ public class NodeApi {
       String error =
           MessageFormat.format("Copy error with nodeId: {0} and version {1}", nodeId, version);
       logger.error(error);
-      throw FilesGraphQLException.of(copyFailureClassifier.classify(e), "node_id", nodeId);
+      throw FilesGraphQLErrors.cloneCopyError(copyFailureClassifier.classify(e), nodeId, version);
     }
   }
 
@@ -1335,7 +1288,28 @@ public class NodeApi {
     }
   }
 
+  private static FilesGraphQLException pathNodeNotFound(String nodeId) {
+    return FilesGraphQLErrors.nodeNotFound(nodeId)
+        .withPartialResults(Collections.singletonList(null));
+  }
+
   private record CopyOutcome(Optional<Node> node, Throwable failure) {}
+
+  private record CopyFailure(Node node, Throwable cause) {}
+
+  private static FilesGraphQLException copyError(ErrorCodes code, CopyFailure failure) {
+    return FilesGraphQLErrors.nodeCopyError(
+        code, failure.node().getId(), failure.node().getCurrentVersion());
+  }
+
+  private FilesGraphQLException deleteNodesFailure(List<String> nodeIds, Set<String> deletableIds) {
+    return nodeIds.stream()
+        .filter(id -> !deletableIds.contains(id))
+        .findFirst()
+        .map(FilesGraphQLErrors::nodeNotFound)
+        .orElseGet(() -> FilesGraphQLErrors.nodeWriteError(deletableIds.iterator().next()))
+        .withPartialResults(List.of());
+  }
 
   private CopyOutcome copyFile(
       Node sourceNode, Node destinationFolder, String requesterId, Optional<String> newFileName) {

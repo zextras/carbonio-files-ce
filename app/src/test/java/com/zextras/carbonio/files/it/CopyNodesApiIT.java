@@ -249,9 +249,29 @@ class CopyNodesApiIT extends AbstractFilesIT {
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
-    Assertions.assertThat(errorCodes).containsExactly("NODE_COPY_ERROR");
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
     Assertions.assertThat(copiedNodes(response)).isEmpty();
     Assertions.assertThat(childrenOf(childFolderId, REQUESTER_COOKIE)).isEmpty();
+  }
+
+  @Test
+  void givenAnUnreadableSourceCopyShouldReportNodeWriteErrorAndStillCopyTheReadableOne() {
+    String readableId =
+        seedFile("mine.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String unreadableId =
+        seedFile("theirs.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+    String destFolderId = seedFolder("dest-unreadable", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    Response response =
+        copyNodes(new String[] {readableId, unreadableId}, destFolderId, REQUESTER_COOKIE);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("NODE_WRITE_ERROR");
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+        .containsExactly(
+            "There was a problem while executing requested operation on node: " + unreadableId);
+    Assertions.assertThat(copiedNodes(response)).hasSize(1);
   }
 
   @Test

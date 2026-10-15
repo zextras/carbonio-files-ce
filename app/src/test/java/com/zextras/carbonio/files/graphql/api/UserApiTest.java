@@ -7,7 +7,9 @@ package com.zextras.carbonio.files.graphql.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -19,6 +21,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUserProducer;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
+import com.zextras.carbonio.files.graphql.errors.InputValidationException;
 import com.zextras.carbonio.files.graphql.model.Account;
 import com.zextras.carbonio.files.graphql.model.DistributionListModel;
 import com.zextras.carbonio.files.graphql.model.FolderModel;
@@ -171,6 +174,17 @@ class UserApiTest {
   void getAccountsByEmail_invalidEmail_throwsValidationError() {
     assertThatThrownBy(() -> userApi.getAccountsByEmail(List.of("bad-email")))
         .isInstanceOf(FilesGraphQLException.class);
+  }
+
+  @Test
+  void getAccountsByEmail_mixedValidAndInvalid_validatesAllBeforeAnyLookup() {
+    assertThatThrownBy(
+            () ->
+                userApi.getAccountsByEmail(List.of(EMAIL, "bad-one", "other@example.com", "bad2")))
+        .isInstanceOf(InputValidationException.class)
+        .hasMessage("Invalid Email\nInvalid Email");
+
+    verify(userRepository, never()).getUserByEmail(anyString(), anyString());
   }
 
   // ─── @Source batch resolvers ──────────────────────────────────────────────

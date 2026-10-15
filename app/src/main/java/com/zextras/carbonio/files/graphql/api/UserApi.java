@@ -9,7 +9,7 @@ import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUserProducer;
-import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
+import com.zextras.carbonio.files.graphql.errors.FilesGraphQLErrors;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.Account;
 import com.zextras.carbonio.files.graphql.model.DistributionListModel;
@@ -79,7 +79,7 @@ public class UserApi {
         out.add(mapper.apply(byId.get(id)));
       } else {
         // Exception element: fails only this dataloader key (a throw fails the whole batch).
-        out.add(FilesGraphQLException.of(ErrorCodes.ACCOUNT_NOT_FOUND, "identifier", id));
+        out.add(FilesGraphQLErrors.accountNotFound(id));
       }
     }
     return out;
@@ -129,8 +129,7 @@ public class UserApi {
     return userRepository
         .getUserById(producer.cookies(), userId)
         .map(UserApi::toModel)
-        .orElseThrow(
-            () -> FilesGraphQLException.of(ErrorCodes.ACCOUNT_NOT_FOUND, "userId", userId));
+        .orElseThrow(() -> FilesGraphQLErrors.accountNotFound(userId));
   }
 
   @Query("getAccountByEmail")
@@ -140,28 +139,26 @@ public class UserApi {
     return userRepository
         .getUserByEmail(producer.cookies(), email)
         .map(user -> (Account) toModel(user))
-        .orElseThrow(() -> FilesGraphQLException.of(ErrorCodes.ACCOUNT_NOT_FOUND, "email", email));
+        .orElseThrow(() -> FilesGraphQLErrors.accountNotFound(email));
   }
 
   @Query("getAccountsByEmail")
   public @NonNull List<Account> getAccountsByEmail(
       @Name("emails") @NonNull List<@NonNull String> emails) throws FilesGraphQLException {
+    validator.checkEmails(emails).validate();
     String cookies = producer.cookies();
     List<Account> result = new ArrayList<>();
-    boolean anyMissing = false;
+    String firstMissing = null;
     for (String email : emails) {
-      validator.checkEmail(email).validate();
       Account account =
           userRepository.getUserByEmail(cookies, email).map(u -> (Account) toModel(u)).orElse(null);
-      anyMissing |= account == null;
+      if (account == null && firstMissing == null) {
+        firstMissing = email;
+      }
       result.add(account);
     }
-    if (anyMissing) {
-      throw new FilesGraphQLException(
-          ErrorCodes.ACCOUNT_NOT_FOUND,
-          ErrorCodes.ACCOUNT_NOT_FOUND.name(),
-          result,
-          Map.of("getAccountsByEmail", result));
+    if (firstMissing != null) {
+      throw FilesGraphQLErrors.accountNotFound(firstMissing).withPartialResults(result);
     }
     return result;
   }

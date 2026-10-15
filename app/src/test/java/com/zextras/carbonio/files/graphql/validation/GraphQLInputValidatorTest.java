@@ -221,9 +221,8 @@ class GraphQLInputValidatorTest {
         .satisfies(
             e -> {
               FilesGraphQLException fge = (FilesGraphQLException) e;
-              String errors = (String) fge.getData().get("errors");
-              assertThat(errors).contains("Invalid node ID");
-              assertThat(errors).contains("Invalid node name");
+              assertThat(fge.getMessage()).contains("Invalid node ID");
+              assertThat(fge.getMessage()).contains("Invalid node name");
             });
   }
 }
