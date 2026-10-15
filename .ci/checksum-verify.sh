@@ -64,7 +64,8 @@ rewrite_block() {
 }
 
 # Neither repo uses variant-suffixed arrays; refuse rather than silently skip an unverified source.
-mapfile -t variants < <(list_arrays '^(sha256sums|source)_[A-Za-z0-9_]+$')
+variants=()
+while IFS= read -r line; do variants+=("$line"); done < <(list_arrays '^(sha256sums|source)_[A-Za-z0-9_]+$')
 [ ${#variants[@]} -eq 0 ] || { echo "ERROR: variant-suffixed arrays not supported: ${variants[*]}"; exit 1; }
 
 has_source="$(list_arrays '^source$')"
@@ -77,8 +78,10 @@ fi
 [ -n "$has_source" ] || { echo "ERROR: sha256sums=() has no matching source=() array"; exit 1; }
 [ -n "$has_sums" ] || { echo "ERROR: source=() has no matching sha256sums=() array — its sources would go unverified"; exit 1; }
 
-mapfile -t sources < <(read_array source)
-mapfile -t sums < <(read_array sha256sums)
+sources=()
+while IFS= read -r line; do sources+=("$line"); done < <(read_array source)
+sums=()
+while IFS= read -r line; do sums+=("$line"); done < <(read_array sha256sums)
 
 if [ ${#sources[@]} -ne ${#sums[@]} ]; then
     echo "ERROR: source count (${#sources[@]}) != sha256sums count (${#sums[@]})"
