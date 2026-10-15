@@ -31,6 +31,7 @@ import com.zextras.carbonio.files.graphql.model.ShareModel;
 import com.zextras.carbonio.files.graphql.model.SharePermission;
 import com.zextras.carbonio.files.graphql.model.SharedTarget;
 import com.zextras.carbonio.files.graphql.model.UserModel;
+import com.zextras.carbonio.files.graphql.support.RequestUserCache;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import java.util.Collections;
 import java.util.List;
@@ -61,6 +62,7 @@ class UserApiTest {
 
     userApi = new UserApi();
     userApi.userRepository = userRepository;
+    userApi.userCache = new RequestUserCache();
     userApi.producer = producer;
     userApi.validator = new GraphQLInputValidator();
     userApi.requester = requester;
@@ -226,6 +228,22 @@ class UserApiTest {
     assertThat(result.get(1)).isNull();
     assertThat(result.get(2)).isNotNull();
     assertThat(result.get(2).getId()).isEqualTo("uid-A");
+  }
+
+  @Test
+  void resolversWithinOneRequestLookUpEachUserAtMostOnce() {
+    NodeModel node = makeNode("n1", "uid-A", "uid-A", "ghost");
+    when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("uid-A")));
+
+    userApi.creators(List.of(node));
+    userApi.owners(List.of(node));
+    List<?> lastEditors = userApi.lastEditors(List.of(node));
+    userApi.lastEditors(List.of(node));
+
+    verify(userRepository, times(2)).getUsers(anyList());
+    verify(userRepository).getUsers(List.of("uid-A"));
+    verify(userRepository).getUsers(List.of("ghost"));
+    assertThat(lastEditors.get(0)).isInstanceOf(FilesGraphQLException.class);
   }
 
   @Test

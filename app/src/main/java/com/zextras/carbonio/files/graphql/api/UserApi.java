@@ -17,6 +17,7 @@ import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.ShareModel;
 import com.zextras.carbonio.files.graphql.model.SharedTarget;
 import com.zextras.carbonio.files.graphql.model.UserModel;
+import com.zextras.carbonio.files.graphql.support.RequestUserCache;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
@@ -25,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Id;
@@ -38,6 +40,7 @@ import org.eclipse.microprofile.graphql.Source;
 public class UserApi {
 
   @Inject UserRepository userRepository;
+  @Inject RequestUserCache userCache;
   @Inject AuthenticatedUserProducer producer;
   @Inject GraphQLInputValidator validator;
   @Inject @AuthenticatedUser UserMyself requester;
@@ -86,13 +89,17 @@ public class UserApi {
   }
 
   private Map<String, UserInfo> fetchUsersById(List<String> ids) {
-    Map<String, UserInfo> byId = new HashMap<>();
-    for (List<String> chunk :
-        partition(ids.stream().filter(Objects::nonNull).distinct().toList(), 100)) {
+    Map<String, Optional<UserInfo>> cache = userCache.entries();
+    List<String> distinctIds = ids.stream().filter(Objects::nonNull).distinct().toList();
+    List<String> uncachedIds = distinctIds.stream().filter(id -> !cache.containsKey(id)).toList();
+    for (List<String> chunk : partition(uncachedIds, 100)) {
+      chunk.forEach(id -> cache.put(id, Optional.empty()));
       for (UserInfo u : userRepository.getUsers(chunk)) {
-        byId.put(u.getId().getUserId(), u);
+        cache.put(u.getId().getUserId(), Optional.of(u));
       }
     }
+    Map<String, UserInfo> byId = new HashMap<>();
+    distinctIds.forEach(id -> cache.get(id).ifPresent(u -> byId.put(id, u)));
     return byId;
   }
 
