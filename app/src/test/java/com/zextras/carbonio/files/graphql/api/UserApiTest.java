@@ -247,6 +247,19 @@ class UserApiTest {
   }
 
   @Test
+  void aFailedLookupDoesNotPoisonTheCacheForLaterFields() {
+    NodeModel node = makeNode("n1", "uid-A", "uid-A", null);
+    when(userRepository.getUsers(anyList()))
+        .thenThrow(new RuntimeException("um down"))
+        .thenReturn(List.of(makeUserInfo("uid-A")));
+
+    assertThatThrownBy(() -> userApi.creators(List.of(node))).isInstanceOf(RuntimeException.class);
+    List<UserModel> owners = userApi.owners(List.of(node));
+
+    assertThat(owners.get(0).getId()).isEqualTo("uid-A");
+  }
+
+  @Test
   void creators_unresolvedId_yieldsAccountNotFoundExceptionElement() {
     NodeModel nodeA = makeNode("n1", "uid-A", "owner-A", null);
     NodeModel nodeB = makeNode("n2", "ghost", "owner-B", null);

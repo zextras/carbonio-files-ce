@@ -245,6 +245,59 @@ class InFlightUploadApiIT extends AbstractFilesIT {
     Assertions.assertThat(versionNotFoundError(body).get("message").asText())
         .isEqualTo("Could not find version: 99 for node with id " + okId);
     JsonNode versions = body.path("data").path("getVersions");
-    Assertions.assertThat(versions.isNull() || versions.size() == 1).isTrue();
+    Assertions.assertThat(versions).hasSize(1);
+    Assertions.assertThat(versions.get(0).isNull()).isTrue();
+  }
+
+  private static String publicLinkId(String nodeId) {
+    String url = seedLinkUrl(nodeId);
+    return url.substring(url.length() - 50);
+  }
+
+  private static String seedLinkUrl(String nodeId) {
+    return graphql(
+            "mutation { createLink(node_id: \\\"" + nodeId + "\\\") { url } }", REQUESTER_COOKIE)
+        .jsonPath()
+        .getString("data.createLink.url");
+  }
+
+  private static void assertPublicFailure(JsonNode body, String field, String message) {
+    Assertions.assertThat(body.path("errors")).hasSize(1);
+    JsonNode error = body.path("errors").get(0);
+    Assertions.assertThat(error.path("message").asText()).isEqualTo(message);
+    Assertions.assertThat(error.path("extensions").path("classification").asText())
+        .isEqualTo("DataFetchingException");
+    Assertions.assertThat(error.path("extensions").path("errorCode").isNull()).isTrue();
+    Assertions.assertThat(body.path("data").has(field)).isTrue();
+    Assertions.assertThat(body.path("data").path(field).isNull()).isTrue();
+  }
+
+  @Test
+  void givenAnInFlightUploadTheWholePublicListingFailsLikeOnMain() {
+    String linkId = publicLinkId(folderId);
+    String query =
+        "query { findPublicNodes(folder_id: \\\""
+            + folderId
+            + "\\\", limit: 25, node_link_id: \\\""
+            + linkId
+            + "\\\") { nodes { id name } page_token } }";
+
+    JsonNode body = body(publicGraphql(query));
+
+    assertPublicFailure(
+        body,
+        "findPublicNodes",
+        "Exception while fetching data (/findPublicNodes/nodes) : No value present");
+  }
+
+  @Test
+  void givenAnInFlightUploadGetPublicNodeFailsLikeOnMain() {
+    String linkId = publicLinkId(INFLIGHT_ID);
+    String query = "query { getPublicNode(node_link_id: \\\"" + linkId + "\\\") { id name } }";
+
+    JsonNode body = body(publicGraphql(query));
+
+    assertPublicFailure(
+        body, "getPublicNode", "Exception while fetching data (/getPublicNode) : No value present");
   }
 }

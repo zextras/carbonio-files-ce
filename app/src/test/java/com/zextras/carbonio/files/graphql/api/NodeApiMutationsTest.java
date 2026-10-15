@@ -8,9 +8,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -42,6 +45,7 @@ import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.filestore.api.Filestore;
+import com.zextras.filestore.api.UploadResponse;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.narayana.jta.TransactionRunnerOptions;
 import io.smallrye.graphql.api.Context;
@@ -57,6 +61,7 @@ import org.mockito.Mockito;
 class NodeApiMutationsTest {
 
   private static final String REQUESTER_ID = "requester-user-id";
+  private static final String CLONING_USER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
   private static final String PARENT_ID = "00000000-0000-0000-0000-000000000000";
   private static final String NODE_ID_1 = "00000000-0000-0000-0000-000000000001";
   private static final String NODE_ID_2 = "00000000-0000-0000-0000-000000000002";
@@ -466,7 +471,8 @@ class NodeApiMutationsTest {
 
   private void givenACloneVersionWhoseStorageCopyFails() throws Exception {
     Node node = mockFileNode(NODE_ID_1, PARENT_ID);
-    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
+    when(nodeApi.requester.getId()).thenReturn(new UserId(CLONING_USER_ID));
+    when(permissionsChecker.getPermissions(NODE_ID_1, CLONING_USER_ID)).thenReturn(aclWith(true));
     when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node));
     when(filesConfig.getMaxNumberOfVersions()).thenReturn(10);
     when(fileVersionRepository.getFileVersions(NODE_ID_1, List.of(FileVersionSort.VERSION_DESC)))
@@ -509,5 +515,47 @@ class NodeApiMutationsTest {
                   .isEqualTo("User quota has been reached for user " + NODE_ID_1);
               assertThat(ex.getExtensions()).isEmpty();
             });
+  }
+
+  @Test
+  void copyFailureErrorPrefersNodeWriteErrorOverAnOverQuotaFailure() {
+    Node unreadable = mockFileNode(NODE_ID_1, PARENT_ID);
+    Node quotaFailed = mockFileNode(NODE_ID_2, PARENT_ID);
+    Throwable cause = new RuntimeException("quota");
+    when(copyFailureClassifier.classify(cause)).thenReturn(ErrorCodes.OVER_QUOTA_REACHED);
+
+    FilesGraphQLException error =
+        nodeApi.copyFailureError(
+            List.of(unreadable), List.of(new NodeApi.CopyFailure(quotaFailed, cause)));
+
+    assertThat(error.getErrorCode()).isEqualTo(ErrorCodes.NODE_WRITE_ERROR);
+    assertThat(error.getMessage())
+        .isEqualTo("There was a problem while executing requested operation on node: " + NODE_ID_1);
+  }
+
+  @Test
+  void copyFailureErrorUsesTheOverQuotaVerdictWhenEveryNodeWasReadable() {
+    Node quotaFailed = mockFileNode(NODE_ID_2, PARENT_ID);
+    Throwable cause = new RuntimeException("quota");
+    when(copyFailureClassifier.classify(cause)).thenReturn(ErrorCodes.OVER_QUOTA_REACHED);
+
+    FilesGraphQLException error =
+        nodeApi.copyFailureError(List.of(), List.of(new NodeApi.CopyFailure(quotaFailed, cause)));
+
+    assertThat(error.getErrorCode()).isEqualTo(ErrorCodes.OVER_QUOTA_REACHED);
+  }
+
+  @Test
+  void cloneVersionFailureAfterTheBlobCopyIsNotReportedAsACopyError() throws Exception {
+    givenACloneVersionWhoseStorageCopyFails();
+    doReturn(mock(UploadResponse.class)).when(fileStore).copy(any(), any(), anyBoolean());
+    when(fileVersionRepository.createNewFileVersion(
+            any(), any(), anyInt(), any(), anyLong(), any(), anyBoolean()))
+        .thenThrow(new IllegalStateException("db down"));
+
+    assertThatThrownBy(() -> nodeApi.cloneVersion(NODE_ID_1, 1))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("db down");
+    verify(copyFailureClassifier, never()).classify(any());
   }
 }

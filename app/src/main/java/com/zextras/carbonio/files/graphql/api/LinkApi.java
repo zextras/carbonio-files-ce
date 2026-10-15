@@ -25,6 +25,7 @@ import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -104,7 +105,7 @@ public class LinkApi {
     Optional<Node> optNode = nodeRepository.getNode(nodeId);
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_SHARE)
         || optNode.isEmpty()) {
-      return List.of();
+      return Collections.singletonList(null);
     }
     boolean isFolder = optNode.get().getNodeType().equals(NodeType.FOLDER);
     String domain = requester.getDomain();

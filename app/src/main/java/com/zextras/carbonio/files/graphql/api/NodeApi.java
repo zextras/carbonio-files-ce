@@ -636,7 +636,10 @@ public class NodeApi {
 
     NodeModelFactory.requireVersions(results, results);
     if (!nodesInError.isEmpty()) {
-      throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0)).withPartialResults(results);
+      List<NodeModel> withErrorSlots = new ArrayList<>(results);
+      nodesInError.forEach(id -> withErrorSlots.add(null));
+      throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0))
+          .withPartialResults(withErrorSlots);
     }
     return results;
   }
@@ -1019,20 +1022,8 @@ public class NodeApi {
     NodeModelFactory.requireVersions(copiedNodesResult, copiedNodesResult);
     boolean hasErrors = !nodesWithoutPermission.isEmpty() || !copyErrors.isEmpty();
     if (hasErrors) {
-      Optional<CopyFailure> classified =
-          copyErrors.stream()
-              .filter(f -> copyFailureClassifier.classify(f.cause()) != ErrorCodes.NODE_COPY_ERROR)
-              .findFirst();
-      FilesGraphQLException error;
-      if (classified.isPresent()) {
-        error =
-            copyError(copyFailureClassifier.classify(classified.get().cause()), classified.get());
-      } else if (!nodesWithoutPermission.isEmpty()) {
-        error = FilesGraphQLErrors.nodeWriteError(nodesWithoutPermission.get(0).getId());
-      } else {
-        error = copyError(ErrorCodes.NODE_COPY_ERROR, copyErrors.get(0));
-      }
-      throw error.withPartialResults(copiedNodesResult);
+      throw copyFailureError(nodesWithoutPermission, copyErrors)
+          .withPartialResults(copiedNodesResult);
     }
     return copiedNodesResult;
   }
@@ -1193,45 +1184,47 @@ public class NodeApi {
 
     Integer newVersion = node.getCurrentVersion() + 1;
 
-    try {
-      var copiedBlobResponse =
-          fileStore.copy(
-              FilesIdentifier.of(nodeId, version, me),
-              FilesIdentifier.of(nodeId, newVersion, me),
-              false);
-
-      fileVersionRepository.createNewFileVersion(
-          nodeId,
-          me,
-          newVersion,
-          fileVersion.getMimeType(),
-          copiedBlobResponse.getSize(),
-          copiedBlobResponse.getDigest(),
-          false);
-
-      node.setCurrentVersion(newVersion);
-      nodeRepository.updateNode(node);
-
-      FileVersion newFv = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
-      newFv.setClonedFromVersion(version);
-      fileVersionRepository.updateFileVersion(newFv);
-
-      logger.debug(
-          MessageFormat.format(
-              "Clone version completed: node {0}, new version {1}", nodeId, newVersion));
-
-      Node refreshed = nodeRepository.getNode(nodeId).get();
-      return (FileModel) NodeModelFactory.from(refreshed, newVersion, me);
-    } catch (Exception e) {
+    var copyAttempt =
+        Try.of(
+            () ->
+                fileStore.copy(
+                    FilesIdentifier.of(nodeId, version, me),
+                    FilesIdentifier.of(nodeId, newVersion, me),
+                    false));
+    if (copyAttempt.isFailure()) {
       String error =
           MessageFormat.format("Copy error with nodeId: {0} and version {1}", nodeId, version);
       logger.error(error);
-      ErrorCodes code = copyFailureClassifier.classify(e);
+      ErrorCodes code = copyFailureClassifier.classify(copyAttempt.getCause());
       if (code == ErrorCodes.NODE_COPY_ERROR) {
         throw FilesGraphQLErrors.dataFetching(gqlContext.getPath(), error);
       }
       throw FilesGraphQLErrors.cloneCopyError(code, nodeId, version);
     }
+    var copiedBlobResponse = copyAttempt.get();
+
+    fileVersionRepository.createNewFileVersion(
+        nodeId,
+        me,
+        newVersion,
+        fileVersion.getMimeType(),
+        copiedBlobResponse.getSize(),
+        copiedBlobResponse.getDigest(),
+        false);
+
+    node.setCurrentVersion(newVersion);
+    nodeRepository.updateNode(node);
+
+    FileVersion newFv = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
+    newFv.setClonedFromVersion(version);
+    fileVersionRepository.updateFileVersion(newFv);
+
+    logger.debug(
+        MessageFormat.format(
+            "Clone version completed: node {0}, new version {1}", nodeId, newVersion));
+
+    Node refreshed = nodeRepository.getNode(nodeId).get();
+    return (FileModel) NodeModelFactory.from(refreshed, newVersion, me);
   }
 
   // ─── Private helpers (ported from NodeDataFetcher) ────────────────────────────
@@ -1339,7 +1332,20 @@ public class NodeApi {
 
   private record CopyOutcome(Optional<Node> node, Throwable failure) {}
 
-  private record CopyFailure(Node node, Throwable cause) {}
+  record CopyFailure(Node node, Throwable cause) {}
+
+  FilesGraphQLException copyFailureError(
+      List<Node> nodesWithoutPermission, List<CopyFailure> copyErrors) {
+    if (!nodesWithoutPermission.isEmpty()) {
+      return FilesGraphQLErrors.nodeWriteError(nodesWithoutPermission.get(0).getId());
+    }
+    CopyFailure failure =
+        copyErrors.stream()
+            .filter(f -> copyFailureClassifier.classify(f.cause()) != ErrorCodes.NODE_COPY_ERROR)
+            .findFirst()
+            .orElse(copyErrors.get(0));
+    return copyError(copyFailureClassifier.classify(failure.cause()), failure);
+  }
 
   private static FilesGraphQLException copyError(ErrorCodes code, CopyFailure failure) {
     return FilesGraphQLErrors.nodeCopyError(

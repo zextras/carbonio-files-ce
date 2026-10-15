@@ -26,6 +26,7 @@ import com.zextras.carbonio.files.graphql.model.PublicFileModel;
 import com.zextras.carbonio.files.graphql.model.PublicFolderModel;
 import com.zextras.carbonio.files.graphql.model.PublicNodeModel;
 import com.zextras.carbonio.files.graphql.model.PublicNodePageModel;
+import io.smallrye.graphql.api.Context;
 import java.util.List;
 import java.util.Optional;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -41,6 +42,7 @@ class PublicApiTest {
   private LinkRepository linkRepository;
   private NodeRepository nodeRepository;
   private FileVersionRepository fileVersionRepository;
+  private Context gqlContext;
   private PublicApi publicApi;
 
   @BeforeEach
@@ -48,11 +50,13 @@ class PublicApiTest {
     linkRepository = mock(LinkRepository.class);
     nodeRepository = mock(NodeRepository.class);
     fileVersionRepository = mock(FileVersionRepository.class);
+    gqlContext = mock(Context.class);
 
     publicApi = new PublicApi();
     publicApi.linkRepository = linkRepository;
     publicApi.nodeRepository = nodeRepository;
     publicApi.fileVersionRepository = fileVersionRepository;
+    publicApi.gqlContext = gqlContext;
   }
 
   private Link mockLink(String nodeId, Optional<String> accessCode) {
@@ -89,6 +93,28 @@ class PublicApiTest {
     when(fileVersionRepository.getFileVersions(eq(id), eq(List.of(FileVersionSort.VERSION_DESC))))
         .thenReturn(List.of(fv));
     return node;
+  }
+
+  @Test
+  void getPublicNode_fileWithoutAVersion_failsLikeMainWithNoValuePresent() {
+    Link link = mockLink(NODE_ID, Optional.empty());
+    when(linkRepository.getLinkByNotExpiredPublicId(LINK_PUBLIC_ID)).thenReturn(Optional.of(link));
+    Node node = mockFileNode(NODE_ID);
+    when(fileVersionRepository.getFileVersions(
+            eq(NODE_ID), eq(List.of(FileVersionSort.VERSION_DESC))))
+        .thenReturn(List.of());
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
+    when(nodeRepository.getTrashedNode(NODE_ID)).thenReturn(Optional.empty());
+    when(gqlContext.getPath()).thenReturn("/getPublicNode");
+
+    assertThatThrownBy(() -> publicApi.getPublicNode(LINK_PUBLIC_ID, null))
+        .isInstanceOfSatisfying(
+            FilesGraphQLException.class,
+            ex -> {
+              assertThat(ex.getErrorCode()).isNull();
+              assertThat(ex.getMessage())
+                  .isEqualTo("Exception while fetching data (/getPublicNode) : No value present");
+            });
   }
 
   // ─── getPublicNode ─────────────────────────────────────────────────────────

@@ -222,6 +222,72 @@ class ErrorMessagesApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenNoPermissionGetLinksShouldReturnASingleNullElementWithoutAnError() {
+    String nodeId =
+        seedFile("l.txt", LOCAL_ROOT, "l".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+    String query =
+        GraphqlCommandBuilder.aQueryBuilder("getLinks")
+            .withString("node_id", nodeId)
+            .withWantedResultFormat("{ id }")
+            .build();
+
+    JsonNode body = body(graphql(query, REQUESTER_COOKIE));
+
+    JsonNode links = body.path("data").path("getLinks");
+    Assertions.assertThat(links).hasSize(1);
+    Assertions.assertThat(links.get(0).isNull()).isTrue();
+    Assertions.assertThat(body.path("errors").isMissingNode()).isTrue();
+  }
+
+  @Test
+  void givenNoPermissionGetCollaborationLinksShouldReturnANullElementAndNodeWriteError() {
+    String nodeId =
+        seedFile("c.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+    String query =
+        GraphqlCommandBuilder.aQueryBuilder("getCollaborationLinks")
+            .withString("node_id", nodeId)
+            .withWantedResultFormat("{ id }")
+            .build();
+
+    JsonNode body = body(graphql(query, REQUESTER_COOKIE));
+
+    JsonNode links = body.path("data").path("getCollaborationLinks");
+    Assertions.assertThat(links).hasSize(1);
+    Assertions.assertThat(links.get(0).isNull()).isTrue();
+    assertError(
+        onlyError(body),
+        "NODE_WRITE_ERROR",
+        "There was a problem while executing requested operation on node: " + nodeId,
+        "nodeId",
+        nodeId);
+  }
+
+  @Test
+  void givenAPartiallyFailedRestoreNodesTheDataKeepsANullSlotPerFailedNode() {
+    String trashedId = seedFolder("to-restore", LOCAL_ROOT, REQUESTER_COOKIE);
+    seedTrashed(trashedId, REQUESTER_COOKIE);
+    String notTrashedId = seedFolder("not-trashed", LOCAL_ROOT, REQUESTER_COOKIE);
+    String mutation =
+        GraphqlCommandBuilder.aMutationBuilder("restoreNodes")
+            .withListOfStrings("node_ids", new String[] {trashedId, notTrashedId})
+            .withWantedResultFormat("{ id }")
+            .build();
+
+    JsonNode body = body(graphql(mutation, REQUESTER_COOKIE));
+
+    JsonNode restored = body.path("data").path("restoreNodes");
+    Assertions.assertThat(restored).hasSize(2);
+    Assertions.assertThat(restored.get(0).path("id").asText()).isEqualTo(trashedId);
+    Assertions.assertThat(restored.get(1).isNull()).isTrue();
+    assertError(
+        onlyError(body),
+        "NODE_WRITE_ERROR",
+        "There was a problem while executing requested operation on node: " + notTrashedId,
+        "nodeId",
+        notTrashedId);
+  }
+
+  @Test
   void givenAFailedItemInABulkOperationTheSingleErrorCarriesTheFirstFailedNodeId() {
     String okId = seedFolder("ok", LOCAL_ROOT, REQUESTER_COOKIE);
     String mutation =

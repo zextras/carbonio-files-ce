@@ -24,6 +24,7 @@ import com.zextras.carbonio.files.graphql.model.support.PublicNodeModelFactory;
 import io.smallrye.graphql.api.Context;
 import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.eclipse.microprofile.graphql.GraphQLApi;
@@ -69,7 +70,7 @@ public class PublicApi {
       }
     }
 
-    return buildPublicNode(node);
+    return buildPublicNode(node, gqlContext.getPath());
   }
 
   @Query("findPublicNodes")
@@ -100,7 +101,10 @@ public class PublicApi {
       throw FilesGraphQLErrors.dataFetching(gqlContext.getPath(), e.getMessage());
     }
 
-    List<PublicNodeModel> nodes = findResult.getLeft().stream().map(this::buildPublicNode).toList();
+    List<PublicNodeModel> nodes = new ArrayList<>();
+    for (Node node : findResult.getLeft()) {
+      nodes.add(buildPublicNode(node, gqlContext.getPath() + "/nodes"));
+    }
 
     return new PublicNodePageModel(nodes, findResult.getRight());
   }
@@ -111,7 +115,7 @@ public class PublicApi {
    * relying on a live JPA session for lazy loading — {@link PublicNodeModelFactory} is only used
    * for folder nodes where no version fetch is needed.
    */
-  private PublicNodeModel buildPublicNode(Node node) {
+  private PublicNodeModel buildPublicNode(Node node, String path) throws FilesGraphQLException {
     NodeCategory category = node.getNodeCategory();
     NodeType gqlType = NodeType.valueOf(node.getNodeType().name());
 
@@ -128,10 +132,7 @@ public class PublicApi {
             .getFileVersions(node.getId(), List.of(FileVersionSort.VERSION_DESC))
             .stream()
             .findFirst()
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "No file version found for file node " + node.getId()));
+            .orElseThrow(() -> FilesGraphQLErrors.dataFetching(path, "No value present"));
 
     Long nodeSize = node.getSize();
     return new PublicFileModel(

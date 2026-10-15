@@ -23,6 +23,7 @@ import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -95,7 +96,8 @@ public class CollaborationLinkApi {
     ACL acl = permissionsChecker.getPermissions(nodeId, me);
     if (!acl.has(ACL.SharePermission.READ_AND_SHARE)
         && !acl.has(ACL.SharePermission.READ_WRITE_AND_SHARE)) {
-      return List.of();
+      throw FilesGraphQLErrors.nodeWriteError(nodeId)
+          .withPartialResults(Collections.singletonList(null));
     }
     String domain = requester.getDomain();
     return collaborationLinkRepository

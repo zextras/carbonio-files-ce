@@ -93,5 +93,14 @@ class UserLookupCountApiIT extends AbstractFilesIT {
     }
     Assertions.assertThat(requestCount("{\"method\":\"ANY\",\"urlPathPattern\":\"/.*\"}"))
         .isLessThanOrEqualTo(MAIN_USER_MANAGEMENT_CALLS);
+
+    RestAssured.given().delete(userManagementUrl() + "/__admin/requests");
+    Response second = graphql(query, A_COOKIE);
+
+    Assertions.assertThat(new ObjectMapper().readTree(second.getBody().asString()).path("errors"))
+        .isEmpty();
+    Assertions.assertThat(requestCount("{\"method\":\"POST\",\"urlPath\":\"/internal/users\"}"))
+        .as("the user cache must not outlive the request")
+        .isGreaterThanOrEqualTo(1);
   }
 }

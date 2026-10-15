@@ -93,10 +93,9 @@ public class UserApi {
     List<String> distinctIds = ids.stream().filter(Objects::nonNull).distinct().toList();
     List<String> uncachedIds = distinctIds.stream().filter(id -> !cache.containsKey(id)).toList();
     for (List<String> chunk : partition(uncachedIds, 100)) {
+      List<UserInfo> found = userRepository.getUsers(chunk);
       chunk.forEach(id -> cache.put(id, Optional.empty()));
-      for (UserInfo u : userRepository.getUsers(chunk)) {
-        cache.put(u.getId().getUserId(), Optional.of(u));
-      }
+      found.forEach(u -> cache.put(u.getId().getUserId(), Optional.of(u)));
     }
     Map<String, UserInfo> byId = new HashMap<>();
     distinctIds.forEach(id -> cache.get(id).ifPresent(u -> byId.put(id, u)));

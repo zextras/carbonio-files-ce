@@ -29,6 +29,7 @@ import com.zextras.carbonio.files.graphql.model.SharePermission;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -100,13 +101,21 @@ class CollaborationLinkApiTest {
   }
 
   @Test
-  void getCollaborationLinksReturnsEmptyListWhenPermissionDenied() throws FilesGraphQLException {
+  void getCollaborationLinksThrowsNodeWriteErrorWithANullElementWhenPermissionDenied() {
     when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
         .thenReturn(aclWith(ACL.SharePermission.READ_ONLY));
 
-    List<CollaborationLinkModel> result = collaborationLinkApi.getCollaborationLinks(NODE_ID);
-
-    assertThat(result).isEmpty();
+    assertThatThrownBy(() -> collaborationLinkApi.getCollaborationLinks(NODE_ID))
+        .isInstanceOfSatisfying(
+            FilesGraphQLException.class,
+            ex -> {
+              assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.NODE_WRITE_ERROR);
+              assertThat(ex.getMessage())
+                  .isEqualTo(
+                      "There was a problem while executing requested operation on node: "
+                          + NODE_ID);
+              assertThat(ex.getPartialResults()).isEqualTo(Collections.singletonList(null));
+            });
     verify(collaborationLinkRepository, never()).getLinksByNodeId(any());
   }
 

@@ -196,7 +196,7 @@ class LinkApiTest {
   }
 
   @Test
-  void getLinksReturnsEmptyListWhenPermissionDenied() throws FilesGraphQLException {
+  void getLinksReturnsASingleNullElementWhenPermissionDenied() throws FilesGraphQLException {
     Node node = mockFileNode();
     when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
         .thenReturn(aclWith(ACL.SharePermission.READ_ONLY));
@@ -204,19 +204,19 @@ class LinkApiTest {
 
     List<LinkModel> result = linkApi.getLinks(NODE_ID);
 
-    assertThat(result).isEmpty();
+    assertThat(result).containsExactly((LinkModel) null);
     verify(linkRepository, never()).getLinksByNodeId(any(), any());
   }
 
   @Test
-  void getLinksReturnsEmptyListWhenNodeNotFound() throws FilesGraphQLException {
+  void getLinksReturnsASingleNullElementWhenNodeNotFound() throws FilesGraphQLException {
     when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
         .thenReturn(aclWith(ACL.SharePermission.READ_AND_SHARE));
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.empty());
 
     List<LinkModel> result = linkApi.getLinks(NODE_ID);
 
-    assertThat(result).isEmpty();
+    assertThat(result).containsExactly((LinkModel) null);
   }
 
   // ─── createLink ────────────────────────────────────────────────────────────────
