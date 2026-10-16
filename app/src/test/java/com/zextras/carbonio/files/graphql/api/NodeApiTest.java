@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.zextras.carbonio.files.dal.dao.UserId;
@@ -359,6 +360,18 @@ class NodeApiTest {
 
     assertThat(result).hasSize(1);
     assertThat(result.get(0).getVersion()).isEqualTo(1);
+  }
+
+  @Test
+  void getVersionsReturnsNoVersionsWhenVersionsParamIsAnEmptyList() throws Exception {
+    Node node = mockFileNode(NODE_ID);
+    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID)).thenReturn(aclWith(true));
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
+
+    List<FileModel> result = nodeApi.getVersions(NODE_ID, List.of());
+
+    assertThat(result).isEmpty();
+    verifyNoInteractions(fileVersionRepository);
   }
 
   // --- getPath ---

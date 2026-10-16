@@ -199,7 +199,7 @@ public class NodeApi {
     }
 
     List<Integer> versionNumbers;
-    if (versions == null || versions.isEmpty()) {
+    if (versions == null) {
       versionNumbers =
           fileVersionRepository
               .getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC))
