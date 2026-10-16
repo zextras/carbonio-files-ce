@@ -6,7 +6,8 @@ package com.zextras.carbonio.files.graphql.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -16,7 +17,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -27,7 +27,10 @@ import com.zextras.carbonio.files.graphql.model.PublicFolderModel;
 import com.zextras.carbonio.files.graphql.model.PublicNodeModel;
 import com.zextras.carbonio.files.graphql.model.PublicNodePageModel;
 import io.smallrye.graphql.api.Context;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +47,7 @@ class PublicApiTest {
   private FileVersionRepository fileVersionRepository;
   private Context gqlContext;
   private PublicApi publicApi;
+  private final Map<String, FileVersion> lastVersions = new HashMap<>();
 
   @BeforeEach
   void setUp() {
@@ -51,6 +55,19 @@ class PublicApiTest {
     nodeRepository = mock(NodeRepository.class);
     fileVersionRepository = mock(FileVersionRepository.class);
     gqlContext = mock(Context.class);
+    when(fileVersionRepository.getLastFileVersion(anyString()))
+        .thenAnswer(inv -> Optional.ofNullable(lastVersions.get(inv.<String>getArgument(0))));
+    when(fileVersionRepository.getLastFileVersions(anyCollection()))
+        .thenAnswer(
+            inv -> {
+              Map<String, FileVersion> found = new HashMap<>();
+              for (String id : inv.<Collection<String>>getArgument(0)) {
+                if (lastVersions.containsKey(id)) {
+                  found.put(id, lastVersions.get(id));
+                }
+              }
+              return found;
+            });
 
     publicApi = new PublicApi();
     publicApi.linkRepository = linkRepository;
@@ -90,8 +107,7 @@ class PublicApiTest {
     when(node.getNodeType()).thenReturn(NodeType.TEXT);
     when(node.getExtension()).thenReturn(Optional.of("txt"));
     when(node.getSize()).thenReturn(512L);
-    when(fileVersionRepository.getFileVersions(eq(id), eq(List.of(FileVersionSort.VERSION_DESC))))
-        .thenReturn(List.of(fv));
+    lastVersions.put(id, fv);
     return node;
   }
 
@@ -100,9 +116,7 @@ class PublicApiTest {
     Link link = mockLink(NODE_ID, Optional.empty());
     when(linkRepository.getLinkByNotExpiredPublicId(LINK_PUBLIC_ID)).thenReturn(Optional.of(link));
     Node node = mockFileNode(NODE_ID);
-    when(fileVersionRepository.getFileVersions(
-            eq(NODE_ID), eq(List.of(FileVersionSort.VERSION_DESC))))
-        .thenReturn(List.of());
+    lastVersions.remove(NODE_ID);
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
     when(nodeRepository.getTrashedNode(NODE_ID)).thenReturn(Optional.empty());
     when(gqlContext.getPath()).thenReturn("/getPublicNode");

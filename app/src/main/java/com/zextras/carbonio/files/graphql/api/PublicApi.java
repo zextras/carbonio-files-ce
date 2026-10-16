@@ -9,7 +9,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.repositories.impl.InvalidPageTokenException;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -25,6 +24,7 @@ import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Id;
@@ -69,7 +69,9 @@ public class PublicApi {
       }
     }
 
-    return buildPublicNode(node, gqlContext.getPath());
+    FileVersion fv =
+        isFolder(node) ? null : fileVersionRepository.getLastFileVersion(node.getId()).orElse(null);
+    return buildPublicNode(node, fv, gqlContext.getPath());
   }
 
   @Query("findPublicNodes")
@@ -100,37 +102,35 @@ public class PublicApi {
       throw FilesGraphQLErrors.dataFetching(gqlContext.getPath(), e.getMessage());
     }
 
+    Map<String, FileVersion> lastVersions =
+        fileVersionRepository.getLastFileVersions(
+            findResult.getLeft().stream().filter(n -> !isFolder(n)).map(Node::getId).toList());
     List<PublicNodeModel> nodes = new ArrayList<>();
     for (Node node : findResult.getLeft()) {
-      nodes.add(buildPublicNode(node, gqlContext.getPath() + "/nodes"));
+      nodes.add(
+          buildPublicNode(node, lastVersions.get(node.getId()), gqlContext.getPath() + "/nodes"));
     }
 
     return new PublicNodePageModel(nodes, findResult.getRight());
   }
 
-  /**
-   * Builds the public-facing model for a node. For file nodes, the latest file version is fetched
-   * explicitly via the repository (not via the LAZY-loaded {@code node.getFileVersions()}) to avoid
-   * relying on a live JPA session for lazy loading. Folder nodes need no version fetch.
-   */
-  private PublicNodeModel buildPublicNode(Node node, String path) throws FilesGraphQLException {
+  private static boolean isFolder(Node node) {
     NodeCategory category = node.getNodeCategory();
+    return category == NodeCategory.ROOT || category == NodeCategory.FOLDER;
+  }
+
+  private PublicNodeModel buildPublicNode(Node node, FileVersion fv, String path)
+      throws FilesGraphQLException {
     NodeType gqlType = NodeType.valueOf(node.getNodeType().name());
 
-    if (category == NodeCategory.ROOT || category == NodeCategory.FOLDER) {
+    if (isFolder(node)) {
       return new PublicFolderModel(
           node.getId(), node.getCreatedAt(), node.getUpdatedAt(), node.getName(), gqlType);
     }
 
-    // Explicit fetch of the latest file version via the repository, matching the pattern used by
-    // NodeApi's authenticated resolvers (they call fileVersionRepository.getFileVersions() rather
-    // than node.getFileVersions(), which is LAZY and may be unloaded at this point).
-    FileVersion fv =
-        fileVersionRepository
-            .getFileVersions(node.getId(), List.of(FileVersionSort.VERSION_DESC))
-            .stream()
-            .findFirst()
-            .orElseThrow(() -> FilesGraphQLErrors.dataFetching(path, "No value present"));
+    if (fv == null) {
+      throw FilesGraphQLErrors.dataFetching(path, "No value present");
+    }
 
     Long nodeSize = node.getSize();
     return new PublicFileModel(

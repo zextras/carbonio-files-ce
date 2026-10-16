@@ -37,7 +37,11 @@ import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.narayana.jta.TransactionRunnerOptions;
+import jakarta.persistence.PersistenceException;
+import jakarta.transaction.RollbackException;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
@@ -226,6 +230,36 @@ class ShareApiTest {
             ex ->
                 assertThat(((FilesGraphQLException) ex).getErrorCode())
                     .isEqualTo(ErrorCodes.SHARE_CREATION_ERROR));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void createShareThrowsShareCreationErrorWhenConcurrentCreateViolatesSharePrimaryKey() {
+    Node node = mockFileNode(NODE_ID, "owner-id");
+    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
+        .thenReturn(aclWith(ACL.SharePermission.READ_AND_SHARE));
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
+    SQLException duplicateKey =
+        new SQLException("duplicate key value violates unique constraint \"share_pkey\"", "23505");
+    RollbackException rollback = new RollbackException("commit failed");
+    rollback.initCause(new PersistenceException(duplicateKey));
+
+    try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
+      TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
+      when(runOptions.call(any(Callable.class)))
+          .thenThrow(new QuarkusTransactionException(rollback));
+      txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
+
+      assertThatThrownBy(
+              () ->
+                  shareApi.createShare(NODE_ID, TARGET_ID_1, SharePermission.READ_ONLY, null, null))
+          .isInstanceOf(FilesGraphQLException.class)
+          .hasMessage("Could not create share for node: " + NODE_ID + " and user: " + TARGET_ID_1)
+          .satisfies(
+              ex ->
+                  assertThat(((FilesGraphQLException) ex).getErrorCode())
+                      .isEqualTo(ErrorCodes.SHARE_CREATION_ERROR));
+    }
   }
 
   // ─── updateShares ─────────────────────────────────────────────────────────────

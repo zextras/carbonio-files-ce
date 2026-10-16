@@ -28,12 +28,14 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.security.Authenticated;
 import io.smallrye.graphql.api.Nullable;
 import jakarta.inject.Inject;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Id;
 import org.eclipse.microprofile.graphql.Mutation;
@@ -45,6 +47,8 @@ import org.eclipse.microprofile.graphql.Source;
 @GraphQLApi
 @Authenticated
 public class ShareApi {
+
+  private static final String UNIQUE_VIOLATION_SQL_STATE = "23505";
 
   @Inject NodeRepository nodeRepository;
   @Inject ShareRepository shareRepository;
@@ -170,19 +174,27 @@ public class ShareApi {
     Optional<Long> optExpiresAt = Optional.ofNullable(expiresAt);
     ACL acl = ACL.decode(mapToAclPermission(permission));
 
-    Optional<Share> optCreatedShare =
-        QuarkusTransaction.requiringNew()
-            .call(
-                () -> {
-                  Optional<Share> upserted =
-                      shareRepository.upsertShare(
-                          nodeId, shareTargetId, acl, true, false, optExpiresAt);
-                  upserted.ifPresent(
-                      s ->
-                          shareCascade.cascadeUpsertShare(
-                              nodeId, shareTargetId, acl, optExpiresAt));
-                  return upserted;
-                });
+    Optional<Share> optCreatedShare;
+    try {
+      optCreatedShare =
+          QuarkusTransaction.requiringNew()
+              .call(
+                  () -> {
+                    Optional<Share> upserted =
+                        shareRepository.upsertShare(
+                            nodeId, shareTargetId, acl, true, false, optExpiresAt);
+                    upserted.ifPresent(
+                        s ->
+                            shareCascade.cascadeUpsertShare(
+                                nodeId, shareTargetId, acl, optExpiresAt));
+                    return upserted;
+                  });
+    } catch (RuntimeException e) {
+      if (isUniqueViolation(e)) {
+        throw FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId);
+      }
+      throw e;
+    }
 
     return optCreatedShare
         .map(
@@ -194,6 +206,14 @@ public class ShareApi {
               return toModel(share);
             })
         .orElseThrow(() -> FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId));
+  }
+
+  private static boolean isUniqueViolation(Throwable e) {
+    return ExceptionUtils.getThrowableList(e).stream()
+        .anyMatch(
+            t ->
+                t instanceof SQLException sql
+                    && UNIQUE_VIOLATION_SQL_STATE.equals(sql.getSQLState()));
   }
 
   @Mutation("updateShares")

@@ -78,6 +78,8 @@ public interface FileVersionRepository {
    */
   Optional<FileVersion> getLastFileVersion(String nodeId);
 
+  Map<String, FileVersion> getLastFileVersions(Collection<String> nodeIds);
+
   /**
    * Updates a {@link FileVersion} on database.
    *
