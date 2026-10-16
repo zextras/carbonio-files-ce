@@ -962,6 +962,9 @@ public class NodeApi {
                         || (!node.getId().equals(destinationId)
                             && (!destinationFolder.getAncestorsList().contains(node.getId())
                                 || node.getParentId().equals(Optional.of(destinationId)))))
+            .filter(
+                node ->
+                    node.getNodeType() != com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
             .filter(node -> permissionsChecker.getPermissions(node.getId(), me).canRead())
             .collect(Collectors.toList());
 

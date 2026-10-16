@@ -93,6 +93,21 @@ class CopyNodesApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenARootIdCopyShouldRejectItAndCreateNoNode() {
+    String destFolderId = seedFolder("dest", LOCAL_ROOT, REQUESTER_COOKIE);
+    String roots = "query { getRootsList { id } }";
+    String rootsBefore = graphql(roots, REQUESTER_COOKIE).getBody().asString();
+
+    Response response = copyNodes(new String[] {LOCAL_ROOT}, destFolderId, REQUESTER_COOKIE);
+
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("NODE_WRITE_ERROR");
+    Assertions.assertThat(childrenOf(destFolderId, REQUESTER_COOKIE)).isEmpty();
+    Assertions.assertThat(graphql(roots, REQUESTER_COOKIE).getBody().asString())
+        .isEqualTo(rootsBefore);
+  }
+
+  @Test
   void givenAPlainFileCopyItShouldCreateACopyInDestinationAndLeaveTheOriginalIntact() {
     // Given
     String sourceId =
