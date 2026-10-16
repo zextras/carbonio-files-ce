@@ -96,6 +96,9 @@ public class ShareApi {
     return nodeIds.stream()
         .map(
             id -> {
+              if (limit < 0) {
+                return Collections.<ShareModel>singletonList(null);
+              }
               List<Share> sharesForNode = byNode.getOrDefault(id, Collections.emptyList());
               int skip = cursorIndex(sharesForNode, cursor);
               return sharesForNode.stream().skip(skip).limit(limit).map(ShareApi::toModel).toList();

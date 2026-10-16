@@ -99,6 +99,21 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenANegativeSharesLimitTheSharesFieldIsASingleNullWithoutErrors() {
+    // Given
+    String nodeId = seedFolder("negativeLimit", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    // When
+    Response response =
+        getNode(nodeId, null, "{ id shares(limit: -1) { created_at } }", REQUESTER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.getBody().asString())
+        .isEqualTo("{\"data\":{\"getNode\":{\"id\":\"" + nodeId + "\",\"shares\":[null]}}}");
+  }
+
+  @Test
   void givenAReadableParentTheParentFieldResolvesNormally() {
     // Given — contrast case: same shape, but the parent IS owned by the requester, so it IS
     // readable and the field resolves to real data instead of silently going null.
