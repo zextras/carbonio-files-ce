@@ -56,8 +56,11 @@ public class ShareApi {
   @Inject @AuthenticatedUser UserMyself requester;
 
   static ShareModel toModel(Share share) {
-    SharePermission perm =
-        SharePermission.valueOf(share.getPermissions().getSharePermission().name());
+    ACL.SharePermission permission = share.getPermissions().getSharePermission();
+    if (permission == ACL.SharePermission.NONE) {
+      return null;
+    }
+    SharePermission perm = SharePermission.valueOf(permission.name());
     return new ShareModel(
         share.getCreatedAt(),
         perm,

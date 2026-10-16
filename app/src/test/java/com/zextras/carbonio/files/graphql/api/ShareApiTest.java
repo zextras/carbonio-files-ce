@@ -474,6 +474,23 @@ class ShareApiTest {
     assertThat(result.get(2)).isEmpty();
   }
 
+  @Test
+  void shares_aShareWithAnUnmappablePermissionIsNullAndTheOthersAreServed() {
+    NodeModel node = makeNodeModel(NODE_ID);
+    Share first = mockShare(NODE_ID, TARGET_ID_1);
+    Share corrupt = mockShare(NODE_ID, TARGET_ID_2);
+    when(corrupt.getPermissions()).thenReturn(ACL.decode((short) 2));
+    Share last = mockShare(NODE_ID, TARGET_ID_3);
+    when(shareRepository.getShares(List.of(NODE_ID))).thenReturn(List.of(first, corrupt, last));
+
+    List<List<ShareModel>> result = shareApi.shares(List.of(node), 10, null, null);
+
+    assertThat(result.get(0)).hasSize(3);
+    assertThat(result.get(0).get(0).getShareTargetId()).isEqualTo(TARGET_ID_1);
+    assertThat(result.get(0).get(1)).isNull();
+    assertThat(result.get(0).get(2).getShareTargetId()).isEqualTo(TARGET_ID_3);
+  }
+
   // ─── @Source: Node.share ──────────────────────────────────────────────────────
 
   @Test
