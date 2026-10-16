@@ -173,11 +173,8 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <!--
-      P3d: storages-ce-sdk provides com.zextras.filestore.api.Filestore + StoragesClient, produced as
-      a CDI bean by FilestoreProducer (blob bulkDelete on node delete/copy). Pinned to the latest
-      stable release 0.0.16: the previously-corrupted 0.0.16 POM (unresolved ${revision}${changelist})
-      has since been republished cleanly on Artifactory, and the old 0.0.15-SNAPSHOT was a mutable
-      snapshot that has expired from the CI repo (build broke on it).
+      P3d: storages-ce-sdk provides com.zextras.filestore.api.Filestore + StoragesClient, used by
+      NodeApi (blob bulkDelete) and produced as a CDI bean by FilestoreProducer.
     -->
     <dependency>
       <groupId>com.zextras</groupId>
