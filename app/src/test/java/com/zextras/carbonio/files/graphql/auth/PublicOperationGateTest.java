@@ -73,5 +73,12 @@ class PublicOperationGateTest {
     assertThat(PublicOperationGate.isPublicOnly(document, "pub")).isTrue();
     assertThat(PublicOperationGate.isPublicOnly(document, "priv")).isFalse();
     assertThat(PublicOperationGate.isPublicOnly(document, "missing")).isFalse();
+    assertThat(PublicOperationGate.isPublicOnly(document, "")).isTrue();
+    assertThat(
+            PublicOperationGate.isPublicOnly(
+                "query priv { getRootsList { id } } query pub { getPublicNode(node_link_id: \"x\")"
+                    + " { id } }",
+                ""))
+        .isFalse();
   }
 }

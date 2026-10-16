@@ -14,18 +14,23 @@ import graphql.language.OperationDefinition;
 import graphql.language.Selection;
 import graphql.language.SelectionSet;
 import graphql.parser.Parser;
+import io.quarkus.jsonp.JsonProviderHolder;
 import io.quarkus.vertx.http.runtime.security.QuarkusHttpUser;
-import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.RequestBody;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
+import jakarta.json.JsonString;
+import java.io.StringReader;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -37,6 +42,9 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class PublicOperationGate {
 
+  private static final Pattern NEWLINE_OR_TAB = Pattern.compile("\\n|\\t|\\r");
+  private static final String APPLICATION_GRAPHQL = "application/graphql";
+
   static final Set<String> PUBLIC_ROOT_FIELDS =
       Set.of("getPublicNode", "findPublicNodes", "__typename");
 
@@ -46,7 +54,7 @@ public class PublicOperationGate {
   }
 
   void handle(RoutingContext ctx) {
-    if (ctx.request().getCookie(Headers.COOKIE_ZM_AUTH_TOKEN) == null || isPublicOnly(ctx.body())) {
+    if (ctx.request().getCookie(Headers.COOKIE_ZM_AUTH_TOKEN) == null || isPublicOnly(ctx)) {
       ctx.next();
       return;
     }
@@ -61,17 +69,29 @@ public class PublicOperationGate {
             });
   }
 
-  private static boolean isPublicOnly(RequestBody body) {
+  private static boolean isPublicOnly(RoutingContext ctx) {
+    String body = ctx.body() == null ? null : ctx.body().asString();
+    if (body == null || body.isEmpty()) {
+      return false;
+    }
+    body = NEWLINE_OR_TAB.matcher(body).replaceAll(" ");
+    String contentType = ctx.request().getHeader(HttpHeaders.CONTENT_TYPE);
+    if (contentType != null && contentType.startsWith(APPLICATION_GRAPHQL)) {
+      return isPublicOnly(body, null);
+    }
     JsonObject json;
-    try {
-      json = body.asJsonObject();
+    try (JsonReader reader =
+        JsonProviderHolder.jsonProvider().createReader(new StringReader(body))) {
+      json = reader.readObject();
     } catch (RuntimeException e) {
       return false;
     }
-    if (json == null || !(json.getValue("query") instanceof String query)) {
+    if (!(json.get("query") instanceof JsonString query)) {
       return false;
     }
-    return isPublicOnly(query, json.getValue("operationName") instanceof String name ? name : null);
+    return isPublicOnly(
+        query.getString(),
+        json.get("operationName") instanceof JsonString name ? name.getString() : null);
   }
 
   static boolean isPublicOnly(String query, String operationName) {
@@ -95,13 +115,16 @@ public class PublicOperationGate {
 
   private static OperationDefinition selectOperation(
       List<OperationDefinition> operations, String operationName) {
-    if (operationName != null && !operationName.isEmpty()) {
-      return operations.stream()
-          .filter(operation -> operationName.equals(operation.getName()))
-          .findFirst()
-          .orElse(null);
+    if (operationName == null) {
+      return operations.size() == 1 ? operations.get(0) : null;
     }
-    return operations.size() == 1 ? operations.get(0) : null;
+    if (operationName.isEmpty()) {
+      return operations.isEmpty() ? null : operations.get(0);
+    }
+    return operations.stream()
+        .filter(operation -> operationName.equals(operation.getName()))
+        .findFirst()
+        .orElse(null);
   }
 
   private static boolean selectsOnlyPublicFields(

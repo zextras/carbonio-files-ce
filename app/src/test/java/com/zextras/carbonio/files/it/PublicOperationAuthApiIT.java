@@ -149,6 +149,41 @@ class PublicOperationAuthApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenAnApplicationGraphqlBodyThenTheCookieIsIgnored() {
+    Response response =
+        io.restassured.RestAssured.given()
+            .contentType("application/graphql")
+            .header("Cookie", "ZM_AUTH_TOKEN=public-op-unknown-token")
+            .body(
+                ("query { getPublicNode(node_link_id: \"" + publicId + "\") { id } }")
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8))
+            .post("/graphql/");
+
+    assertServesThePublicFolder(response);
+  }
+
+  @Test
+  void givenRawTabsInsideTheJsonQueryThenTheCookieIsIgnored() {
+    String body =
+        "{\"query\":\"query {\tgetPublicNode(node_link_id: \\\"" + publicId + "\\\") { id } }\"}";
+
+    assertServesThePublicFolder(rawGraphql(body, "ZM_AUTH_TOKEN=public-op-unknown-token"));
+  }
+
+  @Test
+  void givenAnEmptyOperationNameThenTheFirstOperationDecides() {
+    String document =
+        "query pub { getPublicNode(node_link_id: \\\""
+            + publicId
+            + "\\\") { id } } query priv { getRootsList { id } }";
+
+    assertServesThePublicFolder(
+        rawGraphql(
+            "{\"query\":\"" + document + "\",\"operationName\":\"\"}",
+            "ZM_AUTH_TOKEN=public-op-unknown-token"));
+  }
+
+  @Test
   void givenAPublicAndAProtectedRootFieldThenTheRequestIsAuthenticated() {
     String query =
         "query { getPublicNode(node_link_id: \\\""
