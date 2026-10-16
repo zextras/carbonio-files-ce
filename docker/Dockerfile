@@ -26,4 +26,5 @@ COPY app/target/*-runner.jar carbonio-files-ce.jar
 EXPOSE 10000
 
 # --enable-preview + --enable-native-access: required by the bootstrap sd_notify (Java 21 FFM).
-ENTRYPOINT ["java", "--enable-preview", "--enable-native-access=ALL-UNNAMED", "-Djava.net.preferIPv4Stack=true", "-jar", "/app/carbonio-files-ce.jar"]
+# Caps the memory of the SmallRye GraphQL parsed-query cache (~128 MB worst case at 64 entries); only settable as a JVM property.
+ENTRYPOINT ["java", "--enable-preview", "--enable-native-access=ALL-UNNAMED", "-Djava.net.preferIPv4Stack=true", "-Dio.smallrye.graphql.execution.queryCacheMaxSize=64", "-jar", "/app/carbonio-files-ce.jar"]
