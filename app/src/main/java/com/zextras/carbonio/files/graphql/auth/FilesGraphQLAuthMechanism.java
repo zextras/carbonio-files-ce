@@ -23,10 +23,11 @@ import java.util.Set;
  * <p>The mechanism handles ONLY requests whose path starts with {@code /graphql}; all other paths
  * receive {@code nullItem} so other mechanisms (or the default) can handle them.
  *
- * <p>For requests on {@code /graphql}: no {@code ZM_AUTH_TOKEN} cookie → anonymous identity ({@code
- * nullItem}), which allows {@code @PermitAll} public operations ({@code getPublicNode}, {@code
- * findPublicNodes}) to run unauthenticated (CO-3482). A cookie that cannot be resolved to a known
- * user → 401. An authenticated-but-not-entitled user → 403.
+ * <p>Authentication is lazy: this runs only when an operation needs the identity, so the public
+ * operations ({@code getPublicNode}, {@code findPublicNodes}) never reach it, and {@link
+ * PublicOperationGate} triggers it before execution for every other request carrying a cookie. No
+ * {@code ZM_AUTH_TOKEN} cookie → anonymous identity ({@code nullItem}). A cookie that cannot be
+ * resolved to a known user → 401. An authenticated-but-not-entitled user → 403.
  *
  * <p>Identity resolution is delegated to {@link FilesIdentityProvider}, which runs the blocking
  * user-management lookup off the event loop. Both 401 and 403 rejections surface as {@link
