@@ -5,28 +5,18 @@
 package com.zextras.carbonio.files.graphql.auth;
 
 import com.zextras.carbonio.files.Constants.API.Headers;
-import com.zextras.carbonio.files.dal.dao.UserMyself;
-import com.zextras.carbonio.files.dal.dao.UserStatus;
-import com.zextras.carbonio.files.dal.dao.UserType;
-import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import io.quarkus.security.AuthenticationFailedException;
-import io.quarkus.security.credential.Credential;
 import io.quarkus.security.identity.IdentityProviderManager;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.quarkus.vertx.http.runtime.security.ChallengeData;
 import io.quarkus.vertx.http.runtime.security.HttpAuthenticationMechanism;
+import io.quarkus.vertx.http.runtime.security.HttpSecurityUtils;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.Cookie;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
-import jakarta.inject.Inject;
-import java.security.Permission;
-import java.security.Principal;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -54,13 +44,6 @@ public class FilesGraphQLAuthMechanism implements HttpAuthenticationMechanism {
 
   static final String CTX_STATUS = "files.auth.status";
   static final String CTX_MESSAGE = "files.auth.message";
-
-  private final UserRepository userRepository;
-
-  @Inject
-  public FilesGraphQLAuthMechanism(UserRepository userRepository) {
-    this.userRepository = userRepository;
-  }
 
   /**
    * Registers a router-level 403 error handler that writes the stored challenge message as the
@@ -105,112 +88,9 @@ public class FilesGraphQLAuthMechanism implements HttpAuthenticationMechanism {
             ? header
             : Headers.COOKIE_ZM_AUTH_TOKEN + "=" + zmCookie.getValue();
 
-    Optional<UserMyself> optUser = userRepository.getUserMyselfByCookie(cookies);
-    if (optUser.isEmpty()) {
-      ctx.put(CTX_STATUS, 401);
-      ctx.put(
-          CTX_MESSAGE,
-          String.format(
-              "Failed to authenticate request %s: %s",
-              ctx.request().uri(), "Unable to find requested user"));
-      return Uni.createFrom()
-          .failure(new AuthenticationFailedException("Unable to find requested user"));
-    }
-    UserMyself user = optUser.get();
-
-    /*
-     * Authenticated-but-not-entitled: store status 403 and throw AuthenticationFailedException so
-     * sendChallenge() writes the body. ForbiddenException would bypass sendChallenge entirely and
-     * produce an empty 403; AuthenticationFailedException routes through our override correctly.
-     */
-    if (!UserStatus.ACTIVE.equals(user.getStatus())) {
-      ctx.put(CTX_STATUS, 403);
-      ctx.put(
-          CTX_MESSAGE,
-          String.format(
-              "Failed to authorize request %s: %s", ctx.request().uri(), "User is not active"));
-      return Uni.createFrom().failure(new AuthenticationFailedException("User is not active"));
-    }
-    if (UserType.GUEST.equals(user.getType())) {
-      ctx.put(CTX_STATUS, 403);
-      ctx.put(
-          CTX_MESSAGE,
-          String.format(
-              "Failed to authorize request %s: %s", ctx.request().uri(), "User is not internal"));
-      return Uni.createFrom().failure(new AuthenticationFailedException("User is not internal"));
-    }
-    if (!"TRUE"
-        .equals(
-            user.getCarbonioAttributes().getOrDefault("carbonioFeatureFilesEnabled", "FALSE"))) {
-      ctx.put(CTX_STATUS, 403);
-      ctx.put(
-          CTX_MESSAGE,
-          String.format(
-              "Failed to authorize request %s: %s",
-              ctx.request().uri(), "Files feature is not enabled for user"));
-      return Uni.createFrom()
-          .failure(new AuthenticationFailedException("Files feature is not enabled for user"));
-    }
-
-    Map<String, Object> attrs = new HashMap<>();
-    attrs.put(IDENTITY_ATTRIBUTE, user);
-    attrs.put("cookies", cookies);
-
-    SecurityIdentity identity =
-        new SecurityIdentity() {
-          @Override
-          public Principal getPrincipal() {
-            return user::getEmail;
-          }
-
-          @Override
-          public boolean isAnonymous() {
-            return false;
-          }
-
-          @Override
-          public Set<String> getRoles() {
-            return Set.of("files-user");
-          }
-
-          @Override
-          public boolean hasRole(String role) {
-            return "files-user".equals(role);
-          }
-
-          @Override
-          public Set<Permission> getPermissions() {
-            return Set.of();
-          }
-
-          @Override
-          public <T extends Credential> T getCredential(Class<T> cls) {
-            return null;
-          }
-
-          @Override
-          public Set<Credential> getCredentials() {
-            return Set.of();
-          }
-
-          @SuppressWarnings("unchecked")
-          @Override
-          public <T> T getAttribute(String key) {
-            return (T) attrs.get(key);
-          }
-
-          @Override
-          public Map<String, Object> getAttributes() {
-            return attrs;
-          }
-
-          @Override
-          public Uni<Boolean> checkPermission(Permission permission) {
-            return Uni.createFrom().item(false);
-          }
-        };
-
-    return Uni.createFrom().item(identity);
+    return idm.authenticate(
+        HttpSecurityUtils.setRoutingContextAttribute(
+            new FilesAuthenticationRequest(cookies, ctx.request().uri()), ctx));
   }
 
   /**
@@ -255,6 +135,6 @@ public class FilesGraphQLAuthMechanism implements HttpAuthenticationMechanism {
   @Override
   public Set<Class<? extends io.quarkus.security.identity.request.AuthenticationRequest>>
       getCredentialTypes() {
-    return Set.of();
+    return Set.of(FilesAuthenticationRequest.class);
   }
 }
