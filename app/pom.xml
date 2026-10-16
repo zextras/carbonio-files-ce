@@ -183,9 +183,8 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <!--
-      P3d: vavr Try — NodeDataFetcher wraps the storages copy-blob calls (copyNodeFetcher /
-      cloneVersionFetcher) in io.vavr.control.Try fluent chains. Ported verbatim from the legacy
-      stack rather than rewritten. Not BOM-managed; version matches the legacy Guice stack pin.
+      P3d: vavr Try — NodeApi, the REST services and the clients use io.vavr.control.Try fluent
+      chains. Ported verbatim from the legacy stack rather than rewritten. Not BOM-managed; version matches the legacy Guice stack pin.
     -->
     <dependency>
       <groupId>io.vavr</groupId>
@@ -267,8 +266,7 @@ SPDX-License-Identifier: AGPL-3.0-only
       auto-discovered @GraphQLApi/@Type beans at /graphql (brings quarkus-smallrye-graphql +
       smallrye-graphql-api transitively) AND runs the build-time step that renders the SDL from code
       into app/docs/schema.graphql (quarkus.carbonio-graphql.store-schema-directory=docs) — the
-      GraphQL analogue of carbonio-rest's docs/openapi.yaml. Replaces the hand-frozen docs/schema.graphql
-      + the in-JVM SchemaContractTest gate.
+      GraphQL analogue of carbonio-rest's docs/openapi.yaml.
     -->
     <dependency>
       <groupId>com.zextras.carbonio.quarkus</groupId>
@@ -368,13 +366,6 @@ SPDX-License-Identifier: AGPL-3.0-only
           <argLine>${argLine} --enable-preview --enable-native-access=ALL-UNNAMED</argLine>
           <systemPropertyVariables>
             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
-            <!--
-              The in-JVM code-first contract gate (SchemaContractTest) renders the schema via
-              SmallRye Bootstrap directly. smallrye-graphql-cdi's MicroProfileConfig now auto-enables
-              Apollo Federation (federation-graphql-java-support is on the classpath), which would add
-              a _Service type absent from the frozen contract; disable it to match the runtime config.
-            -->
-            <smallrye.graphql.federation.enabled>false</smallrye.graphql.federation.enabled>
           </systemPropertyVariables>
         </configuration>
       </plugin>
@@ -387,7 +378,6 @@ SPDX-License-Identifier: AGPL-3.0-only
           <argLine>${argLine} --enable-preview --enable-native-access=ALL-UNNAMED</argLine>
           <systemPropertyVariables>
             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
-            <smallrye.graphql.federation.enabled>false</smallrye.graphql.federation.enabled>
           </systemPropertyVariables>
         </configuration>
         <executions>
