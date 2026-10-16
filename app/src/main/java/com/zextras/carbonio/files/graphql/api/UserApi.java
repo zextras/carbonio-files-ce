@@ -5,9 +5,7 @@
 package com.zextras.carbonio.files.graphql.api;
 
 import com.zextras.carbonio.files.dal.dao.UserInfo;
-import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
-import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUserProducer;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLErrors;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
@@ -43,7 +41,6 @@ public class UserApi {
   @Inject RequestUserCache userCache;
   @Inject AuthenticatedUserProducer producer;
   @Inject GraphQLInputValidator validator;
-  @Inject @AuthenticatedUser UserMyself requester;
 
   private static UserModel toModel(UserInfo user) {
     return new UserModel(user.getId().getUserId(), user.getEmail(), user.getFullName());
@@ -94,8 +91,8 @@ public class UserApi {
     List<String> uncachedIds = distinctIds.stream().filter(id -> !cache.containsKey(id)).toList();
     for (List<String> chunk : partition(uncachedIds, 100)) {
       List<UserInfo> found = userRepository.getUsers(chunk);
-      chunk.forEach(id -> cache.put(id, Optional.empty()));
       found.forEach(u -> cache.put(u.getId().getUserId(), Optional.of(u)));
+      chunk.forEach(id -> cache.putIfAbsent(id, Optional.empty()));
     }
     Map<String, UserInfo> byId = new HashMap<>();
     distinctIds.forEach(id -> cache.get(id).ifPresent(u -> byId.put(id, u)));

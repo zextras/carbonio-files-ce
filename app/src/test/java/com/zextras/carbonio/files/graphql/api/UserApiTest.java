@@ -16,7 +16,6 @@ import static org.mockito.Mockito.when;
 
 import com.zextras.carbonio.files.dal.dao.UserId;
 import com.zextras.carbonio.files.dal.dao.UserInfo;
-import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUserProducer;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
@@ -33,9 +32,13 @@ import com.zextras.carbonio.files.graphql.model.SharedTarget;
 import com.zextras.carbonio.files.graphql.model.UserModel;
 import com.zextras.carbonio.files.graphql.support.RequestUserCache;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,7 +46,6 @@ import org.junit.jupiter.api.Test;
 class UserApiTest {
 
   private static final String COOKIES = "ZX_AUTH_TOKEN=test-token";
-  private static final String REQUESTER_ID = "requester-id";
   private static final String USER_ID = "user-id-1";
   private static final String EMAIL = "test@example.com";
 
@@ -57,15 +59,11 @@ class UserApiTest {
     producer = mock(AuthenticatedUserProducer.class);
     when(producer.cookies()).thenReturn(COOKIES);
 
-    UserMyself requester = mock(UserMyself.class);
-    when(requester.getId()).thenReturn(new UserId(REQUESTER_ID));
-
     userApi = new UserApi();
     userApi.userRepository = userRepository;
     userApi.userCache = new RequestUserCache();
     userApi.producer = producer;
     userApi.validator = new GraphQLInputValidator();
-    userApi.requester = requester;
   }
 
   private UserInfo makeUserInfo(String id, String email, String fullName) {
@@ -244,6 +242,43 @@ class UserApiTest {
     verify(userRepository).getUsers(List.of("uid-A"));
     verify(userRepository).getUsers(List.of("ghost"));
     assertThat(lastEditors.get(0)).isInstanceOf(FilesGraphQLException.class);
+  }
+
+  @Test
+  void foundUsersArePublishedToTheCacheWithoutAPriorNotFoundMark() {
+    Map<String, List<Optional<UserInfo>>> puts = new HashMap<>();
+    Map<String, Optional<UserInfo>> recording =
+        new ConcurrentHashMap<>() {
+          @Override
+          public Optional<UserInfo> put(String key, Optional<UserInfo> value) {
+            puts.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
+            return super.put(key, value);
+          }
+
+          @Override
+          public Optional<UserInfo> putIfAbsent(String key, Optional<UserInfo> value) {
+            Optional<UserInfo> previous = super.putIfAbsent(key, value);
+            if (previous == null) {
+              puts.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
+            }
+            return previous;
+          }
+        };
+    userApi.userCache =
+        new RequestUserCache() {
+          @Override
+          public Map<String, Optional<UserInfo>> entries() {
+            return recording;
+          }
+        };
+    NodeModel nodeA = makeNode("n1", "uid-A", "owner-A", null);
+    NodeModel nodeB = makeNode("n2", "ghost", "owner-B", null);
+    when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("uid-A")));
+
+    userApi.creators(List.of(nodeA, nodeB));
+
+    assertThat(puts.get("uid-A")).hasSize(1).allMatch(Optional::isPresent);
+    assertThat(puts.get("ghost")).containsExactly(Optional.empty());
   }
 
   @Test

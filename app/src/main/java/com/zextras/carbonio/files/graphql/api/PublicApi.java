@@ -20,7 +20,6 @@ import com.zextras.carbonio.files.graphql.model.PublicFileModel;
 import com.zextras.carbonio.files.graphql.model.PublicFolderModel;
 import com.zextras.carbonio.files.graphql.model.PublicNodeModel;
 import com.zextras.carbonio.files.graphql.model.PublicNodePageModel;
-import com.zextras.carbonio.files.graphql.model.support.PublicNodeModelFactory;
 import io.smallrye.graphql.api.Context;
 import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
@@ -112,8 +111,7 @@ public class PublicApi {
   /**
    * Builds the public-facing model for a node. For file nodes, the latest file version is fetched
    * explicitly via the repository (not via the LAZY-loaded {@code node.getFileVersions()}) to avoid
-   * relying on a live JPA session for lazy loading — {@link PublicNodeModelFactory} is only used
-   * for folder nodes where no version fetch is needed.
+   * relying on a live JPA session for lazy loading. Folder nodes need no version fetch.
    */
   private PublicNodeModel buildPublicNode(Node node, String path) throws FilesGraphQLException {
     NodeCategory category = node.getNodeCategory();
