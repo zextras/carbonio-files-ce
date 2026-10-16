@@ -5,7 +5,9 @@
 package com.zextras.carbonio.files.it;
 
 import com.zextras.carbonio.files.FilesStackTestResource;
+import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
+import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import java.util.stream.Stream;
 import org.assertj.core.api.Assertions;
@@ -117,7 +119,24 @@ class AuthApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(401);
-    Assertions.assertThat(response.getBody().asString()).contains("Unable to find requested user");
+    Assertions.assertThat(response.getBody().asString())
+        .isEqualTo("Failed to authenticate request /graphql/: Unable to find requested user");
+  }
+
+  @Test
+  void givenUnresolvableTokenOnGraphqlWithoutTrailingSlashThenBodyCarriesTheRequestedUri() {
+    // When
+    Response response =
+        RestAssured.given()
+            .contentType("application/json")
+            .header("Cookie", "ZM_AUTH_TOKEN=unknown-token")
+            .body(TestUtils.queryPayload(TRIVIAL_QUERY))
+            .post("/graphql");
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(401);
+    Assertions.assertThat(response.getBody().asString())
+        .isEqualTo("Failed to authenticate request /graphql: Unable to find requested user");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -130,7 +149,8 @@ class AuthApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(403);
-    Assertions.assertThat(response.getBody().asString()).contains(expectedMessageFragment);
+    Assertions.assertThat(response.getBody().asString())
+        .isEqualTo("Failed to authorize request /graphql/: " + expectedMessageFragment);
   }
 
   @Test

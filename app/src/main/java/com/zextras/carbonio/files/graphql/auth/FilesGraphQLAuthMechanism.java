@@ -108,7 +108,11 @@ public class FilesGraphQLAuthMechanism implements HttpAuthenticationMechanism {
     Optional<UserMyself> optUser = userRepository.getUserMyselfByCookie(cookies);
     if (optUser.isEmpty()) {
       ctx.put(CTX_STATUS, 401);
-      ctx.put(CTX_MESSAGE, "Unable to find requested user");
+      ctx.put(
+          CTX_MESSAGE,
+          String.format(
+              "Failed to authenticate request %s: %s",
+              ctx.request().uri(), "Unable to find requested user"));
       return Uni.createFrom()
           .failure(new AuthenticationFailedException("Unable to find requested user"));
     }
@@ -121,19 +125,29 @@ public class FilesGraphQLAuthMechanism implements HttpAuthenticationMechanism {
      */
     if (!UserStatus.ACTIVE.equals(user.getStatus())) {
       ctx.put(CTX_STATUS, 403);
-      ctx.put(CTX_MESSAGE, "User is not active");
+      ctx.put(
+          CTX_MESSAGE,
+          String.format(
+              "Failed to authorize request %s: %s", ctx.request().uri(), "User is not active"));
       return Uni.createFrom().failure(new AuthenticationFailedException("User is not active"));
     }
     if (UserType.GUEST.equals(user.getType())) {
       ctx.put(CTX_STATUS, 403);
-      ctx.put(CTX_MESSAGE, "User is not internal");
+      ctx.put(
+          CTX_MESSAGE,
+          String.format(
+              "Failed to authorize request %s: %s", ctx.request().uri(), "User is not internal"));
       return Uni.createFrom().failure(new AuthenticationFailedException("User is not internal"));
     }
     if (!"TRUE"
         .equals(
             user.getCarbonioAttributes().getOrDefault("carbonioFeatureFilesEnabled", "FALSE"))) {
       ctx.put(CTX_STATUS, 403);
-      ctx.put(CTX_MESSAGE, "Files feature is not enabled for user");
+      ctx.put(
+          CTX_MESSAGE,
+          String.format(
+              "Failed to authorize request %s: %s",
+              ctx.request().uri(), "Files feature is not enabled for user"));
       return Uni.createFrom()
           .failure(new AuthenticationFailedException("Files feature is not enabled for user"));
     }
