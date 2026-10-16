@@ -114,21 +114,26 @@ public class NodeCreationHelper {
             ? requesterId
             : parent.getOwnerId();
 
-    String folderName = searchAlternativeName(nodeRepository, name.trim(), parent.getId(), ownerId);
-
     final Node createdFolder =
-        nodeRepository.createNewNode(
-            UUID.randomUUID().toString(),
-            requesterId,
-            ownerId,
-            parent.getId(),
-            folderName,
-            "",
-            NodeType.FOLDER,
-            NodeType.ROOT.equals(parent.getNodeType())
-                ? parentId
-                : parent.getAncestorIds() + "," + parentId,
-            0L);
+        QuarkusTransaction.requiringNew()
+            .call(
+                () -> {
+                  nodeRepository.lockChildNames(parent.getId(), ownerId);
+                  String folderName =
+                      searchAlternativeName(nodeRepository, name.trim(), parent.getId(), ownerId);
+                  return nodeRepository.createNewNode(
+                      UUID.randomUUID().toString(),
+                      requesterId,
+                      ownerId,
+                      parent.getId(),
+                      folderName,
+                      "",
+                      NodeType.FOLDER,
+                      NodeType.ROOT.equals(parent.getNodeType())
+                          ? parentId
+                          : parent.getAncestorIds() + "," + parentId,
+                      0L);
+                });
 
     List<String> usersToNotify = createIndirectShare(parentId, createdFolder);
     usersToNotify.remove(requesterId);

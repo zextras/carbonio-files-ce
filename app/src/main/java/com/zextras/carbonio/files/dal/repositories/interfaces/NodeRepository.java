@@ -47,6 +47,12 @@ public interface NodeRepository {
    */
   Optional<Node> getNodeForUpdate(String nodeId);
 
+  /** Like {@link #getNodeForUpdate} for several nodes, locked in node id order. */
+  List<Node> getNodesForUpdate(List<String> nodeIds);
+
+  /** Transaction-scoped: take it after any row lock, in the transaction that checks and writes. */
+  void lockChildNames(String folderId, String ownerId);
+
   /**
    * Allows to retrieve a list of {@link Node}s from the database filter by chosen criteria.
    *

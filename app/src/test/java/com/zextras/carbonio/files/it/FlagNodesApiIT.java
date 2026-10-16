@@ -10,8 +10,14 @@ import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -63,6 +69,37 @@ class FlagNodesApiIT extends AbstractFilesIT {
 
     Assertions.assertThat(nodes).hasSize(1);
     Assertions.assertThat(nodes.get(0)).isEqualTo(nodeId);
+  }
+
+  @Test
+  void givenConcurrentFlagNodesOnTheSameNodeEveryCallShouldSucceed() throws Exception {
+    String nodeId =
+        seedFile(
+            "aFile.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    int requests = 10;
+    ExecutorService pool = Executors.newFixedThreadPool(requests);
+    try {
+      CountDownLatch start = new CountDownLatch(1);
+      List<Future<Response>> calls = new ArrayList<>();
+      for (int i = 0; i < requests; i++) {
+        calls.add(
+            pool.submit(
+                () -> {
+                  start.await();
+                  return flagNodes(new String[] {nodeId}, REQUESTER_COOKIE);
+                }));
+      }
+      start.countDown();
+
+      for (Future<Response> call : calls) {
+        Response response = call.get(60, TimeUnit.SECONDS);
+        Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+        Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+            .isEmpty();
+      }
+    } finally {
+      pool.shutdownNow();
+    }
   }
 
   @Test

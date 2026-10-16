@@ -28,6 +28,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -106,6 +107,27 @@ public class NodeRepositoryImpl implements NodeRepository {
     // The caller MUST already have an active transaction; the pessimistic lock lives until it ends.
     return Optional.ofNullable(
         entityManager.find(Node.class, normalizeId(nodeId), LockModeType.PESSIMISTIC_WRITE));
+  }
+
+  @Override
+  public List<Node> getNodesForUpdate(List<String> nodeIds) {
+    if (nodeIds.isEmpty()) {
+      return List.of();
+    }
+    return entityManager
+        .createQuery("select n from Node n where n.mId in :ids order by n.mId", Node.class)
+        .setParameter("ids", nodeIds.stream().map(NodeRepositoryImpl::normalizeId).toList())
+        .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+        .getResultList();
+  }
+
+  @Override
+  @Transactional(TxType.MANDATORY)
+  public void lockChildNames(String folderId, String ownerId) {
+    entityManager
+        .createNativeQuery("select 1 from pg_advisory_xact_lock(hashtextextended(:key, 0))")
+        .setParameter("key", folderId.trim() + "/" + ownerId)
+        .getSingleResult();
   }
 
   @Override

@@ -11,6 +11,10 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
 import org.assertj.core.api.Assertions;
@@ -406,6 +410,44 @@ class CopyNodesApiIT extends AbstractFilesIT {
     // the source is untouched, and no orphan row was left behind in the destination
     Assertions.assertThat(nodeExists(sourceId, REQUESTER_COOKIE)).isTrue();
     Assertions.assertThat(childrenOf(destFolderId, REQUESTER_COOKIE)).isEmpty();
+  }
+
+  @Test
+  void givenAFailureAfterTheCopiedNodeIsCreatedCopyShouldLeaveNoNodeBehind() throws Exception {
+    String sourceId =
+        seedFile(
+            "src-p4.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String destFolderId = seedFolder("dest-p4", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    Response response;
+    try (Connection connection = jdbcConnection();
+        Statement statement = connection.createStatement()) {
+      statement.execute(
+          "CREATE OR REPLACE FUNCTION fail_revision_insert() RETURNS trigger LANGUAGE plpgsql AS"
+              + " $$ BEGIN RAISE EXCEPTION 'injected revision insert failure'; END $$");
+      statement.execute(
+          "CREATE TRIGGER fail_revision_insert BEFORE INSERT ON revision FOR EACH ROW EXECUTE"
+              + " FUNCTION fail_revision_insert()");
+      try {
+        response = copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE);
+      } finally {
+        statement.execute("DROP TRIGGER fail_revision_insert ON revision");
+        statement.execute("DROP FUNCTION fail_revision_insert()");
+      }
+    }
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+        .isNotEmpty();
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("SELECT COUNT(*) FROM node WHERE folder_id = ?")) {
+      statement.setString(1, destFolderId);
+      try (ResultSet count = statement.executeQuery()) {
+        count.next();
+        Assertions.assertThat(count.getInt(1)).isZero();
+      }
+    }
   }
 
   @Test
