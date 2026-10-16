@@ -16,6 +16,8 @@ import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.TrashNodesApiIT} rewritten as an out-of-process
@@ -89,6 +91,40 @@ class TrashNodesApiIT extends AbstractFilesIT {
     Assertions.assertThat(nodeExists(nodeId, REQUESTER_COOKIE)).isTrue();
     Assertions.assertThat(findNodeIdsInFolder("LOCAL_ROOT", true)).doesNotContain(nodeId);
     Assertions.assertThat(findNodeIdsInFolder("TRASH_ROOT", false)).containsExactly(nodeId);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"mutation { trashNodes }", "mutation { trashNodes(node_ids: null) }"})
+  void givenAMissingOrNullNodeIdsTrashNodesShouldFailWithSystemErrorAndTouchNothing(String query) {
+    // Given
+    String nodeId =
+        seedFile(
+            "untouched.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+
+    // When
+    Response response = graphql(query, REQUESTER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
+        .isEqualTo("System error");
+    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
+    Assertions.assertThat(response.jsonPath().getMap("data")).containsEntry("trashNodes", null);
+    Assertions.assertThat(findNodeIdsInFolder("LOCAL_ROOT", true)).contains(nodeId);
+  }
+
+  @Test
+  void givenAnEmptyNodeIdsListTrashNodesShouldReturnAnEmptyList() {
+    // When
+    Response response = graphql("mutation { trashNodes(node_ids: []) }", REQUESTER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.getBody().asString())
+        .isEqualTo("{\"data\":{\"trashNodes\":[]}}");
   }
 
   @Test

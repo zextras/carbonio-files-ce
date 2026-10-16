@@ -357,10 +357,9 @@ class NodeApiMutationsTest {
   // ─── flagNodes ────────────────────────────────────────────────────────────────
 
   @Test
-  void flagNodesReturnsEmptyListWhenNodeIdsIsNull() throws Exception {
-    List<String> result = nodeApi.flagNodes(null, true);
-
-    assertThat(result).isEmpty();
+  void flagNodesThrowsWhenNodeIdsIsNull() {
+    assertThatThrownBy(() -> nodeApi.flagNodes(null, true))
+        .isInstanceOf(NullPointerException.class);
     verify(nodeRepository, never()).getNode(any());
   }
 
@@ -435,10 +434,8 @@ class NodeApiMutationsTest {
   // ─── deleteNodes ──────────────────────────────────────────────────────────────
 
   @Test
-  void deleteNodesReturnsEmptyListWhenNodeIdsIsNull() throws Exception {
-    List<String> result = nodeApi.deleteNodes(null);
-
-    assertThat(result).isEmpty();
+  void deleteNodesThrowsWhenNodeIdsIsNull() {
+    assertThatThrownBy(() -> nodeApi.deleteNodes(null)).isInstanceOf(NullPointerException.class);
     verify(nodeRepository, never()).getNode(any());
   }
 

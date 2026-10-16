@@ -411,7 +411,7 @@ public class NodeApi {
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("flag") @NonNull Boolean flag)
       throws FilesGraphQLException {
-    if (nodeIds == null) return Collections.emptyList();
+    Objects.requireNonNull(nodeIds);
     String me = requester.getId().getUserId();
 
     List<String> flaggableNodes =
@@ -447,7 +447,7 @@ public class NodeApi {
   public @Nullable @Id List<@NonNull String> trashNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
-    if (nodeIds == null) return Collections.emptyList();
+    Objects.requireNonNull(nodeIds);
     String me = requester.getId().getUserId();
 
     List<String> trashableNodes =
@@ -530,7 +530,7 @@ public class NodeApi {
   public @Nullable List<NodeModel> restoreNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
-    if (nodeIds == null) return Collections.emptyList();
+    Objects.requireNonNull(nodeIds);
     String me = requester.getId().getUserId();
 
     List<String> restorableNodeIds =
@@ -651,7 +651,7 @@ public class NodeApi {
       @Name("destination_id") @Id @NonNull String destinationId)
       throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).checkNodeId(destinationId).validate();
-    if (nodeIds == null) return Collections.emptyList();
+    Objects.requireNonNull(nodeIds);
     String me = requester.getId().getUserId();
 
     if (!permissionsChecker.getPermissions(destinationId, me).has(SharePermission.READ_AND_WRITE)) {
@@ -814,7 +814,7 @@ public class NodeApi {
   public @Nullable @Id List<@NonNull String> deleteNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
-    if (nodeIds == null) return Collections.emptyList();
+    Objects.requireNonNull(nodeIds);
     String me = requester.getId().getUserId();
 
     List<Node> requestedNodes =
@@ -925,7 +925,7 @@ public class NodeApi {
       @Name("destination_id") @Id @NonNull String destinationId)
       throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).checkNodeId(destinationId).validate();
-    if (nodeIds == null) return Collections.emptyList();
+    Objects.requireNonNull(nodeIds);
     String me = requester.getId().getUserId();
 
     if (!permissionsChecker.getPermissions(destinationId, me).has(SharePermission.READ_AND_WRITE)) {
