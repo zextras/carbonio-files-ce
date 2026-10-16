@@ -49,8 +49,8 @@ public class PublicOperationGate {
       Set.of("getPublicNode", "findPublicNodes", "__typename");
 
   public void register(@Observes Router router) {
-    router.post("/graphql").order(-199).handler(this::handle);
-    router.post("/graphql/").order(-199).handler(this::handle);
+    router.post("/graphql").order(-199).blockingHandler(this::handle, false);
+    router.post("/graphql/").order(-199).blockingHandler(this::handle, false);
   }
 
   void handle(RoutingContext ctx) {
