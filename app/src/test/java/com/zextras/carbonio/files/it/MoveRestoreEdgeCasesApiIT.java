@@ -307,6 +307,15 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
         .isEqualTo(1);
   }
 
+  private static void deleteRevisionRows(String nodeId) throws SQLException {
+    try (java.sql.Connection c = jdbcConnection();
+        java.sql.PreparedStatement ps =
+            c.prepareStatement("DELETE FROM revision WHERE node_id = ?")) {
+      ps.setString(1, nodeId);
+      ps.executeUpdate();
+    }
+  }
+
   // ---------------------------------------------------------------------------------------------
   // restoreNodes
   // ---------------------------------------------------------------------------------------------
@@ -324,6 +333,32 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
     Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
+  }
+
+  @Test
+  void givenAFileWithoutVersionRowAndAnIdWithoutPermissionRestoreNodesShouldKeepBothFailureSlots()
+      throws SQLException {
+    // Given
+    String noVersionId =
+        seedFile(
+            "noVersion.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    seedTrashed(noVersionId, OWNER_COOKIE);
+    deleteRevisionRows(noVersionId);
+    String notMineId =
+        seedFile(
+            "notMine.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+
+    // When
+    Response response = restoreNodes(new String[] {noVersionId, notMineId}, OWNER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.jsonPath().getList("data.restoreNodes")).hasSize(2);
+    Assertions.assertThat(response.jsonPath().getString("data.restoreNodes[0].id"))
+        .isEqualTo(noVersionId);
+    Assertions.assertThat(response.jsonPath().getList("data.restoreNodes").get(1)).isNull();
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("FILE_VERSION_NOT_FOUND");
   }
 
   @Test

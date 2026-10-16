@@ -635,10 +635,10 @@ public class NodeApi {
                             })
                         .collect(Collectors.toList()));
 
-    NodeModelFactory.requireVersions(results, results);
+    List<NodeModel> withErrorSlots = new ArrayList<>(results);
+    nodesInError.forEach(id -> withErrorSlots.add(null));
+    NodeModelFactory.requireVersions(results, withErrorSlots);
     if (!nodesInError.isEmpty()) {
-      List<NodeModel> withErrorSlots = new ArrayList<>(results);
-      nodesInError.forEach(id -> withErrorSlots.add(null));
       throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0))
           .withPartialResults(withErrorSlots);
     }
