@@ -68,7 +68,7 @@ public class FilesIdentityProvider implements IdentityProvider<FilesAuthenticati
     if (UserType.GUEST.equals(user.getType())) {
       throw reject(ctx, 403, "Failed to authorize request", request, "User is not internal");
     }
-    if (!"TRUE"
+    if ("FALSE"
         .equals(
             user.getCarbonioAttributes().getOrDefault("carbonioFeatureFilesEnabled", "FALSE"))) {
       throw reject(

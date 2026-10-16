@@ -120,4 +120,39 @@ class FilesIdentityProviderTest {
             FilesGraphQLAuthMechanism.CTX_MESSAGE,
             "Failed to authorize request /graphql/: User is not active");
   }
+
+  @Test
+  void givenTheFeatureFlagIsAbsentWhenResolvingThen403IsStored() {
+    Supplier<SecurityIdentity> supplier = captureBlockingSupplier();
+    UserMyself user = user(UserStatus.ACTIVE, UserType.INTERNAL, Map.of());
+    when(userRepository.getUserMyselfByCookie(COOKIES)).thenReturn(Optional.of(user));
+
+    assertThatThrownBy(supplier::get).isInstanceOf(AuthenticationFailedException.class);
+    verify(routingContext).put(FilesGraphQLAuthMechanism.CTX_STATUS, 403);
+    verify(routingContext)
+        .put(
+            FilesGraphQLAuthMechanism.CTX_MESSAGE,
+            "Failed to authorize request /graphql/: Files feature is not enabled for user");
+  }
+
+  @Test
+  void givenTheFeatureFlagIsExplicitlyFalseWhenResolvingThen403IsStored() {
+    Supplier<SecurityIdentity> supplier = captureBlockingSupplier();
+    UserMyself user =
+        user(UserStatus.ACTIVE, UserType.INTERNAL, Map.of("carbonioFeatureFilesEnabled", "FALSE"));
+    when(userRepository.getUserMyselfByCookie(COOKIES)).thenReturn(Optional.of(user));
+
+    assertThatThrownBy(supplier::get).isInstanceOf(AuthenticationFailedException.class);
+    verify(routingContext).put(FilesGraphQLAuthMechanism.CTX_STATUS, 403);
+  }
+
+  @Test
+  void givenAFeatureFlagValueOtherThanFalseWhenResolvingThenTheUserIsAccepted() {
+    Supplier<SecurityIdentity> supplier = captureBlockingSupplier();
+    UserMyself user =
+        user(UserStatus.ACTIVE, UserType.INTERNAL, Map.of("carbonioFeatureFilesEnabled", "false"));
+    when(userRepository.getUserMyselfByCookie(COOKIES)).thenReturn(Optional.of(user));
+
+    assertThat(supplier.get().isAnonymous()).isFalse();
+  }
 }
