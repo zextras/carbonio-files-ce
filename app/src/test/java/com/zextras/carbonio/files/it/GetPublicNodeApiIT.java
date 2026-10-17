@@ -104,12 +104,16 @@ class GetPublicNodeApiIT extends AbstractFilesIT {
         seedFile("test.txt", LOCAL_ROOT, "conte".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
     String publicId = createLinkAndGetPublicId(nodeId, null, null, OWNER_COOKIE);
 
-    // When
+    // When — NOTE: legacy schema used the same "File" type name for public nodes; the code-first
+    // unified schema uses "PublicFile" (from @Type("PublicFile") on PublicFileModel) distinct from
+    // "File" (the authenticated Node-interface implementation). Inline fragment updated
+    // accordingly.
     Response response =
         getPublicNode(
             publicId,
             null,
-            "{ id created_at updated_at name type ... on File { extension mime_type size } }");
+            "{ id created_at updated_at name type ... on PublicFile { extension mime_type size }"
+                + " }");
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);

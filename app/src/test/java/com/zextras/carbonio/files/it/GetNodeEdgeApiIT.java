@@ -99,6 +99,21 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenANegativeSharesLimitTheSharesFieldIsASingleNullWithoutErrors() {
+    // Given
+    String nodeId = seedFolder("negativeLimit", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    // When
+    Response response =
+        getNode(nodeId, null, "{ id shares(limit: -1) { created_at } }", REQUESTER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.getBody().asString())
+        .isEqualTo("{\"data\":{\"getNode\":{\"id\":\"" + nodeId + "\",\"shares\":[null]}}}");
+  }
+
+  @Test
   void givenAReadableParentTheParentFieldResolvesNormally() {
     // Given — contrast case: same shape, but the parent IS owned by the requester, so it IS
     // readable and the field resolves to real data instead of silently going null.
@@ -126,10 +141,8 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
 
     // Then — unlike the `parent` field, direct getNode surfaces a real error
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find node with id " + nonExistentId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_NOT_FOUND");
     Map<String, Object> node =
         TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node).isEmpty();
@@ -147,10 +160,8 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
 
     // Then — same nodeNotFound-shaped error as the not-found case; the gate cannot distinguish them
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find node with id " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_NOT_FOUND");
   }
 
   /**
@@ -197,5 +208,7 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly("Could not find version: 999 for node with id " + nodeId);
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("FILE_VERSION_NOT_FOUND");
   }
 }

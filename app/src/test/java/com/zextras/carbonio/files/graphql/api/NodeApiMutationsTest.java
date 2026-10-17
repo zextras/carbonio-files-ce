@@ -1,0 +1,742 @@
+// SPDX-FileCopyrightText: 2026 Zextras <https://www.zextras.com>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package com.zextras.carbonio.files.graphql.api;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.zextras.carbonio.files.Constants.Db.RootId;
+import com.zextras.carbonio.files.config.FilesConfig;
+import com.zextras.carbonio.files.dal.dao.UserId;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
+import com.zextras.carbonio.files.dal.dao.ebean.ACL;
+import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
+import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
+import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
+import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
+import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
+import com.zextras.carbonio.files.graphql.model.FolderModel;
+import com.zextras.carbonio.files.graphql.model.NodeModel;
+import com.zextras.carbonio.files.graphql.spi.CopyFailureClassifier;
+import com.zextras.carbonio.files.graphql.support.NodeCreationHelper;
+import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
+import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.filestore.api.Filestore;
+import com.zextras.filestore.api.UploadResponse;
+import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.narayana.jta.QuarkusTransactionException;
+import io.quarkus.narayana.jta.TransactionRunnerOptions;
+import io.smallrye.graphql.api.Context;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+
+class NodeApiMutationsTest {
+
+  private static final String REQUESTER_ID = "requester-user-id";
+  private static final String CLONING_USER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  private static final String PARENT_ID = "00000000-0000-0000-0000-000000000000";
+  private static final String NODE_ID_1 = "00000000-0000-0000-0000-000000000001";
+  private static final String NODE_ID_2 = "00000000-0000-0000-0000-000000000002";
+
+  private NodeRepository nodeRepository;
+  private FileVersionRepository fileVersionRepository;
+  private PermissionsChecker permissionsChecker;
+  private ShareRepository shareRepository;
+  private NotificationRepository notificationRepository;
+  private TombstoneRepository tombstoneRepository;
+  private Filestore fileStore;
+  private ShareCascadeHelper shareCascade;
+  private NodeCreationHelper nodeCreationHelper;
+  private FilesConfig filesConfig;
+  private CopyFailureClassifier copyFailureClassifier;
+  private Context gqlContext;
+  private NodeApi nodeApi;
+
+  @BeforeEach
+  void setUp() {
+    nodeRepository = mock(NodeRepository.class);
+    fileVersionRepository = mock(FileVersionRepository.class);
+    permissionsChecker = mock(PermissionsChecker.class);
+    shareRepository = mock(ShareRepository.class);
+    notificationRepository = mock(NotificationRepository.class);
+    tombstoneRepository = mock(TombstoneRepository.class);
+    fileStore = mock(Filestore.class);
+    shareCascade = mock(ShareCascadeHelper.class);
+    filesConfig = mock(FilesConfig.class);
+    copyFailureClassifier = mock(CopyFailureClassifier.class);
+    gqlContext = mock(Context.class);
+
+    UserMyself requester = mock(UserMyself.class);
+    UserId userId = new UserId(REQUESTER_ID);
+    when(requester.getId()).thenReturn(userId);
+
+    nodeCreationHelper =
+        new NodeCreationHelper(
+            nodeRepository,
+            shareRepository,
+            notificationRepository,
+            filesConfig,
+            fileVersionRepository,
+            tombstoneRepository,
+            fileStore,
+            permissionsChecker,
+            shareCascade);
+
+    nodeApi = new NodeApi();
+    nodeApi.nodeRepository = nodeRepository;
+    nodeApi.fileVersionRepository = fileVersionRepository;
+    nodeApi.permissionsChecker = permissionsChecker;
+    nodeApi.shareRepository = shareRepository;
+    nodeApi.notificationRepository = notificationRepository;
+    nodeApi.tombstoneRepository = tombstoneRepository;
+    nodeApi.fileStore = fileStore;
+    nodeApi.shareCascade = shareCascade;
+    nodeApi.filesConfig = filesConfig;
+    nodeApi.nodeCreationHelper = nodeCreationHelper;
+    nodeApi.validator = new GraphQLInputValidator();
+    nodeApi.requester = requester;
+    nodeApi.copyFailureClassifier = copyFailureClassifier;
+    nodeApi.gqlContext = gqlContext;
+  }
+
+  private Node mockFolderNode(String id, String parentId) {
+    Node node = mock(Node.class);
+    when(node.getId()).thenReturn(id);
+    when(node.getName()).thenReturn("testfolder");
+    when(node.getNodeType()).thenReturn(NodeType.FOLDER);
+    when(node.getNodeCategory()).thenReturn(NodeCategory.FOLDER);
+    when(node.getDescription()).thenReturn(Optional.empty());
+    when(node.getParentId()).thenReturn(Optional.of(parentId));
+    when(node.getOwnerId()).thenReturn(REQUESTER_ID);
+    when(node.getCreatorId()).thenReturn(REQUESTER_ID);
+    when(node.getLastEditorId()).thenReturn(Optional.empty());
+    when(node.getCreatedAt()).thenReturn(1000L);
+    when(node.getUpdatedAt()).thenReturn(2000L);
+    when(node.getAncestorsList()).thenReturn(List.of("LOCAL_ROOT"));
+    when(node.getAncestorIds()).thenReturn("LOCAL_ROOT");
+    when(node.getCustomAttributes()).thenReturn(Collections.emptyList());
+    when(node.getFileVersions()).thenReturn(Collections.emptyList());
+    return node;
+  }
+
+  private Node mockRootNode(String id) {
+    Node node = mock(Node.class);
+    when(node.getId()).thenReturn(id);
+    when(node.getName()).thenReturn("HOME");
+    when(node.getNodeType()).thenReturn(NodeType.ROOT);
+    when(node.getNodeCategory()).thenReturn(NodeCategory.ROOT);
+    when(node.getDescription()).thenReturn(Optional.empty());
+    when(node.getParentId()).thenReturn(Optional.empty());
+    when(node.getOwnerId()).thenReturn(REQUESTER_ID);
+    when(node.getCreatorId()).thenReturn(REQUESTER_ID);
+    when(node.getLastEditorId()).thenReturn(Optional.empty());
+    when(node.getCreatedAt()).thenReturn(1000L);
+    when(node.getUpdatedAt()).thenReturn(2000L);
+    when(node.getAncestorsList()).thenReturn(Collections.emptyList());
+    when(node.getAncestorIds()).thenReturn("");
+    when(node.getCustomAttributes()).thenReturn(Collections.emptyList());
+    when(node.getFileVersions()).thenReturn(Collections.emptyList());
+    return node;
+  }
+
+  private Node mockFileNode(String id, String parentId) {
+    Node node = mock(Node.class);
+    when(node.getId()).thenReturn(id);
+    when(node.getName()).thenReturn("testfile");
+    when(node.getNodeType()).thenReturn(NodeType.TEXT);
+    when(node.getNodeCategory()).thenReturn(NodeCategory.FILE);
+    when(node.getDescription()).thenReturn(Optional.empty());
+    when(node.getParentId()).thenReturn(Optional.of(parentId));
+    when(node.getOwnerId()).thenReturn(REQUESTER_ID);
+    when(node.getCreatorId()).thenReturn(REQUESTER_ID);
+    when(node.getLastEditorId()).thenReturn(Optional.of(REQUESTER_ID));
+    when(node.getCreatedAt()).thenReturn(1000L);
+    when(node.getUpdatedAt()).thenReturn(2000L);
+    when(node.getExtension()).thenReturn(Optional.of("txt"));
+    when(node.getFullName()).thenReturn("testfile.txt");
+    when(node.getCurrentVersion()).thenReturn(1);
+    when(node.getAncestorsList()).thenReturn(List.of("LOCAL_ROOT"));
+    when(node.getAncestorIds()).thenReturn("LOCAL_ROOT");
+    when(node.getCustomAttributes()).thenReturn(Collections.emptyList());
+
+    FileVersion fv = mock(FileVersion.class);
+    when(fv.getVersion()).thenReturn(1);
+    when(fv.getMimeType()).thenReturn("text/plain");
+    when(fv.getSize()).thenReturn(512L);
+    when(fv.getDigest()).thenReturn("abc123");
+    when(fv.isKeptForever()).thenReturn(false);
+    when(fv.getClonedFromVersion()).thenReturn(Optional.empty());
+    when(fv.getLastEditorId()).thenReturn(REQUESTER_ID);
+    when(fv.getUpdatedAt()).thenReturn(2000L);
+    when(node.getFileVersions()).thenReturn(List.of(fv));
+    return node;
+  }
+
+  private ACL aclWith(boolean readAndWrite) {
+    if (readAndWrite) return ACL.decode(SharePermission.READ_AND_WRITE);
+    return ACL.decode((short) 0);
+  }
+
+  private static MockedStatic<QuarkusTransaction> inlineTransactions() {
+    return inlineTransactions(new AtomicBoolean());
+  }
+
+  private static MockedStatic<QuarkusTransaction> inlineTransactions(AtomicBoolean inTransaction) {
+    TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
+    doAnswer(
+            inv -> {
+              inTransaction.set(true);
+              try {
+                ((Runnable) inv.getArgument(0)).run();
+                return null;
+              } finally {
+                inTransaction.set(false);
+              }
+            })
+        .when(runOptions)
+        .run(any(Runnable.class));
+    doAnswer(
+            inv -> {
+              inTransaction.set(true);
+              try {
+                return ((Callable<?>) inv.getArgument(0)).call();
+              } catch (RuntimeException e) {
+                throw e;
+              } catch (Exception e) {
+                throw new QuarkusTransactionException(e);
+              } finally {
+                inTransaction.set(false);
+              }
+            })
+        .when(runOptions)
+        .call(any(Callable.class));
+    MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class);
+    txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
+    return txMock;
+  }
+
+  // ─── createFolder ─────────────────────────────────────────────────────────────
+
+  @Test
+  void createFolderHappyPathReturnsFolderModel() throws Exception {
+    Node parent = mockFolderNode(PARENT_ID, "LOCAL_ROOT");
+    when(parent.getNodeType()).thenReturn(NodeType.FOLDER);
+    Node created = mockFolderNode(NODE_ID_1, PARENT_ID);
+    when(created.getOwnerId()).thenReturn(REQUESTER_ID);
+
+    when(permissionsChecker.getPermissions(PARENT_ID, REQUESTER_ID)).thenReturn(aclWith(true));
+    when(nodeRepository.getNode(PARENT_ID)).thenReturn(Optional.of(parent));
+    when(nodeRepository.findNodes(
+            any(),
+            any(),
+            any(),
+            eq(Optional.of(PARENT_ID)),
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+            any()))
+        .thenReturn(org.apache.commons.lang3.tuple.ImmutablePair.of(Collections.emptyList(), null));
+    when(nodeRepository.createNewNode(
+            any(),
+            eq(REQUESTER_ID),
+            eq(REQUESTER_ID),
+            eq(PARENT_ID),
+            anyString(),
+            eq(""),
+            eq(NodeType.FOLDER),
+            any(),
+            eq(0L)))
+        .thenReturn(created);
+    when(shareRepository.getShares(eq(PARENT_ID), eq(Collections.emptyList())))
+        .thenReturn(Collections.emptyList());
+    when(filesConfig.areNotificationsEnabled()).thenReturn(false);
+
+    NodeModel result;
+    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
+      result = nodeApi.createFolder(PARENT_ID, "TestFolder");
+    }
+
+    assertThat(result).isInstanceOf(FolderModel.class);
+    assertThat(result.getId()).isEqualTo(NODE_ID_1);
+    verify(nodeRepository).lockChildNames(PARENT_ID, REQUESTER_ID);
+    verify(nodeRepository)
+        .createNewNode(
+            any(),
+            eq(REQUESTER_ID),
+            eq(REQUESTER_ID),
+            eq(PARENT_ID),
+            anyString(),
+            eq(""),
+            eq(NodeType.FOLDER),
+            any(),
+            eq(0L));
+  }
+
+  @Test
+  void createFolderThrowsNodeWriteErrorWhenPermissionDenied() {
+    when(permissionsChecker.getPermissions(PARENT_ID, REQUESTER_ID)).thenReturn(aclWith(false));
+
+    assertThatThrownBy(() -> nodeApi.createFolder(PARENT_ID, "Folder"))
+        .isInstanceOf(FilesGraphQLException.class)
+        .satisfies(
+            ex ->
+                assertThat(((FilesGraphQLException) ex).getErrorCode())
+                    .isEqualTo(ErrorCodes.NODE_WRITE_ERROR));
+
+    verify(nodeRepository, never())
+        .createNewNode(any(), any(), any(), any(), any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void createFolderThrowsNodeNotFoundWhenParentDoesNotExist() {
+    when(permissionsChecker.getPermissions(PARENT_ID, REQUESTER_ID)).thenReturn(aclWith(true));
+    when(nodeRepository.getNode(PARENT_ID)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> nodeApi.createFolder(PARENT_ID, "Folder"))
+        .isInstanceOf(FilesGraphQLException.class)
+        .satisfies(
+            ex ->
+                assertThat(((FilesGraphQLException) ex).getErrorCode())
+                    .isEqualTo(ErrorCodes.NODE_NOT_FOUND));
+  }
+
+  // ─── updateNode ───────────────────────────────────────────────────────────────
+
+  @Test
+  void updateNodeHappyPathReturnsMappedNode() throws Exception {
+    Node node = mockFolderNode(NODE_ID_1, PARENT_ID);
+    when(node.getExtension()).thenReturn(Optional.empty());
+
+    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
+    when(nodeRepository.getNodeForUpdate(NODE_ID_1)).thenReturn(Optional.of(node));
+
+    NodeModel result;
+    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
+      result = nodeApi.updateNode(NODE_ID_1, null, null, null);
+    }
+
+    assertThat(result).isInstanceOf(FolderModel.class);
+    assertThat(result.getId()).isEqualTo(NODE_ID_1);
+    verify(nodeRepository).getNodeForUpdate(NODE_ID_1);
+    verify(nodeRepository).updateNode(node);
+    verify(nodeRepository, never()).getNode(NODE_ID_1);
+  }
+
+  @Test
+  void updateNodeThrowsNodeDuplicatedWhenNameConflicts() {
+    Node node = mockFolderNode(NODE_ID_1, PARENT_ID);
+    when(node.getExtension()).thenReturn(Optional.empty());
+    Node conflict = mockFolderNode("conflict-id", PARENT_ID);
+
+    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
+    when(nodeRepository.getNodeForUpdate(NODE_ID_1)).thenReturn(Optional.of(node));
+    when(nodeRepository.getNodeByName("NewName", PARENT_ID, REQUESTER_ID))
+        .thenReturn(Optional.of(conflict));
+
+    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
+      assertThatThrownBy(() -> nodeApi.updateNode(NODE_ID_1, "NewName", null, null))
+          .isInstanceOf(FilesGraphQLException.class)
+          .satisfies(
+              ex ->
+                  assertThat(((FilesGraphQLException) ex).getErrorCode())
+                      .isEqualTo(ErrorCodes.NODE_DUPLICATED));
+    }
+    verify(nodeRepository).lockChildNames(PARENT_ID, REQUESTER_ID);
+    verify(nodeRepository, never()).updateNode(any());
+  }
+
+  @Test
+  void updateNodeThrowsNodeNotFoundWhenPermissionDenied() {
+    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(false));
+
+    assertThatThrownBy(() -> nodeApi.updateNode(NODE_ID_1, "Name", null, null))
+        .isInstanceOf(FilesGraphQLException.class)
+        .satisfies(
+            ex ->
+                assertThat(((FilesGraphQLException) ex).getErrorCode())
+                    .isEqualTo(ErrorCodes.NODE_NOT_FOUND));
+  }
+
+  // ─── flagNodes ────────────────────────────────────────────────────────────────
+
+  @Test
+  void flagNodesThrowsWhenNodeIdsIsNull() {
+    assertThatThrownBy(() -> nodeApi.flagNodes(null, true))
+        .isInstanceOf(NullPointerException.class);
+    verify(nodeRepository, never()).getNode(any());
+  }
+
+  @Test
+  void flagNodesPartialSuccessThrowsFilesGraphQLExceptionWithPartialResults() {
+    Node node1 = mockFolderNode(NODE_ID_1, PARENT_ID);
+    Node node2 = mockFolderNode(NODE_ID_2, PARENT_ID);
+
+    when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node1));
+    when(nodeRepository.getNode(NODE_ID_2)).thenReturn(Optional.of(node2));
+    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
+    when(permissionsChecker.getPermissions(NODE_ID_2, REQUESTER_ID)).thenReturn(aclWith(false));
+
+    try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
+      TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
+      doAnswer(
+              inv -> {
+                ((Runnable) inv.getArgument(0)).run();
+                return null;
+              })
+          .when(runOptions)
+          .run(any(Runnable.class));
+      txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
+
+      assertThatThrownBy(() -> nodeApi.flagNodes(List.of(NODE_ID_1, NODE_ID_2), true))
+          .isInstanceOf(FilesGraphQLException.class)
+          .satisfies(
+              ex -> {
+                FilesGraphQLException fex = (FilesGraphQLException) ex;
+                assertThat(fex.getErrorCode()).isEqualTo(ErrorCodes.NODE_WRITE_ERROR);
+                assertThat(fex.getPartialResults()).isInstanceOf(List.class);
+                @SuppressWarnings("unchecked")
+                List<String> partial = (List<String>) fex.getPartialResults();
+                assertThat(partial).containsExactly(NODE_ID_1);
+              });
+    }
+
+    verify(nodeRepository).flagForUser(NODE_ID_1, REQUESTER_ID, true);
+    verify(nodeRepository, never()).flagForUser(eq(NODE_ID_2), any(), anyBoolean());
+  }
+
+  @Test
+  void flagNodesHappyPathReturnsAllFlaggedIds() throws Exception {
+    Node node1 = mockFolderNode(NODE_ID_1, PARENT_ID);
+    Node node2 = mockFolderNode(NODE_ID_2, PARENT_ID);
+
+    when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node1));
+    when(nodeRepository.getNode(NODE_ID_2)).thenReturn(Optional.of(node2));
+    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
+    when(permissionsChecker.getPermissions(NODE_ID_2, REQUESTER_ID)).thenReturn(aclWith(true));
+
+    try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
+      TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
+      doAnswer(
+              inv -> {
+                ((Runnable) inv.getArgument(0)).run();
+                return null;
+              })
+          .when(runOptions)
+          .run(any(Runnable.class));
+      txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
+
+      List<String> result = nodeApi.flagNodes(List.of(NODE_ID_1, NODE_ID_2), true);
+
+      assertThat(result).containsExactlyInAnyOrder(NODE_ID_1, NODE_ID_2);
+    }
+
+    verify(nodeRepository).flagForUser(NODE_ID_1, REQUESTER_ID, true);
+    verify(nodeRepository).flagForUser(NODE_ID_2, REQUESTER_ID, true);
+  }
+
+  // ─── deleteNodes ──────────────────────────────────────────────────────────────
+
+  @Test
+  void deleteNodesThrowsWhenNodeIdsIsNull() {
+    assertThatThrownBy(() -> nodeApi.deleteNodes(null)).isInstanceOf(NullPointerException.class);
+    verify(nodeRepository, never()).getNode(any());
+  }
+
+  @Test
+  void deleteNodesThrowsNodeWriteErrorWhenPermissionDeniedForAll() {
+    when(nodeRepository.getNodes(eq(List.of(NODE_ID_1)), any())).thenReturn(Stream.of());
+
+    try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
+      TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
+      doAnswer(
+              inv -> {
+                ((Runnable) inv.getArgument(0)).run();
+                return null;
+              })
+          .when(runOptions)
+          .run(any(Runnable.class));
+      txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
+
+      assertThatThrownBy(() -> nodeApi.deleteNodes(List.of(NODE_ID_1)))
+          .isInstanceOf(FilesGraphQLException.class)
+          .satisfies(
+              ex -> {
+                FilesGraphQLException fex = (FilesGraphQLException) ex;
+                assertThat(fex.getErrorCode()).isEqualTo(ErrorCodes.NODE_NOT_FOUND);
+              });
+    }
+  }
+
+  // ─── restoreNodes ─────────────────────────────────────────────────────────────
+
+  private Node trashedFolder(String id) {
+    Node node =
+        spy(
+            new Node(
+                id,
+                REQUESTER_ID,
+                REQUESTER_ID,
+                RootId.TRASH_ROOT,
+                0L,
+                0L,
+                "folder-" + id,
+                "",
+                NodeType.FOLDER,
+                RootId.TRASH_ROOT,
+                0L));
+    doReturn(List.of()).when(node).getCustomAttributes();
+    return node;
+  }
+
+  @Test
+  void restoreNodesLocksEveryDestinationBeforeRestoringAFolderTogetherWithItsTrashedChild()
+      throws Exception {
+    Node parent =
+        new Node(
+            PARENT_ID,
+            REQUESTER_ID,
+            REQUESTER_ID,
+            RootId.LOCAL_ROOT,
+            0L,
+            0L,
+            "parent",
+            "",
+            NodeType.FOLDER,
+            RootId.LOCAL_ROOT,
+            0L);
+    Node folder = trashedFolder(NODE_ID_1);
+    Node child = trashedFolder(NODE_ID_2);
+    List<String> nodeIds = List.of(NODE_ID_1, NODE_ID_2);
+    when(nodeRepository.getNode(PARENT_ID)).thenReturn(Optional.of(parent));
+    when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(folder));
+    when(nodeRepository.getNode(NODE_ID_2)).thenReturn(Optional.of(child));
+    when(nodeRepository.getTrashedNode(NODE_ID_1))
+        .thenReturn(Optional.of(new TrashedNode(NODE_ID_1, PARENT_ID)));
+    when(nodeRepository.getTrashedNode(NODE_ID_2))
+        .thenReturn(Optional.of(new TrashedNode(NODE_ID_2, NODE_ID_1)));
+    when(permissionsChecker.getPermissions(anyString(), eq(REQUESTER_ID)))
+        .thenReturn(aclWith(true));
+    when(nodeRepository.getNodesForUpdate(nodeIds)).thenReturn(List.of(folder, child));
+    when(nodeRepository.getNodes(nodeIds, Optional.empty()))
+        .thenAnswer(inv -> Stream.of(folder, child));
+    List<String> events = new ArrayList<>();
+    doAnswer(
+            inv -> {
+              events.add("lock " + inv.getArgument(0));
+              return null;
+            })
+        .when(nodeRepository)
+        .lockChildNames(anyString(), eq(REQUESTER_ID));
+    doAnswer(
+            inv -> {
+              events.add("restore " + inv.getArgument(0));
+              return null;
+            })
+        .when(nodeRepository)
+        .restoreNode(anyString());
+
+    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
+      assertThat(nodeApi.restoreNodes(nodeIds)).hasSize(2);
+    }
+
+    assertThat(events)
+        .containsExactly(
+            "lock " + PARENT_ID,
+            "lock " + RootId.LOCAL_ROOT,
+            "restore " + NODE_ID_1,
+            "restore " + NODE_ID_2);
+    assertThat(child.getParentId()).contains(RootId.LOCAL_ROOT);
+  }
+
+  // ─── keepVersions ─────────────────────────────────────────────────────────────
+
+  @Test
+  void keepVersionsReadsAndUpdatesTheVersionsInsideItsTransaction() throws Exception {
+    AtomicBoolean inTransaction = new AtomicBoolean();
+    List<Boolean> accessedInTransaction = new ArrayList<>();
+    FileVersion version =
+        new FileVersion(NODE_ID_1, REQUESTER_ID, 0L, 1, "text/plain", 1L, "digest", false);
+    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
+    when(filesConfig.getMaxNumberOfVersions()).thenReturn(30);
+    when(fileVersionRepository.getFileVersions(NODE_ID_1, List.of(FileVersionSort.VERSION_DESC)))
+        .thenAnswer(
+            inv -> {
+              accessedInTransaction.add(inTransaction.get());
+              return List.of(version);
+            });
+    when(fileVersionRepository.getFileVersions(NODE_ID_1, List.of(1)))
+        .thenAnswer(
+            inv -> {
+              accessedInTransaction.add(inTransaction.get());
+              return List.of(version);
+            });
+    when(fileVersionRepository.updateFileVersion(version))
+        .thenAnswer(
+            inv -> {
+              accessedInTransaction.add(inTransaction.get());
+              return version;
+            });
+
+    List<Integer> kept;
+    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions(inTransaction)) {
+      kept = nodeApi.keepVersions(NODE_ID_1, List.of(1), true);
+    }
+
+    assertThat(kept).containsExactly(1);
+    assertThat(version.isKeptForever()).isTrue();
+    assertThat(accessedInTransaction).containsExactly(true, true, true);
+  }
+
+  // ─── cloneVersion copy failures ───────────────────────────────────────────────
+
+  private void givenACloneVersionWhoseStorageCopyFails() throws Exception {
+    Node node = mockFileNode(NODE_ID_1, PARENT_ID);
+    when(nodeApi.requester.getId()).thenReturn(new UserId(CLONING_USER_ID));
+    when(permissionsChecker.getPermissions(NODE_ID_1, CLONING_USER_ID)).thenReturn(aclWith(true));
+    when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node));
+    when(nodeRepository.getNodeForUpdate(NODE_ID_1)).thenReturn(Optional.of(node));
+    when(filesConfig.getMaxNumberOfVersions()).thenReturn(10);
+    when(fileVersionRepository.getFileVersions(NODE_ID_1, List.of(FileVersionSort.VERSION_DESC)))
+        .thenReturn(List.of());
+    when(fileVersionRepository.getFileVersion(NODE_ID_1, 1))
+        .thenReturn(Optional.of(mock(FileVersion.class)));
+    when(fileStore.copy(any(), any(), anyBoolean())).thenThrow(new RuntimeException("boom"));
+  }
+
+  @Test
+  void cloneVersionCopyFailureThatIsNotQuotaHasMainsMessageAndNoErrorCode() throws Exception {
+    givenACloneVersionWhoseStorageCopyFails();
+    when(copyFailureClassifier.classify(any())).thenReturn(ErrorCodes.NODE_COPY_ERROR);
+    when(gqlContext.getPath()).thenReturn("/cloneVersion");
+
+    assertThatThrownBy(() -> nodeApi.cloneVersion(NODE_ID_1, 1))
+        .isInstanceOfSatisfying(
+            FilesGraphQLException.class,
+            ex -> {
+              assertThat(ex.getErrorCode()).isNull();
+              assertThat(ex.getMessage())
+                  .isEqualTo(
+                      "Exception while fetching data (/cloneVersion) : Copy error with nodeId: "
+                          + NODE_ID_1
+                          + " and version 1");
+            });
+  }
+
+  @Test
+  void cloneVersionCopyFailureClassifiedAsQuotaKeepsTheClassifiedCode() throws Exception {
+    givenACloneVersionWhoseStorageCopyFails();
+    when(copyFailureClassifier.classify(any())).thenReturn(ErrorCodes.OVER_QUOTA_REACHED);
+
+    assertThatThrownBy(() -> nodeApi.cloneVersion(NODE_ID_1, 1))
+        .isInstanceOfSatisfying(
+            FilesGraphQLException.class,
+            ex -> {
+              assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.OVER_QUOTA_REACHED);
+              assertThat(ex.getMessage())
+                  .isEqualTo("User quota has been reached for user " + NODE_ID_1);
+              assertThat(ex.getExtensions()).isEmpty();
+            });
+  }
+
+  @Test
+  void copyFailureErrorPrefersNodeWriteErrorOverAnOverQuotaFailure() {
+    Node unreadable = mockFileNode(NODE_ID_1, PARENT_ID);
+    Node quotaFailed = mockFileNode(NODE_ID_2, PARENT_ID);
+    Throwable cause = new RuntimeException("quota");
+    when(copyFailureClassifier.classify(cause)).thenReturn(ErrorCodes.OVER_QUOTA_REACHED);
+
+    FilesGraphQLException error =
+        nodeApi.copyFailureError(
+            List.of(unreadable), List.of(new NodeApi.CopyFailure(quotaFailed, cause)));
+
+    assertThat(error.getErrorCode()).isEqualTo(ErrorCodes.NODE_WRITE_ERROR);
+    assertThat(error.getMessage())
+        .isEqualTo("There was a problem while executing requested operation on node: " + NODE_ID_1);
+  }
+
+  @Test
+  void copyFailureErrorUsesTheOverQuotaVerdictWhenEveryNodeWasReadable() {
+    Node quotaFailed = mockFileNode(NODE_ID_2, PARENT_ID);
+    Throwable cause = new RuntimeException("quota");
+    when(copyFailureClassifier.classify(cause)).thenReturn(ErrorCodes.OVER_QUOTA_REACHED);
+
+    FilesGraphQLException error =
+        nodeApi.copyFailureError(List.of(), List.of(new NodeApi.CopyFailure(quotaFailed, cause)));
+
+    assertThat(error.getErrorCode()).isEqualTo(ErrorCodes.OVER_QUOTA_REACHED);
+  }
+
+  @Test
+  void cloneVersionFailureAfterTheBlobCopyIsNotReportedAsACopyError() throws Exception {
+    givenACloneVersionWhoseStorageCopyFails();
+    doReturn(mock(UploadResponse.class)).when(fileStore).copy(any(), any(), anyBoolean());
+    when(fileVersionRepository.createNewFileVersion(
+            any(), any(), anyInt(), any(), anyLong(), any(), anyBoolean()))
+        .thenThrow(new IllegalStateException("db down"));
+
+    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
+      assertThatThrownBy(() -> nodeApi.cloneVersion(NODE_ID_1, 1))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage("db down");
+    }
+    verify(copyFailureClassifier, never()).classify(any());
+  }
+
+  @Test
+  void copyFailureErrorReportsTheFirstFailureInProcessingOrderWhateverItsClassification() {
+    Node first = mockFileNode(NODE_ID_1, PARENT_ID);
+    Node second = mockFileNode(NODE_ID_2, PARENT_ID);
+    Throwable generic = new RuntimeException("generic");
+    Throwable quota = new RuntimeException("quota");
+    when(copyFailureClassifier.classify(generic)).thenReturn(ErrorCodes.NODE_COPY_ERROR);
+    when(copyFailureClassifier.classify(quota)).thenReturn(ErrorCodes.OVER_QUOTA_REACHED);
+
+    FilesGraphQLException error =
+        nodeApi.copyFailureError(
+            List.of(),
+            List.of(
+                new NodeApi.CopyFailure(first, generic), new NodeApi.CopyFailure(second, quota)));
+
+    assertThat(error.getErrorCode()).isEqualTo(ErrorCodes.NODE_COPY_ERROR);
+    assertThat(error.getExtensions()).containsKey("nodeId");
+  }
+}

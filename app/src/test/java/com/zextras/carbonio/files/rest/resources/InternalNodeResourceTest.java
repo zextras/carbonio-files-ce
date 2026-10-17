@@ -26,8 +26,8 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
-import com.zextras.carbonio.files.graphql.datafetchers.LinkDataFetcher;
-import com.zextras.carbonio.files.graphql.datafetchers.NodeDataFetcher;
+import com.zextras.carbonio.files.graphql.support.LinkCreationHelper;
+import com.zextras.carbonio.files.graphql.support.NodeCreationHelper;
 import com.zextras.carbonio.files.rest.types.internal.CreateFolderRequest;
 import com.zextras.carbonio.files.rest.types.internal.CreatePublicLinkRequest;
 import com.zextras.carbonio.files.rest.types.internal.DeleteAllRequest;
@@ -58,8 +58,8 @@ class InternalNodeResourceTest {
   private NodeRepository nodeRepository;
   private UserRepository userRepository;
   private PermissionsChecker permissionsChecker;
-  private NodeDataFetcher nodeDataFetcher;
-  private LinkDataFetcher linkDataFetcher;
+  private NodeCreationHelper nodeCreationHelper;
+  private LinkCreationHelper linkCreationHelper;
   private InternalNodeResource resource;
 
   @BeforeEach
@@ -67,11 +67,15 @@ class InternalNodeResourceTest {
     nodeRepository = mock(NodeRepository.class);
     userRepository = mock(UserRepository.class);
     permissionsChecker = mock(PermissionsChecker.class);
-    nodeDataFetcher = mock(NodeDataFetcher.class);
-    linkDataFetcher = mock(LinkDataFetcher.class);
+    nodeCreationHelper = mock(NodeCreationHelper.class);
+    linkCreationHelper = mock(LinkCreationHelper.class);
     resource =
         new InternalNodeResource(
-            nodeRepository, userRepository, permissionsChecker, nodeDataFetcher, linkDataFetcher);
+            nodeRepository,
+            userRepository,
+            permissionsChecker,
+            nodeCreationHelper,
+            linkCreationHelper);
   }
 
   // -------------------------------------------------------------------------------------- getNode
@@ -130,7 +134,8 @@ class InternalNodeResourceTest {
   @Test
   void getNode_assemblesFileDto_usingFileVersionUpdatedAt_notNodeUpdatedAt() {
     // CRITICAL behaviour under test: updatedAt must come from the resolved FileVersion, not from
-    // Node#getUpdatedAt(), replicating NodeDataFetcher#convertNodeToDataFetcherResult's same-key
+    // Node#getUpdatedAt(), replicating the retired NodeDataFetcher#convertNodeToDataFetcherResult's
+    // same-key
     // map override.
     Node file = mock(Node.class);
     when(file.getId()).thenReturn(NODE_ID);
@@ -290,10 +295,10 @@ class InternalNodeResourceTest {
   // createFolder
 
   @Test
-  void createFolder_delegatesToNodeDataFetcher_withATrustedRequester() {
+  void createFolder_delegatesToNodeCreationHelper_withATrustedRequester() {
     Node created = mock(Node.class);
     when(created.getId()).thenReturn("new-folder-id");
-    when(nodeDataFetcher.createFolder(eq(USER_ID), eq(PARENT_ID), eq("New Folder"), any()))
+    when(nodeCreationHelper.createFolder(eq(USER_ID), eq(PARENT_ID), eq("New Folder"), any()))
         .thenReturn(created);
 
     RestResponse<InternalNodeIdDto> response =
@@ -303,15 +308,15 @@ class InternalNodeResourceTest {
     assertThat(response.getEntity().nodeId()).isEqualTo("new-folder-id");
 
     ArgumentCaptor<UserMyself> requesterCaptor = ArgumentCaptor.forClass(UserMyself.class);
-    verify(nodeDataFetcher)
+    verify(nodeCreationHelper)
         .createFolder(eq(USER_ID), eq(PARENT_ID), eq("New Folder"), requesterCaptor.capture());
     assertThat(requesterCaptor.getValue().getId().getUserId()).isEqualTo(USER_ID);
   }
 
   @Test
   void createFolder_mapsNodeAccessExceptionTo403() {
-    when(nodeDataFetcher.createFolder(any(), any(), any(), any()))
-        .thenThrow(new NodeDataFetcher.NodeAccessException(PARENT_ID));
+    when(nodeCreationHelper.createFolder(any(), any(), any(), any()))
+        .thenThrow(new NodeCreationHelper.NodeAccessException(PARENT_ID));
 
     RestResponse<InternalNodeIdDto> response =
         resource.createFolder(new CreateFolderRequest(USER_ID, PARENT_ID, "New Folder"));
@@ -321,8 +326,8 @@ class InternalNodeResourceTest {
 
   @Test
   void createFolder_mapsNodeNotFoundExceptionTo404() {
-    when(nodeDataFetcher.createFolder(any(), any(), any(), any()))
-        .thenThrow(new NodeDataFetcher.NodeNotFoundException(PARENT_ID));
+    when(nodeCreationHelper.createFolder(any(), any(), any(), any()))
+        .thenThrow(new NodeCreationHelper.NodeNotFoundException(PARENT_ID));
 
     RestResponse<InternalNodeIdDto> response =
         resource.createFolder(new CreateFolderRequest(USER_ID, PARENT_ID, "New Folder"));
@@ -342,7 +347,7 @@ class InternalNodeResourceTest {
 
     assertThat(response.getStatus()).isEqualTo(404);
     verifyNoInteractions(nodeRepository);
-    verifyNoInteractions(linkDataFetcher);
+    verifyNoInteractions(linkCreationHelper);
   }
 
   @Test
@@ -355,7 +360,7 @@ class InternalNodeResourceTest {
         resource.createPublicLink(new CreatePublicLinkRequest(USER_ID, NODE_ID));
 
     assertThat(response.getStatus()).isEqualTo(404);
-    verifyNoInteractions(linkDataFetcher);
+    verifyNoInteractions(linkCreationHelper);
   }
 
   @Test
@@ -367,10 +372,10 @@ class InternalNodeResourceTest {
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(folderNode));
 
     Link link = new Link("link-id", NODE_ID, "publicId123", 123L, null, null);
-    when(linkDataFetcher.createPublicLink(
+    when(linkCreationHelper.createPublicLink(
             USER_ID, NODE_ID, Optional.empty(), Optional.empty(), Optional.empty()))
         .thenReturn(link);
-    when(linkDataFetcher.buildPublicLinkUrl(link, "https://mydomain.example", true))
+    when(linkCreationHelper.buildPublicLinkUrl(link, "https://mydomain.example", true))
         .thenReturn("https://mydomain.example/files/public/link/access/publicId123");
 
     RestResponse<PublicLinkDto> response =
@@ -387,8 +392,8 @@ class InternalNodeResourceTest {
         .thenReturn(Optional.of(aUser("https://mydomain.example")));
     Node node = mock(Node.class);
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
-    when(linkDataFetcher.createPublicLink(any(), any(), any(), any(), any()))
-        .thenThrow(new LinkDataFetcher.LinkLimitReachedException(NODE_ID));
+    when(linkCreationHelper.createPublicLink(any(), any(), any(), any(), any()))
+        .thenThrow(new LinkCreationHelper.LinkLimitReachedException(NODE_ID));
 
     RestResponse<PublicLinkDto> response =
         resource.createPublicLink(new CreatePublicLinkRequest(USER_ID, NODE_ID));
@@ -402,8 +407,8 @@ class InternalNodeResourceTest {
         .thenReturn(Optional.of(aUser("https://mydomain.example")));
     Node node = mock(Node.class);
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
-    when(linkDataFetcher.createPublicLink(any(), any(), any(), any(), any()))
-        .thenThrow(new LinkDataFetcher.NodeAccessException(NODE_ID));
+    when(linkCreationHelper.createPublicLink(any(), any(), any(), any(), any()))
+        .thenThrow(new LinkCreationHelper.NodeAccessException(NODE_ID));
 
     RestResponse<PublicLinkDto> response =
         resource.createPublicLink(new CreatePublicLinkRequest(USER_ID, NODE_ID));
@@ -415,13 +420,13 @@ class InternalNodeResourceTest {
   // deleteAllNodesAndBlobs
 
   @Test
-  void deleteAllNodesAndBlobs_delegatesToNodeDataFetcherAndReturnsDeletedTrue() {
+  void deleteAllNodesAndBlobs_delegatesToNodeCreationHelperAndReturnsDeletedTrue() {
     RestResponse<DeleteAllResponse> response =
         resource.deleteAllNodesAndBlobs(new DeleteAllRequest(USER_ID));
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.getEntity().deleted()).isTrue();
-    verify(nodeDataFetcher).deleteAllNodesAndBlobsForUser(USER_ID);
+    verify(nodeCreationHelper).deleteAllNodesAndBlobsForUser(USER_ID);
   }
 
   // --------------------------------------------------------------------------------------- helpers

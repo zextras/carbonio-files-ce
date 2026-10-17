@@ -91,10 +91,8 @@ class DeleteVersionsCompletenessApiIT extends AbstractFilesIT {
     // Then — skipped, and surfaced with the EXACT SAME message/shape as "doesn't exist"
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(deletedVersions(response)).isEmpty();
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find version: 2 for node with id " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("FILE_VERSION_NOT_FOUND");
 
     // both versions remain; no tombstone was ever created (nothing was eligible)
     Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2);
@@ -125,10 +123,8 @@ class DeleteVersionsCompletenessApiIT extends AbstractFilesIT {
     // Then — skipped, and surfaced with the EXACT SAME message/shape as "doesn't exist"
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(deletedVersions(response)).isEmpty();
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find version: 2 for node with id " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("FILE_VERSION_NOT_FOUND");
 
     // all three versions remain; no tombstone was ever created
     Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2, 3);
@@ -148,10 +144,8 @@ class DeleteVersionsCompletenessApiIT extends AbstractFilesIT {
     // Then — byte-identical message shape to the two "protected" cases above
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(deletedVersions(response)).isEmpty();
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find version: 999 for node with id " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("FILE_VERSION_NOT_FOUND");
 
     Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
   }

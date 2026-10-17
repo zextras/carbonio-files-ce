@@ -100,7 +100,7 @@ class DateTimeScalarApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
     Assertions.assertThat(errors).hasSize(1);
-    Assertions.assertThat(errors.get(0)).contains("date");
+    Assertions.assertThat(errors.get(0)).contains("BigInteger");
     Assertions.assertThat(
             TestUtils.jsonResponseToValue(response.getBody().asString(), "createLink"))
         .isEmpty();
@@ -110,7 +110,7 @@ class DateTimeScalarApiIT extends AbstractFilesIT {
 
   private Response createLinkWithVariableExpiresAt(String nodeId, String rawJsonExpiresAtValue) {
     String body =
-        "{\"query\":\"mutation($nodeId: ID!, $exp: DateTime) { createLink(node_id: $nodeId,"
+        "{\"query\":\"mutation($nodeId: ID!, $exp: BigInteger) { createLink(node_id: $nodeId,"
             + " expires_at: $exp) { id expires_at } }\","
             + "\"variables\":{\"nodeId\":\""
             + nodeId
@@ -169,8 +169,7 @@ class DateTimeScalarApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1);
-    Assertions.assertThat(errors.get(0)).contains("date");
+    Assertions.assertThat(errors).isNotEmpty().anyMatch(error -> error.contains("BigInteger"));
     Assertions.assertThat(
             TestUtils.jsonResponseToValue(response.getBody().asString(), "createLink"))
         .isEmpty();

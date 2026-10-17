@@ -11,6 +11,10 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
 import org.assertj.core.api.Assertions;
@@ -90,6 +94,21 @@ class CopyNodesApiIT extends AbstractFilesIT {
         TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Map<String, Object> children = (Map<String, Object>) node.get("children");
     return (List<Map<String, Object>>) children.get("nodes");
+  }
+
+  @Test
+  void givenARootIdCopyShouldRejectItAndCreateNoNode() {
+    String destFolderId = seedFolder("dest", LOCAL_ROOT, REQUESTER_COOKIE);
+    String roots = "query { getRootsList { id } }";
+    String rootsBefore = graphql(roots, REQUESTER_COOKIE).getBody().asString();
+
+    Response response = copyNodes(new String[] {LOCAL_ROOT}, destFolderId, REQUESTER_COOKIE);
+
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("NODE_WRITE_ERROR");
+    Assertions.assertThat(childrenOf(destFolderId, REQUESTER_COOKIE)).isEmpty();
+    Assertions.assertThat(graphql(roots, REQUESTER_COOKIE).getBody().asString())
+        .isEqualTo(rootsBefore);
   }
 
   @Test
@@ -247,17 +266,51 @@ class CopyNodesApiIT extends AbstractFilesIT {
     // When
     Response response = copyNodes(new String[] {parentFolderId}, childFolderId, REQUESTER_COOKIE);
 
-    // Then — the single blocked source node bubbles TWO errors: the app's own nodeWriteError, PLUS
-    // a graphql-java-generated null-propagation error (see class javadoc) because the schema
-    // declares `copyNodes: [Node!]` (non-null items) and this one item resolved with a null value.
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(2)
-        .contains(
-            "There was a problem while executing requested operation on node: " + parentFolderId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
     Assertions.assertThat(copiedNodes(response)).isEmpty();
     Assertions.assertThat(childrenOf(childFolderId, REQUESTER_COOKIE)).isEmpty();
+  }
+
+  @Test
+  void givenANameCollisionTheCollidingNodeIsCopiedFirstAsOnMain() {
+    String sourceFolderId = seedFolder("order-src", LOCAL_ROOT, REQUESTER_COOKIE);
+    String destFolderId = seedFolder("order-dest", LOCAL_ROOT, REQUESTER_COOKIE);
+    seedFile("x.txt", destFolderId, "d".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String plainId =
+        seedFile("y.txt", sourceFolderId, "y".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String collidingId =
+        seedFile("x.txt", sourceFolderId, "x".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+
+    Response response =
+        copyNodes(new String[] {plainId, collidingId}, destFolderId, REQUESTER_COOKIE);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
+    Assertions.assertThat(copiedNodes(response))
+        .extracting(node -> node.get("name"))
+        .containsExactly("x (1)", "y");
+  }
+
+  @Test
+  void givenAnUnreadableSourceCopyShouldReportNodeWriteErrorAndStillCopyTheReadableOne() {
+    String readableId =
+        seedFile("mine.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String unreadableId =
+        seedFile("theirs.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+    String destFolderId = seedFolder("dest-unreadable", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    Response response =
+        copyNodes(new String[] {readableId, unreadableId}, destFolderId, REQUESTER_COOKIE);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("NODE_WRITE_ERROR");
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+        .containsExactly(
+            "There was a problem while executing requested operation on node: " + unreadableId);
+    Assertions.assertThat(copiedNodes(response)).hasSize(1);
   }
 
   @Test
@@ -291,13 +344,9 @@ class CopyNodesApiIT extends AbstractFilesIT {
     // When
     Response response = copyNodes(new String[] {sourceId}, nonExistentDest, REQUESTER_COOKIE);
 
-    // Then — see the descendant-block test above for why this is 2 errors, not 1
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(2)
-        .contains(
-            "There was a problem while executing requested operation on node: " + nonExistentDest);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
     Assertions.assertThat(copiedNodes(response)).isEmpty();
   }
 
@@ -318,12 +367,9 @@ class CopyNodesApiIT extends AbstractFilesIT {
     // When
     Response response = copyNodes(new String[] {sourceId}, destFileId, REQUESTER_COOKIE);
 
-    // Then — see the descendant-block test above for why this is 2 errors, not 1
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(2)
-        .contains("There was a problem while executing requested operation on node: " + destFileId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   @Test
@@ -337,13 +383,9 @@ class CopyNodesApiIT extends AbstractFilesIT {
     // When
     Response response = copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE);
 
-    // Then — see the descendant-block test above for why this is 2 errors, not 1
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(2)
-        .contains(
-            "There was a problem while executing requested operation on node: " + destFolderId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   @Test
@@ -359,18 +401,53 @@ class CopyNodesApiIT extends AbstractFilesIT {
     Response response = copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE);
 
     // Then — copyFile's Try#onFailure deletes the just-created node row and reports the error
-    // using the SOURCE node's id/version (a freshly-seeded file's current version is 1). See the
-    // descendant-block test above for why this is 2 errors, not 1.
+    // using the SOURCE node's id/version.
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(2)
-        .contains("There was a problem while copying the node " + sourceId + " with version 1");
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_COPY_ERROR");
     Assertions.assertThat(copiedNodes(response)).isEmpty();
 
     // the source is untouched, and no orphan row was left behind in the destination
     Assertions.assertThat(nodeExists(sourceId, REQUESTER_COOKIE)).isTrue();
     Assertions.assertThat(childrenOf(destFolderId, REQUESTER_COOKIE)).isEmpty();
+  }
+
+  @Test
+  void givenAFailureAfterTheCopiedNodeIsCreatedCopyShouldLeaveNoNodeBehind() throws Exception {
+    String sourceId =
+        seedFile(
+            "src-p4.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String destFolderId = seedFolder("dest-p4", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    Response response;
+    try (Connection connection = jdbcConnection();
+        Statement statement = connection.createStatement()) {
+      statement.execute(
+          "CREATE OR REPLACE FUNCTION fail_revision_insert() RETURNS trigger LANGUAGE plpgsql AS"
+              + " $$ BEGIN RAISE EXCEPTION 'injected revision insert failure'; END $$");
+      statement.execute(
+          "CREATE TRIGGER fail_revision_insert BEFORE INSERT ON revision FOR EACH ROW EXECUTE"
+              + " FUNCTION fail_revision_insert()");
+      try {
+        response = copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE);
+      } finally {
+        statement.execute("DROP TRIGGER fail_revision_insert ON revision");
+        statement.execute("DROP FUNCTION fail_revision_insert()");
+      }
+    }
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+        .isNotEmpty();
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("SELECT COUNT(*) FROM node WHERE folder_id = ?")) {
+      statement.setString(1, destFolderId);
+      try (ResultSet count = statement.executeQuery()) {
+        count.next();
+        Assertions.assertThat(count.getInt(1)).isZero();
+      }
+    }
   }
 
   @Test
