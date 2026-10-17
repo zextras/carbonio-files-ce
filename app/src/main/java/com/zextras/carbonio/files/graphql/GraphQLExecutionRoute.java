@@ -6,6 +6,9 @@ package com.zextras.carbonio.files.graphql;
 
 import io.quarkus.arc.Arc;
 import io.quarkus.arc.ManagedContext;
+import io.quarkus.security.AuthenticationException;
+import io.quarkus.security.ForbiddenException;
+import io.quarkus.security.UnauthorizedException;
 import io.quarkus.security.identity.CurrentIdentityAssociation;
 import io.quarkus.smallrye.graphql.runtime.SmallRyeGraphQLExecutionHandler;
 import io.quarkus.vertx.http.runtime.CurrentVertxRequest;
@@ -18,6 +21,7 @@ import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.regex.Pattern;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
@@ -43,8 +47,30 @@ public class GraphQLExecutionRoute {
         new ExecutionHandler(
             allowGet, allowPostWithQueryParameters, identityAssociation, currentVertxRequest);
     // Ahead of SmallRye's /graphql websocket route (-99): it ends the request context on close.
-    router.post("/graphql").order(-198).blockingHandler(handler, false);
-    router.post("/graphql/").order(-198).blockingHandler(handler, false);
+    router
+        .post("/graphql")
+        .order(-198)
+        .blockingHandler(handler, false)
+        .failureHandler(GraphQLExecutionRoute::endWithoutBody);
+    router
+        .post("/graphql/")
+        .order(-198)
+        .blockingHandler(handler, false)
+        .failureHandler(GraphQLExecutionRoute::endWithoutBody);
+  }
+
+  // The UI cannot decode QuarkusErrorHandler's JSON body; it still logs the failure.
+  private static void endWithoutBody(RoutingContext ctx) {
+    Throwable failure = ctx.failure();
+    if (failure != null
+        && !(failure instanceof AuthenticationException
+            || failure instanceof UnauthorizedException
+            || failure instanceof ForbiddenException
+            || failure instanceof RejectedExecutionException)
+        && !ctx.response().headWritten()) {
+      ctx.response().setStatusCode(ctx.statusCode()).end();
+    }
+    ctx.next();
   }
 
   private static final class ExecutionHandler extends SmallRyeGraphQLExecutionHandler {
