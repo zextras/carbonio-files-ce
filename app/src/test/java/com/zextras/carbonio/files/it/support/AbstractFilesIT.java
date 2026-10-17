@@ -23,6 +23,8 @@ import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.Socket;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
@@ -947,5 +949,41 @@ public abstract class AbstractFilesIT {
         }\
         """,
         signatureField, jsonKeySet);
+  }
+
+  protected static void sendAndDisconnect(String path, String body, String cookie)
+      throws Exception {
+    byte[] payload = body.getBytes(StandardCharsets.UTF_8);
+    String head =
+        "POST "
+            + path
+            + " HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nCookie: "
+            + cookie
+            + "\r\nContent-Length: "
+            + payload.length
+            + "\r\n\r\n";
+    try (Socket socket = new Socket("localhost", RestAssured.port)) {
+      OutputStream out = socket.getOutputStream();
+      out.write(head.getBytes(StandardCharsets.UTF_8));
+      out.write(payload);
+      out.flush();
+      Thread.sleep(300);
+    }
+  }
+
+  protected static int copiedChildren(String destination, String cookie) {
+    List<String> copies = childIds(destination, cookie);
+    return copies.isEmpty() ? 0 : childIds(copies.get(0), cookie).size();
+  }
+
+  protected static List<String> childIds(String folderId, String cookie) {
+    return graphql(
+            "query { getNode(node_id: \\\""
+                + folderId
+                + "\\\") { ... on Folder { children(limit: 50, sort: NAME_ASC) { nodes { id } } } }"
+                + " }",
+            cookie)
+        .jsonPath()
+        .getList("data.getNode.children.nodes.id", String.class);
   }
 }

@@ -6,24 +6,16 @@ package com.zextras.carbonio.files.it;
 
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
-import io.restassured.RestAssured;
-import java.io.OutputStream;
-import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.List;
 import java.util.UUID;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-/**
- * Every root field of a multi-root mutation document executes even when the client disconnects
- * while the first one is still running: later root fields still need the request-scoped identity.
- */
 class MultiRootMutationDisconnectApiIT extends AbstractFilesIT {
 
   private static final String TOKEN = "multi-root-disconnect-token";
@@ -48,6 +40,7 @@ class MultiRootMutationDisconnectApiIT extends AbstractFilesIT {
     FilesStackTestResource.getStoragesService().setCopyDelayMillis(200);
 
     sendAndDisconnect(
+        "/graphql",
         "{\"query\":\"mutation($i:[String!],$d:ID!){ copy: copyNodes(node_ids:$i,"
             + " destination_id:$d){ id } later: createFolder(destination_id:\\\"LOCAL_ROOT\\\","
             + " name:\\\""
@@ -56,35 +49,24 @@ class MultiRootMutationDisconnectApiIT extends AbstractFilesIT {
             + source
             + "\"],\"d\":\""
             + destination
-            + "\"}}");
+            + "\"}}",
+        COOKIE);
+
+    Assertions.assertThat(copiedChildren(destination, COOKIE))
+        .as("copy in flight")
+        .isLessThan(FILES);
+    Assertions.assertThat(foldersNamed(created)).as("second root field not yet run").isZero();
 
     long deadline = System.currentTimeMillis() + 30_000;
-    int copied = copiedChildren(destination);
+    int copied = copiedChildren(destination, COOKIE);
     int folders = foldersNamed(created);
     while ((copied < FILES || folders < 1) && System.currentTimeMillis() < deadline) {
       Thread.sleep(250);
-      copied = copiedChildren(destination);
+      copied = copiedChildren(destination, COOKIE);
       folders = foldersNamed(created);
     }
     Assertions.assertThat(copied).as("copied files").isEqualTo(FILES);
     Assertions.assertThat(folders).as("folders created by the second root field").isEqualTo(1);
-  }
-
-  private static void sendAndDisconnect(String body) throws Exception {
-    byte[] payload = body.getBytes(StandardCharsets.UTF_8);
-    String head =
-        "POST /graphql HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nCookie: "
-            + COOKIE
-            + "\r\nContent-Length: "
-            + payload.length
-            + "\r\n\r\n";
-    try (Socket socket = new Socket("localhost", RestAssured.port)) {
-      OutputStream out = socket.getOutputStream();
-      out.write(head.getBytes(StandardCharsets.UTF_8));
-      out.write(payload);
-      out.flush();
-      Thread.sleep(300);
-    }
   }
 
   private static int foldersNamed(String name) throws SQLException {
@@ -97,21 +79,5 @@ class MultiRootMutationDisconnectApiIT extends AbstractFilesIT {
         return resultSet.getInt(1);
       }
     }
-  }
-
-  private static int copiedChildren(String destination) {
-    List<String> copies = childIds(destination);
-    return copies.isEmpty() ? 0 : childIds(copies.get(0)).size();
-  }
-
-  private static List<String> childIds(String folderId) {
-    return graphql(
-            "query { getNode(node_id: \\\""
-                + folderId
-                + "\\\") { ... on Folder { children(limit: 50, sort: NAME_ASC) { nodes { id } } } }"
-                + " }",
-            COOKIE)
-        .jsonPath()
-        .getList("data.getNode.children.nodes.id", String.class);
   }
 }
