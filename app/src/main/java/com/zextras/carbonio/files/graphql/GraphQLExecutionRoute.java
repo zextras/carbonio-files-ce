@@ -12,6 +12,7 @@ import io.quarkus.security.UnauthorizedException;
 import io.quarkus.security.identity.CurrentIdentityAssociation;
 import io.quarkus.smallrye.graphql.runtime.SmallRyeGraphQLExecutionHandler;
 import io.quarkus.vertx.http.runtime.CurrentVertxRequest;
+import io.quarkus.vertx.http.runtime.security.HttpSecurityRecorder.DefaultAuthFailureHandler;
 import io.quarkus.vertx.http.runtime.security.QuarkusHttpUser;
 import io.smallrye.graphql.execution.context.SmallRyeContextManager;
 import io.vertx.core.MultiMap;
@@ -62,12 +63,18 @@ public class GraphQLExecutionRoute {
   // The UI cannot decode QuarkusErrorHandler's JSON body; it still logs the failure.
   private static void endWithoutBody(RoutingContext ctx) {
     Throwable failure = ctx.failure();
-    if (failure != null
-        && !(failure instanceof AuthenticationException
-            || failure instanceof UnauthorizedException
-            || failure instanceof ForbiddenException
-            || failure instanceof RejectedExecutionException)
-        && !ctx.response().headWritten()) {
+    Throwable cause = DefaultAuthFailureHandler.extractRootCause(failure);
+    boolean answeredByQuarkus =
+        cause instanceof AuthenticationException
+            || cause instanceof UnauthorizedException
+            || cause instanceof ForbiddenException
+            || cause instanceof RejectedExecutionException;
+    if (answeredByQuarkus && cause != failure) {
+      // QuarkusErrorHandler maps only the unwrapped exception to its 401/403/503.
+      ctx.fail(cause);
+      return;
+    }
+    if (failure != null && !answeredByQuarkus && !ctx.response().headWritten()) {
       ctx.response().setStatusCode(ctx.statusCode()).end();
     }
     ctx.next();
