@@ -15,18 +15,22 @@ import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.ShareModel;
 import com.zextras.carbonio.files.graphql.model.SharedTarget;
 import com.zextras.carbonio.files.graphql.model.UserModel;
+import com.zextras.carbonio.files.graphql.support.NodeUserFieldSelection;
 import com.zextras.carbonio.files.graphql.support.RequestUserCache;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import graphql.schema.DataFetchingEnvironment;
 import io.quarkus.security.Authenticated;
+import io.smallrye.graphql.api.Context;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Id;
 import org.eclipse.microprofile.graphql.Name;
@@ -42,6 +46,13 @@ public class UserApi {
   @Inject RequestUserCache userCache;
   @Inject AuthenticatedUserProducer producer;
   @Inject GraphQLInputValidator validator;
+  @Inject Context gqlContext;
+
+  private static final List<String> NODE_USER_FIELDS =
+      List.of(
+          NodeUserFieldSelection.CREATOR,
+          NodeUserFieldSelection.OWNER,
+          NodeUserFieldSelection.LAST_EDITOR);
 
   private static UserModel toModel(UserInfo user) {
     return new UserModel(user.getId().getUserId(), user.getEmail(), user.getFullName());
@@ -52,26 +63,46 @@ public class UserApi {
   @Name("creator")
   @NonNull
   public List<UserModel> creators(@Source List<NodeModel> nodes) {
-    return resolveNodeUsers(nodes, NodeModel::getCreatorId);
+    return resolveNodeUsers(nodes, NodeUserFieldSelection.CREATOR);
   }
 
   @Name("owner")
   public List<UserModel> owners(@Source List<NodeModel> nodes) {
-    return resolveNodeUsers(nodes, NodeModel::getOwnerId);
+    return resolveNodeUsers(nodes, NodeUserFieldSelection.OWNER);
   }
 
   @Name("last_editor")
   public List<UserModel> lastEditors(@Source List<NodeModel> nodes) {
-    return resolveNodeUsers(nodes, NodeModel::getLastEditorId);
+    return resolveNodeUsers(nodes, NodeUserFieldSelection.LAST_EDITOR);
   }
 
-  private List<UserModel> resolveNodeUsers(
-      List<NodeModel> nodes, Function<NodeModel, String> field) {
+  private List<UserModel> resolveNodeUsers(List<NodeModel> nodes, String field) {
+    Set<String> fields =
+        new HashSet<>(userCache.selectedNodeUserFields(this::selectedNodeUserFields));
+    fields.add(field);
     fetchUsersById(
         nodes.stream()
-            .flatMap(n -> Stream.of(n.getCreatorId(), n.getOwnerId(), n.getLastEditorId()))
+            .flatMap(
+                n -> NODE_USER_FIELDS.stream().filter(fields::contains).map(f -> nodeUserId(n, f)))
             .toList());
-    return resolveEach(nodes.stream().map(field).toList(), UserApi::toModel);
+    return resolveEach(nodes.stream().map(n -> nodeUserId(n, field)).toList(), UserApi::toModel);
+  }
+
+  private static String nodeUserId(NodeModel node, String field) {
+    return switch (field) {
+      case NodeUserFieldSelection.CREATOR -> node.getCreatorId();
+      case NodeUserFieldSelection.OWNER -> node.getOwnerId();
+      default -> node.getLastEditorId();
+    };
+  }
+
+  private Set<String> selectedNodeUserFields() {
+    try {
+      DataFetchingEnvironment env = gqlContext.unwrap(DataFetchingEnvironment.class);
+      return NodeUserFieldSelection.of(env.getOperationDefinition(), env.getFragmentsByName());
+    } catch (RuntimeException e) {
+      return Set.of();
+    }
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})

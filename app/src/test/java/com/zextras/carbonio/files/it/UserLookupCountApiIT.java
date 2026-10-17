@@ -210,6 +210,24 @@ class UserLookupCountApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void getChildrenDoesNotFetchUsersThatOnlyAppearAsCreator() throws Exception {
+    seedFolder("CREATORONLY", folderId, C_COOKIE);
+
+    JsonNode data =
+        run(
+            GET_CHILDREN,
+            vars()
+                .put("node_id", folderId)
+                .put("children_limit", 50)
+                .put("sort", "NAME_ASC")
+                .put("shares_limit", 1),
+            A_COOKIE,
+            1);
+
+    Assertions.assertThat(data.path("getNode").path("children").path("nodes")).hasSize(17);
+  }
+
+  @Test
   void getNodeOnAFolderResolvesEveryUserFieldWithOneLookup() throws Exception {
     JsonNode data =
         run(
@@ -252,7 +270,7 @@ class UserLookupCountApiIT extends AbstractFilesIT {
   @Test
   void getChildResolvesOwnerAndLastEditorWithOneLookup() throws Exception {
     JsonNode data =
-        run(GET_CHILD, vars().put("node_id", distinctFileId).put("shares_limit", 1), B_COOKIE, 1);
+        run(GET_CHILD, vars().put("node_id", distinctFileId).put("shares_limit", 1), B_COOKIE, 2);
 
     JsonNode node = data.path("getNode");
     assertUser(node.path("owner"), C);

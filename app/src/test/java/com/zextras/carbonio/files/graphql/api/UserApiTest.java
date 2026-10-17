@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
@@ -205,6 +206,10 @@ class UserApiTest {
         "root-id");
   }
 
+  private void selectAllNodeUserFields() {
+    userApi.userCache.selectedNodeUserFields(() -> Set.of("creator", "owner", "last_editor"));
+  }
+
   private UserInfo makeUserInfo(String id) {
     return makeUserInfo(id, id + "@example.com", "User " + id);
   }
@@ -230,6 +235,7 @@ class UserApiTest {
 
   @Test
   void resolversWithinOneRequestLookUpEachUserAtMostOnce() {
+    selectAllNodeUserFields();
     NodeModel node = makeNode("n1", "uid-A", "uid-A", "ghost");
     when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("uid-A")));
 
@@ -245,6 +251,7 @@ class UserApiTest {
 
   @Test
   void firstNodeResolverFetchesTheUnionOfCreatorOwnerAndLastEditorInOneCall() {
+    selectAllNodeUserFields();
     NodeModel n1 = makeNode("n1", "c1", "o1", "e1");
     NodeModel n2 = makeNode("n2", "c2", "o1", null);
     when(userRepository.getUsers(anyList()))
@@ -265,7 +272,30 @@ class UserApiTest {
   }
 
   @Test
+  void withoutAKnownSelectionOnlyTheResolversOwnFieldIsFetched() {
+    NodeModel node = makeNode("n1", "c1", "o1", "e1");
+    when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("o1")));
+
+    userApi.owners(List.of(node));
+
+    verify(userRepository).getUsers(List.of("o1"));
+    verify(userRepository, times(1)).getUsers(anyList());
+  }
+
+  @Test
+  void onlyTheSelectedNodeUserFieldsAreFetched() {
+    userApi.userCache.selectedNodeUserFields(() -> Set.of("owner", "last_editor"));
+    NodeModel node = makeNode("n1", "c1", "o1", "e1");
+    when(userRepository.getUsers(anyList())).thenReturn(List.of());
+
+    userApi.owners(List.of(node));
+
+    verify(userRepository).getUsers(List.of("o1", "e1"));
+  }
+
+  @Test
   void aMissingUserInANonSelectedFieldNeverFailsTheSelectedOne() {
+    selectAllNodeUserFields();
     NodeModel node = makeNode("n1", "uid-A", "uid-A", "ghost");
     when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("uid-A")));
 
@@ -279,6 +309,7 @@ class UserApiTest {
   @Test
   @SuppressWarnings("unchecked")
   void theUnionFetchOnlyRequestsIdsNotAlreadyCached() {
+    selectAllNodeUserFields();
     NodeModel first = makeNode("n1", "uid-A", "uid-A", null);
     NodeModel second = makeNode("n2", "uid-A", "uid-B", null);
     when(userRepository.getUsers(anyList()))
