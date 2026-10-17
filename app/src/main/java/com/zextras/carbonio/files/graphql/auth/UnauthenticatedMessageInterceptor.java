@@ -6,7 +6,12 @@ package com.zextras.carbonio.files.graphql.auth;
 
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.UnauthorizedException;
+import io.quarkus.vertx.http.runtime.CurrentVertxRequest;
+import io.smallrye.graphql.execution.context.SmallRyeContext;
+import io.smallrye.graphql.execution.context.SmallRyeContextManager;
+import io.vertx.ext.web.RoutingContext;
 import jakarta.annotation.Priority;
+import jakarta.inject.Inject;
 import jakarta.interceptor.AroundInvoke;
 import jakarta.interceptor.Interceptor;
 import jakarta.interceptor.InvocationContext;
@@ -24,6 +29,10 @@ public class UnauthenticatedMessageInterceptor {
 
   public static final String MESSAGE = "Authentication required";
 
+  private static final String LOGGED_ATTRIBUTE = "files.auth.rejection.logged";
+
+  @Inject CurrentVertxRequest currentRequest;
+
   @AroundInvoke
   Object requireMessage(InvocationContext context) throws Exception {
     try {
@@ -32,10 +41,24 @@ public class UnauthenticatedMessageInterceptor {
       if (e.getMessage() != null) {
         throw e;
       }
-      logger.warn(
-          "Authentication rejected: reason=missing credentials operation={}",
-          context.getMethod().getName());
+      logOncePerRequest();
       throw new UnauthorizedException(MESSAGE, e);
     }
+  }
+
+  private void logOncePerRequest() {
+    RoutingContext request = currentRequest.getCurrent();
+    if (request != null) {
+      if (request.get(LOGGED_ATTRIBUTE) != null) {
+        return;
+      }
+      request.put(LOGGED_ATTRIBUTE, Boolean.TRUE);
+    }
+    SmallRyeContext graphQLContext = SmallRyeContextManager.getCurrentSmallRyeContext();
+    String operation =
+        graphQLContext == null
+            ? "anonymous"
+            : graphQLContext.getOperationName().orElse("anonymous");
+    logger.warn("Authentication rejected: reason=missing credentials operation={}", operation);
   }
 }
