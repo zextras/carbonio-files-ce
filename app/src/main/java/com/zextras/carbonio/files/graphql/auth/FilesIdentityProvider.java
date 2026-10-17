@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Resolves a {@link FilesAuthenticationRequest} to a {@link SecurityIdentity} through the
@@ -33,6 +35,8 @@ import java.util.Set;
  */
 @ApplicationScoped
 public class FilesIdentityProvider implements IdentityProvider<FilesAuthenticationRequest> {
+
+  private static final Logger logger = LoggerFactory.getLogger(FilesIdentityProvider.class);
 
   private final UserRepository userRepository;
 
@@ -143,6 +147,8 @@ public class FilesIdentityProvider implements IdentityProvider<FilesAuthenticati
       String prefix,
       FilesAuthenticationRequest request,
       String reason) {
+    logger.warn(
+        "Authentication rejected: status={} uri={} reason={}", status, request.getUri(), reason);
     ctx.put(FilesGraphQLAuthMechanism.CTX_STATUS, status);
     ctx.put(
         FilesGraphQLAuthMechanism.CTX_MESSAGE,

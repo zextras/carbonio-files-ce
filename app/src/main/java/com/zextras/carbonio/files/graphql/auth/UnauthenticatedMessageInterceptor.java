@@ -10,12 +10,17 @@ import jakarta.annotation.Priority;
 import jakarta.interceptor.AroundInvoke;
 import jakarta.interceptor.Interceptor;
 import jakarta.interceptor.InvocationContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // Wraps Quarkus' AuthenticatedInterceptor (priority 150): its exception has no message.
 @Authenticated
 @Interceptor
 @Priority(Interceptor.Priority.PLATFORM_BEFORE + 100)
 public class UnauthenticatedMessageInterceptor {
+
+  private static final Logger logger =
+      LoggerFactory.getLogger(UnauthenticatedMessageInterceptor.class);
 
   public static final String MESSAGE = "Authentication required";
 
@@ -27,6 +32,9 @@ public class UnauthenticatedMessageInterceptor {
       if (e.getMessage() != null) {
         throw e;
       }
+      logger.warn(
+          "Authentication rejected: reason=missing credentials operation={}",
+          context.getMethod().getName());
       throw new UnauthorizedException(MESSAGE, e);
     }
   }
