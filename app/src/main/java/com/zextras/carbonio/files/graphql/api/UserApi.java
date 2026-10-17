@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Id;
 import org.eclipse.microprofile.graphql.Name;
@@ -51,21 +52,26 @@ public class UserApi {
   @Name("creator")
   @NonNull
   public List<UserModel> creators(@Source List<NodeModel> nodes) {
-    return resolveUsers(nodes.stream().map(NodeModel::getCreatorId).toList());
+    return resolveNodeUsers(nodes, NodeModel::getCreatorId);
   }
 
   @Name("owner")
   public List<UserModel> owners(@Source List<NodeModel> nodes) {
-    return resolveUsers(nodes.stream().map(NodeModel::getOwnerId).toList());
+    return resolveNodeUsers(nodes, NodeModel::getOwnerId);
   }
 
   @Name("last_editor")
   public List<UserModel> lastEditors(@Source List<NodeModel> nodes) {
-    return resolveUsers(nodes.stream().map(NodeModel::getLastEditorId).toList());
+    return resolveNodeUsers(nodes, NodeModel::getLastEditorId);
   }
 
-  private List<UserModel> resolveUsers(List<String> ids) {
-    return resolveEach(ids, UserApi::toModel);
+  private List<UserModel> resolveNodeUsers(
+      List<NodeModel> nodes, Function<NodeModel, String> field) {
+    fetchUsersById(
+        nodes.stream()
+            .flatMap(n -> Stream.of(n.getCreatorId(), n.getOwnerId(), n.getLastEditorId()))
+            .toList());
+    return resolveEach(nodes.stream().map(field).toList(), UserApi::toModel);
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})

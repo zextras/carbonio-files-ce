@@ -238,10 +238,59 @@ class UserApiTest {
     List<?> lastEditors = userApi.lastEditors(List.of(node));
     userApi.lastEditors(List.of(node));
 
-    verify(userRepository, times(2)).getUsers(anyList());
-    verify(userRepository).getUsers(List.of("uid-A"));
-    verify(userRepository).getUsers(List.of("ghost"));
+    verify(userRepository, times(1)).getUsers(anyList());
+    verify(userRepository).getUsers(List.of("uid-A", "ghost"));
     assertThat(lastEditors.get(0)).isInstanceOf(FilesGraphQLException.class);
+  }
+
+  @Test
+  void firstNodeResolverFetchesTheUnionOfCreatorOwnerAndLastEditorInOneCall() {
+    NodeModel n1 = makeNode("n1", "c1", "o1", "e1");
+    NodeModel n2 = makeNode("n2", "c2", "o1", null);
+    when(userRepository.getUsers(anyList()))
+        .thenReturn(
+            List.of(
+                makeUserInfo("c1"), makeUserInfo("o1"), makeUserInfo("e1"), makeUserInfo("c2")));
+
+    List<UserModel> owners = userApi.owners(List.of(n1, n2));
+    List<UserModel> creators = userApi.creators(List.of(n1, n2));
+    List<UserModel> lastEditors = userApi.lastEditors(List.of(n1, n2));
+
+    verify(userRepository, times(1)).getUsers(anyList());
+    verify(userRepository).getUsers(List.of("c1", "o1", "e1", "c2"));
+    assertThat(owners).extracting(UserModel::getId).containsExactly("o1", "o1");
+    assertThat(creators).extracting(UserModel::getId).containsExactly("c1", "c2");
+    assertThat(lastEditors.get(0).getId()).isEqualTo("e1");
+    assertThat(lastEditors.get(1)).isNull();
+  }
+
+  @Test
+  void aMissingUserInANonSelectedFieldNeverFailsTheSelectedOne() {
+    NodeModel node = makeNode("n1", "uid-A", "uid-A", "ghost");
+    when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("uid-A")));
+
+    List<UserModel> owners = userApi.owners(List.of(node));
+    List<UserModel> creators = userApi.creators(List.of(node));
+
+    assertThat(owners).extracting(UserModel::getId).containsExactly("uid-A");
+    assertThat(creators).extracting(UserModel::getId).containsExactly("uid-A");
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void theUnionFetchOnlyRequestsIdsNotAlreadyCached() {
+    NodeModel first = makeNode("n1", "uid-A", "uid-A", null);
+    NodeModel second = makeNode("n2", "uid-A", "uid-B", null);
+    when(userRepository.getUsers(anyList()))
+        .thenAnswer(
+            inv -> ((List<String>) inv.getArgument(0)).stream().map(this::makeUserInfo).toList());
+
+    userApi.owners(List.of(first));
+    userApi.owners(List.of(second));
+
+    verify(userRepository).getUsers(List.of("uid-A"));
+    verify(userRepository).getUsers(List.of("uid-B"));
+    verify(userRepository, times(2)).getUsers(anyList());
   }
 
   @Test
@@ -331,7 +380,7 @@ class UserApiTest {
   void creators_150DistinctIds_partitionsInto2Calls() {
     List<NodeModel> nodes =
         IntStream.range(0, 150)
-            .mapToObj(i -> makeNode("n" + i, "uid-" + i, "owner-" + i, null))
+            .mapToObj(i -> makeNode("n" + i, "uid-" + i, "uid-" + i, null))
             .toList();
 
     when(userRepository.getUsers(anyList())).thenReturn(Collections.emptyList());
