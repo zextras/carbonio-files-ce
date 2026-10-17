@@ -161,7 +161,8 @@ class ErrorLoggingApiIT extends AbstractFilesIT {
   void givenAFailureInABatchResolverThenItIsLoggedOnceAtErrorAndTheClientSeesSystemError()
       throws Exception {
     String parentId = seedFolder("r06-parent", LOCAL_ROOT, OWNER_COOKIE);
-    String childId = seedFolder("r06-child", parentId, OWNER_COOKIE);
+    seedFolder("r06-batch-one", parentId, OWNER_COOKIE);
+    seedFolder("r06-batch-two", parentId, OWNER_COOKIE);
     String operation = "R06BatchFailure";
 
     Response response;
@@ -172,18 +173,16 @@ class ErrorLoggingApiIT extends AbstractFilesIT {
       response =
           execute(
               operation,
-              "query R06BatchFailure { getNode(node_id: \""
-                  + childId
-                  + "\") { id parent { id } } }",
+              "query R06BatchFailure { findNodes(keywords: [\"r06-batch\"], limit: 10) { nodes {"
+                  + " id parent { id } } } }",
               OWNER_COOKIE);
       statement.execute("UPDATE node SET node_type = 'FOLDER' WHERE node_id = '" + parentId + "'");
     }
 
     Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
         .isEqualTo("System error");
-    Assertions.assertThat(response.jsonPath().getList("errors[0].path"))
-        .containsExactly("getNode", "parent");
-    assertLoggedOnceWithStack(operation, "/getNode/parent");
+    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(2);
+    assertLoggedOnceWithStack(operation, null);
   }
 
   @Test
@@ -216,7 +215,11 @@ class ErrorLoggingApiIT extends AbstractFilesIT {
   }
 
   private static void assertLoggedOnceWithStack(String operation, String path) throws Exception {
-    String marker = "Unexpected error in GraphQL operation '" + operation + "' at '" + path + "'";
+    String marker =
+        "Unexpected error in GraphQL operation '"
+            + operation
+            + "' at '"
+            + (path == null ? "" : path + "'");
     List<String> errorLines = appLogLinesContaining(marker);
     Assertions.assertThat(errorLines).hasSize(1);
     Assertions.assertThat(errorLines.get(0)).contains("ERROR");

@@ -10,6 +10,7 @@ import io.quarkus.security.AuthenticationCompletionException;
 import io.quarkus.security.AuthenticationFailedException;
 import io.quarkus.security.ForbiddenException;
 import io.quarkus.security.UnauthorizedException;
+import io.smallrye.graphql.execution.datafetcher.DataFetcherException;
 import jakarta.enterprise.context.ContextNotActiveException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.CompletionException;
@@ -42,6 +43,13 @@ class ErrorLoggingEventingServiceTest {
     Throwable wrapped =
         new CompletionException(
             new ExecutionException(new InvocationTargetException(new UnauthorizedException("no"))));
+
+    assertThat(ErrorLoggingEventingService.isExpected(wrapped)).isTrue();
+  }
+
+  @Test
+  void aBusinessErrorWrappedByTheBatchResolverIsExpected() {
+    Throwable wrapped = new DataFetcherException(null, FilesGraphQLErrors.nodeNotFound("x"));
 
     assertThat(ErrorLoggingEventingService.isExpected(wrapped)).isTrue();
   }

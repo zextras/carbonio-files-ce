@@ -148,7 +148,10 @@ public class FilesIdentityProvider implements IdentityProvider<FilesAuthenticati
       FilesAuthenticationRequest request,
       String reason) {
     logger.warn(
-        "Authentication rejected: status={} uri={} reason={}", status, request.getUri(), reason);
+        "Authentication rejected: status={} uri={} reason={}",
+        status,
+        ctx.normalizedPath(),
+        reason);
     ctx.put(FilesGraphQLAuthMechanism.CTX_STATUS, status);
     ctx.put(
         FilesGraphQLAuthMechanism.CTX_MESSAGE,

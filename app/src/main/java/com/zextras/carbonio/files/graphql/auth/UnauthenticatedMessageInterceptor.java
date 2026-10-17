@@ -41,7 +41,11 @@ public class UnauthenticatedMessageInterceptor {
       if (e.getMessage() != null) {
         throw e;
       }
-      logOncePerRequest();
+      try {
+        logOncePerRequest();
+      } catch (RuntimeException ignored) {
+        // Logging must never replace the client-visible authentication error.
+      }
       throw new UnauthorizedException(MESSAGE, e);
     }
   }
