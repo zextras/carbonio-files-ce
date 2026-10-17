@@ -77,8 +77,7 @@ public class UserApi {
   }
 
   private List<UserModel> resolveNodeUsers(List<NodeModel> nodes, String field) {
-    Set<String> fields =
-        new HashSet<>(userCache.selectedNodeUserFields(this::selectedNodeUserFields));
+    Set<String> fields = new HashSet<>(selectedSiblingUserFields());
     fields.add(field);
     fetchUsersById(
         nodes.stream()
@@ -96,10 +95,11 @@ public class UserApi {
     };
   }
 
-  private Set<String> selectedNodeUserFields() {
+  Set<String> selectedSiblingUserFields() {
     try {
       DataFetchingEnvironment env = gqlContext.unwrap(DataFetchingEnvironment.class);
-      return NodeUserFieldSelection.of(env.getOperationDefinition(), env.getFragmentsByName());
+      return NodeUserFieldSelection.of(
+          env.getExecutionStepInfo().getParent().getField().getFields(), env.getFragmentsByName());
     } catch (RuntimeException e) {
       return Set.of();
     }

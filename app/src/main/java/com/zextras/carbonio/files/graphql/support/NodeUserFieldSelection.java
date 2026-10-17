@@ -8,10 +8,10 @@ import graphql.language.Field;
 import graphql.language.FragmentDefinition;
 import graphql.language.FragmentSpread;
 import graphql.language.InlineFragment;
-import graphql.language.OperationDefinition;
 import graphql.language.Selection;
 import graphql.language.SelectionSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -26,9 +26,11 @@ public final class NodeUserFieldSelection {
   private NodeUserFieldSelection() {}
 
   public static Set<String> of(
-      OperationDefinition operation, Map<String, FragmentDefinition> fragments) {
+      List<Field> parentFields, Map<String, FragmentDefinition> fragments) {
     Set<String> found = new HashSet<>();
-    collect(operation.getSelectionSet(), fragments, new HashSet<>(), found);
+    for (Field parent : parentFields) {
+      collect(parent.getSelectionSet(), fragments, new HashSet<>(), found);
+    }
     return found;
   }
 
@@ -45,7 +47,6 @@ public final class NodeUserFieldSelection {
         if (USER_FIELDS.contains(field.getName())) {
           found.add(field.getName());
         }
-        collect(field.getSelectionSet(), fragments, visitedFragments, found);
       } else if (selection instanceof InlineFragment inline) {
         collect(inline.getSelectionSet(), fragments, visitedFragments, found);
       } else if (selection instanceof FragmentSpread spread

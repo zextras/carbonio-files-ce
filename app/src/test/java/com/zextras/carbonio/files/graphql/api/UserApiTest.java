@@ -8,8 +8,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,7 +62,7 @@ class UserApiTest {
     producer = mock(AuthenticatedUserProducer.class);
     when(producer.cookies()).thenReturn(COOKIES);
 
-    userApi = new UserApi();
+    userApi = spy(new UserApi());
     userApi.userRepository = userRepository;
     userApi.userCache = new RequestUserCache();
     userApi.producer = producer;
@@ -207,7 +209,7 @@ class UserApiTest {
   }
 
   private void selectAllNodeUserFields() {
-    userApi.userCache.selectedNodeUserFields(() -> Set.of("creator", "owner", "last_editor"));
+    doReturn(Set.of("creator", "owner", "last_editor")).when(userApi).selectedSiblingUserFields();
   }
 
   private UserInfo makeUserInfo(String id) {
@@ -284,7 +286,7 @@ class UserApiTest {
 
   @Test
   void onlyTheSelectedNodeUserFieldsAreFetched() {
-    userApi.userCache.selectedNodeUserFields(() -> Set.of("owner", "last_editor"));
+    doReturn(Set.of("owner", "last_editor")).when(userApi).selectedSiblingUserFields();
     NodeModel node = makeNode("n1", "c1", "o1", "e1");
     when(userRepository.getUsers(anyList())).thenReturn(List.of());
 

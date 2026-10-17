@@ -20,11 +20,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * Main resolved every user field of a document through one shared batch loader, so a UI document
- * cost a single {@code POST /internal/users}. SmallRye has one batch loader per type/field: the
- * node user fields must therefore fetch the union of creator/owner/last_editor ids on first use.
- */
 class UserLookupCountApiIT extends AbstractFilesIT {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -228,7 +223,7 @@ class UserLookupCountApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void getNodeOnAFolderResolvesEveryUserFieldWithOneLookup() throws Exception {
+  void getNodeOnAFolderResolvesEveryUserFieldWithTwoLookups() throws Exception {
     JsonNode data =
         run(
             GET_NODE,
@@ -268,7 +263,7 @@ class UserLookupCountApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void getChildResolvesOwnerAndLastEditorWithOneLookup() throws Exception {
+  void getChildResolvesOwnerAndLastEditorWithTwoLookups() throws Exception {
     JsonNode data =
         run(GET_CHILD, vars().put("node_id", distinctFileId).put("shares_limit", 1), B_COOKIE, 2);
 
@@ -276,6 +271,24 @@ class UserLookupCountApiIT extends AbstractFilesIT {
     assertUser(node.path("owner"), C);
     assertUser(node.path("last_editor"), B);
     assertUser(node.path("parent").path("owner"), A);
+  }
+
+  @Test
+  void getChildDoesNotFetchTheParentsUnselectedLastEditor() throws Exception {
+    String renamed =
+        graphql(
+                "mutation { updateNode(node_id: \\\""
+                    + folderId
+                    + "\\\", name: \\\"RENAMED\\\") { id } }",
+                C_COOKIE)
+            .getBody()
+            .asString();
+    Assertions.assertThat(renamed).contains(folderId);
+
+    JsonNode data =
+        run(GET_CHILD, vars().put("node_id", firstChildId).put("shares_limit", 1), A_COOKIE, 2);
+
+    assertUser(data.path("getNode").path("parent").path("owner"), A);
   }
 
   @Test
