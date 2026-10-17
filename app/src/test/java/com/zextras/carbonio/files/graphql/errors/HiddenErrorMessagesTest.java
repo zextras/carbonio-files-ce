@@ -16,6 +16,8 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.postgresql.util.PSQLException;
@@ -62,6 +64,8 @@ class HiddenErrorMessagesTest {
                 new UnknownHostException("storages.local"),
                 new JsonParseException(null, "/opt/zextras"),
                 new InterruptedException(),
+                new ExecutionException(new SQLException("select")),
+                new TimeoutException("10.0.0.5:20002"),
                 new StackOverflowError(),
                 new NoClassDefFoundError("com/zextras/carbonio/files/Node"),
                 new OutOfMemoryError("Java heap space")))
