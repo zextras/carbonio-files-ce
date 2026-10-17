@@ -17,6 +17,9 @@ enum AddedNodeType {
   UPLOAD
 }
 
+"Scalar for BigInteger"
+scalar BigInteger
+
 type CollaborationLink {
   created_at: BigInteger!
   id: ID!
