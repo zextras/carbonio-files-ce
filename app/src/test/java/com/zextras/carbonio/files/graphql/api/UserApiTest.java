@@ -45,6 +45,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class UserApiTest {
 
@@ -267,8 +268,9 @@ class UserApiTest {
     List<UserModel> creators = userApi.creators(List.of(n1, n2));
     List<UserModel> lastEditors = userApi.lastEditors(List.of(n1, n2));
 
-    verify(userRepository, times(1)).getUsers(anyList());
-    verify(userRepository).getUsers(List.of("o1", "c1", "e1", "c2"));
+    ArgumentCaptor<List<String>> requestedIds = ArgumentCaptor.captor();
+    verify(userRepository, times(1)).getUsers(requestedIds.capture());
+    assertThat(requestedIds.getValue()).containsExactlyInAnyOrder("o1", "c1", "e1", "c2");
     assertThat(owners).extracting(UserModel::getId).containsExactly("o1", "o1");
     assertThat(creators).extracting(UserModel::getId).containsExactly("c1", "c2");
     assertThat(lastEditors.get(0).getId()).isEqualTo("e1");

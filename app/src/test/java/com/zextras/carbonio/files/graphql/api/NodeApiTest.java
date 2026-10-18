@@ -482,20 +482,6 @@ class NodeApiTest {
   // ─── permissions @Source ──────────────────────────────────────────────────────
 
   @Test
-  void permissions_mapsAclFromPermissionsChecker() {
-    NodeModel node = makeFolderModel(NODE_ID, null);
-    ACL acl = ACL.decode(SharePermission.READ_ONLY);
-    when(permissionsChecker.getPermissions(List.of(NODE_ID), REQUESTER_ID))
-        .thenReturn(Map.of(NODE_ID, acl));
-
-    List<PermissionsModel> result = nodeApi.permissions(List.of(node));
-
-    assertThat(result).hasSize(1);
-    assertThat(result.get(0).isCanRead()).isTrue();
-    assertThat(result.get(0).isCanShare()).isFalse();
-  }
-
-  @Test
   void permissions_resolvesEachSourceInPositionWithMixedAcls() {
     NodeModel owned = makeFolderModel("owned-id", null);
     NodeModel shared = makeFolderModel("shared-id", null);

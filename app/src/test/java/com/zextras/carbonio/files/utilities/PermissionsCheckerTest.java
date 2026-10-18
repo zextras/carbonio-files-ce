@@ -165,12 +165,12 @@ class PermissionsCheckerTest {
             List.of(rootId, hiddenId, sharedId, notSharedId, missingId), SHARED_USER_ID);
 
     assertThat(permissions).hasSize(5);
-    assertThat(permissions.get(rootId)).isEqualTo(ACL.decode(ACL.OWNER));
-    assertThat(permissions.get(hiddenId)).isEqualTo(ACL.decode(ACL.NONE));
+    assertThat(permissions).containsEntry(rootId, ACL.decode(ACL.OWNER));
+    assertThat(permissions).containsEntry(hiddenId, ACL.decode(ACL.NONE));
     assertThat(permissions.get(sharedId).canWrite()).isTrue();
     assertThat(permissions.get(sharedId).canShare()).isFalse();
-    assertThat(permissions.get(notSharedId)).isEqualTo(ACL.decode(ACL.NONE));
-    assertThat(permissions.get(missingId)).isEqualTo(ACL.decode(ACL.NONE));
+    assertThat(permissions).containsEntry(notSharedId, ACL.decode(ACL.NONE));
+    assertThat(permissions).containsEntry(missingId, ACL.decode(ACL.NONE));
     verify(nodeRepository, times(1)).getNodes(anyList(), any());
     verify(shareRepository, times(1)).getSharePermissions(anyList(), anyString());
     verify(shareRepository)
@@ -193,7 +193,7 @@ class PermissionsCheckerTest {
     Map<String, ACL> permissions = checker.getPermissions(List.of(nodeId, nodeId), OWNER_ID);
 
     assertThat(permissions).containsOnlyKeys(nodeId);
-    assertThat(permissions.get(nodeId)).isEqualTo(ACL.decode(ACL.OWNER));
+    assertThat(permissions).containsEntry(nodeId, ACL.decode(ACL.OWNER));
     verify(nodeRepository, times(1)).getNodes(List.of(nodeId), Optional.empty());
     verifyNoInteractions(shareRepository);
   }
@@ -227,11 +227,11 @@ class PermissionsCheckerTest {
             OWNER_ID);
 
     assertThat(permissions).hasSize(5);
-    assertThat(permissions.get(rootId)).isEqualTo(ACL.decode(ACL.OWNER));
-    assertThat(permissions.get(hiddenId)).isEqualTo(ACL.decode(ACL.NONE));
-    assertThat(permissions.get(ownedId)).isEqualTo(ACL.decode(ACL.OWNER));
-    assertThat(permissions.get(sharedId)).isEqualTo(ACL.decode(SharePermission.READ_ONLY));
-    assertThat(permissions.get(notSharedId)).isEqualTo(ACL.decode(ACL.NONE));
+    assertThat(permissions).containsEntry(rootId, ACL.decode(ACL.OWNER));
+    assertThat(permissions).containsEntry(hiddenId, ACL.decode(ACL.NONE));
+    assertThat(permissions).containsEntry(ownedId, ACL.decode(ACL.OWNER));
+    assertThat(permissions).containsEntry(sharedId, ACL.decode(SharePermission.READ_ONLY));
+    assertThat(permissions).containsEntry(notSharedId, ACL.decode(ACL.NONE));
     verifyNoInteractions(nodeRepository);
     verify(shareRepository, times(1)).getSharePermissions(anyList(), anyString());
     verify(shareRepository)
@@ -252,7 +252,7 @@ class PermissionsCheckerTest {
     Map<String, ACL> permissions =
         checker.getPermissionsOfNodes(List.of(node(nodeId, NodeType.FOLDER, false)), OWNER_ID);
 
-    assertThat(permissions.get(nodeId)).isEqualTo(ACL.decode(ACL.OWNER));
+    assertThat(permissions).containsEntry(nodeId, ACL.decode(ACL.OWNER));
     verifyNoInteractions(nodeRepository, shareRepository);
   }
 }
