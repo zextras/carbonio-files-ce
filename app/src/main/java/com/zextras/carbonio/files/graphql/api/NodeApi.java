@@ -494,10 +494,7 @@ public class NodeApi {
       List<Runnable> pendingNotifications = new ArrayList<>();
       List<Node> lockedNodes = nodeRepository.getNodesForUpdate(trashableNodes);
       List<String> alreadyTrashedIds =
-          lockedNodes.stream()
-              .filter(node -> node.getParentId().filter(RootId.TRASH_ROOT::equals).isPresent())
-              .map(Node::getId)
-              .toList();
+          nodeRepository.getTrashedNodeIds(lockedNodes.stream().map(Node::getId).toList());
       trashableNodes.removeAll(alreadyTrashedIds);
       lockedNodes.stream()
           .filter(node -> !alreadyTrashedIds.contains(node.getId()))
@@ -1325,10 +1322,10 @@ public class NodeApi {
     Set<ImmutablePair<String, String>> locked = new HashSet<>();
     List<Node> preRead = nodeRepository.getNodes(nodeIds, Optional.empty()).toList();
     lockChildNames(restoreKeys(preRead, restoreDestinations(preRead)), locked);
+    List<Node> lockedNodes = nodeRepository.getNodesForUpdate(nodeIds);
+    List<String> trashedIds = nodeRepository.getTrashedNodeIds(nodeIds);
     List<Node> stillTrashed =
-        nodeRepository.getNodesForUpdate(nodeIds).stream()
-            .filter(node -> node.getParentId().filter(RootId.TRASH_ROOT::equals).isPresent())
-            .toList();
+        lockedNodes.stream().filter(node -> trashedIds.contains(node.getId())).toList();
     Map<String, Optional<Node>> destinations = restoreDestinations(stillTrashed);
     lockChildNames(restoreKeys(stillTrashed, destinations), locked);
     return destinations;

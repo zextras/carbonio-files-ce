@@ -515,6 +515,7 @@ class NodeApiMutationsTest {
         .thenReturn(Optional.of(new TrashedNode(NODE_ID_1, PARENT_ID)));
     when(nodeRepository.getTrashedNode(NODE_ID_2))
         .thenReturn(Optional.of(new TrashedNode(NODE_ID_2, NODE_ID_1)));
+    when(nodeRepository.getTrashedNodeIds(nodeIds)).thenReturn(nodeIds);
     when(permissionsChecker.getPermissions(anyString(), eq(REQUESTER_ID)))
         .thenReturn(aclWith(true));
     when(nodeRepository.getNodes(nodeIds, Optional.empty()))

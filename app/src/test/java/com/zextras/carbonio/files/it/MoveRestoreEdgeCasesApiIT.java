@@ -601,4 +601,52 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
         .as("cascadeUpsertShare must reach the restored folder's own descendants")
         .isTrue();
   }
+
+  @Test
+  void givenATrashedNodeMovedOutByTheApiRestoreNodesShouldStillRestoreIt() {
+    // Given
+    String folderId = seedFolder("destination", LOCAL_ROOT, OWNER_COOKIE);
+    String nodeId =
+        seedFile("stale.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    seedTrashed(nodeId, OWNER_COOKIE);
+    Assertions.assertThat(
+            TestUtils.jsonResponseToErrors(
+                moveNodes(new String[] {nodeId}, folderId, OWNER_COOKIE).getBody().asString()))
+        .isEmpty();
+
+    // When
+    Response response = restoreNodes(new String[] {nodeId}, OWNER_COOKIE);
+
+    // Then
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
+    Assertions.assertThat(response.jsonPath().getList("data.restoreNodes.id"))
+        .containsExactly(nodeId);
+  }
+
+  @Test
+  void givenATrashedNodeMovedOutByTheApiTrashNodesShouldReportAWriteError() {
+    // Given
+    String folderId = seedFolder("destination", LOCAL_ROOT, OWNER_COOKIE);
+    String nodeId =
+        seedFile("stale.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    seedTrashed(nodeId, OWNER_COOKIE);
+    Assertions.assertThat(
+            TestUtils.jsonResponseToErrors(
+                moveNodes(new String[] {nodeId}, folderId, OWNER_COOKIE).getBody().asString()))
+        .isEmpty();
+
+    // When
+    Response response =
+        graphql(
+            GraphqlCommandBuilder.aMutationBuilder("trashNodes")
+                .withListOfStrings("node_ids", new String[] {nodeId})
+                .withWantedResultFormat("")
+                .build(),
+            OWNER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("NODE_WRITE_ERROR");
+  }
 }

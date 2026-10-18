@@ -361,6 +361,20 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   @Override
+  public List<String> getTrashedNodeIds(List<String> nodeIds) {
+    if (nodeIds.isEmpty()) {
+      return List.of();
+    }
+    return entityManager
+        .createQuery("select tn.mNodeId from TrashedNode tn where tn.mNodeId in :ids", String.class)
+        .setParameter("ids", nodeIds.stream().map(NodeRepositoryImpl::normalizeId).toList())
+        .getResultList()
+        .stream()
+        .map(String::trim)
+        .toList();
+  }
+
+  @Override
   public List<String> getTrashedNodeIdsByOldParent(String oldParentId) {
     return entityManager
         .createQuery(
