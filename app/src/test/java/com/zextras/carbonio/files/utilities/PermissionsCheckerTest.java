@@ -86,16 +86,8 @@ class PermissionsCheckerTest {
     String nodeId = "44444444-4444-4444-4444-444444444443";
     when(nodeRepository.getNode(nodeId))
         .thenReturn(Optional.of(node(nodeId, NodeType.FOLDER, false)));
-    Share share =
-        new Share(
-            nodeId,
-            SHARED_USER_ID,
-            ACL.decode(SharePermission.READ_AND_WRITE),
-            1_000L,
-            true,
-            false,
-            null);
-    when(shareRepository.getShare(nodeId, SHARED_USER_ID)).thenReturn(Optional.of(share));
+    when(shareRepository.getSharePermissions(nodeId, SHARED_USER_ID))
+        .thenReturn(Optional.of(ACL.decode(SharePermission.READ_AND_WRITE)));
     PermissionsChecker checker = new PermissionsChecker(nodeRepository, shareRepository);
 
     ACL permissions = checker.getPermissions(nodeId, SHARED_USER_ID);
@@ -112,7 +104,7 @@ class PermissionsCheckerTest {
     String nodeId = "44444444-4444-4444-4444-444444444444";
     when(nodeRepository.getNode(nodeId))
         .thenReturn(Optional.of(node(nodeId, NodeType.FOLDER, false)));
-    when(shareRepository.getShare(nodeId, STRANGER_ID)).thenReturn(Optional.empty());
+    when(shareRepository.getSharePermissions(nodeId, STRANGER_ID)).thenReturn(Optional.empty());
     PermissionsChecker checker = new PermissionsChecker(nodeRepository, shareRepository);
 
     ACL permissions = checker.getPermissions(nodeId, STRANGER_ID);
@@ -164,16 +156,8 @@ class PermissionsCheckerTest {
                 node(hiddenId, NodeType.FOLDER, true),
                 node(sharedId, NodeType.FOLDER, false),
                 node(notSharedId, NodeType.FOLDER, false)));
-    Share share =
-        new Share(
-            sharedId,
-            SHARED_USER_ID,
-            ACL.decode(SharePermission.READ_AND_WRITE),
-            1_000L,
-            true,
-            false,
-            null);
-    when(shareRepository.getShares(anyList(), eq(SHARED_USER_ID))).thenReturn(List.of(share));
+    when(shareRepository.getSharePermissions(anyList(), eq(SHARED_USER_ID)))
+        .thenReturn(Map.of(sharedId, ACL.decode(SharePermission.READ_AND_WRITE)));
     PermissionsChecker checker = new PermissionsChecker(nodeRepository, shareRepository);
 
     Map<String, ACL> permissions =
@@ -188,10 +172,12 @@ class PermissionsCheckerTest {
     assertThat(permissions.get(notSharedId)).isEqualTo(ACL.decode(ACL.NONE));
     assertThat(permissions.get(missingId)).isEqualTo(ACL.decode(ACL.NONE));
     verify(nodeRepository, times(1)).getNodes(anyList(), any());
-    verify(shareRepository, times(1)).getShares(anyList(), anyString());
+    verify(shareRepository, times(1)).getSharePermissions(anyList(), anyString());
     verify(shareRepository)
-        .getShares(
-            argThat(ids -> ids.size() == 2 && ids.containsAll(List.of(sharedId, notSharedId))),
+        .getSharePermissions(
+            argThat(
+                (List<String> ids) ->
+                    ids.size() == 2 && ids.containsAll(List.of(sharedId, notSharedId))),
             eq(SHARED_USER_ID));
   }
 
@@ -226,16 +212,8 @@ class PermissionsCheckerTest {
     shared.setOwnerId(STRANGER_ID);
     Node notShared = node(notSharedId, NodeType.FOLDER, false);
     notShared.setOwnerId(STRANGER_ID);
-    Share share =
-        new Share(
-            sharedId + " ",
-            SHARED_USER_ID,
-            ACL.decode(SharePermission.READ_ONLY),
-            1_000L,
-            true,
-            false,
-            null);
-    when(shareRepository.getShares(anyList(), eq(OWNER_ID))).thenReturn(List.of(share));
+    when(shareRepository.getSharePermissions(anyList(), eq(OWNER_ID)))
+        .thenReturn(Map.of(sharedId, ACL.decode(SharePermission.READ_ONLY)));
     PermissionsChecker checker = new PermissionsChecker(nodeRepository, shareRepository);
 
     Map<String, ACL> permissions =
@@ -255,10 +233,12 @@ class PermissionsCheckerTest {
     assertThat(permissions.get(sharedId)).isEqualTo(ACL.decode(SharePermission.READ_ONLY));
     assertThat(permissions.get(notSharedId)).isEqualTo(ACL.decode(ACL.NONE));
     verifyNoInteractions(nodeRepository);
-    verify(shareRepository, times(1)).getShares(anyList(), anyString());
+    verify(shareRepository, times(1)).getSharePermissions(anyList(), anyString());
     verify(shareRepository)
-        .getShares(
-            argThat(ids -> ids.size() == 2 && ids.containsAll(List.of(sharedId, notSharedId))),
+        .getSharePermissions(
+            argThat(
+                (List<String> ids) ->
+                    ids.size() == 2 && ids.containsAll(List.of(sharedId, notSharedId))),
             eq(OWNER_ID));
   }
 

@@ -63,7 +63,7 @@ public class PermissionsChecker {
     Node node = nodeRepository.getNode(nodeId).orElse(null);
     Optional<ACL> sharePermissions =
         node != null && needsShareLookup(node, userId)
-            ? shareRepository.getShare(node.getId(), userId).map(Share::getPermissions)
+            ? shareRepository.getSharePermissions(node.getId(), userId)
             : Optional.empty();
     return permissionsOf(node, userId, sharePermissions);
   }
@@ -101,8 +101,7 @@ public class PermissionsChecker {
     Map<String, ACL> sharePermissions =
         sharedNodeIds.isEmpty()
             ? Map.of()
-            : shareRepository.getShares(sharedNodeIds, userId).stream()
-                .collect(Collectors.toMap(s -> s.getNodeId().trim(), Share::getPermissions));
+            : shareRepository.getSharePermissions(sharedNodeIds, userId);
     Map<String, ACL> result = new HashMap<>();
     nodes.forEach(
         n ->
