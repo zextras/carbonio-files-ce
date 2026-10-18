@@ -10,9 +10,13 @@ import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -99,6 +103,53 @@ class FlagNodesApiIT extends AbstractFilesIT {
       }
     } finally {
       pool.shutdownNow();
+    }
+  }
+
+  @Test
+  void givenAFlagClearedWhileFlagNodesWaitsForTheNodeLockFlagNodesShouldSetTheFlag()
+      throws Exception {
+    String nodeId =
+        seedFile(
+            "aFile.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedFlag(nodeId, REQUESTER_COOKIE);
+
+    Response response;
+    try (Connection holder = jdbcConnection()) {
+      holder.setAutoCommit(false);
+      try (PreparedStatement lockNode =
+              holder.prepareStatement("SELECT node_id FROM node WHERE node_id = ? FOR UPDATE");
+          PreparedStatement clearFlag =
+              holder.prepareStatement(
+                  "UPDATE custom SET star = false WHERE node_id = ? AND user_id = ?")) {
+        lockNode.setString(1, nodeId);
+        try (ResultSet node = lockNode.executeQuery()) {
+          Assertions.assertThat(node.next()).isTrue();
+        }
+        clearFlag.setString(1, nodeId);
+        clearFlag.setString(2, REQUESTER_ID);
+        Assertions.assertThat(clearFlag.executeUpdate()).isEqualTo(1);
+      }
+      CompletableFuture<Response> flag =
+          CompletableFuture.supplyAsync(() -> flagNodes(new String[] {nodeId}, REQUESTER_COOKIE));
+      awaitBlockedBy(holder);
+      holder.commit();
+      response = flag.get(60, TimeUnit.SECONDS);
+    }
+
+    Map<String, Object> page =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "flagNodes");
+    Assertions.assertThat((List<String>) page.get("data")).containsExactly(nodeId);
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT star FROM custom WHERE node_id = ? AND user_id = ?")) {
+      statement.setString(1, nodeId);
+      statement.setString(2, REQUESTER_ID);
+      try (ResultSet row = statement.executeQuery()) {
+        Assertions.assertThat(row.next()).isTrue();
+        Assertions.assertThat(row.getBoolean("star")).isTrue();
+      }
     }
   }
 

@@ -8,6 +8,7 @@ import static com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER;
 import static com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT;
 
 import com.zextras.carbonio.files.Constants;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -92,7 +93,7 @@ public class Node {
   @Column(name = Constants.Db.Node.HIDDEN, nullable = false)
   private Boolean mHidden;
 
-  @OneToMany(fetch = FetchType.EAGER)
+  @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.REFRESH)
   @JoinColumn(
       name = Constants.Db.Node.ID,
       referencedColumnName = Constants.Db.NodeCustomAttributes.NODE_ID,

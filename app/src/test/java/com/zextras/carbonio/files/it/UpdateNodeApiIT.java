@@ -184,6 +184,39 @@ class UpdateNodeApiIT extends AbstractFilesIT {
     Assertions.assertThat(node).containsEntry("name", "flagme");
   }
 
+  private Response renameWhileMoveIsUncommitted(
+      String nodeId, String targetFolderId, boolean lockFlagRow) throws Exception {
+    try (Connection move = jdbcConnection()) {
+      move.setAutoCommit(false);
+      if (lockFlagRow) {
+        // The flag row lock parks a pre-fix rename between its node read and its node write.
+        try (PreparedStatement lockFlag =
+            move.prepareStatement(
+                "SELECT star FROM custom WHERE node_id = ? AND user_id = ? FOR UPDATE")) {
+          lockFlag.setString(1, nodeId);
+          lockFlag.setString(2, REQUESTER_ID);
+          try (ResultSet flag = lockFlag.executeQuery()) {
+            Assertions.assertThat(flag.next()).isTrue();
+          }
+        }
+      }
+      try (PreparedStatement moveNode =
+          move.prepareStatement(
+              "UPDATE node SET folder_id = ?, ancestor_ids = ? WHERE node_id = ?")) {
+        moveNode.setString(1, targetFolderId);
+        moveNode.setString(2, LOCAL_ROOT + "," + targetFolderId);
+        moveNode.setString(3, nodeId);
+        moveNode.executeUpdate();
+      }
+      CompletableFuture<Response> rename =
+          CompletableFuture.supplyAsync(
+              () -> updateNode(nodeId, "renamed", null, false, REQUESTER_COOKIE));
+      awaitBlockedBy(move);
+      move.commit();
+      return rename.get(60, TimeUnit.SECONDS);
+    }
+  }
+
   @Test
   void givenAMoveCommittedWhileARenameIsInFlightTheRenameShouldNotUndoTheMove() throws Exception {
     String sourceFolderId = seedFolder("race-source", LOCAL_ROOT, REQUESTER_COOKIE);
@@ -196,33 +229,7 @@ class UpdateNodeApiIT extends AbstractFilesIT {
             REQUESTER_COOKIE);
     seedFlag(nodeId, REQUESTER_COOKIE);
 
-    Response response;
-    try (Connection move = jdbcConnection()) {
-      move.setAutoCommit(false);
-      // The flag row lock parks a pre-fix rename between its node read and its node write.
-      try (PreparedStatement lockFlag =
-              move.prepareStatement(
-                  "SELECT star FROM custom WHERE node_id = ? AND user_id = ? FOR UPDATE");
-          PreparedStatement moveNode =
-              move.prepareStatement(
-                  "UPDATE node SET folder_id = ?, ancestor_ids = ? WHERE node_id = ?")) {
-        lockFlag.setString(1, nodeId);
-        lockFlag.setString(2, REQUESTER_ID);
-        try (ResultSet flag = lockFlag.executeQuery()) {
-          Assertions.assertThat(flag.next()).isTrue();
-        }
-        moveNode.setString(1, targetFolderId);
-        moveNode.setString(2, LOCAL_ROOT + "," + targetFolderId);
-        moveNode.setString(3, nodeId);
-        moveNode.executeUpdate();
-      }
-      CompletableFuture<Response> rename =
-          CompletableFuture.supplyAsync(
-              () -> updateNode(nodeId, "renamed", null, false, REQUESTER_COOKIE));
-      awaitBlockedBy(move);
-      move.commit();
-      response = rename.get(60, TimeUnit.SECONDS);
-    }
+    Response response = renameWhileMoveIsUncommitted(nodeId, targetFolderId, true);
 
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
     Assertions.assertThat(TestUtils.jsonResponseToMap(response.getBody().asString(), "updateNode"))
@@ -255,35 +262,8 @@ class UpdateNodeApiIT extends AbstractFilesIT {
         targetFolderId,
         "content".getBytes(StandardCharsets.UTF_8),
         REQUESTER_COOKIE);
-    seedFlag(nodeId, REQUESTER_COOKIE);
 
-    Response response;
-    try (Connection move = jdbcConnection()) {
-      move.setAutoCommit(false);
-      // The flag row lock parks a pre-fix rename between its node read and its node write.
-      try (PreparedStatement lockFlag =
-              move.prepareStatement(
-                  "SELECT star FROM custom WHERE node_id = ? AND user_id = ? FOR UPDATE");
-          PreparedStatement moveNode =
-              move.prepareStatement(
-                  "UPDATE node SET folder_id = ?, ancestor_ids = ? WHERE node_id = ?")) {
-        lockFlag.setString(1, nodeId);
-        lockFlag.setString(2, REQUESTER_ID);
-        try (ResultSet flag = lockFlag.executeQuery()) {
-          Assertions.assertThat(flag.next()).isTrue();
-        }
-        moveNode.setString(1, targetFolderId);
-        moveNode.setString(2, LOCAL_ROOT + "," + targetFolderId);
-        moveNode.setString(3, nodeId);
-        moveNode.executeUpdate();
-      }
-      CompletableFuture<Response> rename =
-          CompletableFuture.supplyAsync(
-              () -> updateNode(nodeId, "renamed", null, false, REQUESTER_COOKIE));
-      awaitBlockedBy(move);
-      move.commit();
-      response = rename.get(60, TimeUnit.SECONDS);
-    }
+    Response response = renameWhileMoveIsUncommitted(nodeId, targetFolderId, false);
 
     Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
         .containsExactly("NODE_DUPLICATED");
