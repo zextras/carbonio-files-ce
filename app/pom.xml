@@ -33,6 +33,42 @@ SPDX-License-Identifier: AGPL-3.0-only
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <!-- Numeric literal DoS fixes; drop once the Quarkus BOM (>= 3.39.5 ships SmallRye 2.18.5) also ships graphql-java 25.1 -->
+      <dependency>
+        <groupId>io.smallrye</groupId>
+        <artifactId>smallrye-graphql</artifactId>
+        <version>${smallrye-graphql.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.smallrye</groupId>
+        <artifactId>smallrye-graphql-api</artifactId>
+        <version>${smallrye-graphql.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.smallrye</groupId>
+        <artifactId>smallrye-graphql-cdi</artifactId>
+        <version>${smallrye-graphql.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.smallrye</groupId>
+        <artifactId>smallrye-graphql-schema-model</artifactId>
+        <version>${smallrye-graphql.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.smallrye</groupId>
+        <artifactId>smallrye-graphql-schema-builder</artifactId>
+        <version>${smallrye-graphql.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.smallrye</groupId>
+        <artifactId>smallrye-graphql-ui-graphiql</artifactId>
+        <version>${smallrye-graphql.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.graphql-java</groupId>
+        <artifactId>graphql-java</artifactId>
+        <version>${graphql-java.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -59,6 +95,15 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-hibernate-validator</artifactId>
+    </dependency>
+
+    <!--
+      Security extension: provides the CurrentIdentityAssociation CDI producer (SecurityIdentity
+      bean) required by FilesGraphQLAuthMechanism and AuthenticatedUserProducer. BOM-managed version.
+    -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-security</artifactId>
     </dependency>
 
     <!--
@@ -127,29 +172,31 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <!--
-      P3b: framework-agnostic GraphQL support layer + DataLoaders (schema-first graphql-java,
-      NOT SmallRye). graphql-java is managed by quarkus-bom (25.0); java-dataloader is not
-      BOM-managed, pinned explicitly. DataFetchers/providers/routes are ported in later phases
-      (P3c-P3e); this only needs the library on the compile classpath.
-    -->
-    <dependency>
-      <groupId>com.graphql-java</groupId>
-      <artifactId>graphql-java</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.graphql-java</groupId>
-      <artifactId>java-dataloader</artifactId>
-      <version>6.0.0</version>
-    </dependency>
-
-    <!--
-      commons-validator: GenericControllerEvaluator uses EmailValidator for GraphQL input
-      validation. Not BOM-managed; version matches the pin used by the old Guice+Netty stack.
+      commons-validator: GraphQLInputValidator uses EmailValidator for GraphQL input validation.
+      Not BOM-managed; same version as the pre-migration stack.
     -->
     <dependency>
       <groupId>commons-validator</groupId>
       <artifactId>commons-validator</artifactId>
       <version>1.9.0</version>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-beanutils</groupId>
+          <artifactId>commons-beanutils</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-digester</groupId>
+          <artifactId>commons-digester</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-collections</groupId>
+          <artifactId>commons-collections</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!--
@@ -163,7 +210,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
     <!--
       P3d: storages-ce-sdk provides com.zextras.filestore.api.Filestore + StoragesClient, used by
-      NodeDataFetcher (blob bulkDelete) and produced as a CDI bean by FilestoreProducer.
+      NodeApi (blob bulkDelete) and produced as a CDI bean by FilestoreProducer.
     -->
     <dependency>
       <groupId>com.zextras</groupId>
@@ -172,9 +219,8 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <!--
-      P3d: vavr Try — NodeDataFetcher wraps the storages copy-blob calls (copyNodeFetcher /
-      cloneVersionFetcher) in io.vavr.control.Try fluent chains. Ported verbatim from the legacy
-      stack rather than rewritten. Not BOM-managed; version matches the legacy Guice stack pin.
+      P3d: vavr Try — NodeApi, the REST services and the clients use io.vavr.control.Try fluent
+      chains. Ported verbatim from the legacy stack rather than rewritten. Not BOM-managed; version matches the legacy Guice stack pin.
     -->
     <dependency>
       <groupId>io.vavr</groupId>
@@ -249,6 +295,19 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>org.jetbrains.kotlinx</groupId>
       <artifactId>kotlinx-coroutines-core</artifactId>
+    </dependency>
+
+    <!--
+      Code-first GraphQL via the Carbonio Quarkus extension (mirrors carbonio-tasks-ce). Serves the
+      auto-discovered @GraphQLApi/@Type beans at /graphql (brings quarkus-smallrye-graphql +
+      smallrye-graphql-api transitively) AND runs the build-time step that renders the SDL from code
+      into app/docs/schema.graphql (quarkus.carbonio-graphql.store-schema-directory=docs) — the
+      GraphQL analogue of carbonio-rest's docs/openapi.yaml.
+    -->
+    <dependency>
+      <groupId>com.zextras.carbonio.quarkus</groupId>
+      <artifactId>carbonio-quarkus-extensions-graphql</artifactId>
+      <version>${carbonio-quarkus-extensions.version}</version>
     </dependency>
 
     <!-- Test -->

@@ -37,7 +37,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
     <!-- Quarkus migration -->
     <quarkus.version>3.37.3</quarkus.version>
-    <carbonio-quarkus-extensions.version>1.14.0-1</carbonio-quarkus-extensions.version>
+    <smallrye-graphql.version>2.18.5</smallrye-graphql.version>
+    <graphql-java.version>25.1</graphql-java.version>
+    <carbonio-quarkus-extensions.version>1.15.3-1</carbonio-quarkus-extensions.version>
     <!-- P6e: user-management REST client SDK (UserRepositoryImpl co-requisite). Replaces the
          retired carbonio-user-management-grpc-sdk now that files-ce is 100% gRPC-free. -->
     <carbonio-user-management-rest-sdk.version>1.3.3-1</carbonio-user-management-rest-sdk.version>
@@ -169,6 +171,12 @@ SPDX-License-Identifier: AGPL-3.0-only
       <id>zextras-java-sdk</id>
       <name>Zextras public maven repo</name>
       <url>https://zextras.jfrog.io/artifactory/java-sdk</url>
+    </repository>
+    <!-- carbonio-quarkus-extensions >= 1.15.3 is published to Nexus only (jenkins-lib-common v5). -->
+    <repository>
+      <id>zextras-nexus</id>
+      <name>Zextras Nexus releases</name>
+      <url>https://repo.zextras.tools/repository/public-maven-repo/</url>
     </repository>
   </repositories>
 </project>

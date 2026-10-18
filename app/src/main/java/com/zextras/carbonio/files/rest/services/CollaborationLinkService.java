@@ -10,7 +10,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
-import com.zextras.carbonio.files.graphql.datafetchers.ShareDataFetcher;
+import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import io.vavr.control.Try;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -22,8 +22,8 @@ import java.util.Optional;
  * Quarkus port of the legacy Guice {@code CollaborationLinkService}. Resolves a {@link
  * com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink} by its public invitation id and
  * creates/updates a direct share for the requester with the link's permission, propagating it on
- * the sub-tree via {@link ShareDataFetcher#cascadeUpsertShare} (the same helper used by the GraphQL
- * {@code createShare} mutation) — reused as-is rather than reimplemented.
+ * the sub-tree via {@link ShareCascadeHelper#cascadeUpsertShare} (the same helper used by the
+ * code-first {@code createShare} mutation) — reused as-is rather than reimplemented.
  *
  * <p>One deliberate deviation from the legacy behaviour: {@code cascadeUpsertShare} is invoked
  * SYNCHRONOUSLY here instead of via {@code CompletableFuture.runAsync(...)}. The legacy call was
@@ -38,18 +38,18 @@ public class CollaborationLinkService {
   private final CollaborationLinkRepository collaborationLinkRepository;
   private final NodeRepository nodeRepository;
   private final ShareRepository shareRepository;
-  private final ShareDataFetcher shareDataFetcher;
+  private final ShareCascadeHelper shareCascadeHelper;
 
   @Inject
   public CollaborationLinkService(
       CollaborationLinkRepository collaborationLinkRepository,
       NodeRepository nodeRepository,
       ShareRepository shareRepository,
-      ShareDataFetcher shareDataFetcher) {
+      ShareCascadeHelper shareCascadeHelper) {
     this.collaborationLinkRepository = collaborationLinkRepository;
     this.nodeRepository = nodeRepository;
     this.shareRepository = shareRepository;
-    this.shareDataFetcher = shareDataFetcher;
+    this.shareCascadeHelper = shareCascadeHelper;
   }
 
   public Try<Node> createShareByInvitationId(String invitationId, String requesterId) {
@@ -86,11 +86,9 @@ public class CollaborationLinkService {
                                   Optional.empty());
                             }
 
-                            // TODO: This is temporary, we need to change the cascadeUpsertShare
-                            //  method as a utility method. Called synchronously (see class
-                            //  javadoc): the request-scoped EntityManager is not available off
-                            //  the request thread on Quarkus.
-                            shareDataFetcher.cascadeUpsertShare(
+                            // Called synchronously (see class javadoc): the request-scoped
+                            // EntityManager is not available off the request thread on Quarkus.
+                            shareCascadeHelper.cascadeUpsertShare(
                                 collaborationLink.getNodeId(),
                                 requesterId,
                                 ACL.decode(collaborationLink.getPermissions()),
