@@ -281,15 +281,6 @@ public class NodeApi {
 
   // ─── Single-item @Source resolvers ────────────────────────────────────────────
 
-  @Name("permissions")
-  @NonNull
-  public List<@NonNull PermissionsModel> permissions(@Source List<NodeModel> nodes) {
-    Map<String, ACL> byId =
-        permissionsChecker.getPermissions(
-            nodes.stream().map(NodeModel::getId).toList(), requester.getId().getUserId());
-    return nodes.stream().map(n -> new PermissionsModel(byId.get(n.getId()))).toList();
-  }
-
   @Name("children")
   @NonNull
   public NodePageModel children(
@@ -334,7 +325,7 @@ public class NodeApi {
     return page;
   }
 
-  // ─── Batch @Source resolvers — Node.parent ────────────────────────────────────
+  // ─── Batch @Source resolvers ───────────────────────────────────────────────
 
   @Name("parent")
   public List<NodeModel> parents(@Source List<NodeModel> nodes) {
@@ -345,8 +336,7 @@ public class NodeApi {
                 parentIds.stream().filter(Objects::nonNull).distinct().toList(), Optional.empty())
             .collect(Collectors.toMap(Node::getId, n -> n));
     String me = requester.getId().getUserId();
-    Map<String, ACL> permissions =
-        permissionsChecker.getPermissions(List.copyOf(byId.keySet()), me);
+    Map<String, ACL> permissions = permissionsChecker.getPermissionsOfNodes(byId.values(), me);
     return parentIds.stream()
         .map(id -> id == null ? null : byId.get(id))
         .map(
@@ -356,6 +346,15 @@ public class NodeApi {
               return NodeModelFactory.from(n, null, me);
             })
         .toList();
+  }
+
+  @Name("permissions")
+  @NonNull
+  public List<@NonNull PermissionsModel> permissions(@Source List<NodeModel> nodes) {
+    Map<String, ACL> byId =
+        permissionsChecker.getPermissions(
+            nodes.stream().map(NodeModel::getId).toList(), requester.getId().getUserId());
+    return nodes.stream().map(n -> new PermissionsModel(byId.get(n.getId()))).toList();
   }
 
   // ─── Mutations ────────────────────────────────────────────────────────────────

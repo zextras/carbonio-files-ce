@@ -12,6 +12,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,16 +60,12 @@ public class PermissionsChecker {
    * @return a {@link ACL} containing all the permissions that the user has on the specified node.
    */
   public ACL getPermissions(String nodeId, String userId) {
-    ACL maxPermissions = getMaxPermissionsAvailable();
     Node node = nodeRepository.getNode(nodeId).orElse(null);
-    Map<String, ACL> sharePermissions =
+    Optional<ACL> sharePermissions =
         node != null && needsShareLookup(node, userId)
-            ? shareRepository
-                .getShare(node.getId(), userId)
-                .map(share -> Map.of(node.getId(), share.getPermissions()))
-                .orElse(Map.of())
-            : Map.of();
-    return permissionsOf(node, userId, maxPermissions, sharePermissions);
+            ? shareRepository.getShare(node.getId(), userId).map(Share::getPermissions)
+            : Optional.empty();
+    return permissionsOf(node, userId, sharePermissions);
   }
 
   /**
@@ -80,22 +77,38 @@ public class PermissionsChecker {
    * @return a map from each requested node id to the permissions of the user on it
    */
   public Map<String, ACL> getPermissions(List<String> nodeIds, String userId) {
-    ACL maxPermissions = getMaxPermissionsAvailable();
     Map<String, Node> nodes =
         nodeRepository
             .getNodes(nodeIds.stream().distinct().toList(), Optional.empty())
             .collect(Collectors.toMap(Node::getId, n -> n));
+    Map<String, ACL> permissions = getPermissionsOfNodes(nodes.values(), userId);
+    Map<String, ACL> result = new HashMap<>();
+    nodeIds.forEach(id -> result.put(id, permissions.getOrDefault(id, ACL.decode(ACL.NONE))));
+    return result;
+  }
+
+  /**
+   * Calculates the {@link ACL} of many already loaded nodes for a specific user reading only the
+   * user shares on the nodes that need them with one query.
+   *
+   * @param nodes the nodes already loaded
+   * @param userId the id of the user we want to check its node permissions
+   * @return a map from the id of each node to the permissions of the user on it
+   */
+  public Map<String, ACL> getPermissionsOfNodes(Collection<Node> nodes, String userId) {
     List<String> sharedNodeIds =
-        nodes.values().stream().filter(n -> needsShareLookup(n, userId)).map(Node::getId).toList();
+        nodes.stream().filter(n -> needsShareLookup(n, userId)).map(Node::getId).toList();
     Map<String, ACL> sharePermissions =
         sharedNodeIds.isEmpty()
             ? Map.of()
             : shareRepository.getShares(sharedNodeIds, userId).stream()
-                .collect(Collectors.toMap(Share::getNodeId, Share::getPermissions));
+                .collect(Collectors.toMap(s -> s.getNodeId().trim(), Share::getPermissions));
     Map<String, ACL> result = new HashMap<>();
-    nodeIds.forEach(
-        id ->
-            result.put(id, permissionsOf(nodes.get(id), userId, maxPermissions, sharePermissions)));
+    nodes.forEach(
+        n ->
+            result.put(
+                n.getId(),
+                permissionsOf(n, userId, Optional.ofNullable(sharePermissions.get(n.getId())))));
     return result;
   }
 
@@ -105,15 +118,14 @@ public class PermissionsChecker {
         && !node.getOwnerId().equals(userId);
   }
 
-  private ACL permissionsOf(
-      Node node, String userId, ACL maxPermissions, Map<String, ACL> sharePermissions) {
+  private ACL permissionsOf(Node node, String userId, Optional<ACL> sharePermissions) {
     if (node == null || node.isHidden()) {
       return ACL.decode(ACL.NONE);
     }
+    ACL maxPermissions = getMaxPermissionsAvailable();
     if (node.getNodeType().equals(NodeType.ROOT) || node.getOwnerId().equals(userId)) {
       return maxPermissions.lesserACL(ACL.decode(ACL.OWNER));
     }
-    return maxPermissions.lesserACL(
-        sharePermissions.getOrDefault(node.getId(), ACL.decode(ACL.SharePermission.NONE)));
+    return maxPermissions.lesserACL(sharePermissions.orElse(ACL.decode(ACL.SharePermission.NONE)));
   }
 }

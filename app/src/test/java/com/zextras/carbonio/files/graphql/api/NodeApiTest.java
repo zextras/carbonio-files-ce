@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.graphql.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -450,7 +451,8 @@ class NodeApiTest {
 
     when(nodeRepository.getNodes(eq(List.of("parent-A")), any()))
         .thenReturn(List.of(parentA).stream());
-    when(permissionsChecker.getPermissions(List.of("parent-A"), REQUESTER_ID))
+    when(permissionsChecker.getPermissionsOfNodes(
+            argThat(nodes -> List.copyOf(nodes).equals(List.of(parentA))), eq(REQUESTER_ID)))
         .thenReturn(Map.of("parent-A", aclWith(true)));
 
     List<NodeModel> result = nodeApi.parents(List.of(n1, n2, n3));
@@ -491,6 +493,29 @@ class NodeApiTest {
     assertThat(result).hasSize(1);
     assertThat(result.get(0).isCanRead()).isTrue();
     assertThat(result.get(0).isCanShare()).isFalse();
+  }
+
+  @Test
+  void permissions_resolvesEachSourceInPositionWithMixedAcls() {
+    NodeModel owned = makeFolderModel("owned-id", null);
+    NodeModel shared = makeFolderModel("shared-id", null);
+    when(permissionsChecker.getPermissions(
+            List.of("owned-id", "shared-id", "owned-id"), REQUESTER_ID))
+        .thenReturn(
+            Map.of(
+                "owned-id", ACL.decode(ACL.OWNER),
+                "shared-id", ACL.decode(SharePermission.READ_ONLY)));
+
+    List<PermissionsModel> result = nodeApi.permissions(List.of(owned, shared, owned));
+
+    assertThat(result).hasSize(3);
+    assertThat(result.get(0).isCanShare()).isTrue();
+    assertThat(result.get(0).isCanWriteFile()).isTrue();
+    assertThat(result.get(1).isCanRead()).isTrue();
+    assertThat(result.get(1).isCanShare()).isFalse();
+    assertThat(result.get(1).isCanWriteFile()).isFalse();
+    assertThat(result.get(2).isCanShare()).isTrue();
+    assertThat(result.get(2).isCanWriteFile()).isTrue();
   }
 
   // ─── children @Source ─────────────────────────────────────────────────────────
