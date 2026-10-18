@@ -239,6 +239,66 @@ class UpdateNodeApiIT extends AbstractFilesIT {
     }
   }
 
+  @Test
+  void givenAMoveCommittedWhileARenameIsInFlightTheRenameShouldCheckTheNameInTheNewFolder()
+      throws Exception {
+    String sourceFolderId = seedFolder("race-source", LOCAL_ROOT, REQUESTER_COOKIE);
+    String targetFolderId = seedFolder("race-target", LOCAL_ROOT, REQUESTER_COOKIE);
+    String nodeId =
+        seedFile(
+            "racing.txt",
+            sourceFolderId,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+    seedFile(
+        "renamed.txt",
+        targetFolderId,
+        "content".getBytes(StandardCharsets.UTF_8),
+        REQUESTER_COOKIE);
+    seedFlag(nodeId, REQUESTER_COOKIE);
+
+    Response response;
+    try (Connection move = jdbcConnection()) {
+      move.setAutoCommit(false);
+      // The flag row lock parks a pre-fix rename between its node read and its node write.
+      try (PreparedStatement lockFlag =
+              move.prepareStatement(
+                  "SELECT star FROM custom WHERE node_id = ? AND user_id = ? FOR UPDATE");
+          PreparedStatement moveNode =
+              move.prepareStatement(
+                  "UPDATE node SET folder_id = ?, ancestor_ids = ? WHERE node_id = ?")) {
+        lockFlag.setString(1, nodeId);
+        lockFlag.setString(2, REQUESTER_ID);
+        try (ResultSet flag = lockFlag.executeQuery()) {
+          Assertions.assertThat(flag.next()).isTrue();
+        }
+        moveNode.setString(1, targetFolderId);
+        moveNode.setString(2, LOCAL_ROOT + "," + targetFolderId);
+        moveNode.setString(3, nodeId);
+        moveNode.executeUpdate();
+      }
+      CompletableFuture<Response> rename =
+          CompletableFuture.supplyAsync(
+              () -> updateNode(nodeId, "renamed", null, false, REQUESTER_COOKIE));
+      awaitBlockedBy(move);
+      move.commit();
+      response = rename.get(60, TimeUnit.SECONDS);
+    }
+
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("NODE_DUPLICATED");
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("SELECT folder_id, name FROM node WHERE node_id = ?")) {
+      statement.setString(1, nodeId);
+      try (ResultSet row = statement.executeQuery()) {
+        Assertions.assertThat(row.next()).isTrue();
+        Assertions.assertThat(row.getString("folder_id").trim()).isEqualTo(targetFolderId);
+        Assertions.assertThat(row.getString("name")).isEqualTo("racing.txt");
+      }
+    }
+  }
+
   private static void awaitBlockedBy(Connection lockHolder) throws Exception {
     int holderPid;
     try (PreparedStatement statement = lockHolder.prepareStatement("SELECT pg_backend_pid()");
