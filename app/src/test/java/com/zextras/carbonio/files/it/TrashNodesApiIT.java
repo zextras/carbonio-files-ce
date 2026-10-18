@@ -17,6 +17,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -295,6 +297,49 @@ class TrashNodesApiIT extends AbstractFilesIT {
         .isEqualTo(trashedId);
     Assertions.assertThat(response.jsonPath().getList("data.trashNodes")).containsExactly(otherId);
     Assertions.assertThat(trashedRowsOf(trashedId)).isEqualTo(1);
+    Assertions.assertThat(trashedRowsOf(otherId)).isEqualTo(1);
+  }
+
+  @Test
+  void givenANodeDeletedWhileTheTrashWaitsForItsLockTrashNodesShouldTrashTheOthersAndReportIt()
+      throws Exception {
+    // Given
+    String doomedId =
+        seedFile(
+            "doomed.txt", LOCAL_ROOT, "one".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String otherId =
+        seedFile("other.txt", LOCAL_ROOT, "two".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+
+    Response response;
+    try (Connection holder = jdbcConnection()) {
+      holder.setAutoCommit(false);
+      try (PreparedStatement lock =
+          holder.prepareStatement("SELECT node_id FROM node WHERE node_id = ? FOR UPDATE")) {
+        lock.setString(1, doomedId);
+        lock.execute();
+      }
+
+      // When
+      CompletableFuture<Response> trash =
+          CompletableFuture.supplyAsync(
+              () -> trashNodes(new String[] {doomedId, otherId}, REQUESTER_COOKIE));
+      awaitBlockedBy(holder);
+      try (PreparedStatement delete =
+          holder.prepareStatement("DELETE FROM node WHERE node_id = ?")) {
+        delete.setString(1, doomedId);
+        delete.executeUpdate();
+      }
+      holder.commit();
+      response = trash.get(60, TimeUnit.SECONDS);
+    }
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.errorCode"))
+        .isEqualTo("NODE_WRITE_ERROR");
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
+        .isEqualTo(doomedId);
+    Assertions.assertThat(response.jsonPath().getList("data.trashNodes")).containsExactly(otherId);
     Assertions.assertThat(trashedRowsOf(otherId)).isEqualTo(1);
   }
 }

@@ -495,44 +495,37 @@ public class NodeApi {
       List<Node> lockedNodes = nodeRepository.getNodesForUpdate(trashableNodes);
       List<String> alreadyTrashedIds =
           nodeRepository.getTrashedNodeIds(lockedNodes.stream().map(Node::getId).toList());
-      trashableNodes.removeAll(alreadyTrashedIds);
-      lockedNodes.stream()
-          .filter(node -> !alreadyTrashedIds.contains(node.getId()))
-          .forEach(
-              trashedNode -> {
-                String nodeParentId = trashedNode.getParentId().get();
+      List<Node> nodesToTrash =
+          lockedNodes.stream().filter(node -> !alreadyTrashedIds.contains(node.getId())).toList();
+      trashableNodes.retainAll(nodesToTrash.stream().map(Node::getId).toList());
+      nodesToTrash.forEach(
+          trashedNode -> {
+            String nodeParentId = trashedNode.getParentId().get();
 
-                List<String> usersToNotify =
-                    new ArrayList<>(
-                        shareRepository.getSharesUsersIds(trashedNode.getId(), List.of()));
-                usersToNotify.remove(me);
+            List<String> usersToNotify =
+                new ArrayList<>(shareRepository.getSharesUsersIds(trashedNode.getId(), List.of()));
+            usersToNotify.remove(me);
 
-                Node parent = nodeRepository.getNode(trashedNode.getParentId().get()).get();
-                if (!parent
-                        .getNodeType()
-                        .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
-                    && !me.equals(parent.getOwnerId())
-                    && !usersToNotify.contains(parent.getOwnerId())) {
-                  usersToNotify.add(parent.getOwnerId());
-                }
+            Node parent = nodeRepository.getNode(trashedNode.getParentId().get()).get();
+            if (!parent.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
+                && !me.equals(parent.getOwnerId())
+                && !usersToNotify.contains(parent.getOwnerId())) {
+              usersToNotify.add(parent.getOwnerId());
+            }
 
-                if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled()) {
-                  pendingNotifications.add(
-                      () ->
-                          notificationRepository.createRemovedNodeNotification(
-                              trashedNode,
-                              parent,
-                              requester,
-                              RemovedNodeType.DELETE,
-                              usersToNotify));
-                }
+            if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled()) {
+              pendingNotifications.add(
+                  () ->
+                      notificationRepository.createRemovedNodeNotification(
+                          trashedNode, parent, requester, RemovedNodeType.DELETE, usersToNotify));
+            }
 
-                trashedNode.setAncestorIds(Constants.Db.RootId.TRASH_ROOT);
-                trashedNode.setParentId(RootId.TRASH_ROOT);
-                nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
-                nodeRepository.updateNode(trashedNode);
-                cascadeUpdateAncestors(trashedNode);
-              });
+            trashedNode.setAncestorIds(Constants.Db.RootId.TRASH_ROOT);
+            trashedNode.setParentId(RootId.TRASH_ROOT);
+            nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
+            nodeRepository.updateNode(trashedNode);
+            cascadeUpdateAncestors(trashedNode);
+          });
 
       pendingNotifications.forEach(Runnable::run);
     }
@@ -570,20 +563,11 @@ public class NodeApi {
             .filter(nodeId -> nodeRepository.getTrashedNode(nodeId).isPresent())
             .collect(Collectors.toList());
 
-    List<String> nodesInError =
-        nodeIds.stream()
-            .filter(nodeId -> !restorableNodeIds.contains(nodeId))
-            .collect(Collectors.toList());
-    List<String> lostNodeIds = new ArrayList<>();
-
     Map<String, Optional<Node>> destinations = lockForRestore(restorableNodeIds);
-    restorableNodeIds.stream()
-        .filter(nodeId -> !destinations.containsKey(nodeId))
-        .forEach(lostNodeIds::add);
+    restorableNodeIds.retainAll(destinations.keySet());
     List<NodeModel> results =
         nodeRepository
             .getNodes(restorableNodeIds, Optional.empty())
-            .filter(node -> destinations.containsKey(node.getId()))
             .map(
                 node -> {
                   Optional<Node> parentNode = destinations.get(node.getId());
@@ -645,7 +629,8 @@ public class NodeApi {
                 })
             .collect(Collectors.toList());
 
-    nodesInError.addAll(lostNodeIds);
+    List<String> nodesInError =
+        nodeIds.stream().filter(nodeId -> !restorableNodeIds.contains(nodeId)).toList();
     List<NodeModel> withErrorSlots = new ArrayList<>(results);
     nodesInError.forEach(id -> withErrorSlots.add(null));
     NodeModelFactory.requireVersions(results, withErrorSlots);
@@ -703,6 +688,11 @@ public class NodeApi {
         idsToLock.add(destinationId);
       }
       List<Node> lockedNodes = nodeRepository.getNodesForUpdate(idsToLock);
+      List<String> lockedIds = lockedNodes.stream().map(Node::getId).toList();
+      if (!rootIds.contains(destinationId) && !lockedIds.contains(destinationId)) {
+        throw FilesGraphQLErrors.nodeWriteError(destinationId);
+      }
+      nodeIdsToMove.retainAll(lockedIds);
       List<String> destinationAncestors = destinationFolder.getAncestorsList();
       nodeIdsToMove.removeIf(destinationAncestors::contains);
       lockChildNames(
