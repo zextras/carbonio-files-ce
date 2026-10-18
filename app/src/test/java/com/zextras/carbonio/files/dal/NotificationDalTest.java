@@ -26,6 +26,7 @@ import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -53,6 +54,22 @@ class NotificationDalTest {
 
   @Inject NotificationRepository notificationRepository;
   @Inject EntityManager entityManager;
+
+  @AfterEach
+  void deleteCommittedRows() {
+    QuarkusTransaction.requiringNew()
+        .run(
+            () -> {
+              entityManager
+                  .createNativeQuery("DELETE FROM node WHERE creator_id = 'creator-id'")
+                  .executeUpdate();
+              entityManager
+                  .createNativeQuery(
+                      "TRUNCATE user_notification_interest, notification, snapshot_node,"
+                          + " snapshot_user, user_notifications_info CASCADE")
+                  .executeUpdate();
+            });
+  }
 
   private static String id() {
     return UUID.randomUUID().toString();
