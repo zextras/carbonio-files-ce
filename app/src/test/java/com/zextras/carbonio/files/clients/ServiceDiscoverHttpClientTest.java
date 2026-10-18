@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,13 +23,15 @@ import org.junit.jupiter.api.Test;
 
 class ServiceDiscoverHttpClientTest {
 
+  private ExecutorService executor;
   private HttpServer server;
   private ServiceDiscoverHttpClient client;
 
   @BeforeEach
   void setUp() throws IOException {
     server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-    server.setExecutor(Executors.newCachedThreadPool());
+    executor = Executors.newCachedThreadPool();
+    server.setExecutor(executor);
     server.createContext(
         "/",
         exchange -> {
@@ -53,6 +56,7 @@ class ServiceDiscoverHttpClientTest {
   @AfterEach
   void tearDown() {
     server.stop(0);
+    executor.shutdownNow();
   }
 
   @Test

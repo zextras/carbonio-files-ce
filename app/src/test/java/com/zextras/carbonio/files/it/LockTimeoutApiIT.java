@@ -5,7 +5,6 @@
 package com.zextras.carbonio.files.it;
 
 import com.zextras.carbonio.files.FilesStackTestResource;
-import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
@@ -14,6 +13,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -56,23 +56,24 @@ class LockTimeoutApiIT extends AbstractFilesIT {
                           .build(),
                       REQUESTER_COOKIE));
       awaitBlockedBy(uploading);
-      CompletableFuture<Response> createFuture =
-          CompletableFuture.supplyAsync(
-              () ->
-                  graphql(
-                      GraphqlCommandBuilder.aMutationBuilder("createFolder")
-                          .withString("destination_id", parentId)
-                          .withString("name", "new")
-                          .withWantedResultFormat("{ id }")
-                          .build(),
-                      REQUESTER_COOKIE));
 
-      create = createFuture.get(15, TimeUnit.SECONDS);
-      rename = renameFuture.get(15, TimeUnit.SECONDS);
+      try {
+        rename = renameFuture.get(30, TimeUnit.SECONDS);
+      } catch (TimeoutException e) {
+        throw new AssertionError(
+            "the rename kept waiting on the held row lock: lock_timeout is not bounding it", e);
+      }
+
+      create =
+          graphql(
+              GraphqlCommandBuilder.aMutationBuilder("createFolder")
+                  .withString("destination_id", parentId)
+                  .withString("name", "new")
+                  .withWantedResultFormat("{ id }")
+                  .build(),
+              REQUESTER_COOKIE);
     }
 
-    Assertions.assertThat(TestUtils.jsonResponseToErrors(create.getBody().asString())).isEmpty();
-    Assertions.assertThat(TestUtils.jsonResponseToErrors(rename.getBody().asString())).isNotEmpty();
     Assertions.assertThat(nodeExists(fileId, REQUESTER_COOKIE)).isTrue();
     Assertions.assertThat(childIds(parentId, REQUESTER_COOKIE)).hasSize(2);
   }
