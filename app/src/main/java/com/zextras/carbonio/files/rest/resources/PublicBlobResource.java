@@ -43,6 +43,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.jboss.resteasy.reactive.server.Cancellable;
 
 /**
  * Public (unauthenticated) blob download endpoints. Quarkus/RESTEasy Reactive port of the legacy
@@ -59,6 +60,8 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
  */
 @Path("/")
 @ApplicationScoped
+// Not cancelled on disconnect: the transfer must finish to close its stream and request context.
+@Cancellable(false)
 public class PublicBlobResource {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();

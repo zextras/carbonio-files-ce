@@ -44,6 +44,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.jboss.resteasy.reactive.server.Cancellable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +65,8 @@ import org.slf4j.LoggerFactory;
  */
 @Path("/preview")
 @ApplicationScoped
+// Not cancelled on disconnect: the transfer must finish to close its stream and request context.
+@Cancellable(false)
 public class PreviewResource {
 
   private static final Logger logger = LoggerFactory.getLogger(PreviewResource.class);

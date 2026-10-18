@@ -40,6 +40,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.jboss.resteasy.reactive.server.Cancellable;
 
 /**
  * Trusted, UNAUTHENTICATED blob REST endpoints reached only over the mesh (mTLS is the trust
@@ -63,6 +64,8 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
  */
 @Path("/internal")
 @ApplicationScoped
+// Not cancelled on disconnect: the transfer must finish to close its stream and request context.
+@Cancellable(false)
 public class InternalBlobResource {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
