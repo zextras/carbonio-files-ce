@@ -12,6 +12,9 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
@@ -314,6 +317,87 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
       ps.setString(1, nodeId);
       ps.executeUpdate();
     }
+  }
+
+  private static List<String> parentAndAncestorsOf(String nodeId) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT folder_id, ancestor_ids FROM node WHERE node_id = ?")) {
+      statement.setString(1, nodeId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        resultSet.next();
+        return List.of(resultSet.getString(1).trim(), resultSet.getString(2).trim());
+      }
+    }
+  }
+
+  @Test
+  void givenAFolderMovingItIntoItsOwnSubFolderMoveNodesShouldReturnNodeWriteErrorAndTouchNothing()
+      throws SQLException {
+    // Given
+    String folderId = seedFolder("outer", LOCAL_ROOT, OWNER_COOKIE);
+    String subFolderId = seedFolder("inner", folderId, OWNER_COOKIE);
+    List<String> before = parentAndAncestorsOf(folderId);
+
+    // When
+    Response response = moveNodes(new String[] {folderId}, subFolderId, OWNER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.errorCode"))
+        .isEqualTo("NODE_WRITE_ERROR");
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
+        .isEqualTo(folderId);
+    Assertions.assertThat(response.jsonPath().getList("data.moveNodes")).isEmpty();
+    Assertions.assertThat(parentAndAncestorsOf(folderId)).isEqualTo(before);
+    Assertions.assertThat(parentAndAncestorsOf(subFolderId).get(0)).isEqualTo(folderId);
+  }
+
+  @Test
+  void givenAFolderAndAnotherNodeMovingThemIntoTheFoldersSubFolderOnlyTheOtherShouldMove() {
+    // Given
+    String folderId = seedFolder("outer", LOCAL_ROOT, OWNER_COOKIE);
+    String subFolderId = seedFolder("inner", folderId, OWNER_COOKIE);
+    String otherId = seedFolder("other", LOCAL_ROOT, OWNER_COOKIE);
+
+    // When
+    Response response = moveNodes(new String[] {folderId, otherId}, subFolderId, OWNER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.errorCode"))
+        .isEqualTo("NODE_WRITE_ERROR");
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
+        .isEqualTo(folderId);
+    Assertions.assertThat(response.jsonPath().getList("data.moveNodes.id"))
+        .containsExactly(otherId);
+  }
+
+  @Test
+  void givenTwoFoldersMovedIntoEachOtherSequentiallyTheSecondMoveShouldReturnNodeWriteError()
+      throws SQLException {
+    // Given
+    String folderAId = seedFolder("A", LOCAL_ROOT, OWNER_COOKIE);
+    String folderBId = seedFolder("B", LOCAL_ROOT, OWNER_COOKIE);
+    Assertions.assertThat(
+            moveNodes(new String[] {folderAId}, folderBId, OWNER_COOKIE)
+                .jsonPath()
+                .getList("errors"))
+        .isNull();
+    List<String> before = parentAndAncestorsOf(folderBId);
+
+    // When
+    Response response = moveNodes(new String[] {folderBId}, folderAId, OWNER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.errorCode"))
+        .isEqualTo("NODE_WRITE_ERROR");
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
+        .isEqualTo(folderBId);
+    Assertions.assertThat(response.jsonPath().getList("data.moveNodes")).isEmpty();
+    Assertions.assertThat(parentAndAncestorsOf(folderBId)).isEqualTo(before);
   }
 
   // ---------------------------------------------------------------------------------------------

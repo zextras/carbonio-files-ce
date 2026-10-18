@@ -686,22 +686,44 @@ public class NodeApi {
                         .has(SharePermission.READ_AND_WRITE))
             .filter(nodeId -> !rootIds.contains(nodeId))
             .filter(nodeId -> !destinationId.equals(nodeId))
-            .collect(Collectors.toList());
+            .collect(Collectors.toCollection(ArrayList::new));
 
     List<String> nodesInError =
-        nodeIds.stream().filter(nodeId -> !nodeIdsToMove.contains(nodeId)).toList();
+        nodeIds.stream()
+            .filter(nodeId -> !nodeIdsToMove.contains(nodeId))
+            .collect(Collectors.toCollection(ArrayList::new));
 
-    List<NodeModel> movedNodesResult = List.of();
+    Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
     if (!nodeIdsToMove.isEmpty()) {
-      List<Runnable> pendingNotifications = new ArrayList<>();
-      Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
       lockChildNames(
           destinationKeys(
               nodeRepository.getNodes(nodeIdsToMove, Optional.empty()).toList(), destinationId),
           lockedNames);
+      List<String> idsToLock = new ArrayList<>(nodeIdsToMove);
+      idsToLock.add(destinationId);
+      List<Node> lockedNodes = nodeRepository.getNodesForUpdate(idsToLock);
+      List<String> destinationAncestors =
+          lockedNodes.stream()
+              .filter(node -> destinationId.trim().equals(node.getId().trim()))
+              .findFirst()
+              .orElse(destinationFolder)
+              .getAncestorsList()
+              .stream()
+              .map(String::trim)
+              .toList();
+      nodeIdsToMove.removeIf(nodeId -> destinationAncestors.contains(nodeId.trim()));
+      nodesInError.clear();
+      nodeIds.stream().filter(nodeId -> !nodeIdsToMove.contains(nodeId)).forEach(nodesInError::add);
       lockChildNames(
-          destinationKeys(nodeRepository.getNodesForUpdate(nodeIdsToMove), destinationId),
+          destinationKeys(
+              lockedNodes.stream().filter(node -> nodeIdsToMove.contains(node.getId())).toList(),
+              destinationId),
           lockedNames);
+    }
+
+    List<NodeModel> movedNodesResult = List.of();
+    if (!nodeIdsToMove.isEmpty()) {
+      List<Runnable> pendingNotifications = new ArrayList<>();
       nodeIdsToMove.forEach(
           nodeId -> {
             Node node = nodeRepository.getNode(nodeId).get();
