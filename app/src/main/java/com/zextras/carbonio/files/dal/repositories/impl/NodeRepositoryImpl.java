@@ -77,6 +77,8 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   private static final Logger logger = LoggerFactory.getLogger(NodeRepositoryImpl.class);
 
+  private static final String LOCK_TIMEOUT = "10s";
+
   /** Maps a {@link Db.Node} sortable column name to the JPA entity field of {@link Node}. */
   private static final Map<String, String> FIELD_BY_COLUMN =
       Map.of(
@@ -113,6 +115,7 @@ public class NodeRepositoryImpl implements NodeRepository {
     if (nodeIds.isEmpty()) {
       return List.of();
     }
+    boundLockWait();
     List<Node> nodes =
         entityManager
             .createQuery("select n from Node n where n.mId in :ids order by n.mId", Node.class)
@@ -123,9 +126,18 @@ public class NodeRepositoryImpl implements NodeRepository {
     return nodes;
   }
 
+  private void boundLockWait() {
+    // Waits are bounded so a writer never keeps its name/row locks while queued behind a long
+    // holder (e.g. an upload-version stream); the proxy answers the client after 15 s anyway.
+    entityManager
+        .createNativeQuery("SET LOCAL lock_timeout = '" + LOCK_TIMEOUT + "'")
+        .executeUpdate();
+  }
+
   @Override
   @Transactional(TxType.MANDATORY)
   public void lockChildNames(String folderId, String ownerId) {
+    boundLockWait();
     entityManager
         .createNativeQuery("select 1 from pg_advisory_xact_lock(hashtextextended(:key, 0))")
         .setParameter("key", folderId.trim() + "/" + ownerId)
