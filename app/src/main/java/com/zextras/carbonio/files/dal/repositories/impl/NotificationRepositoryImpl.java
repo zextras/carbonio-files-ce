@@ -141,20 +141,6 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 
   @Override
   @Transactional
-  public UserNotificationsInfo updateUserNotificationsInfo(UserNotificationsInfo info) {
-    return entityManager.merge(info);
-  }
-
-  @Override
-  @Transactional
-  public UserNotificationsInfo createUserNotificationsInfo(String userId) {
-    UserNotificationsInfo info = new UserNotificationsInfo(userId, System.currentTimeMillis(), 0);
-    entityManager.persist(info);
-    return info;
-  }
-
-  @Override
-  @Transactional
   public UserNotificationsInfo upsertUserNotificationsInfo(
       String userId, long lastSeen, int unread) {
     entityManager
@@ -224,13 +210,6 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         .findFirst();
   }
 
-  @Override
-  @Transactional
-  public UserNotificationInterest createUserNotification(
-      UserNotificationsInfo userNotificationsInfo, BaseNotification notification) {
-    return persistInterest(userNotificationsInfo.getUserId(), notification);
-  }
-
   private UserNotificationInterest persistInterest(String userId, BaseNotification notification) {
     UserNotificationInterest interest =
         new UserNotificationInterest(
@@ -293,15 +272,19 @@ public class NotificationRepositoryImpl implements NotificationRepository {
    * notify, creates their {@link UserNotificationsInfo} if missing, bumps their unread counter, and
    * records their interest in the new notification.
    */
-  private BaseNotification notifyUsers(
+  @Override
+  @Transactional
+  public BaseNotification notifyUsers(
       BaseNotification notification, List<String> usersIdsToNotify) {
     entityManager.persist(notification);
 
-    usersIdsToNotify.forEach(
-        userId -> {
-          incrementUnread(userId);
-          persistInterest(userId, notification);
-        });
+    usersIdsToNotify.stream()
+        .sorted()
+        .forEach(
+            userId -> {
+              incrementUnread(userId);
+              persistInterest(userId, notification);
+            });
 
     return notification;
   }

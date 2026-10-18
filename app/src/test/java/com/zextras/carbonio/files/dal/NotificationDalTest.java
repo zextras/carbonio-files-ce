@@ -138,4 +138,23 @@ class NotificationDalTest {
     assertThat(second.getTriggeringUserSnapshotId())
         .isNotEqualTo(first.getTriggeringUserSnapshotId());
   }
+
+  @Test
+  @TestTransaction
+  void createNotificationsForTheSameUserInOneTransactionShouldIncrementUnreadEachTime() {
+    String ownerId = id();
+    String receiverId = id();
+    Node node = persistNode(id(), ownerId, "shared-node");
+    UserMyself triggeringUser = buildUser(ownerId, "Owner");
+    notificationRepository.createNewShareNotification(node, triggeringUser, List.of(receiverId));
+    notificationRepository.createNewShareNotification(node, triggeringUser, List.of(receiverId));
+    notificationRepository.createNewShareNotification(node, triggeringUser, List.of(receiverId));
+    Number unread =
+        (Number)
+            entityManager
+                .createNativeQuery("select unread from user_notifications_info where user_id = :u")
+                .setParameter("u", receiverId)
+                .getSingleResult();
+    assertThat(unread.intValue()).isEqualTo(3);
+  }
 }

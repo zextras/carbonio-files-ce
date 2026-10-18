@@ -24,10 +24,6 @@ public interface NotificationRepository {
 
   Optional<UserNotificationsInfo> getUserNotificationsInfo(String userId);
 
-  UserNotificationsInfo updateUserNotificationsInfo(UserNotificationsInfo info);
-
-  UserNotificationsInfo createUserNotificationsInfo(String userId);
-
   UserNotificationsInfo upsertUserNotificationsInfo(String userId, long lastSeen, int unread);
 
   Optional<SnapshotUser> getSnapshotUser(String snapshotUserId);
@@ -40,8 +36,12 @@ public interface NotificationRepository {
 
   Optional<UserNotificationInterest> getUserNotification(String userId, String notificationId);
 
-  UserNotificationInterest createUserNotification(
-      UserNotificationsInfo userNotificationsInfo, BaseNotification notification);
+  /**
+   * Persists the notification and, for each user to notify, increments their unread counter and
+   * records their interest in it.
+   */
+  @Transactional
+  BaseNotification notifyUsers(BaseNotification notification, List<String> usersIdsToNotify);
 
   @Transactional
   NewShareNotification createNewShareNotification(
