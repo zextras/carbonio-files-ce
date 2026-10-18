@@ -55,8 +55,7 @@ class NodePermissionsBatchApiIT extends AbstractFilesIT {
                     + (permissions.get("can_write_file").asBoolean() ? "w" : "-")
                     + (permissions.get("can_share").asBoolean() ? "s" : "-"));
       }
-      node.fields()
-          .forEachRemaining(field -> collectPermissions(field.getValue(), permissionsById));
+      node.forEach(child -> collectPermissions(child, permissionsById));
     } else if (node.isArray()) {
       node.forEach(child -> collectPermissions(child, permissionsById));
     }

@@ -27,9 +27,11 @@ class UserLookupCountApiIT extends AbstractFilesIT {
   private static final String A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
   private static final String B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
   private static final String C = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+  private static final String D = "dddddddd-dddd-dddd-dddd-dddddddd0d0d";
   private static final String A_COOKIE = "ZM_AUTH_TOKEN=fake-token";
   private static final String B_COOKIE = "ZM_AUTH_TOKEN=fake-token-b";
   private static final String C_COOKIE = "ZM_AUTH_TOKEN=fake-token-c";
+  private static final String D_COOKIE = "ZM_AUTH_TOKEN=fake-token-umcount-d";
 
   private static final String PERMISSIONS =
       "fragment Permissions on Node { permissions { can_read can_write_file can_write_folder"
@@ -91,6 +93,7 @@ class UserLookupCountApiIT extends AbstractFilesIT {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", A);
     FilesStackTestResource.getUserManagementService().registerToken("fake-token-b", B);
     FilesStackTestResource.getUserManagementService().registerToken("fake-token-c", C);
+    FilesStackTestResource.getUserManagementService().registerToken("fake-token-umcount-d", D);
   }
 
   @BeforeEach
@@ -301,12 +304,13 @@ class UserLookupCountApiIT extends AbstractFilesIT {
 
   @Test
   void getChildDoesNotFetchTheParentsUnselectedLastEditor() throws Exception {
+    seedShare(folderId, D, ACL.SharePermission.READ_AND_WRITE, A_COOKIE);
     String renamed =
         graphql(
                 "mutation { updateNode(node_id: \\\""
                     + folderId
                     + "\\\", name: \\\"RENAMED\\\") { id } }",
-                C_COOKIE)
+                D_COOKIE)
             .getBody()
             .asString();
     Assertions.assertThat(renamed).contains(folderId);
@@ -316,6 +320,7 @@ class UserLookupCountApiIT extends AbstractFilesIT {
             GET_CHILD, vars().put("node_id", firstChildId).put("shares_limit", 1), A_COOKIE, 2);
 
     assertUser(data.path("getNode").path("parent").path("owner"), A);
+    Assertions.assertThat(batchUserLookupBodies()).doesNotContain(D);
   }
 
   @Test

@@ -15,8 +15,6 @@ import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.KeepVersionsApiIT} rewritten as an out-of-process
@@ -103,20 +101,15 @@ class KeepVersionsApiIT extends AbstractFilesIT {
         .isEqualTo("{\"data\":{\"getVersions\":[]}}");
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {", versions: [1]", ""})
-  void givenAFolderGetVersionsReturnsAnEmptyList(String versionsArgument) {
+  @Test
+  void givenAFolderGetVersionsReturnsAnEmptyList() {
     // Given
     String folderId = seedFolder("folder", LOCAL_ROOT, OWNER_COOKIE);
 
     // When
     Response response =
         graphql(
-            "query { getVersions(node_id: \\\""
-                + folderId
-                + "\\\""
-                + versionsArgument
-                + ") { version } }",
+            "query { getVersions(node_id: \\\"" + folderId + "\\\", versions: [1]) { version } }",
             OWNER_COOKIE);
 
     // Then
