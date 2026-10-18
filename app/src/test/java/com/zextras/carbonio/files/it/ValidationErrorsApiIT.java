@@ -365,7 +365,7 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
         "children");
   }
 
-  private static final String NULL_NODE_IDS_MESSAGE = "Invalid node ids. The list cannot be null.";
+  private static final String NULL_NODE_IDS_MESSAGE = "Invalid node IDs. The list cannot be null.";
 
   @ParameterizedTest
   @MethodSource("nullNodeIdsOperations")

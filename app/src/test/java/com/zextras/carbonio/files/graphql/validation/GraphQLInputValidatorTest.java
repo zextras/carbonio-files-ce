@@ -82,14 +82,14 @@ class GraphQLInputValidatorTest {
   void checkNodeIdsThrowsWhenTheListIsNull() {
     assertThatThrownBy(() -> validator.checkNodeIds(null).validate())
         .isInstanceOf(InputValidationException.class)
-        .hasMessage("Invalid node ids. The list cannot be null.");
+        .hasMessage("Invalid node IDs. The list cannot be null.");
   }
 
   @Test
   void requireNodeIdsThrowsWhenTheListIsNull() {
     assertThatThrownBy(() -> validator.requireNodeIds(null).validate())
         .isInstanceOf(InputValidationException.class)
-        .hasMessage("Invalid node ids. The list cannot be null.");
+        .hasMessage("Invalid node IDs. The list cannot be null.");
   }
 
   @Test

@@ -50,7 +50,10 @@ public interface NodeRepository {
    */
   Optional<Node> getNodeForUpdate(String nodeId);
 
-  /** Like {@link #getNodeForUpdate} for several nodes, locked in node id order. The nodes are XX */
+  /**
+   * Like {@link #getNodeForUpdate} for several nodes, locked in node id order. Pending changes to
+   * already-loaded instances are flushed first, then the nodes are re-read under the lock.
+   */
   List<Node> getNodesForUpdate(List<String> nodeIds);
 
   /** Transaction-scoped: take it before any row lock, in the transaction that checks and writes. */

@@ -490,30 +490,15 @@ public class NodeApi {
                         .has(SharePermission.READ_AND_WRITE))
             .collect(Collectors.toCollection(ArrayList::new));
 
-    List<String> nodesInError =
-        nodeIds.stream()
-            .filter(nodeId -> !trashableNodes.contains(nodeId))
-            .collect(Collectors.toCollection(ArrayList::new));
-
     if (!trashableNodes.isEmpty()) {
       List<Runnable> pendingNotifications = new ArrayList<>();
       List<Node> lockedNodes = nodeRepository.getNodesForUpdate(trashableNodes);
       List<String> alreadyTrashedIds =
           lockedNodes.stream()
-              .filter(
-                  node ->
-                      node.getParentId()
-                          .filter(p -> RootId.TRASH_ROOT.equals(p.trim()))
-                          .isPresent())
+              .filter(node -> node.getParentId().filter(RootId.TRASH_ROOT::equals).isPresent())
               .map(Node::getId)
               .toList();
-      if (!alreadyTrashedIds.isEmpty()) {
-        trashableNodes.removeAll(alreadyTrashedIds);
-        nodesInError.clear();
-        nodeIds.stream()
-            .filter(nodeId -> !trashableNodes.contains(nodeId))
-            .forEach(nodesInError::add);
-      }
+      trashableNodes.removeAll(alreadyTrashedIds);
       lockedNodes.stream()
           .filter(node -> !alreadyTrashedIds.contains(node.getId()))
           .forEach(
@@ -554,6 +539,9 @@ public class NodeApi {
 
       pendingNotifications.forEach(Runnable::run);
     }
+
+    List<String> nodesInError =
+        nodeIds.stream().filter(nodeId -> !trashableNodes.contains(nodeId)).toList();
 
     if (!nodesInError.isEmpty()) {
       throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0))
@@ -707,11 +695,6 @@ public class NodeApi {
             .filter(nodeId -> !destinationId.equals(nodeId))
             .collect(Collectors.toCollection(ArrayList::new));
 
-    List<String> nodesInError =
-        nodeIds.stream()
-            .filter(nodeId -> !nodeIdsToMove.contains(nodeId))
-            .collect(Collectors.toCollection(ArrayList::new));
-
     Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
     if (!nodeIdsToMove.isEmpty()) {
       lockChildNames(
@@ -719,20 +702,12 @@ public class NodeApi {
               nodeRepository.getNodes(nodeIdsToMove, Optional.empty()).toList(), destinationId),
           lockedNames);
       List<String> idsToLock = new ArrayList<>(nodeIdsToMove);
-      idsToLock.add(destinationId);
+      if (!rootIds.contains(destinationId)) {
+        idsToLock.add(destinationId);
+      }
       List<Node> lockedNodes = nodeRepository.getNodesForUpdate(idsToLock);
-      List<String> destinationAncestors =
-          lockedNodes.stream()
-              .filter(node -> destinationId.trim().equals(node.getId().trim()))
-              .findFirst()
-              .orElse(destinationFolder)
-              .getAncestorsList()
-              .stream()
-              .map(String::trim)
-              .toList();
-      nodeIdsToMove.removeIf(nodeId -> destinationAncestors.contains(nodeId.trim()));
-      nodesInError.clear();
-      nodeIds.stream().filter(nodeId -> !nodeIdsToMove.contains(nodeId)).forEach(nodesInError::add);
+      List<String> destinationAncestors = destinationFolder.getAncestorsList();
+      nodeIdsToMove.removeIf(destinationAncestors::contains);
       lockChildNames(
           destinationKeys(
               lockedNodes.stream().filter(node -> nodeIdsToMove.contains(node.getId())).toList(),
@@ -841,6 +816,9 @@ public class NodeApi {
     }
 
     NodeModelFactory.requireVersions(movedNodesResult, movedNodesResult);
+    List<String> nodesInError =
+        nodeIds.stream().filter(nodeId -> !nodeIdsToMove.contains(nodeId)).toList();
+
     if (!nodesInError.isEmpty()) {
       throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0))
           .withPartialResults(movedNodesResult);

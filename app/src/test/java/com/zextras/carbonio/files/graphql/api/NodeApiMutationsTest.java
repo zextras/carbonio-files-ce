@@ -385,7 +385,7 @@ class NodeApiMutationsTest {
   void flagNodesThrowsWhenNodeIdsIsNull() {
     assertThatThrownBy(() -> nodeApi.flagNodes(null, true))
         .isInstanceOf(InputValidationException.class)
-        .hasMessage("Invalid node ids. The list cannot be null.");
+        .hasMessage("Invalid node IDs. The list cannot be null.");
     verify(nodeRepository, never()).getNode(any());
   }
 
@@ -439,7 +439,7 @@ class NodeApiMutationsTest {
   void deleteNodesThrowsWhenNodeIdsIsNull() {
     assertThatThrownBy(() -> nodeApi.deleteNodes(null))
         .isInstanceOf(InputValidationException.class)
-        .hasMessage("Invalid node ids. The list cannot be null.");
+        .hasMessage("Invalid node IDs. The list cannot be null.");
     verify(nodeRepository, never()).getNode(any());
   }
 

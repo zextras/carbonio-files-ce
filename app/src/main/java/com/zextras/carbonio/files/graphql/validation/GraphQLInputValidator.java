@@ -91,7 +91,7 @@ public class GraphQLInputValidator {
 
     public Chain requireNodeIds(List<String> values) {
       if (values == null) {
-        errors.add("Invalid node ids. The list cannot be null.");
+        errors.add("Invalid node IDs. The list cannot be null.");
       }
       return this;
     }

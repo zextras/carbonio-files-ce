@@ -112,7 +112,7 @@ class MoveNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
-        .isEqualTo("Invalid node ids. The list cannot be null.");
+        .isEqualTo("Invalid node IDs. The list cannot be null.");
     Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
     Assertions.assertThat(response.jsonPath().getMap("data")).containsEntry("moveNodes", null);
     Assertions.assertThat(nodeExists(nodeId, REQUESTER_COOKIE)).isTrue();
