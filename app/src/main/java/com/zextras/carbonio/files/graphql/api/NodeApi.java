@@ -57,6 +57,7 @@ import io.vavr.control.Try;
 import jakarta.inject.Inject;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -66,6 +67,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.Vector;
 import java.util.stream.Collectors;
@@ -392,6 +394,19 @@ public class NodeApi {
           QuarkusTransaction.requiringNew()
               .call(
                   () -> {
+                    Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
+                    if (name != null) {
+                      nodeRepository
+                          .getNode(nodeId)
+                          .ifPresent(
+                              node ->
+                                  lockChildNames(
+                                      List.of(
+                                          ImmutablePair.of(
+                                              node.getParentId().orElse(RootId.LOCAL_ROOT),
+                                              node.getOwnerId())),
+                                      lockedNames));
+                    }
                     Node nodeToUpdate =
                         nodeRepository
                             .getNodeForUpdate(nodeId)
@@ -400,7 +415,9 @@ public class NodeApi {
                     String parentFolderId = nodeToUpdate.getParentId().orElse(RootId.LOCAL_ROOT);
 
                     if (name != null) {
-                      nodeRepository.lockChildNames(parentFolderId, nodeToUpdate.getOwnerId());
+                      lockChildNames(
+                          List.of(ImmutablePair.of(parentFolderId, nodeToUpdate.getOwnerId())),
+                          lockedNames);
                       String nodeFullName =
                           nodeToUpdate.getExtension().map(ext -> name + "." + ext).orElse(name);
                       if (!searchAlternativeName(
@@ -581,14 +598,19 @@ public class NodeApi {
         nodeIds.stream()
             .filter(nodeId -> !restorableNodeIds.contains(nodeId))
             .collect(Collectors.toList());
+    List<String> lostNodeIds = new ArrayList<>();
 
     List<NodeModel> results =
         QuarkusTransaction.requiringNew()
             .call(
                 () -> {
                   Map<String, Optional<Node>> destinations = lockForRestore(restorableNodeIds);
+                  restorableNodeIds.stream()
+                      .filter(nodeId -> !destinations.containsKey(nodeId))
+                      .forEach(lostNodeIds::add);
                   return nodeRepository
                       .getNodes(restorableNodeIds, Optional.empty())
+                      .filter(node -> destinations.containsKey(node.getId()))
                       .map(
                           node -> {
                             Optional<Node> parentNode = destinations.get(node.getId());
@@ -657,6 +679,7 @@ public class NodeApi {
                       .collect(Collectors.toList());
                 });
 
+    nodesInError.addAll(lostNodeIds);
     List<NodeModel> withErrorSlots = new ArrayList<>(results);
     nodesInError.forEach(id -> withErrorSlots.add(null));
     NodeModelFactory.requireVersions(results, withErrorSlots);
@@ -713,13 +736,15 @@ public class NodeApi {
       QuarkusTransaction.requiringNew()
           .run(
               () -> {
-                Set<String> lockedOwners = new HashSet<>();
-                lockDestinationOwners(
-                    nodeRepository.getNodes(nodeIdsToMove, Optional.empty()).toList(),
-                    destinationId,
-                    lockedOwners);
-                lockDestinationOwners(
-                    nodeRepository.getNodesForUpdate(nodeIdsToMove), destinationId, lockedOwners);
+                Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
+                lockChildNames(
+                    destinationKeys(
+                        nodeRepository.getNodes(nodeIdsToMove, Optional.empty()).toList(),
+                        destinationId),
+                    lockedNames);
+                lockChildNames(
+                    destinationKeys(nodeRepository.getNodesForUpdate(nodeIdsToMove), destinationId),
+                    lockedNames);
                 nodeIdsToMove.forEach(
                     nodeId -> {
                       Node node = nodeRepository.getNode(nodeId).get();
@@ -1326,39 +1351,53 @@ public class NodeApi {
     }
   }
 
-  private void lockDestinationOwners(
-      List<Node> nodes, String destinationId, Set<String> lockedOwners) {
-    nodes.stream()
-        .map(Node::getOwnerId)
-        .distinct()
-        .sorted()
-        .filter(lockedOwners::add)
-        .forEach(ownerId -> nodeRepository.lockChildNames(destinationId, ownerId));
+  // Name locks are always taken before row locks (see MoveNodesDeadlockApiIT).
+  private void lockChildNames(
+      Collection<ImmutablePair<String, String>> folderOwnerKeys,
+      Set<ImmutablePair<String, String>> locked) {
+    for (ImmutablePair<String, String> key : new TreeSet<>(folderOwnerKeys)) {
+      if (locked.add(key)) {
+        nodeRepository.lockChildNames(key.getLeft(), key.getRight());
+      }
+    }
+  }
+
+  private List<ImmutablePair<String, String>> destinationKeys(
+      List<Node> nodes, String destinationId) {
+    return nodes.stream().map(node -> ImmutablePair.of(destinationId, node.getOwnerId())).toList();
   }
 
   private Map<String, Optional<Node>> lockForRestore(List<String> nodeIds) {
     Set<ImmutablePair<String, String>> locked = new HashSet<>();
-    lockRestoreDestinations(nodeRepository.getNodes(nodeIds, Optional.empty()).toList(), locked);
-    return lockRestoreDestinations(nodeRepository.getNodesForUpdate(nodeIds), locked);
+    List<Node> preRead = nodeRepository.getNodes(nodeIds, Optional.empty()).toList();
+    lockChildNames(restoreKeys(preRead, restoreDestinations(preRead)), locked);
+    List<Node> stillTrashed =
+        nodeRepository.getNodesForUpdate(nodeIds).stream()
+            .filter(node -> node.getParentId().filter(RootId.TRASH_ROOT::equals).isPresent())
+            .toList();
+    Map<String, Optional<Node>> destinations = restoreDestinations(stillTrashed);
+    lockChildNames(restoreKeys(stillTrashed, destinations), locked);
+    return destinations;
   }
 
-  private Map<String, Optional<Node>> lockRestoreDestinations(
-      List<Node> nodes, Set<ImmutablePair<String, String>> locked) {
+  private Map<String, Optional<Node>> restoreDestinations(List<Node> nodes) {
     Map<String, Optional<Node>> destinations = new HashMap<>();
-    nodes.forEach(node -> destinations.put(node.getId(), restoreDestination(node.getId())));
     nodes.stream()
+        .filter(node -> nodeRepository.getTrashedNode(node.getId()).isPresent())
+        .forEach(node -> destinations.put(node.getId(), restoreDestination(node.getId())));
+    return destinations;
+  }
+
+  private List<ImmutablePair<String, String>> restoreKeys(
+      List<Node> nodes, Map<String, Optional<Node>> destinations) {
+    return nodes.stream()
+        .filter(node -> destinations.containsKey(node.getId()))
         .map(
             node ->
                 ImmutablePair.of(
                     destinations.get(node.getId()).map(Node::getId).orElse(RootId.LOCAL_ROOT),
                     node.getOwnerId()))
-        .distinct()
-        .sorted()
-        .filter(locked::add)
-        .forEach(
-            destination ->
-                nodeRepository.lockChildNames(destination.getLeft(), destination.getRight()));
-    return destinations;
+        .toList();
   }
 
   private Optional<Node> restoreDestination(String nodeId) {

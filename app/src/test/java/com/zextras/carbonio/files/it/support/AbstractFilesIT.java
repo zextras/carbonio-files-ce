@@ -166,6 +166,28 @@ public abstract class AbstractFilesIT {
     }
   }
 
+  protected static void awaitBlockedBackends(int blockedCount) throws Exception {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+    try (Connection observer = jdbcConnection();
+        PreparedStatement blocked =
+            observer.prepareStatement(
+                "SELECT count(*) FROM pg_stat_activity WHERE cardinality(pg_blocking_pids(pid)) >"
+                    + " 0")) {
+      while (true) {
+        try (ResultSet count = blocked.executeQuery()) {
+          count.next();
+          if (count.getInt(1) >= blockedCount) {
+            return;
+          }
+        }
+        if (System.nanoTime() > deadline) {
+          throw new AssertionError("Fewer than " + blockedCount + " backends are waiting");
+        }
+        Thread.sleep(50);
+      }
+    }
+  }
+
   /**
    * The rare non-API read-back: number of tombstone rows for a given node (any version). Prefer
    * {@link #download(String, int, String)} → 200/404 for API-observable version state; use this

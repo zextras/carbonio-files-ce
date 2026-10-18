@@ -61,6 +61,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
@@ -359,6 +360,24 @@ class NodeApiMutationsTest {
     verify(nodeRepository).getNodeForUpdate(NODE_ID_1);
     verify(nodeRepository).updateNode(node);
     verify(nodeRepository, never()).getNode(NODE_ID_1);
+  }
+
+  @Test
+  void updateNodeRenameLocksTheNameBeforeTheRowAndOnlyOnceWhenTheNodeDidNotMove() throws Exception {
+    Node node = mockFolderNode(NODE_ID_1, PARENT_ID);
+    when(node.getExtension()).thenReturn(Optional.empty());
+    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
+    when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node));
+    when(nodeRepository.getNodeForUpdate(NODE_ID_1)).thenReturn(Optional.of(node));
+
+    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
+      nodeApi.updateNode(NODE_ID_1, "NewName", null, null);
+    }
+
+    InOrder order = Mockito.inOrder(nodeRepository);
+    order.verify(nodeRepository).lockChildNames(PARENT_ID, REQUESTER_ID);
+    order.verify(nodeRepository).getNodeForUpdate(NODE_ID_1);
+    verify(nodeRepository, Mockito.times(1)).lockChildNames(PARENT_ID, REQUESTER_ID);
   }
 
   @Test
