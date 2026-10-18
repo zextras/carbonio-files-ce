@@ -161,17 +161,11 @@ public class NotificationRepositoryImpl implements NotificationRepository {
   @Transactional
   public UserNotificationsInfo upsertUserNotificationsInfo(
       String userId, long lastSeen, int unread) {
-    entityManager
-        .createNativeQuery(
-            "INSERT INTO "
-                + Constants.Db.Tables.USER_NOTIFICATIONS_INFO
-                + " (user_id, last_seen, unread) VALUES (:userId, :lastSeen, :unread) "
-                + "ON CONFLICT (user_id) DO UPDATE SET last_seen = EXCLUDED.last_seen, unread ="
-                + " EXCLUDED.unread")
-        .setParameter("userId", userId)
-        .setParameter("lastSeen", lastSeen)
-        .setParameter("unread", unread)
-        .executeUpdate();
+    insertNotificationsInfo(
+        userId,
+        lastSeen,
+        unread,
+        "DO UPDATE SET last_seen = EXCLUDED.last_seen, unread = EXCLUDED.unread");
     return new UserNotificationsInfo(userId, lastSeen, unread);
   }
 
@@ -309,14 +303,21 @@ public class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   private void createNotificationsInfoIfMissing(String userId) {
+    insertNotificationsInfo(userId, System.currentTimeMillis(), 0, "DO NOTHING");
+  }
+
+  private void insertNotificationsInfo(
+      String userId, long lastSeen, int unread, String onConflict) {
     entityManager
         .createNativeQuery(
             "INSERT INTO "
                 + Constants.Db.Tables.USER_NOTIFICATIONS_INFO
-                + " (user_id, last_seen, unread) VALUES (:userId, :lastSeen, 0) "
-                + "ON CONFLICT (user_id) DO NOTHING")
+                + " (user_id, last_seen, unread) VALUES (:userId, :lastSeen, :unread) "
+                + "ON CONFLICT (user_id) "
+                + onConflict)
         .setParameter("userId", userId)
-        .setParameter("lastSeen", System.currentTimeMillis())
+        .setParameter("lastSeen", lastSeen)
+        .setParameter("unread", unread)
         .executeUpdate();
   }
 
@@ -356,18 +357,13 @@ public class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   private void incrementUnread(String userId, int count) {
-    entityManager
-        .createNativeQuery(
-            "INSERT INTO "
-                + Constants.Db.Tables.USER_NOTIFICATIONS_INFO
-                + " (user_id, last_seen, unread) VALUES (:userId, :lastSeen, :count) "
-                + "ON CONFLICT (user_id) DO UPDATE SET unread = "
-                + Constants.Db.Tables.USER_NOTIFICATIONS_INFO
-                + ".unread + :count")
-        .setParameter("userId", userId)
-        .setParameter("lastSeen", System.currentTimeMillis())
-        .setParameter("count", count)
-        .executeUpdate();
+    insertNotificationsInfo(
+        userId,
+        System.currentTimeMillis(),
+        count,
+        "DO UPDATE SET unread = "
+            + Constants.Db.Tables.USER_NOTIFICATIONS_INFO
+            + ".unread + EXCLUDED.unread");
   }
 
   @Override
