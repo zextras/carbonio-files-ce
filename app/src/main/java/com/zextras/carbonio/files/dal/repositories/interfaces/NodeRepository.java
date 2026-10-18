@@ -43,7 +43,8 @@ public interface NodeRepository {
    * uploading a new version of a file.
    *
    * <p>Pending changes to an already-loaded instance are flushed first, then the node is re-read
-   * under the lock.
+   * under the lock. Bounds every later lock wait of the current transaction to 10 s ({@code SET
+   * LOCAL lock_timeout}).
    *
    * @param nodeId is a {@link String} representing the id of the node to retrieve and lock.
    * @return an {@link Optional<Node>} containing the locked {@link Node} if found.
@@ -52,11 +53,16 @@ public interface NodeRepository {
 
   /**
    * Like {@link #getNodeForUpdate} for several nodes, locked in node id order. Pending changes to
-   * already-loaded instances are flushed first, then the nodes are re-read under the lock.
+   * already-loaded instances are flushed first, then the nodes are re-read under the lock. Bounds
+   * every later lock wait of the current transaction to 10 s ({@code SET LOCAL lock_timeout}).
    */
   List<Node> getNodesForUpdate(List<String> nodeIds);
 
-  /** Transaction-scoped: take it before any row lock, in the transaction that checks and writes. */
+  /**
+   * Transaction-scoped: take it before any row lock, in the transaction that checks and writes.
+   * Bounds every later lock wait of the current transaction to 10 s ({@code SET LOCAL
+   * lock_timeout}).
+   */
   void lockChildNames(String folderId, String ownerId);
 
   /**

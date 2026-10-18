@@ -127,8 +127,8 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   private void boundLockWait() {
-    // Waits are bounded so a writer never keeps its name/row locks while queued behind a long
-    // holder (e.g. an upload-version stream); the proxy answers the client after 15 s anyway.
+    // Per-wait bound (applies to every lock wait for the rest of the transaction): a writer never
+    // keeps its name/row locks while queued behind a long holder; the proxy answers after 15 s.
     entityManager
         .createNativeQuery("SET LOCAL lock_timeout = '" + LOCK_TIMEOUT + "'")
         .executeUpdate();

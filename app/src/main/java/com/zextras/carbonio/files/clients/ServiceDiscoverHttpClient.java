@@ -28,9 +28,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>In the Quarkus app this client is used by {@link
  * com.zextras.carbonio.files.config.FilesConfig} for the {@code page-token-secret-key}: it is read
- * fresh on every use and created exactly once on a cold cluster (see {@link
- * com.zextras.carbonio.files.config.FilesConfig#getPageTokenSecretKey()}). The {@code
- * application-config.*} tunables do NOT go through this client — they are read via {@link
+ * from Consul until the first successful read (then kept) and created exactly once on a cold
+ * cluster (see {@link com.zextras.carbonio.files.config.FilesConfig#getPageTokenSecretKey()}). The
+ * {@code application-config.*} tunables do NOT go through this client — they are read via {@link
  * com.zextras.carbonio.quarkus.extensions.bootstrap.ApplicationConfigService}, which as of
  * extension 1.13.0-1 is itself LIVE (the extension watches Consul KV), so a runtime KV change is
  * observed there too without a restart.
