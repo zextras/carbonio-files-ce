@@ -19,7 +19,11 @@ import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.Sna
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.RemovedNodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
@@ -55,12 +59,16 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 
   private final EntityManager entityManager;
   private final NotificationTypeRegistry notificationTypeRegistry;
+  private final Event<UnreadNotifications> unreadNotifications;
 
   @Inject
   public NotificationRepositoryImpl(
-      EntityManager entityManager, NotificationTypeRegistry notificationTypeRegistry) {
+      EntityManager entityManager,
+      NotificationTypeRegistry notificationTypeRegistry,
+      Event<UnreadNotifications> unreadNotifications) {
     this.entityManager = entityManager;
     this.notificationTypeRegistry = notificationTypeRegistry;
+    this.unreadNotifications = unreadNotifications;
   }
 
   @Override
@@ -269,8 +277,9 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 
   /**
    * Persists the notification (cascading the base {@code Notification} row) and, for each user to
-   * notify, creates their {@link UserNotificationsInfo} if missing, bumps their unread counter, and
-   * records their interest in the new notification.
+   * notify, creates their {@link UserNotificationsInfo} if missing and records their interest in
+   * the new notification. The unread counters are bumped right after the commit, in a short
+   * transaction of their own, so their row locks never outlive the mutation's transaction.
    */
   @Override
   @Transactional
@@ -278,15 +287,31 @@ public class NotificationRepositoryImpl implements NotificationRepository {
       BaseNotification notification, List<String> usersIdsToNotify) {
     entityManager.persist(notification);
 
-    usersIdsToNotify.stream()
-        .sorted()
-        .forEach(
-            userId -> {
-              incrementUnread(userId);
-              persistInterest(userId, notification);
-            });
+    List<String> sortedUserIds = usersIdsToNotify.stream().sorted().toList();
+    sortedUserIds.forEach(
+        userId -> {
+          createNotificationsInfoIfMissing(userId);
+          persistInterest(userId, notification);
+        });
+    unreadNotifications.fire(new UnreadNotifications(sortedUserIds));
 
     return notification;
+  }
+
+  private void createNotificationsInfoIfMissing(String userId) {
+    entityManager
+        .createNativeQuery(
+            "INSERT INTO "
+                + Constants.Db.Tables.USER_NOTIFICATIONS_INFO
+                + " (user_id, last_seen, unread) VALUES (:userId, :lastSeen, 0) "
+                + "ON CONFLICT (user_id) DO NOTHING")
+        .setParameter("userId", userId)
+        .setParameter("lastSeen", System.currentTimeMillis())
+        .executeUpdate();
+  }
+
+  void bumpUnread(@Observes(during = TransactionPhase.AFTER_SUCCESS) UnreadNotifications event) {
+    QuarkusTransaction.requiringNew().run(() -> event.userIds().forEach(this::incrementUnread));
   }
 
   private void incrementUnread(String userId) {

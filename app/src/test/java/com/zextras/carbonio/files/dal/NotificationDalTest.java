@@ -15,6 +15,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.NewShareNotification;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.TestTransaction;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -140,21 +141,30 @@ class NotificationDalTest {
   }
 
   @Test
-  @TestTransaction
   void createNotificationsForTheSameUserInOneTransactionShouldIncrementUnreadEachTime() {
     String ownerId = id();
     String receiverId = id();
-    Node node = persistNode(id(), ownerId, "shared-node");
-    UserMyself triggeringUser = buildUser(ownerId, "Owner");
-    notificationRepository.createNewShareNotification(node, triggeringUser, List.of(receiverId));
-    notificationRepository.createNewShareNotification(node, triggeringUser, List.of(receiverId));
-    notificationRepository.createNewShareNotification(node, triggeringUser, List.of(receiverId));
+    QuarkusTransaction.requiringNew()
+        .run(
+            () -> {
+              Node node = persistNode(id(), ownerId, "shared-node");
+              UserMyself triggeringUser = buildUser(ownerId, "Owner");
+              for (int i = 0; i < 3; i++) {
+                notificationRepository.createNewShareNotification(
+                    node, triggeringUser, List.of(receiverId));
+              }
+            });
+
     Number unread =
-        (Number)
-            entityManager
-                .createNativeQuery("select unread from user_notifications_info where user_id = :u")
-                .setParameter("u", receiverId)
-                .getSingleResult();
+        QuarkusTransaction.requiringNew()
+            .call(
+                () ->
+                    (Number)
+                        entityManager
+                            .createNativeQuery(
+                                "select unread from user_notifications_info where user_id = :u")
+                            .setParameter("u", receiverId)
+                            .getSingleResult());
     assertThat(unread.intValue()).isEqualTo(3);
   }
 }

@@ -17,6 +17,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -30,6 +32,7 @@ class NotificationUnreadCounterApiIT extends AbstractFilesIT {
 
   private static final String REQUESTER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
   private static final String SECOND_USER_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+  private static final String THIRD_USER_ID = "cccccccc-cccc-cccc-cccc-cccccccccccc";
   private static final String REQUESTER_COOKIE = "ZM_AUTH_TOKEN=fake-token";
   private static final String SECOND_USER_COOKIE = "ZM_AUTH_TOKEN=fake-token-b";
 
@@ -37,6 +40,7 @@ class NotificationUnreadCounterApiIT extends AbstractFilesIT {
   static void registerUsers() {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", REQUESTER_ID);
     FilesStackTestResource.getUserManagementService().registerToken("fake-token-b", SECOND_USER_ID);
+    FilesStackTestResource.getUserManagementService().registerToken("fake-token-c", THIRD_USER_ID);
   }
 
   private static Map<String, Object> getNotifications(boolean updateLastSeen, String cookie) {
@@ -92,5 +96,103 @@ class NotificationUnreadCounterApiIT extends AbstractFilesIT {
     Assertions.assertThat(notifications).filteredOn(n -> n.containsKey("id")).hasSize(2);
     Assertions.assertThat(page).containsEntry("unread", 2);
     Assertions.assertThat(storedUnread(SECOND_USER_ID)).isEqualTo(2);
+  }
+
+  private static Connection lockUnreadRow(String userId) throws SQLException {
+    Connection holder = jdbcConnection();
+    holder.setAutoCommit(false);
+    try (PreparedStatement lock =
+        holder.prepareStatement(
+            "SELECT user_id FROM user_notifications_info WHERE user_id = ? FOR NO KEY UPDATE")) {
+      lock.setString(1, userId);
+      lock.execute();
+    }
+    return holder;
+  }
+
+  private static boolean isBlockedBy(Connection holder) throws SQLException {
+    try (PreparedStatement statement =
+            holder.prepareStatement(
+                "SELECT count(*) FROM pg_stat_activity WHERE pg_backend_pid() <> pid AND"
+                    + " (SELECT pg_backend_pid()) = ANY(pg_blocking_pids(pid))");
+        ResultSet count = statement.executeQuery()) {
+      count.next();
+      return count.getInt(1) > 0;
+    }
+  }
+
+  private static void awaitQueuedBehindAWaiter() throws Exception {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+    try (Connection observer = jdbcConnection();
+        PreparedStatement queued =
+            observer.prepareStatement(
+                "SELECT count(*) FROM pg_stat_activity waiter WHERE EXISTS (SELECT 1 FROM"
+                    + " unnest(pg_blocking_pids(waiter.pid)) AS blocker(pid) WHERE"
+                    + " cardinality(pg_blocking_pids(blocker.pid)) > 0)")) {
+      while (true) {
+        try (ResultSet count = queued.executeQuery()) {
+          count.next();
+          if (count.getInt(1) > 0) {
+            return;
+          }
+        }
+        if (System.nanoTime() > deadline) {
+          throw new AssertionError("No request queued behind a waiting one");
+        }
+        Thread.sleep(50);
+      }
+    }
+  }
+
+  private static Response moveNode(String nodeId, String destinationId) {
+    return graphql(
+        GraphqlCommandBuilder.aMutationBuilder("moveNodes")
+            .withListOfStrings("node_ids", new String[] {nodeId})
+            .withString("destination_id", destinationId)
+            .withWantedResultFormat("{ id }")
+            .build(),
+        REQUESTER_COOKIE);
+  }
+
+  @Test
+  void givenTwoMovesInOppositeDirectionsNotifyingTheSameUsersInOppositeOrderBothShouldSucceed()
+      throws Exception {
+    // Given
+    String folderOne = seedFolder("one", LOCAL_ROOT, REQUESTER_COOKIE);
+    String folderTwo = seedFolder("two", LOCAL_ROOT, REQUESTER_COOKIE);
+    String fileOne =
+        seedFile("n1.txt", folderOne, "one".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String fileTwo =
+        seedFile("n2.txt", folderTwo, "two".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedShare(folderOne, SECOND_USER_ID, ACL.SharePermission.READ_ONLY, REQUESTER_COOKIE);
+    seedShare(folderTwo, THIRD_USER_ID, ACL.SharePermission.READ_ONLY, REQUESTER_COOKIE);
+    int secondBefore = storedUnread(SECOND_USER_ID);
+    int thirdBefore = storedUnread(THIRD_USER_ID);
+
+    Response moveOne;
+    Response moveTwo;
+    try (Connection secondRow = lockUnreadRow(SECOND_USER_ID);
+        Connection thirdRow = lockUnreadRow(THIRD_USER_ID)) {
+      // When
+      CompletableFuture<Response> first =
+          CompletableFuture.supplyAsync(() -> moveNode(fileOne, folderTwo));
+      awaitBlockedBackends(1);
+      Connection firstHolder = isBlockedBy(secondRow) ? secondRow : thirdRow;
+      Connection otherHolder = firstHolder == secondRow ? thirdRow : secondRow;
+      CompletableFuture<Response> second =
+          CompletableFuture.supplyAsync(() -> moveNode(fileTwo, folderOne));
+      awaitBlockedBy(otherHolder);
+      firstHolder.commit();
+      awaitQueuedBehindAWaiter();
+      otherHolder.commit();
+      moveOne = first.get(60, TimeUnit.SECONDS);
+      moveTwo = second.get(60, TimeUnit.SECONDS);
+    }
+
+    // Then
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(moveOne.getBody().asString())).isEmpty();
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(moveTwo.getBody().asString())).isEmpty();
+    Assertions.assertThat(storedUnread(SECOND_USER_ID)).isEqualTo(secondBefore + 2);
+    Assertions.assertThat(storedUnread(THIRD_USER_ID)).isEqualTo(thirdBefore + 2);
   }
 }
