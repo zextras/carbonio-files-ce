@@ -484,17 +484,34 @@ public class NodeApi {
                     permissionsChecker
                         .getPermissions(nodeId, me)
                         .has(SharePermission.READ_AND_WRITE))
-            .collect(Collectors.toList());
+            .collect(Collectors.toCollection(ArrayList::new));
 
     List<String> nodesInError =
         nodeIds.stream()
             .filter(nodeId -> !trashableNodes.contains(nodeId))
-            .collect(Collectors.toList());
+            .collect(Collectors.toCollection(ArrayList::new));
 
     if (!trashableNodes.isEmpty()) {
       List<Runnable> pendingNotifications = new ArrayList<>();
-      nodeRepository
-          .getNodesForUpdate(trashableNodes)
+      List<Node> lockedNodes = nodeRepository.getNodesForUpdate(trashableNodes);
+      List<String> alreadyTrashedIds =
+          lockedNodes.stream()
+              .filter(
+                  node ->
+                      node.getParentId()
+                          .filter(p -> RootId.TRASH_ROOT.equals(p.trim()))
+                          .isPresent())
+              .map(Node::getId)
+              .toList();
+      if (!alreadyTrashedIds.isEmpty()) {
+        trashableNodes.removeAll(alreadyTrashedIds);
+        nodesInError.clear();
+        nodeIds.stream()
+            .filter(nodeId -> !trashableNodes.contains(nodeId))
+            .forEach(nodesInError::add);
+      }
+      lockedNodes.stream()
+          .filter(node -> !alreadyTrashedIds.contains(node.getId()))
           .forEach(
               trashedNode -> {
                 String nodeParentId = trashedNode.getParentId().get();
