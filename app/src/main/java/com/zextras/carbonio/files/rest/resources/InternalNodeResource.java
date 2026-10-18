@@ -30,6 +30,7 @@ import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.smallrye.common.annotation.Blocking;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -187,6 +188,7 @@ public class InternalNodeResource {
   @Path("/folders")
   @Consumes(MediaType.APPLICATION_JSON)
   @Blocking
+  @Transactional
   public RestResponse<InternalNodeIdDto> createFolder(CreateFolderRequest request) {
     try {
       Node createdFolder =

@@ -10,8 +10,13 @@ import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -95,7 +100,8 @@ class MoveNodesApiIT extends AbstractFilesIT {
         "mutation { moveNodes(destination_id: \\\"LOCAL_ROOT\\\") { id } }",
         "mutation { moveNodes(destination_id: \\\"LOCAL_ROOT\\\", node_ids: null) { id } }"
       })
-  void givenAMissingOrNullNodeIdsMoveNodesShouldFailWithSystemErrorAndTouchNothing(String query) {
+  void givenAMissingOrNullNodeIdsMoveNodesShouldFailWithValidationErrorAndTouchNothing(
+      String query) {
     // Given
     String folderId = seedFolder("folder", LOCAL_ROOT, REQUESTER_COOKIE);
     String nodeId =
@@ -111,7 +117,7 @@ class MoveNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
-        .isEqualTo("System error");
+        .isEqualTo("Invalid node IDs. The list cannot be null.");
     Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
     Assertions.assertThat(response.jsonPath().getMap("data")).containsEntry("moveNodes", null);
     Assertions.assertThat(nodeExists(nodeId, REQUESTER_COOKIE)).isTrue();
@@ -137,5 +143,98 @@ class MoveNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(response.getBody().asString()).isEqualTo("{\"data\":{\"moveNodes\":[]}}");
+  }
+
+  @Test
+  void givenTheDestinationDeletedWhileTheMoveWaitsForTheNodeLockMoveNodesShouldReportAWriteError()
+      throws Exception {
+    // Given — the node sorts below the destination, so it is locked (and waited for) first
+    String firstId = seedFolder("first", LOCAL_ROOT, REQUESTER_COOKIE);
+    String secondId = seedFolder("second", LOCAL_ROOT, REQUESTER_COOKIE);
+    String nodeId = firstId.compareTo(secondId) < 0 ? firstId : secondId;
+    String destinationId = nodeId.equals(firstId) ? secondId : firstId;
+
+    Response response;
+    try (Connection holder = jdbcConnection()) {
+      holder.setAutoCommit(false);
+      try (PreparedStatement lock =
+          holder.prepareStatement("SELECT node_id FROM node WHERE node_id = ? FOR UPDATE")) {
+        lock.setString(1, nodeId);
+        lock.execute();
+      }
+
+      // When
+      CompletableFuture<Response> move =
+          CompletableFuture.supplyAsync(
+              () -> moveNodes(new String[] {nodeId}, destinationId, REQUESTER_COOKIE));
+      awaitBlockedBy(holder);
+      try (Connection deleter = jdbcConnection();
+          PreparedStatement delete =
+              deleter.prepareStatement("DELETE FROM node WHERE node_id = ?")) {
+        delete.setString(1, destinationId);
+        delete.executeUpdate();
+      }
+      holder.commit();
+      response = move.get(60, TimeUnit.SECONDS);
+    }
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("NODE_WRITE_ERROR");
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
+        .isEqualTo(destinationId);
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("SELECT folder_id FROM node WHERE node_id = ?")) {
+      statement.setString(1, nodeId);
+      try (ResultSet row = statement.executeQuery()) {
+        Assertions.assertThat(row.next()).isTrue();
+        Assertions.assertThat(row.getString(1).trim()).isEqualTo(LOCAL_ROOT);
+      }
+    }
+  }
+
+  @Test
+  void givenANodeDeletedWhileTheMoveWaitsForItsLockMoveNodesShouldMoveTheOthersAndReportIt()
+      throws Exception {
+    // Given
+    String destinationId = seedFolder("destination", LOCAL_ROOT, REQUESTER_COOKIE);
+    String doomedId =
+        seedFile(
+            "doomed.txt", LOCAL_ROOT, "one".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String otherId =
+        seedFile("other.txt", LOCAL_ROOT, "two".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+
+    Response response;
+    try (Connection holder = jdbcConnection()) {
+      holder.setAutoCommit(false);
+      try (PreparedStatement lock =
+          holder.prepareStatement("SELECT node_id FROM node WHERE node_id = ? FOR UPDATE")) {
+        lock.setString(1, doomedId);
+        lock.execute();
+      }
+
+      // When
+      CompletableFuture<Response> move =
+          CompletableFuture.supplyAsync(
+              () -> moveNodes(new String[] {doomedId, otherId}, destinationId, REQUESTER_COOKIE));
+      awaitBlockedBy(holder);
+      try (PreparedStatement delete =
+          holder.prepareStatement("DELETE FROM node WHERE node_id = ?")) {
+        delete.setString(1, doomedId);
+        delete.executeUpdate();
+      }
+      holder.commit();
+      response = move.get(60, TimeUnit.SECONDS);
+    }
+
+    // Then
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("NODE_WRITE_ERROR");
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
+        .isEqualTo(doomedId);
+    Assertions.assertThat(response.jsonPath().getList("data.moveNodes.id"))
+        .containsExactly(otherId);
   }
 }

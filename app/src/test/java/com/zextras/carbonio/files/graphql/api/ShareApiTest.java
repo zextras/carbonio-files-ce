@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -37,19 +37,12 @@ import com.zextras.carbonio.files.graphql.model.SharePermission;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
-import io.quarkus.narayana.jta.QuarkusTransaction;
-import io.quarkus.narayana.jta.QuarkusTransactionException;
-import io.quarkus.narayana.jta.TransactionRunnerOptions;
 import jakarta.persistence.PersistenceException;
-import jakarta.transaction.RollbackException;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Callable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 
 class ShareApiTest {
 
@@ -169,7 +162,6 @@ class ShareApiTest {
   // ─── createShare ──────────────────────────────────────────────────────────────
 
   @Test
-  @SuppressWarnings("unchecked")
   void createShareHappyPathReturnsShareModel() throws Exception {
     Node node = mockFileNode(NODE_ID, "owner-id");
     Share share = mockShare(NODE_ID, TARGET_ID_1);
@@ -179,28 +171,15 @@ class ShareApiTest {
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
     when(filesConfig.areNotificationsEnabled()).thenReturn(false);
 
-    try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
-      TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
-      doAnswer(
-              inv -> {
-                Callable<?> callable = inv.getArgument(0);
-                callable.call();
-                return Optional.of(share);
-              })
-          .when(runOptions)
-          .call(any(Callable.class));
-      txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
+    when(shareRepository.upsertShare(
+            eq(NODE_ID), eq(TARGET_ID_1), any(), eq(true), eq(false), any()))
+        .thenReturn(Optional.of(share));
 
-      when(shareRepository.upsertShare(
-              eq(NODE_ID), eq(TARGET_ID_1), any(), eq(true), eq(false), any()))
-          .thenReturn(Optional.of(share));
+    ShareModel result =
+        shareApi.createShare(NODE_ID, TARGET_ID_1, SharePermission.READ_ONLY, null, null);
 
-      ShareModel result =
-          shareApi.createShare(NODE_ID, TARGET_ID_1, SharePermission.READ_ONLY, null, null);
-
-      assertThat(result).isNotNull();
-      assertThat(result.getPermission()).isEqualTo(SharePermission.READ_ONLY);
-    }
+    assertThat(result).isNotNull();
+    assertThat(result.getPermission()).isEqualTo(SharePermission.READ_ONLY);
   }
 
   @Test
@@ -234,7 +213,6 @@ class ShareApiTest {
   }
 
   @Test
-  @SuppressWarnings("unchecked")
   void createShareThrowsShareCreationErrorWhenConcurrentCreateViolatesSharePrimaryKey() {
     Node node = mockFileNode(NODE_ID, "owner-id");
     when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
@@ -242,25 +220,20 @@ class ShareApiTest {
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
     SQLException duplicateKey =
         new SQLException("duplicate key value violates unique constraint \"share_pkey\"", "23505");
-    RollbackException rollback = new RollbackException("commit failed");
-    rollback.initCause(new PersistenceException(duplicateKey));
+    Share share = mockShare(NODE_ID, TARGET_ID_1);
+    when(shareRepository.upsertShare(
+            eq(NODE_ID), eq(TARGET_ID_1), any(), eq(true), eq(false), any()))
+        .thenReturn(Optional.of(share));
+    doThrow(new PersistenceException(duplicateKey)).when(shareRepository).flush();
 
-    try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
-      TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
-      when(runOptions.call(any(Callable.class)))
-          .thenThrow(new QuarkusTransactionException(rollback));
-      txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
-
-      assertThatThrownBy(
-              () ->
-                  shareApi.createShare(NODE_ID, TARGET_ID_1, SharePermission.READ_ONLY, null, null))
-          .isInstanceOf(FilesGraphQLException.class)
-          .hasMessage("Could not create share for node: " + NODE_ID + " and user: " + TARGET_ID_1)
-          .satisfies(
-              ex ->
-                  assertThat(((FilesGraphQLException) ex).getErrorCode())
-                      .isEqualTo(ErrorCodes.SHARE_CREATION_ERROR));
-    }
+    assertThatThrownBy(
+            () -> shareApi.createShare(NODE_ID, TARGET_ID_1, SharePermission.READ_ONLY, null, null))
+        .isInstanceOf(FilesGraphQLException.class)
+        .hasMessage("Could not create share for node: " + NODE_ID + " and user: " + TARGET_ID_1)
+        .satisfies(
+            ex ->
+                assertThat(((FilesGraphQLException) ex).getErrorCode())
+                    .isEqualTo(ErrorCodes.SHARE_CREATION_ERROR));
   }
 
   // ─── updateShares ─────────────────────────────────────────────────────────────
@@ -277,22 +250,10 @@ class ShareApiTest {
     when(shareRepository.updateShare(share1)).thenReturn(share1);
     when(shareRepository.updateShare(share2)).thenReturn(share2);
 
-    try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
-      TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
-      doAnswer(
-              inv -> {
-                ((Runnable) inv.getArgument(0)).run();
-                return null;
-              })
-          .when(runOptions)
-          .run(any(Runnable.class));
-      txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
+    List<ShareModel> result =
+        shareApi.updateShares(NODE_ID, List.of(TARGET_ID_1, TARGET_ID_2), null, null);
 
-      List<ShareModel> result =
-          shareApi.updateShares(NODE_ID, List.of(TARGET_ID_1, TARGET_ID_2), null, null);
-
-      assertThat(result).hasSize(2);
-    }
+    assertThat(result).hasSize(2);
   }
 
   @Test
@@ -305,30 +266,18 @@ class ShareApiTest {
     when(shareRepository.getShare(NODE_ID, TARGET_ID_2)).thenReturn(Optional.empty());
     when(shareRepository.updateShare(share1)).thenReturn(share1);
 
-    try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
-      TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
-      doAnswer(
-              inv -> {
-                ((Runnable) inv.getArgument(0)).run();
-                return null;
-              })
-          .when(runOptions)
-          .run(any(Runnable.class));
-      txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
-
-      assertThatThrownBy(
-              () -> shareApi.updateShares(NODE_ID, List.of(TARGET_ID_1, TARGET_ID_2), null, null))
-          .isInstanceOf(FilesGraphQLException.class)
-          .satisfies(
-              ex -> {
-                FilesGraphQLException fex = (FilesGraphQLException) ex;
-                assertThat(fex.getErrorCode()).isEqualTo(ErrorCodes.SHARE_NOT_FOUND);
-                assertThat(fex.getPartialResults()).isInstanceOf(List.class);
-                @SuppressWarnings("unchecked")
-                List<ShareModel> partial = (List<ShareModel>) fex.getPartialResults();
-                assertThat(partial).hasSize(1);
-              });
-    }
+    assertThatThrownBy(
+            () -> shareApi.updateShares(NODE_ID, List.of(TARGET_ID_1, TARGET_ID_2), null, null))
+        .isInstanceOf(FilesGraphQLException.class)
+        .satisfies(
+            ex -> {
+              FilesGraphQLException fex = (FilesGraphQLException) ex;
+              assertThat(fex.getErrorCode()).isEqualTo(ErrorCodes.SHARE_NOT_FOUND);
+              assertThat(fex.getPartialResults()).isInstanceOf(List.class);
+              @SuppressWarnings("unchecked")
+              List<ShareModel> partial = (List<ShareModel>) fex.getPartialResults();
+              assertThat(partial).hasSize(1);
+            });
   }
 
   // ─── deleteShares ─────────────────────────────────────────────────────────────
@@ -343,23 +292,11 @@ class ShareApiTest {
     when(shareRepository.getShare(NODE_ID, TARGET_ID_1)).thenReturn(Optional.of(share1));
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
 
-    try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
-      TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
-      doAnswer(
-              inv -> {
-                ((Runnable) inv.getArgument(0)).run();
-                return null;
-              })
-          .when(runOptions)
-          .run(any(Runnable.class));
-      txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
+    List<String> result = shareApi.deleteShares(NODE_ID, List.of(TARGET_ID_1));
 
-      List<String> result = shareApi.deleteShares(NODE_ID, List.of(TARGET_ID_1));
-
-      assertThat(result).containsExactly(TARGET_ID_1);
-      verify(shareRepository).deleteShare(NODE_ID, TARGET_ID_1);
-      verify(shareCascade, never()).cascadeDeleteShare(any(), any());
-    }
+    assertThat(result).containsExactly(TARGET_ID_1);
+    verify(shareRepository).deleteShare(NODE_ID, TARGET_ID_1);
+    verify(shareCascade, never()).cascadeDeleteShare(any(), any());
   }
 
   @Test
@@ -373,29 +310,17 @@ class ShareApiTest {
     when(shareRepository.getShare(NODE_ID, TARGET_ID_2)).thenReturn(Optional.empty());
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
 
-    try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
-      TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
-      doAnswer(
-              inv -> {
-                ((Runnable) inv.getArgument(0)).run();
-                return null;
-              })
-          .when(runOptions)
-          .run(any(Runnable.class));
-      txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
-
-      assertThatThrownBy(() -> shareApi.deleteShares(NODE_ID, List.of(TARGET_ID_1, TARGET_ID_2)))
-          .isInstanceOf(FilesGraphQLException.class)
-          .satisfies(
-              ex -> {
-                FilesGraphQLException fex = (FilesGraphQLException) ex;
-                assertThat(fex.getErrorCode()).isEqualTo(ErrorCodes.SHARE_NOT_FOUND);
-                assertThat(fex.getPartialResults()).isInstanceOf(List.class);
-                @SuppressWarnings("unchecked")
-                List<String> partial = (List<String>) fex.getPartialResults();
-                assertThat(partial).containsExactly(TARGET_ID_1);
-              });
-    }
+    assertThatThrownBy(() -> shareApi.deleteShares(NODE_ID, List.of(TARGET_ID_1, TARGET_ID_2)))
+        .isInstanceOf(FilesGraphQLException.class)
+        .satisfies(
+            ex -> {
+              FilesGraphQLException fex = (FilesGraphQLException) ex;
+              assertThat(fex.getErrorCode()).isEqualTo(ErrorCodes.SHARE_NOT_FOUND);
+              assertThat(fex.getPartialResults()).isInstanceOf(List.class);
+              @SuppressWarnings("unchecked")
+              List<String> partial = (List<String>) fex.getPartialResults();
+              assertThat(partial).containsExactly(TARGET_ID_1);
+            });
   }
 
   @Test
@@ -403,24 +328,12 @@ class ShareApiTest {
     when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
         .thenReturn(aclWith(ACL.SharePermission.READ_ONLY));
 
-    try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
-      TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
-      doAnswer(
-              inv -> {
-                ((Runnable) inv.getArgument(0)).run();
-                return null;
-              })
-          .when(runOptions)
-          .run(any(Runnable.class));
-      txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
-
-      assertThatThrownBy(() -> shareApi.deleteShares(NODE_ID, List.of(TARGET_ID_1)))
-          .isInstanceOf(FilesGraphQLException.class)
-          .satisfies(
-              ex ->
-                  assertThat(((FilesGraphQLException) ex).getErrorCode())
-                      .isEqualTo(ErrorCodes.SHARE_NOT_FOUND));
-    }
+    assertThatThrownBy(() -> shareApi.deleteShares(NODE_ID, List.of(TARGET_ID_1)))
+        .isInstanceOf(FilesGraphQLException.class)
+        .satisfies(
+            ex ->
+                assertThat(((FilesGraphQLException) ex).getErrorCode())
+                    .isEqualTo(ErrorCodes.SHARE_NOT_FOUND));
   }
 
   // ─── @Source: Node.shares (batch) ────────────────────────────────────────────

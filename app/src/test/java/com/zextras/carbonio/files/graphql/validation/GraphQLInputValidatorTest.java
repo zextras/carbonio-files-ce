@@ -79,6 +79,26 @@ class GraphQLInputValidatorTest {
   }
 
   @Test
+  void checkNodeIdsThrowsWhenTheListIsNull() {
+    assertThatThrownBy(() -> validator.checkNodeIds(null).validate())
+        .isInstanceOf(InputValidationException.class)
+        .hasMessage("Invalid node IDs. The list cannot be null.");
+  }
+
+  @Test
+  void requireNodeIdsThrowsWhenTheListIsNull() {
+    assertThatThrownBy(() -> validator.requireNodeIds(null).validate())
+        .isInstanceOf(InputValidationException.class)
+        .hasMessage("Invalid node IDs. The list cannot be null.");
+  }
+
+  @Test
+  void requireNodeIdsDoesNotValidateTheFormatOfTheIds() {
+    assertThatCode(() -> validator.requireNodeIds(List.of("bad")).validate())
+        .doesNotThrowAnyException();
+  }
+
+  @Test
   void checkNodeNameThrowsForBlankName() {
     assertThatThrownBy(() -> validator.checkNodeName("   ").validate())
         .isInstanceOf(FilesGraphQLException.class)

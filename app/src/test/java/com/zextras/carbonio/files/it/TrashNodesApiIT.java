@@ -11,8 +11,14 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -95,7 +101,8 @@ class TrashNodesApiIT extends AbstractFilesIT {
 
   @ParameterizedTest
   @ValueSource(strings = {"mutation { trashNodes }", "mutation { trashNodes(node_ids: null) }"})
-  void givenAMissingOrNullNodeIdsTrashNodesShouldFailWithSystemErrorAndTouchNothing(String query) {
+  void givenAMissingOrNullNodeIdsTrashNodesShouldFailWithValidationErrorAndTouchNothing(
+      String query) {
     // Given
     String nodeId =
         seedFile(
@@ -110,7 +117,7 @@ class TrashNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
-        .isEqualTo("System error");
+        .isEqualTo("Invalid node IDs. The list cannot be null.");
     Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
     Assertions.assertThat(response.jsonPath().getMap("data")).containsEntry("trashNodes", null);
     Assertions.assertThat(findNodeIdsInFolder("LOCAL_ROOT", true)).contains(nodeId);
@@ -225,5 +232,114 @@ class TrashNodesApiIT extends AbstractFilesIT {
     Assertions.assertThat(findNodeIdsInFolder("TRASH_ROOT", true))
         .containsExactlyInAnyOrder(folderId, childId);
     Assertions.assertThat(findNodeIdsInFolder("LOCAL_ROOT", true)).isEmpty();
+  }
+
+  private static int trashedRowsOf(String nodeId) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("SELECT COUNT(*) FROM trashed WHERE node_id = ?")) {
+      statement.setString(1, nodeId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        resultSet.next();
+        return resultSet.getInt(1);
+      }
+    }
+  }
+
+  @Test
+  void givenANodeAlreadyInTheTrashTrashNodesShouldReturnNodeWriteErrorWithoutASecondTrashedRow()
+      throws SQLException {
+    // Given
+    String nodeId =
+        seedFile(
+            "twice.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    Assertions.assertThat(
+            trashNodes(new String[] {nodeId}, REQUESTER_COOKIE).jsonPath().getList("errors"))
+        .isNull();
+
+    // When
+    Response response = trashNodes(new String[] {nodeId}, REQUESTER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.errorCode"))
+        .isEqualTo("NODE_WRITE_ERROR");
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
+        .isEqualTo(nodeId);
+    Assertions.assertThat(response.jsonPath().getList("data.trashNodes")).isEmpty();
+    Assertions.assertThat(trashedRowsOf(nodeId)).isEqualTo(1);
+  }
+
+  @Test
+  void givenANodeAlreadyInTheTrashAndAnotherOneTrashNodesShouldTrashOnlyTheOther()
+      throws SQLException {
+    // Given
+    String trashedId =
+        seedFile(
+            "already.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+    String otherId =
+        seedFile(
+            "other.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedTrashed(trashedId, REQUESTER_COOKIE);
+
+    // When
+    Response response = trashNodes(new String[] {trashedId, otherId}, REQUESTER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.errorCode"))
+        .isEqualTo("NODE_WRITE_ERROR");
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
+        .isEqualTo(trashedId);
+    Assertions.assertThat(response.jsonPath().getList("data.trashNodes")).containsExactly(otherId);
+    Assertions.assertThat(trashedRowsOf(trashedId)).isEqualTo(1);
+    Assertions.assertThat(trashedRowsOf(otherId)).isEqualTo(1);
+  }
+
+  @Test
+  void givenANodeDeletedWhileTheTrashWaitsForItsLockTrashNodesShouldTrashTheOthersAndReportIt()
+      throws Exception {
+    // Given
+    String doomedId =
+        seedFile(
+            "doomed.txt", LOCAL_ROOT, "one".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    String otherId =
+        seedFile("other.txt", LOCAL_ROOT, "two".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+
+    Response response;
+    try (Connection holder = jdbcConnection()) {
+      holder.setAutoCommit(false);
+      try (PreparedStatement lock =
+          holder.prepareStatement("SELECT node_id FROM node WHERE node_id = ? FOR UPDATE")) {
+        lock.setString(1, doomedId);
+        lock.execute();
+      }
+
+      // When
+      CompletableFuture<Response> trash =
+          CompletableFuture.supplyAsync(
+              () -> trashNodes(new String[] {doomedId, otherId}, REQUESTER_COOKIE));
+      awaitBlockedBy(holder);
+      try (PreparedStatement delete =
+          holder.prepareStatement("DELETE FROM node WHERE node_id = ?")) {
+        delete.setString(1, doomedId);
+        delete.executeUpdate();
+      }
+      holder.commit();
+      response = trash.get(60, TimeUnit.SECONDS);
+    }
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.errorCode"))
+        .isEqualTo("NODE_WRITE_ERROR");
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
+        .isEqualTo(doomedId);
+    Assertions.assertThat(response.jsonPath().getList("data.trashNodes")).containsExactly(otherId);
+    Assertions.assertThat(trashedRowsOf(otherId)).isEqualTo(1);
   }
 }

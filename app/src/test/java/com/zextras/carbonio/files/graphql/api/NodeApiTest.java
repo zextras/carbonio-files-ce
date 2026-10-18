@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.graphql.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -37,6 +38,7 @@ import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.junit.jupiter.api.BeforeEach;
@@ -449,7 +451,9 @@ class NodeApiTest {
 
     when(nodeRepository.getNodes(eq(List.of("parent-A")), any()))
         .thenReturn(List.of(parentA).stream());
-    when(permissionsChecker.getPermissions("parent-A", REQUESTER_ID)).thenReturn(aclWith(true));
+    when(permissionsChecker.getPermissionsOfNodes(
+            argThat(nodes -> List.copyOf(nodes).equals(List.of(parentA))), eq(REQUESTER_ID)))
+        .thenReturn(Map.of("parent-A", aclWith(true)));
 
     List<NodeModel> result = nodeApi.parents(List.of(n1, n2, n3));
 
@@ -478,16 +482,26 @@ class NodeApiTest {
   // ─── permissions @Source ──────────────────────────────────────────────────────
 
   @Test
-  void permissions_mapsAclFromPermissionsChecker() {
-    NodeModel node = makeFolderModel(NODE_ID, null);
-    ACL acl = ACL.decode(SharePermission.READ_ONLY);
-    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID)).thenReturn(acl);
+  void permissions_resolvesEachSourceInPositionWithMixedAcls() {
+    NodeModel owned = makeFolderModel("owned-id", null);
+    NodeModel shared = makeFolderModel("shared-id", null);
+    when(permissionsChecker.getPermissions(
+            List.of("owned-id", "shared-id", "owned-id"), REQUESTER_ID))
+        .thenReturn(
+            Map.of(
+                "owned-id", ACL.decode(ACL.OWNER),
+                "shared-id", ACL.decode(SharePermission.READ_ONLY)));
 
-    PermissionsModel result = nodeApi.permissions(node);
+    List<PermissionsModel> result = nodeApi.permissions(List.of(owned, shared, owned));
 
-    assertThat(result).isNotNull();
-    assertThat(result.isCanRead()).isTrue();
-    assertThat(result.isCanShare()).isFalse();
+    assertThat(result).hasSize(3);
+    assertThat(result.get(0).isCanShare()).isTrue();
+    assertThat(result.get(0).isCanWriteFile()).isTrue();
+    assertThat(result.get(1).isCanRead()).isTrue();
+    assertThat(result.get(1).isCanShare()).isFalse();
+    assertThat(result.get(1).isCanWriteFile()).isFalse();
+    assertThat(result.get(2).isCanShare()).isTrue();
+    assertThat(result.get(2).isCanWriteFile()).isTrue();
   }
 
   // ─── children @Source ─────────────────────────────────────────────────────────

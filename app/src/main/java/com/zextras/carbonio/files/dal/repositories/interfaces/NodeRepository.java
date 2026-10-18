@@ -42,15 +42,27 @@ public interface NodeRepository {
    * <p>Use this method when you need to read a node and then update it atomically, such as when
    * uploading a new version of a file.
    *
+   * <p>Pending changes to an already-loaded instance are flushed first, then the node is re-read
+   * under the lock. Bounds every later lock wait of the current transaction to 10 s ({@code SET
+   * LOCAL lock_timeout}).
+   *
    * @param nodeId is a {@link String} representing the id of the node to retrieve and lock.
    * @return an {@link Optional<Node>} containing the locked {@link Node} if found.
    */
   Optional<Node> getNodeForUpdate(String nodeId);
 
-  /** Like {@link #getNodeForUpdate} for several nodes, locked in node id order. */
+  /**
+   * Like {@link #getNodeForUpdate} for several nodes, locked in node id order. Pending changes to
+   * already-loaded instances are flushed first, then the nodes are re-read under the lock. Bounds
+   * every later lock wait of the current transaction to 10 s ({@code SET LOCAL lock_timeout}).
+   */
   List<Node> getNodesForUpdate(List<String> nodeIds);
 
-  /** Transaction-scoped: take it after any row lock, in the transaction that checks and writes. */
+  /**
+   * Transaction-scoped: take it before any row lock, in the transaction that checks and writes.
+   * Bounds every later lock wait of the current transaction to 10 s ({@code SET LOCAL
+   * lock_timeout}).
+   */
   void lockChildNames(String folderId, String ownerId);
 
   /**
@@ -209,6 +221,9 @@ public interface NodeRepository {
    * @return the {@link Optional<TrashedNode>} if the node has been directly trashed
    */
   Optional<TrashedNode> getTrashedNode(String nodeId);
+
+  /** Which of the nodes have a trash row, read from the database and not from the session cache. */
+  List<String> getTrashedNodeIds(List<String> nodeIds);
 
   List<String> getTrashedNodeIdsByOldParent(String oldParentId);
 

@@ -15,6 +15,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -27,9 +28,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>In the Quarkus app this client is used by {@link
  * com.zextras.carbonio.files.config.FilesConfig} for the {@code page-token-secret-key}: it is read
- * fresh on every use and created exactly once on a cold cluster (see {@link
- * com.zextras.carbonio.files.config.FilesConfig#getPageTokenSecretKey()}). The {@code
- * application-config.*} tunables do NOT go through this client — they are read via {@link
+ * from Consul until the first successful read (then kept) and created exactly once on a cold
+ * cluster (see {@link com.zextras.carbonio.files.config.FilesConfig#getPageTokenSecretKey()}). The
+ * {@code application-config.*} tunables do NOT go through this client — they are read via {@link
  * com.zextras.carbonio.quarkus.extensions.bootstrap.ApplicationConfigService}, which as of
  * extension 1.13.0-1 is itself LIVE (the extension watches Consul KV), so a runtime KV change is
  * observed there too without a restart.
@@ -39,6 +40,10 @@ public class ServiceDiscoverHttpClient {
 
   private static final Logger logger = LoggerFactory.getLogger(ServiceDiscoverHttpClient.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
+  // Reads run inside request transactions holding a pooled DB connection: a stalled agent must not
+  // keep it for long. The agent is local, so a healthy call takes milliseconds.
+  private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
+  private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(3);
 
   private final String kvBaseUrl;
   private final HttpClient httpClient;
@@ -57,7 +62,11 @@ public class ServiceDiscoverHttpClient {
         String.format("http://%s:%s/v1/kv/%s/", host, port, Constants.ServiceDiscover.SERVICE_NAME);
     // Force HTTP/1.1, same rationale as MailboxHttpClient/PreviewClient: WireMock/Jetty in the
     // ITs (and Consul's real agent) only speak plain HTTP/1.1.
-    this.httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
+    this.httpClient =
+        HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
+            .connectTimeout(CONNECT_TIMEOUT)
+            .build();
   }
 
   /**
@@ -72,6 +81,7 @@ public class ServiceDiscoverHttpClient {
           HttpRequest.newBuilder()
               .uri(URI.create(kvBaseUrl + key))
               .header("X-Consul-Token", consulToken())
+              .timeout(REQUEST_TIMEOUT)
               .GET()
               .build();
       HttpResponse<String> response =
@@ -113,6 +123,7 @@ public class ServiceDiscoverHttpClient {
           HttpRequest.newBuilder()
               .uri(URI.create(kvBaseUrl + key + "?cas=0"))
               .header("X-Consul-Token", consulToken())
+              .timeout(REQUEST_TIMEOUT)
               .PUT(HttpRequest.BodyPublishers.ofString(value, StandardCharsets.UTF_8))
               .build();
       HttpResponse<String> response =

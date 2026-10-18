@@ -8,6 +8,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import io.smallrye.graphql.spi.config.Config;
+import jakarta.transaction.HeuristicMixedException;
+import jakarta.transaction.HeuristicRollbackException;
+import jakarta.transaction.RollbackException;
+import jakarta.transaction.SystemException;
 import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
@@ -68,7 +72,11 @@ class HiddenErrorMessagesTest {
                 new TimeoutException("10.0.0.5:20002"),
                 new StackOverflowError(),
                 new NoClassDefFoundError("com/zextras/carbonio/files/Node"),
-                new OutOfMemoryError("Java heap space")))
+                new OutOfMemoryError("Java heap space"),
+                new RollbackException("ARJUNA016053: Could not commit transaction."),
+                new HeuristicMixedException("ARJUNA016053"),
+                new HeuristicRollbackException("ARJUNA016053"),
+                new SystemException("ARJUNA016053")))
         .allMatch(config::shouldHide);
   }
 

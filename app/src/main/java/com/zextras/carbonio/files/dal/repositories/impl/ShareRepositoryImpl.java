@@ -113,6 +113,11 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
   }
 
   @Override
+  public void flush() {
+    getEntityManager().flush();
+  }
+
+  @Override
   @Transactional
   public Share updateShare(Share share) {
     return getEntityManager().merge(share);
@@ -144,6 +149,27 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
   @Transactional
   public void deleteSharesBulk(List<String> nodeIds) {
     list("composedPrimaryKey.mNodeId in ?1", nodeIds).forEach(this::delete);
+  }
+
+  @Override
+  public Optional<ACL> getSharePermissions(String nodeId, String userId) {
+    return Optional.ofNullable(getSharePermissions(List.of(nodeId), userId).get(nodeId.trim()));
+  }
+
+  @Override
+  public Map<String, ACL> getSharePermissions(List<String> nodeIds, String userId) {
+    return getEntityManager()
+        .createQuery(
+            "select s.composedPrimaryKey.mNodeId, s.permissions from Share s "
+                + "where s.composedPrimaryKey.mNodeId in :nodeIds "
+                + "and s.composedPrimaryKey.mTargetUserId = :userId",
+            Object[].class)
+        .setParameter("nodeIds", nodeIds)
+        .setParameter("userId", userId)
+        .getResultList()
+        .stream()
+        .collect(
+            Collectors.toMap(row -> ((String) row[0]).trim(), row -> ACL.decode((Short) row[1])));
   }
 
   @Override

@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -131,6 +132,59 @@ public abstract class AbstractFilesIT {
   /** Opens a raw JDBC connection to the shared Postgres Testcontainer (test/test credentials). */
   protected static Connection jdbcConnection() throws SQLException {
     return DriverManager.getConnection(FilesStackTestResource.POSTGRES_JDBC_URL, "test", "test");
+  }
+
+  protected static int backendPid(Connection connection) throws SQLException {
+    try (Statement statement = connection.createStatement();
+        ResultSet pid = statement.executeQuery("SELECT pg_backend_pid()")) {
+      pid.next();
+      return pid.getInt(1);
+    }
+  }
+
+  protected static void awaitBlockedBy(Connection lockHolder) throws Exception {
+    awaitBlockedBy(lockHolder, 1);
+  }
+
+  protected static void awaitBlockedBy(Connection lockHolder, int blockedCount) throws Exception {
+    awaitBlockedBy(blockedCount, backendPid(lockHolder));
+  }
+
+  /**
+   * Polls until at least {@code blockedCount} backends wait, directly or behind another waiter, for
+   * the given backend pids (a second waiter on the same lock is blocked by the first one, not by
+   * the holder).
+   */
+  protected static void awaitBlockedBy(int blockedCount, Integer... holderPids) throws Exception {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+    try (Connection observer = jdbcConnection();
+        PreparedStatement blocked =
+            observer.prepareStatement(
+                "SELECT pid FROM pg_stat_activity WHERE pg_blocking_pids(pid) && ?::int[]")) {
+      while (true) {
+        Set<Integer> blockers = new LinkedHashSet<>(List.of(holderPids));
+        Set<Integer> waiting = new LinkedHashSet<>();
+        boolean grew = true;
+        while (grew) {
+          blocked.setArray(1, observer.createArrayOf("integer", blockers.toArray()));
+          grew = false;
+          try (ResultSet pids = blocked.executeQuery()) {
+            while (pids.next()) {
+              grew |= waiting.add(pids.getInt(1));
+            }
+          }
+          blockers.addAll(waiting);
+        }
+        if (waiting.size() >= blockedCount) {
+          return;
+        }
+        if (System.nanoTime() > deadline) {
+          throw new AssertionError(
+              "Fewer than " + blockedCount + " backends waited for " + List.of(holderPids));
+        }
+        Thread.sleep(50);
+      }
+    }
   }
 
   /**

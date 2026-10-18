@@ -37,14 +37,15 @@ import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class UserApiTest {
 
@@ -67,6 +68,7 @@ class UserApiTest {
     userApi.userCache = new RequestUserCache();
     userApi.producer = producer;
     userApi.validator = new GraphQLInputValidator();
+    requested();
   }
 
   private UserInfo makeUserInfo(String id, String email, String fullName) {
@@ -208,8 +210,8 @@ class UserApiTest {
         "root-id");
   }
 
-  private void selectAllNodeUserFields() {
-    doReturn(Set.of("creator", "owner", "last_editor")).when(userApi).selectedSiblingUserFields();
+  private void requested(String... ids) {
+    doReturn(new LinkedHashSet<>(List.of(ids))).when(userApi).requestedNodeUserIds();
   }
 
   private UserInfo makeUserInfo(String id) {
@@ -236,8 +238,8 @@ class UserApiTest {
   }
 
   @Test
-  void resolversWithinOneRequestLookUpEachUserAtMostOnce() {
-    selectAllNodeUserFields();
+  void aUserMissingFromTheBatchIsCachedAsNotFoundOnlyByItsOwnLookup() {
+    requested("uid-A", "ghost");
     NodeModel node = makeNode("n1", "uid-A", "uid-A", "ghost");
     when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("uid-A")));
 
@@ -246,14 +248,15 @@ class UserApiTest {
     List<?> lastEditors = userApi.lastEditors(List.of(node));
     userApi.lastEditors(List.of(node));
 
-    verify(userRepository, times(1)).getUsers(anyList());
+    verify(userRepository, times(2)).getUsers(anyList());
     verify(userRepository).getUsers(List.of("uid-A", "ghost"));
+    verify(userRepository).getUsers(List.of("ghost"));
     assertThat(lastEditors.get(0)).isInstanceOf(FilesGraphQLException.class);
   }
 
   @Test
-  void firstNodeResolverFetchesTheUnionOfCreatorOwnerAndLastEditorInOneCall() {
-    selectAllNodeUserFields();
+  void theFirstLookupAlsoFetchesEveryRequestedNodeUserInOneCall() {
+    requested("c1", "o1", "e1", "c2");
     NodeModel n1 = makeNode("n1", "c1", "o1", "e1");
     NodeModel n2 = makeNode("n2", "c2", "o1", null);
     when(userRepository.getUsers(anyList()))
@@ -265,8 +268,9 @@ class UserApiTest {
     List<UserModel> creators = userApi.creators(List.of(n1, n2));
     List<UserModel> lastEditors = userApi.lastEditors(List.of(n1, n2));
 
-    verify(userRepository, times(1)).getUsers(anyList());
-    verify(userRepository).getUsers(List.of("c1", "o1", "e1", "c2"));
+    ArgumentCaptor<List<String>> requestedIds = ArgumentCaptor.captor();
+    verify(userRepository, times(1)).getUsers(requestedIds.capture());
+    assertThat(requestedIds.getValue()).containsExactlyInAnyOrder("o1", "c1", "e1", "c2");
     assertThat(owners).extracting(UserModel::getId).containsExactly("o1", "o1");
     assertThat(creators).extracting(UserModel::getId).containsExactly("c1", "c2");
     assertThat(lastEditors.get(0).getId()).isEqualTo("e1");
@@ -274,7 +278,7 @@ class UserApiTest {
   }
 
   @Test
-  void withoutAKnownSelectionOnlyTheResolversOwnFieldIsFetched() {
+  void withoutRequestedNodeUsersOnlyTheResolversOwnFieldIsFetched() {
     NodeModel node = makeNode("n1", "c1", "o1", "e1");
     when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("o1")));
 
@@ -285,8 +289,8 @@ class UserApiTest {
   }
 
   @Test
-  void onlyTheSelectedNodeUserFieldsAreFetched() {
-    doReturn(Set.of("owner", "last_editor")).when(userApi).selectedSiblingUserFields();
+  void onlyTheRequestedNodeUsersAreFetched() {
+    requested("o1", "e1");
     NodeModel node = makeNode("n1", "c1", "o1", "e1");
     when(userRepository.getUsers(anyList())).thenReturn(List.of());
 
@@ -296,8 +300,52 @@ class UserApiTest {
   }
 
   @Test
-  void aMissingUserInANonSelectedFieldNeverFailsTheSelectedOne() {
-    selectAllNodeUserFields();
+  void aLookupWhoseOwnUsersAreCachedDoesNotFetchTheRequestedOnes() {
+    NodeModel node = makeNode("n1", "c1", "o1", "e1");
+    when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("o1")));
+    userApi.owners(List.of(node));
+    requested("e1");
+
+    userApi.owners(List.of(node));
+
+    verify(userRepository, times(1)).getUsers(anyList());
+  }
+
+  @Test
+  void shareTargetLookupsAlsoFetchTheRequestedNodeUsers() {
+    requested("o1");
+    when(userRepository.getUsers(anyList()))
+        .thenReturn(List.of(makeUserInfo("t1"), makeUserInfo("o1")));
+
+    userApi.shareTargets(
+        List.of(new ShareModel(0L, SharePermission.READ_ONLY, null, "node-1", "t1")));
+    List<UserModel> owners = userApi.owners(List.of(makeNode("n1", "c1", "o1", null)));
+
+    verify(userRepository).getUsers(List.of("t1", "o1"));
+    verify(userRepository, times(1)).getUsers(anyList());
+    assertThat(owners).extracting(UserModel::getId).containsExactly("o1");
+  }
+
+  @Test
+  void aUserOnlyPrefetchedAndMissingFromTheBatchIsLookedUpAgainByItsOwnField() {
+    requested("o1", "e1");
+    NodeModel node = makeNode("n1", "c1", "o1", "e1");
+    when(userRepository.getUsers(anyList()))
+        .thenReturn(List.of(makeUserInfo("o1")))
+        .thenReturn(List.of(makeUserInfo("e1")));
+
+    List<UserModel> owners = userApi.owners(List.of(node));
+    List<UserModel> lastEditors = userApi.lastEditors(List.of(node));
+
+    verify(userRepository).getUsers(List.of("o1", "e1"));
+    verify(userRepository).getUsers(List.of("e1"));
+    assertThat(owners).extracting(UserModel::getId).containsExactly("o1");
+    assertThat(lastEditors).extracting(UserModel::getId).containsExactly("e1");
+  }
+
+  @Test
+  void aMissingUserOfAnotherFieldNeverFailsThisOne() {
+    requested("uid-A", "ghost");
     NodeModel node = makeNode("n1", "uid-A", "uid-A", "ghost");
     when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("uid-A")));
 
@@ -310,8 +358,7 @@ class UserApiTest {
 
   @Test
   @SuppressWarnings("unchecked")
-  void theUnionFetchOnlyRequestsIdsNotAlreadyCached() {
-    selectAllNodeUserFields();
+  void theLookupOnlyRequestsIdsNotAlreadyCached() {
     NodeModel first = makeNode("n1", "uid-A", "uid-A", null);
     NodeModel second = makeNode("n2", "uid-A", "uid-B", null);
     when(userRepository.getUsers(anyList()))
@@ -319,6 +366,7 @@ class UserApiTest {
             inv -> ((List<String>) inv.getArgument(0)).stream().map(this::makeUserInfo).toList());
 
     userApi.owners(List.of(first));
+    requested("uid-A", "uid-B");
     userApi.owners(List.of(second));
 
     verify(userRepository).getUsers(List.of("uid-A"));

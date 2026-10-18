@@ -77,6 +77,8 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   private static final Logger logger = LoggerFactory.getLogger(NodeRepositoryImpl.class);
 
+  private static final String LOCK_TIMEOUT = "10s";
+
   /** Maps a {@link Db.Node} sortable column name to the JPA entity field of {@link Node}. */
   private static final Map<String, String> FIELD_BY_COLUMN =
       Map.of(
@@ -105,8 +107,7 @@ public class NodeRepositoryImpl implements NodeRepository {
   @Override
   public Optional<Node> getNodeForUpdate(String nodeId) {
     // The caller MUST already have an active transaction; the pessimistic lock lives until it ends.
-    return Optional.ofNullable(
-        entityManager.find(Node.class, normalizeId(nodeId), LockModeType.PESSIMISTIC_WRITE));
+    return getNodesForUpdate(List.of(nodeId)).stream().findFirst();
   }
 
   @Override
@@ -114,16 +115,29 @@ public class NodeRepositoryImpl implements NodeRepository {
     if (nodeIds.isEmpty()) {
       return List.of();
     }
-    return entityManager
-        .createQuery("select n from Node n where n.mId in :ids order by n.mId", Node.class)
-        .setParameter("ids", nodeIds.stream().map(NodeRepositoryImpl::normalizeId).toList())
-        .setLockMode(LockModeType.PESSIMISTIC_WRITE)
-        .getResultList();
+    boundLockWait();
+    List<Node> nodes =
+        entityManager
+            .createQuery("select n from Node n where n.mId in :ids order by n.mId", Node.class)
+            .setParameter("ids", nodeIds.stream().map(NodeRepositoryImpl::normalizeId).toList())
+            .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+            .getResultList();
+    nodes.forEach(entityManager::refresh);
+    return nodes;
+  }
+
+  private void boundLockWait() {
+    // Per-wait bound (applies to every lock wait for the rest of the transaction): a writer never
+    // keeps its name/row locks while queued behind a long holder; the proxy answers after 15 s.
+    entityManager
+        .createNativeQuery("SET LOCAL lock_timeout = '" + LOCK_TIMEOUT + "'")
+        .executeUpdate();
   }
 
   @Override
   @Transactional(TxType.MANDATORY)
   public void lockChildNames(String folderId, String ownerId) {
+    boundLockWait();
     entityManager
         .createNativeQuery("select 1 from pg_advisory_xact_lock(hashtextextended(:key, 0))")
         .setParameter("key", folderId.trim() + "/" + ownerId)
@@ -356,6 +370,20 @@ public class NodeRepositoryImpl implements NodeRepository {
   @Override
   public Optional<TrashedNode> getTrashedNode(String nodeId) {
     return Optional.ofNullable(entityManager.find(TrashedNode.class, normalizeId(nodeId)));
+  }
+
+  @Override
+  public List<String> getTrashedNodeIds(List<String> nodeIds) {
+    if (nodeIds.isEmpty()) {
+      return List.of();
+    }
+    return entityManager
+        .createQuery("select tn.mNodeId from TrashedNode tn where tn.mNodeId in :ids", String.class)
+        .setParameter("ids", nodeIds.stream().map(NodeRepositoryImpl::normalizeId).toList())
+        .getResultList()
+        .stream()
+        .map(String::trim)
+        .toList();
   }
 
   @Override

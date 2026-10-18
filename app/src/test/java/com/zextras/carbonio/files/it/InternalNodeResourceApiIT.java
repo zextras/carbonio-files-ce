@@ -8,8 +8,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.RestAssured;
+import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -33,9 +40,36 @@ class InternalNodeResourceApiIT extends AbstractFilesIT {
   private static final String REQUESTER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
   private static final String REQUESTER_COOKIE = "ZM_AUTH_TOKEN=fake-token";
 
+  private static final String OTHER_USER_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+
   @BeforeAll
   static void registerUsers() {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", REQUESTER_ID);
+    FilesStackTestResource.getUserManagementService().registerToken("fake-token-b", OTHER_USER_ID);
+  }
+
+  private static Response internalCreateFolder(String userId, String destinationId, String name) {
+    return RestAssured.given()
+        .contentType(ContentType.JSON)
+        .body(Map.of("userId", userId, "destinationId", destinationId, "name", name))
+        .post("/internal/folders");
+  }
+
+  private static List<String> folderNames(String parentId, String ownerId) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT name FROM node WHERE folder_id = ? AND owner_id = ? ORDER BY name")) {
+      statement.setString(1, parentId);
+      statement.setString(2, ownerId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<String> names = new ArrayList<>();
+        while (resultSet.next()) {
+          names.add(resultSet.getString(1));
+        }
+        return names;
+      }
+    }
   }
 
   /** Deliberately takes NO cookie: {@code /internal/**} has no auth-handler in its pipeline. */
@@ -105,5 +139,54 @@ class InternalNodeResourceApiIT extends AbstractFilesIT {
     String nonExistentId = "10000000-0000-0000-0000-00000000ffff";
     Response response = internalGetNode(REQUESTER_ID, nonExistentId, null);
     Assertions.assertThat(response.getStatusCode()).isEqualTo(404);
+  }
+
+  @Test
+  void internalCreateFolderShouldPersistTheFolderAndDeduplicateItsName() throws Exception {
+    String parentId = seedFolder("internalCreateParent", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    Response first = internalCreateFolder(REQUESTER_ID, parentId, "docs");
+    Response second = internalCreateFolder(REQUESTER_ID, parentId, "docs");
+
+    Assertions.assertThat(first.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(second.getStatusCode()).isEqualTo(200);
+    String firstId = asMap(first).get("nodeId").toString();
+    String secondId = asMap(second).get("nodeId").toString();
+    Assertions.assertThat(firstId).isNotBlank().isNotEqualTo(secondId);
+    Assertions.assertThat(nodeExists(firstId, REQUESTER_COOKIE)).isTrue();
+    Assertions.assertThat(nodeExists(secondId, REQUESTER_COOKIE)).isTrue();
+    Assertions.assertThat(folderNames(parentId, REQUESTER_ID)).containsExactly("docs", "docs (1)");
+  }
+
+  @Test
+  void internalCreateFolderWithoutWritePermissionOnTheParentShouldReturn403() throws Exception {
+    String parentId = seedFolder("internalCreateForbidden", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    Response response = internalCreateFolder(OTHER_USER_ID, parentId, "intruder");
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(403);
+    Assertions.assertThat(folderNames(parentId, REQUESTER_ID)).isEmpty();
+  }
+
+  @Test
+  void internalCreateFolderUnderAParentThatIsNotAFolderShouldReturn404() {
+    String fileId =
+        seedFile(
+            "internalCreateNotAFolder.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+
+    Response response = internalCreateFolder(REQUESTER_ID, fileId, "child");
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(404);
+  }
+
+  @Test
+  void internalCreateFolderUnderANonExistentParentShouldReturn403() {
+    Response response =
+        internalCreateFolder(REQUESTER_ID, "10000000-0000-0000-0000-00000000ffff", "orphan");
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(403);
   }
 }

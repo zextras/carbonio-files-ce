@@ -11,9 +11,11 @@ import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.Constants.ServiceDiscover.Config;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
+import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.impl.InvalidPageTokenException;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
@@ -48,24 +50,27 @@ import com.zextras.filestore.model.BulkDeleteResponseItem;
 import com.zextras.filestore.model.FilesIdentifier;
 import com.zextras.filestore.model.IdentifierType;
 import io.quarkus.narayana.jta.QuarkusTransaction;
-import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.security.Authenticated;
 import io.smallrye.graphql.api.Context;
 import io.smallrye.graphql.api.Nullable;
 import io.vavr.control.Try;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
-import java.util.Vector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -213,6 +218,10 @@ public class NodeApi {
     Node node =
         nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
 
+    if (node.getNodeCategory() != NodeCategory.FILE) {
+      return List.of();
+    }
+
     List<FileModel> result =
         versionNumbers.stream()
             .map(ver -> (FileModel) NodeModelFactory.from(node, ver, me))
@@ -277,13 +286,6 @@ public class NodeApi {
 
   // ─── Single-item @Source resolvers ────────────────────────────────────────────
 
-  @Name("permissions")
-  @NonNull
-  public PermissionsModel permissions(@Source NodeModel node) {
-    String me = requester.getId().getUserId();
-    return new PermissionsModel(permissionsChecker.getPermissions(node.getId(), me));
-  }
-
   @Name("children")
   @NonNull
   public NodePageModel children(
@@ -328,7 +330,7 @@ public class NodeApi {
     return page;
   }
 
-  // ─── Batch @Source resolvers — Node.parent ────────────────────────────────────
+  // ─── Batch @Source resolvers ───────────────────────────────────────────────
 
   @Name("parent")
   public List<NodeModel> parents(@Source List<NodeModel> nodes) {
@@ -339,16 +341,25 @@ public class NodeApi {
                 parentIds.stream().filter(Objects::nonNull).distinct().toList(), Optional.empty())
             .collect(Collectors.toMap(Node::getId, n -> n));
     String me = requester.getId().getUserId();
+    Map<String, ACL> permissions = permissionsChecker.getPermissionsOfNodes(byId.values(), me);
     return parentIds.stream()
         .map(id -> id == null ? null : byId.get(id))
         .map(
             n -> {
               if (n == null) return null;
-              if (!permissionsChecker.getPermissions(n.getId(), me).has(SharePermission.READ_ONLY))
-                return null;
+              if (!permissions.get(n.getId()).has(SharePermission.READ_ONLY)) return null;
               return NodeModelFactory.from(n, null, me);
             })
         .toList();
+  }
+
+  @Name("permissions")
+  @NonNull
+  public List<@NonNull PermissionsModel> permissions(@Source List<NodeModel> nodes) {
+    Map<String, ACL> byId =
+        permissionsChecker.getPermissions(
+            nodes.stream().map(NodeModel::getId).toList(), requester.getId().getUserId());
+    return nodes.stream().map(n -> new PermissionsModel(byId.get(n.getId()))).toList();
   }
 
   // ─── Mutations ────────────────────────────────────────────────────────────────
@@ -381,45 +392,41 @@ public class NodeApi {
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
       throw FilesGraphQLErrors.nodeNotFound(nodeId);
     }
-    NodeModel model;
-    try {
-      model =
-          QuarkusTransaction.requiringNew()
-              .call(
-                  () -> {
-                    Node nodeToUpdate =
-                        nodeRepository
-                            .getNodeForUpdate(nodeId)
-                            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
-
-                    String parentFolderId = nodeToUpdate.getParentId().orElse(RootId.LOCAL_ROOT);
-
-                    if (name != null) {
-                      nodeRepository.lockChildNames(parentFolderId, nodeToUpdate.getOwnerId());
-                      String nodeFullName =
-                          nodeToUpdate.getExtension().map(ext -> name + "." + ext).orElse(name);
-                      if (!searchAlternativeName(
-                              nodeRepository,
-                              nodeFullName,
-                              parentFolderId,
-                              nodeToUpdate.getOwnerId())
-                          .equals(nodeFullName)) {
-                        throw FilesGraphQLErrors.duplicateNode(nodeId, parentFolderId);
-                      }
-                      nodeToUpdate.setName(name);
-                    }
-                    if (description != null) nodeToUpdate.setDescription(description);
-                    if (flagged != null) nodeRepository.flagForUser(nodeId, me, flagged);
-                    nodeToUpdate.setLastEditorId(me);
-                    nodeRepository.updateNode(nodeToUpdate);
-                    return NodeModelFactory.from(nodeToUpdate, null, me);
-                  });
-    } catch (QuarkusTransactionException e) {
-      if (e.getCause() instanceof FilesGraphQLException error) {
-        throw error;
-      }
-      throw e;
+    Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
+    if (name != null) {
+      nodeRepository
+          .getNode(nodeId)
+          .ifPresent(
+              node ->
+                  lockChildNames(
+                      List.of(
+                          ImmutablePair.of(
+                              node.getParentId().orElse(RootId.LOCAL_ROOT), node.getOwnerId())),
+                      lockedNames));
     }
+    Node nodeToUpdate =
+        nodeRepository
+            .getNodeForUpdate(nodeId)
+            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
+
+    String parentFolderId = nodeToUpdate.getParentId().orElse(RootId.LOCAL_ROOT);
+
+    if (name != null) {
+      lockChildNames(
+          List.of(ImmutablePair.of(parentFolderId, nodeToUpdate.getOwnerId())), lockedNames);
+      String nodeFullName = nodeToUpdate.getExtension().map(ext -> name + "." + ext).orElse(name);
+      if (!searchAlternativeName(
+              nodeRepository, nodeFullName, parentFolderId, nodeToUpdate.getOwnerId())
+          .equals(nodeFullName)) {
+        throw FilesGraphQLErrors.duplicateNode(nodeId, parentFolderId);
+      }
+      nodeToUpdate.setName(name);
+    }
+    if (description != null) nodeToUpdate.setDescription(description);
+    if (flagged != null) nodeRepository.flagForUser(nodeId, me, flagged);
+    nodeToUpdate.setLastEditorId(me);
+    nodeRepository.updateNode(nodeToUpdate);
+    NodeModel model = NodeModelFactory.from(nodeToUpdate, null, me);
     NodeModelFactory.requireVersion(model, model);
     return model;
   }
@@ -429,7 +436,7 @@ public class NodeApi {
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("flag") @NonNull Boolean flag)
       throws FilesGraphQLException {
-    Objects.requireNonNull(nodeIds);
+    validator.requireNodeIds(nodeIds).validate();
     String me = requester.getId().getUserId();
 
     List<String> flaggableNodes =
@@ -451,12 +458,8 @@ public class NodeApi {
     List<String> nodesInError =
         nodeIds.stream().filter(nodeId -> !flaggableNodes.contains(nodeId)).toList();
 
-    QuarkusTransaction.requiringNew()
-        .run(
-            () -> {
-              nodeRepository.getNodesForUpdate(flaggableNodes);
-              flaggableNodes.forEach(nodeId -> nodeRepository.flagForUser(nodeId, me, flag));
-            });
+    nodeRepository.getNodesForUpdate(flaggableNodes);
+    flaggableNodes.forEach(nodeId -> nodeRepository.flagForUser(nodeId, me, flag));
 
     if (!nodesInError.isEmpty()) {
       throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0))
@@ -469,7 +472,6 @@ public class NodeApi {
   public @Nullable @Id List<@NonNull String> trashNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
-    Objects.requireNonNull(nodeIds);
     String me = requester.getId().getUserId();
 
     List<String> trashableNodes =
@@ -486,60 +488,50 @@ public class NodeApi {
                     permissionsChecker
                         .getPermissions(nodeId, me)
                         .has(SharePermission.READ_AND_WRITE))
-            .collect(Collectors.toList());
-
-    List<String> nodesInError =
-        nodeIds.stream()
-            .filter(nodeId -> !trashableNodes.contains(nodeId))
-            .collect(Collectors.toList());
+            .collect(Collectors.toCollection(ArrayList::new));
 
     if (!trashableNodes.isEmpty()) {
       List<Runnable> pendingNotifications = new ArrayList<>();
-      QuarkusTransaction.requiringNew()
-          .run(
-              () ->
-                  nodeRepository
-                      .getNodesForUpdate(trashableNodes)
-                      .forEach(
-                          trashedNode -> {
-                            String nodeParentId = trashedNode.getParentId().get();
+      List<Node> lockedNodes = nodeRepository.getNodesForUpdate(trashableNodes);
+      List<String> alreadyTrashedIds =
+          nodeRepository.getTrashedNodeIds(lockedNodes.stream().map(Node::getId).toList());
+      List<Node> nodesToTrash =
+          lockedNodes.stream().filter(node -> !alreadyTrashedIds.contains(node.getId())).toList();
+      trashableNodes.retainAll(nodesToTrash.stream().map(Node::getId).toList());
+      nodesToTrash.forEach(
+          trashedNode -> {
+            String nodeParentId = trashedNode.getParentId().get();
 
-                            List<String> usersToNotify =
-                                new ArrayList<>(
-                                    shareRepository.getSharesUsersIds(
-                                        trashedNode.getId(), List.of()));
-                            usersToNotify.remove(me);
+            List<String> usersToNotify =
+                new ArrayList<>(shareRepository.getSharesUsersIds(trashedNode.getId(), List.of()));
+            usersToNotify.remove(me);
 
-                            Node parent =
-                                nodeRepository.getNode(trashedNode.getParentId().get()).get();
-                            if (!parent
-                                    .getNodeType()
-                                    .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
-                                && !me.equals(parent.getOwnerId())
-                                && !usersToNotify.contains(parent.getOwnerId())) {
-                              usersToNotify.add(parent.getOwnerId());
-                            }
+            Node parent = nodeRepository.getNode(trashedNode.getParentId().get()).get();
+            if (!parent.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
+                && !me.equals(parent.getOwnerId())
+                && !usersToNotify.contains(parent.getOwnerId())) {
+              usersToNotify.add(parent.getOwnerId());
+            }
 
-                            if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled()) {
-                              pendingNotifications.add(
-                                  () ->
-                                      notificationRepository.createRemovedNodeNotification(
-                                          trashedNode,
-                                          parent,
-                                          requester,
-                                          RemovedNodeType.DELETE,
-                                          usersToNotify));
-                            }
+            if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled()) {
+              pendingNotifications.add(
+                  () ->
+                      notificationRepository.createRemovedNodeNotification(
+                          trashedNode, parent, requester, RemovedNodeType.DELETE, usersToNotify));
+            }
 
-                            trashedNode.setAncestorIds(Constants.Db.RootId.TRASH_ROOT);
-                            trashedNode.setParentId(RootId.TRASH_ROOT);
-                            nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
-                            nodeRepository.updateNode(trashedNode);
-                            cascadeUpdateAncestors(trashedNode);
-                          }));
+            trashedNode.setAncestorIds(Constants.Db.RootId.TRASH_ROOT);
+            trashedNode.setParentId(RootId.TRASH_ROOT);
+            nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
+            nodeRepository.updateNode(trashedNode);
+            cascadeUpdateAncestors(trashedNode);
+          });
 
       pendingNotifications.forEach(Runnable::run);
     }
+
+    List<String> nodesInError =
+        nodeIds.stream().filter(nodeId -> !trashableNodes.contains(nodeId)).toList();
 
     if (!nodesInError.isEmpty()) {
       throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0))
@@ -552,7 +544,6 @@ public class NodeApi {
   public @Nullable List<NodeModel> restoreNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
-    Objects.requireNonNull(nodeIds);
     String me = requester.getId().getUserId();
 
     List<String> restorableNodeIds =
@@ -572,86 +563,74 @@ public class NodeApi {
             .filter(nodeId -> nodeRepository.getTrashedNode(nodeId).isPresent())
             .collect(Collectors.toList());
 
-    List<String> nodesInError =
-        nodeIds.stream()
-            .filter(nodeId -> !restorableNodeIds.contains(nodeId))
+    Map<String, Optional<Node>> destinations = lockForRestore(restorableNodeIds);
+    restorableNodeIds.retainAll(destinations.keySet());
+    List<NodeModel> results =
+        nodeRepository
+            .getNodes(restorableNodeIds, Optional.empty())
+            .map(
+                node -> {
+                  Optional<Node> parentNode = destinations.get(node.getId());
+                  String destParentId;
+                  String destAncestors;
+                  if (parentNode.isEmpty()) {
+                    destParentId = RootId.LOCAL_ROOT;
+                    destAncestors = RootId.LOCAL_ROOT;
+
+                    shareRepository.getShares(node.getId(), Collections.emptyList()).stream()
+                        .filter(share -> !share.isDirect())
+                        .forEach(
+                            share -> {
+                              share.setDirect(true);
+                              shareRepository.updateShare(share);
+                            });
+                  } else {
+                    destParentId = parentNode.get().getId();
+                    destAncestors =
+                        com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
+                                parentNode.get().getNodeType())
+                            ? destParentId
+                            : parentNode.get().getAncestorIds()
+                                + Node.ANCESTORS_SEPARATOR
+                                + destParentId;
+
+                    shareRepository
+                        .getShares(destParentId, Collections.emptyList())
+                        .forEach(
+                            share -> {
+                              shareRepository.upsertShare(
+                                  node.getId(),
+                                  share.getTargetUserId(),
+                                  share.getPermissions(),
+                                  false,
+                                  false,
+                                  share.getExpiredAt());
+
+                              if (node.getNodeType()
+                                  == com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER) {
+                                shareCascade.cascadeUpsertShare(
+                                    node.getId(),
+                                    share.getTargetUserId(),
+                                    share.getPermissions(),
+                                    share.getExpiredAt());
+                              }
+                            });
+                  }
+                  String newName =
+                      searchAlternativeName(
+                          nodeRepository, node.getFullName(), destParentId, node.getOwnerId());
+                  node.setParentId(destParentId);
+                  node.setAncestorIds(destAncestors);
+                  node.setFullName(newName);
+                  nodeRepository.restoreNode(node.getId());
+                  nodeRepository.updateNode(node);
+                  cascadeUpdateAncestors(node);
+                  return NodeModelFactory.from(node, null, me);
+                })
             .collect(Collectors.toList());
 
-    List<NodeModel> results =
-        QuarkusTransaction.requiringNew()
-            .call(
-                () -> {
-                  Map<String, Optional<Node>> destinations = lockForRestore(restorableNodeIds);
-                  return nodeRepository
-                      .getNodes(restorableNodeIds, Optional.empty())
-                      .map(
-                          node -> {
-                            Optional<Node> parentNode = destinations.get(node.getId());
-                            String destParentId;
-                            String destAncestors;
-                            if (parentNode.isEmpty()) {
-                              destParentId = RootId.LOCAL_ROOT;
-                              destAncestors = RootId.LOCAL_ROOT;
-
-                              shareRepository
-                                  .getShares(node.getId(), Collections.emptyList())
-                                  .stream()
-                                  .filter(share -> !share.isDirect())
-                                  .forEach(
-                                      share -> {
-                                        share.setDirect(true);
-                                        shareRepository.updateShare(share);
-                                      });
-                            } else {
-                              destParentId = parentNode.get().getId();
-                              destAncestors =
-                                  com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                                          parentNode.get().getNodeType())
-                                      ? destParentId
-                                      : parentNode.get().getAncestorIds()
-                                          + Node.ANCESTORS_SEPARATOR
-                                          + destParentId;
-
-                              shareRepository
-                                  .getShares(destParentId, Collections.emptyList())
-                                  .forEach(
-                                      share -> {
-                                        shareRepository.upsertShare(
-                                            node.getId(),
-                                            share.getTargetUserId(),
-                                            share.getPermissions(),
-                                            false,
-                                            false,
-                                            share.getExpiredAt());
-
-                                        if (node.getNodeType()
-                                            == com.zextras.carbonio.files.dal.dao.ebean.NodeType
-                                                .FOLDER) {
-                                          shareCascade.cascadeUpsertShare(
-                                              node.getId(),
-                                              share.getTargetUserId(),
-                                              share.getPermissions(),
-                                              share.getExpiredAt());
-                                        }
-                                      });
-                            }
-                            String newName =
-                                searchAlternativeName(
-                                    nodeRepository,
-                                    node.getFullName(),
-                                    destParentId,
-                                    node.getOwnerId());
-                            node.setParentId(destParentId);
-                            node.setAncestorIds(destAncestors);
-                            node.setFullName(newName);
-                            nodeRepository.restoreNode(node.getId());
-                            nodeRepository.updateNode(node);
-                            cascadeUpdateAncestors(node);
-                            return NodeModelFactory.from(node, null, me);
-                          })
-                      .collect(Collectors.toList());
-                });
-
+    List<String> nodesInError =
+        nodeIds.stream().filter(nodeId -> !restorableNodeIds.contains(nodeId)).toList();
     List<NodeModel> withErrorSlots = new ArrayList<>(results);
     nodesInError.forEach(id -> withErrorSlots.add(null));
     NodeModelFactory.requireVersions(results, withErrorSlots);
@@ -668,7 +647,6 @@ public class NodeApi {
       @Name("destination_id") @Id @NonNull String destinationId)
       throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).checkNodeId(destinationId).validate();
-    Objects.requireNonNull(nodeIds);
     String me = requester.getId().getUserId();
 
     if (!permissionsChecker.getPermissions(destinationId, me).has(SharePermission.READ_AND_WRITE)) {
@@ -688,7 +666,7 @@ public class NodeApi {
     List<String> rootIds =
         nodeRepository.getRootsList().stream().map(Node::getId).collect(Collectors.toList());
 
-    List<String> nodeIdsToMove =
+    List<String> movableIds =
         nodeIds.stream()
             .filter(
                 nodeId ->
@@ -697,134 +675,113 @@ public class NodeApi {
                         .has(SharePermission.READ_AND_WRITE))
             .filter(nodeId -> !rootIds.contains(nodeId))
             .filter(nodeId -> !destinationId.equals(nodeId))
-            .collect(Collectors.toList());
+            .toList();
+    List<String> nodeIdsToMove = lockForMove(movableIds, destinationFolder, destinationId, rootIds);
 
-    List<String> nodesInError =
-        nodeIds.stream().filter(nodeId -> !nodeIdsToMove.contains(nodeId)).toList();
-
-    List<NodeModel> movedNodesResult = new ArrayList<>();
+    List<NodeModel> movedNodesResult = List.of();
     if (!nodeIdsToMove.isEmpty()) {
       List<Runnable> pendingNotifications = new ArrayList<>();
-      QuarkusTransaction.requiringNew()
-          .run(
-              () -> {
-                nodeRepository.getNodesForUpdate(nodeIdsToMove).stream()
-                    .map(Node::getOwnerId)
-                    .distinct()
-                    .sorted()
-                    .forEach(ownerId -> nodeRepository.lockChildNames(destinationId, ownerId));
-                nodeIdsToMove.forEach(
-                    nodeId -> {
-                      Node node = nodeRepository.getNode(nodeId).get();
-                      if (node.getParentId().isPresent()
-                          && !node.getParentId().get().equals(destinationId)) {
-                        String newName =
-                            searchAlternativeName(
-                                nodeRepository,
-                                node.getFullName(),
-                                destinationId,
-                                node.getOwnerId());
-                        node.setFullName(newName);
-                      }
-                      nodeRepository.updateNode(node);
+      nodeIdsToMove.forEach(
+          nodeId -> {
+            Node node = nodeRepository.getNode(nodeId).get();
+            if (node.getParentId().isPresent() && !node.getParentId().get().equals(destinationId)) {
+              String newName =
+                  searchAlternativeName(
+                      nodeRepository, node.getFullName(), destinationId, node.getOwnerId());
+              node.setFullName(newName);
+            }
+            nodeRepository.updateNode(node);
 
-                      List<String> usersToNotifyRemove =
-                          new ArrayList<>(
-                              shareRepository.getSharesUsersIds(node.getId(), List.of()));
-                      usersToNotifyRemove.remove(me);
+            List<String> usersToNotifyRemove =
+                new ArrayList<>(shareRepository.getSharesUsersIds(node.getId(), List.of()));
+            usersToNotifyRemove.remove(me);
 
-                      Node parent = nodeRepository.getNode(node.getParentId().get()).get();
-                      if (!parent
-                              .getNodeType()
-                              .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
-                          && !me.equals(parent.getOwnerId())
-                          && !usersToNotifyRemove.contains(parent.getOwnerId())) {
-                        usersToNotifyRemove.add(parent.getOwnerId());
-                      }
+            Node parent = nodeRepository.getNode(node.getParentId().get()).get();
+            if (!parent.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
+                && !me.equals(parent.getOwnerId())
+                && !usersToNotifyRemove.contains(parent.getOwnerId())) {
+              usersToNotifyRemove.add(parent.getOwnerId());
+            }
 
-                      if (!usersToNotifyRemove.isEmpty() && filesConfig.areNotificationsEnabled()) {
-                        Node parentFinal = parent;
-                        pendingNotifications.add(
-                            () ->
-                                notificationRepository.createRemovedNodeNotification(
-                                    node,
-                                    parentFinal,
-                                    requester,
-                                    RemovedNodeType.MOVE,
-                                    usersToNotifyRemove));
+            if (!usersToNotifyRemove.isEmpty() && filesConfig.areNotificationsEnabled()) {
+              pendingNotifications.add(
+                  () ->
+                      notificationRepository.createRemovedNodeNotification(
+                          node, parent, requester, RemovedNodeType.MOVE, usersToNotifyRemove));
+            }
+          });
+
+      nodeRepository.moveNodes(nodeIdsToMove, destinationFolder);
+
+      nodeIdsToMove.forEach(
+          nodeId -> {
+            Node node = nodeRepository.getNode(nodeId).get();
+            cascadeUpdateAncestors(node);
+
+            shareRepository.getShares(nodeId, Collections.emptyList()).stream()
+                .filter(share -> !share.isDirect())
+                .forEach(
+                    share -> {
+                      shareRepository.deleteShare(nodeId, share.getTargetUserId());
+                      shareCascade.cascadeDeleteShare(nodeId, share.getTargetUserId());
+                    });
+
+            List<String> usersToNotifyAdd = new ArrayList<>();
+            shareRepository
+                .getShares(destinationId, Collections.emptyList())
+                .forEach(
+                    share -> {
+                      Optional<Share> sourceShare =
+                          shareRepository.getShare(nodeId, share.getTargetUserId());
+                      usersToNotifyAdd.add(share.getTargetUserId());
+                      if (!sourceShare.isPresent() || !sourceShare.get().isDirect()) {
+                        shareRepository.upsertShare(
+                            nodeId,
+                            share.getTargetUserId(),
+                            share.getPermissions(),
+                            false,
+                            false,
+                            share.getExpiredAt());
+                        shareCascade.cascadeUpsertShare(
+                            nodeId,
+                            share.getTargetUserId(),
+                            share.getPermissions(),
+                            share.getExpiredAt());
                       }
                     });
 
-                nodeRepository.moveNodes(nodeIdsToMove, destinationFolder);
+            usersToNotifyAdd.remove(me);
+            if (!com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
+                    destinationFolder.getNodeType())
+                && !me.equals(destinationFolder.getOwnerId())) {
+              usersToNotifyAdd.add(destinationFolder.getOwnerId());
+            }
 
-                nodeIdsToMove.forEach(
-                    nodeId -> {
-                      Node node = nodeRepository.getNode(nodeId).get();
-                      cascadeUpdateAncestors(node);
+            if (!usersToNotifyAdd.isEmpty() && filesConfig.areNotificationsEnabled()) {
+              pendingNotifications.add(
+                  () ->
+                      notificationRepository.createAddedNodeNotification(
+                          node,
+                          destinationFolder,
+                          requester,
+                          AddedNodeType.MOVE,
+                          usersToNotifyAdd));
+            }
+          });
 
-                      shareRepository.getShares(nodeId, Collections.emptyList()).stream()
-                          .filter(share -> !share.isDirect())
-                          .forEach(
-                              share -> {
-                                shareRepository.deleteShare(nodeId, share.getTargetUserId());
-                                shareCascade.cascadeDeleteShare(nodeId, share.getTargetUserId());
-                              });
-
-                      List<String> usersToNotifyAdd = new ArrayList<>();
-                      shareRepository
-                          .getShares(destinationId, Collections.emptyList())
-                          .forEach(
-                              share -> {
-                                Optional<Share> sourceShare =
-                                    shareRepository.getShare(nodeId, share.getTargetUserId());
-                                usersToNotifyAdd.add(share.getTargetUserId());
-                                if (!sourceShare.isPresent() || !sourceShare.get().isDirect()) {
-                                  shareRepository.upsertShare(
-                                      nodeId,
-                                      share.getTargetUserId(),
-                                      share.getPermissions(),
-                                      false,
-                                      false,
-                                      share.getExpiredAt());
-                                  shareCascade.cascadeUpsertShare(
-                                      nodeId,
-                                      share.getTargetUserId(),
-                                      share.getPermissions(),
-                                      share.getExpiredAt());
-                                }
-                              });
-
-                      usersToNotifyAdd.remove(me);
-                      if (!com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                              destinationFolder.getNodeType())
-                          && !me.equals(destinationFolder.getOwnerId())) {
-                        usersToNotifyAdd.add(destinationFolder.getOwnerId());
-                      }
-
-                      if (!usersToNotifyAdd.isEmpty() && filesConfig.areNotificationsEnabled()) {
-                        Node nodeFinal = node;
-                        pendingNotifications.add(
-                            () ->
-                                notificationRepository.createAddedNodeNotification(
-                                    nodeFinal,
-                                    destinationFolder,
-                                    requester,
-                                    AddedNodeType.MOVE,
-                                    usersToNotifyAdd));
-                      }
-                    });
-
-                movedNodesResult.addAll(
-                    nodeRepository
-                        .getNodes(nodeIdsToMove, Optional.empty())
-                        .map(node -> NodeModelFactory.from(node, null, me))
-                        .collect(Collectors.toList()));
-              });
+      movedNodesResult =
+          nodeRepository
+              .getNodes(nodeIdsToMove, Optional.empty())
+              .map(node -> NodeModelFactory.from(node, null, me))
+              .collect(Collectors.toList());
 
       pendingNotifications.forEach(Runnable::run);
     }
 
     NodeModelFactory.requireVersions(movedNodesResult, movedNodesResult);
+    List<String> nodesInError =
+        nodeIds.stream().filter(nodeId -> !nodeIdsToMove.contains(nodeId)).toList();
+
     if (!nodesInError.isEmpty()) {
       throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0))
           .withPartialResults(movedNodesResult);
@@ -833,10 +790,10 @@ public class NodeApi {
   }
 
   @Mutation("deleteNodes")
+  @Transactional(TxType.NOT_SUPPORTED)
   public @Nullable @Id List<@NonNull String> deleteNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
-    Objects.requireNonNull(nodeIds);
     String me = requester.getId().getUserId();
 
     List<Node> requestedNodes =
@@ -865,7 +822,7 @@ public class NodeApi {
                 node ->
                     !node.getNodeType()
                         .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
-            .collect(Collectors.toList());
+            .toList();
 
     Map<String, List<FileVersion>> fileVersionsByOwner = new HashMap<>();
     fileNodes.forEach(
@@ -942,12 +899,12 @@ public class NodeApi {
   }
 
   @Mutation("copyNodes")
+  @Transactional(TxType.NOT_SUPPORTED)
   public @Nullable List<@NonNull NodeModel> copyNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("destination_id") @Id @NonNull String destinationId)
       throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).checkNodeId(destinationId).validate();
-    Objects.requireNonNull(nodeIds);
     String me = requester.getId().getUserId();
 
     if (!permissionsChecker.getPermissions(destinationId, me).has(SharePermission.READ_AND_WRITE)) {
@@ -1056,6 +1013,7 @@ public class NodeApi {
   }
 
   @Mutation("deleteVersions")
+  @Transactional(TxType.NOT_SUPPORTED)
   public @NonNull List<Integer> deleteVersions(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("versions") @Nullable List<@NonNull Integer> versions)
@@ -1149,34 +1107,24 @@ public class NodeApi {
     }
 
     int maxNumberOfKeepVersions = getMaxNumberOfKeepVersions();
-    List<FileVersion> fileVersionsNotUpdated = new Vector<>();
-    List<FileVersion> fileVersions =
-        QuarkusTransaction.requiringNew()
-            .call(
-                () -> {
-                  List<FileVersion> allVersions =
-                      fileVersionRepository.getFileVersions(
-                          nodeId, List.of(FileVersionSort.VERSION_DESC));
-                  int keepForeverCounter = 0;
-                  for (FileVersion fv : allVersions) {
-                    keepForeverCounter =
-                        fv.isKeptForever() ? keepForeverCounter + 1 : keepForeverCounter;
-                  }
+    List<FileVersion> fileVersionsNotUpdated = new ArrayList<>();
+    List<FileVersion> allVersions =
+        fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
+    int keepForeverCounter = 0;
+    for (FileVersion fv : allVersions) {
+      keepForeverCounter = fv.isKeptForever() ? keepForeverCounter + 1 : keepForeverCounter;
+    }
 
-                  List<FileVersion> requestedVersions =
-                      fileVersionRepository.getFileVersions(nodeId, versions);
-                  for (FileVersion fv : requestedVersions) {
-                    if (!keepForever || keepForeverCounter < maxNumberOfKeepVersions) {
-                      fv.keepForever(keepForever);
-                      fileVersionRepository.updateFileVersion(fv);
-                      keepForeverCounter =
-                          keepForever ? keepForeverCounter + 1 : keepForeverCounter - 1;
-                    } else {
-                      fileVersionsNotUpdated.add(fv);
-                    }
-                  }
-                  return requestedVersions;
-                });
+    List<FileVersion> fileVersions = fileVersionRepository.getFileVersions(nodeId, versions);
+    for (FileVersion fv : fileVersions) {
+      if (!keepForever || keepForeverCounter < maxNumberOfKeepVersions) {
+        fv.keepForever(keepForever);
+        fileVersionRepository.updateFileVersion(fv);
+        keepForeverCounter = keepForever ? keepForeverCounter + 1 : keepForeverCounter - 1;
+      } else {
+        fileVersionsNotUpdated.add(fv);
+      }
+    }
 
     List<Integer> versionsUpdated =
         fileVersions.stream()
@@ -1191,6 +1139,7 @@ public class NodeApi {
   }
 
   @Mutation("cloneVersion")
+  @Transactional(TxType.NOT_SUPPORTED)
   public @NonNull FileModel cloneVersion(
       @Name("node_id") @Id @NonNull String nodeId, @Name("version") @NonNull Integer version)
       throws FilesGraphQLException {
@@ -1319,22 +1268,85 @@ public class NodeApi {
     }
   }
 
+  // Name locks go before row locks (see MoveNodesDeadlockApiIT), except a rare follow-up lock.
+  private void lockChildNames(
+      Collection<ImmutablePair<String, String>> folderOwnerKeys,
+      Set<ImmutablePair<String, String>> locked) {
+    for (ImmutablePair<String, String> key : new TreeSet<>(folderOwnerKeys)) {
+      if (locked.add(key)) {
+        nodeRepository.lockChildNames(key.getLeft(), key.getRight());
+      }
+    }
+  }
+
+  private List<ImmutablePair<String, String>> destinationKeys(
+      List<Node> nodes, String destinationId) {
+    return nodes.stream().map(node -> ImmutablePair.of(destinationId, node.getOwnerId())).toList();
+  }
+
+  private List<String> lockForMove(
+      List<String> movableIds, Node destinationFolder, String destinationId, List<String> rootIds)
+      throws FilesGraphQLException {
+    if (movableIds.isEmpty()) {
+      return movableIds;
+    }
+    Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
+    lockChildNames(
+        destinationKeys(
+            nodeRepository.getNodes(movableIds, Optional.empty()).toList(), destinationId),
+        lockedNames);
+    boolean destinationIsRoot = rootIds.contains(destinationId);
+    List<String> idsToLock = new ArrayList<>(movableIds);
+    if (!destinationIsRoot) {
+      idsToLock.add(destinationId);
+    }
+    List<Node> lockedNodes = nodeRepository.getNodesForUpdate(idsToLock);
+    List<String> lockedIds = lockedNodes.stream().map(Node::getId).toList();
+    if (!destinationIsRoot && !lockedIds.contains(destinationId)) {
+      throw FilesGraphQLErrors.nodeWriteError(destinationId);
+    }
+    List<String> destinationAncestors = destinationFolder.getAncestorsList();
+    List<String> idsToMove =
+        movableIds.stream()
+            .filter(lockedIds::contains)
+            .filter(id -> !destinationAncestors.contains(id))
+            .toList();
+    lockChildNames(
+        destinationKeys(
+            lockedNodes.stream().filter(node -> idsToMove.contains(node.getId())).toList(),
+            destinationId),
+        lockedNames);
+    return idsToMove;
+  }
+
   private Map<String, Optional<Node>> lockForRestore(List<String> nodeIds) {
-    List<Node> nodes = nodeRepository.getNodesForUpdate(nodeIds);
+    Set<ImmutablePair<String, String>> locked = new HashSet<>();
+    List<Node> preRead = nodeRepository.getNodes(nodeIds, Optional.empty()).toList();
+    lockChildNames(restoreKeys(preRead, restoreDestinations(preRead)), locked);
+    List<Node> lockedNodes = nodeRepository.getNodesForUpdate(nodeIds);
+    List<String> trashedIds = nodeRepository.getTrashedNodeIds(nodeIds);
+    List<Node> stillTrashed =
+        lockedNodes.stream().filter(node -> trashedIds.contains(node.getId())).toList();
+    Map<String, Optional<Node>> destinations = restoreDestinations(stillTrashed);
+    lockChildNames(restoreKeys(stillTrashed, destinations), locked);
+    return destinations;
+  }
+
+  private Map<String, Optional<Node>> restoreDestinations(List<Node> nodes) {
     Map<String, Optional<Node>> destinations = new HashMap<>();
     nodes.forEach(node -> destinations.put(node.getId(), restoreDestination(node.getId())));
-    nodes.stream()
+    return destinations;
+  }
+
+  private List<ImmutablePair<String, String>> restoreKeys(
+      List<Node> nodes, Map<String, Optional<Node>> destinations) {
+    return nodes.stream()
         .map(
             node ->
                 ImmutablePair.of(
                     destinations.get(node.getId()).map(Node::getId).orElse(RootId.LOCAL_ROOT),
                     node.getOwnerId()))
-        .distinct()
-        .sorted()
-        .forEach(
-            destination ->
-                nodeRepository.lockChildNames(destination.getLeft(), destination.getRight()));
-    return destinations;
+        .toList();
   }
 
   private Optional<Node> restoreDestination(String nodeId) {

@@ -11,7 +11,13 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -90,6 +96,69 @@ class CreateShareApiIT extends AbstractFilesIT {
     List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
     Assertions.assertThat(errorCodes).containsExactly("SHARE_CREATION_ERROR");
     Assertions.assertThat(shareExists(nodeId, TARGET_ID, OWNER_COOKIE)).isFalse();
+  }
+
+  @Test
+  void givenAConcurrentDuplicateShareCreateShareShouldReturnShareCreationError() throws Exception {
+    String nodeId =
+        seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+
+    Response response;
+    try (Connection concurrent = jdbcConnection()) {
+      concurrent.setAutoCommit(false);
+      try (PreparedStatement insertShare =
+          concurrent.prepareStatement(
+              "INSERT INTO share (node_id, rights, timestamp, target_uuid, direct)"
+                  + " VALUES (?, ?, ?, ?, TRUE)")) {
+        insertShare.setString(1, nodeId);
+        insertShare.setInt(2, 3);
+        insertShare.setLong(3, System.currentTimeMillis());
+        insertShare.setString(4, TARGET_ID);
+        insertShare.executeUpdate();
+      }
+      CompletableFuture<Response> create =
+          CompletableFuture.supplyAsync(
+              () -> createShare(nodeId, TARGET_ID, SharePermission.READ_ONLY, OWNER_COOKIE));
+      awaitBlockedBy(concurrent);
+      Assertions.assertThat(blockedStatements(concurrent))
+          .singleElement()
+          .satisfies(query -> Assertions.assertThat(query).startsWith("insert into share"));
+      concurrent.commit();
+      response = create.get(60, TimeUnit.SECONDS);
+    }
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("SHARE_CREATION_ERROR");
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT rights FROM share WHERE node_id = ? AND target_uuid = ?")) {
+      statement.setString(1, nodeId);
+      statement.setString(2, TARGET_ID);
+      try (ResultSet rows = statement.executeQuery()) {
+        Assertions.assertThat(rows.next()).isTrue();
+        Assertions.assertThat(rows.getInt(1)).isEqualTo(3);
+        Assertions.assertThat(rows.next()).isFalse();
+      }
+    }
+  }
+
+  private static List<String> blockedStatements(Connection lockHolder) throws Exception {
+    int holderPid = backendPid(lockHolder);
+    try (Connection observer = jdbcConnection();
+        PreparedStatement blocked =
+            observer.prepareStatement(
+                "SELECT lower(query) FROM pg_stat_activity WHERE ? = ANY(pg_blocking_pids(pid))")) {
+      blocked.setInt(1, holderPid);
+      List<String> statements = new ArrayList<>();
+      try (ResultSet rows = blocked.executeQuery()) {
+        while (rows.next()) {
+          statements.add(rows.getString(1));
+        }
+      }
+      return statements;
+    }
   }
 
   @Test

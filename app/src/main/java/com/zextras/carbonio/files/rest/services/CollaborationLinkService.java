@@ -14,6 +14,7 @@ import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import io.vavr.control.Try;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import java.text.MessageFormat;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -52,6 +53,7 @@ public class CollaborationLinkService {
     this.shareCascadeHelper = shareCascadeHelper;
   }
 
+  @Transactional
   public Try<Node> createShareByInvitationId(String invitationId, String requesterId) {
     return collaborationLinkRepository
         .getLinkByInvitationId(invitationId)
@@ -77,13 +79,22 @@ public class CollaborationLinkService {
                               optShare.get().setCreatedViaLink(true);
                               shareRepository.updateShare(optShare.get());
                             } else {
-                              shareRepository.upsertShare(
-                                  collaborationLink.getNodeId(),
-                                  requesterId,
-                                  ACL.decode(collaborationLink.getPermissions()),
-                                  true,
-                                  true,
-                                  Optional.empty());
+                              try {
+                                shareRepository.upsertShare(
+                                    collaborationLink.getNodeId(),
+                                    requesterId,
+                                    ACL.decode(collaborationLink.getPermissions()),
+                                    true,
+                                    true,
+                                    Optional.empty());
+                                shareRepository.flush();
+                              } catch (RuntimeException e) {
+                                // A concurrent click created the share and cascades it.
+                                if (ShareRepository.isUniqueViolation(e)) {
+                                  return Try.success(node);
+                                }
+                                throw e;
+                              }
                             }
 
                             // Called synchronously (see class javadoc): the request-scoped

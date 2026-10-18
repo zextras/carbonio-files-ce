@@ -87,7 +87,7 @@ class InternalNodeResourceTest {
     RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID, null);
 
     assertThat(response.getStatus()).isEqualTo(404);
-    verify(permissionsChecker, never()).getPermissions(any(), any());
+    verifyNoInteractions(permissionsChecker);
   }
 
   @Test
@@ -134,9 +134,7 @@ class InternalNodeResourceTest {
   @Test
   void getNode_assemblesFileDto_usingFileVersionUpdatedAt_notNodeUpdatedAt() {
     // CRITICAL behaviour under test: updatedAt must come from the resolved FileVersion, not from
-    // Node#getUpdatedAt(), replicating the retired NodeDataFetcher#convertNodeToDataFetcherResult's
-    // same-key
-    // map override.
+    // Node#getUpdatedAt(), replicating the retired NodeDataFetcher's same-key map override.
     Node file = mock(Node.class);
     when(file.getId()).thenReturn(NODE_ID);
     when(file.getName()).thenReturn("report");

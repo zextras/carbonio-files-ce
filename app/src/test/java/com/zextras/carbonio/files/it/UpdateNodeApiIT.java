@@ -184,6 +184,39 @@ class UpdateNodeApiIT extends AbstractFilesIT {
     Assertions.assertThat(node).containsEntry("name", "flagme");
   }
 
+  private Response renameWhileMoveIsUncommitted(
+      String nodeId, String targetFolderId, boolean lockFlagRow) throws Exception {
+    try (Connection move = jdbcConnection()) {
+      move.setAutoCommit(false);
+      if (lockFlagRow) {
+        // The flag row lock parks a pre-fix rename between its node read and its node write.
+        try (PreparedStatement lockFlag =
+            move.prepareStatement(
+                "SELECT star FROM custom WHERE node_id = ? AND user_id = ? FOR UPDATE")) {
+          lockFlag.setString(1, nodeId);
+          lockFlag.setString(2, REQUESTER_ID);
+          try (ResultSet flag = lockFlag.executeQuery()) {
+            Assertions.assertThat(flag.next()).isTrue();
+          }
+        }
+      }
+      try (PreparedStatement moveNode =
+          move.prepareStatement(
+              "UPDATE node SET folder_id = ?, ancestor_ids = ? WHERE node_id = ?")) {
+        moveNode.setString(1, targetFolderId);
+        moveNode.setString(2, LOCAL_ROOT + "," + targetFolderId);
+        moveNode.setString(3, nodeId);
+        moveNode.executeUpdate();
+      }
+      CompletableFuture<Response> rename =
+          CompletableFuture.supplyAsync(
+              () -> updateNode(nodeId, "renamed", null, false, REQUESTER_COOKIE));
+      awaitBlockedBy(move);
+      move.commit();
+      return rename.get(60, TimeUnit.SECONDS);
+    }
+  }
+
   @Test
   void givenAMoveCommittedWhileARenameIsInFlightTheRenameShouldNotUndoTheMove() throws Exception {
     String sourceFolderId = seedFolder("race-source", LOCAL_ROOT, REQUESTER_COOKIE);
@@ -196,33 +229,7 @@ class UpdateNodeApiIT extends AbstractFilesIT {
             REQUESTER_COOKIE);
     seedFlag(nodeId, REQUESTER_COOKIE);
 
-    Response response;
-    try (Connection move = jdbcConnection()) {
-      move.setAutoCommit(false);
-      // The flag row lock parks a pre-fix rename between its node read and its node write.
-      try (PreparedStatement lockFlag =
-              move.prepareStatement(
-                  "SELECT star FROM custom WHERE node_id = ? AND user_id = ? FOR UPDATE");
-          PreparedStatement moveNode =
-              move.prepareStatement(
-                  "UPDATE node SET folder_id = ?, ancestor_ids = ? WHERE node_id = ?")) {
-        lockFlag.setString(1, nodeId);
-        lockFlag.setString(2, REQUESTER_ID);
-        try (ResultSet flag = lockFlag.executeQuery()) {
-          Assertions.assertThat(flag.next()).isTrue();
-        }
-        moveNode.setString(1, targetFolderId);
-        moveNode.setString(2, LOCAL_ROOT + "," + targetFolderId);
-        moveNode.setString(3, nodeId);
-        moveNode.executeUpdate();
-      }
-      CompletableFuture<Response> rename =
-          CompletableFuture.supplyAsync(
-              () -> updateNode(nodeId, "renamed", null, false, REQUESTER_COOKIE));
-      awaitBlockedBy(move);
-      move.commit();
-      response = rename.get(60, TimeUnit.SECONDS);
-    }
+    Response response = renameWhileMoveIsUncommitted(nodeId, targetFolderId, true);
 
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
     Assertions.assertThat(TestUtils.jsonResponseToMap(response.getBody().asString(), "updateNode"))
@@ -239,31 +246,63 @@ class UpdateNodeApiIT extends AbstractFilesIT {
     }
   }
 
-  private static void awaitBlockedBy(Connection lockHolder) throws Exception {
-    int holderPid;
-    try (PreparedStatement statement = lockHolder.prepareStatement("SELECT pg_backend_pid()");
-        ResultSet pid = statement.executeQuery()) {
-      pid.next();
-      holderPid = pid.getInt(1);
-    }
-    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-    try (Connection observer = jdbcConnection();
-        PreparedStatement blocked =
-            observer.prepareStatement(
-                "SELECT count(*) FROM pg_stat_activity WHERE ? = ANY(pg_blocking_pids(pid))")) {
-      blocked.setInt(1, holderPid);
-      while (true) {
-        try (ResultSet count = blocked.executeQuery()) {
-          count.next();
-          if (count.getInt(1) > 0) {
-            return;
-          }
-        }
-        if (System.nanoTime() > deadline) {
-          throw new AssertionError("The rename never waited for the concurrent move");
-        }
-        Thread.sleep(50);
+  @Test
+  void givenAMoveCommittedWhileARenameIsInFlightTheRenameShouldCheckTheNameInTheNewFolder()
+      throws Exception {
+    String sourceFolderId = seedFolder("race-source", LOCAL_ROOT, REQUESTER_COOKIE);
+    String targetFolderId = seedFolder("race-target", LOCAL_ROOT, REQUESTER_COOKIE);
+    String nodeId =
+        seedFile(
+            "racing.txt",
+            sourceFolderId,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+    seedFile(
+        "renamed.txt",
+        targetFolderId,
+        "content".getBytes(StandardCharsets.UTF_8),
+        REQUESTER_COOKIE);
+
+    Response response = renameWhileMoveIsUncommitted(nodeId, targetFolderId, false);
+
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("NODE_DUPLICATED");
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("SELECT folder_id, name FROM node WHERE node_id = ?")) {
+      statement.setString(1, nodeId);
+      try (ResultSet row = statement.executeQuery()) {
+        Assertions.assertThat(row.next()).isTrue();
+        Assertions.assertThat(row.getString("folder_id").trim()).isEqualTo(targetFolderId);
+        Assertions.assertThat(row.getString("name")).isEqualTo("racing.txt");
       }
     }
+  }
+
+  @Test
+  void givenANodeDeletedWhileTheUpdateWaitsForItsLockUpdateNodeShouldReturnNodeNotFound()
+      throws Exception {
+    String nodeId =
+        seedFile(
+            "doomed.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+
+    Response response;
+    try (Connection deleter = jdbcConnection()) {
+      deleter.setAutoCommit(false);
+      try (PreparedStatement delete =
+          deleter.prepareStatement("DELETE FROM node WHERE node_id = ?")) {
+        delete.setString(1, nodeId);
+        delete.executeUpdate();
+      }
+      CompletableFuture<Response> update =
+          CompletableFuture.supplyAsync(
+              () -> updateNode(nodeId, null, "d", null, REQUESTER_COOKIE));
+      awaitBlockedBy(deleter);
+      deleter.commit();
+      response = update.get(60, TimeUnit.SECONDS);
+    }
+
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("NODE_NOT_FOUND");
   }
 }
