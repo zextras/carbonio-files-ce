@@ -55,6 +55,8 @@ import io.smallrye.graphql.api.Context;
 import io.smallrye.graphql.api.Nullable;
 import io.vavr.control.Try;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -864,6 +866,7 @@ public class NodeApi {
   }
 
   @Mutation("deleteNodes")
+  @Transactional(TxType.NOT_SUPPORTED)
   public @Nullable @Id List<@NonNull String> deleteNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
@@ -973,6 +976,7 @@ public class NodeApi {
   }
 
   @Mutation("copyNodes")
+  @Transactional(TxType.NOT_SUPPORTED)
   public @Nullable List<@NonNull NodeModel> copyNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("destination_id") @Id @NonNull String destinationId)
@@ -1087,6 +1091,7 @@ public class NodeApi {
   }
 
   @Mutation("deleteVersions")
+  @Transactional(TxType.NOT_SUPPORTED)
   public @NonNull List<Integer> deleteVersions(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("versions") @Nullable List<@NonNull Integer> versions)
@@ -1222,6 +1227,7 @@ public class NodeApi {
   }
 
   @Mutation("cloneVersion")
+  @Transactional(TxType.NOT_SUPPORTED)
   public @NonNull FileModel cloneVersion(
       @Name("node_id") @Id @NonNull String nodeId, @Name("version") @NonNull Integer version)
       throws FilesGraphQLException {
