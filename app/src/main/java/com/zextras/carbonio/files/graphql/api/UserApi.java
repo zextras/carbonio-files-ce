@@ -15,8 +15,8 @@ import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.ShareModel;
 import com.zextras.carbonio.files.graphql.model.SharedTarget;
 import com.zextras.carbonio.files.graphql.model.UserModel;
-import com.zextras.carbonio.files.graphql.support.NodeUserFieldSelection;
 import com.zextras.carbonio.files.graphql.support.RequestUserCache;
+import com.zextras.carbonio.files.graphql.support.RequestedNodeUsers;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import graphql.schema.DataFetchingEnvironment;
 import io.quarkus.security.Authenticated;
@@ -24,13 +24,13 @@ import io.smallrye.graphql.api.Context;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Id;
 import org.eclipse.microprofile.graphql.Name;
@@ -48,12 +48,6 @@ public class UserApi {
   @Inject GraphQLInputValidator validator;
   @Inject Context gqlContext;
 
-  private static final List<String> NODE_USER_FIELDS =
-      List.of(
-          NodeUserFieldSelection.CREATOR,
-          NodeUserFieldSelection.OWNER,
-          NodeUserFieldSelection.LAST_EDITOR);
-
   private static UserModel toModel(UserInfo user) {
     return new UserModel(user.getId().getUserId(), user.getEmail(), user.getFullName());
   }
@@ -63,43 +57,28 @@ public class UserApi {
   @Name("creator")
   @NonNull
   public List<UserModel> creators(@Source List<NodeModel> nodes) {
-    return resolveNodeUsers(nodes, NodeUserFieldSelection.CREATOR);
+    return resolveNodeUsers(nodes, RequestedNodeUsers.CREATOR);
   }
 
   @Name("owner")
   public List<UserModel> owners(@Source List<NodeModel> nodes) {
-    return resolveNodeUsers(nodes, NodeUserFieldSelection.OWNER);
+    return resolveNodeUsers(nodes, RequestedNodeUsers.OWNER);
   }
 
   @Name("last_editor")
   public List<UserModel> lastEditors(@Source List<NodeModel> nodes) {
-    return resolveNodeUsers(nodes, NodeUserFieldSelection.LAST_EDITOR);
+    return resolveNodeUsers(nodes, RequestedNodeUsers.LAST_EDITOR);
   }
 
   private List<UserModel> resolveNodeUsers(List<NodeModel> nodes, String field) {
-    Set<String> fields = new HashSet<>(selectedSiblingUserFields());
-    fields.add(field);
-    fetchUsersById(
-        nodes.stream()
-            .flatMap(
-                n -> NODE_USER_FIELDS.stream().filter(fields::contains).map(f -> nodeUserId(n, f)))
-            .toList());
-    return resolveEach(nodes.stream().map(n -> nodeUserId(n, field)).toList(), UserApi::toModel);
+    return resolveEach(
+        nodes.stream().map(n -> RequestedNodeUsers.userId(n, field)).toList(), UserApi::toModel);
   }
 
-  private static String nodeUserId(NodeModel node, String field) {
-    return switch (field) {
-      case NodeUserFieldSelection.CREATOR -> node.getCreatorId();
-      case NodeUserFieldSelection.OWNER -> node.getOwnerId();
-      default -> node.getLastEditorId();
-    };
-  }
-
-  Set<String> selectedSiblingUserFields() {
+  Set<String> requestedNodeUserIds() {
     try {
-      DataFetchingEnvironment env = gqlContext.unwrap(DataFetchingEnvironment.class);
-      return NodeUserFieldSelection.of(
-          env.getExecutionStepInfo().getParent().getField().getFields(), env.getFragmentsByName());
+      return RequestedNodeUsers.of(
+          gqlContext.unwrap(DataFetchingEnvironment.class).getGraphQlContext());
     } catch (RuntimeException e) {
       return Set.of();
     }
@@ -125,7 +104,13 @@ public class UserApi {
   private Map<String, UserInfo> fetchUsersById(List<String> ids) {
     Map<String, Optional<UserInfo>> cache = userCache.entries();
     List<String> distinctIds = ids.stream().filter(Objects::nonNull).distinct().toList();
-    List<String> uncachedIds = distinctIds.stream().filter(id -> !cache.containsKey(id)).toList();
+    List<String> uncachedIds =
+        distinctIds.stream().anyMatch(id -> !cache.containsKey(id))
+            ? Stream.concat(distinctIds.stream(), requestedNodeUserIds().stream())
+                .distinct()
+                .filter(id -> !cache.containsKey(id))
+                .toList()
+            : List.of();
     for (List<String> chunk : partition(uncachedIds, 100)) {
       List<UserInfo> found = userRepository.getUsers(chunk);
       found.forEach(u -> cache.put(u.getId().getUserId(), Optional.of(u)));
