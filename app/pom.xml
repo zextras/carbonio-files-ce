@@ -33,37 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-      <!-- Numeric literal DoS fixes; drop once the Quarkus BOM (>= 3.39.5 ships SmallRye 2.18.5) also ships graphql-java 25.1 -->
-      <dependency>
-        <groupId>io.smallrye</groupId>
-        <artifactId>smallrye-graphql</artifactId>
-        <version>${smallrye-graphql.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.smallrye</groupId>
-        <artifactId>smallrye-graphql-api</artifactId>
-        <version>${smallrye-graphql.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.smallrye</groupId>
-        <artifactId>smallrye-graphql-cdi</artifactId>
-        <version>${smallrye-graphql.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.smallrye</groupId>
-        <artifactId>smallrye-graphql-schema-model</artifactId>
-        <version>${smallrye-graphql.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.smallrye</groupId>
-        <artifactId>smallrye-graphql-schema-builder</artifactId>
-        <version>${smallrye-graphql.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.smallrye</groupId>
-        <artifactId>smallrye-graphql-ui-graphiql</artifactId>
-        <version>${smallrye-graphql.version}</version>
-      </dependency>
+      <!-- Numeric literal DoS fix: the Quarkus BOM ships graphql-java 25.0 -->
       <dependency>
         <groupId>com.graphql-java</groupId>
         <artifactId>graphql-java</artifactId>

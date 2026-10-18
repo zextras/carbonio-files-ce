@@ -14,6 +14,7 @@ import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import io.vavr.control.Try;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import java.text.MessageFormat;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -52,6 +53,7 @@ public class CollaborationLinkService {
     this.shareCascadeHelper = shareCascadeHelper;
   }
 
+  @Transactional
   public Try<Node> createShareByInvitationId(String invitationId, String requesterId) {
     return collaborationLinkRepository
         .getLinkByInvitationId(invitationId)

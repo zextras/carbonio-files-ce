@@ -49,15 +49,12 @@ import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.UploadResponse;
 import io.quarkus.narayana.jta.QuarkusTransaction;
-import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.narayana.jta.TransactionRunnerOptions;
 import io.smallrye.graphql.api.Context;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Callable;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -213,38 +210,14 @@ class NodeApiMutationsTest {
   }
 
   private static MockedStatic<QuarkusTransaction> inlineTransactions() {
-    return inlineTransactions(new AtomicBoolean());
-  }
-
-  private static MockedStatic<QuarkusTransaction> inlineTransactions(AtomicBoolean inTransaction) {
     TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
     doAnswer(
             inv -> {
-              inTransaction.set(true);
-              try {
-                ((Runnable) inv.getArgument(0)).run();
-                return null;
-              } finally {
-                inTransaction.set(false);
-              }
+              ((Runnable) inv.getArgument(0)).run();
+              return null;
             })
         .when(runOptions)
         .run(any(Runnable.class));
-    doAnswer(
-            inv -> {
-              inTransaction.set(true);
-              try {
-                return ((Callable<?>) inv.getArgument(0)).call();
-              } catch (RuntimeException e) {
-                throw e;
-              } catch (Exception e) {
-                throw new QuarkusTransactionException(e);
-              } finally {
-                inTransaction.set(false);
-              }
-            })
-        .when(runOptions)
-        .call(any(Callable.class));
     MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class);
     txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
     return txMock;
@@ -291,10 +264,7 @@ class NodeApiMutationsTest {
         .thenReturn(Collections.emptyList());
     when(filesConfig.areNotificationsEnabled()).thenReturn(false);
 
-    NodeModel result;
-    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
-      result = nodeApi.createFolder(PARENT_ID, "TestFolder");
-    }
+    NodeModel result = nodeApi.createFolder(PARENT_ID, "TestFolder");
 
     assertThat(result).isInstanceOf(FolderModel.class);
     assertThat(result.getId()).isEqualTo(NODE_ID_1);
@@ -350,10 +320,7 @@ class NodeApiMutationsTest {
     when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
     when(nodeRepository.getNodeForUpdate(NODE_ID_1)).thenReturn(Optional.of(node));
 
-    NodeModel result;
-    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
-      result = nodeApi.updateNode(NODE_ID_1, null, null, null);
-    }
+    NodeModel result = nodeApi.updateNode(NODE_ID_1, null, null, null);
 
     assertThat(result).isInstanceOf(FolderModel.class);
     assertThat(result.getId()).isEqualTo(NODE_ID_1);
@@ -370,9 +337,7 @@ class NodeApiMutationsTest {
     when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node));
     when(nodeRepository.getNodeForUpdate(NODE_ID_1)).thenReturn(Optional.of(node));
 
-    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
-      nodeApi.updateNode(NODE_ID_1, "NewName", null, null);
-    }
+    nodeApi.updateNode(NODE_ID_1, "NewName", null, null);
 
     InOrder order = Mockito.inOrder(nodeRepository);
     order.verify(nodeRepository).lockChildNames(PARENT_ID, REQUESTER_ID);
@@ -391,14 +356,12 @@ class NodeApiMutationsTest {
     when(nodeRepository.getNodeByName("NewName", PARENT_ID, REQUESTER_ID))
         .thenReturn(Optional.of(conflict));
 
-    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
-      assertThatThrownBy(() -> nodeApi.updateNode(NODE_ID_1, "NewName", null, null))
-          .isInstanceOf(FilesGraphQLException.class)
-          .satisfies(
-              ex ->
-                  assertThat(((FilesGraphQLException) ex).getErrorCode())
-                      .isEqualTo(ErrorCodes.NODE_DUPLICATED));
-    }
+    assertThatThrownBy(() -> nodeApi.updateNode(NODE_ID_1, "NewName", null, null))
+        .isInstanceOf(FilesGraphQLException.class)
+        .satisfies(
+            ex ->
+                assertThat(((FilesGraphQLException) ex).getErrorCode())
+                    .isEqualTo(ErrorCodes.NODE_DUPLICATED));
     verify(nodeRepository).lockChildNames(PARENT_ID, REQUESTER_ID);
     verify(nodeRepository, never()).updateNode(any());
   }
@@ -434,29 +397,17 @@ class NodeApiMutationsTest {
     when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
     when(permissionsChecker.getPermissions(NODE_ID_2, REQUESTER_ID)).thenReturn(aclWith(false));
 
-    try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
-      TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
-      doAnswer(
-              inv -> {
-                ((Runnable) inv.getArgument(0)).run();
-                return null;
-              })
-          .when(runOptions)
-          .run(any(Runnable.class));
-      txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
-
-      assertThatThrownBy(() -> nodeApi.flagNodes(List.of(NODE_ID_1, NODE_ID_2), true))
-          .isInstanceOf(FilesGraphQLException.class)
-          .satisfies(
-              ex -> {
-                FilesGraphQLException fex = (FilesGraphQLException) ex;
-                assertThat(fex.getErrorCode()).isEqualTo(ErrorCodes.NODE_WRITE_ERROR);
-                assertThat(fex.getPartialResults()).isInstanceOf(List.class);
-                @SuppressWarnings("unchecked")
-                List<String> partial = (List<String>) fex.getPartialResults();
-                assertThat(partial).containsExactly(NODE_ID_1);
-              });
-    }
+    assertThatThrownBy(() -> nodeApi.flagNodes(List.of(NODE_ID_1, NODE_ID_2), true))
+        .isInstanceOf(FilesGraphQLException.class)
+        .satisfies(
+            ex -> {
+              FilesGraphQLException fex = (FilesGraphQLException) ex;
+              assertThat(fex.getErrorCode()).isEqualTo(ErrorCodes.NODE_WRITE_ERROR);
+              assertThat(fex.getPartialResults()).isInstanceOf(List.class);
+              @SuppressWarnings("unchecked")
+              List<String> partial = (List<String>) fex.getPartialResults();
+              assertThat(partial).containsExactly(NODE_ID_1);
+            });
 
     verify(nodeRepository).flagForUser(NODE_ID_1, REQUESTER_ID, true);
     verify(nodeRepository, never()).flagForUser(eq(NODE_ID_2), any(), anyBoolean());
@@ -472,21 +423,9 @@ class NodeApiMutationsTest {
     when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
     when(permissionsChecker.getPermissions(NODE_ID_2, REQUESTER_ID)).thenReturn(aclWith(true));
 
-    try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
-      TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
-      doAnswer(
-              inv -> {
-                ((Runnable) inv.getArgument(0)).run();
-                return null;
-              })
-          .when(runOptions)
-          .run(any(Runnable.class));
-      txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
+    List<String> result = nodeApi.flagNodes(List.of(NODE_ID_1, NODE_ID_2), true);
 
-      List<String> result = nodeApi.flagNodes(List.of(NODE_ID_1, NODE_ID_2), true);
-
-      assertThat(result).containsExactlyInAnyOrder(NODE_ID_1, NODE_ID_2);
-    }
+    assertThat(result).containsExactlyInAnyOrder(NODE_ID_1, NODE_ID_2);
 
     verify(nodeRepository).flagForUser(NODE_ID_1, REQUESTER_ID, true);
     verify(nodeRepository).flagForUser(NODE_ID_2, REQUESTER_ID, true);
@@ -599,9 +538,7 @@ class NodeApiMutationsTest {
         .when(nodeRepository)
         .restoreNode(anyString());
 
-    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
-      assertThat(nodeApi.restoreNodes(nodeIds)).hasSize(2);
-    }
+    assertThat(nodeApi.restoreNodes(nodeIds)).hasSize(2);
 
     assertThat(events)
         .containsExactly(
@@ -611,45 +548,6 @@ class NodeApiMutationsTest {
             "restore " + NODE_ID_1,
             "restore " + NODE_ID_2);
     assertThat(child.getParentId()).contains(RootId.LOCAL_ROOT);
-  }
-
-  // ─── keepVersions ─────────────────────────────────────────────────────────────
-
-  @Test
-  void keepVersionsReadsAndUpdatesTheVersionsInsideItsTransaction() throws Exception {
-    AtomicBoolean inTransaction = new AtomicBoolean();
-    List<Boolean> accessedInTransaction = new ArrayList<>();
-    FileVersion version =
-        new FileVersion(NODE_ID_1, REQUESTER_ID, 0L, 1, "text/plain", 1L, "digest", false);
-    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
-    when(filesConfig.getMaxNumberOfVersions()).thenReturn(30);
-    when(fileVersionRepository.getFileVersions(NODE_ID_1, List.of(FileVersionSort.VERSION_DESC)))
-        .thenAnswer(
-            inv -> {
-              accessedInTransaction.add(inTransaction.get());
-              return List.of(version);
-            });
-    when(fileVersionRepository.getFileVersions(NODE_ID_1, List.of(1)))
-        .thenAnswer(
-            inv -> {
-              accessedInTransaction.add(inTransaction.get());
-              return List.of(version);
-            });
-    when(fileVersionRepository.updateFileVersion(version))
-        .thenAnswer(
-            inv -> {
-              accessedInTransaction.add(inTransaction.get());
-              return version;
-            });
-
-    List<Integer> kept;
-    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions(inTransaction)) {
-      kept = nodeApi.keepVersions(NODE_ID_1, List.of(1), true);
-    }
-
-    assertThat(kept).containsExactly(1);
-    assertThat(version.isKeptForever()).isTrue();
-    assertThat(accessedInTransaction).containsExactly(true, true, true);
   }
 
   // ─── cloneVersion copy failures ───────────────────────────────────────────────

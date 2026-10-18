@@ -24,7 +24,6 @@ import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
-import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.security.Authenticated;
 import io.smallrye.graphql.api.Nullable;
 import jakarta.inject.Inject;
@@ -176,19 +175,10 @@ public class ShareApi {
     Optional<Share> optCreatedShare;
     try {
       optCreatedShare =
-          QuarkusTransaction.requiringNew()
-              .call(
-                  () -> {
-                    Optional<Share> upserted =
-                        shareRepository.upsertShare(
-                            nodeId, shareTargetId, acl, true, false, optExpiresAt);
-                    upserted.ifPresent(
-                        s ->
-                            shareCascade.cascadeUpsertShare(
-                                nodeId, shareTargetId, acl, optExpiresAt));
-                    shareRepository.flush();
-                    return upserted;
-                  });
+          shareRepository.upsertShare(nodeId, shareTargetId, acl, true, false, optExpiresAt);
+      optCreatedShare.ifPresent(
+          s -> shareCascade.cascadeUpsertShare(nodeId, shareTargetId, acl, optExpiresAt));
+      shareRepository.flush();
     } catch (RuntimeException e) {
       if (isUniqueViolation(e)) {
         throw FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId);
@@ -235,30 +225,24 @@ public class ShareApi {
         Optional.ofNullable(permission).map(ShareApi::mapToAclPermission);
     Optional<Long> optNewExpiresAt = Optional.ofNullable(expiresAt);
 
-    QuarkusTransaction.requiringNew()
-        .run(
-            () -> {
-              for (String targetId : shareTargetIds) {
-                if (!hasPermission) {
-                  failed.add(targetId);
-                  continue;
-                }
-                Optional<Share> optShare = shareRepository.getShare(nodeId, targetId);
-                if (optShare.isPresent()) {
-                  Share share = optShare.get();
-                  optNewPermission.ifPresent(p -> share.setPermissions(ACL.decode(p)));
-                  optNewExpiresAt.ifPresent(share::setExpiredAt);
-                  Share saved = shareRepository.updateShare(share);
-                  optNewPermission.ifPresent(
-                      p ->
-                          shareCascade.cascadeUpsertShare(
-                              nodeId, targetId, ACL.decode(p), optNewExpiresAt));
-                  updated.add(toModel(saved));
-                } else {
-                  failed.add(targetId);
-                }
-              }
-            });
+    for (String targetId : shareTargetIds) {
+      if (!hasPermission) {
+        failed.add(targetId);
+        continue;
+      }
+      Optional<Share> optShare = shareRepository.getShare(nodeId, targetId);
+      if (optShare.isPresent()) {
+        Share share = optShare.get();
+        optNewPermission.ifPresent(p -> share.setPermissions(ACL.decode(p)));
+        optNewExpiresAt.ifPresent(share::setExpiredAt);
+        Share saved = shareRepository.updateShare(share);
+        optNewPermission.ifPresent(
+            p -> shareCascade.cascadeUpsertShare(nodeId, targetId, ACL.decode(p), optNewExpiresAt));
+        updated.add(toModel(saved));
+      } else {
+        failed.add(targetId);
+      }
+    }
 
     if (!failed.isEmpty()) {
       throw FilesGraphQLErrors.shareNotFound(nodeId, failed.get(0)).withPartialResults(updated);
@@ -277,32 +261,26 @@ public class ShareApi {
     List<String> deleted = new ArrayList<>();
     List<String> failed = new ArrayList<>();
 
-    QuarkusTransaction.requiringNew()
-        .run(
-            () -> {
-              for (String targetId : shareTargetIds) {
-                boolean hasPermission =
-                    permissionsChecker
-                            .getPermissions(nodeId, me)
-                            .has(ACL.SharePermission.READ_AND_SHARE)
-                        || me.equals(targetId);
-                if (!hasPermission) {
-                  failed.add(targetId);
-                  continue;
-                }
-                Optional<Share> optShare = shareRepository.getShare(nodeId, targetId);
-                if (optShare.isPresent()) {
-                  Share share = optShare.get();
-                  shareRepository.deleteShare(share.getNodeId(), share.getTargetUserId());
-                  if (nodeRepository.getNode(nodeId).get().getNodeType() == NodeType.FOLDER) {
-                    shareCascade.cascadeDeleteShare(nodeId, targetId);
-                  }
-                  deleted.add(targetId);
-                } else {
-                  failed.add(targetId);
-                }
-              }
-            });
+    for (String targetId : shareTargetIds) {
+      boolean hasPermission =
+          permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_AND_SHARE)
+              || me.equals(targetId);
+      if (!hasPermission) {
+        failed.add(targetId);
+        continue;
+      }
+      Optional<Share> optShare = shareRepository.getShare(nodeId, targetId);
+      if (optShare.isPresent()) {
+        Share share = optShare.get();
+        shareRepository.deleteShare(share.getNodeId(), share.getTargetUserId());
+        if (nodeRepository.getNode(nodeId).get().getNodeType() == NodeType.FOLDER) {
+          shareCascade.cascadeDeleteShare(nodeId, targetId);
+        }
+        deleted.add(targetId);
+      } else {
+        failed.add(targetId);
+      }
+    }
 
     if (!failed.isEmpty()) {
       throw FilesGraphQLErrors.shareNotFound(nodeId, failed.get(0)).withPartialResults(deleted);

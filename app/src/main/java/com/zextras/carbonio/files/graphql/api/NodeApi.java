@@ -49,7 +49,6 @@ import com.zextras.filestore.model.BulkDeleteResponseItem;
 import com.zextras.filestore.model.FilesIdentifier;
 import com.zextras.filestore.model.IdentifierType;
 import io.quarkus.narayana.jta.QuarkusTransaction;
-import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.security.Authenticated;
 import io.smallrye.graphql.api.Context;
 import io.smallrye.graphql.api.Nullable;
@@ -389,60 +388,41 @@ public class NodeApi {
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
       throw FilesGraphQLErrors.nodeNotFound(nodeId);
     }
-    NodeModel model;
-    try {
-      model =
-          QuarkusTransaction.requiringNew()
-              .call(
-                  () -> {
-                    Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
-                    if (name != null) {
-                      nodeRepository
-                          .getNode(nodeId)
-                          .ifPresent(
-                              node ->
-                                  lockChildNames(
-                                      List.of(
-                                          ImmutablePair.of(
-                                              node.getParentId().orElse(RootId.LOCAL_ROOT),
-                                              node.getOwnerId())),
-                                      lockedNames));
-                    }
-                    Node nodeToUpdate =
-                        nodeRepository
-                            .getNodeForUpdate(nodeId)
-                            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
-
-                    String parentFolderId = nodeToUpdate.getParentId().orElse(RootId.LOCAL_ROOT);
-
-                    if (name != null) {
-                      lockChildNames(
-                          List.of(ImmutablePair.of(parentFolderId, nodeToUpdate.getOwnerId())),
-                          lockedNames);
-                      String nodeFullName =
-                          nodeToUpdate.getExtension().map(ext -> name + "." + ext).orElse(name);
-                      if (!searchAlternativeName(
-                              nodeRepository,
-                              nodeFullName,
-                              parentFolderId,
-                              nodeToUpdate.getOwnerId())
-                          .equals(nodeFullName)) {
-                        throw FilesGraphQLErrors.duplicateNode(nodeId, parentFolderId);
-                      }
-                      nodeToUpdate.setName(name);
-                    }
-                    if (description != null) nodeToUpdate.setDescription(description);
-                    if (flagged != null) nodeRepository.flagForUser(nodeId, me, flagged);
-                    nodeToUpdate.setLastEditorId(me);
-                    nodeRepository.updateNode(nodeToUpdate);
-                    return NodeModelFactory.from(nodeToUpdate, null, me);
-                  });
-    } catch (QuarkusTransactionException e) {
-      if (e.getCause() instanceof FilesGraphQLException error) {
-        throw error;
-      }
-      throw e;
+    Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
+    if (name != null) {
+      nodeRepository
+          .getNode(nodeId)
+          .ifPresent(
+              node ->
+                  lockChildNames(
+                      List.of(
+                          ImmutablePair.of(
+                              node.getParentId().orElse(RootId.LOCAL_ROOT), node.getOwnerId())),
+                      lockedNames));
     }
+    Node nodeToUpdate =
+        nodeRepository
+            .getNodeForUpdate(nodeId)
+            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
+
+    String parentFolderId = nodeToUpdate.getParentId().orElse(RootId.LOCAL_ROOT);
+
+    if (name != null) {
+      lockChildNames(
+          List.of(ImmutablePair.of(parentFolderId, nodeToUpdate.getOwnerId())), lockedNames);
+      String nodeFullName = nodeToUpdate.getExtension().map(ext -> name + "." + ext).orElse(name);
+      if (!searchAlternativeName(
+              nodeRepository, nodeFullName, parentFolderId, nodeToUpdate.getOwnerId())
+          .equals(nodeFullName)) {
+        throw FilesGraphQLErrors.duplicateNode(nodeId, parentFolderId);
+      }
+      nodeToUpdate.setName(name);
+    }
+    if (description != null) nodeToUpdate.setDescription(description);
+    if (flagged != null) nodeRepository.flagForUser(nodeId, me, flagged);
+    nodeToUpdate.setLastEditorId(me);
+    nodeRepository.updateNode(nodeToUpdate);
+    NodeModel model = NodeModelFactory.from(nodeToUpdate, null, me);
     NodeModelFactory.requireVersion(model, model);
     return model;
   }
@@ -474,12 +454,8 @@ public class NodeApi {
     List<String> nodesInError =
         nodeIds.stream().filter(nodeId -> !flaggableNodes.contains(nodeId)).toList();
 
-    QuarkusTransaction.requiringNew()
-        .run(
-            () -> {
-              nodeRepository.getNodesForUpdate(flaggableNodes);
-              flaggableNodes.forEach(nodeId -> nodeRepository.flagForUser(nodeId, me, flag));
-            });
+    nodeRepository.getNodesForUpdate(flaggableNodes);
+    flaggableNodes.forEach(nodeId -> nodeRepository.flagForUser(nodeId, me, flag));
 
     if (!nodesInError.isEmpty()) {
       throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0))
@@ -518,48 +494,43 @@ public class NodeApi {
 
     if (!trashableNodes.isEmpty()) {
       List<Runnable> pendingNotifications = new ArrayList<>();
-      QuarkusTransaction.requiringNew()
-          .run(
-              () ->
-                  nodeRepository
-                      .getNodesForUpdate(trashableNodes)
-                      .forEach(
-                          trashedNode -> {
-                            String nodeParentId = trashedNode.getParentId().get();
+      nodeRepository
+          .getNodesForUpdate(trashableNodes)
+          .forEach(
+              trashedNode -> {
+                String nodeParentId = trashedNode.getParentId().get();
 
-                            List<String> usersToNotify =
-                                new ArrayList<>(
-                                    shareRepository.getSharesUsersIds(
-                                        trashedNode.getId(), List.of()));
-                            usersToNotify.remove(me);
+                List<String> usersToNotify =
+                    new ArrayList<>(
+                        shareRepository.getSharesUsersIds(trashedNode.getId(), List.of()));
+                usersToNotify.remove(me);
 
-                            Node parent =
-                                nodeRepository.getNode(trashedNode.getParentId().get()).get();
-                            if (!parent
-                                    .getNodeType()
-                                    .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
-                                && !me.equals(parent.getOwnerId())
-                                && !usersToNotify.contains(parent.getOwnerId())) {
-                              usersToNotify.add(parent.getOwnerId());
-                            }
+                Node parent = nodeRepository.getNode(trashedNode.getParentId().get()).get();
+                if (!parent
+                        .getNodeType()
+                        .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
+                    && !me.equals(parent.getOwnerId())
+                    && !usersToNotify.contains(parent.getOwnerId())) {
+                  usersToNotify.add(parent.getOwnerId());
+                }
 
-                            if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled()) {
-                              pendingNotifications.add(
-                                  () ->
-                                      notificationRepository.createRemovedNodeNotification(
-                                          trashedNode,
-                                          parent,
-                                          requester,
-                                          RemovedNodeType.DELETE,
-                                          usersToNotify));
-                            }
+                if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled()) {
+                  pendingNotifications.add(
+                      () ->
+                          notificationRepository.createRemovedNodeNotification(
+                              trashedNode,
+                              parent,
+                              requester,
+                              RemovedNodeType.DELETE,
+                              usersToNotify));
+                }
 
-                            trashedNode.setAncestorIds(Constants.Db.RootId.TRASH_ROOT);
-                            trashedNode.setParentId(RootId.TRASH_ROOT);
-                            nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
-                            nodeRepository.updateNode(trashedNode);
-                            cascadeUpdateAncestors(trashedNode);
-                          }));
+                trashedNode.setAncestorIds(Constants.Db.RootId.TRASH_ROOT);
+                trashedNode.setParentId(RootId.TRASH_ROOT);
+                nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
+                nodeRepository.updateNode(trashedNode);
+                cascadeUpdateAncestors(trashedNode);
+              });
 
       pendingNotifications.forEach(Runnable::run);
     }
@@ -601,84 +572,74 @@ public class NodeApi {
             .collect(Collectors.toList());
     List<String> lostNodeIds = new ArrayList<>();
 
+    Map<String, Optional<Node>> destinations = lockForRestore(restorableNodeIds);
+    restorableNodeIds.stream()
+        .filter(nodeId -> !destinations.containsKey(nodeId))
+        .forEach(lostNodeIds::add);
     List<NodeModel> results =
-        QuarkusTransaction.requiringNew()
-            .call(
-                () -> {
-                  Map<String, Optional<Node>> destinations = lockForRestore(restorableNodeIds);
-                  restorableNodeIds.stream()
-                      .filter(nodeId -> !destinations.containsKey(nodeId))
-                      .forEach(lostNodeIds::add);
-                  return nodeRepository
-                      .getNodes(restorableNodeIds, Optional.empty())
-                      .filter(node -> destinations.containsKey(node.getId()))
-                      .map(
-                          node -> {
-                            Optional<Node> parentNode = destinations.get(node.getId());
-                            String destParentId;
-                            String destAncestors;
-                            if (parentNode.isEmpty()) {
-                              destParentId = RootId.LOCAL_ROOT;
-                              destAncestors = RootId.LOCAL_ROOT;
+        nodeRepository
+            .getNodes(restorableNodeIds, Optional.empty())
+            .filter(node -> destinations.containsKey(node.getId()))
+            .map(
+                node -> {
+                  Optional<Node> parentNode = destinations.get(node.getId());
+                  String destParentId;
+                  String destAncestors;
+                  if (parentNode.isEmpty()) {
+                    destParentId = RootId.LOCAL_ROOT;
+                    destAncestors = RootId.LOCAL_ROOT;
 
-                              shareRepository
-                                  .getShares(node.getId(), Collections.emptyList())
-                                  .stream()
-                                  .filter(share -> !share.isDirect())
-                                  .forEach(
-                                      share -> {
-                                        share.setDirect(true);
-                                        shareRepository.updateShare(share);
-                                      });
-                            } else {
-                              destParentId = parentNode.get().getId();
-                              destAncestors =
-                                  com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                                          parentNode.get().getNodeType())
-                                      ? destParentId
-                                      : parentNode.get().getAncestorIds()
-                                          + Node.ANCESTORS_SEPARATOR
-                                          + destParentId;
+                    shareRepository.getShares(node.getId(), Collections.emptyList()).stream()
+                        .filter(share -> !share.isDirect())
+                        .forEach(
+                            share -> {
+                              share.setDirect(true);
+                              shareRepository.updateShare(share);
+                            });
+                  } else {
+                    destParentId = parentNode.get().getId();
+                    destAncestors =
+                        com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
+                                parentNode.get().getNodeType())
+                            ? destParentId
+                            : parentNode.get().getAncestorIds()
+                                + Node.ANCESTORS_SEPARATOR
+                                + destParentId;
 
-                              shareRepository
-                                  .getShares(destParentId, Collections.emptyList())
-                                  .forEach(
-                                      share -> {
-                                        shareRepository.upsertShare(
-                                            node.getId(),
-                                            share.getTargetUserId(),
-                                            share.getPermissions(),
-                                            false,
-                                            false,
-                                            share.getExpiredAt());
+                    shareRepository
+                        .getShares(destParentId, Collections.emptyList())
+                        .forEach(
+                            share -> {
+                              shareRepository.upsertShare(
+                                  node.getId(),
+                                  share.getTargetUserId(),
+                                  share.getPermissions(),
+                                  false,
+                                  false,
+                                  share.getExpiredAt());
 
-                                        if (node.getNodeType()
-                                            == com.zextras.carbonio.files.dal.dao.ebean.NodeType
-                                                .FOLDER) {
-                                          shareCascade.cascadeUpsertShare(
-                                              node.getId(),
-                                              share.getTargetUserId(),
-                                              share.getPermissions(),
-                                              share.getExpiredAt());
-                                        }
-                                      });
-                            }
-                            String newName =
-                                searchAlternativeName(
-                                    nodeRepository,
-                                    node.getFullName(),
-                                    destParentId,
-                                    node.getOwnerId());
-                            node.setParentId(destParentId);
-                            node.setAncestorIds(destAncestors);
-                            node.setFullName(newName);
-                            nodeRepository.restoreNode(node.getId());
-                            nodeRepository.updateNode(node);
-                            cascadeUpdateAncestors(node);
-                            return NodeModelFactory.from(node, null, me);
-                          })
-                      .collect(Collectors.toList());
-                });
+                              if (node.getNodeType()
+                                  == com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER) {
+                                shareCascade.cascadeUpsertShare(
+                                    node.getId(),
+                                    share.getTargetUserId(),
+                                    share.getPermissions(),
+                                    share.getExpiredAt());
+                              }
+                            });
+                  }
+                  String newName =
+                      searchAlternativeName(
+                          nodeRepository, node.getFullName(), destParentId, node.getOwnerId());
+                  node.setParentId(destParentId);
+                  node.setAncestorIds(destAncestors);
+                  node.setFullName(newName);
+                  nodeRepository.restoreNode(node.getId());
+                  nodeRepository.updateNode(node);
+                  cascadeUpdateAncestors(node);
+                  return NodeModelFactory.from(node, null, me);
+                })
+            .collect(Collectors.toList());
 
     nodesInError.addAll(lostNodeIds);
     List<NodeModel> withErrorSlots = new ArrayList<>(results);
@@ -734,125 +695,109 @@ public class NodeApi {
     List<NodeModel> movedNodesResult = new ArrayList<>();
     if (!nodeIdsToMove.isEmpty()) {
       List<Runnable> pendingNotifications = new ArrayList<>();
-      QuarkusTransaction.requiringNew()
-          .run(
-              () -> {
-                Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
-                lockChildNames(
-                    destinationKeys(
-                        nodeRepository.getNodes(nodeIdsToMove, Optional.empty()).toList(),
-                        destinationId),
-                    lockedNames);
-                lockChildNames(
-                    destinationKeys(nodeRepository.getNodesForUpdate(nodeIdsToMove), destinationId),
-                    lockedNames);
-                nodeIdsToMove.forEach(
-                    nodeId -> {
-                      Node node = nodeRepository.getNode(nodeId).get();
-                      if (node.getParentId().isPresent()
-                          && !node.getParentId().get().equals(destinationId)) {
-                        String newName =
-                            searchAlternativeName(
-                                nodeRepository,
-                                node.getFullName(),
-                                destinationId,
-                                node.getOwnerId());
-                        node.setFullName(newName);
-                      }
-                      nodeRepository.updateNode(node);
+      Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
+      lockChildNames(
+          destinationKeys(
+              nodeRepository.getNodes(nodeIdsToMove, Optional.empty()).toList(), destinationId),
+          lockedNames);
+      lockChildNames(
+          destinationKeys(nodeRepository.getNodesForUpdate(nodeIdsToMove), destinationId),
+          lockedNames);
+      nodeIdsToMove.forEach(
+          nodeId -> {
+            Node node = nodeRepository.getNode(nodeId).get();
+            if (node.getParentId().isPresent() && !node.getParentId().get().equals(destinationId)) {
+              String newName =
+                  searchAlternativeName(
+                      nodeRepository, node.getFullName(), destinationId, node.getOwnerId());
+              node.setFullName(newName);
+            }
+            nodeRepository.updateNode(node);
 
-                      List<String> usersToNotifyRemove =
-                          new ArrayList<>(
-                              shareRepository.getSharesUsersIds(node.getId(), List.of()));
-                      usersToNotifyRemove.remove(me);
+            List<String> usersToNotifyRemove =
+                new ArrayList<>(shareRepository.getSharesUsersIds(node.getId(), List.of()));
+            usersToNotifyRemove.remove(me);
 
-                      Node parent = nodeRepository.getNode(node.getParentId().get()).get();
-                      if (!parent
-                              .getNodeType()
-                              .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
-                          && !me.equals(parent.getOwnerId())
-                          && !usersToNotifyRemove.contains(parent.getOwnerId())) {
-                        usersToNotifyRemove.add(parent.getOwnerId());
-                      }
+            Node parent = nodeRepository.getNode(node.getParentId().get()).get();
+            if (!parent.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
+                && !me.equals(parent.getOwnerId())
+                && !usersToNotifyRemove.contains(parent.getOwnerId())) {
+              usersToNotifyRemove.add(parent.getOwnerId());
+            }
 
-                      if (!usersToNotifyRemove.isEmpty() && filesConfig.areNotificationsEnabled()) {
-                        Node parentFinal = parent;
-                        pendingNotifications.add(
-                            () ->
-                                notificationRepository.createRemovedNodeNotification(
-                                    node,
-                                    parentFinal,
-                                    requester,
-                                    RemovedNodeType.MOVE,
-                                    usersToNotifyRemove));
+            if (!usersToNotifyRemove.isEmpty() && filesConfig.areNotificationsEnabled()) {
+              Node parentFinal = parent;
+              pendingNotifications.add(
+                  () ->
+                      notificationRepository.createRemovedNodeNotification(
+                          node, parentFinal, requester, RemovedNodeType.MOVE, usersToNotifyRemove));
+            }
+          });
+
+      nodeRepository.moveNodes(nodeIdsToMove, destinationFolder);
+
+      nodeIdsToMove.forEach(
+          nodeId -> {
+            Node node = nodeRepository.getNode(nodeId).get();
+            cascadeUpdateAncestors(node);
+
+            shareRepository.getShares(nodeId, Collections.emptyList()).stream()
+                .filter(share -> !share.isDirect())
+                .forEach(
+                    share -> {
+                      shareRepository.deleteShare(nodeId, share.getTargetUserId());
+                      shareCascade.cascadeDeleteShare(nodeId, share.getTargetUserId());
+                    });
+
+            List<String> usersToNotifyAdd = new ArrayList<>();
+            shareRepository
+                .getShares(destinationId, Collections.emptyList())
+                .forEach(
+                    share -> {
+                      Optional<Share> sourceShare =
+                          shareRepository.getShare(nodeId, share.getTargetUserId());
+                      usersToNotifyAdd.add(share.getTargetUserId());
+                      if (!sourceShare.isPresent() || !sourceShare.get().isDirect()) {
+                        shareRepository.upsertShare(
+                            nodeId,
+                            share.getTargetUserId(),
+                            share.getPermissions(),
+                            false,
+                            false,
+                            share.getExpiredAt());
+                        shareCascade.cascadeUpsertShare(
+                            nodeId,
+                            share.getTargetUserId(),
+                            share.getPermissions(),
+                            share.getExpiredAt());
                       }
                     });
 
-                nodeRepository.moveNodes(nodeIdsToMove, destinationFolder);
+            usersToNotifyAdd.remove(me);
+            if (!com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
+                    destinationFolder.getNodeType())
+                && !me.equals(destinationFolder.getOwnerId())) {
+              usersToNotifyAdd.add(destinationFolder.getOwnerId());
+            }
 
-                nodeIdsToMove.forEach(
-                    nodeId -> {
-                      Node node = nodeRepository.getNode(nodeId).get();
-                      cascadeUpdateAncestors(node);
+            if (!usersToNotifyAdd.isEmpty() && filesConfig.areNotificationsEnabled()) {
+              Node nodeFinal = node;
+              pendingNotifications.add(
+                  () ->
+                      notificationRepository.createAddedNodeNotification(
+                          nodeFinal,
+                          destinationFolder,
+                          requester,
+                          AddedNodeType.MOVE,
+                          usersToNotifyAdd));
+            }
+          });
 
-                      shareRepository.getShares(nodeId, Collections.emptyList()).stream()
-                          .filter(share -> !share.isDirect())
-                          .forEach(
-                              share -> {
-                                shareRepository.deleteShare(nodeId, share.getTargetUserId());
-                                shareCascade.cascadeDeleteShare(nodeId, share.getTargetUserId());
-                              });
-
-                      List<String> usersToNotifyAdd = new ArrayList<>();
-                      shareRepository
-                          .getShares(destinationId, Collections.emptyList())
-                          .forEach(
-                              share -> {
-                                Optional<Share> sourceShare =
-                                    shareRepository.getShare(nodeId, share.getTargetUserId());
-                                usersToNotifyAdd.add(share.getTargetUserId());
-                                if (!sourceShare.isPresent() || !sourceShare.get().isDirect()) {
-                                  shareRepository.upsertShare(
-                                      nodeId,
-                                      share.getTargetUserId(),
-                                      share.getPermissions(),
-                                      false,
-                                      false,
-                                      share.getExpiredAt());
-                                  shareCascade.cascadeUpsertShare(
-                                      nodeId,
-                                      share.getTargetUserId(),
-                                      share.getPermissions(),
-                                      share.getExpiredAt());
-                                }
-                              });
-
-                      usersToNotifyAdd.remove(me);
-                      if (!com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                              destinationFolder.getNodeType())
-                          && !me.equals(destinationFolder.getOwnerId())) {
-                        usersToNotifyAdd.add(destinationFolder.getOwnerId());
-                      }
-
-                      if (!usersToNotifyAdd.isEmpty() && filesConfig.areNotificationsEnabled()) {
-                        Node nodeFinal = node;
-                        pendingNotifications.add(
-                            () ->
-                                notificationRepository.createAddedNodeNotification(
-                                    nodeFinal,
-                                    destinationFolder,
-                                    requester,
-                                    AddedNodeType.MOVE,
-                                    usersToNotifyAdd));
-                      }
-                    });
-
-                movedNodesResult.addAll(
-                    nodeRepository
-                        .getNodes(nodeIdsToMove, Optional.empty())
-                        .map(node -> NodeModelFactory.from(node, null, me))
-                        .collect(Collectors.toList()));
-              });
+      movedNodesResult.addAll(
+          nodeRepository
+              .getNodes(nodeIdsToMove, Optional.empty())
+              .map(node -> NodeModelFactory.from(node, null, me))
+              .collect(Collectors.toList()));
 
       pendingNotifications.forEach(Runnable::run);
     }
@@ -1186,33 +1131,23 @@ public class NodeApi {
 
     int maxNumberOfKeepVersions = getMaxNumberOfKeepVersions();
     List<FileVersion> fileVersionsNotUpdated = new Vector<>();
-    List<FileVersion> fileVersions =
-        QuarkusTransaction.requiringNew()
-            .call(
-                () -> {
-                  List<FileVersion> allVersions =
-                      fileVersionRepository.getFileVersions(
-                          nodeId, List.of(FileVersionSort.VERSION_DESC));
-                  int keepForeverCounter = 0;
-                  for (FileVersion fv : allVersions) {
-                    keepForeverCounter =
-                        fv.isKeptForever() ? keepForeverCounter + 1 : keepForeverCounter;
-                  }
+    List<FileVersion> allVersions =
+        fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
+    int keepForeverCounter = 0;
+    for (FileVersion fv : allVersions) {
+      keepForeverCounter = fv.isKeptForever() ? keepForeverCounter + 1 : keepForeverCounter;
+    }
 
-                  List<FileVersion> requestedVersions =
-                      fileVersionRepository.getFileVersions(nodeId, versions);
-                  for (FileVersion fv : requestedVersions) {
-                    if (!keepForever || keepForeverCounter < maxNumberOfKeepVersions) {
-                      fv.keepForever(keepForever);
-                      fileVersionRepository.updateFileVersion(fv);
-                      keepForeverCounter =
-                          keepForever ? keepForeverCounter + 1 : keepForeverCounter - 1;
-                    } else {
-                      fileVersionsNotUpdated.add(fv);
-                    }
-                  }
-                  return requestedVersions;
-                });
+    List<FileVersion> fileVersions = fileVersionRepository.getFileVersions(nodeId, versions);
+    for (FileVersion fv : fileVersions) {
+      if (!keepForever || keepForeverCounter < maxNumberOfKeepVersions) {
+        fv.keepForever(keepForever);
+        fileVersionRepository.updateFileVersion(fv);
+        keepForeverCounter = keepForever ? keepForeverCounter + 1 : keepForeverCounter - 1;
+      } else {
+        fileVersionsNotUpdated.add(fv);
+      }
+    }
 
     List<Integer> versionsUpdated =
         fileVersions.stream()
