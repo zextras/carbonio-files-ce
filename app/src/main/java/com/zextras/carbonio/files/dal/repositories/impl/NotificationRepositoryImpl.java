@@ -25,6 +25,8 @@ import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import jakarta.transaction.Status;
+import jakarta.transaction.TransactionSynchronizationRegistry;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import java.util.HashMap;
@@ -34,6 +36,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Panache/JPA implementation of {@link NotificationRepository}. Replaces the old Ebean-based {@code
@@ -57,18 +61,24 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 @ApplicationScoped
 public class NotificationRepositoryImpl implements NotificationRepository {
 
+  private static final Logger LOG = LoggerFactory.getLogger(NotificationRepositoryImpl.class);
+  private static final Object UNREAD_NOTIFICATIONS_KEY = UnreadNotifications.class;
+
   private final EntityManager entityManager;
   private final NotificationTypeRegistry notificationTypeRegistry;
   private final Event<UnreadNotifications> unreadNotifications;
+  private final TransactionSynchronizationRegistry transactionRegistry;
 
   @Inject
   public NotificationRepositoryImpl(
       EntityManager entityManager,
       NotificationTypeRegistry notificationTypeRegistry,
-      Event<UnreadNotifications> unreadNotifications) {
+      Event<UnreadNotifications> unreadNotifications,
+      TransactionSynchronizationRegistry transactionRegistry) {
     this.entityManager = entityManager;
     this.notificationTypeRegistry = notificationTypeRegistry;
     this.unreadNotifications = unreadNotifications;
+    this.transactionRegistry = transactionRegistry;
   }
 
   @Override
@@ -293,9 +303,7 @@ public class NotificationRepositoryImpl implements NotificationRepository {
           createNotificationsInfoIfMissing(userId);
           persistInterest(userId, notification);
         });
-    if (!sortedUserIds.isEmpty()) {
-      unreadNotifications.fire(new UnreadNotifications(sortedUserIds));
-    }
+    countUnread(sortedUserIds);
 
     return notification;
   }
@@ -312,22 +320,53 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         .executeUpdate();
   }
 
-  @Transactional(TxType.REQUIRES_NEW)
-  void bumpUnread(@Observes(during = TransactionPhase.AFTER_SUCCESS) UnreadNotifications event) {
-    event.userIds().forEach(this::incrementUnread);
+  /**
+   * The counts of a transaction are collected in a single event, fired once: ArC delivers it after
+   * the commit only while the transaction is active, so a rollback-only one fires nothing.
+   */
+  private void countUnread(List<String> userIds) {
+    if (userIds.isEmpty() || transactionStatus() != Status.STATUS_ACTIVE) {
+      return;
+    }
+    UnreadNotifications pending =
+        (UnreadNotifications) transactionRegistry.getResource(UNREAD_NOTIFICATIONS_KEY);
+    if (pending == null) {
+      pending = new UnreadNotifications();
+      transactionRegistry.putResource(UNREAD_NOTIFICATIONS_KEY, pending);
+      unreadNotifications.fire(pending);
+    }
+    for (String userId : userIds) {
+      pending.countsByUserId().merge(userId, 1, Integer::sum);
+    }
   }
 
-  private void incrementUnread(String userId) {
+  private int transactionStatus() {
+    return transactionRegistry.getTransactionStatus();
+  }
+
+  @Transactional(TxType.REQUIRES_NEW)
+  void bumpUnread(@Observes(during = TransactionPhase.AFTER_SUCCESS) UnreadNotifications event) {
+    try {
+      event.countsByUserId().forEach(this::incrementUnread);
+    } catch (RuntimeException e) {
+      LOG.error(
+          "Unable to bump the unread notifications of {}", event.countsByUserId().keySet(), e);
+      throw e;
+    }
+  }
+
+  private void incrementUnread(String userId, int count) {
     entityManager
         .createNativeQuery(
             "INSERT INTO "
                 + Constants.Db.Tables.USER_NOTIFICATIONS_INFO
-                + " (user_id, last_seen, unread) VALUES (:userId, :lastSeen, 1) "
+                + " (user_id, last_seen, unread) VALUES (:userId, :lastSeen, :count) "
                 + "ON CONFLICT (user_id) DO UPDATE SET unread = "
                 + Constants.Db.Tables.USER_NOTIFICATIONS_INFO
-                + ".unread + 1")
+                + ".unread + :count")
         .setParameter("userId", userId)
         .setParameter("lastSeen", System.currentTimeMillis())
+        .setParameter("count", count)
         .executeUpdate();
   }
 

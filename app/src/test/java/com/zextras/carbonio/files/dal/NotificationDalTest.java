@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.dal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.dal.dao.UserId;
@@ -16,6 +17,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.NewShareNotification;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.test.TestTransaction;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -166,5 +168,59 @@ class NotificationDalTest {
                             .setParameter("u", receiverId)
                             .getSingleResult());
     assertThat(unread.intValue()).isEqualTo(3);
+  }
+
+  @Test
+  void notificationsToSeveralUsersInOneTransactionShouldBumpEachUserOncePerNotification() {
+    String ownerId = id();
+    String firstReceiverId = id();
+    String secondReceiverId = id();
+    QuarkusTransaction.requiringNew()
+        .run(
+            () -> {
+              Node node = persistNode(id(), ownerId, "shared-node");
+              UserMyself triggeringUser = buildUser(ownerId, "Owner");
+              notificationRepository.createNewShareNotification(
+                  node, triggeringUser, List.of(firstReceiverId, secondReceiverId));
+              notificationRepository.createNewShareNotification(
+                  node, triggeringUser, List.of(secondReceiverId));
+            });
+
+    assertThat(unreadOf(firstReceiverId)).isEqualTo(1);
+    assertThat(unreadOf(secondReceiverId)).isEqualTo(2);
+  }
+
+  @Test
+  void notificationsInARollbackOnlyTransactionShouldNotBumpUnread() {
+    String ownerId = id();
+    String receiverId = id();
+    assertThatThrownBy(
+            () ->
+                QuarkusTransaction.requiringNew()
+                    .run(
+                        () -> {
+                          Node node = persistNode(id(), ownerId, "shared-node");
+                          entityManager.flush();
+                          QuarkusTransaction.setRollbackOnly();
+                          notificationRepository.createNewShareNotification(
+                              node, buildUser(ownerId, "Owner"), List.of(receiverId));
+                        }))
+        .isInstanceOf(QuarkusTransactionException.class);
+
+    assertThat(unreadOf(receiverId)).isZero();
+  }
+
+  private int unreadOf(String userId) {
+    return QuarkusTransaction.requiringNew()
+        .call(
+            () ->
+                entityManager
+                    .createNativeQuery(
+                        "select unread from user_notifications_info where user_id = :u")
+                    .setParameter("u", userId)
+                    .getResultList()
+                    .stream()
+                    .mapToInt(unread -> ((Number) unread).intValue())
+                    .sum());
   }
 }

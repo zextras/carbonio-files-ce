@@ -4,7 +4,16 @@
 
 package com.zextras.carbonio.files.dal.repositories.impl;
 
-import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
-/** The users whose unread counter must be bumped once, in sorted order, after a commit. */
-public record UnreadNotifications(List<String> userIds) {}
+/**
+ * The unread notifications to add per user, collected over a whole transaction and applied once, in
+ * sorted user order, after its commit.
+ */
+public record UnreadNotifications(Map<String, Integer> countsByUserId) {
+
+  public UnreadNotifications() {
+    this(new TreeMap<>());
+  }
+}

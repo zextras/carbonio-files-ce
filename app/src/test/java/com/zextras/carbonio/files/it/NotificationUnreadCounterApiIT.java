@@ -110,40 +110,6 @@ class NotificationUnreadCounterApiIT extends AbstractFilesIT {
     return holder;
   }
 
-  private static boolean isBlockedBy(Connection holder) throws SQLException {
-    try (PreparedStatement statement =
-            holder.prepareStatement(
-                "SELECT count(*) FROM pg_stat_activity WHERE pg_backend_pid() <> pid AND"
-                    + " (SELECT pg_backend_pid()) = ANY(pg_blocking_pids(pid))");
-        ResultSet count = statement.executeQuery()) {
-      count.next();
-      return count.getInt(1) > 0;
-    }
-  }
-
-  private static void awaitQueuedBehindAWaiter() throws Exception {
-    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-    try (Connection observer = jdbcConnection();
-        PreparedStatement queued =
-            observer.prepareStatement(
-                "SELECT count(*) FROM pg_stat_activity waiter WHERE EXISTS (SELECT 1 FROM"
-                    + " unnest(pg_blocking_pids(waiter.pid)) AS blocker(pid) WHERE"
-                    + " cardinality(pg_blocking_pids(blocker.pid)) > 0)")) {
-      while (true) {
-        try (ResultSet count = queued.executeQuery()) {
-          count.next();
-          if (count.getInt(1) > 0) {
-            return;
-          }
-        }
-        if (System.nanoTime() > deadline) {
-          throw new AssertionError("No request queued behind a waiting one");
-        }
-        Thread.sleep(50);
-      }
-    }
-  }
-
   private static Response moveNode(String nodeId, String destinationId) {
     return graphql(
         GraphqlCommandBuilder.aMutationBuilder("moveNodes")
@@ -155,8 +121,7 @@ class NotificationUnreadCounterApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTwoMovesInOppositeDirectionsNotifyingTheSameUsersInOppositeOrderBothShouldSucceed()
-      throws Exception {
+  void givenTwoMovesInOppositeDirectionsNotifyingTheSameUsersBothShouldSucceed() throws Exception {
     // Given
     String folderOne = seedFolder("one", LOCAL_ROOT, REQUESTER_COOKIE);
     String folderTwo = seedFolder("two", LOCAL_ROOT, REQUESTER_COOKIE);
@@ -176,15 +141,12 @@ class NotificationUnreadCounterApiIT extends AbstractFilesIT {
       // When
       CompletableFuture<Response> first =
           CompletableFuture.supplyAsync(() -> moveNode(fileOne, folderTwo));
-      awaitBlockedBackends(1);
-      Connection firstHolder = isBlockedBy(secondRow) ? secondRow : thirdRow;
-      Connection otherHolder = firstHolder == secondRow ? thirdRow : secondRow;
       CompletableFuture<Response> second =
           CompletableFuture.supplyAsync(() -> moveNode(fileTwo, folderOne));
-      awaitBlockedBy(otherHolder);
-      firstHolder.commit();
-      awaitQueuedBehindAWaiter();
-      otherHolder.commit();
+      awaitBlockedBackends(2);
+      secondRow.commit();
+      awaitBlockedBy(thirdRow);
+      thirdRow.commit();
       moveOne = first.get(60, TimeUnit.SECONDS);
       moveTwo = second.get(60, TimeUnit.SECONDS);
     }
