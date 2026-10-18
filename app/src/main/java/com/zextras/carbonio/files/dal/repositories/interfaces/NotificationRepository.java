@@ -37,8 +37,8 @@ public interface NotificationRepository {
   Optional<UserNotificationInterest> getUserNotification(String userId, String notificationId);
 
   /**
-   * Persists the notification and, for each user to notify, increments their unread counter and
-   * records their interest in it.
+   * Persists the notification and, for each user to notify, records their interest in it. The
+   * unread counters are bumped right after the commit.
    */
   @Transactional
   BaseNotification notifyUsers(BaseNotification notification, List<String> usersIdsToNotify);

@@ -1288,8 +1288,7 @@ public class NodeApi {
     }
   }
 
-  // Name locks are taken before row locks (see MoveNodesDeadlockApiIT); the rare follow-up lock
-  // after a concurrent change is taken after them.
+  // Name locks go before row locks (see MoveNodesDeadlockApiIT), except a rare follow-up lock.
   private void lockChildNames(
       Collection<ImmutablePair<String, String>> folderOwnerKeys,
       Set<ImmutablePair<String, String>> locked) {
