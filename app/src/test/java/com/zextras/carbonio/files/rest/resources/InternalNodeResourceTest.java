@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.rest.resources;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -87,7 +88,7 @@ class InternalNodeResourceTest {
     RestResponse<InternalNodeDto> response = resource.getNode(USER_ID, NODE_ID, null);
 
     assertThat(response.getStatus()).isEqualTo(404);
-    verify(permissionsChecker, never()).getPermissions(any(), any());
+    verify(permissionsChecker, never()).getPermissions(anyString(), anyString());
   }
 
   @Test

@@ -5,7 +5,15 @@
 package com.zextras.carbonio.files.utilities;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
@@ -15,7 +23,10 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -134,5 +145,70 @@ class PermissionsCheckerTest {
     ACL permissions = checker.getPermissions("55555555-5555-5555-5555-555555555555", STRANGER_ID);
 
     assertThat(permissions).isEqualTo(ACL.decode(ACL.NONE));
+  }
+
+  @Test
+  void getPermissionsForManyNodesShouldResolveEachNodeWithOneNodeQueryAndOneShareQuery() {
+    NodeRepository nodeRepository = mock(NodeRepository.class);
+    ShareRepository shareRepository = mock(ShareRepository.class);
+    String rootId = "LOCAL_ROOT";
+    String hiddenId = "44444444-4444-4444-4444-444444444452";
+    String sharedId = "44444444-4444-4444-4444-444444444453";
+    String notSharedId = "44444444-4444-4444-4444-444444444454";
+    String missingId = "44444444-4444-4444-4444-444444444455";
+    when(nodeRepository.getNodes(
+            List.of(rootId, hiddenId, sharedId, notSharedId, missingId), Optional.empty()))
+        .thenReturn(
+            Stream.of(
+                node(rootId, NodeType.ROOT, false),
+                node(hiddenId, NodeType.FOLDER, true),
+                node(sharedId, NodeType.FOLDER, false),
+                node(notSharedId, NodeType.FOLDER, false)));
+    Share share =
+        new Share(
+            sharedId,
+            SHARED_USER_ID,
+            ACL.decode(SharePermission.READ_AND_WRITE),
+            1_000L,
+            true,
+            false,
+            null);
+    when(shareRepository.getShares(anyList(), eq(SHARED_USER_ID))).thenReturn(List.of(share));
+    PermissionsChecker checker = new PermissionsChecker(nodeRepository, shareRepository);
+
+    Map<String, ACL> permissions =
+        checker.getPermissions(
+            List.of(rootId, hiddenId, sharedId, notSharedId, missingId), SHARED_USER_ID);
+
+    assertThat(permissions).hasSize(5);
+    assertThat(permissions.get(rootId)).isEqualTo(ACL.decode(ACL.OWNER));
+    assertThat(permissions.get(hiddenId)).isEqualTo(ACL.decode(ACL.NONE));
+    assertThat(permissions.get(sharedId).canWrite()).isTrue();
+    assertThat(permissions.get(sharedId).canShare()).isFalse();
+    assertThat(permissions.get(notSharedId)).isEqualTo(ACL.decode(ACL.NONE));
+    assertThat(permissions.get(missingId)).isEqualTo(ACL.decode(ACL.NONE));
+    verify(nodeRepository, times(1)).getNodes(anyList(), any());
+    verify(shareRepository, times(1)).getShares(anyList(), anyString());
+    verify(shareRepository)
+        .getShares(
+            argThat(ids -> ids.size() == 2 && ids.containsAll(List.of(sharedId, notSharedId))),
+            eq(SHARED_USER_ID));
+  }
+
+  @Test
+  void getPermissionsForManyNodesShouldReturnOwnerForTheOwnerAndSkipTheShareQuery() {
+    NodeRepository nodeRepository = mock(NodeRepository.class);
+    ShareRepository shareRepository = mock(ShareRepository.class);
+    String nodeId = "44444444-4444-4444-4444-444444444456";
+    when(nodeRepository.getNodes(List.of(nodeId), Optional.empty()))
+        .thenReturn(Stream.of(node(nodeId, NodeType.FOLDER, false)));
+    PermissionsChecker checker = new PermissionsChecker(nodeRepository, shareRepository);
+
+    Map<String, ACL> permissions = checker.getPermissions(List.of(nodeId, nodeId), OWNER_ID);
+
+    assertThat(permissions).containsOnlyKeys(nodeId);
+    assertThat(permissions.get(nodeId)).isEqualTo(ACL.decode(ACL.OWNER));
+    verify(nodeRepository, times(1)).getNodes(List.of(nodeId), Optional.empty());
+    verifyNoInteractions(shareRepository);
   }
 }

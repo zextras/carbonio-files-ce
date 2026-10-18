@@ -11,6 +11,7 @@ import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.Constants.ServiceDiscover.Config;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
+import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -280,9 +281,11 @@ public class NodeApi {
 
   @Name("permissions")
   @NonNull
-  public PermissionsModel permissions(@Source NodeModel node) {
-    String me = requester.getId().getUserId();
-    return new PermissionsModel(permissionsChecker.getPermissions(node.getId(), me));
+  public List<@NonNull PermissionsModel> permissions(@Source List<NodeModel> nodes) {
+    Map<String, ACL> byId =
+        permissionsChecker.getPermissions(
+            nodes.stream().map(NodeModel::getId).toList(), requester.getId().getUserId());
+    return nodes.stream().map(n -> new PermissionsModel(byId.get(n.getId()))).toList();
   }
 
   @Name("children")
@@ -340,13 +343,14 @@ public class NodeApi {
                 parentIds.stream().filter(Objects::nonNull).distinct().toList(), Optional.empty())
             .collect(Collectors.toMap(Node::getId, n -> n));
     String me = requester.getId().getUserId();
+    Map<String, ACL> permissions =
+        permissionsChecker.getPermissions(List.copyOf(byId.keySet()), me);
     return parentIds.stream()
         .map(id -> id == null ? null : byId.get(id))
         .map(
             n -> {
               if (n == null) return null;
-              if (!permissionsChecker.getPermissions(n.getId(), me).has(SharePermission.READ_ONLY))
-                return null;
+              if (!permissions.get(n.getId()).has(SharePermission.READ_ONLY)) return null;
               return NodeModelFactory.from(n, null, me);
             })
         .toList();

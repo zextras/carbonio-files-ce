@@ -12,6 +12,11 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Manages the relationship of permissions between a {@link Node} and a {@link
@@ -55,24 +60,60 @@ public class PermissionsChecker {
    */
   public ACL getPermissions(String nodeId, String userId) {
     ACL maxPermissions = getMaxPermissionsAvailable();
-    return nodeRepository
-        .getNode(nodeId)
-        .map(
-            node -> {
-              if (!node.isHidden()) {
-                if (node.getNodeType().equals(NodeType.ROOT) || node.getOwnerId().equals(userId)) {
-                  return maxPermissions.lesserACL(ACL.decode(ACL.OWNER));
-                } else {
-                  return maxPermissions.lesserACL(
-                      shareRepository
-                          .getShare(node.getId(), userId)
-                          .map(Share::getPermissions)
-                          .orElse(ACL.decode(ACL.SharePermission.NONE)));
-                }
-              } else {
-                return ACL.decode(ACL.NONE);
-              }
-            })
-        .orElse(ACL.decode(ACL.NONE));
+    Node node = nodeRepository.getNode(nodeId).orElse(null);
+    Map<String, ACL> sharePermissions =
+        node != null && needsShareLookup(node, userId)
+            ? shareRepository
+                .getShare(node.getId(), userId)
+                .map(share -> Map.of(node.getId(), share.getPermissions()))
+                .orElse(Map.of())
+            : Map.of();
+    return permissionsOf(node, userId, maxPermissions, sharePermissions);
+  }
+
+  /**
+   * Calculates the {@link ACL} of many nodes for a specific user reading the nodes and the user
+   * shares on them with one query each.
+   *
+   * @param nodeIds the ids of the nodes, duplicates are allowed
+   * @param userId the id of the user we want to check its node permissions
+   * @return a map from each requested node id to the permissions of the user on it
+   */
+  public Map<String, ACL> getPermissions(List<String> nodeIds, String userId) {
+    ACL maxPermissions = getMaxPermissionsAvailable();
+    Map<String, Node> nodes =
+        nodeRepository
+            .getNodes(nodeIds.stream().distinct().toList(), Optional.empty())
+            .collect(Collectors.toMap(Node::getId, n -> n));
+    List<String> sharedNodeIds =
+        nodes.values().stream().filter(n -> needsShareLookup(n, userId)).map(Node::getId).toList();
+    Map<String, ACL> sharePermissions =
+        sharedNodeIds.isEmpty()
+            ? Map.of()
+            : shareRepository.getShares(sharedNodeIds, userId).stream()
+                .collect(Collectors.toMap(Share::getNodeId, Share::getPermissions));
+    Map<String, ACL> result = new HashMap<>();
+    nodeIds.forEach(
+        id ->
+            result.put(id, permissionsOf(nodes.get(id), userId, maxPermissions, sharePermissions)));
+    return result;
+  }
+
+  private boolean needsShareLookup(Node node, String userId) {
+    return !node.isHidden()
+        && !node.getNodeType().equals(NodeType.ROOT)
+        && !node.getOwnerId().equals(userId);
+  }
+
+  private ACL permissionsOf(
+      Node node, String userId, ACL maxPermissions, Map<String, ACL> sharePermissions) {
+    if (node == null || node.isHidden()) {
+      return ACL.decode(ACL.NONE);
+    }
+    if (node.getNodeType().equals(NodeType.ROOT) || node.getOwnerId().equals(userId)) {
+      return maxPermissions.lesserACL(ACL.decode(ACL.OWNER));
+    }
+    return maxPermissions.lesserACL(
+        sharePermissions.getOrDefault(node.getId(), ACL.decode(ACL.SharePermission.NONE)));
   }
 }

@@ -37,6 +37,7 @@ import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.junit.jupiter.api.BeforeEach;
@@ -449,7 +450,8 @@ class NodeApiTest {
 
     when(nodeRepository.getNodes(eq(List.of("parent-A")), any()))
         .thenReturn(List.of(parentA).stream());
-    when(permissionsChecker.getPermissions("parent-A", REQUESTER_ID)).thenReturn(aclWith(true));
+    when(permissionsChecker.getPermissions(List.of("parent-A"), REQUESTER_ID))
+        .thenReturn(Map.of("parent-A", aclWith(true)));
 
     List<NodeModel> result = nodeApi.parents(List.of(n1, n2, n3));
 
@@ -481,13 +483,14 @@ class NodeApiTest {
   void permissions_mapsAclFromPermissionsChecker() {
     NodeModel node = makeFolderModel(NODE_ID, null);
     ACL acl = ACL.decode(SharePermission.READ_ONLY);
-    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID)).thenReturn(acl);
+    when(permissionsChecker.getPermissions(List.of(NODE_ID), REQUESTER_ID))
+        .thenReturn(Map.of(NODE_ID, acl));
 
-    PermissionsModel result = nodeApi.permissions(node);
+    List<PermissionsModel> result = nodeApi.permissions(List.of(node));
 
-    assertThat(result).isNotNull();
-    assertThat(result.isCanRead()).isTrue();
-    assertThat(result.isCanShare()).isFalse();
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).isCanRead()).isTrue();
+    assertThat(result.get(0).isCanShare()).isFalse();
   }
 
   // ─── children @Source ─────────────────────────────────────────────────────────
