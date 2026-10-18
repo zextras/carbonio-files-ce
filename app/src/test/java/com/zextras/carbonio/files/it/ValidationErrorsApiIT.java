@@ -365,6 +365,32 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
         "children");
   }
 
+  private static final String NULL_NODE_IDS_MESSAGE = "Invalid node ids. The list cannot be null.";
+
+  @ParameterizedTest
+  @MethodSource("nullNodeIdsOperations")
+  void givenNullNodeIdsThenValidationError(String operation, String document) {
+    // When
+    Response response = execute(document);
+
+    // Then
+    assertValidationError(response, NULL_NODE_IDS_MESSAGE, operation);
+  }
+
+  static Stream<Arguments> nullNodeIdsOperations() {
+    return Stream.of(
+        Arguments.of("trashNodes", "mutation { trashNodes }"),
+        Arguments.of("trashNodes", "mutation { trashNodes(node_ids: null) }"),
+        Arguments.of("flagNodes", "mutation { flagNodes(flag: true) }"),
+        Arguments.of("flagNodes", "mutation { flagNodes(node_ids: null, flag: true) }"),
+        Arguments.of("restoreNodes", "mutation { restoreNodes { id } }"),
+        Arguments.of("deleteNodes", "mutation { deleteNodes }"),
+        Arguments.of(
+            "moveNodes", "mutation { moveNodes(destination_id: \\\"LOCAL_ROOT\\\") { id } }"),
+        Arguments.of(
+            "copyNodes", "mutation { copyNodes(destination_id: \\\"LOCAL_ROOT\\\") { id } }"));
+  }
+
   private static final String SHORT_ID_MESSAGE =
       "Invalid node ID: \"short-id\". Length must be 36 characters";
 

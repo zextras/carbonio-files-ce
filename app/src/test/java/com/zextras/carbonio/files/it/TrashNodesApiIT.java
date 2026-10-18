@@ -99,7 +99,8 @@ class TrashNodesApiIT extends AbstractFilesIT {
 
   @ParameterizedTest
   @ValueSource(strings = {"mutation { trashNodes }", "mutation { trashNodes(node_ids: null) }"})
-  void givenAMissingOrNullNodeIdsTrashNodesShouldFailWithSystemErrorAndTouchNothing(String query) {
+  void givenAMissingOrNullNodeIdsTrashNodesShouldFailWithValidationErrorAndTouchNothing(
+      String query) {
     // Given
     String nodeId =
         seedFile(
@@ -114,7 +115,7 @@ class TrashNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
-        .isEqualTo("System error");
+        .isEqualTo("Invalid node ids. The list cannot be null.");
     Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
     Assertions.assertThat(response.jsonPath().getMap("data")).containsEntry("trashNodes", null);
     Assertions.assertThat(findNodeIdsInFolder("LOCAL_ROOT", true)).contains(nodeId);

@@ -21,6 +21,10 @@ public class GraphQLInputValidator {
     return new Chain().checkNodeId(value);
   }
 
+  public Chain requireNodeIds(List<String> values) {
+    return new Chain().requireNodeIds(values);
+  }
+
   public Chain checkNodeIds(List<String> values) {
     return new Chain().checkNodeIds(values);
   }
@@ -85,7 +89,15 @@ public class GraphQLInputValidator {
       return this;
     }
 
+    public Chain requireNodeIds(List<String> values) {
+      if (values == null) {
+        errors.add("Invalid node ids. The list cannot be null.");
+      }
+      return this;
+    }
+
     public Chain checkNodeIds(List<String> values) {
+      requireNodeIds(values);
       if (values != null) {
         values.stream()
             .map(this::validateNodeId)

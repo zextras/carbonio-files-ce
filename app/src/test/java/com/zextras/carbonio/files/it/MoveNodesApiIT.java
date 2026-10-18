@@ -95,7 +95,8 @@ class MoveNodesApiIT extends AbstractFilesIT {
         "mutation { moveNodes(destination_id: \\\"LOCAL_ROOT\\\") { id } }",
         "mutation { moveNodes(destination_id: \\\"LOCAL_ROOT\\\", node_ids: null) { id } }"
       })
-  void givenAMissingOrNullNodeIdsMoveNodesShouldFailWithSystemErrorAndTouchNothing(String query) {
+  void givenAMissingOrNullNodeIdsMoveNodesShouldFailWithValidationErrorAndTouchNothing(
+      String query) {
     // Given
     String folderId = seedFolder("folder", LOCAL_ROOT, REQUESTER_COOKIE);
     String nodeId =
@@ -111,7 +112,7 @@ class MoveNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
-        .isEqualTo("System error");
+        .isEqualTo("Invalid node ids. The list cannot be null.");
     Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
     Assertions.assertThat(response.jsonPath().getMap("data")).containsEntry("moveNodes", null);
     Assertions.assertThat(nodeExists(nodeId, REQUESTER_COOKIE)).isTrue();

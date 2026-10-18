@@ -39,6 +39,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
+import com.zextras.carbonio.files.graphql.errors.InputValidationException;
 import com.zextras.carbonio.files.graphql.model.FolderModel;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.spi.CopyFailureClassifier;
@@ -383,7 +384,8 @@ class NodeApiMutationsTest {
   @Test
   void flagNodesThrowsWhenNodeIdsIsNull() {
     assertThatThrownBy(() -> nodeApi.flagNodes(null, true))
-        .isInstanceOf(NullPointerException.class);
+        .isInstanceOf(InputValidationException.class)
+        .hasMessage("Invalid node ids. The list cannot be null.");
     verify(nodeRepository, never()).getNode(any());
   }
 
@@ -435,7 +437,9 @@ class NodeApiMutationsTest {
 
   @Test
   void deleteNodesThrowsWhenNodeIdsIsNull() {
-    assertThatThrownBy(() -> nodeApi.deleteNodes(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> nodeApi.deleteNodes(null))
+        .isInstanceOf(InputValidationException.class)
+        .hasMessage("Invalid node ids. The list cannot be null.");
     verify(nodeRepository, never()).getNode(any());
   }
 
