@@ -228,10 +228,14 @@ public class NotificationRepositoryImpl implements NotificationRepository {
   @Transactional
   public UserNotificationInterest createUserNotification(
       UserNotificationsInfo userNotificationsInfo, BaseNotification notification) {
+    return persistInterest(userNotificationsInfo.getUserId(), notification);
+  }
+
+  private UserNotificationInterest persistInterest(String userId, BaseNotification notification) {
     UserNotificationInterest interest =
         new UserNotificationInterest(
             UUID.randomUUID().toString(),
-            userNotificationsInfo.getUserId(),
+            userId,
             notification.getNotificationId(),
             // Duplicate the notification's createdAt so the interest rows can be sorted/paginated
             // without joining back to the notification tables.
@@ -295,15 +299,25 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 
     usersIdsToNotify.forEach(
         userId -> {
-          UserNotificationsInfo existing =
-              getUserNotificationsInfo(userId)
-                  .orElse(new UserNotificationsInfo(userId, System.currentTimeMillis(), 0));
-          UserNotificationsInfo info =
-              upsertUserNotificationsInfo(userId, existing.getLastSeen(), existing.getUnread() + 1);
-          createUserNotification(info, notification);
+          incrementUnread(userId);
+          persistInterest(userId, notification);
         });
 
     return notification;
+  }
+
+  private void incrementUnread(String userId) {
+    entityManager
+        .createNativeQuery(
+            "INSERT INTO "
+                + Constants.Db.Tables.USER_NOTIFICATIONS_INFO
+                + " (user_id, last_seen, unread) VALUES (:userId, :lastSeen, 1) "
+                + "ON CONFLICT (user_id) DO UPDATE SET unread = "
+                + Constants.Db.Tables.USER_NOTIFICATIONS_INFO
+                + ".unread + 1")
+        .setParameter("userId", userId)
+        .setParameter("lastSeen", System.currentTimeMillis())
+        .executeUpdate();
   }
 
   @Override
