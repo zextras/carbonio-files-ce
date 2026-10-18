@@ -555,10 +555,16 @@ class NodeApiMutationsTest {
         .thenReturn(Optional.of(new TrashedNode(NODE_ID_2, NODE_ID_1)));
     when(permissionsChecker.getPermissions(anyString(), eq(REQUESTER_ID)))
         .thenReturn(aclWith(true));
-    when(nodeRepository.getNodesForUpdate(nodeIds)).thenReturn(List.of(folder, child));
     when(nodeRepository.getNodes(nodeIds, Optional.empty()))
         .thenAnswer(inv -> Stream.of(folder, child));
     List<String> events = new ArrayList<>();
+    doAnswer(
+            inv -> {
+              events.add("rows");
+              return List.of(folder, child);
+            })
+        .when(nodeRepository)
+        .getNodesForUpdate(nodeIds);
     doAnswer(
             inv -> {
               events.add("lock " + inv.getArgument(0));
@@ -582,6 +588,7 @@ class NodeApiMutationsTest {
         .containsExactly(
             "lock " + PARENT_ID,
             "lock " + RootId.LOCAL_ROOT,
+            "rows",
             "restore " + NODE_ID_1,
             "restore " + NODE_ID_2);
     assertThat(child.getParentId()).contains(RootId.LOCAL_ROOT);

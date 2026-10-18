@@ -59,6 +59,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -708,11 +709,13 @@ public class NodeApi {
       QuarkusTransaction.requiringNew()
           .run(
               () -> {
-                nodeRepository.getNodesForUpdate(nodeIdsToMove).stream()
-                    .map(Node::getOwnerId)
-                    .distinct()
-                    .sorted()
-                    .forEach(ownerId -> nodeRepository.lockChildNames(destinationId, ownerId));
+                Set<String> lockedOwners = new HashSet<>();
+                lockDestinationOwners(
+                    nodeRepository.getNodes(nodeIdsToMove, Optional.empty()).toList(),
+                    destinationId,
+                    lockedOwners);
+                lockDestinationOwners(
+                    nodeRepository.getNodesForUpdate(nodeIdsToMove), destinationId, lockedOwners);
                 nodeIdsToMove.forEach(
                     nodeId -> {
                       Node node = nodeRepository.getNode(nodeId).get();
@@ -1319,8 +1322,24 @@ public class NodeApi {
     }
   }
 
+  private void lockDestinationOwners(
+      List<Node> nodes, String destinationId, Set<String> lockedOwners) {
+    nodes.stream()
+        .map(Node::getOwnerId)
+        .distinct()
+        .sorted()
+        .filter(lockedOwners::add)
+        .forEach(ownerId -> nodeRepository.lockChildNames(destinationId, ownerId));
+  }
+
   private Map<String, Optional<Node>> lockForRestore(List<String> nodeIds) {
-    List<Node> nodes = nodeRepository.getNodesForUpdate(nodeIds);
+    Set<ImmutablePair<String, String>> locked = new HashSet<>();
+    lockRestoreDestinations(nodeRepository.getNodes(nodeIds, Optional.empty()).toList(), locked);
+    return lockRestoreDestinations(nodeRepository.getNodesForUpdate(nodeIds), locked);
+  }
+
+  private Map<String, Optional<Node>> lockRestoreDestinations(
+      List<Node> nodes, Set<ImmutablePair<String, String>> locked) {
     Map<String, Optional<Node>> destinations = new HashMap<>();
     nodes.forEach(node -> destinations.put(node.getId(), restoreDestination(node.getId())));
     nodes.stream()
@@ -1331,6 +1350,7 @@ public class NodeApi {
                     node.getOwnerId()))
         .distinct()
         .sorted()
+        .filter(locked::add)
         .forEach(
             destination ->
                 nodeRepository.lockChildNames(destination.getLeft(), destination.getRight()));
