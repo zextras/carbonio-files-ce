@@ -105,10 +105,8 @@ class UpdateSharesApiIT extends AbstractFilesIT {
     Assertions.assertThat(updatedShares).hasSize(1);
     Assertions.assertThat(updatedShares.get(0)).containsEntry("permission", "READ_AND_WRITE");
 
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find share for node: " + nodeId + " and user " + TARGET_C_ID);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("SHARE_NOT_FOUND");
   }
 
   @Test
@@ -136,8 +134,8 @@ class UpdateSharesApiIT extends AbstractFilesIT {
         TestUtils.jsonResponseToList(response.getBody().asString(), "updateShares");
     Assertions.assertThat(updatedShares).isEmpty();
 
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("SHARE_NOT_FOUND");
   }
 
   @Test
@@ -165,9 +163,7 @@ class UpdateSharesApiIT extends AbstractFilesIT {
     Assertions.assertThat(updatedShares).hasSize(1);
     Assertions.assertThat(updatedShares.get(0)).containsEntry("permission", "READ_AND_WRITE");
 
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find share for node: " + nodeId + " and user " + OWNER_ID);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("SHARE_NOT_FOUND");
   }
 }

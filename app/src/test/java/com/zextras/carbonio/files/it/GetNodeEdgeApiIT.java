@@ -16,6 +16,8 @@ import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.GetNodeEdgeApiIT} rewritten as an out-of-process
@@ -98,6 +100,24 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
     Assertions.assertThat(node.get("parent")).isNull();
   }
 
+  @ParameterizedTest
+  @ValueSource(ints = {0, -1})
+  void givenANonPositiveSharesLimitTheSharesFieldIsAValidationError(int limit) {
+    // Given
+    String nodeId = seedFolder("nonPositiveLimit" + limit, LOCAL_ROOT, REQUESTER_COOKIE);
+
+    // When
+    Response response =
+        getNode(
+            nodeId, null, "{ id shares(limit: " + limit + ") { created_at } }", REQUESTER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
+    Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
+        .isEqualTo("Invalid limit value. The limit must be greater than 0.");
+  }
+
   @Test
   void givenAReadableParentTheParentFieldResolvesNormally() {
     // Given — contrast case: same shape, but the parent IS owned by the requester, so it IS
@@ -126,10 +146,8 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
 
     // Then — unlike the `parent` field, direct getNode surfaces a real error
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find node with id " + nonExistentId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_NOT_FOUND");
     Map<String, Object> node =
         TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node).isEmpty();
@@ -147,10 +165,8 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
 
     // Then — same nodeNotFound-shaped error as the not-found case; the gate cannot distinguish them
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find node with id " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_NOT_FOUND");
   }
 
   /**
@@ -197,5 +213,7 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
     Assertions.assertThat(errors)
         .hasSize(1)
         .containsExactly("Could not find version: 999 for node with id " + nodeId);
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("FILE_VERSION_NOT_FOUND");
   }
 }

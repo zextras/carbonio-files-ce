@@ -4,15 +4,22 @@
 
 package com.zextras.carbonio.files.it;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.util.List;
+import java.util.stream.Stream;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.ValidationErrorsApiIT} rewritten as an
@@ -33,7 +40,12 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
 
   private static final String REQUESTER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
   private static final String REQUESTER_COOKIE = "ZM_AUTH_TOKEN=fake-token";
+  private static final String INVALID_NODE_NAME =
+      "Invalid node name. The name cannot be empty, longer than 1024 characters, nor be composed"
+          + " only by blank spaces.";
   private static final String VALID_NODE_ID = "00000000-0000-0000-0000-000000000042";
+  private static final String POSITIVE_LIMIT_MESSAGE =
+      "Invalid limit value. The limit must be greater than 0.";
 
   @BeforeAll
   static void registerUsers() {
@@ -42,6 +54,33 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
 
   private static Response execute(String bodyPayload) {
     return graphql(bodyPayload, REQUESTER_COOKIE);
+  }
+
+  private static void assertValidationError(
+      Response response, String expectedMessage, String... expectedPath) {
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    JsonNode body;
+    try {
+      body = new ObjectMapper().readTree(response.getBody().asString());
+    } catch (Exception e) {
+      throw new AssertionError(e);
+    }
+    JsonNode errors = body.get("errors");
+    Assertions.assertThat(errors).hasSize(1);
+    JsonNode error = errors.get(0);
+    Assertions.assertThat(error.get("message").asText()).isEqualTo(expectedMessage);
+    Assertions.assertThat(error.get("path")).hasSize(expectedPath.length);
+    for (int i = 0; i < expectedPath.length; i++) {
+      Assertions.assertThat(error.get("path").get(i).asText()).isEqualTo(expectedPath[i]);
+    }
+    JsonNode errorCode = error.path("extensions").path("errorCode");
+    Assertions.assertThat(errorCode.isMissingNode() || errorCode.isNull())
+        .as("validation errors carry no errorCode")
+        .isTrue();
+    JsonNode data = body.get("data");
+    Assertions.assertThat(data == null || data.isNull() || data.path(expectedPath[0]).isNull())
+        .as("validation errors return no data")
+        .isTrue();
   }
 
   @Test
@@ -57,9 +96,7 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors).hasSize(1).containsExactly("Invalid Email");
+    assertValidationError(response, "Invalid Email", "getAccountByEmail");
   }
 
   /**
@@ -92,13 +129,6 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
         .contains("password");
   }
 
-  /**
-   * FINDING: {@code findNodes}' top-level {@code limit} argument has NO bound {@code
-   * FieldValidationInstrumentation} rule at all — only {@code getNode.children}'s {@code limit} is
-   * validated (see {@code GraphQLProvider#buildValidationInstrumentation}, which binds {@code
-   * childrenArgumentValidation} to {@code "/getNode/children"}, and has no rule for {@code
-   * "/findNodes"}). The reachable path is exercised here instead.
-   */
   @Test
   void givenOutOfRangeLimitOnGetNodeChildrenThenExactlyOneValidationError() {
     // Given
@@ -113,11 +143,62 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Invalid limit value. The allowed range is between 0 and 50.");
+    assertValidationError(
+        response,
+        "Invalid limit value. The allowed range is between 1 and 50.",
+        "getNode",
+        "children");
+  }
+
+  static Stream<Arguments> nonPositiveLimitOperations() {
+    String nodeFields = "{ ... on Folder { %s } }";
+    return Stream.of(0, -1)
+        .flatMap(
+            limit ->
+                Stream.of(
+                    Arguments.of(
+                        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+                            .withInteger("limit", limit)
+                            .withWantedResultFormat("{ nodes { id } }")
+                            .build(),
+                        POSITIVE_LIMIT_MESSAGE,
+                        new String[] {"findNodes"}),
+                    Arguments.of(
+                        GraphqlCommandBuilder.aQueryBuilder("getNode")
+                            .withString("node_id", "LOCAL_ROOT")
+                            .withWantedResultFormat(
+                                nodeFields.formatted(
+                                    "children(limit: "
+                                        + limit
+                                        + ", sort: NAME_ASC) { nodes { id } }"))
+                            .build(),
+                        "Invalid limit value. The allowed range is between 1 and 50.",
+                        new String[] {"getNode", "children"}),
+                    Arguments.of(
+                        GraphqlCommandBuilder.aQueryBuilder("getNode")
+                            .withString("node_id", "LOCAL_ROOT")
+                            .withWantedResultFormat(
+                                "{ id shares(limit: " + limit + ") { permission } }")
+                            .build(),
+                        POSITIVE_LIMIT_MESSAGE,
+                        new String[] {"getNode", "shares"}),
+                    Arguments.of(
+                        GraphqlCommandBuilder.aQueryBuilder("getNotifications")
+                            .withBoolean("update_last_seen", false)
+                            .withInteger("limit", limit)
+                            .withWantedResultFormat("{ page_token }")
+                            .build(),
+                        POSITIVE_LIMIT_MESSAGE,
+                        new String[] {"getNotifications"})));
+  }
+
+  @ParameterizedTest
+  @MethodSource("nonPositiveLimitOperations")
+  void givenANonPositiveLimitThenExactlyOneValidationError(
+      String bodyPayload, String expectedMessage, String[] expectedPath) {
+    Response response = execute(bodyPayload);
+
+    assertValidationError(response, expectedMessage, expectedPath);
   }
 
   @Test
@@ -199,11 +280,10 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Invalid link ID: \"short-link-id\". Length must be 36 characters");
+    assertValidationError(
+        response,
+        "Invalid link ID: \"short-link-id\". Length must be 36 characters",
+        "deleteLinks");
   }
 
   @Test
@@ -221,12 +301,10 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly(
-            "Invalid link description. The description cannot be longer than 300 characters");
+    assertValidationError(
+        response,
+        "Invalid link description. The description cannot be longer than 300 characters",
+        "createLink");
   }
 
   /**
@@ -280,11 +358,133 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     Response response = execute(bodyPayload);
 
     // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Invalid limit value. The allowed range is between 0 and 50.");
+    assertValidationError(
+        response,
+        "Invalid limit value. The allowed range is between 1 and 50.",
+        "getNode",
+        "children");
+  }
+
+  private static final String SHORT_ID_MESSAGE =
+      "Invalid node ID: \"short-id\". Length must be 36 characters";
+
+  static Stream<Arguments> malformedNodeIdOperations() {
+    return Stream.of(
+        Arguments.of(
+            "getPath",
+            GraphqlCommandBuilder.aQueryBuilder("getPath")
+                .withString("node_id", "short-id")
+                .withWantedResultFormat("{ id }")
+                .build(),
+            SHORT_ID_MESSAGE,
+            "getPath"),
+        Arguments.of(
+            "trashNodes",
+            GraphqlCommandBuilder.aMutationBuilder("trashNodes")
+                .withListOfStrings("node_ids", new String[] {"short-id"})
+                .withWantedResultFormat("")
+                .build(),
+            SHORT_ID_MESSAGE,
+            "trashNodes"),
+        Arguments.of(
+            "restoreNodes",
+            GraphqlCommandBuilder.aMutationBuilder("restoreNodes")
+                .withListOfStrings("node_ids", new String[] {"short-id"})
+                .withWantedResultFormat("{ id }")
+                .build(),
+            SHORT_ID_MESSAGE,
+            "restoreNodes"),
+        Arguments.of(
+            "deleteNodes",
+            GraphqlCommandBuilder.aMutationBuilder("deleteNodes")
+                .withListOfStrings("node_ids", new String[] {"short-id"})
+                .withWantedResultFormat("")
+                .build(),
+            SHORT_ID_MESSAGE,
+            "deleteNodes"),
+        Arguments.of(
+            "moveNodes",
+            GraphqlCommandBuilder.aMutationBuilder("moveNodes")
+                .withListOfStrings("node_ids", new String[] {"short-id", "other"})
+                .withString("destination_id", VALID_NODE_ID)
+                .withWantedResultFormat("{ id }")
+                .build(),
+            SHORT_ID_MESSAGE + "\nInvalid node ID: \"other\". Length must be 36 characters",
+            "moveNodes"),
+        Arguments.of(
+            "moveNodesDestination",
+            GraphqlCommandBuilder.aMutationBuilder("moveNodes")
+                .withListOfStrings("node_ids", new String[] {VALID_NODE_ID})
+                .withString("destination_id", "short-id")
+                .withWantedResultFormat("{ id }")
+                .build(),
+            SHORT_ID_MESSAGE,
+            "moveNodes"),
+        Arguments.of(
+            "copyNodes",
+            GraphqlCommandBuilder.aMutationBuilder("copyNodes")
+                .withListOfStrings("node_ids", new String[] {"short-id"})
+                .withString("destination_id", VALID_NODE_ID)
+                .withWantedResultFormat("{ id }")
+                .build(),
+            SHORT_ID_MESSAGE,
+            "copyNodes"),
+        Arguments.of(
+            "copyNodesDestination",
+            GraphqlCommandBuilder.aMutationBuilder("copyNodes")
+                .withListOfStrings("node_ids", new String[] {VALID_NODE_ID})
+                .withString("destination_id", "short-id")
+                .withWantedResultFormat("{ id }")
+                .build(),
+            SHORT_ID_MESSAGE,
+            "copyNodes"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("malformedNodeIdOperations")
+  void givenMalformedNodeIdsThenExactlyOneValidationErrorBeforeAnyExecution(
+      String name, String bodyPayload, String expectedMessage, String path) {
+    assertValidationError(execute(bodyPayload), expectedMessage, path);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"LOCAL_ROOT", "TRASH_ROOT"})
+  void givenRootPseudoIdsThenNodeIdValidationAcceptsThem(String rootId) {
+    List<String> payloads =
+        List.of(
+            GraphqlCommandBuilder.aQueryBuilder("getPath")
+                .withString("node_id", rootId)
+                .withWantedResultFormat("{ id }")
+                .build(),
+            GraphqlCommandBuilder.aMutationBuilder("trashNodes")
+                .withListOfStrings("node_ids", new String[] {rootId})
+                .withWantedResultFormat("")
+                .build(),
+            GraphqlCommandBuilder.aMutationBuilder("deleteNodes")
+                .withListOfStrings("node_ids", new String[] {rootId})
+                .withWantedResultFormat("")
+                .build(),
+            GraphqlCommandBuilder.aMutationBuilder("restoreNodes")
+                .withListOfStrings("node_ids", new String[] {rootId})
+                .withWantedResultFormat("{ id }")
+                .build(),
+            GraphqlCommandBuilder.aMutationBuilder("moveNodes")
+                .withListOfStrings("node_ids", new String[] {rootId})
+                .withString("destination_id", rootId)
+                .withWantedResultFormat("{ id }")
+                .build(),
+            GraphqlCommandBuilder.aMutationBuilder("copyNodes")
+                .withListOfStrings("node_ids", new String[] {rootId})
+                .withString("destination_id", rootId)
+                .withWantedResultFormat("{ id }")
+                .build());
+    for (String payload : payloads) {
+      Response response = execute(payload);
+      Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+      Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+          .as(payload)
+          .noneMatch(message -> message.contains("Invalid node ID"));
+    }
   }
 
   @Test
@@ -301,10 +501,174 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     Response response = execute(bodyPayload);
 
     // Then
+    assertValidationError(response, "Invalid user ID. Length cannot be empty", "getShare");
+  }
+
+  @Test
+  void givenEmptyShareTargetIdOnCreateShareThenValidationError() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("createShare")
+            .withString("node_id", VALID_NODE_ID)
+            .withString("share_target_id", "")
+            .withEnumLiteral("permission", "READ_ONLY")
+            .withWantedResultFormat("{ permission }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(response, "Invalid user ID. Length cannot be empty", "createShare");
+  }
+
+  @Test
+  void givenWrongLengthNodeIdOnCreateShareThenValidationError() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("createShare")
+            .withString("node_id", "short-id")
+            .withString("share_target_id", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+            .withEnumLiteral("permission", "READ_ONLY")
+            .withWantedResultFormat("{ permission }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(
+        response, "Invalid node ID: \"short-id\". Length must be 36 characters", "createShare");
+  }
+
+  @Test
+  void givenEmptyShareTargetIdOnUpdateSharesThenValidationError() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("updateShares")
+            .withString("node_id", VALID_NODE_ID)
+            .withListOfStrings("share_target_ids", new String[] {""})
+            .withEnumLiteral("permission", "READ_ONLY")
+            .withWantedResultFormat("{ permission }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(response, "Invalid user ID. Length cannot be empty", "updateShares");
+  }
+
+  @Test
+  void givenEmptyShareTargetIdOnDeleteSharesThenValidationError() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("deleteShares")
+            .withString("node_id", VALID_NODE_ID)
+            .withListOfStrings("share_target_ids", new String[] {""})
+            .withWantedResultFormat("")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(response, "Invalid user ID. Length cannot be empty", "deleteShares");
+  }
+
+  @Test
+  void givenBlankNameOnCreateFolderThenValidationError() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("createFolder")
+            .withString("destination_id", "LOCAL_ROOT")
+            .withString("name", "   ")
+            .withWantedResultFormat("{ id name }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(response, INVALID_NODE_NAME, "createFolder");
+  }
+
+  @Test
+  void givenTooLongNameOnCreateFolderThenValidationError() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("createFolder")
+            .withString("destination_id", "LOCAL_ROOT")
+            .withString("name", "a".repeat(1025))
+            .withWantedResultFormat("{ id name }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(response, INVALID_NODE_NAME, "createFolder");
+  }
+
+  @Test
+  void givenWrongLengthDestinationIdOnCreateFolderThenValidationError() {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aMutationBuilder("createFolder")
+            .withString("destination_id", "short-id")
+            .withString("name", "folder")
+            .withWantedResultFormat("{ id name }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(
+        response, "Invalid node ID: \"short-id\". Length must be 36 characters", "createFolder");
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "x@example..com",
+        ".leading@example.com",
+        "trailing.@example.com",
+        "user@host.local",
+        "user@host.internal",
+        "not-an-email"
+      })
+  void givenEmailRejectedByCommonsValidatorOnGetAccountByEmailThenValidationError(String email) {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getAccountByEmail")
+            .withString("email", email)
+            .withWantedResultFormat("{ ... on User { id } }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
+    assertValidationError(response, "Invalid Email", "getAccountByEmail");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"o'brien@example.com", "first.last+tag@sub.example.co"})
+  void givenEmailAcceptedByCommonsValidatorOnGetAccountByEmailThenPassesValidation(String email) {
+    // Given
+    String bodyPayload =
+        GraphqlCommandBuilder.aQueryBuilder("getAccountByEmail")
+            .withString("email", email)
+            .withWantedResultFormat("{ ... on User { id } }")
+            .build();
+
+    // When
+    Response response = execute(bodyPayload);
+
+    // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Invalid user ID. Length cannot be empty");
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+        .noneMatch(m -> m.contains("Invalid Email"));
   }
 }

@@ -126,10 +126,8 @@ class DeleteCollaborationLinksApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(deletedIds(response)).isEmpty();
 
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find data to retrieve for requested field");
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("MISSING_FIELD");
 
     // The link is untouched.
     Assertions.assertThat(remainingLinkIds(nodeId)).containsExactly(linkId);
@@ -148,10 +146,8 @@ class DeleteCollaborationLinksApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(deletedIds(response)).isEmpty();
 
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find data to retrieve for requested field");
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("MISSING_FIELD");
   }
 
   @Test
@@ -169,10 +165,8 @@ class DeleteCollaborationLinksApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(deletedIds(response)).containsExactly(allowedLinkId);
 
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find data to retrieve for requested field");
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("MISSING_FIELD");
 
     Assertions.assertThat(remainingLinkIds(nodeId)).doesNotContain(allowedLinkId);
   }

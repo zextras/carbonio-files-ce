@@ -15,6 +15,8 @@ import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.MoveNodesApiIT} rewritten as an out-of-process
@@ -85,5 +87,55 @@ class MoveNodesApiIT extends AbstractFilesIT {
 
     Assertions.assertThat(nodes).hasSize(1);
     Assertions.assertThat(nodes.get(0)).containsEntry("id", nodeId).containsEntry("name", "second");
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "mutation { moveNodes(destination_id: \\\"LOCAL_ROOT\\\") { id } }",
+        "mutation { moveNodes(destination_id: \\\"LOCAL_ROOT\\\", node_ids: null) { id } }"
+      })
+  void givenAMissingOrNullNodeIdsMoveNodesShouldFailWithSystemErrorAndTouchNothing(String query) {
+    // Given
+    String folderId = seedFolder("folder", LOCAL_ROOT, REQUESTER_COOKIE);
+    String nodeId =
+        seedFile(
+            "untouched.txt",
+            folderId,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+
+    // When
+    Response response = graphql(query, REQUESTER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
+        .isEqualTo("System error");
+    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
+    Assertions.assertThat(response.jsonPath().getMap("data")).containsEntry("moveNodes", null);
+    Assertions.assertThat(nodeExists(nodeId, REQUESTER_COOKIE)).isTrue();
+    Response children =
+        graphql(
+            "query { findNodes(folder_id: \\\""
+                + folderId
+                + "\\\", limit: 10, sort: NAME_ASC)"
+                + " { nodes { id } } }",
+            REQUESTER_COOKIE);
+    Assertions.assertThat(children.jsonPath().getList("data.findNodes.nodes.id"))
+        .containsExactly(nodeId);
+  }
+
+  @Test
+  void givenAnEmptyNodeIdsListMoveNodesShouldReturnAnEmptyList() {
+    // When
+    Response response =
+        graphql(
+            "mutation { moveNodes(destination_id: \\\"LOCAL_ROOT\\\", node_ids: []) { id } }",
+            REQUESTER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.getBody().asString()).isEqualTo("{\"data\":{\"moveNodes\":[]}}");
   }
 }

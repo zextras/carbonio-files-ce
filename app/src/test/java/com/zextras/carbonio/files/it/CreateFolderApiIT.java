@@ -11,8 +11,16 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -111,6 +119,39 @@ class CreateFolderApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenConcurrentSameNameCreateFolderEveryFolderShouldGetADistinctName() throws Exception {
+    String parentId = seedFolder("concurrent-parent", LOCAL_ROOT, REQUESTER_COOKIE);
+    int requests = 10;
+    ExecutorService pool = Executors.newFixedThreadPool(requests);
+    try {
+      CountDownLatch start = new CountDownLatch(1);
+      List<Future<Response>> calls = new ArrayList<>();
+      for (int i = 0; i < requests; i++) {
+        calls.add(
+            pool.submit(
+                () -> {
+                  start.await();
+                  return createFolder(parentId, "same", REQUESTER_COOKIE);
+                }));
+      }
+      start.countDown();
+
+      Set<Object> names = new HashSet<>();
+      for (Future<Response> call : calls) {
+        Response response = call.get(60, TimeUnit.SECONDS);
+        Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+        Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+            .isEmpty();
+        names.add(
+            TestUtils.jsonResponseToMap(response.getBody().asString(), "createFolder").get("name"));
+      }
+      Assertions.assertThat(names).hasSize(requests);
+    } finally {
+      pool.shutdownNow();
+    }
+  }
+
+  @Test
   void givenNoWritePermissionOnParentCreateFolderShouldReturnNodeWriteError() {
     // Given — parent folder owned by OTHER_USER_ID, no share at all with the requester
     String privateParentId = seedFolder("privateParent", LOCAL_ROOT, OTHER_COOKIE);
@@ -120,11 +161,8 @@ class CreateFolderApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly(
-            "There was a problem while executing requested operation on node: " + privateParentId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   /**
@@ -143,12 +181,8 @@ class CreateFolderApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly(
-            "There was a problem while executing requested operation on node: "
-                + nonExistentParentId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   @Test
@@ -166,9 +200,7 @@ class CreateFolderApiIT extends AbstractFilesIT {
 
     // Then — the parent exists, but createFolder filters it out for having the wrong node type
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find node with id " + fileId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_NOT_FOUND");
   }
 }

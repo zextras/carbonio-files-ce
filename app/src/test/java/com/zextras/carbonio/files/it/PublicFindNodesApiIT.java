@@ -16,6 +16,8 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.PublicFindNodesApiIT} rewritten as an out-of-process
@@ -98,7 +100,7 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
 
   private static Response publicFindNodes(
       String folderId, Integer limit, String nodeLinkId, String accessCode, String pageToken) {
-    GraphqlCommandBuilder builder = GraphqlCommandBuilder.aQueryBuilder("findNodes");
+    GraphqlCommandBuilder builder = GraphqlCommandBuilder.aQueryBuilder("findPublicNodes");
     if (folderId != null) {
       builder = builder.withString("folder_id", folderId);
     }
@@ -119,6 +121,25 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     return publicGraphql(bodyPayload);
   }
 
+  @ParameterizedTest
+  @ValueSource(ints = {0, -1})
+  void givenANonPositiveLimitTheFindPublicNodesShouldReturnAValidationError(int limit) {
+    // Given
+    String[] tree = createFolderTree(OWNER_COOKIE);
+    String publicId = createLink(tree[0], null, null, OWNER_COOKIE);
+
+    // When
+    Response response = publicFindNodes(tree[0], limit, publicId, null, null);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
+    Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
+        .isEqualTo("Invalid limit value. The limit must be greater than 0.");
+    Assertions.assertThat(response.jsonPath().getList("errors[0].path"))
+        .containsExactly("findPublicNodes");
+  }
+
   @DisplayName(
       """
       Given an existing folder with five nodes inside, a valid public link associated, a limit of
@@ -137,7 +158,7 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Map<String, Object> page =
-        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findPublicNodes");
     Assertions.assertThat(page.get("page_token")).isNotNull();
 
     @SuppressWarnings("unchecked")
@@ -171,7 +192,7 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     Assertions.assertThat(firstResponse.getStatusCode()).isEqualTo(200);
     String pageToken =
         (String)
-            TestUtils.jsonResponseToMap(firstResponse.getBody().asString(), "findNodes")
+            TestUtils.jsonResponseToMap(firstResponse.getBody().asString(), "findPublicNodes")
                 .get("page_token");
     // End request first page of the folder content
 
@@ -180,7 +201,7 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
 
     // Then
     Map<String, Object> page =
-        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findPublicNodes");
     Assertions.assertThat(page.get("page_token")).isNull();
 
     @SuppressWarnings("unchecked")
@@ -212,7 +233,7 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Map<String, Object> page =
-        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findPublicNodes");
     Assertions.assertThat(page.get("page_token")).isNull();
 
     @SuppressWarnings("unchecked")
@@ -252,7 +273,7 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Map<String, Object> page =
-        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findPublicNodes");
     Assertions.assertThat(page.get("page_token")).isNull();
 
     @SuppressWarnings("unchecked")
@@ -277,10 +298,8 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find node with id " + folderId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_NOT_FOUND");
   }
 
   @DisplayName(
@@ -301,10 +320,8 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find node with id " + tree[0]);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_NOT_FOUND");
   }
 
   @Test
@@ -323,10 +340,8 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find node with id " + nonExistentFolderId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_NOT_FOUND");
   }
 
   @DisplayName(
@@ -359,8 +374,7 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     // signature mismatch — the message must say so (see NodeRepositoryImpl#decodeToken), not claim
     // a signature check ran when none did.
     Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Exception while fetching data (/findNodes) : Malformed page token");
+        .containsExactly("Exception while fetching data (/findPublicNodes) : Malformed page token");
   }
 
   @Test
@@ -384,8 +398,7 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     // but also still WITH the legacy keySet field, foreign to the port's PageToken) — it fails to
     // deserialize, so it is MALFORMED, not a signature mismatch.
     Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Exception while fetching data (/findNodes) : Malformed page token");
+        .containsExactly("Exception while fetching data (/findPublicNodes) : Malformed page token");
   }
 
   @Test
@@ -400,10 +413,8 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find node with id " + tree[0]);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_NOT_FOUND");
   }
 
   @Test
@@ -418,11 +429,8 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly(
-            "Access code is required for accessing the resource with public link id: " + publicId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("ACCESS_CODE_REQUIRED");
   }
 
   @Test
@@ -438,7 +446,7 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Map<String, Object> page =
-        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findPublicNodes");
     Assertions.assertThat(page.get("page_token")).isNotNull();
 
     @SuppressWarnings("unchecked")

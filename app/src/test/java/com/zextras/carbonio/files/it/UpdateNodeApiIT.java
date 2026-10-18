@@ -11,8 +11,13 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -89,10 +94,8 @@ class UpdateNodeApiIT extends AbstractFilesIT {
 
     // Then — updateNodeFetcher's permission-denied branch returns nodeNotFound, not nodeWriteError
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Could not find node with id " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_NOT_FOUND");
   }
 
   @Test
@@ -111,16 +114,35 @@ class UpdateNodeApiIT extends AbstractFilesIT {
 
     // Then — REJECTED with duplicateNode, unlike createFolder's silent " (1)" auto-rename
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly(
-            "Trying to create a duplicate for the node "
-                + nodeId
-                + " in destination folder LOCAL_ROOT");
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_DUPLICATED");
 
     // the node was NOT renamed
     Assertions.assertThat(nodeExists(nodeId, REQUESTER_COOKIE)).isTrue();
+  }
+
+  @Test
+  void givenAFolderRenamedByAnotherUserItsLastEditorShouldStayNull() {
+    String folderId = seedFolder("shared-folder", LOCAL_ROOT, REQUESTER_COOKIE);
+    seedShare(folderId, OTHER_USER_ID, SharePermission.READ_AND_WRITE, REQUESTER_COOKIE);
+
+    Response rename = updateNode(folderId, "renamed-by-b", null, null, OTHER_COOKIE);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(rename.getBody().asString())).isEmpty();
+
+    String query =
+        GraphqlCommandBuilder.aQueryBuilder("getNode")
+            .withString("node_id", folderId)
+            .withWantedResultFormat("{ id name last_editor { id } }")
+            .build();
+    Response response = graphql(query, REQUESTER_COOKIE);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
+    Map<String, Object> node =
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
+    Assertions.assertThat(node)
+        .containsEntry("name", "renamed-by-b")
+        .containsEntry("last_editor", null);
   }
 
   @Test
@@ -160,5 +182,88 @@ class UpdateNodeApiIT extends AbstractFilesIT {
     Map<String, Object> node =
         TestUtils.jsonResponseToMap(response.getBody().asString(), "updateNode");
     Assertions.assertThat(node).containsEntry("name", "flagme");
+  }
+
+  @Test
+  void givenAMoveCommittedWhileARenameIsInFlightTheRenameShouldNotUndoTheMove() throws Exception {
+    String sourceFolderId = seedFolder("race-source", LOCAL_ROOT, REQUESTER_COOKIE);
+    String targetFolderId = seedFolder("race-target", LOCAL_ROOT, REQUESTER_COOKIE);
+    String nodeId =
+        seedFile(
+            "racing.txt",
+            sourceFolderId,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+    seedFlag(nodeId, REQUESTER_COOKIE);
+
+    Response response;
+    try (Connection move = jdbcConnection()) {
+      move.setAutoCommit(false);
+      // The flag row lock parks a pre-fix rename between its node read and its node write.
+      try (PreparedStatement lockFlag =
+              move.prepareStatement(
+                  "SELECT star FROM custom WHERE node_id = ? AND user_id = ? FOR UPDATE");
+          PreparedStatement moveNode =
+              move.prepareStatement(
+                  "UPDATE node SET folder_id = ?, ancestor_ids = ? WHERE node_id = ?")) {
+        lockFlag.setString(1, nodeId);
+        lockFlag.setString(2, REQUESTER_ID);
+        try (ResultSet flag = lockFlag.executeQuery()) {
+          Assertions.assertThat(flag.next()).isTrue();
+        }
+        moveNode.setString(1, targetFolderId);
+        moveNode.setString(2, LOCAL_ROOT + "," + targetFolderId);
+        moveNode.setString(3, nodeId);
+        moveNode.executeUpdate();
+      }
+      CompletableFuture<Response> rename =
+          CompletableFuture.supplyAsync(
+              () -> updateNode(nodeId, "renamed", null, false, REQUESTER_COOKIE));
+      awaitBlockedBy(move);
+      move.commit();
+      response = rename.get(60, TimeUnit.SECONDS);
+    }
+
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
+    Assertions.assertThat(TestUtils.jsonResponseToMap(response.getBody().asString(), "updateNode"))
+        .containsEntry("name", "renamed");
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("SELECT folder_id, name FROM node WHERE node_id = ?")) {
+      statement.setString(1, nodeId);
+      try (ResultSet row = statement.executeQuery()) {
+        Assertions.assertThat(row.next()).isTrue();
+        Assertions.assertThat(row.getString("folder_id").trim()).isEqualTo(targetFolderId);
+        Assertions.assertThat(row.getString("name")).isEqualTo("renamed.txt");
+      }
+    }
+  }
+
+  private static void awaitBlockedBy(Connection lockHolder) throws Exception {
+    int holderPid;
+    try (PreparedStatement statement = lockHolder.prepareStatement("SELECT pg_backend_pid()");
+        ResultSet pid = statement.executeQuery()) {
+      pid.next();
+      holderPid = pid.getInt(1);
+    }
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+    try (Connection observer = jdbcConnection();
+        PreparedStatement blocked =
+            observer.prepareStatement(
+                "SELECT count(*) FROM pg_stat_activity WHERE ? = ANY(pg_blocking_pids(pid))")) {
+      blocked.setInt(1, holderPid);
+      while (true) {
+        try (ResultSet count = blocked.executeQuery()) {
+          count.next();
+          if (count.getInt(1) > 0) {
+            return;
+          }
+        }
+        if (System.nanoTime() > deadline) {
+          throw new AssertionError("The rename never waited for the concurrent move");
+        }
+        Thread.sleep(50);
+      }
+    }
   }
 }

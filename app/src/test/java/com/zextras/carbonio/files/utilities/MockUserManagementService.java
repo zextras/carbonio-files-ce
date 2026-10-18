@@ -12,11 +12,20 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.extension.ResponseDefinitionTransformerV2;
+import com.github.tomakehurst.wiremock.http.ResponseDefinition;
+import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -59,9 +68,8 @@ public class MockUserManagementService {
 
   /**
    * userId -> its {@code UserInfoDto} JSON, backing the batch {@code POST /internal/users} stub
-   * (the bulk endpoint {@code UserBatchLoader} calls). The batch stub returns ALL
-   * currently-registered users; {@code UserBatchLoader} maps them back by id and ignores the
-   * extras, so a superset response is equivalent to the real endpoint for these tests.
+   * (the bulk endpoint {@code UserRepositoryImpl#getUsers} calls). The batch stub echoes only the
+   * requested ids that are registered, like the real endpoint.
    */
   private final Map<String, String> userInfoJsonById = new ConcurrentHashMap<>();
 
@@ -83,7 +91,11 @@ public class MockUserManagementService {
   private volatile StubMapping downStub;
 
   public MockUserManagementService() {
-    server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+    server =
+        new WireMockServer(
+            WireMockConfiguration.options()
+                .dynamicPort()
+                .extensions(new BatchUsersTransformer(userInfoJsonById)));
     server.start();
     setupCatchAll();
   }
@@ -113,15 +125,14 @@ public class MockUserManagementService {
   }
 
   /**
-   * (Re)installs the {@code POST /internal/users} batch stub so it returns every currently
-   * registered user (an empty array when none). Called whenever the registered-user set changes.
+   * (Re)installs the {@code POST /internal/users} batch stub. Called whenever the registered-user
+   * set changes.
    */
   private synchronized void refreshBatchStub() {
     if (batchStub != null) {
       server.removeStub(batchStub);
       batchStub = null;
     }
-    String body = "[" + String.join(",", userInfoJsonById.values()) + "]";
     batchStub =
         server.stubFor(
             post(urlPathEqualTo("/internal/users"))
@@ -130,7 +141,7 @@ public class MockUserManagementService {
                     aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody(body)));
+                        .withTransformers(BatchUsersTransformer.NAME)));
   }
 
   /** The port the fake user-management REST server is listening on. */
@@ -327,5 +338,44 @@ public class MockUserManagementService {
    */
   private static String urlEncode(String s) {
     return URLEncoder.encode(s, StandardCharsets.UTF_8).replace("+", "%20");
+  }
+
+  private static final class BatchUsersTransformer implements ResponseDefinitionTransformerV2 {
+
+    static final String NAME = "um-batch-users";
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    private final Map<String, String> userInfoJsonById;
+
+    BatchUsersTransformer(Map<String, String> userInfoJsonById) {
+      this.userInfoJsonById = userInfoJsonById;
+    }
+
+    @Override
+    public ResponseDefinition transform(ServeEvent serveEvent) {
+      try {
+        JsonNode ids = MAPPER.readTree(serveEvent.getRequest().getBodyAsString());
+        List<String> found = new ArrayList<>();
+        for (JsonNode id : ids) {
+          String json = userInfoJsonById.get(id.asText());
+          if (json != null) {
+            found.add(json);
+          }
+        }
+        return ResponseDefinition.okForJson(MAPPER.readTree("[" + String.join(",", found) + "]"));
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
+
+    @Override
+    public boolean applyGlobally() {
+      return false;
+    }
+
+    @Override
+    public String getName() {
+      return NAME;
+    }
   }
 }

@@ -217,10 +217,8 @@ class UpdatePublicLinkApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errorResponse)
-        .hasSize(1)
-        .containsExactly("Could not find link with id " + nonExistentLinkId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("LINK_NOT_FOUND");
   }
 
   @Test
@@ -280,10 +278,8 @@ class UpdatePublicLinkApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errorResponse)
-        .hasSize(1)
-        .containsExactly("Could not find link with id " + linkId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("LINK_NOT_FOUND");
   }
 
   @Test
@@ -300,9 +296,7 @@ class UpdatePublicLinkApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errorResponse)
-        .hasSize(1)
-        .containsExactly("Could not find link with id " + linkId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("LINK_NOT_FOUND");
   }
 }

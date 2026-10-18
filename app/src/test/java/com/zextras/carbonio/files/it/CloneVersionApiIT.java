@@ -119,10 +119,8 @@ class CloneVersionApiIT extends AbstractFilesIT {
     // REAL behaviour is a NoSuchElementException from the eager debug-log `.get()`, wrapped by
     // graphql-java into a plain ExceptionWhileDataFetching error.
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Exception while fetching data (/cloneVersion) : No value present");
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("FILE_VERSION_NOT_FOUND");
     Assertions.assertThat(
             TestUtils.jsonResponseToValue(response.getBody().asString(), "cloneVersion"))
         .isEmpty();
@@ -145,13 +143,13 @@ class CloneVersionApiIT extends AbstractFilesIT {
     // ExceptionWhileDataFetching error (NOT a distinct HTTP status, NOT doubled like
     // CopyNodesApiIT's blocked-destination cases).
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
         .containsExactly(
             "Exception while fetching data (/cloneVersion) : Copy error with nodeId: "
                 + nodeId
                 + " and version 1");
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly((String) null);
     Assertions.assertThat(
             TestUtils.jsonResponseToValue(response.getBody().asString(), "cloneVersion"))
         .isEmpty();

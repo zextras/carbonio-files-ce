@@ -83,6 +83,25 @@ class KeepVersionsApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenAnExplicitEmptyVersionsListGetVersionsReturnsAnEmptyList() {
+    // Given
+    String nodeId =
+        seedFile("file.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    seedVersion(nodeId, "v2".getBytes(StandardCharsets.UTF_8), "file.txt", OWNER_COOKIE);
+
+    // When
+    Response response =
+        graphql(
+            "query { getVersions(node_id: \\\"" + nodeId + "\\\", versions: []) { version } }",
+            OWNER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.getBody().asString())
+        .isEqualTo("{\"data\":{\"getVersions\":[]}}");
+  }
+
+  @Test
   void givenANonKeptVersionMarkingItKeepForeverShouldSuceedAndPersistTheFlag() {
     // Given — v1 (non-current), v2 (current); no version is kept-forever yet
     String nodeId =

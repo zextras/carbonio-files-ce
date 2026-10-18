@@ -110,6 +110,7 @@ public class MockStoragesService {
   private volatile boolean uploadSkipsStore = false;
   private volatile boolean downloadFails = false;
   private volatile boolean copyFails = false;
+  private volatile long copyDelayMillis = 0;
   private volatile boolean bulkDeleteAlwaysThrows = false;
   private volatile boolean bulkDeleteReturnsNull = false;
   private volatile boolean unreachable = false;
@@ -217,6 +218,10 @@ public class MockStoragesService {
     this.downloadFails = value;
   }
 
+  public void setCopyDelayMillis(long millis) {
+    this.copyDelayMillis = millis;
+  }
+
   public void setCopyFails(boolean value) {
     this.copyFails = value;
   }
@@ -237,6 +242,7 @@ public class MockStoragesService {
     uploadSkipsStore = false;
     downloadFails = false;
     copyFails = false;
+    copyDelayMillis = 0;
     unreachable = false;
     downloadLog.clear();
   }
@@ -300,6 +306,13 @@ public class MockStoragesService {
   }
 
   private Response handleCopy(Request request) {
+    if (copyDelayMillis > 0) {
+      try {
+        Thread.sleep(copyDelayMillis);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
     if (copyFails) {
       return Response.response().status(500).build();
     }

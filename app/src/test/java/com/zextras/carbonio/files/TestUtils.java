@@ -108,4 +108,30 @@ public class TestUtils {
     }
     return Collections.emptyList();
   }
+
+  /**
+   * Extracts the machine-readable {@code extensions.errorCode} of each GraphQL error. This is the
+   * stable partial-failure contract clients (e.g. carbonio-files-ui) key on — the code-first stack
+   * surfaces ONE error per operation carrying the errorCode, with the successful items in {@code
+   * data} — so tests assert on the code, not the incidental error message text.
+   */
+  @SuppressWarnings("unchecked")
+  public static List<String> jsonResponseToErrorCodes(String json) {
+    try {
+      final Map<String, Object> result = new ObjectMapper().readValue(json, Map.class);
+
+      if (result.get("errors") != null) {
+        final List<Map<String, Object>> errors = (List<Map<String, Object>>) result.get("errors");
+
+        return errors.stream()
+            .map(error -> (Map<String, Object>) error.get("extensions"))
+            .filter(extensions -> extensions != null)
+            .map(extensions -> (String) extensions.get("errorCode"))
+            .collect(Collectors.toList());
+      }
+    } catch (JsonProcessingException exception) {
+      return Collections.emptyList();
+    }
+    return Collections.emptyList();
+  }
 }
