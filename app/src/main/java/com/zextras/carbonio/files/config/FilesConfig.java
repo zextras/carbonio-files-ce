@@ -49,6 +49,7 @@ public class FilesConfig {
   private final ApplicationConfigService applicationConfig;
   private final NetworkingConfigService networkingConfig;
   private final ServiceDiscoverHttpClient serviceDiscoverHttpClient;
+  private volatile String pageTokenSecretKey;
 
   @Inject
   public FilesConfig(
@@ -110,16 +111,26 @@ public class FilesConfig {
 
   /**
    * The HMAC-SHA256 key used to sign/verify {@code findNodes} keyset page tokens, read LIVE from
-   * Consul on every call (never cached) via {@link ServiceDiscoverHttpClient}. Falls back to a
-   * well-known, public default when Consul has no value yet (or is unreachable) — the same
-   * intentional trade-off the legacy code made: a page token is not a capability grant on its own
-   * (an unsigned/default-keyed one only replays what its own fields already say), so a
-   * temporarily-shared-but-public key is preferable to refusing to serve requests.
+   * Consul via {@link ServiceDiscoverHttpClient} until a value is read, then kept for the life of
+   * the process (the fallback default is never kept). Falls back to a well-known, public default
+   * when Consul has no value yet (or is unreachable) — the same intentional trade-off the legacy
+   * code made: a page token is not a capability grant on its own (an unsigned/default-keyed one
+   * only replays what its own fields already say), so a temporarily-shared-but-public key is
+   * preferable to refusing to serve requests.
    */
   public String getPageTokenSecretKey() {
-    return serviceDiscoverHttpClient
-        .getConfig(ServiceDiscover.Config.PAGE_TOKEN_SECRET_KEY)
-        .orElse(ServiceDiscover.Config.DEFAULT_PAGE_TOKEN_SECRET_KEY);
+    String key = pageTokenSecretKey;
+    if (key == null) {
+      key =
+          serviceDiscoverHttpClient
+              .getConfig(ServiceDiscover.Config.PAGE_TOKEN_SECRET_KEY)
+              .orElse(null);
+      if (key == null) {
+        return ServiceDiscover.Config.DEFAULT_PAGE_TOKEN_SECRET_KEY;
+      }
+      pageTokenSecretKey = key;
+    }
+    return key;
   }
 
   /**
