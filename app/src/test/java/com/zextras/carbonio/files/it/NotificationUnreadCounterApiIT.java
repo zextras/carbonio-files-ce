@@ -143,7 +143,7 @@ class NotificationUnreadCounterApiIT extends AbstractFilesIT {
           CompletableFuture.supplyAsync(() -> moveNode(fileOne, folderTwo));
       CompletableFuture<Response> second =
           CompletableFuture.supplyAsync(() -> moveNode(fileTwo, folderOne));
-      awaitBlockedBackends(2);
+      awaitBlockedBy(2, backendPid(secondRow), backendPid(thirdRow));
       secondRow.commit();
       awaitBlockedBy(thirdRow);
       thirdRow.commit();

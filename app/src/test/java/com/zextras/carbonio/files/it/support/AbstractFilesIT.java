@@ -134,54 +134,48 @@ public abstract class AbstractFilesIT {
     return DriverManager.getConnection(FilesStackTestResource.POSTGRES_JDBC_URL, "test", "test");
   }
 
-  protected static void awaitBlockedBy(Connection lockHolder) throws Exception {
-    awaitBlockedBy(lockHolder, 1);
-  }
-
-  protected static void awaitBlockedBy(Connection lockHolder, int blockedCount) throws Exception {
-    int holderPid;
-    try (PreparedStatement statement = lockHolder.prepareStatement("SELECT pg_backend_pid()");
-        ResultSet pid = statement.executeQuery()) {
+  protected static int backendPid(Connection connection) throws SQLException {
+    try (Statement statement = connection.createStatement();
+        ResultSet pid = statement.executeQuery("SELECT pg_backend_pid()")) {
       pid.next();
-      holderPid = pid.getInt(1);
-    }
-    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-    try (Connection observer = jdbcConnection();
-        PreparedStatement blocked =
-            observer.prepareStatement(
-                "SELECT count(*) FROM pg_stat_activity WHERE ? = ANY(pg_blocking_pids(pid))")) {
-      blocked.setInt(1, holderPid);
-      while (true) {
-        try (ResultSet count = blocked.executeQuery()) {
-          count.next();
-          if (count.getInt(1) >= blockedCount) {
-            return;
-          }
-        }
-        if (System.nanoTime() > deadline) {
-          throw new AssertionError("No request waited for the lock holder");
-        }
-        Thread.sleep(50);
-      }
+      return pid.getInt(1);
     }
   }
 
-  protected static void awaitBlockedBackends(int blockedCount) throws Exception {
+  protected static List<Integer> awaitBlockedBy(Connection lockHolder) throws Exception {
+    return awaitBlockedBy(lockHolder, 1);
+  }
+
+  protected static List<Integer> awaitBlockedBy(Connection lockHolder, int blockedCount)
+      throws Exception {
+    return awaitBlockedBy(blockedCount, backendPid(lockHolder));
+  }
+
+  /**
+   * Polls until at least {@code blockedCount} backends are blocked by any of the given backend pids
+   * and returns the pids of those waiting backends.
+   */
+  protected static List<Integer> awaitBlockedBy(int blockedCount, Integer... holderPids)
+      throws Exception {
     long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
     try (Connection observer = jdbcConnection();
         PreparedStatement blocked =
             observer.prepareStatement(
-                "SELECT count(*) FROM pg_stat_activity WHERE cardinality(pg_blocking_pids(pid)) >"
-                    + " 0")) {
+                "SELECT pid FROM pg_stat_activity WHERE pg_blocking_pids(pid) && ?::int[]")) {
+      blocked.setArray(1, observer.createArrayOf("integer", holderPids));
       while (true) {
-        try (ResultSet count = blocked.executeQuery()) {
-          count.next();
-          if (count.getInt(1) >= blockedCount) {
-            return;
+        List<Integer> waiting = new ArrayList<>();
+        try (ResultSet pids = blocked.executeQuery()) {
+          while (pids.next()) {
+            waiting.add(pids.getInt(1));
           }
         }
+        if (waiting.size() >= blockedCount) {
+          return waiting;
+        }
         if (System.nanoTime() > deadline) {
-          throw new AssertionError("Fewer than " + blockedCount + " backends are waiting");
+          throw new AssertionError(
+              "Fewer than " + blockedCount + " backends waited for " + List.of(holderPids));
         }
         Thread.sleep(50);
       }

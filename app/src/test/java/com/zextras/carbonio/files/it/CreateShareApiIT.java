@@ -145,12 +145,7 @@ class CreateShareApiIT extends AbstractFilesIT {
   }
 
   private static List<String> blockedStatements(Connection lockHolder) throws Exception {
-    int holderPid;
-    try (PreparedStatement statement = lockHolder.prepareStatement("SELECT pg_backend_pid()");
-        ResultSet pid = statement.executeQuery()) {
-      pid.next();
-      holderPid = pid.getInt(1);
-    }
+    int holderPid = backendPid(lockHolder);
     try (Connection observer = jdbcConnection();
         PreparedStatement blocked =
             observer.prepareStatement(

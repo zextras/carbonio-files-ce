@@ -13,6 +13,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
@@ -126,7 +127,7 @@ class MoveNodesDeadlockApiIT extends AbstractFilesIT {
       // When
       CompletableFuture<Response> renameFuture =
           CompletableFuture.supplyAsync(() -> updateNode(fileX, "renamed"));
-      awaitBlockedBy(rowLock, 1);
+      List<Integer> renamePids = awaitBlockedBy(rowLock, 1);
       CompletableFuture<Response> moveFuture =
           CompletableFuture.supplyAsync(
               () ->
@@ -137,7 +138,7 @@ class MoveNodesDeadlockApiIT extends AbstractFilesIT {
                           .withWantedResultFormat("{ id }")
                           .build(),
                       REQUESTER_COOKIE));
-      awaitBlockedBackends(2);
+      awaitBlockedBy(2, backendPid(rowLock), renamePids.get(0));
       rowLock.commit();
       rename = renameFuture.get(60, TimeUnit.SECONDS);
       move = moveFuture.get(60, TimeUnit.SECONDS);
