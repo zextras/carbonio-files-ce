@@ -1319,9 +1319,7 @@ public class NodeApi {
 
   private Map<String, Optional<Node>> restoreDestinations(List<Node> nodes) {
     Map<String, Optional<Node>> destinations = new HashMap<>();
-    nodes.stream()
-        .filter(node -> nodeRepository.getTrashedNode(node.getId()).isPresent())
-        .forEach(node -> destinations.put(node.getId(), restoreDestination(node.getId())));
+    nodes.forEach(node -> destinations.put(node.getId(), restoreDestination(node.getId())));
     return destinations;
   }
 

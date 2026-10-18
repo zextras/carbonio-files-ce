@@ -346,5 +346,6 @@ class UserLookupCountApiIT extends AbstractFilesIT {
     ObjectNode variables = vars().put("node_id", firstChildId).put("shares_limit", 1);
     runWithAtMostCalls(GET_CHILD, variables, A_COOKIE, 2);
     runWithAtMostCalls(GET_CHILD, variables, A_COOKIE, 2);
+    Assertions.assertThat(batchUserLookups()).isBetween(1, 2);
   }
 }

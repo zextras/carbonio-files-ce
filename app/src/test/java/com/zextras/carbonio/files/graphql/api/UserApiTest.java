@@ -67,6 +67,7 @@ class UserApiTest {
     userApi.userCache = new RequestUserCache();
     userApi.producer = producer;
     userApi.validator = new GraphQLInputValidator();
+    requested();
   }
 
   private UserInfo makeUserInfo(String id, String email, String fullName) {

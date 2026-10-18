@@ -77,12 +77,8 @@ public class UserApi {
   }
 
   Set<String> requestedNodeUserIds() {
-    try {
-      return RequestedNodeUsers.of(
-          gqlContext.unwrap(DataFetchingEnvironment.class).getGraphQlContext());
-    } catch (RuntimeException e) {
-      return Set.of();
-    }
+    return RequestedNodeUsers.of(
+        gqlContext.unwrap(DataFetchingEnvironment.class).getGraphQlContext());
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})

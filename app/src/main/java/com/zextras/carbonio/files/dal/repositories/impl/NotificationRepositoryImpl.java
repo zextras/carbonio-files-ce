@@ -19,7 +19,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.notifications.utils.snapshot.Sna
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.RemovedNodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
-import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.enterprise.event.Observes;
@@ -27,6 +26,7 @@ import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -293,7 +293,9 @@ public class NotificationRepositoryImpl implements NotificationRepository {
           createNotificationsInfoIfMissing(userId);
           persistInterest(userId, notification);
         });
-    unreadNotifications.fire(new UnreadNotifications(sortedUserIds));
+    if (!sortedUserIds.isEmpty()) {
+      unreadNotifications.fire(new UnreadNotifications(sortedUserIds));
+    }
 
     return notification;
   }
@@ -310,8 +312,9 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         .executeUpdate();
   }
 
+  @Transactional(TxType.REQUIRES_NEW)
   void bumpUnread(@Observes(during = TransactionPhase.AFTER_SUCCESS) UnreadNotifications event) {
-    QuarkusTransaction.requiringNew().run(() -> event.userIds().forEach(this::incrementUnread));
+    event.userIds().forEach(this::incrementUnread);
   }
 
   private void incrementUnread(String userId) {
