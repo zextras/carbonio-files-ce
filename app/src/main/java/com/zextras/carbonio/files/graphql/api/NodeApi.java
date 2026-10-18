@@ -666,7 +666,7 @@ public class NodeApi {
     List<String> rootIds =
         nodeRepository.getRootsList().stream().map(Node::getId).collect(Collectors.toList());
 
-    List<String> nodeIdsToMove =
+    List<String> movableIds =
         nodeIds.stream()
             .filter(
                 nodeId ->
@@ -675,32 +675,8 @@ public class NodeApi {
                         .has(SharePermission.READ_AND_WRITE))
             .filter(nodeId -> !rootIds.contains(nodeId))
             .filter(nodeId -> !destinationId.equals(nodeId))
-            .collect(Collectors.toCollection(ArrayList::new));
-
-    Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
-    if (!nodeIdsToMove.isEmpty()) {
-      lockChildNames(
-          destinationKeys(
-              nodeRepository.getNodes(nodeIdsToMove, Optional.empty()).toList(), destinationId),
-          lockedNames);
-      List<String> idsToLock = new ArrayList<>(nodeIdsToMove);
-      if (!rootIds.contains(destinationId)) {
-        idsToLock.add(destinationId);
-      }
-      List<Node> lockedNodes = nodeRepository.getNodesForUpdate(idsToLock);
-      List<String> lockedIds = lockedNodes.stream().map(Node::getId).toList();
-      if (!rootIds.contains(destinationId) && !lockedIds.contains(destinationId)) {
-        throw FilesGraphQLErrors.nodeWriteError(destinationId);
-      }
-      nodeIdsToMove.retainAll(lockedIds);
-      List<String> destinationAncestors = destinationFolder.getAncestorsList();
-      nodeIdsToMove.removeIf(destinationAncestors::contains);
-      lockChildNames(
-          destinationKeys(
-              lockedNodes.stream().filter(node -> nodeIdsToMove.contains(node.getId())).toList(),
-              destinationId),
-          lockedNames);
-    }
+            .toList();
+    List<String> nodeIdsToMove = lockForMove(movableIds, destinationFolder, destinationId, rootIds);
 
     List<NodeModel> movedNodesResult = List.of();
     if (!nodeIdsToMove.isEmpty()) {
@@ -846,7 +822,7 @@ public class NodeApi {
                 node ->
                     !node.getNodeType()
                         .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
-            .collect(Collectors.toList());
+            .toList();
 
     Map<String, List<FileVersion>> fileVersionsByOwner = new HashMap<>();
     fileNodes.forEach(
@@ -1308,6 +1284,41 @@ public class NodeApi {
     return nodes.stream().map(node -> ImmutablePair.of(destinationId, node.getOwnerId())).toList();
   }
 
+  private List<String> lockForMove(
+      List<String> movableIds, Node destinationFolder, String destinationId, List<String> rootIds)
+      throws FilesGraphQLException {
+    if (movableIds.isEmpty()) {
+      return movableIds;
+    }
+    Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
+    lockChildNames(
+        destinationKeys(
+            nodeRepository.getNodes(movableIds, Optional.empty()).toList(), destinationId),
+        lockedNames);
+    boolean destinationIsRoot = rootIds.contains(destinationId);
+    List<String> idsToLock = new ArrayList<>(movableIds);
+    if (!destinationIsRoot) {
+      idsToLock.add(destinationId);
+    }
+    List<Node> lockedNodes = nodeRepository.getNodesForUpdate(idsToLock);
+    List<String> lockedIds = lockedNodes.stream().map(Node::getId).toList();
+    if (!destinationIsRoot && !lockedIds.contains(destinationId)) {
+      throw FilesGraphQLErrors.nodeWriteError(destinationId);
+    }
+    List<String> destinationAncestors = destinationFolder.getAncestorsList();
+    List<String> idsToMove =
+        movableIds.stream()
+            .filter(lockedIds::contains)
+            .filter(id -> !destinationAncestors.contains(id))
+            .toList();
+    lockChildNames(
+        destinationKeys(
+            lockedNodes.stream().filter(node -> idsToMove.contains(node.getId())).toList(),
+            destinationId),
+        lockedNames);
+    return idsToMove;
+  }
+
   private Map<String, Optional<Node>> lockForRestore(List<String> nodeIds) {
     Set<ImmutablePair<String, String>> locked = new HashSet<>();
     List<Node> preRead = nodeRepository.getNodes(nodeIds, Optional.empty()).toList();
@@ -1330,7 +1341,6 @@ public class NodeApi {
   private List<ImmutablePair<String, String>> restoreKeys(
       List<Node> nodes, Map<String, Optional<Node>> destinations) {
     return nodes.stream()
-        .filter(node -> destinations.containsKey(node.getId()))
         .map(
             node ->
                 ImmutablePair.of(
