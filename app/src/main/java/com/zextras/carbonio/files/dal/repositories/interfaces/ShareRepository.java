@@ -148,6 +148,6 @@ public interface ShareRepository {
    */
   List<String> getSharesUsersIds(String nodeId, List<ShareSort> sorts);
 
-  /** Flushes pending share changes to the database within the current transaction. */
+  /** Flushes the persistence context of the current transaction to the database. */
   void flush();
 }
