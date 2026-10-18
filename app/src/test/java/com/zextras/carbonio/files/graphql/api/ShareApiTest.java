@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -38,10 +39,8 @@ import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.quarkus.narayana.jta.QuarkusTransaction;
-import io.quarkus.narayana.jta.QuarkusTransactionException;
 import io.quarkus.narayana.jta.TransactionRunnerOptions;
 import jakarta.persistence.PersistenceException;
-import jakarta.transaction.RollbackException;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
@@ -242,13 +241,17 @@ class ShareApiTest {
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
     SQLException duplicateKey =
         new SQLException("duplicate key value violates unique constraint \"share_pkey\"", "23505");
-    RollbackException rollback = new RollbackException("commit failed");
-    rollback.initCause(new PersistenceException(duplicateKey));
+    Share share = mockShare(NODE_ID, TARGET_ID_1);
+    when(shareRepository.upsertShare(
+            eq(NODE_ID), eq(TARGET_ID_1), any(), eq(true), eq(false), any()))
+        .thenReturn(Optional.of(share));
+    doThrow(new PersistenceException(duplicateKey)).when(shareRepository).flush();
 
     try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
       TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
-      when(runOptions.call(any(Callable.class)))
-          .thenThrow(new QuarkusTransactionException(rollback));
+      doAnswer(inv -> ((Callable<?>) inv.getArgument(0)).call())
+          .when(runOptions)
+          .call(any(Callable.class));
       txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
 
       assertThatThrownBy(

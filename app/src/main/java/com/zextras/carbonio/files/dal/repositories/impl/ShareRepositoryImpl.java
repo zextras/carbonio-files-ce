@@ -113,6 +113,11 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
   }
 
   @Override
+  public void flush() {
+    getEntityManager().flush();
+  }
+
+  @Override
   @Transactional
   public Share updateShare(Share share) {
     return getEntityManager().merge(share);

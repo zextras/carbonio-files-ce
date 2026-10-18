@@ -147,4 +147,7 @@ public interface ShareRepository {
    * @return the {@link List<String>} of ids of users.
    */
   List<String> getSharesUsersIds(String nodeId, List<ShareSort> sorts);
+
+  /** Flushes pending share changes to the database within the current transaction. */
+  void flush();
 }

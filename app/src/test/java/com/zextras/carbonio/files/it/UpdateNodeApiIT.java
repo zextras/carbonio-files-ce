@@ -298,32 +298,4 @@ class UpdateNodeApiIT extends AbstractFilesIT {
       }
     }
   }
-
-  private static void awaitBlockedBy(Connection lockHolder) throws Exception {
-    int holderPid;
-    try (PreparedStatement statement = lockHolder.prepareStatement("SELECT pg_backend_pid()");
-        ResultSet pid = statement.executeQuery()) {
-      pid.next();
-      holderPid = pid.getInt(1);
-    }
-    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-    try (Connection observer = jdbcConnection();
-        PreparedStatement blocked =
-            observer.prepareStatement(
-                "SELECT count(*) FROM pg_stat_activity WHERE ? = ANY(pg_blocking_pids(pid))")) {
-      blocked.setInt(1, holderPid);
-      while (true) {
-        try (ResultSet count = blocked.executeQuery()) {
-          count.next();
-          if (count.getInt(1) > 0) {
-            return;
-          }
-        }
-        if (System.nanoTime() > deadline) {
-          throw new AssertionError("The rename never waited for the concurrent move");
-        }
-        Thread.sleep(50);
-      }
-    }
-  }
 }

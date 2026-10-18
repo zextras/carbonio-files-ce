@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -131,6 +132,38 @@ public abstract class AbstractFilesIT {
   /** Opens a raw JDBC connection to the shared Postgres Testcontainer (test/test credentials). */
   protected static Connection jdbcConnection() throws SQLException {
     return DriverManager.getConnection(FilesStackTestResource.POSTGRES_JDBC_URL, "test", "test");
+  }
+
+  protected static void awaitBlockedBy(Connection lockHolder) throws Exception {
+    awaitBlockedBy(lockHolder, 1);
+  }
+
+  protected static void awaitBlockedBy(Connection lockHolder, int blockedCount) throws Exception {
+    int holderPid;
+    try (PreparedStatement statement = lockHolder.prepareStatement("SELECT pg_backend_pid()");
+        ResultSet pid = statement.executeQuery()) {
+      pid.next();
+      holderPid = pid.getInt(1);
+    }
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+    try (Connection observer = jdbcConnection();
+        PreparedStatement blocked =
+            observer.prepareStatement(
+                "SELECT count(*) FROM pg_stat_activity WHERE ? = ANY(pg_blocking_pids(pid))")) {
+      blocked.setInt(1, holderPid);
+      while (true) {
+        try (ResultSet count = blocked.executeQuery()) {
+          count.next();
+          if (count.getInt(1) >= blockedCount) {
+            return;
+          }
+        }
+        if (System.nanoTime() > deadline) {
+          throw new AssertionError("No request waited for the lock holder");
+        }
+        Thread.sleep(50);
+      }
+    }
   }
 
   /**

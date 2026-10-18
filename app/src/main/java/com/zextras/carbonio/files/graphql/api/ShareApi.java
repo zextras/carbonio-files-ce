@@ -186,6 +186,7 @@ public class ShareApi {
                         s ->
                             shareCascade.cascadeUpsertShare(
                                 nodeId, shareTargetId, acl, optExpiresAt));
+                    shareRepository.flush();
                     return upserted;
                   });
     } catch (RuntimeException e) {
