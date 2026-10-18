@@ -105,11 +105,7 @@ public class NodeRepositoryImpl implements NodeRepository {
   @Override
   public Optional<Node> getNodeForUpdate(String nodeId) {
     // The caller MUST already have an active transaction; the pessimistic lock lives until it ends.
-    Optional<Node> node =
-        Optional.ofNullable(
-            entityManager.find(Node.class, normalizeId(nodeId), LockModeType.PESSIMISTIC_WRITE));
-    node.ifPresent(entityManager::refresh);
-    return node;
+    return getNodesForUpdate(List.of(nodeId)).stream().findFirst();
   }
 
   @Override
