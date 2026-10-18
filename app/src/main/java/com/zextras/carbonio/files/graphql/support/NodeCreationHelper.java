@@ -90,8 +90,9 @@ public class NodeCreationHelper {
    * against existing siblings, creates the folder, propagates inherited shares onto it, and fires
    * the added-node notification (gated on {@link FilesConfig#areNotificationsEnabled()}).
    *
-   * @throws NodeAccessException if the requester lacks READ_AND_WRITE on the parent
-   * @throws NodeNotFoundException if the parent does not exist, or is neither a FOLDER nor a ROOT
+   * @throws NodeAccessException if the requester lacks READ_AND_WRITE on the parent (checked first,
+   *     so a missing parent, which grants no permission, ends here too)
+   * @throws NodeNotFoundException if the parent is neither a FOLDER nor a ROOT
    */
   public Node createFolder(String requesterId, String parentId, String name, UserMyself requester) {
     if (!permissionsChecker

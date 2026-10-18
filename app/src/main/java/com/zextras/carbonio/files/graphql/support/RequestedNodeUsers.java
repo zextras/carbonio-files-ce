@@ -25,8 +25,7 @@ public class RequestedNodeUsers implements EventingService {
     return null;
   }
 
-  // Fired once per batch key before it is queued, so a dispatch's ids are known before its batch
-  // runs.
+  // Fired once per batch key before it is queued, so the ids are known before the batch runs.
   @Override
   public void beforeDataFetch(Context context) {
     DataFetchingEnvironment env = context.unwrap(DataFetchingEnvironment.class);
