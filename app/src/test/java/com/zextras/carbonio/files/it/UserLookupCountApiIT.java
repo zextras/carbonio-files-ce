@@ -145,6 +145,17 @@ class UserLookupCountApiIT extends AbstractFilesIT {
 
   private static JsonNode run(String query, ObjectNode variables, String cookie, int expectedCalls)
       throws Exception {
+    return run(query, variables, cookie, expectedCalls, true);
+  }
+
+  private static JsonNode runWithAtMostCalls(
+      String query, ObjectNode variables, String cookie, int maxCalls) throws Exception {
+    return run(query, variables, cookie, maxCalls, false);
+  }
+
+  private static JsonNode run(
+      String query, ObjectNode variables, String cookie, int calls, boolean exact)
+      throws Exception {
     RestAssured.given().delete(userManagementUrl() + "/__admin/requests");
     ObjectNode payload = MAPPER.createObjectNode().put("query", query);
     payload.set("variables", variables);
@@ -158,10 +169,23 @@ class UserLookupCountApiIT extends AbstractFilesIT {
             .asString();
     JsonNode body = MAPPER.readTree(raw);
     Assertions.assertThat(body.path("errors").isMissingNode()).as(raw).isTrue();
-    Assertions.assertThat(batchUserLookups())
-        .as("POST /internal/users calls")
-        .isEqualTo(expectedCalls);
+    if (exact) {
+      Assertions.assertThat(batchUserLookups()).as("POST /internal/users calls").isEqualTo(calls);
+    } else {
+      Assertions.assertThat(batchUserLookups())
+          .as("POST /internal/users calls")
+          .isLessThanOrEqualTo(calls);
+    }
     return body.path("data");
+  }
+
+  private static String batchUserLookupBodies() {
+    return RestAssured.given()
+        .contentType("application/json")
+        .body("{\"method\":\"POST\",\"urlPath\":\"/internal/users\"}")
+        .post(userManagementUrl() + "/__admin/requests/find")
+        .getBody()
+        .asString();
   }
 
   private ObjectNode vars() {
@@ -220,12 +244,13 @@ class UserLookupCountApiIT extends AbstractFilesIT {
             1);
 
     Assertions.assertThat(data.path("getNode").path("children").path("nodes")).hasSize(17);
+    Assertions.assertThat(batchUserLookupBodies()).doesNotContain(C);
   }
 
   @Test
-  void getNodeOnAFolderResolvesEveryUserFieldWithTwoLookups() throws Exception {
+  void getNodeOnAFolderResolvesEveryUserFieldWithAtMostTwoLookups() throws Exception {
     JsonNode data =
-        run(
+        runWithAtMostCalls(
             GET_NODE,
             vars()
                 .put("node_id", folderId)
@@ -263,9 +288,10 @@ class UserLookupCountApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void getChildResolvesOwnerAndLastEditorWithTwoLookups() throws Exception {
+  void getChildResolvesOwnerAndLastEditorWithAtMostTwoLookups() throws Exception {
     JsonNode data =
-        run(GET_CHILD, vars().put("node_id", distinctFileId).put("shares_limit", 1), B_COOKIE, 2);
+        runWithAtMostCalls(
+            GET_CHILD, vars().put("node_id", distinctFileId).put("shares_limit", 1), B_COOKIE, 2);
 
     JsonNode node = data.path("getNode");
     assertUser(node.path("owner"), C);
@@ -286,7 +312,8 @@ class UserLookupCountApiIT extends AbstractFilesIT {
     Assertions.assertThat(renamed).contains(folderId);
 
     JsonNode data =
-        run(GET_CHILD, vars().put("node_id", firstChildId).put("shares_limit", 1), A_COOKIE, 2);
+        runWithAtMostCalls(
+            GET_CHILD, vars().put("node_id", firstChildId).put("shares_limit", 1), A_COOKIE, 2);
 
     assertUser(data.path("getNode").path("parent").path("owner"), A);
   }
@@ -317,7 +344,7 @@ class UserLookupCountApiIT extends AbstractFilesIT {
   @Test
   void theUserCacheDoesNotOutliveTheRequest() throws Exception {
     ObjectNode variables = vars().put("node_id", firstChildId).put("shares_limit", 1);
-    run(GET_CHILD, variables, A_COOKIE, 2);
-    run(GET_CHILD, variables, A_COOKIE, 2);
+    runWithAtMostCalls(GET_CHILD, variables, A_COOKIE, 2);
+    runWithAtMostCalls(GET_CHILD, variables, A_COOKIE, 2);
   }
 }

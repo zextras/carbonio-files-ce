@@ -24,6 +24,7 @@ import io.smallrye.graphql.api.Context;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -54,18 +55,18 @@ public class UserApi {
 
   // ─── Batch @Source resolvers — Node.creator / owner / last_editor ─────────────
 
-  @Name("creator")
+  @Name(RequestedNodeUsers.CREATOR)
   @NonNull
   public List<UserModel> creators(@Source List<NodeModel> nodes) {
     return resolveNodeUsers(nodes, RequestedNodeUsers.CREATOR);
   }
 
-  @Name("owner")
+  @Name(RequestedNodeUsers.OWNER)
   public List<UserModel> owners(@Source List<NodeModel> nodes) {
     return resolveNodeUsers(nodes, RequestedNodeUsers.OWNER);
   }
 
-  @Name("last_editor")
+  @Name(RequestedNodeUsers.LAST_EDITOR)
   public List<UserModel> lastEditors(@Source List<NodeModel> nodes) {
     return resolveNodeUsers(nodes, RequestedNodeUsers.LAST_EDITOR);
   }
@@ -104,6 +105,7 @@ public class UserApi {
   private Map<String, UserInfo> fetchUsersById(List<String> ids) {
     Map<String, Optional<UserInfo>> cache = userCache.entries();
     List<String> distinctIds = ids.stream().filter(Objects::nonNull).distinct().toList();
+    Set<String> ownIds = new HashSet<>(distinctIds);
     List<String> uncachedIds =
         distinctIds.stream().anyMatch(id -> !cache.containsKey(id))
             ? Stream.concat(distinctIds.stream(), requestedNodeUserIds().stream())
@@ -114,7 +116,9 @@ public class UserApi {
     for (List<String> chunk : partition(uncachedIds, 100)) {
       List<UserInfo> found = userRepository.getUsers(chunk);
       found.forEach(u -> cache.put(u.getId().getUserId(), Optional.of(u)));
-      chunk.forEach(id -> cache.putIfAbsent(id, Optional.empty()));
+      chunk.stream()
+          .filter(ownIds::contains)
+          .forEach(id -> cache.putIfAbsent(id, Optional.empty()));
     }
     Map<String, UserInfo> byId = new HashMap<>();
     distinctIds.forEach(id -> cache.get(id).ifPresent(u -> byId.put(id, u)));

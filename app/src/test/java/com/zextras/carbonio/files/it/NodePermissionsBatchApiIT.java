@@ -75,6 +75,10 @@ class NodePermissionsBatchApiIT extends AbstractFilesIT {
     String subFolderFileId = seedFile("nested.txt", subFolderId, content("nested"), OWNER_COOKIE);
     seedShare(sharedFolderId, SHARE_TARGET_ID, ACL.SharePermission.READ_AND_WRITE, OWNER_COOKIE);
     seedShare(readOnlyFileId, SHARE_TARGET_ID, ACL.SharePermission.READ_ONLY, OWNER_COOKIE);
+    String privateFolderId = seedFolder("private-folder", LOCAL_ROOT, OWNER_COOKIE);
+    String directlySharedFileId =
+        seedFile("direct.txt", privateFolderId, content("direct"), OWNER_COOKIE);
+    seedShare(directlySharedFileId, SHARE_TARGET_ID, ACL.SharePermission.READ_ONLY, OWNER_COOKIE);
     String ownFolderId = seedFolder("own-folder", LOCAL_ROOT, SHARE_TARGET_COOKIE);
     String ownFileId = seedFile("own.txt", ownFolderId, content("own"), SHARE_TARGET_COOKIE);
 
@@ -97,7 +101,9 @@ class NodePermissionsBatchApiIT extends AbstractFilesIT {
             + PERMISSIONS
             + " ... on Folder { "
             + children
-            + " } } }";
+            + " } } direct: getNode(node_id: "
+            + quoted(directlySharedFileId)
+            + ") { id parent { id } } }";
 
     // When
     String body = graphql(query, SHARE_TARGET_COOKIE).getBody().asString();
@@ -119,5 +125,11 @@ class NodePermissionsBatchApiIT extends AbstractFilesIT {
     expected.forEach(
         (id, flags) -> Assertions.assertThat(seen.get(id)).as(id).isNotEmpty().containsOnly(flags));
     Assertions.assertThat(seen).containsOnlyKeys(expected.keySet());
+    for (JsonNode child : root.at("/data/shared/children/nodes")) {
+      Assertions.assertThat(child.at("/parent/id").asText()).isEqualTo(sharedFolderId);
+    }
+    Assertions.assertThat(root.at("/data/shared/children/nodes")).hasSize(3);
+    Assertions.assertThat(root.at("/data/direct/id").asText()).isEqualTo(directlySharedFileId);
+    Assertions.assertThat(root.at("/data/direct/parent").isNull()).isTrue();
   }
 }

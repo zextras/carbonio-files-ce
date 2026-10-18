@@ -236,7 +236,7 @@ class UserApiTest {
   }
 
   @Test
-  void resolversWithinOneRequestLookUpEachUserAtMostOnce() {
+  void aUserMissingFromTheBatchIsCachedAsNotFoundOnlyByItsOwnLookup() {
     requested("uid-A", "ghost");
     NodeModel node = makeNode("n1", "uid-A", "uid-A", "ghost");
     when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("uid-A")));
@@ -246,8 +246,9 @@ class UserApiTest {
     List<?> lastEditors = userApi.lastEditors(List.of(node));
     userApi.lastEditors(List.of(node));
 
-    verify(userRepository, times(1)).getUsers(anyList());
+    verify(userRepository, times(2)).getUsers(anyList());
     verify(userRepository).getUsers(List.of("uid-A", "ghost"));
+    verify(userRepository).getUsers(List.of("ghost"));
     assertThat(lastEditors.get(0)).isInstanceOf(FilesGraphQLException.class);
   }
 
@@ -320,6 +321,23 @@ class UserApiTest {
     verify(userRepository).getUsers(List.of("t1", "o1"));
     verify(userRepository, times(1)).getUsers(anyList());
     assertThat(owners).extracting(UserModel::getId).containsExactly("o1");
+  }
+
+  @Test
+  void aUserOnlyPrefetchedAndMissingFromTheBatchIsLookedUpAgainByItsOwnField() {
+    requested("o1", "e1");
+    NodeModel node = makeNode("n1", "c1", "o1", "e1");
+    when(userRepository.getUsers(anyList()))
+        .thenReturn(List.of(makeUserInfo("o1")))
+        .thenReturn(List.of(makeUserInfo("e1")));
+
+    List<UserModel> owners = userApi.owners(List.of(node));
+    List<UserModel> lastEditors = userApi.lastEditors(List.of(node));
+
+    verify(userRepository).getUsers(List.of("o1", "e1"));
+    verify(userRepository).getUsers(List.of("e1"));
+    assertThat(owners).extracting(UserModel::getId).containsExactly("o1");
+    assertThat(lastEditors).extracting(UserModel::getId).containsExactly("e1");
   }
 
   @Test
