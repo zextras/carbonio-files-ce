@@ -70,7 +70,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
-import java.util.Vector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -692,7 +691,7 @@ public class NodeApi {
     List<String> nodesInError =
         nodeIds.stream().filter(nodeId -> !nodeIdsToMove.contains(nodeId)).toList();
 
-    List<NodeModel> movedNodesResult = new ArrayList<>();
+    List<NodeModel> movedNodesResult = List.of();
     if (!nodeIdsToMove.isEmpty()) {
       List<Runnable> pendingNotifications = new ArrayList<>();
       Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
@@ -726,11 +725,10 @@ public class NodeApi {
             }
 
             if (!usersToNotifyRemove.isEmpty() && filesConfig.areNotificationsEnabled()) {
-              Node parentFinal = parent;
               pendingNotifications.add(
                   () ->
                       notificationRepository.createRemovedNodeNotification(
-                          node, parentFinal, requester, RemovedNodeType.MOVE, usersToNotifyRemove));
+                          node, parent, requester, RemovedNodeType.MOVE, usersToNotifyRemove));
             }
           });
 
@@ -781,11 +779,10 @@ public class NodeApi {
             }
 
             if (!usersToNotifyAdd.isEmpty() && filesConfig.areNotificationsEnabled()) {
-              Node nodeFinal = node;
               pendingNotifications.add(
                   () ->
                       notificationRepository.createAddedNodeNotification(
-                          nodeFinal,
+                          node,
                           destinationFolder,
                           requester,
                           AddedNodeType.MOVE,
@@ -793,11 +790,11 @@ public class NodeApi {
             }
           });
 
-      movedNodesResult.addAll(
+      movedNodesResult =
           nodeRepository
               .getNodes(nodeIdsToMove, Optional.empty())
               .map(node -> NodeModelFactory.from(node, null, me))
-              .collect(Collectors.toList()));
+              .collect(Collectors.toList());
 
       pendingNotifications.forEach(Runnable::run);
     }
@@ -1130,7 +1127,7 @@ public class NodeApi {
     }
 
     int maxNumberOfKeepVersions = getMaxNumberOfKeepVersions();
-    List<FileVersion> fileVersionsNotUpdated = new Vector<>();
+    List<FileVersion> fileVersionsNotUpdated = new ArrayList<>();
     List<FileVersion> allVersions =
         fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
     int keepForeverCounter = 0;
@@ -1291,7 +1288,8 @@ public class NodeApi {
     }
   }
 
-  // Name locks are always taken before row locks (see MoveNodesDeadlockApiIT).
+  // Name locks are taken before row locks (see MoveNodesDeadlockApiIT); the rare follow-up lock
+  // after a concurrent change is taken after them.
   private void lockChildNames(
       Collection<ImmutablePair<String, String>> folderOwnerKeys,
       Set<ImmutablePair<String, String>> locked) {
