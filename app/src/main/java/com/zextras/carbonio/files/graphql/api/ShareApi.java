@@ -27,14 +27,12 @@ import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.quarkus.security.Authenticated;
 import io.smallrye.graphql.api.Nullable;
 import jakarta.inject.Inject;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Id;
 import org.eclipse.microprofile.graphql.Mutation;
@@ -46,8 +44,6 @@ import org.eclipse.microprofile.graphql.Source;
 @GraphQLApi
 @Authenticated
 public class ShareApi {
-
-  private static final String UNIQUE_VIOLATION_SQL_STATE = "23505";
 
   @Inject NodeRepository nodeRepository;
   @Inject ShareRepository shareRepository;
@@ -180,7 +176,7 @@ public class ShareApi {
           s -> shareCascade.cascadeUpsertShare(nodeId, shareTargetId, acl, optExpiresAt));
       shareRepository.flush();
     } catch (RuntimeException e) {
-      if (isUniqueViolation(e)) {
+      if (ShareRepository.isUniqueViolation(e)) {
         throw FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId);
       }
       throw e;
@@ -196,14 +192,6 @@ public class ShareApi {
               return toModel(share);
             })
         .orElseThrow(() -> FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId));
-  }
-
-  private static boolean isUniqueViolation(Throwable e) {
-    return ExceptionUtils.getThrowableList(e).stream()
-        .anyMatch(
-            t ->
-                t instanceof SQLException sql
-                    && UNIQUE_VIOLATION_SQL_STATE.equals(sql.getSQLState()));
   }
 
   @Mutation("updateShares")

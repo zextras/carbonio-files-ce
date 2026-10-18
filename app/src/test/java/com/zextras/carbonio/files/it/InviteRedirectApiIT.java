@@ -12,7 +12,12 @@ import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -208,5 +213,50 @@ class InviteRedirectApiIT extends AbstractFilesIT {
     // Then — same generic 404 shape as a bad invitation id (both are NoSuchElementException)
     Assertions.assertThat(response.getStatusCode()).isEqualTo(404);
     Assertions.assertThat(response.getBody().asString()).isEqualTo("404 Not Found");
+  }
+
+  @Test
+  void givenAConcurrentClickByTheSameUserTheInviteShouldStillRedirect() throws Exception {
+    // Given
+    String nodeId =
+        seedFile("file.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    String invitationId = createCollaborationLink(nodeId, SharePermission.READ_AND_SHARE);
+
+    Response response;
+    try (Connection concurrent = jdbcConnection()) {
+      concurrent.setAutoCommit(false);
+      try (PreparedStatement insertShare =
+          concurrent.prepareStatement(
+              "INSERT INTO share (node_id, rights, timestamp, target_uuid, direct,"
+                  + " created_via_link) VALUES (?, ?, ?, ?, TRUE, TRUE)")) {
+        insertShare.setString(1, nodeId);
+        insertShare.setShort(2, SharePermission.READ_AND_SHARE.encode());
+        insertShare.setLong(3, System.currentTimeMillis());
+        insertShare.setString(4, INVITEE_ID);
+        insertShare.executeUpdate();
+      }
+
+      // When
+      CompletableFuture<Response> click =
+          CompletableFuture.supplyAsync(() -> clickInvite(invitationId, INVITEE_COOKIE));
+      awaitBlockedBy(concurrent);
+      concurrent.commit();
+      response = click.get(60, TimeUnit.SECONDS);
+    }
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(307);
+    Assertions.assertThat(response.getHeader("location")).isEqualTo(expectedLocation(nodeId));
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT count(*) FROM share WHERE node_id = ? AND target_uuid = ?")) {
+      statement.setString(1, nodeId);
+      statement.setString(2, INVITEE_ID);
+      try (ResultSet rows = statement.executeQuery()) {
+        rows.next();
+        Assertions.assertThat(rows.getInt(1)).isEqualTo(1);
+      }
+    }
   }
 }
