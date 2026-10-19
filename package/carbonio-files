@@ -8,10 +8,8 @@
 # required by the carbonio-quarkus-extensions bootstrap sd_notify (systemd Type=notify) which uses
 # the Java 21 Foreign Function & Memory API (preview). `exec` keeps java as the systemd MAINPID so
 # NotifyAccess=main accepts its readiness notification.
-# Caps the memory of the SmallRye GraphQL parsed-query cache (~128 MB worst case at 64 entries); only settable as a JVM property.
 exec /opt/zextras/common/bin/java \
   --enable-preview \
   --enable-native-access=ALL-UNNAMED \
   -Djava.net.preferIPv4Stack=true \
-  -Dio.smallrye.graphql.execution.queryCacheMaxSize=64 \
   -jar /usr/share/carbonio/carbonio-files-ce.jar
