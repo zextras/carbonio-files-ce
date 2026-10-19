@@ -6,17 +6,17 @@ package com.zextras.carbonio.files.rest.resources;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.tngtech.archunit.core.domain.JavaClass;
-import com.tngtech.archunit.core.domain.JavaMethod;
-import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.zextras.carbonio.files.TestUtils;
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.jboss.resteasy.reactive.server.Cancellable;
 import org.junit.jupiter.api.Test;
@@ -33,22 +33,17 @@ class NonCancellableTransfersTest {
   void everyUniEndpointIsNotCancellable() {
     List<String> uniEndpoints = new ArrayList<>();
     List<String> cancellable = new ArrayList<>();
-    for (JavaClass javaClass :
-        new ClassFileImporter().importPackages("com.zextras.carbonio.files")) {
-      if (!javaClass.isAnnotatedWith(Path.class)) {
-        continue;
-      }
-      for (JavaMethod method : javaClass.getMethods()) {
-        if (!method.getRawReturnType().isEquivalentTo(Uni.class)
+    for (Class<?> resource : TestUtils.annotatedClassesBeside(BlobResource.class, Path.class)) {
+      for (Method method : resource.getDeclaredMethods()) {
+        if (!method.getReturnType().equals(Uni.class)
             || Stream.of(GET.class, POST.class, PUT.class, DELETE.class)
-                .noneMatch(method::isAnnotatedWith)) {
+                .noneMatch(method::isAnnotationPresent)) {
           continue;
         }
-        String endpoint = javaClass.getSimpleName() + "#" + method.getName();
+        String endpoint = resource.getSimpleName() + "#" + method.getName();
         uniEndpoints.add(endpoint);
-        if (method
-            .tryGetAnnotationOfType(Cancellable.class)
-            .or(() -> javaClass.tryGetAnnotationOfType(Cancellable.class))
+        if (Optional.ofNullable(method.getAnnotation(Cancellable.class))
+            .or(() -> Optional.ofNullable(resource.getAnnotation(Cancellable.class)))
             .map(Cancellable::value)
             .orElse(true)) {
           cancellable.add(endpoint);

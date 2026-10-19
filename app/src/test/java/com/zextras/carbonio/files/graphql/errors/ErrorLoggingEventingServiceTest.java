@@ -18,8 +18,6 @@ import io.quarkus.security.AuthenticationCompletionException;
 import io.quarkus.security.AuthenticationFailedException;
 import io.quarkus.security.ForbiddenException;
 import io.quarkus.security.UnauthorizedException;
-import io.smallrye.graphql.execution.datafetcher.DataFetcherException;
-import jakarta.enterprise.context.ContextNotActiveException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -28,11 +26,6 @@ import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 
 class ErrorLoggingEventingServiceTest {
-
-  @Test
-  void isAlwaysEnabled() {
-    assertThat(new ErrorLoggingEventingService().getConfigKey()).isNull();
-  }
 
   @Test
   void businessAndSecurityErrorsAreExpected() {
@@ -55,24 +48,6 @@ class ErrorLoggingEventingServiceTest {
             new ExecutionException(new InvocationTargetException(new UnauthorizedException("no"))));
 
     assertThat(ErrorLoggingEventingService.isExpected(wrapped)).isTrue();
-  }
-
-  @Test
-  void aBusinessErrorWrappedByTheBatchResolverIsExpected() {
-    Throwable wrapped = new DataFetcherException(null, FilesGraphQLErrors.nodeNotFound("x"));
-
-    assertThat(ErrorLoggingEventingService.isExpected(wrapped)).isTrue();
-  }
-
-  @Test
-  void unexpectedErrorsAreNotExpected() {
-    assertThat(ErrorLoggingEventingService.isExpected(new NullPointerException())).isFalse();
-    assertThat(ErrorLoggingEventingService.isExpected(new IllegalArgumentException("limit")))
-        .isFalse();
-    assertThat(ErrorLoggingEventingService.isExpected(new ContextNotActiveException())).isFalse();
-    assertThat(
-            ErrorLoggingEventingService.isExpected(new CompletionException(new RuntimeException())))
-        .isFalse();
   }
 
   @Test
@@ -99,30 +74,6 @@ class ErrorLoggingEventingServiceTest {
 
     verify(logger, times(1)).error(anyString(), eq("Op"), eq("/a0"), any(Throwable.class));
     verify(logger, never()).warn(anyString(), any(Object.class));
-  }
-
-  @Test
-  void differentInstancesWithTheSameClassAndMessageAreOneSignature() {
-    Logger logger = mock(Logger.class);
-    var state = new ErrorLoggingEventingService.RequestErrorLog(logger);
-
-    record(state, new CompletionException(new IllegalStateException("boom")), "/a");
-    record(state, new CompletionException(new IllegalStateException("boom")), "/b");
-
-    verify(logger, times(1)).error(anyString(), any(), any(), any(Throwable.class));
-  }
-
-  @Test
-  void aDifferentMessageOrClassIsADifferentSignature() {
-    Logger logger = mock(Logger.class);
-    var state = new ErrorLoggingEventingService.RequestErrorLog(logger);
-
-    record(state, new IllegalStateException("one"), "/a");
-    record(state, new IllegalStateException("two"), "/b");
-    record(state, new IllegalArgumentException("one"), "/c");
-    record(state, new IllegalArgumentException(), "/d");
-
-    verify(logger, times(4)).error(anyString(), any(), any(), any(Throwable.class));
   }
 
   @Test

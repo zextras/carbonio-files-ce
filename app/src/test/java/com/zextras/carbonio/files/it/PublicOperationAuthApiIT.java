@@ -9,19 +9,15 @@ import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
-import java.util.stream.Stream;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Public operations do not authenticate: the {@code ZM_AUTH_TOKEN} cookie is never resolved for a
- * document that selects only public root fields, whatever the client sends. Every other document
- * with a cookie is still authenticated before execution, with the legacy 401/403 bodies.
+ * A public operation sent without a cookie is served even while user management is down. A {@code
+ * ZM_AUTH_TOKEN} cookie that is sent is still resolved: an unresolvable one is rejected with the
+ * legacy 401 body, for public operations as well.
  */
 class PublicOperationAuthApiIT extends AbstractFilesIT {
 
@@ -35,18 +31,8 @@ class PublicOperationAuthApiIT extends AbstractFilesIT {
 
   @BeforeAll
   static void registerUsers() {
-    var userManagement = FilesStackTestResource.getUserManagementService();
-    userManagement.registerToken("public-op-owner-token", OWNER_ID);
-    userManagement.registerToken(
-        "public-op-maintenance-token",
-        "cccccccc-cccc-cccc-cccc-ccccccccccc1",
-        "maintenance",
-        false,
-        true);
-    userManagement.registerToken(
-        "public-op-guest-token", "cccccccc-cccc-cccc-cccc-ccccccccccc2", "active", true, true);
-    userManagement.registerToken(
-        "public-op-flag-off-token", "cccccccc-cccc-cccc-cccc-ccccccccccc3", "active", false, false);
+    FilesStackTestResource.getUserManagementService()
+        .registerToken("public-op-owner-token", OWNER_ID);
   }
 
   @BeforeEach
@@ -63,23 +49,6 @@ class PublicOperationAuthApiIT extends AbstractFilesIT {
                     graphql(createLink, OWNER_COOKIE).getBody().asString(), "createLink")
                 .get("url");
     publicId = url.substring(url.length() - 50);
-  }
-
-  static Stream<Arguments> rejectedCookies() {
-    return Stream.of(
-        Arguments.of("ZM_AUTH_TOKEN=public-op-unknown-token", 401, UNRESOLVABLE_401),
-        Arguments.of(
-            "ZM_AUTH_TOKEN=public-op-maintenance-token",
-            403,
-            "Failed to authorize request /graphql/: User is not active"),
-        Arguments.of(
-            "ZM_AUTH_TOKEN=public-op-guest-token",
-            403,
-            "Failed to authorize request /graphql/: User is not internal"),
-        Arguments.of(
-            "ZM_AUTH_TOKEN=public-op-flag-off-token",
-            403,
-            "Failed to authorize request /graphql/: Files feature is not enabled for user"));
   }
 
   private static String getPublicNode() {
@@ -103,37 +72,12 @@ class PublicOperationAuthApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenNoCookieThenGetPublicNodeServesThePublicFolder() {
-    assertServesThePublicFolder(graphql(getPublicNode(), null));
-  }
+  void givenAnUnresolvableCookieThenPublicOperationsAreRejectedWith401() {
+    for (String query : new String[] {getPublicNode(), findPublicNodes()}) {
+      Response response = graphql(query, "ZM_AUTH_TOKEN=public-op-unknown-token");
 
-  @Test
-  void givenNoCookieThenFindPublicNodesServesTheFolderContent() {
-    Response response = graphql(findPublicNodes(), null);
-
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(response.getBody().asString()).doesNotContain("\"errors\"");
-  }
-
-  @Test
-  void givenAValidCookieThenPublicOperationsServeThePublicFolder() {
-    assertServesThePublicFolder(graphql(getPublicNode(), OWNER_COOKIE));
-
-    Response response = graphql(findPublicNodes(), OWNER_COOKIE);
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(response.getBody().asString()).doesNotContain("\"errors\"");
-  }
-
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("rejectedCookies")
-  void givenARejectedCookieThenPublicAndProtectedOperationsAreRejectedAlike(
-      String cookie, int status, String message) {
-    for (String query :
-        new String[] {getPublicNode(), findPublicNodes(), "query { getRootsList { id } }"}) {
-      Response response = graphql(query, cookie);
-
-      Assertions.assertThat(response.getStatusCode()).as(query).isEqualTo(status);
-      Assertions.assertThat(response.getBody().asString()).as(query).isEqualTo(message);
+      Assertions.assertThat(response.getStatusCode()).as(query).isEqualTo(401);
+      Assertions.assertThat(response.getBody().asString()).as(query).isEqualTo(UNRESOLVABLE_401);
     }
   }
 

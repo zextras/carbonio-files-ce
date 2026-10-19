@@ -47,9 +47,15 @@ public class ServiceDiscoverHttpClient {
 
   private final String kvBaseUrl;
   private final HttpClient httpClient;
+  private final Duration requestTimeout;
 
   @Inject
   public ServiceDiscoverHttpClient(NetworkingConfigService networkingConfig) {
+    this(networkingConfig, CONNECT_TIMEOUT, REQUEST_TIMEOUT);
+  }
+
+  ServiceDiscoverHttpClient(
+      NetworkingConfigService networkingConfig, Duration connectTimeout, Duration requestTimeout) {
     String host =
         networkingConfig
             .get(Constants.ServiceDiscover.HOST_PROPERTY)
@@ -65,8 +71,9 @@ public class ServiceDiscoverHttpClient {
     this.httpClient =
         HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
-            .connectTimeout(CONNECT_TIMEOUT)
+            .connectTimeout(connectTimeout)
             .build();
+    this.requestTimeout = requestTimeout;
   }
 
   /**
@@ -81,7 +88,7 @@ public class ServiceDiscoverHttpClient {
           HttpRequest.newBuilder()
               .uri(URI.create(kvBaseUrl + key))
               .header("X-Consul-Token", consulToken())
-              .timeout(REQUEST_TIMEOUT)
+              .timeout(requestTimeout)
               .GET()
               .build();
       HttpResponse<String> response =
@@ -123,7 +130,7 @@ public class ServiceDiscoverHttpClient {
           HttpRequest.newBuilder()
               .uri(URI.create(kvBaseUrl + key + "?cas=0"))
               .header("X-Consul-Token", consulToken())
-              .timeout(REQUEST_TIMEOUT)
+              .timeout(requestTimeout)
               .PUT(HttpRequest.BodyPublishers.ofString(value, StandardCharsets.UTF_8))
               .build();
       HttpResponse<String> response =

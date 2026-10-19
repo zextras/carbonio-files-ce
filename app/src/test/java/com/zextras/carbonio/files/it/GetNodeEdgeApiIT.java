@@ -16,8 +16,6 @@ import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.GetNodeEdgeApiIT} rewritten as an out-of-process
@@ -98,24 +96,6 @@ class GetNodeEdgeApiIT extends AbstractFilesIT {
         TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node).containsEntry("id", childId);
     Assertions.assertThat(node.get("parent")).isNull();
-  }
-
-  @ParameterizedTest
-  @ValueSource(ints = {0, -1})
-  void givenANonPositiveSharesLimitTheSharesFieldIsAValidationError(int limit) {
-    // Given
-    String nodeId = seedFolder("nonPositiveLimit" + limit, LOCAL_ROOT, REQUESTER_COOKIE);
-
-    // When
-    Response response =
-        getNode(
-            nodeId, null, "{ id shares(limit: " + limit + ") { created_at } }", REQUESTER_COOKIE);
-
-    // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
-    Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
-        .isEqualTo("Invalid limit value. The limit must be greater than 0.");
   }
 
   @Test

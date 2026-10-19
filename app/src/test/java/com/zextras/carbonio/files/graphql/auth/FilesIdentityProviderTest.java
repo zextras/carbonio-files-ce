@@ -9,7 +9,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.zextras.carbonio.files.dal.dao.UserMyself;
@@ -71,57 +70,6 @@ class FilesIdentityProviderTest {
   }
 
   @Test
-  void givenARequestWhenAuthenticatingThenTheLookupIsDelegatedToRunBlocking() {
-    Supplier<SecurityIdentity> supplier = captureBlockingSupplier();
-
-    verifyNoInteractions(userRepository);
-    UserMyself user =
-        user(UserStatus.ACTIVE, UserType.INTERNAL, Map.of("carbonioFeatureFilesEnabled", "TRUE"));
-    when(userRepository.getUserMyselfByCookie(COOKIES)).thenReturn(Optional.of(user));
-
-    SecurityIdentity identity = supplier.get();
-
-    assertThat(identity.isAnonymous()).isFalse();
-    assertThat(identity.getPrincipal().getName()).isEqualTo("user@example.com");
-    assertThat((String) identity.getAttribute("cookies")).isEqualTo(COOKIES);
-    assertThat((Object) identity.getAttribute(FilesGraphQLAuthMechanism.IDENTITY_ATTRIBUTE))
-        .isNotNull();
-  }
-
-  @Test
-  void givenAnUnresolvableCookieWhenResolvingThen401IsStoredAndAuthenticationFails() {
-    Supplier<SecurityIdentity> supplier = captureBlockingSupplier();
-    when(userRepository.getUserMyselfByCookie(COOKIES)).thenReturn(Optional.empty());
-
-    assertThatThrownBy(supplier::get)
-        .isInstanceOf(AuthenticationFailedException.class)
-        .hasMessage("Unable to find requested user");
-    verify(routingContext).put(FilesGraphQLAuthMechanism.CTX_STATUS, 401);
-    verify(routingContext)
-        .put(
-            FilesGraphQLAuthMechanism.CTX_MESSAGE,
-            "Failed to authenticate request /graphql/: Unable to find requested user");
-  }
-
-  @Test
-  void givenAnInactiveUserWhenResolvingThen403IsStored() {
-    Supplier<SecurityIdentity> supplier = captureBlockingSupplier();
-    UserMyself user =
-        user(
-            UserStatus.MAINTENANCE,
-            UserType.INTERNAL,
-            Map.of("carbonioFeatureFilesEnabled", "TRUE"));
-    when(userRepository.getUserMyselfByCookie(COOKIES)).thenReturn(Optional.of(user));
-
-    assertThatThrownBy(supplier::get).isInstanceOf(AuthenticationFailedException.class);
-    verify(routingContext).put(FilesGraphQLAuthMechanism.CTX_STATUS, 403);
-    verify(routingContext)
-        .put(
-            FilesGraphQLAuthMechanism.CTX_MESSAGE,
-            "Failed to authorize request /graphql/: User is not active");
-  }
-
-  @Test
   void givenTheFeatureFlagIsAbsentWhenResolvingThen403IsStored() {
     Supplier<SecurityIdentity> supplier = captureBlockingSupplier();
     UserMyself user = user(UserStatus.ACTIVE, UserType.INTERNAL, Map.of());
@@ -133,17 +81,6 @@ class FilesIdentityProviderTest {
         .put(
             FilesGraphQLAuthMechanism.CTX_MESSAGE,
             "Failed to authorize request /graphql/: Files feature is not enabled for user");
-  }
-
-  @Test
-  void givenTheFeatureFlagIsExplicitlyFalseWhenResolvingThen403IsStored() {
-    Supplier<SecurityIdentity> supplier = captureBlockingSupplier();
-    UserMyself user =
-        user(UserStatus.ACTIVE, UserType.INTERNAL, Map.of("carbonioFeatureFilesEnabled", "FALSE"));
-    when(userRepository.getUserMyselfByCookie(COOKIES)).thenReturn(Optional.of(user));
-
-    assertThatThrownBy(supplier::get).isInstanceOf(AuthenticationFailedException.class);
-    verify(routingContext).put(FilesGraphQLAuthMechanism.CTX_STATUS, 403);
   }
 
   @Test

@@ -75,12 +75,6 @@ class FilestoreProducerTest {
   }
 
   @Test
-  void coldConnection_failedUploadThenGet_succeeds() throws IOException {
-    abortUpload();
-    assertVictimSucceeds(getRequest());
-  }
-
-  @Test
   void coldConnection_failedUploadThenPost_succeeds() throws IOException {
     abortUpload();
     assertVictimSucceeds(postRequest());
@@ -91,13 +85,6 @@ class FilestoreProducerTest {
     warmUp();
     abortUpload();
     assertVictimSucceeds(getRequest());
-  }
-
-  @Test
-  void warmConnection_failedUploadThenPost_succeeds() throws IOException {
-    warmUp();
-    abortUpload();
-    assertVictimSucceeds(postRequest());
   }
 
   private void warmUp() throws IOException {

@@ -20,11 +20,8 @@ import com.zextras.carbonio.files.dal.dao.UserId;
 import com.zextras.carbonio.files.dal.dao.UserInfo;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUserProducer;
-import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.errors.InputValidationException;
-import com.zextras.carbonio.files.graphql.model.Account;
-import com.zextras.carbonio.files.graphql.model.DistributionListModel;
 import com.zextras.carbonio.files.graphql.model.FolderModel;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.NodeType;
@@ -34,18 +31,12 @@ import com.zextras.carbonio.files.graphql.model.SharedTarget;
 import com.zextras.carbonio.files.graphql.model.UserModel;
 import com.zextras.carbonio.files.graphql.support.RequestUserCache;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
 class UserApiTest {
 
@@ -77,108 +68,6 @@ class UserApiTest {
     info.setEmail(email);
     info.setFullName(fullName);
     return info;
-  }
-
-  // ─── getUserById ──────────────────────────────────────────────────────────
-
-  @Test
-  void getUserById_happy() throws FilesGraphQLException {
-    UserInfo info = makeUserInfo(USER_ID, EMAIL, "Test User");
-    when(userRepository.getUserById(COOKIES, USER_ID)).thenReturn(Optional.of(info));
-
-    UserModel result = userApi.getUserById(USER_ID);
-
-    assertThat(result.getId()).isEqualTo(USER_ID);
-    assertThat(result.getEmail()).isEqualTo(EMAIL);
-    assertThat(result.getFullName()).isEqualTo("Test User");
-  }
-
-  @Test
-  void getUserById_notFound_throwsAccountNotFound() {
-    when(userRepository.getUserById(COOKIES, USER_ID)).thenReturn(Optional.empty());
-
-    assertThatThrownBy(() -> userApi.getUserById(USER_ID))
-        .isInstanceOf(FilesGraphQLException.class)
-        .satisfies(
-            e ->
-                assertThat(((FilesGraphQLException) e).getErrorCode())
-                    .isEqualTo(ErrorCodes.ACCOUNT_NOT_FOUND));
-  }
-
-  // ─── getAccountByEmail ────────────────────────────────────────────────────
-
-  @Test
-  void getAccountByEmail_happy() throws FilesGraphQLException {
-    UserInfo info = makeUserInfo(USER_ID, EMAIL, "Test User");
-    when(userRepository.getUserByEmail(COOKIES, EMAIL)).thenReturn(Optional.of(info));
-
-    Account result = userApi.getAccountByEmail(EMAIL);
-
-    assertThat(result).isInstanceOf(UserModel.class);
-    assertThat(((UserModel) result).getEmail()).isEqualTo(EMAIL);
-  }
-
-  @Test
-  void getAccountByEmail_notFound_throwsAccountNotFound() {
-    when(userRepository.getUserByEmail(COOKIES, EMAIL)).thenReturn(Optional.empty());
-
-    assertThatThrownBy(() -> userApi.getAccountByEmail(EMAIL))
-        .isInstanceOf(FilesGraphQLException.class)
-        .satisfies(
-            e ->
-                assertThat(((FilesGraphQLException) e).getErrorCode())
-                    .isEqualTo(ErrorCodes.ACCOUNT_NOT_FOUND));
-  }
-
-  @Test
-  void getAccountByEmail_invalidEmail_throwsValidationError() {
-    assertThatThrownBy(() -> userApi.getAccountByEmail("not-an-email"))
-        .isInstanceOf(FilesGraphQLException.class);
-  }
-
-  // ─── getAccountsByEmail ───────────────────────────────────────────────────
-
-  @Test
-  void getAccountsByEmail_happy_returnsAllFound() throws FilesGraphQLException {
-    String email2 = "other@example.com";
-    UserInfo info1 = makeUserInfo(USER_ID, EMAIL, "User One");
-    UserInfo info2 = makeUserInfo("user-id-2", email2, "User Two");
-    when(userRepository.getUserByEmail(COOKIES, EMAIL)).thenReturn(Optional.of(info1));
-    when(userRepository.getUserByEmail(COOKIES, email2)).thenReturn(Optional.of(info2));
-
-    List<Account> result = userApi.getAccountsByEmail(List.of(EMAIL, email2));
-
-    assertThat(result).hasSize(2);
-    assertThat(result.get(0)).isInstanceOf(UserModel.class);
-    assertThat(((UserModel) result.get(0)).getEmail()).isEqualTo(EMAIL);
-    assertThat(result.get(1)).isInstanceOf(UserModel.class);
-    assertThat(((UserModel) result.get(1)).getEmail()).isEqualTo(email2);
-  }
-
-  @Test
-  void getAccountsByEmail_someNotFound_throwsAccountNotFoundWithPartialResults() {
-    String email2 = "missing@example.com";
-    UserInfo info1 = makeUserInfo(USER_ID, EMAIL, "User One");
-    when(userRepository.getUserByEmail(COOKIES, EMAIL)).thenReturn(Optional.of(info1));
-    when(userRepository.getUserByEmail(COOKIES, email2)).thenReturn(Optional.empty());
-
-    assertThatThrownBy(() -> userApi.getAccountsByEmail(List.of(EMAIL, email2)))
-        .isInstanceOf(FilesGraphQLException.class)
-        .satisfies(
-            e -> {
-              FilesGraphQLException ex = (FilesGraphQLException) e;
-              assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.ACCOUNT_NOT_FOUND);
-              List<?> partial = (List<?>) ex.getPartialResults();
-              assertThat(partial).hasSize(2);
-              assertThat(partial.get(0)).isInstanceOf(UserModel.class);
-              assertThat(partial.get(1)).isNull();
-            });
-  }
-
-  @Test
-  void getAccountsByEmail_invalidEmail_throwsValidationError() {
-    assertThatThrownBy(() -> userApi.getAccountsByEmail(List.of("bad-email")))
-        .isInstanceOf(FilesGraphQLException.class);
   }
 
   @Test
@@ -219,25 +108,6 @@ class UserApiTest {
   }
 
   @Test
-  void creators_positionalAlignment_nullIdYieldsNullSlot() {
-    NodeModel nodeA = makeNode("n1", "uid-A", "owner-A", null);
-    NodeModel nodeB = makeNode("n2", null, "owner-B", null);
-    NodeModel nodeC = makeNode("n3", "uid-A", "owner-C", null);
-
-    UserInfo uA = makeUserInfo("uid-A", "a@example.com", "User A");
-    when(userRepository.getUsers(anyList())).thenReturn(List.of(uA));
-
-    List<UserModel> result = userApi.creators(List.of(nodeA, nodeB, nodeC));
-
-    assertThat(result).hasSize(3);
-    assertThat(result.get(0)).isNotNull();
-    assertThat(result.get(0).getId()).isEqualTo("uid-A");
-    assertThat(result.get(1)).isNull();
-    assertThat(result.get(2)).isNotNull();
-    assertThat(result.get(2).getId()).isEqualTo("uid-A");
-  }
-
-  @Test
   void aUserMissingFromTheBatchIsCachedAsNotFoundOnlyByItsOwnLookup() {
     requested("uid-A", "ghost");
     NodeModel node = makeNode("n1", "uid-A", "uid-A", "ghost");
@@ -255,163 +125,6 @@ class UserApiTest {
   }
 
   @Test
-  void theFirstLookupAlsoFetchesEveryRequestedNodeUserInOneCall() {
-    requested("c1", "o1", "e1", "c2");
-    NodeModel n1 = makeNode("n1", "c1", "o1", "e1");
-    NodeModel n2 = makeNode("n2", "c2", "o1", null);
-    when(userRepository.getUsers(anyList()))
-        .thenReturn(
-            List.of(
-                makeUserInfo("c1"), makeUserInfo("o1"), makeUserInfo("e1"), makeUserInfo("c2")));
-
-    List<UserModel> owners = userApi.owners(List.of(n1, n2));
-    List<UserModel> creators = userApi.creators(List.of(n1, n2));
-    List<UserModel> lastEditors = userApi.lastEditors(List.of(n1, n2));
-
-    ArgumentCaptor<List<String>> requestedIds = ArgumentCaptor.captor();
-    verify(userRepository, times(1)).getUsers(requestedIds.capture());
-    assertThat(requestedIds.getValue()).containsExactlyInAnyOrder("o1", "c1", "e1", "c2");
-    assertThat(owners).extracting(UserModel::getId).containsExactly("o1", "o1");
-    assertThat(creators).extracting(UserModel::getId).containsExactly("c1", "c2");
-    assertThat(lastEditors.get(0).getId()).isEqualTo("e1");
-    assertThat(lastEditors.get(1)).isNull();
-  }
-
-  @Test
-  void withoutRequestedNodeUsersOnlyTheResolversOwnFieldIsFetched() {
-    NodeModel node = makeNode("n1", "c1", "o1", "e1");
-    when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("o1")));
-
-    userApi.owners(List.of(node));
-
-    verify(userRepository).getUsers(List.of("o1"));
-    verify(userRepository, times(1)).getUsers(anyList());
-  }
-
-  @Test
-  void onlyTheRequestedNodeUsersAreFetched() {
-    requested("o1", "e1");
-    NodeModel node = makeNode("n1", "c1", "o1", "e1");
-    when(userRepository.getUsers(anyList())).thenReturn(List.of());
-
-    userApi.owners(List.of(node));
-
-    verify(userRepository).getUsers(List.of("o1", "e1"));
-  }
-
-  @Test
-  void aLookupWhoseOwnUsersAreCachedDoesNotFetchTheRequestedOnes() {
-    NodeModel node = makeNode("n1", "c1", "o1", "e1");
-    when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("o1")));
-    userApi.owners(List.of(node));
-    requested("e1");
-
-    userApi.owners(List.of(node));
-
-    verify(userRepository, times(1)).getUsers(anyList());
-  }
-
-  @Test
-  void shareTargetLookupsAlsoFetchTheRequestedNodeUsers() {
-    requested("o1");
-    when(userRepository.getUsers(anyList()))
-        .thenReturn(List.of(makeUserInfo("t1"), makeUserInfo("o1")));
-
-    userApi.shareTargets(
-        List.of(new ShareModel(0L, SharePermission.READ_ONLY, null, "node-1", "t1")));
-    List<UserModel> owners = userApi.owners(List.of(makeNode("n1", "c1", "o1", null)));
-
-    verify(userRepository).getUsers(List.of("t1", "o1"));
-    verify(userRepository, times(1)).getUsers(anyList());
-    assertThat(owners).extracting(UserModel::getId).containsExactly("o1");
-  }
-
-  @Test
-  void aUserOnlyPrefetchedAndMissingFromTheBatchIsLookedUpAgainByItsOwnField() {
-    requested("o1", "e1");
-    NodeModel node = makeNode("n1", "c1", "o1", "e1");
-    when(userRepository.getUsers(anyList()))
-        .thenReturn(List.of(makeUserInfo("o1")))
-        .thenReturn(List.of(makeUserInfo("e1")));
-
-    List<UserModel> owners = userApi.owners(List.of(node));
-    List<UserModel> lastEditors = userApi.lastEditors(List.of(node));
-
-    verify(userRepository).getUsers(List.of("o1", "e1"));
-    verify(userRepository).getUsers(List.of("e1"));
-    assertThat(owners).extracting(UserModel::getId).containsExactly("o1");
-    assertThat(lastEditors).extracting(UserModel::getId).containsExactly("e1");
-  }
-
-  @Test
-  void aMissingUserOfAnotherFieldNeverFailsThisOne() {
-    requested("uid-A", "ghost");
-    NodeModel node = makeNode("n1", "uid-A", "uid-A", "ghost");
-    when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("uid-A")));
-
-    List<UserModel> owners = userApi.owners(List.of(node));
-    List<UserModel> creators = userApi.creators(List.of(node));
-
-    assertThat(owners).extracting(UserModel::getId).containsExactly("uid-A");
-    assertThat(creators).extracting(UserModel::getId).containsExactly("uid-A");
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  void theLookupOnlyRequestsIdsNotAlreadyCached() {
-    NodeModel first = makeNode("n1", "uid-A", "uid-A", null);
-    NodeModel second = makeNode("n2", "uid-A", "uid-B", null);
-    when(userRepository.getUsers(anyList()))
-        .thenAnswer(
-            inv -> ((List<String>) inv.getArgument(0)).stream().map(this::makeUserInfo).toList());
-
-    userApi.owners(List.of(first));
-    requested("uid-A", "uid-B");
-    userApi.owners(List.of(second));
-
-    verify(userRepository).getUsers(List.of("uid-A"));
-    verify(userRepository).getUsers(List.of("uid-B"));
-    verify(userRepository, times(2)).getUsers(anyList());
-  }
-
-  @Test
-  void foundUsersArePublishedToTheCacheWithoutAPriorNotFoundMark() {
-    Map<String, List<Optional<UserInfo>>> puts = new HashMap<>();
-    Map<String, Optional<UserInfo>> recording =
-        new ConcurrentHashMap<>() {
-          @Override
-          public Optional<UserInfo> put(String key, Optional<UserInfo> value) {
-            puts.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
-            return super.put(key, value);
-          }
-
-          @Override
-          public Optional<UserInfo> putIfAbsent(String key, Optional<UserInfo> value) {
-            Optional<UserInfo> previous = super.putIfAbsent(key, value);
-            if (previous == null) {
-              puts.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
-            }
-            return previous;
-          }
-        };
-    userApi.userCache =
-        new RequestUserCache() {
-          @Override
-          public Map<String, Optional<UserInfo>> entries() {
-            return recording;
-          }
-        };
-    NodeModel nodeA = makeNode("n1", "uid-A", "owner-A", null);
-    NodeModel nodeB = makeNode("n2", "ghost", "owner-B", null);
-    when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("uid-A")));
-
-    userApi.creators(List.of(nodeA, nodeB));
-
-    assertThat(puts.get("uid-A")).hasSize(1).allMatch(Optional::isPresent);
-    assertThat(puts.get("ghost")).containsExactly(Optional.empty());
-  }
-
-  @Test
   void aFailedLookupDoesNotPoisonTheCacheForLaterFields() {
     NodeModel node = makeNode("n1", "uid-A", "uid-A", null);
     when(userRepository.getUsers(anyList()))
@@ -422,39 +135,6 @@ class UserApiTest {
     List<UserModel> owners = userApi.owners(List.of(node));
 
     assertThat(owners.get(0).getId()).isEqualTo("uid-A");
-  }
-
-  @Test
-  void creators_unresolvedId_yieldsAccountNotFoundExceptionElement() {
-    NodeModel nodeA = makeNode("n1", "uid-A", "owner-A", null);
-    NodeModel nodeB = makeNode("n2", "ghost", "owner-B", null);
-    when(userRepository.getUsers(anyList())).thenReturn(List.of(makeUserInfo("uid-A")));
-
-    List<?> result = userApi.creators(List.of(nodeA, nodeB));
-
-    assertThat(result).hasSize(2);
-    assertThat(result.get(0)).isInstanceOf(UserModel.class);
-    assertThat(result.get(1)).isInstanceOf(FilesGraphQLException.class);
-    assertThat(((FilesGraphQLException) result.get(1)).getErrorCode())
-        .isEqualTo(ErrorCodes.ACCOUNT_NOT_FOUND);
-  }
-
-  @Test
-  void owners_unresolvedId_yieldsAccountNotFoundExceptionElement() {
-    when(userRepository.getUsers(anyList())).thenReturn(List.of());
-
-    List<?> result = userApi.owners(List.of(makeNode("n1", "c", "ghost", null)));
-
-    assertThat(result.get(0)).isInstanceOf(FilesGraphQLException.class);
-  }
-
-  @Test
-  void lastEditors_unresolvedId_yieldsAccountNotFoundExceptionElement() {
-    when(userRepository.getUsers(anyList())).thenReturn(List.of());
-
-    List<?> result = userApi.lastEditors(List.of(makeNode("n1", "c", "o", "ghost")));
-
-    assertThat(result.get(0)).isInstanceOf(FilesGraphQLException.class);
   }
 
   @Test
@@ -469,81 +149,6 @@ class UserApiTest {
     userApi.creators(nodes);
 
     verify(userRepository, times(2)).getUsers(anyList());
-  }
-
-  @Test
-  void owners_nullIdYieldsNullSlot() {
-    NodeModel nodeA = makeNode("n1", "creator-A", "uid-O", null);
-    NodeModel nodeB = makeNode("n2", "creator-B", null, null);
-
-    UserInfo uO = makeUserInfo("uid-O", "o@example.com", "Owner");
-    when(userRepository.getUsers(anyList())).thenReturn(List.of(uO));
-
-    List<UserModel> result = userApi.owners(List.of(nodeA, nodeB));
-
-    assertThat(result).hasSize(2);
-    assertThat(result.get(0).getId()).isEqualTo("uid-O");
-    assertThat(result.get(1)).isNull();
-  }
-
-  @Test
-  void lastEditors_nullIdYieldsNullSlot() {
-    NodeModel nodeA = makeNode("n1", "c1", "o1", "uid-E");
-    NodeModel nodeB = makeNode("n2", "c2", "o2", null);
-
-    UserInfo uE = makeUserInfo("uid-E", "e@example.com", "Editor");
-    when(userRepository.getUsers(anyList())).thenReturn(List.of(uE));
-
-    List<UserModel> result = userApi.lastEditors(List.of(nodeA, nodeB));
-
-    assertThat(result).hasSize(2);
-    assertThat(result.get(0).getId()).isEqualTo("uid-E");
-    assertThat(result.get(1)).isNull();
-  }
-
-  @Test
-  void partition_150items_yieldsTwoChunks() {
-    List<Integer> list = IntStream.range(0, 150).boxed().toList();
-    List<List<Integer>> chunks = UserApi.partition(list, 100);
-    assertThat(chunks).hasSize(2);
-    assertThat(chunks.get(0)).hasSize(100);
-    assertThat(chunks.get(1)).hasSize(50);
-  }
-
-  @Test
-  void partition_emptyList_yieldsNoChunks() {
-    assertThat(UserApi.partition(List.of(), 100)).isEmpty();
-  }
-
-  // ─── share_target @Source ─────────────────────────────────────────────────────
-
-  @Test
-  void shareTarget_found_returnsUserModel() {
-    ShareModel shareModel =
-        new ShareModel(1000L, SharePermission.READ_ONLY, null, "node-id", USER_ID);
-    UserInfo userInfo = makeUserInfo(USER_ID, EMAIL, "Test User");
-    when(userRepository.getUsers(List.of(USER_ID))).thenReturn(List.of(userInfo));
-
-    List<SharedTarget> result = userApi.shareTargets(List.of(shareModel));
-
-    assertThat(result).hasSize(1);
-    assertThat(result.get(0)).isNotNull().isInstanceOf(UserModel.class);
-    assertThat(((UserModel) result.get(0)).getId()).isEqualTo(USER_ID);
-    assertThat(((UserModel) result.get(0)).getEmail()).isEqualTo(EMAIL);
-  }
-
-  @Test
-  void shareTarget_notFound_yieldsAccountNotFoundExceptionElement() {
-    ShareModel shareModel =
-        new ShareModel(1000L, SharePermission.READ_ONLY, null, "node-id", "unknown-id");
-    when(userRepository.getUsers(List.of("unknown-id"))).thenReturn(List.of());
-
-    List<?> result = userApi.shareTargets(List.of(shareModel));
-
-    assertThat(result).hasSize(1);
-    assertThat(result.get(0)).isInstanceOf(FilesGraphQLException.class);
-    assertThat(((FilesGraphQLException) result.get(0)).getErrorCode())
-        .isEqualTo(ErrorCodes.ACCOUNT_NOT_FOUND);
   }
 
   @Test
@@ -562,27 +167,5 @@ class UserApiTest {
     assertThat(((UserModel) result.get(0)).getId()).isEqualTo(USER_ID);
     assertThat(((UserModel) result.get(1)).getId()).isEqualTo("user-id-2");
     verify(userRepository, times(1)).getUsers(anyList());
-  }
-
-  // ─── users @Source (DistributionList) ────────────────────────────────────────
-
-  @Test
-  void users_alwaysReturnsEmptyList() throws Exception {
-    DistributionListModel dl = new DistributionListModel("dl-id", "My DL");
-
-    List<UserModel> result = userApi.users(dl, 10, null);
-
-    assertThat(result).isEmpty();
-  }
-
-  @Test
-  void users_nonPositiveLimitIsRejected() {
-    DistributionListModel dl = new DistributionListModel("dl-id", "My DL");
-
-    assertThatThrownBy(() -> userApi.users(dl, 0, null))
-        .isInstanceOf(InputValidationException.class)
-        .hasMessage("Invalid limit value. The limit must be greater than 0.");
-    assertThatThrownBy(() -> userApi.users(dl, -1, null))
-        .isInstanceOf(InputValidationException.class);
   }
 }

@@ -6,6 +6,11 @@ package com.zextras.carbonio.files;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -13,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Trimmed, transport-neutral test utilities for the Quarkus acceptance suite. The legacy core
@@ -133,5 +139,30 @@ public class TestUtils {
       return Collections.emptyList();
     }
     return Collections.emptyList();
+  }
+
+  /**
+   * The classes of {@code anchor}'s package (sub-packages excluded) carrying {@code annotation}.
+   */
+  public static List<Class<?>> annotatedClassesBeside(
+      Class<?> anchor, Class<? extends Annotation> annotation) {
+    try {
+      Path directory =
+          Path.of(anchor.getProtectionDomain().getCodeSource().getLocation().toURI())
+              .resolve(anchor.getPackageName().replace('.', '/'));
+      List<Class<?>> classes = new ArrayList<>();
+      try (Stream<Path> files = Files.list(directory)) {
+        for (Path file : files.filter(f -> f.toString().endsWith(".class")).toList()) {
+          String name = file.getFileName().toString().replaceAll("\\.class$", "");
+          Class<?> clazz = Class.forName(anchor.getPackageName() + "." + name);
+          if (clazz.isAnnotationPresent(annotation)) {
+            classes.add(clazz);
+          }
+        }
+      }
+      return classes;
+    } catch (IOException | URISyntaxException | ClassNotFoundException e) {
+      throw new IllegalStateException(e);
+    }
   }
 }

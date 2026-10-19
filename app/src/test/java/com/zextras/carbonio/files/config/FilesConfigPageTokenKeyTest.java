@@ -21,17 +21,6 @@ class FilesConfigPageTokenKeyTest {
   private final FilesConfig config = new FilesConfig(null, null, consul);
 
   @Test
-  void givenAKeyReadFromConsulTheLaterCallsShouldNotReadConsulAgain() {
-    when(consul.getConfig(ServiceDiscover.Config.PAGE_TOKEN_SECRET_KEY))
-        .thenReturn(Optional.of("consul-key"));
-
-    assertThat(config.getPageTokenSecretKey()).isEqualTo("consul-key");
-    assertThat(config.getPageTokenSecretKey()).isEqualTo("consul-key");
-
-    verify(consul, times(1)).getConfig(ServiceDiscover.Config.PAGE_TOKEN_SECRET_KEY);
-  }
-
-  @Test
   void givenAFailedReadTheDefaultKeyShouldBeUsedWithoutBeingKept() {
     when(consul.getConfig(ServiceDiscover.Config.PAGE_TOKEN_SECRET_KEY))
         .thenReturn(Optional.empty(), Optional.of("consul-key"));

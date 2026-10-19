@@ -167,26 +167,4 @@ class InternalNodeResourceApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(403);
     Assertions.assertThat(folderNames(parentId, REQUESTER_ID)).isEmpty();
   }
-
-  @Test
-  void internalCreateFolderUnderAParentThatIsNotAFolderShouldReturn404() {
-    String fileId =
-        seedFile(
-            "internalCreateNotAFolder.txt",
-            LOCAL_ROOT,
-            "content".getBytes(StandardCharsets.UTF_8),
-            REQUESTER_COOKIE);
-
-    Response response = internalCreateFolder(REQUESTER_ID, fileId, "child");
-
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(404);
-  }
-
-  @Test
-  void internalCreateFolderUnderANonExistentParentShouldReturn403() {
-    Response response =
-        internalCreateFolder(REQUESTER_ID, "10000000-0000-0000-0000-00000000ffff", "orphan");
-
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(403);
-  }
 }

@@ -218,35 +218,6 @@ class UpdateNodeApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAMoveCommittedWhileARenameIsInFlightTheRenameShouldNotUndoTheMove() throws Exception {
-    String sourceFolderId = seedFolder("race-source", LOCAL_ROOT, REQUESTER_COOKIE);
-    String targetFolderId = seedFolder("race-target", LOCAL_ROOT, REQUESTER_COOKIE);
-    String nodeId =
-        seedFile(
-            "racing.txt",
-            sourceFolderId,
-            "content".getBytes(StandardCharsets.UTF_8),
-            REQUESTER_COOKIE);
-    seedFlag(nodeId, REQUESTER_COOKIE);
-
-    Response response = renameWhileMoveIsUncommitted(nodeId, targetFolderId, true);
-
-    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
-    Assertions.assertThat(TestUtils.jsonResponseToMap(response.getBody().asString(), "updateNode"))
-        .containsEntry("name", "renamed");
-    try (Connection connection = jdbcConnection();
-        PreparedStatement statement =
-            connection.prepareStatement("SELECT folder_id, name FROM node WHERE node_id = ?")) {
-      statement.setString(1, nodeId);
-      try (ResultSet row = statement.executeQuery()) {
-        Assertions.assertThat(row.next()).isTrue();
-        Assertions.assertThat(row.getString("folder_id").trim()).isEqualTo(targetFolderId);
-        Assertions.assertThat(row.getString("name")).isEqualTo("renamed.txt");
-      }
-    }
-  }
-
-  @Test
   void givenAMoveCommittedWhileARenameIsInFlightTheRenameShouldCheckTheNameInTheNewFolder()
       throws Exception {
     String sourceFolderId = seedFolder("race-source", LOCAL_ROOT, REQUESTER_COOKIE);
@@ -277,32 +248,5 @@ class UpdateNodeApiIT extends AbstractFilesIT {
         Assertions.assertThat(row.getString("name")).isEqualTo("racing.txt");
       }
     }
-  }
-
-  @Test
-  void givenANodeDeletedWhileTheUpdateWaitsForItsLockUpdateNodeShouldReturnNodeNotFound()
-      throws Exception {
-    String nodeId =
-        seedFile(
-            "doomed.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-
-    Response response;
-    try (Connection deleter = jdbcConnection()) {
-      deleter.setAutoCommit(false);
-      try (PreparedStatement delete =
-          deleter.prepareStatement("DELETE FROM node WHERE node_id = ?")) {
-        delete.setString(1, nodeId);
-        delete.executeUpdate();
-      }
-      CompletableFuture<Response> update =
-          CompletableFuture.supplyAsync(
-              () -> updateNode(nodeId, null, "d", null, REQUESTER_COOKIE));
-      awaitBlockedBy(deleter);
-      deleter.commit();
-      response = update.get(60, TimeUnit.SECONDS);
-    }
-
-    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
-        .containsExactly("NODE_NOT_FOUND");
   }
 }

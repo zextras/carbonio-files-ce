@@ -40,6 +40,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -153,7 +154,7 @@ public abstract class AbstractFilesIT {
   /**
    * Polls until at least {@code blockedCount} backends wait, directly or behind another waiter, for
    * the given backend pids (a second waiter on the same lock is blocked by the first one, not by
-   * the holder).
+   * the holder). The poll cadence is the query round-trip itself.
    */
   protected static void awaitBlockedBy(int blockedCount, Integer... holderPids) throws Exception {
     long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
@@ -182,7 +183,6 @@ public abstract class AbstractFilesIT {
           throw new AssertionError(
               "Fewer than " + blockedCount + " backends waited for " + List.of(holderPids));
         }
-        Thread.sleep(50);
       }
     }
   }
@@ -1005,8 +1005,19 @@ public abstract class AbstractFilesIT {
         signatureField, jsonKeySet);
   }
 
-  protected static void sendAndDisconnect(String path, String body, String cookie)
+  /** Re-checks {@code condition} until it holds; the poll cadence is the check's own round-trip. */
+  protected static void eventually(String description, Callable<Boolean> condition)
       throws Exception {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+    while (!condition.call()) {
+      if (System.nanoTime() > deadline) {
+        throw new AssertionError("not reached within 30 s: " + description);
+      }
+    }
+  }
+
+  /** Sends a JSON POST on a raw connection; closing the returned socket disconnects the client. */
+  protected static Socket send(String path, String body, String cookie) throws IOException {
     byte[] payload = body.getBytes(StandardCharsets.UTF_8);
     String head =
         "POST "
@@ -1016,13 +1027,12 @@ public abstract class AbstractFilesIT {
             + "\r\nContent-Length: "
             + payload.length
             + "\r\n\r\n";
-    try (Socket socket = new Socket("localhost", RestAssured.port)) {
-      OutputStream out = socket.getOutputStream();
-      out.write(head.getBytes(StandardCharsets.UTF_8));
-      out.write(payload);
-      out.flush();
-      Thread.sleep(300);
-    }
+    Socket socket = new Socket("localhost", RestAssured.port);
+    OutputStream out = socket.getOutputStream();
+    out.write(head.getBytes(StandardCharsets.UTF_8));
+    out.write(payload);
+    out.flush();
+    return socket;
   }
 
   protected static int copiedChildren(String destination, String cookie) {

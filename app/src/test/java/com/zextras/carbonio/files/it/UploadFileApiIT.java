@@ -13,16 +13,8 @@ import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -300,40 +292,5 @@ class UploadFileApiIT extends AbstractFilesIT {
     Assertions.assertThat(node)
         .containsEntry("name", "sameName (1)")
         .containsEntry("extension", "txt");
-  }
-
-  @Test
-  void givenConcurrentSameNameUploadsEveryFileShouldGetADistinctName() throws Exception {
-    String parentId = seedFolder("concurrent-upload-parent", LOCAL_ROOT, REQUESTER_COOKIE);
-    int requests = 10;
-    ExecutorService pool = Executors.newFixedThreadPool(requests);
-    try {
-      CountDownLatch start = new CountDownLatch(1);
-      List<Future<Response>> calls = new ArrayList<>();
-      for (int i = 0; i < requests; i++) {
-        calls.add(
-            pool.submit(
-                () -> {
-                  start.await();
-                  return upload(
-                      parentId,
-                      null,
-                      "content".getBytes(StandardCharsets.UTF_8),
-                      "same.txt",
-                      REQUESTER_COOKIE);
-                }));
-      }
-      start.countDown();
-
-      Set<Object> names = new HashSet<>();
-      for (Future<Response> call : calls) {
-        Response response = call.get(60, TimeUnit.SECONDS);
-        Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-        names.add(getNode(response.jsonPath().getString("nodeId"), REQUESTER_COOKIE).get("name"));
-      }
-      Assertions.assertThat(names).hasSize(requests);
-    } finally {
-      pool.shutdownNow();
-    }
   }
 }

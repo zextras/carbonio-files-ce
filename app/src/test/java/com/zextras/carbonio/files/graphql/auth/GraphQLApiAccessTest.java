@@ -6,6 +6,8 @@ package com.zextras.carbonio.files.graphql.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.zextras.carbonio.files.TestUtils;
+import com.zextras.carbonio.files.graphql.api.NodeApi;
 import io.quarkus.security.Authenticated;
 import jakarta.annotation.security.PermitAll;
 import java.lang.reflect.Method;
@@ -14,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Mutation;
 import org.eclipse.microprofile.graphql.Query;
 import org.junit.jupiter.api.Test;
@@ -21,12 +24,12 @@ import org.junit.jupiter.api.Test;
 class GraphQLApiAccessTest {
 
   @Test
-  void onlyThePublicQueriesAreReachableWithoutAuthentication() throws Exception {
+  void onlyThePublicQueriesAreReachableWithoutAuthentication() {
     Set<String> permitAll = new HashSet<>();
     List<String> unprotected = new ArrayList<>();
     int rootFields = 0;
 
-    for (Class<?> api : AuthenticatedApiReturnTypeTest.graphQLApiClasses()) {
+    for (Class<?> api : TestUtils.annotatedClassesBeside(NodeApi.class, GraphQLApi.class)) {
       for (Method method : api.getDeclaredMethods()) {
         boolean rootField =
             method.isAnnotationPresent(Query.class) || method.isAnnotationPresent(Mutation.class);

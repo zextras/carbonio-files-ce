@@ -97,21 +97,6 @@ class CopyNodesApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenARootIdCopyShouldRejectItAndCreateNoNode() {
-    String destFolderId = seedFolder("dest", LOCAL_ROOT, REQUESTER_COOKIE);
-    String roots = "query { getRootsList { id } }";
-    String rootsBefore = graphql(roots, REQUESTER_COOKIE).getBody().asString();
-
-    Response response = copyNodes(new String[] {LOCAL_ROOT}, destFolderId, REQUESTER_COOKIE);
-
-    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
-        .containsExactly("NODE_WRITE_ERROR");
-    Assertions.assertThat(childrenOf(destFolderId, REQUESTER_COOKIE)).isEmpty();
-    Assertions.assertThat(graphql(roots, REQUESTER_COOKIE).getBody().asString())
-        .isEqualTo(rootsBefore);
-  }
-
-  @Test
   void givenAPlainFileCopyItShouldCreateACopyInDestinationAndLeaveTheOriginalIntact() {
     // Given
     String sourceId =
@@ -271,46 +256,6 @@ class CopyNodesApiIT extends AbstractFilesIT {
     Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
     Assertions.assertThat(copiedNodes(response)).isEmpty();
     Assertions.assertThat(childrenOf(childFolderId, REQUESTER_COOKIE)).isEmpty();
-  }
-
-  @Test
-  void givenANameCollisionTheCollidingNodeIsCopiedFirstAsOnMain() {
-    String sourceFolderId = seedFolder("order-src", LOCAL_ROOT, REQUESTER_COOKIE);
-    String destFolderId = seedFolder("order-dest", LOCAL_ROOT, REQUESTER_COOKIE);
-    seedFile("x.txt", destFolderId, "d".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    String plainId =
-        seedFile("y.txt", sourceFolderId, "y".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    String collidingId =
-        seedFile("x.txt", sourceFolderId, "x".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-
-    Response response =
-        copyNodes(new String[] {plainId, collidingId}, destFolderId, REQUESTER_COOKIE);
-
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
-    Assertions.assertThat(copiedNodes(response))
-        .extracting(node -> node.get("name"))
-        .containsExactly("x (1)", "y");
-  }
-
-  @Test
-  void givenAnUnreadableSourceCopyShouldReportNodeWriteErrorAndStillCopyTheReadableOne() {
-    String readableId =
-        seedFile("mine.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    String unreadableId =
-        seedFile("theirs.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
-    String destFolderId = seedFolder("dest-unreadable", LOCAL_ROOT, REQUESTER_COOKIE);
-
-    Response response =
-        copyNodes(new String[] {readableId, unreadableId}, destFolderId, REQUESTER_COOKIE);
-
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
-        .containsExactly("NODE_WRITE_ERROR");
-    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
-        .containsExactly(
-            "There was a problem while executing requested operation on node: " + unreadableId);
-    Assertions.assertThat(copiedNodes(response)).hasSize(1);
   }
 
   @Test

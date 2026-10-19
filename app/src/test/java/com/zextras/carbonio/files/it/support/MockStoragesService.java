@@ -27,6 +27,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -110,7 +113,8 @@ public class MockStoragesService {
   private volatile boolean uploadSkipsStore = false;
   private volatile boolean downloadFails = false;
   private volatile boolean copyFails = false;
-  private volatile long copyDelayMillis = 0;
+  private volatile CountDownLatch copyGate;
+  private final Semaphore heldCopies = new Semaphore(0);
   private volatile boolean bulkDeleteAlwaysThrows = false;
   private volatile boolean bulkDeleteReturnsNull = false;
   private volatile boolean unreachable = false;
@@ -218,8 +222,24 @@ public class MockStoragesService {
     this.downloadFails = value;
   }
 
-  public void setCopyDelayMillis(long millis) {
-    this.copyDelayMillis = millis;
+  /** Copies wait at the storages until {@link #releaseCopies()}. */
+  public void holdCopies() {
+    copyGate = new CountDownLatch(1);
+  }
+
+  /** Returns once a copy request is waiting at the storages. */
+  public void awaitHeldCopy() throws InterruptedException {
+    if (!heldCopies.tryAcquire(30, TimeUnit.SECONDS)) {
+      throw new AssertionError("no copy reached the storages");
+    }
+  }
+
+  public void releaseCopies() {
+    CountDownLatch gate = copyGate;
+    copyGate = null;
+    if (gate != null) {
+      gate.countDown();
+    }
   }
 
   public void setCopyFails(boolean value) {
@@ -242,7 +262,8 @@ public class MockStoragesService {
     uploadSkipsStore = false;
     downloadFails = false;
     copyFails = false;
-    copyDelayMillis = 0;
+    releaseCopies();
+    heldCopies.drainPermits();
     unreachable = false;
     downloadLog.clear();
   }
@@ -306,9 +327,11 @@ public class MockStoragesService {
   }
 
   private Response handleCopy(Request request) {
-    if (copyDelayMillis > 0) {
+    CountDownLatch gate = copyGate;
+    if (gate != null) {
+      heldCopies.release();
       try {
-        Thread.sleep(copyDelayMillis);
+        gate.await(30, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }

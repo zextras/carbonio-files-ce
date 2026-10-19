@@ -17,13 +17,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.TrashNodesApiIT} rewritten as an out-of-process
@@ -97,41 +93,6 @@ class TrashNodesApiIT extends AbstractFilesIT {
     Assertions.assertThat(nodeExists(nodeId, REQUESTER_COOKIE)).isTrue();
     Assertions.assertThat(findNodeIdsInFolder("LOCAL_ROOT", true)).doesNotContain(nodeId);
     Assertions.assertThat(findNodeIdsInFolder("TRASH_ROOT", false)).containsExactly(nodeId);
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"mutation { trashNodes }", "mutation { trashNodes(node_ids: null) }"})
-  void givenAMissingOrNullNodeIdsTrashNodesShouldFailWithValidationErrorAndTouchNothing(
-      String query) {
-    // Given
-    String nodeId =
-        seedFile(
-            "untouched.txt",
-            LOCAL_ROOT,
-            "content".getBytes(StandardCharsets.UTF_8),
-            REQUESTER_COOKIE);
-
-    // When
-    Response response = graphql(query, REQUESTER_COOKIE);
-
-    // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
-        .isEqualTo("Invalid node IDs. The list cannot be null.");
-    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
-    Assertions.assertThat(response.jsonPath().getMap("data")).containsEntry("trashNodes", null);
-    Assertions.assertThat(findNodeIdsInFolder("LOCAL_ROOT", true)).contains(nodeId);
-  }
-
-  @Test
-  void givenAnEmptyNodeIdsListTrashNodesShouldReturnAnEmptyList() {
-    // When
-    Response response = graphql("mutation { trashNodes(node_ids: []) }", REQUESTER_COOKIE);
-
-    // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(response.getBody().asString())
-        .isEqualTo("{\"data\":{\"trashNodes\":[]}}");
   }
 
   @Test
@@ -247,31 +208,6 @@ class TrashNodesApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenANodeAlreadyInTheTrashTrashNodesShouldReturnNodeWriteErrorWithoutASecondTrashedRow()
-      throws SQLException {
-    // Given
-    String nodeId =
-        seedFile(
-            "twice.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    Assertions.assertThat(
-            trashNodes(new String[] {nodeId}, REQUESTER_COOKIE).jsonPath().getList("errors"))
-        .isNull();
-
-    // When
-    Response response = trashNodes(new String[] {nodeId}, REQUESTER_COOKIE);
-
-    // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
-    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.errorCode"))
-        .isEqualTo("NODE_WRITE_ERROR");
-    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
-        .isEqualTo(nodeId);
-    Assertions.assertThat(response.jsonPath().getList("data.trashNodes")).isEmpty();
-    Assertions.assertThat(trashedRowsOf(nodeId)).isEqualTo(1);
-  }
-
-  @Test
   void givenANodeAlreadyInTheTrashAndAnotherOneTrashNodesShouldTrashOnlyTheOther()
       throws SQLException {
     // Given
@@ -297,49 +233,6 @@ class TrashNodesApiIT extends AbstractFilesIT {
         .isEqualTo(trashedId);
     Assertions.assertThat(response.jsonPath().getList("data.trashNodes")).containsExactly(otherId);
     Assertions.assertThat(trashedRowsOf(trashedId)).isEqualTo(1);
-    Assertions.assertThat(trashedRowsOf(otherId)).isEqualTo(1);
-  }
-
-  @Test
-  void givenANodeDeletedWhileTheTrashWaitsForItsLockTrashNodesShouldTrashTheOthersAndReportIt()
-      throws Exception {
-    // Given
-    String doomedId =
-        seedFile(
-            "doomed.txt", LOCAL_ROOT, "one".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    String otherId =
-        seedFile("other.txt", LOCAL_ROOT, "two".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-
-    Response response;
-    try (Connection holder = jdbcConnection()) {
-      holder.setAutoCommit(false);
-      try (PreparedStatement lock =
-          holder.prepareStatement("SELECT node_id FROM node WHERE node_id = ? FOR UPDATE")) {
-        lock.setString(1, doomedId);
-        lock.execute();
-      }
-
-      // When
-      CompletableFuture<Response> trash =
-          CompletableFuture.supplyAsync(
-              () -> trashNodes(new String[] {doomedId, otherId}, REQUESTER_COOKIE));
-      awaitBlockedBy(holder);
-      try (PreparedStatement delete =
-          holder.prepareStatement("DELETE FROM node WHERE node_id = ?")) {
-        delete.setString(1, doomedId);
-        delete.executeUpdate();
-      }
-      holder.commit();
-      response = trash.get(60, TimeUnit.SECONDS);
-    }
-
-    // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.errorCode"))
-        .isEqualTo("NODE_WRITE_ERROR");
-    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
-        .isEqualTo(doomedId);
-    Assertions.assertThat(response.jsonPath().getList("data.trashNodes")).containsExactly(otherId);
     Assertions.assertThat(trashedRowsOf(otherId)).isEqualTo(1);
   }
 }

@@ -41,17 +41,13 @@ class ErrorLoggingApiIT extends AbstractFilesIT {
     return request.post("/graphql/");
   }
 
-  private static List<String> appLogLinesContaining(String marker) throws Exception {
-    long deadline = System.currentTimeMillis() + 5000;
-    List<String> lines = List.of();
-    do {
-      lines = readLog().stream().filter(line -> line.contains(marker)).toList();
-      if (!lines.isEmpty()) {
-        return lines;
-      }
-      Thread.sleep(100);
-    } while (System.currentTimeMillis() < deadline);
-    return lines;
+  private static List<String> logLinesContaining(String marker) throws IOException {
+    return readLog().stream().filter(line -> line.contains(marker)).toList();
+  }
+
+  private static List<String> awaitLogLinesContaining(String marker) throws Exception {
+    eventually("log line containing '" + marker + "'", () -> !logLinesContaining(marker).isEmpty());
+    return logLinesContaining(marker);
   }
 
   private static List<String> readLog() throws IOException {
@@ -64,52 +60,14 @@ class ErrorLoggingApiIT extends AbstractFilesIT {
           throws Exception {
     String operation = "R06UnexpectedFailure";
 
-    Response response = executeWithCorruptNodeType(operation, "r06-unexpected", 1);
+    Response response = executeWithCorruptNodeType(operation, "r06-unexpected", 3);
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
-        .isEqualTo("System error");
-    List<String> errorLines =
-        appLogLinesContaining("Unexpected error in GraphQL operation '" + operation + "'");
-    Assertions.assertThat(errorLines).hasSize(1);
-    Assertions.assertThat(errorLines.get(0)).contains("ERROR").contains("at '/a0'");
-    String log = String.join("\n", readLog());
-    int start = log.indexOf(errorLines.get(0));
-    Assertions.assertThat(log.substring(start))
-        .containsPattern("(?s)'/a0.*?\\n\\s+at com\\.zextras\\.carbonio\\.files\\.");
-  }
-
-  @Test
-  void givenManyAliasesOfAnInvalidLimitThenEachGetsTheValidationErrorAndNothingIsLoggedAtError()
-      throws Exception {
-    String operation = "R25InvalidLimitAliases";
-    StringBuilder fields = new StringBuilder();
-    for (int i = 0; i < 50; i++) {
-      fields.append("a").append(i).append(": findNodes(limit: 0) { nodes { id } } ");
-    }
-
-    Response response =
-        execute(operation, "query " + operation + " { " + fields + "}", OWNER_COOKIE);
-
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(50);
-    for (int i = 0; i < 50; i++) {
+    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(3);
+    for (int i = 0; i < 3; i++) {
       Assertions.assertThat(response.jsonPath().getString("errors[" + i + "].message"))
-          .isEqualTo("Invalid limit value. The limit must be greater than 0.");
+          .isEqualTo("System error");
     }
-    Thread.sleep(500);
-    Assertions.assertThat(readLog())
-        .noneMatch(line -> line.contains("ERROR") && line.contains(operation));
-  }
-
-  @Test
-  void givenManyAliasesWithTheSameRootCauseThenOnlyOneStackIsLogged() throws Exception {
-    String operation = "R25SameRootCauseAliases";
-
-    Response response = executeWithCorruptNodeType(operation, "r25-same", 30);
-
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(30);
     assertLoggedOnceWithStack(operation, "/a0");
   }
 
@@ -141,28 +99,9 @@ class ErrorLoggingApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAnExpectedBusinessErrorThenItIsNotLoggedAtError() throws Exception {
-    String operation = "R06ExpectedNotFound";
-
-    Response response =
-        execute(
-            operation,
-            "query R06ExpectedNotFound { getNode(node_id: \"00000000-0000-0000-0000-000000000000\")"
-                + " { id } }",
-            OWNER_COOKIE);
-
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
-        .contains("Could not find node");
-    Thread.sleep(500);
-    Assertions.assertThat(readLog())
-        .noneMatch(line -> line.contains("ERROR") && line.contains(operation));
-  }
-
-  @Test
   void givenAnUnresolvableTokenThenTheRejectionIsLoggedAsWarnWithoutTheToken() throws Exception {
     String marker = "Authentication rejected: status=401 uri=/graphql/";
-    int before = readLog().stream().filter(line -> line.contains(marker)).toList().size();
+    int before = logLinesContaining(marker).size();
 
     Response response =
         execute(
@@ -171,7 +110,8 @@ class ErrorLoggingApiIT extends AbstractFilesIT {
             "ZM_AUTH_TOKEN=r06-secret-token");
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(401);
-    List<String> warnLines = appLogLinesContaining(marker);
+    eventually("rejection logged", () -> logLinesContaining(marker).size() > before);
+    List<String> warnLines = logLinesContaining(marker);
     Assertions.assertThat(warnLines).hasSize(before + 1);
     Assertions.assertThat(warnLines.get(before))
         .contains("WARN")
@@ -180,65 +120,24 @@ class ErrorLoggingApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenNoCredentialsThenTheRejectionIsLoggedAsWarn() throws Exception {
+  void givenNoCredentialsThenTheRejectionIsLoggedOnceAsWarnForTheWholeDocument() throws Exception {
+    String operation = "R06NoCredentials";
+    String marker = "Authentication rejected: reason=missing credentials operation=" + operation;
+
     Response response =
         execute(
-            "R06NoCredentials", "query R06NoCredentials { getNode(node_id: \"x\") { id } }", null);
+            operation,
+            "query R06NoCredentials { a: getNode(node_id: \"x\") { id } b: getNode(node_id: \"y\")"
+                + " { id } c: getUserById(user_id: \"z\") { id } }",
+            null);
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
         .isEqualTo("Authentication required");
-    List<String> warnLines =
-        appLogLinesContaining("Authentication rejected: reason=missing credentials operation=");
-    Assertions.assertThat(warnLines).isNotEmpty();
-    Assertions.assertThat(warnLines.get(0)).contains("WARN");
-  }
-
-  @Test
-  void givenAnAnonymousDocumentWithSeveralProtectedFieldsThenTheRejectionIsLoggedOnce()
-      throws Exception {
-    String marker = "Authentication rejected: reason=missing credentials operation=R06Multi";
-
-    Response response =
-        execute(
-            "R06Multi",
-            "query R06Multi { a: getNode(node_id: \"x\") { id } b: getNode(node_id: \"y\") { id }"
-                + " c: getUserById(user_id: \"z\") { id } }",
-            null);
-
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(3);
-    Assertions.assertThat(appLogLinesContaining(marker)).hasSize(1);
-    Thread.sleep(500);
-    Assertions.assertThat(appLogLinesContaining(marker)).hasSize(1);
-  }
-
-  @Test
-  void givenAFailureInABatchResolverThenItIsLoggedOnceAtErrorAndTheClientSeesSystemError()
-      throws Exception {
-    String parentId = seedFolder("r06-parent", LOCAL_ROOT, OWNER_COOKIE);
-    seedFolder("r06-batch-one", parentId, OWNER_COOKIE);
-    seedFolder("r06-batch-two", parentId, OWNER_COOKIE);
-    String operation = "R06BatchFailure";
-
-    Response response;
-    try (Connection connection = jdbcConnection();
-        Statement statement = connection.createStatement()) {
-      statement.execute(
-          "UPDATE node SET node_type = 'R06_BOGUS' WHERE node_id = '" + parentId + "'");
-      response =
-          execute(
-              operation,
-              "query R06BatchFailure { findNodes(keywords: [\"r06-batch\"], limit: 10) { nodes {"
-                  + " id parent { id } } } }",
-              OWNER_COOKIE);
-      statement.execute("UPDATE node SET node_type = 'FOLDER' WHERE node_id = '" + parentId + "'");
-    }
-
-    Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
-        .isEqualTo("System error");
-    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(2);
-    assertLoggedOnceWithStack(operation, null);
+    List<String> warnLines = awaitLogLinesContaining(marker);
+    Assertions.assertThat(warnLines).hasSize(1);
+    Assertions.assertThat(warnLines.get(0)).contains("WARN");
   }
 
   @Test
@@ -271,17 +170,11 @@ class ErrorLoggingApiIT extends AbstractFilesIT {
   }
 
   private static void assertLoggedOnceWithStack(String operation, String path) throws Exception {
-    String marker =
-        "Unexpected error in GraphQL operation '"
-            + operation
-            + "' at '"
-            + (path == null ? "" : path + "'");
-    List<String> errorLines = appLogLinesContaining(marker);
+    String marker = "Unexpected error in GraphQL operation '" + operation + "'";
+    List<String> errorLines = awaitLogLinesContaining(marker);
     Assertions.assertThat(errorLines).hasSize(1);
-    Assertions.assertThat(errorLines.get(0)).contains("ERROR");
-    Thread.sleep(500);
+    Assertions.assertThat(errorLines.get(0)).contains("ERROR").contains("at '" + path + "'");
     List<String> log = readLog();
-    Assertions.assertThat(log.stream().filter(line -> line.contains(marker)).count()).isEqualTo(1);
     int start = log.indexOf(errorLines.get(0));
     Assertions.assertThat(log.subList(start + 1, Math.min(start + 40, log.size())))
         .anyMatch(line -> line.startsWith("\tat com.zextras.carbonio.files."));

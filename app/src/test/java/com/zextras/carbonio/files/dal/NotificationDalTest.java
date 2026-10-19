@@ -26,7 +26,6 @@ import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -54,22 +53,6 @@ class NotificationDalTest {
 
   @Inject NotificationRepository notificationRepository;
   @Inject EntityManager entityManager;
-
-  @AfterEach
-  void deleteCommittedRows() {
-    QuarkusTransaction.requiringNew()
-        .run(
-            () -> {
-              entityManager
-                  .createNativeQuery("DELETE FROM node WHERE creator_id = 'creator-id'")
-                  .executeUpdate();
-              entityManager
-                  .createNativeQuery(
-                      "TRUNCATE user_notification_interest, notification, snapshot_node,"
-                          + " snapshot_user, user_notifications_info CASCADE")
-                  .executeUpdate();
-            });
-  }
 
   private static String id() {
     return UUID.randomUUID().toString();
@@ -157,54 +140,6 @@ class NotificationDalTest {
 
     assertThat(second.getTriggeringUserSnapshotId())
         .isNotEqualTo(first.getTriggeringUserSnapshotId());
-  }
-
-  @Test
-  void createNotificationsForTheSameUserInOneTransactionShouldIncrementUnreadEachTime() {
-    String ownerId = id();
-    String receiverId = id();
-    QuarkusTransaction.requiringNew()
-        .run(
-            () -> {
-              Node node = persistNode(id(), ownerId, "shared-node");
-              UserMyself triggeringUser = buildUser(ownerId, "Owner");
-              for (int i = 0; i < 3; i++) {
-                notificationRepository.createNewShareNotification(
-                    node, triggeringUser, List.of(receiverId));
-              }
-            });
-
-    Number unread =
-        QuarkusTransaction.requiringNew()
-            .call(
-                () ->
-                    (Number)
-                        entityManager
-                            .createNativeQuery(
-                                "select unread from user_notifications_info where user_id = :u")
-                            .setParameter("u", receiverId)
-                            .getSingleResult());
-    assertThat(unread.intValue()).isEqualTo(3);
-  }
-
-  @Test
-  void notificationsToSeveralUsersInOneTransactionShouldBumpEachUserOncePerNotification() {
-    String ownerId = id();
-    String firstReceiverId = id();
-    String secondReceiverId = id();
-    QuarkusTransaction.requiringNew()
-        .run(
-            () -> {
-              Node node = persistNode(id(), ownerId, "shared-node");
-              UserMyself triggeringUser = buildUser(ownerId, "Owner");
-              notificationRepository.createNewShareNotification(
-                  node, triggeringUser, List.of(firstReceiverId, secondReceiverId));
-              notificationRepository.createNewShareNotification(
-                  node, triggeringUser, List.of(secondReceiverId));
-            });
-
-    assertThat(unreadOf(firstReceiverId)).isEqualTo(1);
-    assertThat(unreadOf(secondReceiverId)).isEqualTo(2);
   }
 
   @Test

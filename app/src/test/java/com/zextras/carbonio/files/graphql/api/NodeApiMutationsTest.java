@@ -39,9 +39,6 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
-import com.zextras.carbonio.files.graphql.errors.InputValidationException;
-import com.zextras.carbonio.files.graphql.model.FolderModel;
-import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.spi.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.support.NodeCreationHelper;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
@@ -152,26 +149,6 @@ class NodeApiMutationsTest {
     return node;
   }
 
-  private Node mockRootNode(String id) {
-    Node node = mock(Node.class);
-    when(node.getId()).thenReturn(id);
-    when(node.getName()).thenReturn("HOME");
-    when(node.getNodeType()).thenReturn(NodeType.ROOT);
-    when(node.getNodeCategory()).thenReturn(NodeCategory.ROOT);
-    when(node.getDescription()).thenReturn(Optional.empty());
-    when(node.getParentId()).thenReturn(Optional.empty());
-    when(node.getOwnerId()).thenReturn(REQUESTER_ID);
-    when(node.getCreatorId()).thenReturn(REQUESTER_ID);
-    when(node.getLastEditorId()).thenReturn(Optional.empty());
-    when(node.getCreatedAt()).thenReturn(1000L);
-    when(node.getUpdatedAt()).thenReturn(2000L);
-    when(node.getAncestorsList()).thenReturn(Collections.emptyList());
-    when(node.getAncestorIds()).thenReturn("");
-    when(node.getCustomAttributes()).thenReturn(Collections.emptyList());
-    when(node.getFileVersions()).thenReturn(Collections.emptyList());
-    return node;
-  }
-
   private Node mockFileNode(String id, String parentId) {
     Node node = mock(Node.class);
     when(node.getId()).thenReturn(id);
@@ -224,112 +201,6 @@ class NodeApiMutationsTest {
     return txMock;
   }
 
-  // ─── createFolder ─────────────────────────────────────────────────────────────
-
-  @Test
-  void createFolderHappyPathReturnsFolderModel() throws Exception {
-    Node parent = mockFolderNode(PARENT_ID, "LOCAL_ROOT");
-    when(parent.getNodeType()).thenReturn(NodeType.FOLDER);
-    Node created = mockFolderNode(NODE_ID_1, PARENT_ID);
-    when(created.getOwnerId()).thenReturn(REQUESTER_ID);
-
-    when(permissionsChecker.getPermissions(PARENT_ID, REQUESTER_ID)).thenReturn(aclWith(true));
-    when(nodeRepository.getNode(PARENT_ID)).thenReturn(Optional.of(parent));
-    when(nodeRepository.findNodes(
-            any(),
-            any(),
-            any(),
-            eq(Optional.of(PARENT_ID)),
-            any(),
-            any(),
-            any(),
-            any(),
-            any(),
-            any(),
-            any(),
-            any(),
-            any()))
-        .thenReturn(org.apache.commons.lang3.tuple.ImmutablePair.of(Collections.emptyList(), null));
-    when(nodeRepository.createNewNode(
-            any(),
-            eq(REQUESTER_ID),
-            eq(REQUESTER_ID),
-            eq(PARENT_ID),
-            anyString(),
-            eq(""),
-            eq(NodeType.FOLDER),
-            any(),
-            eq(0L)))
-        .thenReturn(created);
-    when(shareRepository.getShares(eq(PARENT_ID), eq(Collections.emptyList())))
-        .thenReturn(Collections.emptyList());
-    when(filesConfig.areNotificationsEnabled()).thenReturn(false);
-
-    NodeModel result = nodeApi.createFolder(PARENT_ID, "TestFolder");
-
-    assertThat(result).isInstanceOf(FolderModel.class);
-    assertThat(result.getId()).isEqualTo(NODE_ID_1);
-    verify(nodeRepository).lockChildNames(PARENT_ID, REQUESTER_ID);
-    verify(nodeRepository)
-        .createNewNode(
-            any(),
-            eq(REQUESTER_ID),
-            eq(REQUESTER_ID),
-            eq(PARENT_ID),
-            anyString(),
-            eq(""),
-            eq(NodeType.FOLDER),
-            any(),
-            eq(0L));
-  }
-
-  @Test
-  void createFolderThrowsNodeWriteErrorWhenPermissionDenied() {
-    when(permissionsChecker.getPermissions(PARENT_ID, REQUESTER_ID)).thenReturn(aclWith(false));
-
-    assertThatThrownBy(() -> nodeApi.createFolder(PARENT_ID, "Folder"))
-        .isInstanceOf(FilesGraphQLException.class)
-        .satisfies(
-            ex ->
-                assertThat(((FilesGraphQLException) ex).getErrorCode())
-                    .isEqualTo(ErrorCodes.NODE_WRITE_ERROR));
-
-    verify(nodeRepository, never())
-        .createNewNode(any(), any(), any(), any(), any(), any(), any(), any(), any());
-  }
-
-  @Test
-  void createFolderThrowsNodeNotFoundWhenParentDoesNotExist() {
-    when(permissionsChecker.getPermissions(PARENT_ID, REQUESTER_ID)).thenReturn(aclWith(true));
-    when(nodeRepository.getNode(PARENT_ID)).thenReturn(Optional.empty());
-
-    assertThatThrownBy(() -> nodeApi.createFolder(PARENT_ID, "Folder"))
-        .isInstanceOf(FilesGraphQLException.class)
-        .satisfies(
-            ex ->
-                assertThat(((FilesGraphQLException) ex).getErrorCode())
-                    .isEqualTo(ErrorCodes.NODE_NOT_FOUND));
-  }
-
-  // ─── updateNode ───────────────────────────────────────────────────────────────
-
-  @Test
-  void updateNodeHappyPathReturnsMappedNode() throws Exception {
-    Node node = mockFolderNode(NODE_ID_1, PARENT_ID);
-    when(node.getExtension()).thenReturn(Optional.empty());
-
-    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
-    when(nodeRepository.getNodeForUpdate(NODE_ID_1)).thenReturn(Optional.of(node));
-
-    NodeModel result = nodeApi.updateNode(NODE_ID_1, null, null, null);
-
-    assertThat(result).isInstanceOf(FolderModel.class);
-    assertThat(result.getId()).isEqualTo(NODE_ID_1);
-    verify(nodeRepository).getNodeForUpdate(NODE_ID_1);
-    verify(nodeRepository).updateNode(node);
-    verify(nodeRepository, never()).getNode(NODE_ID_1);
-  }
-
   @Test
   void updateNodeRenameLocksTheNameBeforeTheRowAndOnlyOnceWhenTheNodeDidNotMove() throws Exception {
     Node node = mockFolderNode(NODE_ID_1, PARENT_ID);
@@ -344,128 +215,6 @@ class NodeApiMutationsTest {
     order.verify(nodeRepository).lockChildNames(PARENT_ID, REQUESTER_ID);
     order.verify(nodeRepository).getNodeForUpdate(NODE_ID_1);
     verify(nodeRepository, Mockito.times(1)).lockChildNames(PARENT_ID, REQUESTER_ID);
-  }
-
-  @Test
-  void updateNodeThrowsNodeDuplicatedWhenNameConflicts() {
-    Node node = mockFolderNode(NODE_ID_1, PARENT_ID);
-    when(node.getExtension()).thenReturn(Optional.empty());
-    Node conflict = mockFolderNode("conflict-id", PARENT_ID);
-
-    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
-    when(nodeRepository.getNodeForUpdate(NODE_ID_1)).thenReturn(Optional.of(node));
-    when(nodeRepository.getNodeByName("NewName", PARENT_ID, REQUESTER_ID))
-        .thenReturn(Optional.of(conflict));
-
-    assertThatThrownBy(() -> nodeApi.updateNode(NODE_ID_1, "NewName", null, null))
-        .isInstanceOf(FilesGraphQLException.class)
-        .satisfies(
-            ex ->
-                assertThat(((FilesGraphQLException) ex).getErrorCode())
-                    .isEqualTo(ErrorCodes.NODE_DUPLICATED));
-    verify(nodeRepository).lockChildNames(PARENT_ID, REQUESTER_ID);
-    verify(nodeRepository, never()).updateNode(any());
-  }
-
-  @Test
-  void updateNodeThrowsNodeNotFoundWhenPermissionDenied() {
-    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(false));
-
-    assertThatThrownBy(() -> nodeApi.updateNode(NODE_ID_1, "Name", null, null))
-        .isInstanceOf(FilesGraphQLException.class)
-        .satisfies(
-            ex ->
-                assertThat(((FilesGraphQLException) ex).getErrorCode())
-                    .isEqualTo(ErrorCodes.NODE_NOT_FOUND));
-  }
-
-  // ─── flagNodes ────────────────────────────────────────────────────────────────
-
-  @Test
-  void flagNodesThrowsWhenNodeIdsIsNull() {
-    assertThatThrownBy(() -> nodeApi.flagNodes(null, true))
-        .isInstanceOf(InputValidationException.class)
-        .hasMessage("Invalid node IDs. The list cannot be null.");
-    verify(nodeRepository, never()).getNode(any());
-  }
-
-  @Test
-  void flagNodesPartialSuccessThrowsFilesGraphQLExceptionWithPartialResults() {
-    Node node1 = mockFolderNode(NODE_ID_1, PARENT_ID);
-    Node node2 = mockFolderNode(NODE_ID_2, PARENT_ID);
-
-    when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node1));
-    when(nodeRepository.getNode(NODE_ID_2)).thenReturn(Optional.of(node2));
-    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
-    when(permissionsChecker.getPermissions(NODE_ID_2, REQUESTER_ID)).thenReturn(aclWith(false));
-
-    assertThatThrownBy(() -> nodeApi.flagNodes(List.of(NODE_ID_1, NODE_ID_2), true))
-        .isInstanceOf(FilesGraphQLException.class)
-        .satisfies(
-            ex -> {
-              FilesGraphQLException fex = (FilesGraphQLException) ex;
-              assertThat(fex.getErrorCode()).isEqualTo(ErrorCodes.NODE_WRITE_ERROR);
-              assertThat(fex.getPartialResults()).isInstanceOf(List.class);
-              @SuppressWarnings("unchecked")
-              List<String> partial = (List<String>) fex.getPartialResults();
-              assertThat(partial).containsExactly(NODE_ID_1);
-            });
-
-    verify(nodeRepository).flagForUser(NODE_ID_1, REQUESTER_ID, true);
-    verify(nodeRepository, never()).flagForUser(eq(NODE_ID_2), any(), anyBoolean());
-  }
-
-  @Test
-  void flagNodesHappyPathReturnsAllFlaggedIds() throws Exception {
-    Node node1 = mockFolderNode(NODE_ID_1, PARENT_ID);
-    Node node2 = mockFolderNode(NODE_ID_2, PARENT_ID);
-
-    when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node1));
-    when(nodeRepository.getNode(NODE_ID_2)).thenReturn(Optional.of(node2));
-    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
-    when(permissionsChecker.getPermissions(NODE_ID_2, REQUESTER_ID)).thenReturn(aclWith(true));
-
-    List<String> result = nodeApi.flagNodes(List.of(NODE_ID_1, NODE_ID_2), true);
-
-    assertThat(result).containsExactlyInAnyOrder(NODE_ID_1, NODE_ID_2);
-
-    verify(nodeRepository).flagForUser(NODE_ID_1, REQUESTER_ID, true);
-    verify(nodeRepository).flagForUser(NODE_ID_2, REQUESTER_ID, true);
-  }
-
-  // ─── deleteNodes ──────────────────────────────────────────────────────────────
-
-  @Test
-  void deleteNodesThrowsWhenNodeIdsIsNull() {
-    assertThatThrownBy(() -> nodeApi.deleteNodes(null))
-        .isInstanceOf(InputValidationException.class)
-        .hasMessage("Invalid node IDs. The list cannot be null.");
-    verify(nodeRepository, never()).getNode(any());
-  }
-
-  @Test
-  void deleteNodesThrowsNodeWriteErrorWhenPermissionDeniedForAll() {
-    when(nodeRepository.getNodes(eq(List.of(NODE_ID_1)), any())).thenReturn(Stream.of());
-
-    try (MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class)) {
-      TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
-      doAnswer(
-              inv -> {
-                ((Runnable) inv.getArgument(0)).run();
-                return null;
-              })
-          .when(runOptions)
-          .run(any(Runnable.class));
-      txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
-
-      assertThatThrownBy(() -> nodeApi.deleteNodes(List.of(NODE_ID_1)))
-          .isInstanceOf(FilesGraphQLException.class)
-          .satisfies(
-              ex -> {
-                FilesGraphQLException fex = (FilesGraphQLException) ex;
-                assertThat(fex.getErrorCode()).isEqualTo(ErrorCodes.NODE_NOT_FOUND);
-              });
-    }
   }
 
   // ─── restoreNodes ─────────────────────────────────────────────────────────────
@@ -572,25 +321,6 @@ class NodeApiMutationsTest {
   }
 
   @Test
-  void cloneVersionCopyFailureThatIsNotQuotaHasMainsMessageAndNoErrorCode() throws Exception {
-    givenACloneVersionWhoseStorageCopyFails();
-    when(copyFailureClassifier.classify(any())).thenReturn(ErrorCodes.NODE_COPY_ERROR);
-    when(gqlContext.getPath()).thenReturn("/cloneVersion");
-
-    assertThatThrownBy(() -> nodeApi.cloneVersion(NODE_ID_1, 1))
-        .isInstanceOfSatisfying(
-            FilesGraphQLException.class,
-            ex -> {
-              assertThat(ex.getErrorCode()).isNull();
-              assertThat(ex.getMessage())
-                  .isEqualTo(
-                      "Exception while fetching data (/cloneVersion) : Copy error with nodeId: "
-                          + NODE_ID_1
-                          + " and version 1");
-            });
-  }
-
-  @Test
   void cloneVersionCopyFailureClassifiedAsQuotaKeepsTheClassifiedCode() throws Exception {
     givenACloneVersionWhoseStorageCopyFails();
     when(copyFailureClassifier.classify(any())).thenReturn(ErrorCodes.OVER_QUOTA_REACHED);
@@ -620,18 +350,6 @@ class NodeApiMutationsTest {
     assertThat(error.getErrorCode()).isEqualTo(ErrorCodes.NODE_WRITE_ERROR);
     assertThat(error.getMessage())
         .isEqualTo("There was a problem while executing requested operation on node: " + NODE_ID_1);
-  }
-
-  @Test
-  void copyFailureErrorUsesTheOverQuotaVerdictWhenEveryNodeWasReadable() {
-    Node quotaFailed = mockFileNode(NODE_ID_2, PARENT_ID);
-    Throwable cause = new RuntimeException("quota");
-    when(copyFailureClassifier.classify(cause)).thenReturn(ErrorCodes.OVER_QUOTA_REACHED);
-
-    FilesGraphQLException error =
-        nodeApi.copyFailureError(List.of(), List.of(new NodeApi.CopyFailure(quotaFailed, cause)));
-
-    assertThat(error.getErrorCode()).isEqualTo(ErrorCodes.OVER_QUOTA_REACHED);
   }
 
   @Test

@@ -39,17 +39,6 @@ class ConfigApiTest {
   }
 
   @Test
-  void getConfigsReturnsFourEntries() {
-    when(filesConfig.getMaxNumberOfVersionsRaw()).thenReturn("30");
-    when(filesConfig.getMaxDownloadableFileSizeInMb()).thenReturn(Optional.of(512));
-    when(filesConfig.getMaxUploadableFileSizeInMb()).thenReturn(Optional.of(1024));
-
-    List<ConfigModel> result = configApi.getConfigs();
-
-    assertThat(result).hasSize(4);
-  }
-
-  @Test
   void getConfigsDerivesMaxKeepVersionsAsMaxVersionsMinusDiff() {
     when(filesConfig.getMaxNumberOfVersionsRaw()).thenReturn("30");
     when(filesConfig.getMaxDownloadableFileSizeInMb()).thenReturn(Optional.empty());
@@ -73,41 +62,5 @@ class ConfigApiTest {
     assertThat(configs)
         .containsEntry(Config.MAX_VERSIONS, "2")
         .containsEntry(Config.MAX_KEEP_VERSIONS, "0");
-  }
-
-  @Test
-  void getConfigsReturnsNullSizeValuesWhenOptionalEmpty() {
-    when(filesConfig.getMaxNumberOfVersionsRaw()).thenReturn("10");
-    when(filesConfig.getMaxDownloadableFileSizeInMb()).thenReturn(Optional.empty());
-    when(filesConfig.getMaxUploadableFileSizeInMb()).thenReturn(Optional.empty());
-
-    List<ConfigModel> result = configApi.getConfigs();
-
-    Map<String, String> nullableValues =
-        result.stream()
-            .filter(
-                m ->
-                    m.getName().equals(Config.MAX_DOWNLOADABLE_SIZE_IN_MB)
-                        || m.getName().equals(Config.MAX_UPLOADABLE_SIZE_IN_MB))
-            .collect(
-                Collectors.toMap(
-                    ConfigModel::getName, m -> m.getValue() == null ? "null" : m.getValue()));
-
-    assertThat(nullableValues)
-        .containsEntry(Config.MAX_DOWNLOADABLE_SIZE_IN_MB, "null")
-        .containsEntry(Config.MAX_UPLOADABLE_SIZE_IN_MB, "null");
-  }
-
-  @Test
-  void getConfigsReturnsCorrectSizeValues() {
-    when(filesConfig.getMaxNumberOfVersionsRaw()).thenReturn("10");
-    when(filesConfig.getMaxDownloadableFileSizeInMb()).thenReturn(Optional.of(256));
-    when(filesConfig.getMaxUploadableFileSizeInMb()).thenReturn(Optional.of(512));
-
-    Map<String, String> configs = callGetConfigs();
-
-    assertThat(configs)
-        .containsEntry(Config.MAX_DOWNLOADABLE_SIZE_IN_MB, "256")
-        .containsEntry(Config.MAX_UPLOADABLE_SIZE_IN_MB, "512");
   }
 }

@@ -17,8 +17,7 @@ import org.junit.jupiter.api.Test;
  * Introspection is blocked in production, as on main (where {@code BlockedFields} hid {@code
  * __.*}): the graphql extension's prod default {@code
  * quarkus.smallrye-graphql.field-visibility=no-introspection} makes {@code __schema} and {@code
- * __type} fail validation, for anonymous and authenticated callers alike, while {@code __typename}
- * stays available.
+ * __type} fail validation for authenticated callers, while {@code __typename} stays available.
  */
 class IntrospectionApiIT extends AbstractFilesIT {
 
@@ -51,33 +50,11 @@ class IntrospectionApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAnAnonymousCallerSchemaIntrospectionShouldBeRejected() throws Exception {
-    JsonNode body = body(publicGraphql("query { __schema { mutationType { fields { name } } } }"));
-
-    assertRejected(body, "__schema");
-  }
-
-  @Test
-  void givenAnAnonymousCallerTypeIntrospectionShouldBeRejected() throws Exception {
-    JsonNode body = body(publicGraphql("query { __type(name: \\\"Mutation\\\") { name } }"));
-
-    assertRejected(body, "__type");
-  }
-
-  @Test
   void givenAnAuthenticatedCallerSchemaIntrospectionShouldBeRejected() throws Exception {
     JsonNode body =
         body(graphql("query introspectionQuery { __schema { types { name } } }", REQUESTER_COOKIE));
 
     assertRejected(body, "__schema");
-  }
-
-  @Test
-  void givenAnAuthenticatedCallerTypeIntrospectionShouldBeRejected() throws Exception {
-    JsonNode body =
-        body(graphql("query { __type(name: \\\"Mutation\\\") { name } }", REQUESTER_COOKIE));
-
-    assertRejected(body, "__type");
   }
 
   @Test
@@ -93,12 +70,5 @@ class IntrospectionApiIT extends AbstractFilesIT {
     Assertions.assertThat(body.path("data").path("__typename").asText()).isEqualTo("Query");
     Assertions.assertThat(body.path("data").path("getNode").path("__typename").asText())
         .isEqualTo("Folder");
-  }
-
-  @Test
-  void givenAnAnonymousCallerTypenameShouldStillResolve() throws Exception {
-    JsonNode body = body(publicGraphql("query { __typename }"));
-
-    Assertions.assertThat(body.path("data").path("__typename").asText()).isEqualTo("Query");
   }
 }

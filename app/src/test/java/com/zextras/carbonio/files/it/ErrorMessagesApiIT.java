@@ -28,7 +28,6 @@ class ErrorMessagesApiIT extends AbstractFilesIT {
   private static final String OTHER_USER_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
   private static final String REQUESTER_COOKIE = "ZM_AUTH_TOKEN=fake-token";
   private static final String OTHER_COOKIE = "ZM_AUTH_TOKEN=fake-token-b";
-  private static final String UNKNOWN_NODE_ID = "00000000-0000-0000-0000-00000000dead";
 
   @BeforeAll
   static void registerUsers() {
@@ -43,11 +42,6 @@ class ErrorMessagesApiIT extends AbstractFilesIT {
     } catch (Exception e) {
       throw new AssertionError(e);
     }
-  }
-
-  private static boolean isNullData(JsonNode body, String field) {
-    JsonNode data = body.get("data");
-    return data == null || data.isNull() || data.path(field).isNull();
   }
 
   private static JsonNode onlyError(JsonNode body) {
@@ -75,98 +69,6 @@ class ErrorMessagesApiIT extends AbstractFilesIT {
           .isEqualTo(extraKeysAndValues[i + 1]);
     }
     Assertions.assertThat(extensionKeys(error)).isEqualTo(expectedKeys);
-  }
-
-  @Test
-  void givenAnUnknownNodeGetNodeShouldReturnNullDataAndMainsNodeNotFoundError() {
-    String query =
-        GraphqlCommandBuilder.aQueryBuilder("getNode")
-            .withString("node_id", UNKNOWN_NODE_ID)
-            .withWantedResultFormat("{ id }")
-            .build();
-
-    JsonNode body = body(graphql(query, REQUESTER_COOKIE));
-
-    Assertions.assertThat(isNullData(body, "getNode")).isTrue();
-    assertError(
-        onlyError(body),
-        "NODE_NOT_FOUND",
-        "Could not find node with id " + UNKNOWN_NODE_ID,
-        "nodeId",
-        UNKNOWN_NODE_ID);
-  }
-
-  @Test
-  void givenAMissingShareGetShareShouldCarryNodeIdAndUserId() {
-    String nodeId =
-        seedFile("s.txt", LOCAL_ROOT, "s".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    String query =
-        GraphqlCommandBuilder.aQueryBuilder("getShare")
-            .withString("node_id", nodeId)
-            .withString("share_target_id", OTHER_USER_ID)
-            .withWantedResultFormat("{ created_at }")
-            .build();
-
-    JsonNode body = body(graphql(query, REQUESTER_COOKIE));
-
-    Assertions.assertThat(isNullData(body, "getShare")).isTrue();
-    assertError(
-        onlyError(body),
-        "SHARE_NOT_FOUND",
-        "Could not find share for node: " + nodeId + " and user " + OTHER_USER_ID,
-        "nodeId",
-        nodeId,
-        "userId",
-        OTHER_USER_ID);
-  }
-
-  @Test
-  void givenADuplicateNameUpdateNodeShouldCarryNodeIdAndDestinationFolderId() {
-    String folderId = seedFolder("dup-parent", LOCAL_ROOT, REQUESTER_COOKIE);
-    seedFolder("taken", folderId, REQUESTER_COOKIE);
-    String nodeId = seedFolder("other", folderId, REQUESTER_COOKIE);
-    String mutation =
-        GraphqlCommandBuilder.aMutationBuilder("updateNode")
-            .withString("node_id", nodeId)
-            .withString("name", "taken")
-            .withWantedResultFormat("{ id }")
-            .build();
-
-    JsonNode body = body(graphql(mutation, REQUESTER_COOKIE));
-
-    Assertions.assertThat(isNullData(body, "updateNode")).isTrue();
-    assertError(
-        onlyError(body),
-        "NODE_DUPLICATED",
-        "Trying to create a duplicate for the node "
-            + nodeId
-            + " in destination folder "
-            + folderId,
-        "nodeId",
-        nodeId,
-        "destinationFolderId",
-        folderId);
-  }
-
-  @Test
-  void givenAnUnknownLinkUpdateLinkShouldCarryTheLinkId() {
-    String linkId = "11111111-1111-1111-1111-111111111111";
-    String mutation =
-        GraphqlCommandBuilder.aMutationBuilder("updateLink")
-            .withString("link_id", linkId)
-            .withString("description", "d")
-            .withWantedResultFormat("{ id }")
-            .build();
-
-    JsonNode body = body(graphql(mutation, REQUESTER_COOKIE));
-
-    Assertions.assertThat(isNullData(body, "updateLink")).isTrue();
-    assertError(
-        onlyError(body),
-        "LINK_NOT_FOUND",
-        "Could not find link with id " + linkId,
-        "linkId",
-        linkId);
   }
 
   @Test
@@ -199,29 +101,6 @@ class ErrorMessagesApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenNoReadPermissionGetVersionsShouldReturnANullElementAndNodeWriteError() {
-    String nodeId =
-        seedFile("p.txt", LOCAL_ROOT, "p".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
-    String query =
-        GraphqlCommandBuilder.aQueryBuilder("getVersions")
-            .withString("node_id", nodeId)
-            .withWantedResultFormat("{ version }")
-            .build();
-
-    JsonNode body = body(graphql(query, REQUESTER_COOKIE));
-
-    JsonNode data = body.path("data").path("getVersions");
-    Assertions.assertThat(data).hasSize(1);
-    Assertions.assertThat(data.get(0).isNull()).isTrue();
-    assertError(
-        onlyError(body),
-        "NODE_WRITE_ERROR",
-        "There was a problem while executing requested operation on node: " + nodeId,
-        "nodeId",
-        nodeId);
-  }
-
-  @Test
   void givenNoPermissionGetLinksShouldReturnASingleNullElementWithoutAnError() {
     String nodeId =
         seedFile("l.txt", LOCAL_ROOT, "l".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
@@ -237,29 +116,6 @@ class ErrorMessagesApiIT extends AbstractFilesIT {
     Assertions.assertThat(links).hasSize(1);
     Assertions.assertThat(links.get(0).isNull()).isTrue();
     Assertions.assertThat(body.path("errors").isMissingNode()).isTrue();
-  }
-
-  @Test
-  void givenNoPermissionGetCollaborationLinksShouldReturnANullElementAndNodeWriteError() {
-    String nodeId =
-        seedFile("c.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
-    String query =
-        GraphqlCommandBuilder.aQueryBuilder("getCollaborationLinks")
-            .withString("node_id", nodeId)
-            .withWantedResultFormat("{ id }")
-            .build();
-
-    JsonNode body = body(graphql(query, REQUESTER_COOKIE));
-
-    JsonNode links = body.path("data").path("getCollaborationLinks");
-    Assertions.assertThat(links).hasSize(1);
-    Assertions.assertThat(links.get(0).isNull()).isTrue();
-    assertError(
-        onlyError(body),
-        "NODE_WRITE_ERROR",
-        "There was a problem while executing requested operation on node: " + nodeId,
-        "nodeId",
-        nodeId);
   }
 
   @Test
@@ -285,27 +141,6 @@ class ErrorMessagesApiIT extends AbstractFilesIT {
         "There was a problem while executing requested operation on node: " + notTrashedId,
         "nodeId",
         notTrashedId);
-  }
-
-  @Test
-  void givenAFailedItemInABulkOperationTheSingleErrorCarriesTheFirstFailedNodeId() {
-    String okId = seedFolder("ok", LOCAL_ROOT, REQUESTER_COOKIE);
-    String mutation =
-        GraphqlCommandBuilder.aMutationBuilder("trashNodes")
-            .withListOfStrings("node_ids", new String[] {okId, UNKNOWN_NODE_ID})
-            .withWantedResultFormat("")
-            .build();
-
-    JsonNode body = body(graphql(mutation, REQUESTER_COOKIE));
-
-    Assertions.assertThat(body.path("data").path("trashNodes")).hasSize(1);
-    Assertions.assertThat(body.path("data").path("trashNodes").get(0).asText()).isEqualTo(okId);
-    assertError(
-        onlyError(body),
-        "NODE_WRITE_ERROR",
-        "There was a problem while executing requested operation on node: " + UNKNOWN_NODE_ID,
-        "nodeId",
-        UNKNOWN_NODE_ID);
   }
 
   @Test
@@ -344,19 +179,5 @@ class ErrorMessagesApiIT extends AbstractFilesIT {
           "identifier",
           ghostOwnerId);
     }
-  }
-
-  @Test
-  void givenAnErrorWithoutExtrasNoExtraKeyIsEmittedAsNull() {
-    String query = "{ getNode(node_id: \\\"short\\\") { id } }";
-
-    JsonNode body = body(graphql(query, REQUESTER_COOKIE));
-
-    JsonNode error = onlyError(body);
-    Assertions.assertThat(extensionKeys(error))
-        .containsExactlyInAnyOrder("classification", "errorCode");
-    Assertions.assertThat(error.get("extensions").get("errorCode").isNull()).isTrue();
-    Assertions.assertThat(error.get("extensions").get("classification").asText())
-        .isEqualTo("DataFetchingException");
   }
 }

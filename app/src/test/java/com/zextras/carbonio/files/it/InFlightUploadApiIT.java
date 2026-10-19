@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
-import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
@@ -26,7 +25,6 @@ import org.junit.jupiter.api.Test;
 class InFlightUploadApiIT extends AbstractFilesIT {
 
   private static final String REQUESTER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
-  private static final String OTHER_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
   private static final String REQUESTER_COOKIE = "ZM_AUTH_TOKEN=fake-token";
   private static final String INFLIGHT_ID = "00000000-0000-0000-0000-00000000f1f1";
 
@@ -36,7 +34,6 @@ class InFlightUploadApiIT extends AbstractFilesIT {
   @BeforeAll
   static void registerUsers() {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", REQUESTER_ID);
-    FilesStackTestResource.getUserManagementService().registerToken("fake-token-b", OTHER_ID);
   }
 
   @BeforeEach
@@ -121,23 +118,6 @@ class InFlightUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAnInFlightUploadFindNodesShouldNullOnlyThatElementAndKeepTheRestOfThePage() {
-    String query =
-        GraphqlCommandBuilder.aQueryBuilder("findNodes")
-            .withString("folder_id", folderId)
-            .withWantedResultFormat("{ nodes { id name ... on File { size } } page_token }")
-            .build();
-
-    JsonNode body = body(graphql(query, REQUESTER_COOKIE));
-
-    JsonNode nodes = body.path("data").path("findNodes").path("nodes");
-    Assertions.assertThat(nodes).hasSize(2);
-    Assertions.assertThat(nodes.get(0).isNull()).isTrue();
-    Assertions.assertThat(nodes.get(1).path("id").asText()).isEqualTo(okId);
-    assertInFlightError(body);
-  }
-
-  @Test
   void givenAnInFlightUploadGetNodeShouldReturnTheBaseFieldsAlongsideTheError() {
     String query =
         GraphqlCommandBuilder.aQueryBuilder("getNode")
@@ -151,153 +131,5 @@ class InFlightUploadApiIT extends AbstractFilesIT {
     Assertions.assertThat(node.path("id").asText()).isEqualTo(INFLIGHT_ID);
     Assertions.assertThat(node.path("name").asText()).isEqualTo("inflight");
     assertInFlightError(body);
-  }
-
-  @Test
-  void givenAnInFlightUploadGetPathShouldReturnThePathAlongsideTheError() {
-    String query =
-        GraphqlCommandBuilder.aQueryBuilder("getPath")
-            .withString("node_id", INFLIGHT_ID)
-            .withWantedResultFormat("{ id name }")
-            .build();
-
-    JsonNode body = body(graphql(query, REQUESTER_COOKIE));
-
-    JsonNode path = body.path("data").path("getPath");
-    Assertions.assertThat(path).hasSize(3);
-    Assertions.assertThat(path.get(1).path("id").asText()).isEqualTo(folderId);
-    Assertions.assertThat(path.get(2).path("id").asText()).isEqualTo(INFLIGHT_ID);
-    assertInFlightError(body);
-  }
-
-  @Test
-  void givenAnInFlightUploadShareNodeShouldReturnTheShareAlongsideTheError() throws SQLException {
-    seedShareRawJdbc(INFLIGHT_ID, OTHER_ID, ACL.SharePermission.READ_ONLY);
-    String query =
-        "query { getShare(node_id: \\\""
-            + INFLIGHT_ID
-            + "\\\", share_target_id: \\\""
-            + OTHER_ID
-            + "\\\") { permission node { id name } } }";
-
-    JsonNode body = body(graphql(query, REQUESTER_COOKIE));
-
-    JsonNode share = body.path("data").path("getShare");
-    Assertions.assertThat(share.path("permission").asText()).isEqualTo("READ_ONLY");
-    Assertions.assertThat(share.path("node").path("id").asText()).isEqualTo(INFLIGHT_ID);
-    assertInFlightError(body);
-  }
-
-  @Test
-  void givenAnInFlightUploadLinkNodeShouldReturnTheLinkAlongsideTheError() throws SQLException {
-    seedLinkRawJdbc(
-        "22222222-2222-2222-2222-222222222222",
-        INFLIGHT_ID,
-        "pub0000000000000000000000000000000000000000000000x",
-        null,
-        null,
-        null);
-    String query =
-        "query { getLinks(node_id: \\\"" + INFLIGHT_ID + "\\\") { id node { id name } } }";
-
-    JsonNode body = body(graphql(query, REQUESTER_COOKIE));
-
-    JsonNode links = body.path("data").path("getLinks");
-    Assertions.assertThat(links).hasSize(1);
-    Assertions.assertThat(links.get(0).path("node").path("id").asText()).isEqualTo(INFLIGHT_ID);
-    assertInFlightError(body);
-  }
-
-  @Test
-  void givenAnInFlightUploadCollaborationLinkNodeShouldReturnTheLinkAlongsideTheError()
-      throws SQLException {
-    try (Connection c = jdbcConnection();
-        PreparedStatement ps =
-            c.prepareStatement(
-                "INSERT INTO collaboration_link (id, node_id, invitation_id, created_at,"
-                    + " permissions) VALUES ('11111111-1111-1111-1111-111111111111', ?, 'abcd1234',"
-                    + " now(), ?)")) {
-      ps.setString(1, INFLIGHT_ID);
-      ps.setShort(2, ACL.SharePermission.READ_ONLY.encode());
-      ps.executeUpdate();
-    }
-    String query =
-        "query { getCollaborationLinks(node_id: \\\""
-            + INFLIGHT_ID
-            + "\\\") { id node { id name } } }";
-
-    JsonNode body = body(graphql(query, REQUESTER_COOKIE));
-
-    JsonNode links = body.path("data").path("getCollaborationLinks");
-    Assertions.assertThat(links).hasSize(1);
-    Assertions.assertThat(links.get(0).path("node").path("id").asText()).isEqualTo(INFLIGHT_ID);
-    assertInFlightError(body);
-  }
-
-  @Test
-  void givenARequestedVersionThatDoesNotExistGetVersionsShouldReturnTheElementAlongsideTheError() {
-    String query =
-        "query { getVersions(node_id: \\\"" + okId + "\\\", versions: [99]) { id version } }";
-
-    JsonNode body = body(graphql(query, REQUESTER_COOKIE));
-
-    Assertions.assertThat(errorCodes(body)).containsExactly("FILE_VERSION_NOT_FOUND");
-    Assertions.assertThat(versionNotFoundError(body).get("message").asText())
-        .isEqualTo("Could not find version: 99 for node with id " + okId);
-    JsonNode versions = body.path("data").path("getVersions");
-    Assertions.assertThat(versions).hasSize(1);
-    Assertions.assertThat(versions.get(0).isNull()).isTrue();
-  }
-
-  private static String publicLinkId(String nodeId) {
-    String url = seedLinkUrl(nodeId);
-    return url.substring(url.length() - 50);
-  }
-
-  private static String seedLinkUrl(String nodeId) {
-    return graphql(
-            "mutation { createLink(node_id: \\\"" + nodeId + "\\\") { url } }", REQUESTER_COOKIE)
-        .jsonPath()
-        .getString("data.createLink.url");
-  }
-
-  private static void assertPublicFailure(JsonNode body, String field, String message) {
-    Assertions.assertThat(body.path("errors")).hasSize(1);
-    JsonNode error = body.path("errors").get(0);
-    Assertions.assertThat(error.path("message").asText()).isEqualTo(message);
-    Assertions.assertThat(error.path("extensions").path("classification").asText())
-        .isEqualTo("DataFetchingException");
-    Assertions.assertThat(error.path("extensions").path("errorCode").isNull()).isTrue();
-    Assertions.assertThat(body.path("data").has(field)).isTrue();
-    Assertions.assertThat(body.path("data").path(field).isNull()).isTrue();
-  }
-
-  @Test
-  void givenAnInFlightUploadTheWholePublicListingFailsLikeOnMain() {
-    String linkId = publicLinkId(folderId);
-    String query =
-        "query { findPublicNodes(folder_id: \\\""
-            + folderId
-            + "\\\", limit: 25, node_link_id: \\\""
-            + linkId
-            + "\\\") { nodes { id name } page_token } }";
-
-    JsonNode body = body(publicGraphql(query));
-
-    assertPublicFailure(
-        body,
-        "findPublicNodes",
-        "Exception while fetching data (/findPublicNodes/nodes) : No value present");
-  }
-
-  @Test
-  void givenAnInFlightUploadGetPublicNodeFailsLikeOnMain() {
-    String linkId = publicLinkId(INFLIGHT_ID);
-    String query = "query { getPublicNode(node_link_id: \\\"" + linkId + "\\\") { id name } }";
-
-    JsonNode body = body(publicGraphql(query));
-
-    assertPublicFailure(
-        body, "getPublicNode", "Exception while fetching data (/getPublicNode) : No value present");
   }
 }

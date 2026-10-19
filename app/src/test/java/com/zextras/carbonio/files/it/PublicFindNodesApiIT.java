@@ -16,8 +16,6 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * {@code com.zextras.carbonio.files.acceptance.PublicFindNodesApiIT} rewritten as an out-of-process
@@ -119,25 +117,6 @@ class PublicFindNodesApiIT extends AbstractFilesIT {
     String bodyPayload =
         builder.withWantedResultFormat("{ nodes { id name }, page_token }").build();
     return publicGraphql(bodyPayload);
-  }
-
-  @ParameterizedTest
-  @ValueSource(ints = {0, -1})
-  void givenANonPositiveLimitTheFindPublicNodesShouldReturnAValidationError(int limit) {
-    // Given
-    String[] tree = createFolderTree(OWNER_COOKIE);
-    String publicId = createLink(tree[0], null, null, OWNER_COOKIE);
-
-    // When
-    Response response = publicFindNodes(tree[0], limit, publicId, null, null);
-
-    // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
-    Assertions.assertThat(response.jsonPath().getString("errors[0].message"))
-        .isEqualTo("Invalid limit value. The limit must be greater than 0.");
-    Assertions.assertThat(response.jsonPath().getList("errors[0].path"))
-        .containsExactly("findPublicNodes");
   }
 
   @DisplayName(

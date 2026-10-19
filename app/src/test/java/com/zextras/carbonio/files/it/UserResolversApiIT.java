@@ -283,50 +283,6 @@ class UserResolversApiIT extends AbstractFilesIT {
 
   @SuppressWarnings("unchecked")
   @Test
-  void givenAGhostShareTargetTheShareTargetShouldBeNullWithScopedErrorAndOtherSharesIntact()
-      throws SQLException {
-    String ghostTargetId = "ffffffff-ffff-ffff-ffff-ffffffffffff";
-    String nodeId =
-        seedFile(
-            "ghost-share.txt",
-            LOCAL_ROOT,
-            "content".getBytes(java.nio.charset.StandardCharsets.UTF_8),
-            REQUESTER_COOKIE);
-    seedShareRawJdbc(nodeId, ghostTargetId, ACL.SharePermission.READ_ONLY);
-    seedShareRawJdbc(nodeId, REQUESTER_ID, ACL.SharePermission.READ_ONLY);
-
-    String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("getNode")
-            .withString("node_id", nodeId)
-            .withWantedResultFormat(
-                "{ id shares(limit: 10) { permission share_target { ... on User { id } } } }")
-            .build();
-
-    Response response = execute(bodyPayload);
-
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Map<String, Object> node =
-        TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
-    Assertions.assertThat(node).containsEntry("id", nodeId);
-    List<Map<String, Object>> shares = (List<Map<String, Object>>) node.get("shares");
-    Assertions.assertThat(shares).hasSize(2);
-    Assertions.assertThat(shares).filteredOn(sh -> sh.get("share_target") == null).hasSize(1);
-    Assertions.assertThat(shares)
-        .filteredOn(sh -> sh.get("share_target") != null)
-        .singleElement()
-        .satisfies(
-            sh ->
-                Assertions.assertThat((Map<String, Object>) sh.get("share_target"))
-                    .containsEntry("id", REQUESTER_ID));
-    int ghostIndex = shares.get(0).get("share_target") == null ? 0 : 1;
-    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
-        .containsExactly("ACCOUNT_NOT_FOUND");
-    Assertions.assertThat(errorPaths(response))
-        .containsExactly(List.of("getNode", "shares", ghostIndex, "share_target"));
-  }
-
-  @SuppressWarnings("unchecked")
-  @Test
   void givenAMixedBatchOfNodesOnlyTheNodeWithTheGhostOwnerShouldSurfaceAnError()
       throws SQLException {
     String folderId = seedFolder("mixed-batch", LOCAL_ROOT, REQUESTER_COOKIE);

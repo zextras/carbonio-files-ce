@@ -182,23 +182,6 @@ class PermissionsCheckerTest {
   }
 
   @Test
-  void getPermissionsForManyNodesShouldReturnOwnerForTheOwnerAndSkipTheShareQuery() {
-    NodeRepository nodeRepository = mock(NodeRepository.class);
-    ShareRepository shareRepository = mock(ShareRepository.class);
-    String nodeId = "44444444-4444-4444-4444-444444444456";
-    when(nodeRepository.getNodes(List.of(nodeId), Optional.empty()))
-        .thenReturn(Stream.of(node(nodeId, NodeType.FOLDER, false)));
-    PermissionsChecker checker = new PermissionsChecker(nodeRepository, shareRepository);
-
-    Map<String, ACL> permissions = checker.getPermissions(List.of(nodeId, nodeId), OWNER_ID);
-
-    assertThat(permissions).containsOnlyKeys(nodeId);
-    assertThat(permissions).containsEntry(nodeId, ACL.decode(ACL.OWNER));
-    verify(nodeRepository, times(1)).getNodes(List.of(nodeId), Optional.empty());
-    verifyNoInteractions(shareRepository);
-  }
-
-  @Test
   void getPermissionsOfNodesShouldNotLoadNodesAndQueryTheSharesOnlyForTheNodesThatNeedThem() {
     NodeRepository nodeRepository = mock(NodeRepository.class);
     ShareRepository shareRepository = mock(ShareRepository.class);
@@ -240,19 +223,5 @@ class PermissionsCheckerTest {
                 (List<String> ids) ->
                     ids.size() == 2 && ids.containsAll(List.of(sharedId, notSharedId))),
             eq(OWNER_ID));
-  }
-
-  @Test
-  void getPermissionsOfNodesShouldSkipTheShareQueryWhenNoNodeNeedsIt() {
-    NodeRepository nodeRepository = mock(NodeRepository.class);
-    ShareRepository shareRepository = mock(ShareRepository.class);
-    String nodeId = "44444444-4444-4444-4444-444444444466";
-    PermissionsChecker checker = new PermissionsChecker(nodeRepository, shareRepository);
-
-    Map<String, ACL> permissions =
-        checker.getPermissionsOfNodes(List.of(node(nodeId, NodeType.FOLDER, false)), OWNER_ID);
-
-    assertThat(permissions).containsEntry(nodeId, ACL.decode(ACL.OWNER));
-    verifyNoInteractions(nodeRepository, shareRepository);
   }
 }

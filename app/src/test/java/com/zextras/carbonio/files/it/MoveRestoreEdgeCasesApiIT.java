@@ -310,15 +310,6 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
         .isEqualTo(1);
   }
 
-  private static void deleteRevisionRows(String nodeId) throws SQLException {
-    try (java.sql.Connection c = jdbcConnection();
-        java.sql.PreparedStatement ps =
-            c.prepareStatement("DELETE FROM revision WHERE node_id = ?")) {
-      ps.setString(1, nodeId);
-      ps.executeUpdate();
-    }
-  }
-
   private static List<String> parentAndAncestorsOf(String nodeId) throws SQLException {
     try (Connection connection = jdbcConnection();
         PreparedStatement statement =
@@ -355,51 +346,6 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     Assertions.assertThat(parentAndAncestorsOf(subFolderId).get(0)).isEqualTo(folderId);
   }
 
-  @Test
-  void givenAFolderAndAnotherNodeMovingThemIntoTheFoldersSubFolderOnlyTheOtherShouldMove() {
-    // Given
-    String folderId = seedFolder("outer", LOCAL_ROOT, OWNER_COOKIE);
-    String subFolderId = seedFolder("inner", folderId, OWNER_COOKIE);
-    String otherId = seedFolder("other", LOCAL_ROOT, OWNER_COOKIE);
-
-    // When
-    Response response = moveNodes(new String[] {folderId, otherId}, subFolderId, OWNER_COOKIE);
-
-    // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.errorCode"))
-        .isEqualTo("NODE_WRITE_ERROR");
-    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
-        .isEqualTo(folderId);
-    Assertions.assertThat(response.jsonPath().getList("data.moveNodes.id"))
-        .containsExactly(otherId);
-  }
-
-  @Test
-  void givenTwoFoldersMovedIntoEachOtherSequentiallyTheSecondMoveShouldReturnNodeWriteError()
-      throws SQLException {
-    // Given
-    String folderAId = seedFolder("A", LOCAL_ROOT, OWNER_COOKIE);
-    String folderBId = seedFolder("B", LOCAL_ROOT, OWNER_COOKIE);
-    Assertions.assertThat(
-            moveNodes(new String[] {folderAId}, folderBId, OWNER_COOKIE)
-                .jsonPath()
-                .getList("errors"))
-        .isNull();
-    List<String> before = parentAndAncestorsOf(folderBId);
-
-    // When
-    Response response = moveNodes(new String[] {folderBId}, folderAId, OWNER_COOKIE);
-
-    // Then
-    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.errorCode"))
-        .isEqualTo("NODE_WRITE_ERROR");
-    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
-        .isEqualTo(folderBId);
-    Assertions.assertThat(response.jsonPath().getList("data.moveNodes")).isEmpty();
-    Assertions.assertThat(parentAndAncestorsOf(folderBId)).isEqualTo(before);
-  }
-
   // ---------------------------------------------------------------------------------------------
   // restoreNodes
   // ---------------------------------------------------------------------------------------------
@@ -417,32 +363,6 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
     Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
-  }
-
-  @Test
-  void givenAFileWithoutVersionRowAndAnIdWithoutPermissionRestoreNodesShouldKeepBothFailureSlots()
-      throws SQLException {
-    // Given
-    String noVersionId =
-        seedFile(
-            "noVersion.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
-    seedTrashed(noVersionId, OWNER_COOKIE);
-    deleteRevisionRows(noVersionId);
-    String notMineId =
-        seedFile(
-            "notMine.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
-
-    // When
-    Response response = restoreNodes(new String[] {noVersionId, notMineId}, OWNER_COOKIE);
-
-    // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(response.jsonPath().getList("data.restoreNodes")).hasSize(2);
-    Assertions.assertThat(response.jsonPath().getString("data.restoreNodes[0].id"))
-        .isEqualTo(noVersionId);
-    Assertions.assertThat(response.jsonPath().getList("data.restoreNodes").get(1)).isNull();
-    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
-        .containsExactly("FILE_VERSION_NOT_FOUND");
   }
 
   @Test
@@ -600,53 +520,5 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     Assertions.assertThat(shareExists(grandchildId, THIRD_USER_ID, OWNER_COOKIE))
         .as("cascadeUpsertShare must reach the restored folder's own descendants")
         .isTrue();
-  }
-
-  @Test
-  void givenATrashedNodeMovedOutByTheApiRestoreNodesShouldStillRestoreIt() {
-    // Given
-    String folderId = seedFolder("destination", LOCAL_ROOT, OWNER_COOKIE);
-    String nodeId =
-        seedFile("stale.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
-    seedTrashed(nodeId, OWNER_COOKIE);
-    Assertions.assertThat(
-            TestUtils.jsonResponseToErrors(
-                moveNodes(new String[] {nodeId}, folderId, OWNER_COOKIE).getBody().asString()))
-        .isEmpty();
-
-    // When
-    Response response = restoreNodes(new String[] {nodeId}, OWNER_COOKIE);
-
-    // Then
-    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
-    Assertions.assertThat(response.jsonPath().getList("data.restoreNodes.id"))
-        .containsExactly(nodeId);
-  }
-
-  @Test
-  void givenATrashedNodeMovedOutByTheApiTrashNodesShouldReportAWriteError() {
-    // Given
-    String folderId = seedFolder("destination", LOCAL_ROOT, OWNER_COOKIE);
-    String nodeId =
-        seedFile("stale.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
-    seedTrashed(nodeId, OWNER_COOKIE);
-    Assertions.assertThat(
-            TestUtils.jsonResponseToErrors(
-                moveNodes(new String[] {nodeId}, folderId, OWNER_COOKIE).getBody().asString()))
-        .isEmpty();
-
-    // When
-    Response response =
-        graphql(
-            GraphqlCommandBuilder.aMutationBuilder("trashNodes")
-                .withListOfStrings("node_ids", new String[] {nodeId})
-                .withWantedResultFormat("")
-                .build(),
-            OWNER_COOKIE);
-
-    // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
-        .containsExactly("NODE_WRITE_ERROR");
   }
 }

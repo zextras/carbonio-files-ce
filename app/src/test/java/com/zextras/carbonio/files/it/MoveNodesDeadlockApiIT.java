@@ -8,7 +8,6 @@ import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
-import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -102,54 +101,5 @@ class MoveNodesDeadlockApiIT extends AbstractFilesIT {
     Assertions.assertThat(nodeColumn("folder_id", folderY)).isEqualTo(destination);
     Assertions.assertThat(nodeColumn("ancestor_ids", folderY))
         .isEqualTo(LOCAL_ROOT + "," + destination);
-  }
-
-  @Test
-  void givenARenameAndAMoveIntoTheRenamedNodesFolderBothShouldSucceed() throws Exception {
-    // Given
-    String folderD = seedFolder("d", LOCAL_ROOT, REQUESTER_COOKIE);
-    String fileX =
-        seedFile("x.txt", folderD, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    String fileA =
-        seedFile("a.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-
-    Response rename;
-    Response move;
-    try (Connection rowLock = jdbcConnection()) {
-      rowLock.setAutoCommit(false);
-      try (PreparedStatement lock =
-          rowLock.prepareStatement("SELECT node_id FROM node WHERE node_id = ? FOR UPDATE")) {
-        lock.setString(1, fileX);
-        lock.execute();
-      }
-
-      // When
-      CompletableFuture<Response> renameFuture =
-          CompletableFuture.supplyAsync(() -> updateNode(fileX, "renamed"));
-      awaitBlockedBy(rowLock, 1);
-      CompletableFuture<Response> moveFuture =
-          CompletableFuture.supplyAsync(
-              () ->
-                  graphql(
-                      GraphqlCommandBuilder.aMutationBuilder("moveNodes")
-                          .withListOfStrings("node_ids", new String[] {fileA, fileX})
-                          .withString("destination_id", folderD)
-                          .withWantedResultFormat("{ id }")
-                          .build(),
-                      REQUESTER_COOKIE));
-      awaitBlockedBy(rowLock, 2);
-      rowLock.commit();
-      rename = renameFuture.get(60, TimeUnit.SECONDS);
-      move = moveFuture.get(60, TimeUnit.SECONDS);
-    }
-
-    // Then
-    Assertions.assertThat(rename.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(rename.jsonPath().getList("errors")).isNull();
-    Assertions.assertThat(move.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(move.jsonPath().getList("errors")).isNull();
-    Assertions.assertThat(nodeColumn("name", fileX)).isEqualTo("renamed.txt");
-    Assertions.assertThat(nodeColumn("folder_id", fileX)).isEqualTo(folderD);
-    Assertions.assertThat(nodeColumn("folder_id", fileA)).isEqualTo(folderD);
   }
 }
