@@ -194,7 +194,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>com.zextras.carbonio.message-broker</groupId>
       <artifactId>carbonio-message-broker-sdk</artifactId>
-      <version>1.1.1-1</version>
+      <version>1.1.10-1</version>
       <exclusions>
         <exclusion>
           <groupId>ch.qos.logback</groupId>

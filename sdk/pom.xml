@@ -45,30 +45,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <repositories>
     <repository>
-      <id>zextras-java-sdk</id>
-      <name>Zextras public maven repo</name>
-      <url>https://zextras.jfrog.io/artifactory/java-sdk</url>
-    </repository>
-    <!-- carbonio-quarkus-extensions >= 1.15.3 is published to Nexus only (jenkins-lib-common v5). -->
-    <repository>
       <id>zextras-nexus</id>
-      <name>Zextras Nexus releases</name>
-      <url>https://repo.zextras.tools/repository/public-maven-repo/</url>
+      <url>https://repo.zextras.tools/repository/java-sdk/</url>
+      <releases><enabled>true</enabled></releases>
+      <snapshots><enabled>true</enabled></snapshots>
     </repository>
   </repositories>
 
-  <!-- Files still deploys to JFrog (jenkins-lib-common v4); rest-sdk-parent >= 1.15.3 targets Nexus. -->
   <distributionManagement>
-    <snapshotRepository>
-      <id>zextras-java-sdk</id>
-      <name>Zextras private repository</name>
-      <url>https://zextras.jfrog.io/artifactory/maven-snapshot</url>
-    </snapshotRepository>
     <repository>
-      <id>zextras-java-sdk</id>
-      <name>Zextras private repository</name>
-      <url>https://zextras.jfrog.io/artifactory/public-maven-repo</url>
+      <id>nexus-prod</id>
+      <url>https://repo.zextras.tools/repository/public-maven-repo/</url>
     </repository>
+    <snapshotRepository>
+      <id>nexus-prod</id>
+      <url>https://repo.zextras.tools/repository/maven-snapshots/</url>
+    </snapshotRepository>
   </distributionManagement>
 
   <dependencies>
