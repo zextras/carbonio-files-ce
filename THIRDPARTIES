@@ -42,7 +42,7 @@ List of third-party dependencies grouped by their license type.
         * JBoss Threads (org.jboss.threads:jboss-threads:3.9.2 - https://github.com/jbossas/jboss-threads)
         * SLF4J: JBoss Log Manager (org.jboss.slf4j:slf4j-jboss-logmanager:2.0.2.Final - http://www.jboss.org)
         * SmallRye Certificate Generator - Private Key PEM utilities (io.smallrye.certs:smallrye-private-key-pem-parser:0.9.4 - https://github.com/cescoffier/certificate-generator)
-        * swagger-annotations-jakarta (io.swagger.core.v3:swagger-annotations-jakarta:2.2.22 - https://github.com/swagger-api/swagger-core/modules/swagger-annotations-jakarta)
+        * swagger-annotations-jakarta (io.swagger.core.v3:swagger-annotations-jakarta:2.2.52 - https://github.com/swagger-api/swagger-core/modules/swagger-annotations-jakarta)
         * wildfly-common (org.wildfly.common:wildfly-common:2.0.1 - http://www.jboss.org)
 
     Apache License Version 2.0:
@@ -377,4 +377,4 @@ List of third-party dependencies grouped by their license type.
 
     Unknown license:
 
-        * Carbonio Preview CE - REST SDK (com.zextras.carbonio.preview:carbonio-preview-ce-rest-sdk:2.0.2-1 - no url defined)
+        * Carbonio Preview CE - REST SDK (com.zextras.carbonio.preview:carbonio-preview-ce-rest-sdk:3.1.11-1 - no url defined)
