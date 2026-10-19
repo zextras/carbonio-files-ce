@@ -15,9 +15,10 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Introspection is blocked in production, as on main (where {@code BlockedFields} hid {@code
- * __.*}): {@code %prod.quarkus.smallrye-graphql.field-visibility=no-introspection} makes {@code
- * __schema} and {@code __type} fail validation, for anonymous and authenticated callers alike,
- * while {@code __typename} stays available.
+ * __.*}): the graphql extension's prod default {@code
+ * quarkus.smallrye-graphql.field-visibility=no-introspection} makes {@code __schema} and {@code
+ * __type} fail validation, for anonymous and authenticated callers alike, while {@code __typename}
+ * stays available.
  */
 class IntrospectionApiIT extends AbstractFilesIT {
 

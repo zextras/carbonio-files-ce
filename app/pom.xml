@@ -24,24 +24,6 @@ SPDX-License-Identifier: AGPL-3.0-only
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>io.quarkus</groupId>
-        <artifactId>quarkus-bom</artifactId>
-        <version>${quarkus.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-      <!-- Numeric literal DoS fix: the Quarkus BOM ships graphql-java 25.0 -->
-      <dependency>
-        <groupId>com.graphql-java</groupId>
-        <artifactId>graphql-java</artifactId>
-        <version>${graphql-java.version}</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-
   <dependencies>
     <!--
       P1 skeleton dependency set. Extensions are added phase-by-phase:
@@ -338,35 +320,20 @@ SPDX-License-Identifier: AGPL-3.0-only
       <plugin>
         <groupId>io.quarkus</groupId>
         <artifactId>quarkus-maven-plugin</artifactId>
-        <version>${quarkus.version}</version>
-        <extensions>true</extensions>
-        <executions>
-          <execution>
-            <goals>
-              <goal>build</goal>
-              <goal>generate-code</goal>
-              <goal>generate-code-tests</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>${maven-compiler.version}</version>
         <configuration>
           <compilerArgs>
             <arg>--enable-preview</arg>
           </compilerArgs>
-          <source>${maven.compiler.source}</source>
-          <target>${maven.compiler.target}</target>
         </configuration>
       </plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>${maven-surefire.version}</version>
         <configuration>
           <skipTests>${skip.unit.tests}</skipTests>
           <argLine>${argLine} --enable-preview --enable-native-access=ALL-UNNAMED</argLine>
@@ -378,7 +345,6 @@ SPDX-License-Identifier: AGPL-3.0-only
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <version>${maven-failsafe.version}</version>
         <configuration>
           <skipITs>${skip.integration.tests}</skipITs>
           <argLine>${argLine} --enable-preview --enable-native-access=ALL-UNNAMED</argLine>
@@ -386,26 +352,6 @@ SPDX-License-Identifier: AGPL-3.0-only
             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
           </systemPropertyVariables>
         </configuration>
-        <executions>
-          <execution>
-            <goals><goal>integration-test</goal><goal>verify</goal></goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.jacoco</groupId>
-        <artifactId>jacoco-maven-plugin</artifactId>
-        <version>${maven-jacoco.version}</version>
-        <executions>
-          <execution>
-            <id>prepare-agent</id>
-            <goals><goal>prepare-agent</goal></goals>
-          </execution>
-          <execution>
-            <id>report</id><phase>verify</phase>
-            <goals><goal>report</goal></goals>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
