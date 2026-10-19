@@ -17,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
   <parent>
     <groupId>com.zextras.carbonio.quarkus</groupId>
     <artifactId>carbonio-quarkus-extensions-rest-sdk-parent</artifactId>
-    <version>1.12.0-1</version>
+    <version>1.16.0-1</version>
     <relativePath/>
   </parent>
 
@@ -48,6 +48,12 @@ SPDX-License-Identifier: AGPL-3.0-only
       <id>zextras-java-sdk</id>
       <name>Zextras public maven repo</name>
       <url>https://zextras.jfrog.io/artifactory/java-sdk</url>
+    </repository>
+    <!-- carbonio-quarkus-extensions >= 1.15.3 is published to Nexus only (jenkins-lib-common v5). -->
+    <repository>
+      <id>zextras-nexus</id>
+      <name>Zextras Nexus releases</name>
+      <url>https://repo.zextras.tools/repository/public-maven-repo/</url>
     </repository>
   </repositories>
 
