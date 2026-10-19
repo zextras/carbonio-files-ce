@@ -75,8 +75,8 @@ SPDX-License-Identifier: AGPL-3.0-only
   -->
 
   <!-- Publish target for `mvn deploy` (the dt3 "Maven Publish" stage deploys the root pom with -N,
-       and the app module inherits this; the sdk module gets its own from carbonio-quarkus-extensions-
-       sdk-parent). Matches carbonio-user-management: the `zextras-java-sdk` id resolves to the
+       and the app module inherits this; the sdk module, parented on rest-sdk-parent, declares the
+       same target). Matches carbonio-user-management: the `zextras-java-sdk` id resolves to the
        credentials in the dt3-provided settings.xml. -->
   <distributionManagement>
     <snapshotRepository>
