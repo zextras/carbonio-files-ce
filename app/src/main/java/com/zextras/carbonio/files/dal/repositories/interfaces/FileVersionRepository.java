@@ -58,17 +58,14 @@ public interface FileVersionRepository {
       String digest,
       boolean autosave);
 
-  /**
-   * As the other overload, dated {@code timestamp} instead of now (the version reservation time).
-   */
-  Optional<FileVersion> createNewFileVersion(
+  /** As {@link #createNewFileVersion} (not autosaved), dated {@code timestamp} instead of now. */
+  Optional<FileVersion> createFileVersionAt(
       String nodeId,
       String lastEditorId,
       int version,
       String mimeType,
       long size,
       String digest,
-      boolean autosave,
       long timestamp);
 
   /**

@@ -270,57 +270,57 @@ public class PurgeService {
     Map<String, List<VersionReservation>> byOwner =
         purging.stream().collect(Collectors.groupingBy(VersionReservation::getOwnerId));
 
-    byOwner.forEach(
-        (ownerId, reservations) -> {
-          List<BulkDeleteResponseItem> failedItems;
-          try {
-            failedItems =
-                fileStore.bulkDelete(
-                    IdentifierType.files,
-                    ownerId,
-                    reservations.stream()
-                        .map(r -> BulkDeleteRequestItem.filesItem(r.getNodeId(), r.getVersion()))
-                        .toList());
-          } catch (Exception e) {
-            logger.warn(
-                "purgeExpiredReservations: bulk delete failed for owner {}: {}. Kept for the next"
-                    + " run.",
-                ownerId,
-                e.getMessage());
-            return;
-          }
-          if (failedItems == null) {
-            logger.warn(
-                "purgeExpiredReservations: bulk delete returned null for owner {}. Kept for the"
-                    + " next run.",
-                ownerId);
-            return;
-          }
+    byOwner.forEach(this::purgeReservationsOf);
+  }
 
-          for (VersionReservation reservation : reservations) {
-            boolean failed =
-                failedItems.stream()
-                    .anyMatch(
-                        item ->
-                            reservation.getNodeId().equals(item.getNode())
-                                && item.getVersion()
-                                    .map(version -> version == reservation.getVersion())
-                                    .orElse(true));
-            if (!failed) {
-              versionReservationRepository.remove(reservation);
-            } else if (reservation.getAttempts() + 1 >= MAX_RESERVATION_PURGE_ATTEMPTS) {
-              logger.warn(
-                  "purgeExpiredReservations: giving up on blob nodeId={} version={} after {}"
-                      + " attempts",
-                  reservation.getNodeId(),
-                  reservation.getVersion(),
-                  reservation.getAttempts() + 1);
-              versionReservationRepository.remove(reservation);
-            } else {
-              versionReservationRepository.recordFailedAttempt(reservation);
-            }
-          }
-        });
+  private void purgeReservationsOf(String ownerId, List<VersionReservation> reservations) {
+    List<BulkDeleteResponseItem> failedItems;
+    try {
+      failedItems =
+          fileStore.bulkDelete(
+              IdentifierType.files,
+              ownerId,
+              reservations.stream()
+                  .map(r -> BulkDeleteRequestItem.filesItem(r.getNodeId(), r.getVersion()))
+                  .toList());
+    } catch (Exception e) {
+      logger.warn(
+          "purgeExpiredReservations: bulk delete failed for owner {}: {}. Kept for the next run.",
+          ownerId,
+          e.getMessage());
+      return;
+    }
+    if (failedItems == null) {
+      logger.warn(
+          "purgeExpiredReservations: bulk delete returned null for owner {}. Kept for the next"
+              + " run.",
+          ownerId);
+      return;
+    }
+    reservations.forEach(reservation -> settle(reservation, failedItems));
+  }
+
+  private void settle(VersionReservation reservation, List<BulkDeleteResponseItem> failedItems) {
+    boolean failed =
+        failedItems.stream()
+            .anyMatch(
+                item ->
+                    reservation.getNodeId().equals(item.getNode())
+                        && item.getVersion()
+                            .map(version -> version == reservation.getVersion())
+                            .orElse(true));
+    if (!failed) {
+      versionReservationRepository.remove(reservation);
+    } else if (reservation.getAttempts() + 1 >= MAX_RESERVATION_PURGE_ATTEMPTS) {
+      logger.warn(
+          "purgeExpiredReservations: giving up on blob nodeId={} version={} after {} attempts",
+          reservation.getNodeId(),
+          reservation.getVersion(),
+          reservation.getAttempts() + 1);
+      versionReservationRepository.remove(reservation);
+    } else {
+      versionReservationRepository.recordFailedAttempt(reservation);
+    }
   }
 
   @Scheduled(

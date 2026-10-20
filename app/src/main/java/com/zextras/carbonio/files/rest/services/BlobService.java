@@ -91,6 +91,7 @@ import org.slf4j.LoggerFactory;
 @ApplicationScoped
 public class BlobService {
 
+  private static final String NODE_NOT_FOUND = "Node not found: ";
   private static final Logger logger = LoggerFactory.getLogger(BlobService.class);
 
   // P4b: re-added upload counters dropped by P4a; same metric name/tags as the legacy
@@ -437,8 +438,7 @@ public class BlobService {
                     Node createdNode =
                         nodeRepository
                             .getNode(nodeId)
-                            .orElseThrow(
-                                () -> new NoSuchElementException("Node not found: " + nodeId));
+                            .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
                     fileVersionRepository.createNewFileVersion(
                         nodeId,
                         requesterId,
@@ -529,7 +529,7 @@ public class BlobService {
     Node node =
         nodeRepository
             .getNode(nodeId)
-            .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+            .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
 
     // P9 CE seam: quota check before the new version blob is stored (no-op in CE).
     quotaChecker.ensureNotOverQuota(node.getOwnerId(), blobLength);
@@ -580,7 +580,7 @@ public class BlobService {
     Reservation reservation =
         versionReservations
             .reserve(nodeId, ownerId)
-            .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+            .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
     int version = reservation.version();
 
     UploadResponse uploadResponse =
@@ -599,16 +599,15 @@ public class BlobService {
                   long versionDate = versionReservations.confirm(reservation);
                   requireOwner(nodeId, ownerId);
                   fileVersionRepository
-                      .createNewFileVersion(
+                      .createFileVersionAt(
                           nodeId,
                           requesterId,
                           version,
                           mediaType.toString(),
                           uploadResponse.getSize(),
                           uploadResponse.getDigest(),
-                          false,
                           versionDate)
-                      .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+                      .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
                   nodeRepository.moveCurrentVersion(
                       nodeId, version, versionDate, uploadResponse.getSize(), requesterId);
                   return trimOldestVersion(nodeId, ownerId, version, maxNumberOfVersions);
@@ -643,6 +642,7 @@ public class BlobService {
       return uploadNewVersion(
           requesterId, blobStream, blobLength, node, mediaType, maxNumberOfVersions);
     }
+    boolean saved = false;
     try {
       UploadResponse uploadResponse =
           writeVersionBlob(
@@ -660,7 +660,7 @@ public class BlobService {
                 long now =
                     nodeRepository
                         .reserveTimestamp(nodeId, System.currentTimeMillis())
-                        .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId))
+                        .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId))
                         .reservedAt();
                 requireOwner(nodeId, ownerId);
                 FileVersion replaced =
@@ -680,28 +680,29 @@ public class BlobService {
                 fileVersionRepository.deleteFileVersion(replaced);
                 FileVersion rewritten =
                     fileVersionRepository
-                        .createNewFileVersion(
+                        .createFileVersionAt(
                             nodeId,
                             requesterId,
                             version,
                             mediaType.toString(),
                             uploadResponse.getSize(),
                             uploadResponse.getDigest(),
-                            false,
                             versionDate)
-                        .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+                        .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
                 rewritten.keepForever(keptForever);
                 clonedFrom.ifPresent(rewritten::setClonedFromVersion);
                 nodeRepository.moveCurrentVersion(
                     nodeId, version, now, uploadResponse.getSize(), requesterId);
               });
 
+      saved = true;
       logUploaded(nodeId, version, uploadResponse);
       return version;
-    } catch (Throwable failure) {
-      versionReservations.releaseOverwrite(nodeId, version);
-      tombstoneIfUnreferenced(nodeId, version, ownerId);
-      throw failure;
+    } finally {
+      if (!saved) {
+        versionReservations.releaseOverwrite(nodeId, version);
+        tombstoneIfUnreferenced(nodeId, version, ownerId);
+      }
     }
   }
 

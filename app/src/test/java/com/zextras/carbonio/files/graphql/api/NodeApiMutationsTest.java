@@ -247,8 +247,8 @@ class NodeApiMutationsTest {
   void cloneVersionFailureAfterTheBlobCopyIsNotReportedAsACopyError() throws Exception {
     givenACloneVersionWhoseStorageCopyFails();
     doReturn(mock(UploadResponse.class)).when(fileStore).copy(any(), any(), anyBoolean());
-    when(fileVersionRepository.createNewFileVersion(
-            any(), any(), anyInt(), any(), anyLong(), any(), anyBoolean(), anyLong()))
+    when(fileVersionRepository.createFileVersionAt(
+            any(), any(), anyInt(), any(), anyLong(), any(), anyLong()))
         .thenThrow(new IllegalStateException("db down"));
 
     try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {

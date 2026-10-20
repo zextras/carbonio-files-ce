@@ -50,7 +50,9 @@ class ReservationPurgeApiIT extends AbstractFilesIT {
     }
 
     @Override
-    public void stop() {}
+    public void stop() {
+      // Only configuration overrides: nothing was started.
+    }
   }
 
   @BeforeAll

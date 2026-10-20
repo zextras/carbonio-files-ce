@@ -43,34 +43,36 @@ public class FileVersionRepositoryImpl
       long size,
       String digest,
       boolean autosave) {
-    return createNewFileVersion(
-        nodeId,
-        lastEditorId,
-        version,
-        mimeType,
-        size,
-        digest,
-        autosave,
-        System.currentTimeMillis());
+    return persistIfNodeExists(
+        new FileVersion(
+            nodeId,
+            lastEditorId,
+            System.currentTimeMillis(),
+            version,
+            mimeType,
+            size,
+            digest,
+            autosave));
   }
 
   @Override
   @Transactional
-  public Optional<FileVersion> createNewFileVersion(
+  public Optional<FileVersion> createFileVersionAt(
       String nodeId,
       String lastEditorId,
       int version,
       String mimeType,
       long size,
       String digest,
-      boolean autosave,
       long timestamp) {
-    if (getEntityManager().find(Node.class, nodeId) == null) {
+    return persistIfNodeExists(
+        new FileVersion(nodeId, lastEditorId, timestamp, version, mimeType, size, digest, false));
+  }
+
+  private Optional<FileVersion> persistIfNodeExists(FileVersion fileVersion) {
+    if (getEntityManager().find(Node.class, fileVersion.getNodeId()) == null) {
       return Optional.empty();
     }
-
-    FileVersion fileVersion =
-        new FileVersion(nodeId, lastEditorId, timestamp, version, mimeType, size, digest, autosave);
     persist(fileVersion);
     return Optional.of(fileVersion);
   }

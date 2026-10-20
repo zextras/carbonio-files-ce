@@ -450,7 +450,7 @@ class PurgeServiceTest {
   }
 
   @Test
-  void purgeExpiredReservationsNeverDeletesTheBlobOfAnExistingVersion() throws Exception {
+  void purgeExpiredReservationsNeverDeletesTheBlobOfAnExistingVersion() {
     VersionReservation published = reservation("node-a", 2, "owner-1", 0);
     when(versionReservationRepository.getPurging()).thenReturn(List.of(published));
     when(fileVersionRepository.getFileVersion("node-a", 2))

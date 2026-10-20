@@ -1178,14 +1178,13 @@ public class NodeApi {
             () -> {
               long versionDate = versionReservations.confirm(reservation);
               fileVersionRepository
-                  .createNewFileVersion(
+                  .createFileVersionAt(
                       nodeId,
                       me,
                       newVersion,
                       fileVersion.getMimeType(),
                       copiedBlobResponse.getSize(),
                       copiedBlobResponse.getDigest(),
-                      false,
                       versionDate)
                   .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
 
