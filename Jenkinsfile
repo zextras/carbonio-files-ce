@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 library(
-    identifier: 'jenkins-lib-common@v5.0.7',
+    identifier: 'jenkins-lib-common@v5.0.8',
     retriever: modernSCM([
         $class: 'GitSCMSource',
         credentialsId: 'jenkins-integration-with-github-account',
@@ -17,12 +17,13 @@ properties(defaultPipelineProperties())
 // jarBuild copies the app module's `*-runner.jar` (the Quarkus uber-jar, produced because
 // application.properties sets quarkus.package.jar.type=uber-jar) into package/ as
 // `carbonio-files-ce.jar`, consumed by package/PKGBUILD (install to /usr/share/carbonio) and
-// docker/Dockerfile. No nativeBuild block => no GraalVM/Mandrel stage. mavenPublish still ships
-// the sdk AND the app: the app's *thin* jar (Quarkus keeps the -runner suffix on the uber-jar, so
-// the plain classes jar stays the Maven main artifact) is what carbonio-files (Advanced) consumes.
+// docker/Dockerfile. No nativeBuild block => no GraalVM/Mandrel stage. mavenPublish ships the
+// root pom (the app inherits it), the sdk AND the app: the app's *thin* jar (Quarkus keeps the
+// -runner suffix on the uber-jar, so the plain classes jar stays the Maven main artifact) is what
+// carbonio-files (Advanced) consumes.
 dt3_pipeline(
     repoName: 'carbonio-files-ce',
-    mavenPublish: ['sdk', 'app'],
+    mavenPublish: ['.', 'sdk', 'app'],
     jarBuild: [jarName: 'carbonio-files-ce.jar'],
     packaging: [
         buildFlags: '-ds',
