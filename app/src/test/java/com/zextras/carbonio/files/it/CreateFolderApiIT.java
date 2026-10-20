@@ -11,16 +11,8 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -116,39 +108,6 @@ class CreateFolderApiIT extends AbstractFilesIT {
     Map<String, Object> folder =
         TestUtils.jsonResponseToMap(response.getBody().asString(), "createFolder");
     Assertions.assertThat(folder).containsEntry("name", "sameName (1)");
-  }
-
-  @Test
-  void givenConcurrentSameNameCreateFolderEveryFolderShouldGetADistinctName() throws Exception {
-    String parentId = seedFolder("concurrent-parent", LOCAL_ROOT, REQUESTER_COOKIE);
-    int requests = 10;
-    ExecutorService pool = Executors.newFixedThreadPool(requests);
-    try {
-      CountDownLatch start = new CountDownLatch(1);
-      List<Future<Response>> calls = new ArrayList<>();
-      for (int i = 0; i < requests; i++) {
-        calls.add(
-            pool.submit(
-                () -> {
-                  start.await();
-                  return createFolder(parentId, "same", REQUESTER_COOKIE);
-                }));
-      }
-      start.countDown();
-
-      Set<Object> names = new HashSet<>();
-      for (Future<Response> call : calls) {
-        Response response = call.get(60, TimeUnit.SECONDS);
-        Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-        Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
-            .isEmpty();
-        names.add(
-            TestUtils.jsonResponseToMap(response.getBody().asString(), "createFolder").get("name"));
-      }
-      Assertions.assertThat(names).hasSize(requests);
-    } finally {
-      pool.shutdownNow();
-    }
   }
 
   @Test

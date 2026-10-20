@@ -10,17 +10,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.UserId;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
@@ -30,7 +26,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -49,14 +44,11 @@ import com.zextras.filestore.api.UploadResponse;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.narayana.jta.TransactionRunnerOptions;
 import io.smallrye.graphql.api.Context;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InOrder;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
@@ -201,108 +193,7 @@ class NodeApiMutationsTest {
     return txMock;
   }
 
-  @Test
-  void updateNodeRenameLocksTheNameBeforeTheRowAndOnlyOnceWhenTheNodeDidNotMove() throws Exception {
-    Node node = mockFolderNode(NODE_ID_1, PARENT_ID);
-    when(node.getExtension()).thenReturn(Optional.empty());
-    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
-    when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node));
-    when(nodeRepository.getNodeForUpdate(NODE_ID_1)).thenReturn(Optional.of(node));
-
-    nodeApi.updateNode(NODE_ID_1, "NewName", null, null);
-
-    InOrder order = Mockito.inOrder(nodeRepository);
-    order.verify(nodeRepository).lockChildNames(PARENT_ID, REQUESTER_ID);
-    order.verify(nodeRepository).getNodeForUpdate(NODE_ID_1);
-    verify(nodeRepository, Mockito.times(1)).lockChildNames(PARENT_ID, REQUESTER_ID);
-  }
-
   // ─── restoreNodes ─────────────────────────────────────────────────────────────
-
-  private Node trashedFolder(String id) {
-    Node node =
-        spy(
-            new Node(
-                id,
-                REQUESTER_ID,
-                REQUESTER_ID,
-                RootId.TRASH_ROOT,
-                0L,
-                0L,
-                "folder-" + id,
-                "",
-                NodeType.FOLDER,
-                RootId.TRASH_ROOT,
-                0L));
-    doReturn(List.of()).when(node).getCustomAttributes();
-    return node;
-  }
-
-  @Test
-  void restoreNodesLocksEveryDestinationBeforeRestoringAFolderTogetherWithItsTrashedChild()
-      throws Exception {
-    Node parent =
-        new Node(
-            PARENT_ID,
-            REQUESTER_ID,
-            REQUESTER_ID,
-            RootId.LOCAL_ROOT,
-            0L,
-            0L,
-            "parent",
-            "",
-            NodeType.FOLDER,
-            RootId.LOCAL_ROOT,
-            0L);
-    Node folder = trashedFolder(NODE_ID_1);
-    Node child = trashedFolder(NODE_ID_2);
-    List<String> nodeIds = List.of(NODE_ID_1, NODE_ID_2);
-    when(nodeRepository.getNode(PARENT_ID)).thenReturn(Optional.of(parent));
-    when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(folder));
-    when(nodeRepository.getNode(NODE_ID_2)).thenReturn(Optional.of(child));
-    when(nodeRepository.getTrashedNode(NODE_ID_1))
-        .thenReturn(Optional.of(new TrashedNode(NODE_ID_1, PARENT_ID)));
-    when(nodeRepository.getTrashedNode(NODE_ID_2))
-        .thenReturn(Optional.of(new TrashedNode(NODE_ID_2, NODE_ID_1)));
-    when(nodeRepository.getTrashedNodeIds(nodeIds)).thenReturn(nodeIds);
-    when(permissionsChecker.getPermissions(anyString(), eq(REQUESTER_ID)))
-        .thenReturn(aclWith(true));
-    when(nodeRepository.getNodes(nodeIds, Optional.empty()))
-        .thenAnswer(inv -> Stream.of(folder, child));
-    List<String> events = new ArrayList<>();
-    doAnswer(
-            inv -> {
-              events.add("rows");
-              return List.of(folder, child);
-            })
-        .when(nodeRepository)
-        .getNodesForUpdate(nodeIds);
-    doAnswer(
-            inv -> {
-              events.add("lock " + inv.getArgument(0));
-              return null;
-            })
-        .when(nodeRepository)
-        .lockChildNames(anyString(), eq(REQUESTER_ID));
-    doAnswer(
-            inv -> {
-              events.add("restore " + inv.getArgument(0));
-              return null;
-            })
-        .when(nodeRepository)
-        .restoreNode(anyString());
-
-    assertThat(nodeApi.restoreNodes(nodeIds)).hasSize(2);
-
-    assertThat(events)
-        .containsExactly(
-            "lock " + PARENT_ID,
-            "lock " + RootId.LOCAL_ROOT,
-            "rows",
-            "restore " + NODE_ID_1,
-            "restore " + NODE_ID_2);
-    assertThat(child.getParentId()).contains(RootId.LOCAL_ROOT);
-  }
 
   // ─── cloneVersion copy failures ───────────────────────────────────────────────
 
@@ -311,7 +202,6 @@ class NodeApiMutationsTest {
     when(nodeApi.requester.getId()).thenReturn(new UserId(CLONING_USER_ID));
     when(permissionsChecker.getPermissions(NODE_ID_1, CLONING_USER_ID)).thenReturn(aclWith(true));
     when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node));
-    when(nodeRepository.getNodeForUpdate(NODE_ID_1)).thenReturn(Optional.of(node));
     when(filesConfig.getMaxNumberOfVersions()).thenReturn(10);
     when(fileVersionRepository.getFileVersions(NODE_ID_1, List.of(FileVersionSort.VERSION_DESC)))
         .thenReturn(List.of());

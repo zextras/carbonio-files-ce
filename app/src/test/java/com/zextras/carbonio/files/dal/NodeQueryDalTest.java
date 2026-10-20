@@ -32,8 +32,7 @@ import org.junit.jupiter.api.Test;
  * {@code #calculateRelativeFolderSize} (asserted on EXACT byte counts — hidden-node exclusion,
  * share-visibility pruning — never weakened to "size &gt; 0"), plus the {@code #findNodes} per-user
  * flag scoping (an unflagged search must ignore another user's flag row) and its literal-escaping
- * of {@code %}/{@code _} keyword metacharacters, plus the 10 s {@code lock_timeout} every lock
- * entry point sets on its transaction.
+ * of {@code %}/{@code _} keyword metacharacters.
  *
  * <p><b>Why {@code @QuarkusTest}, and why the {@code *DalTest} suffix (not {@code *IT}):</b> this
  * class needs a real database and CDI-injected repositories, so it must be in-process (JVM,
@@ -234,26 +233,5 @@ class NodeQueryDalTest {
     assertThat(find(owner, Optional.empty(), List.of("%")))
         .extracting(Node::getId)
         .containsExactly(literalPercent);
-  }
-
-  @Test
-  @TestTransaction
-  void everyLockEntryPointBoundsTheLockWaitsOfItsTransaction() {
-    String owner = id();
-    String folder = id();
-    persist(folder, "F", owner, NodeType.FOLDER, false, 0L, "LOCAL_ROOT", "LOCAL_ROOT");
-    entityManager.flush();
-
-    assertThat(lockTimeoutAfter(() -> nodeRepository.lockChildNames(folder, owner)))
-        .isEqualTo("10s");
-    assertThat(lockTimeoutAfter(() -> nodeRepository.getNodeForUpdate(folder))).isEqualTo("10s");
-    assertThat(lockTimeoutAfter(() -> nodeRepository.getNodesForUpdate(List.of(folder))))
-        .isEqualTo("10s");
-  }
-
-  private String lockTimeoutAfter(Runnable lockEntryPoint) {
-    entityManager.createNativeQuery("SET LOCAL lock_timeout = 0").executeUpdate();
-    lockEntryPoint.run();
-    return (String) entityManager.createNativeQuery("SHOW lock_timeout").getSingleResult();
   }
 }

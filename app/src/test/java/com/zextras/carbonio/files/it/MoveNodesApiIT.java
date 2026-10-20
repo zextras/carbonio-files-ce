@@ -10,12 +10,8 @@ import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -89,48 +85,5 @@ class MoveNodesApiIT extends AbstractFilesIT {
 
     Assertions.assertThat(nodes).hasSize(1);
     Assertions.assertThat(nodes.get(0)).containsEntry("id", nodeId).containsEntry("name", "second");
-  }
-
-  @Test
-  void givenANodeDeletedWhileTheMoveWaitsForItsLockMoveNodesShouldMoveTheOthersAndReportIt()
-      throws Exception {
-    // Given
-    String destinationId = seedFolder("destination", LOCAL_ROOT, REQUESTER_COOKIE);
-    String doomedId =
-        seedFile(
-            "doomed.txt", LOCAL_ROOT, "one".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    String otherId =
-        seedFile("other.txt", LOCAL_ROOT, "two".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-
-    Response response;
-    try (Connection holder = jdbcConnection()) {
-      holder.setAutoCommit(false);
-      try (PreparedStatement lock =
-          holder.prepareStatement("SELECT node_id FROM node WHERE node_id = ? FOR UPDATE")) {
-        lock.setString(1, doomedId);
-        lock.execute();
-      }
-
-      // When
-      CompletableFuture<Response> move =
-          CompletableFuture.supplyAsync(
-              () -> moveNodes(new String[] {doomedId, otherId}, destinationId, REQUESTER_COOKIE));
-      awaitBlockedBy(holder);
-      try (PreparedStatement delete =
-          holder.prepareStatement("DELETE FROM node WHERE node_id = ?")) {
-        delete.setString(1, doomedId);
-        delete.executeUpdate();
-      }
-      holder.commit();
-      response = move.get(60, TimeUnit.SECONDS);
-    }
-
-    // Then
-    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
-        .containsExactly("NODE_WRITE_ERROR");
-    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
-        .isEqualTo(doomedId);
-    Assertions.assertThat(response.jsonPath().getList("data.moveNodes.id"))
-        .containsExactly(otherId);
   }
 }

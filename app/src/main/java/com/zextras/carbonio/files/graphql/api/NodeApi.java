@@ -59,17 +59,14 @@ import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -392,28 +389,12 @@ public class NodeApi {
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
       throw FilesGraphQLErrors.nodeNotFound(nodeId);
     }
-    Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
-    if (name != null) {
-      nodeRepository
-          .getNode(nodeId)
-          .ifPresent(
-              node ->
-                  lockChildNames(
-                      List.of(
-                          ImmutablePair.of(
-                              node.getParentId().orElse(RootId.LOCAL_ROOT), node.getOwnerId())),
-                      lockedNames));
-    }
     Node nodeToUpdate =
-        nodeRepository
-            .getNodeForUpdate(nodeId)
-            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
+        nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
 
     String parentFolderId = nodeToUpdate.getParentId().orElse(RootId.LOCAL_ROOT);
 
     if (name != null) {
-      lockChildNames(
-          List.of(ImmutablePair.of(parentFolderId, nodeToUpdate.getOwnerId())), lockedNames);
       String nodeFullName = nodeToUpdate.getExtension().map(ext -> name + "." + ext).orElse(name);
       if (!searchAlternativeName(
               nodeRepository, nodeFullName, parentFolderId, nodeToUpdate.getOwnerId())
@@ -458,7 +439,6 @@ public class NodeApi {
     List<String> nodesInError =
         nodeIds.stream().filter(nodeId -> !flaggableNodes.contains(nodeId)).toList();
 
-    nodeRepository.getNodesForUpdate(flaggableNodes);
     flaggableNodes.forEach(nodeId -> nodeRepository.flagForUser(nodeId, me, flag));
 
     if (!nodesInError.isEmpty()) {
@@ -492,11 +472,14 @@ public class NodeApi {
 
     if (!trashableNodes.isEmpty()) {
       List<Runnable> pendingNotifications = new ArrayList<>();
-      List<Node> lockedNodes = nodeRepository.getNodesForUpdate(trashableNodes);
+      List<Node> candidateNodes =
+          nodeRepository.getNodes(trashableNodes, Optional.empty()).toList();
       List<String> alreadyTrashedIds =
-          nodeRepository.getTrashedNodeIds(lockedNodes.stream().map(Node::getId).toList());
+          nodeRepository.getTrashedNodeIds(candidateNodes.stream().map(Node::getId).toList());
       List<Node> nodesToTrash =
-          lockedNodes.stream().filter(node -> !alreadyTrashedIds.contains(node.getId())).toList();
+          candidateNodes.stream()
+              .filter(node -> !alreadyTrashedIds.contains(node.getId()))
+              .toList();
       trashableNodes.retainAll(nodesToTrash.stream().map(Node::getId).toList());
       nodesToTrash.forEach(
           trashedNode -> {
@@ -563,8 +546,8 @@ public class NodeApi {
             .filter(nodeId -> nodeRepository.getTrashedNode(nodeId).isPresent())
             .collect(Collectors.toList());
 
-    Map<String, Optional<Node>> destinations = lockForRestore(restorableNodeIds);
-    restorableNodeIds.retainAll(destinations.keySet());
+    Map<String, Optional<Node>> destinations =
+        restoreDestinations(nodeRepository.getNodes(restorableNodeIds, Optional.empty()).toList());
     List<NodeModel> results =
         nodeRepository
             .getNodes(restorableNodeIds, Optional.empty())
@@ -676,7 +659,7 @@ public class NodeApi {
             .filter(nodeId -> !rootIds.contains(nodeId))
             .filter(nodeId -> !destinationId.equals(nodeId))
             .toList();
-    List<String> nodeIdsToMove = lockForMove(movableIds, destinationFolder, destinationId, rootIds);
+    List<String> nodeIdsToMove = excludeAncestorsOf(destinationFolder, movableIds);
 
     List<NodeModel> movedNodesResult = List.of();
     if (!nodeIdsToMove.isEmpty()) {
@@ -1188,7 +1171,7 @@ public class NodeApi {
     QuarkusTransaction.requiringNew()
         .run(
             () -> {
-              Node lockedNode = nodeRepository.getNodeForUpdate(nodeId).get();
+              Node currentNode = nodeRepository.getNode(nodeId).get();
               fileVersionRepository.createNewFileVersion(
                   nodeId,
                   me,
@@ -1198,8 +1181,8 @@ public class NodeApi {
                   copiedBlobResponse.getDigest(),
                   false);
 
-              lockedNode.setCurrentVersion(newVersion);
-              nodeRepository.updateNode(lockedNode);
+              currentNode.setCurrentVersion(newVersion);
+              nodeRepository.updateNode(currentNode);
 
               FileVersion newFv = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
               newFv.setClonedFromVersion(version);
@@ -1268,85 +1251,15 @@ public class NodeApi {
     }
   }
 
-  // Name locks go before row locks (see MoveNodesDeadlockApiIT), except a rare follow-up lock.
-  private void lockChildNames(
-      Collection<ImmutablePair<String, String>> folderOwnerKeys,
-      Set<ImmutablePair<String, String>> locked) {
-    for (ImmutablePair<String, String> key : new TreeSet<>(folderOwnerKeys)) {
-      if (locked.add(key)) {
-        nodeRepository.lockChildNames(key.getLeft(), key.getRight());
-      }
-    }
-  }
-
-  private List<ImmutablePair<String, String>> destinationKeys(
-      List<Node> nodes, String destinationId) {
-    return nodes.stream().map(node -> ImmutablePair.of(destinationId, node.getOwnerId())).toList();
-  }
-
-  private List<String> lockForMove(
-      List<String> movableIds, Node destinationFolder, String destinationId, List<String> rootIds)
-      throws FilesGraphQLException {
-    if (movableIds.isEmpty()) {
-      return movableIds;
-    }
-    Set<ImmutablePair<String, String>> lockedNames = new HashSet<>();
-    lockChildNames(
-        destinationKeys(
-            nodeRepository.getNodes(movableIds, Optional.empty()).toList(), destinationId),
-        lockedNames);
-    boolean destinationIsRoot = rootIds.contains(destinationId);
-    List<String> idsToLock = new ArrayList<>(movableIds);
-    if (!destinationIsRoot) {
-      idsToLock.add(destinationId);
-    }
-    List<Node> lockedNodes = nodeRepository.getNodesForUpdate(idsToLock);
-    List<String> lockedIds = lockedNodes.stream().map(Node::getId).toList();
-    if (!destinationIsRoot && !lockedIds.contains(destinationId)) {
-      throw FilesGraphQLErrors.nodeWriteError(destinationId);
-    }
+  private List<String> excludeAncestorsOf(Node destinationFolder, List<String> nodeIds) {
     List<String> destinationAncestors = destinationFolder.getAncestorsList();
-    List<String> idsToMove =
-        movableIds.stream()
-            .filter(lockedIds::contains)
-            .filter(id -> !destinationAncestors.contains(id))
-            .toList();
-    lockChildNames(
-        destinationKeys(
-            lockedNodes.stream().filter(node -> idsToMove.contains(node.getId())).toList(),
-            destinationId),
-        lockedNames);
-    return idsToMove;
-  }
-
-  private Map<String, Optional<Node>> lockForRestore(List<String> nodeIds) {
-    Set<ImmutablePair<String, String>> locked = new HashSet<>();
-    List<Node> preRead = nodeRepository.getNodes(nodeIds, Optional.empty()).toList();
-    lockChildNames(restoreKeys(preRead, restoreDestinations(preRead)), locked);
-    List<Node> lockedNodes = nodeRepository.getNodesForUpdate(nodeIds);
-    List<String> trashedIds = nodeRepository.getTrashedNodeIds(nodeIds);
-    List<Node> stillTrashed =
-        lockedNodes.stream().filter(node -> trashedIds.contains(node.getId())).toList();
-    Map<String, Optional<Node>> destinations = restoreDestinations(stillTrashed);
-    lockChildNames(restoreKeys(stillTrashed, destinations), locked);
-    return destinations;
+    return nodeIds.stream().filter(id -> !destinationAncestors.contains(id)).toList();
   }
 
   private Map<String, Optional<Node>> restoreDestinations(List<Node> nodes) {
     Map<String, Optional<Node>> destinations = new HashMap<>();
     nodes.forEach(node -> destinations.put(node.getId(), restoreDestination(node.getId())));
     return destinations;
-  }
-
-  private List<ImmutablePair<String, String>> restoreKeys(
-      List<Node> nodes, Map<String, Optional<Node>> destinations) {
-    return nodes.stream()
-        .map(
-            node ->
-                ImmutablePair.of(
-                    destinations.get(node.getId()).map(Node::getId).orElse(RootId.LOCAL_ROOT),
-                    node.getOwnerId()))
-        .toList();
   }
 
   private Optional<Node> restoreDestination(String nodeId) {
@@ -1490,7 +1403,7 @@ public class NodeApi {
       QuarkusTransaction.requiringNew()
           .run(
               () -> {
-                Node lockedNode = nodeRepository.getNodeForUpdate(createdNode.getId()).get();
+                Node copiedNode = nodeRepository.getNode(createdNode.getId()).get();
                 fileVersionRepository.createNewFileVersion(
                     createdNode.getId(),
                     requesterId,
@@ -1499,8 +1412,8 @@ public class NodeApi {
                     response.getSize(),
                     response.getDigest(),
                     false);
-                lockedNode.setCurrentVersion(1);
-                nodeRepository.updateNode(lockedNode);
+                copiedNode.setCurrentVersion(1);
+                nodeRepository.updateNode(copiedNode);
               });
     } catch (RuntimeException e) {
       discardFailedCopy(createdNode.getId(), requesterId, blobCopied);
@@ -1535,7 +1448,6 @@ public class NodeApi {
   }
 
   private String allocateCopyName(Node sourceNode, Node destinationFolder) {
-    nodeRepository.lockChildNames(destinationFolder.getId(), sourceNode.getOwnerId());
     return searchAlternativeName(
         nodeRepository,
         sourceNode.getFullName(),

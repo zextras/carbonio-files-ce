@@ -115,7 +115,6 @@ public class NodeCreationHelper {
             ? requesterId
             : parent.getOwnerId();
 
-    nodeRepository.lockChildNames(parent.getId(), ownerId);
     String folderName = searchAlternativeName(nodeRepository, name.trim(), parent.getId(), ownerId);
     final Node createdFolder =
         nodeRepository.createNewNode(

@@ -388,7 +388,6 @@ public class BlobService {
       QuarkusTransaction.requiringNew()
           .run(
               () -> {
-                nodeRepository.lockChildNames(folderId, nodeOwner);
                 String nodeName =
                     searchAlternativeName(nodeRepository, filename.trim(), folderId, nodeOwner);
                 nodeRepository.createNewNode(
@@ -436,9 +435,9 @@ public class BlobService {
           QuarkusTransaction.requiringNew()
               .call(
                   () -> {
-                    Node lockedNode =
+                    Node createdNode =
                         nodeRepository
-                            .getNodeForUpdate(nodeId)
+                            .getNode(nodeId)
                             .orElseThrow(
                                 () -> new NoSuchElementException("Node not found: " + nodeId));
                     fileVersionRepository.createNewFileVersion(
@@ -450,8 +449,8 @@ public class BlobService {
                         uploadResponse.getDigest(),
                         false);
 
-                    lockedNode.setSize(uploadResponse.getSize());
-                    nodeRepository.updateNode(lockedNode);
+                    createdNode.setSize(uploadResponse.getSize());
+                    nodeRepository.updateNode(createdNode);
 
                     List<String> usersToNotify = new ArrayList<>();
 
@@ -481,12 +480,12 @@ public class BlobService {
                         && filesConfig.areNotificationsEnabled()
                         && requesterEntity.isPresent())
                       notificationRepository.createAddedNodeNotification(
-                          lockedNode,
+                          createdNode,
                           destinationFolder,
                           requesterEntity.get(),
                           AddedNodeType.UPLOAD,
                           usersToNotify);
-                    return lockedNode;
+                    return createdNode;
                   });
 
       meterRegistry.counter(METRIC_UPLOAD, "service", "files", "uri", "/upload").increment();

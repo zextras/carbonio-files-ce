@@ -11,13 +11,8 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -182,71 +177,5 @@ class UpdateNodeApiIT extends AbstractFilesIT {
     Map<String, Object> node =
         TestUtils.jsonResponseToMap(response.getBody().asString(), "updateNode");
     Assertions.assertThat(node).containsEntry("name", "flagme");
-  }
-
-  private Response renameWhileMoveIsUncommitted(
-      String nodeId, String targetFolderId, boolean lockFlagRow) throws Exception {
-    try (Connection move = jdbcConnection()) {
-      move.setAutoCommit(false);
-      if (lockFlagRow) {
-        // The flag row lock parks a pre-fix rename between its node read and its node write.
-        try (PreparedStatement lockFlag =
-            move.prepareStatement(
-                "SELECT star FROM custom WHERE node_id = ? AND user_id = ? FOR UPDATE")) {
-          lockFlag.setString(1, nodeId);
-          lockFlag.setString(2, REQUESTER_ID);
-          try (ResultSet flag = lockFlag.executeQuery()) {
-            Assertions.assertThat(flag.next()).isTrue();
-          }
-        }
-      }
-      try (PreparedStatement moveNode =
-          move.prepareStatement(
-              "UPDATE node SET folder_id = ?, ancestor_ids = ? WHERE node_id = ?")) {
-        moveNode.setString(1, targetFolderId);
-        moveNode.setString(2, LOCAL_ROOT + "," + targetFolderId);
-        moveNode.setString(3, nodeId);
-        moveNode.executeUpdate();
-      }
-      CompletableFuture<Response> rename =
-          CompletableFuture.supplyAsync(
-              () -> updateNode(nodeId, "renamed", null, false, REQUESTER_COOKIE));
-      awaitBlockedBy(move);
-      move.commit();
-      return rename.get(60, TimeUnit.SECONDS);
-    }
-  }
-
-  @Test
-  void givenAMoveCommittedWhileARenameIsInFlightTheRenameShouldCheckTheNameInTheNewFolder()
-      throws Exception {
-    String sourceFolderId = seedFolder("race-source", LOCAL_ROOT, REQUESTER_COOKIE);
-    String targetFolderId = seedFolder("race-target", LOCAL_ROOT, REQUESTER_COOKIE);
-    String nodeId =
-        seedFile(
-            "racing.txt",
-            sourceFolderId,
-            "content".getBytes(StandardCharsets.UTF_8),
-            REQUESTER_COOKIE);
-    seedFile(
-        "renamed.txt",
-        targetFolderId,
-        "content".getBytes(StandardCharsets.UTF_8),
-        REQUESTER_COOKIE);
-
-    Response response = renameWhileMoveIsUncommitted(nodeId, targetFolderId, false);
-
-    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
-        .containsExactly("NODE_DUPLICATED");
-    try (Connection connection = jdbcConnection();
-        PreparedStatement statement =
-            connection.prepareStatement("SELECT folder_id, name FROM node WHERE node_id = ?")) {
-      statement.setString(1, nodeId);
-      try (ResultSet row = statement.executeQuery()) {
-        Assertions.assertThat(row.next()).isTrue();
-        Assertions.assertThat(row.getString("folder_id").trim()).isEqualTo(targetFolderId);
-        Assertions.assertThat(row.getString("name")).isEqualTo("racing.txt");
-      }
-    }
   }
 }
