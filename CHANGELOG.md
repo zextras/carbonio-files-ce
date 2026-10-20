@@ -1,3 +1,9 @@
+## [3.0.1](https://github.com/zextras/carbonio-files-ce/compare/v3.0.0...v3.0.1) (2026-10-20)
+
+### Bug Fixes
+
+* **ci:** bump jenkins-lib-common to v5.0.8 and carbonio-quarkus-extensions to 1.16.1 ([#337](https://github.com/zextras/carbonio-files-ce/issues/337)) ([8f96eaa](https://github.com/zextras/carbonio-files-ce/commit/8f96eaa02672782951ac3c9f771080afdd170fdd))
+
 ## [3.0.0](https://github.com/zextras/carbonio-files-ce/compare/v2.1.7...v3.0.0) (2026-10-20)
 
 ### ⚠ BREAKING CHANGES
