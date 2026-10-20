@@ -7,14 +7,23 @@ package com.zextras.carbonio.files.dal.repositories.interfaces;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.ShareSort;
+import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
 /**
  * This is the only class allowed to execute CRUD operations on a {@link Share} element. In
  * particular, it can create a new {@link Share}, access to and delete an existing one.
  */
 public interface ShareRepository {
+
+  /** Whether the failure comes from the database rejecting a duplicate key (SQLSTATE 23505). */
+  static boolean isUniqueViolation(Throwable e) {
+    return ExceptionUtils.getThrowableList(e).stream()
+        .anyMatch(t -> t instanceof SQLException sql && "23505".equals(sql.getSQLState()));
+  }
 
   /**
    * Given a node identifier and a user identifier, it allows to retrieves a {@link Share} from the
@@ -113,6 +122,21 @@ public interface ShareRepository {
   void deleteSharesBulk(List<String> nodeIds);
 
   /**
+   * Reads only the permissions of the share of a user on a node, without loading the {@link Share}
+   * entity into the persistence context.
+   *
+   * @return the permissions, or an empty {@link Optional} if the node is not shared with the user.
+   */
+  Optional<ACL> getSharePermissions(String nodeId, String userId);
+
+  /**
+   * Like {@link #getSharePermissions(String, String)} for many nodes with one query.
+   *
+   * @return the permissions of the user, by node id, for the nodes shared with them.
+   */
+  Map<String, ACL> getSharePermissions(List<String> nodeIds, String userId);
+
+  /**
    * Returns the list of shares, if present, for the nodes requested for the target user.
    *
    * @param nodeIds is a {@link List<String>} of the nodes I'm requesting the shares.
@@ -147,4 +171,7 @@ public interface ShareRepository {
    * @return the {@link List<String>} of ids of users.
    */
   List<String> getSharesUsersIds(String nodeId, List<ShareSort> sorts);
+
+  /** Flushes the persistence context of the current transaction to the database. */
+  void flush();
 }

@@ -6,6 +6,11 @@ package com.zextras.carbonio.files;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -13,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Trimmed, transport-neutral test utilities for the Quarkus acceptance suite. The legacy core
@@ -107,5 +113,56 @@ public class TestUtils {
       return Collections.emptyList();
     }
     return Collections.emptyList();
+  }
+
+  /**
+   * Extracts the machine-readable {@code extensions.errorCode} of each GraphQL error. This is the
+   * stable partial-failure contract clients (e.g. carbonio-files-ui) key on — the code-first stack
+   * surfaces ONE error per operation carrying the errorCode, with the successful items in {@code
+   * data} — so tests assert on the code, not the incidental error message text.
+   */
+  @SuppressWarnings("unchecked")
+  public static List<String> jsonResponseToErrorCodes(String json) {
+    try {
+      final Map<String, Object> result = new ObjectMapper().readValue(json, Map.class);
+
+      if (result.get("errors") != null) {
+        final List<Map<String, Object>> errors = (List<Map<String, Object>>) result.get("errors");
+
+        return errors.stream()
+            .map(error -> (Map<String, Object>) error.get("extensions"))
+            .filter(extensions -> extensions != null)
+            .map(extensions -> (String) extensions.get("errorCode"))
+            .collect(Collectors.toList());
+      }
+    } catch (JsonProcessingException exception) {
+      return Collections.emptyList();
+    }
+    return Collections.emptyList();
+  }
+
+  /**
+   * The classes of {@code anchor}'s package (sub-packages excluded) carrying {@code annotation}.
+   */
+  public static List<Class<?>> annotatedClassesBeside(
+      Class<?> anchor, Class<? extends Annotation> annotation) {
+    try {
+      Path directory =
+          Path.of(anchor.getProtectionDomain().getCodeSource().getLocation().toURI())
+              .resolve(anchor.getPackageName().replace('.', '/'));
+      List<Class<?>> classes = new ArrayList<>();
+      try (Stream<Path> files = Files.list(directory)) {
+        for (Path file : files.filter(f -> f.toString().endsWith(".class")).toList()) {
+          String name = file.getFileName().toString().replaceAll("\\.class$", "");
+          Class<?> clazz = Class.forName(anchor.getPackageName() + "." + name);
+          if (clazz.isAnnotationPresent(annotation)) {
+            classes.add(clazz);
+          }
+        }
+      }
+      return classes;
+    } catch (IOException | URISyntaxException | ClassNotFoundException e) {
+      throw new IllegalStateException(e);
+    }
   }
 }

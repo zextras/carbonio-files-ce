@@ -23,6 +23,8 @@ import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.Socket;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
@@ -38,7 +40,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -131,6 +135,58 @@ public abstract class AbstractFilesIT {
     return DriverManager.getConnection(FilesStackTestResource.POSTGRES_JDBC_URL, "test", "test");
   }
 
+  protected static int backendPid(Connection connection) throws SQLException {
+    try (Statement statement = connection.createStatement();
+        ResultSet pid = statement.executeQuery("SELECT pg_backend_pid()")) {
+      pid.next();
+      return pid.getInt(1);
+    }
+  }
+
+  protected static void awaitBlockedBy(Connection lockHolder) throws Exception {
+    awaitBlockedBy(lockHolder, 1);
+  }
+
+  protected static void awaitBlockedBy(Connection lockHolder, int blockedCount) throws Exception {
+    awaitBlockedBy(blockedCount, backendPid(lockHolder));
+  }
+
+  /**
+   * Polls until at least {@code blockedCount} backends wait, directly or behind another waiter, for
+   * the given backend pids (a second waiter on the same lock is blocked by the first one, not by
+   * the holder). The poll cadence is the query round-trip itself.
+   */
+  protected static void awaitBlockedBy(int blockedCount, Integer... holderPids) throws Exception {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+    try (Connection observer = jdbcConnection();
+        PreparedStatement blocked =
+            observer.prepareStatement(
+                "SELECT pid FROM pg_stat_activity WHERE pg_blocking_pids(pid) && ?::int[]")) {
+      while (true) {
+        Set<Integer> blockers = new LinkedHashSet<>(List.of(holderPids));
+        Set<Integer> waiting = new LinkedHashSet<>();
+        boolean grew = true;
+        while (grew) {
+          blocked.setArray(1, observer.createArrayOf("integer", blockers.toArray()));
+          grew = false;
+          try (ResultSet pids = blocked.executeQuery()) {
+            while (pids.next()) {
+              grew |= waiting.add(pids.getInt(1));
+            }
+          }
+          blockers.addAll(waiting);
+        }
+        if (waiting.size() >= blockedCount) {
+          return;
+        }
+        if (System.nanoTime() > deadline) {
+          throw new AssertionError(
+              "Fewer than " + blockedCount + " backends waited for " + List.of(holderPids));
+        }
+      }
+    }
+  }
+
   /**
    * The rare non-API read-back: number of tombstone rows for a given node (any version). Prefer
    * {@link #download(String, int, String)} → 200/404 for API-observable version state; use this
@@ -179,14 +235,14 @@ public abstract class AbstractFilesIT {
   }
 
   /**
-   * POSTs an UNAUTHENTICATED GraphQL {@code query}/{@code mutation} string to {@code
-   * /public/graphql/}.
+   * POSTs an UNAUTHENTICATED GraphQL {@code query}/{@code mutation} string to {@code /graphql/} (no
+   * cookie — anonymous identity, so only {@code @PermitAll} public operations succeed).
    */
   protected static Response publicGraphql(String query) {
     return RestAssured.given()
         .contentType("application/json")
         .body(TestUtils.queryPayload(query))
-        .post("/public/graphql/");
+        .post("/graphql/");
   }
 
   // ------------------------------------------------------------------- runtime app-config (live
@@ -947,5 +1003,51 @@ public abstract class AbstractFilesIT {
         }\
         """,
         signatureField, jsonKeySet);
+  }
+
+  /** Re-checks {@code condition} until it holds; the poll cadence is the check's own round-trip. */
+  protected static void eventually(String description, Callable<Boolean> condition)
+      throws Exception {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+    while (!condition.call()) {
+      if (System.nanoTime() > deadline) {
+        throw new AssertionError("not reached within 30 s: " + description);
+      }
+    }
+  }
+
+  /** Sends a JSON POST on a raw connection; closing the returned socket disconnects the client. */
+  protected static Socket send(String path, String body, String cookie) throws IOException {
+    byte[] payload = body.getBytes(StandardCharsets.UTF_8);
+    String head =
+        "POST "
+            + path
+            + " HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nCookie: "
+            + cookie
+            + "\r\nContent-Length: "
+            + payload.length
+            + "\r\n\r\n";
+    Socket socket = new Socket("localhost", RestAssured.port);
+    OutputStream out = socket.getOutputStream();
+    out.write(head.getBytes(StandardCharsets.UTF_8));
+    out.write(payload);
+    out.flush();
+    return socket;
+  }
+
+  protected static int copiedChildren(String destination, String cookie) {
+    List<String> copies = childIds(destination, cookie);
+    return copies.isEmpty() ? 0 : childIds(copies.get(0), cookie).size();
+  }
+
+  protected static List<String> childIds(String folderId, String cookie) {
+    return graphql(
+            "query { getNode(node_id: \\\""
+                + folderId
+                + "\\\") { ... on Folder { children(limit: 50, sort: NAME_ASC) { nodes { id } } } }"
+                + " }",
+            cookie)
+        .jsonPath()
+        .getList("data.getNode.children.nodes.id", String.class);
   }
 }

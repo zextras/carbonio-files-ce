@@ -48,6 +48,7 @@ import jakarta.enterprise.inject.Any;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -58,6 +59,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,6 +112,7 @@ public class BlobService {
   // the fan-out after a service-account upload is a no-op.
   private final QuotaChecker quotaChecker;
   private final Instance<UploadCompletionListener> uploadCompletionListeners;
+  private final int uploadVersionTransactionTimeoutSeconds;
 
   @Inject
   public BlobService(
@@ -124,7 +127,8 @@ public class BlobService {
       FilesConfig filesConfig,
       MeterRegistry meterRegistry,
       QuotaChecker quotaChecker,
-      @Any Instance<UploadCompletionListener> uploadCompletionListeners) {
+      @Any Instance<UploadCompletionListener> uploadCompletionListeners,
+      @ConfigProperty(name = "quarkus.http.read-timeout") Duration uploadWindow) {
     this.nodeRepository = nodeRepository;
     this.notificationRepository = notificationRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -137,6 +141,7 @@ public class BlobService {
     this.meterRegistry = meterRegistry;
     this.quotaChecker = quotaChecker;
     this.uploadCompletionListeners = uploadCompletionListeners;
+    this.uploadVersionTransactionTimeoutSeconds = (int) uploadWindow.toSeconds();
   }
 
   public Optional<List<Node>> checkDownloadMultiple(List<String> nodeIds, UserMyself requester) {
@@ -380,19 +385,19 @@ public class BlobService {
 
       NodeType nodeType = NodeType.getNodeType(mediaType);
 
-      Node newNode =
-          nodeRepository.createNewNode(
-              nodeId,
-              requesterId,
-              nodeOwner,
-              folderId,
-              searchAlternativeName(nodeRepository, filename.trim(), folderId, nodeOwner),
-              description,
-              nodeType,
-              NodeType.ROOT.equals(destinationFolder.getNodeType())
-                  ? folderId
-                  : destinationFolder.getAncestorIds() + "," + folderId,
-              0L);
+      String nodeName = searchAlternativeName(nodeRepository, filename.trim(), folderId, nodeOwner);
+      nodeRepository.createNewNode(
+          nodeId,
+          requesterId,
+          nodeOwner,
+          folderId,
+          nodeName,
+          description,
+          nodeType,
+          NodeType.ROOT.equals(destinationFolder.getNodeType())
+              ? folderId
+              : destinationFolder.getAncestorIds() + "," + folderId,
+          0L);
 
       UploadResponse uploadResponse =
           Try.of(
@@ -421,55 +426,62 @@ public class BlobService {
             String.format("Upload verification failed: blob not accessible for node %s", nodeId));
       }
 
-      QuarkusTransaction.requiringNew()
-          .run(
-              () -> {
-                fileVersionRepository.createNewFileVersion(
-                    nodeId,
-                    requesterId,
-                    1,
-                    mediaType.toString(),
-                    uploadResponse.getSize(),
-                    uploadResponse.getDigest(),
-                    false);
+      Node uploadedNode =
+          QuarkusTransaction.requiringNew()
+              .call(
+                  () -> {
+                    Node createdNode =
+                        nodeRepository
+                            .getNode(nodeId)
+                            .orElseThrow(
+                                () -> new NoSuchElementException("Node not found: " + nodeId));
+                    fileVersionRepository.createNewFileVersion(
+                        nodeId,
+                        requesterId,
+                        1,
+                        mediaType.toString(),
+                        uploadResponse.getSize(),
+                        uploadResponse.getDigest(),
+                        false);
 
-                newNode.setSize(uploadResponse.getSize());
-                nodeRepository.updateNode(newNode);
+                    createdNode.setSize(uploadResponse.getSize());
+                    nodeRepository.updateNode(createdNode);
 
-                List<String> usersToNotify = new ArrayList<>();
+                    List<String> usersToNotify = new ArrayList<>();
 
-                shareRepository
-                    .getShares(folderId, Collections.emptyList())
-                    .forEach(
-                        share -> {
-                          if (!share.getTargetUserId().equals(requesterId)) {
-                            usersToNotify.add(share.getTargetUserId());
-                          }
-                          shareRepository.upsertShare(
-                              nodeId,
-                              share.getTargetUserId(),
-                              share.getPermissions(),
-                              false,
-                              false,
-                              share.getExpiredAt());
-                        });
+                    shareRepository
+                        .getShares(folderId, Collections.emptyList())
+                        .forEach(
+                            share -> {
+                              if (!share.getTargetUserId().equals(requesterId)) {
+                                usersToNotify.add(share.getTargetUserId());
+                              }
+                              shareRepository.upsertShare(
+                                  nodeId,
+                                  share.getTargetUserId(),
+                                  share.getPermissions(),
+                                  false,
+                                  false,
+                                  share.getExpiredAt());
+                            });
 
-                if (!destinationFolder.getNodeType().equals(NodeType.ROOT)
-                    && !requesterId.equals(destinationFolder.getOwnerId())
-                    && !usersToNotify.contains(requesterId)) {
-                  usersToNotify.add(destinationFolder.getOwnerId());
-                }
+                    if (!destinationFolder.getNodeType().equals(NodeType.ROOT)
+                        && !requesterId.equals(destinationFolder.getOwnerId())
+                        && !usersToNotify.contains(requesterId)) {
+                      usersToNotify.add(destinationFolder.getOwnerId());
+                    }
 
-                if (!usersToNotify.isEmpty()
-                    && filesConfig.areNotificationsEnabled()
-                    && requesterEntity.isPresent())
-                  notificationRepository.createAddedNodeNotification(
-                      newNode,
-                      destinationFolder,
-                      requesterEntity.get(),
-                      AddedNodeType.UPLOAD,
-                      usersToNotify);
-              });
+                    if (!usersToNotify.isEmpty()
+                        && filesConfig.areNotificationsEnabled()
+                        && requesterEntity.isPresent())
+                      notificationRepository.createAddedNodeNotification(
+                          createdNode,
+                          destinationFolder,
+                          requesterEntity.get(),
+                          AddedNodeType.UPLOAD,
+                          usersToNotify);
+                    return createdNode;
+                  });
 
       meterRegistry.counter(METRIC_UPLOAD, "service", "files", "uri", "/upload").increment();
 
@@ -477,7 +489,7 @@ public class BlobService {
       // entity). CE registers none, so this is a no-op fan-out.
       if (requesterEntity.isEmpty()) {
         uploadCompletionListeners.forEach(
-            listener -> listener.onUploadCompleted(newNode, destinationFolder, requesterId));
+            listener -> listener.onUploadCompleted(uploadedNode, destinationFolder, requesterId));
       }
 
       return Optional.of(nodeId);
@@ -511,7 +523,9 @@ public class BlobService {
     }
 
     // Start transaction with row lock to prevent concurrent uploads on the same node
+    // It spans the client body stream, so it is bounded by the upload window, not the JTA default.
     return QuarkusTransaction.requiringNew()
+        .timeout(uploadVersionTransactionTimeoutSeconds)
         .call(
             () -> {
 

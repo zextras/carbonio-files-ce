@@ -83,6 +83,22 @@ public class FileVersionRepositoryImpl
   }
 
   @Override
+  public Map<String, FileVersion> getLastFileVersions(Collection<String> nodeIds) {
+    if (nodeIds.isEmpty()) {
+      return Map.of();
+    }
+    return getEntityManager()
+        .createQuery(
+            "select fv from FileVersion fv where fv.mComposedId.mNodeId in :ids and fv.mVersion ="
+                + " (select max(f.mVersion) from FileVersion f"
+                + " where f.mComposedId.mNodeId = fv.mComposedId.mNodeId)",
+            FileVersion.class)
+        .setParameter("ids", nodeIds)
+        .getResultStream()
+        .collect(Collectors.toMap(FileVersion::getNodeId, fv -> fv));
+  }
+
+  @Override
   @Transactional
   public FileVersion updateFileVersion(FileVersion fileVersion) {
     return getEntityManager().merge(fileVersion);

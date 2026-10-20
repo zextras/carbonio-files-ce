@@ -24,18 +24,6 @@ SPDX-License-Identifier: AGPL-3.0-only
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>io.quarkus</groupId>
-        <artifactId>quarkus-bom</artifactId>
-        <version>${quarkus.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-
   <dependencies>
     <!--
       P1 skeleton dependency set. Extensions are added phase-by-phase:
@@ -59,6 +47,15 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-hibernate-validator</artifactId>
+    </dependency>
+
+    <!--
+      Security extension: provides the CurrentIdentityAssociation CDI producer (SecurityIdentity
+      bean) required by FilesGraphQLAuthMechanism and AuthenticatedUserProducer. BOM-managed version.
+    -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-security</artifactId>
     </dependency>
 
     <!--
@@ -127,29 +124,31 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <!--
-      P3b: framework-agnostic GraphQL support layer + DataLoaders (schema-first graphql-java,
-      NOT SmallRye). graphql-java is managed by quarkus-bom (25.0); java-dataloader is not
-      BOM-managed, pinned explicitly. DataFetchers/providers/routes are ported in later phases
-      (P3c-P3e); this only needs the library on the compile classpath.
-    -->
-    <dependency>
-      <groupId>com.graphql-java</groupId>
-      <artifactId>graphql-java</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.graphql-java</groupId>
-      <artifactId>java-dataloader</artifactId>
-      <version>6.0.0</version>
-    </dependency>
-
-    <!--
-      commons-validator: GenericControllerEvaluator uses EmailValidator for GraphQL input
-      validation. Not BOM-managed; version matches the pin used by the old Guice+Netty stack.
+      commons-validator: GraphQLInputValidator uses EmailValidator for GraphQL input validation.
+      Not BOM-managed; same version as the pre-migration stack.
     -->
     <dependency>
       <groupId>commons-validator</groupId>
       <artifactId>commons-validator</artifactId>
       <version>1.9.0</version>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-beanutils</groupId>
+          <artifactId>commons-beanutils</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-digester</groupId>
+          <artifactId>commons-digester</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-collections</groupId>
+          <artifactId>commons-collections</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!--
@@ -163,7 +162,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
     <!--
       P3d: storages-ce-sdk provides com.zextras.filestore.api.Filestore + StoragesClient, used by
-      NodeDataFetcher (blob bulkDelete) and produced as a CDI bean by FilestoreProducer.
+      NodeApi (blob bulkDelete) and produced as a CDI bean by FilestoreProducer.
     -->
     <dependency>
       <groupId>com.zextras</groupId>
@@ -172,9 +171,8 @@ SPDX-License-Identifier: AGPL-3.0-only
     </dependency>
 
     <!--
-      P3d: vavr Try — NodeDataFetcher wraps the storages copy-blob calls (copyNodeFetcher /
-      cloneVersionFetcher) in io.vavr.control.Try fluent chains. Ported verbatim from the legacy
-      stack rather than rewritten. Not BOM-managed; version matches the legacy Guice stack pin.
+      P3d: vavr Try — NodeApi, the REST services and the clients use io.vavr.control.Try fluent
+      chains. Ported verbatim from the legacy stack rather than rewritten. Not BOM-managed; version matches the legacy Guice stack pin.
     -->
     <dependency>
       <groupId>io.vavr</groupId>
@@ -196,7 +194,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>com.zextras.carbonio.message-broker</groupId>
       <artifactId>carbonio-message-broker-sdk</artifactId>
-      <version>1.1.1-1</version>
+      <version>1.1.10-1</version>
       <exclusions>
         <exclusion>
           <groupId>ch.qos.logback</groupId>
@@ -217,13 +215,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
     <!--
       P5b: carbonio-preview REST SDK (PreviewClient) — PreviewResource/PreviewService passthrough
-      (/preview/*). Not BOM-managed; version matches the SDK's own release train (2.x = REST,
+      (/preview/*). Not BOM-managed; version matches the SDK's own release train (REST since 2.x,
       post gRPC->REST pivot, see carbonio-knowledge "Preview SDK — PIVOTED gRPC->REST").
     -->
     <dependency>
       <groupId>com.zextras.carbonio.preview</groupId>
       <artifactId>carbonio-preview-ce-rest-sdk</artifactId>
-      <version>2.0.2-1</version>
+      <version>3.1.11-1</version>
     </dependency>
 
     <!--
@@ -249,6 +247,19 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>org.jetbrains.kotlinx</groupId>
       <artifactId>kotlinx-coroutines-core</artifactId>
+    </dependency>
+
+    <!--
+      Code-first GraphQL via the Carbonio Quarkus extension (mirrors carbonio-tasks-ce). Serves the
+      auto-discovered @GraphQLApi/@Type beans at /graphql (brings quarkus-smallrye-graphql +
+      smallrye-graphql-api transitively) AND runs the build-time step that renders the SDL from code
+      into app/docs/schema.graphql (quarkus.carbonio-graphql.store-schema-directory=docs) — the
+      GraphQL analogue of carbonio-rest's docs/openapi.yaml.
+    -->
+    <dependency>
+      <groupId>com.zextras.carbonio.quarkus</groupId>
+      <artifactId>carbonio-quarkus-extensions-graphql</artifactId>
+      <version>${carbonio-quarkus-extensions.version}</version>
     </dependency>
 
     <!-- Test -->
@@ -309,35 +320,20 @@ SPDX-License-Identifier: AGPL-3.0-only
       <plugin>
         <groupId>io.quarkus</groupId>
         <artifactId>quarkus-maven-plugin</artifactId>
-        <version>${quarkus.version}</version>
-        <extensions>true</extensions>
-        <executions>
-          <execution>
-            <goals>
-              <goal>build</goal>
-              <goal>generate-code</goal>
-              <goal>generate-code-tests</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>${maven-compiler.version}</version>
         <configuration>
           <compilerArgs>
             <arg>--enable-preview</arg>
           </compilerArgs>
-          <source>${maven.compiler.source}</source>
-          <target>${maven.compiler.target}</target>
         </configuration>
       </plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>${maven-surefire.version}</version>
         <configuration>
           <skipTests>${skip.unit.tests}</skipTests>
           <argLine>${argLine} --enable-preview --enable-native-access=ALL-UNNAMED</argLine>
@@ -349,7 +345,6 @@ SPDX-License-Identifier: AGPL-3.0-only
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <version>${maven-failsafe.version}</version>
         <configuration>
           <skipITs>${skip.integration.tests}</skipITs>
           <argLine>${argLine} --enable-preview --enable-native-access=ALL-UNNAMED</argLine>
@@ -357,26 +352,6 @@ SPDX-License-Identifier: AGPL-3.0-only
             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
           </systemPropertyVariables>
         </configuration>
-        <executions>
-          <execution>
-            <goals><goal>integration-test</goal><goal>verify</goal></goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.jacoco</groupId>
-        <artifactId>jacoco-maven-plugin</artifactId>
-        <version>${maven-jacoco.version}</version>
-        <executions>
-          <execution>
-            <id>prepare-agent</id>
-            <goals><goal>prepare-agent</goal></goals>
-          </execution>
-          <execution>
-            <id>report</id><phase>verify</phase>
-            <goals><goal>report</goal></goals>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>

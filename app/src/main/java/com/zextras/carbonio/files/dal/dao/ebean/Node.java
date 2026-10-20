@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.hibernate.annotations.DynamicUpdate;
 
 /**
  * Represents an Ebean {@link Node} entity that matches a record of the {@link
@@ -32,6 +33,8 @@ import java.util.stream.Collectors;
  * <strong>must</strong> be already done.
  */
 @Entity
+// Writers update entities they did not lock: only dirty columns may be written.
+@DynamicUpdate
 @Table(name = Constants.Db.Tables.NODE)
 public class Node {
 

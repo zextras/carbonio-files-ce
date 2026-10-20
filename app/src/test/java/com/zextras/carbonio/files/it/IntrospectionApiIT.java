@@ -4,26 +4,24 @@
 
 package com.zextras.carbonio.files.it;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.FilesStackTestResource;
-import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
-import java.util.List;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@code com.zextras.carbonio.files.acceptance.IntrospectionApiIT} rewritten as an out-of-process
- * {@code @QuarkusIntegrationTest} on {@link AbstractFilesIT}: the authenticated {@code /graphql/}
- * endpoint blocks {@code __schema}/{@code __type} introspection ({@code
- * GraphQLProvider#buildSchema}'s {@code BlockedFields.newBlock().addPattern("__.*")}
- * field-visibility transform). Contrast with {@link PublicGraphQLIntrospectionApiIT}, where the
- * public endpoint applies no such transform. Doubles as a native-smoke surface under {@code
- * -Dnative} (broad schema-reflection coverage). The 1 method and its assertion are preserved
- * verbatim; only the transport changed.
+ * Introspection is blocked in production, as on main (where {@code BlockedFields} hid {@code
+ * __.*}): the graphql extension's prod default {@code
+ * quarkus.smallrye-graphql.field-visibility=no-introspection} makes {@code __schema} and {@code
+ * __type} fail validation for authenticated callers, while {@code __typename} stays available.
  */
 class IntrospectionApiIT extends AbstractFilesIT {
+
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private static final String REQUESTER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
   private static final String REQUESTER_COOKIE = "ZM_AUTH_TOKEN=fake-token";
@@ -33,20 +31,44 @@ class IntrospectionApiIT extends AbstractFilesIT {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", REQUESTER_ID);
   }
 
-  @Test
-  void givenIntrospectionIsDisabledWhenIntrospectionQueryIsSentThenItShouldFail() {
-    // Given
-    String introspectionQuery = "query introspectionQuery { __schema { types { name } } }";
-
-    // When
-    Response response = graphql(introspectionQuery, REQUESTER_COOKIE);
-
-    // Then
+  private static JsonNode body(Response response) throws Exception {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    return OBJECT_MAPPER.readTree(response.getBody().asString());
+  }
 
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
+  private static void assertRejected(JsonNode body, String field) {
+    Assertions.assertThat(body.path("errors")).isNotEmpty();
+    body.path("errors")
+        .forEach(
+            error ->
+                Assertions.assertThat(error.path("extensions").path("classification").asText())
+                    .isEqualTo("ValidationError"));
+    JsonNode data = body.path("data");
+    Assertions.assertThat(data.isMissingNode() || data.isNull() || data.path(field).isMissingNode())
+        .as("no %s data is disclosed", field)
+        .isTrue();
+  }
 
-    Assertions.assertThat(errors).isNotEmpty();
-    Assertions.assertThat(errors.get(0)).contains("Validation error");
+  @Test
+  void givenAnAuthenticatedCallerSchemaIntrospectionShouldBeRejected() throws Exception {
+    JsonNode body =
+        body(graphql("query introspectionQuery { __schema { types { name } } }", REQUESTER_COOKIE));
+
+    assertRejected(body, "__schema");
+  }
+
+  @Test
+  void givenTypenameFieldsTheyShouldStillResolve() throws Exception {
+    JsonNode body =
+        body(
+            graphql(
+                "query { __typename getNode(node_id: \\\"LOCAL_ROOT\\\") { __typename id } }",
+                REQUESTER_COOKIE));
+
+    Assertions.assertThat(body.path("errors").isMissingNode() || body.path("errors").isEmpty())
+        .isTrue();
+    Assertions.assertThat(body.path("data").path("__typename").asText()).isEqualTo("Query");
+    Assertions.assertThat(body.path("data").path("getNode").path("__typename").asText())
+        .isEqualTo("Folder");
   }
 }

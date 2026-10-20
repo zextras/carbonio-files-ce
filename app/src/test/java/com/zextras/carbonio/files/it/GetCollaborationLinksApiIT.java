@@ -240,13 +240,11 @@ class GetCollaborationLinksApiIT extends AbstractFilesIT {
         TestUtils.jsonResponseToMap(response.getBody().asString(), "getNode");
     Assertions.assertThat(node).containsEntry("id", nodeId);
     List<Map<String, Object>> links = (List<Map<String, Object>>) node.get("collaboration_links");
-    Assertions.assertThat(links).hasSize(1);
-    Assertions.assertThat(links.get(0)).isNull();
+    Assertions.assertThat(links).isEmpty();
 
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly(
-            "There was a problem while executing requested operation on node: " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    // Code-first: an unauthorized collaboration-links read returns an empty list WITHOUT a scoped
+    // error (deliberate — no leak of whether links exist), instead of the legacy [null] + error.
+    Assertions.assertThat(errorCodes).isEmpty();
   }
 }

@@ -204,6 +204,9 @@ public interface NodeRepository {
    */
   Optional<TrashedNode> getTrashedNode(String nodeId);
 
+  /** Which of the nodes have a trash row, read from the database and not from the session cache. */
+  List<String> getTrashedNodeIds(List<String> nodeIds);
+
   List<String> getTrashedNodeIdsByOldParent(String oldParentId);
 
   /**

@@ -38,8 +38,9 @@ import org.slf4j.LoggerFactory;
  * carbonio-quarkus-extensions-bootstrap extension. As of extension 1.13.0-1 the extension keeps its
  * Consul KV view LIVE (watch), so {@link ApplicationConfigService} returns the CURRENT value on
  * every call and a runtime KV change takes effect without an app restart. ({@code
- * page-token-secret-key} is the exception: it is read live per-call straight from the raw {@code
- * ServiceDiscoverHttpClient} — see {@link #getPageTokenSecretKey()}.)
+ * page-token-secret-key} is the exception: it is read from the raw {@code
+ * ServiceDiscoverHttpClient} and kept after the first successful read, so rotating it in Consul
+ * needs a restart — see {@link #getPageTokenSecretKey()}.)
  */
 @ApplicationScoped
 public class FilesConfig {
@@ -49,6 +50,7 @@ public class FilesConfig {
   private final ApplicationConfigService applicationConfig;
   private final NetworkingConfigService networkingConfig;
   private final ServiceDiscoverHttpClient serviceDiscoverHttpClient;
+  private volatile String pageTokenSecretKey;
 
   @Inject
   public FilesConfig(
@@ -73,13 +75,13 @@ public class FilesConfig {
    * Generates a random HmacSHA256 key and stores it in Consul KV at {@code
    * carbonio-files/page-token-secret-key} via a {@code ?cas=0} write, so the FIRST instance of a
    * cluster to boot wins and every instance converges on the SAME key (subsequent instances' own
-   * generated candidate is simply discarded — {@link #getPageTokenSecretKey()} always re-reads the
-   * winning value live from Consul, never caching what THIS instance tried to write). On a cold
-   * cluster this is exactly what makes page tokens minted by one node verifiable by any other node,
-   * and what makes them survive a restart. Wrapped in try/catch: if Consul is unreachable or the
-   * ACL token is rejected (403), the app must still boot — {@link #getPageTokenSecretKey()} falls
-   * back to the well-known default key in that case, same trade-off the legacy code documented
-   * (signing degrades to a shared-but-public key rather than taking the app down).
+   * generated candidate is simply discarded — {@link #getPageTokenSecretKey()} reads the winning
+   * value from Consul, never what THIS instance tried to write). On a cold cluster this is exactly
+   * what makes page tokens minted by one node verifiable by any other node, and what makes them
+   * survive a restart. Wrapped in try/catch: if Consul is unreachable or the ACL token is rejected
+   * (403), the app must still boot — {@link #getPageTokenSecretKey()} falls back to the well-known
+   * default key in that case, same trade-off the legacy code documented (signing degrades to a
+   * shared-but-public key rather than taking the app down).
    */
   private void initializePageTokenSecretKey() {
     try {
@@ -110,16 +112,26 @@ public class FilesConfig {
 
   /**
    * The HMAC-SHA256 key used to sign/verify {@code findNodes} keyset page tokens, read LIVE from
-   * Consul on every call (never cached) via {@link ServiceDiscoverHttpClient}. Falls back to a
-   * well-known, public default when Consul has no value yet (or is unreachable) — the same
-   * intentional trade-off the legacy code made: a page token is not a capability grant on its own
-   * (an unsigned/default-keyed one only replays what its own fields already say), so a
-   * temporarily-shared-but-public key is preferable to refusing to serve requests.
+   * Consul via {@link ServiceDiscoverHttpClient} until a value is read, then kept for the life of
+   * the process (the fallback default is never kept). Falls back to a well-known, public default
+   * when Consul has no value yet (or is unreachable) — the same intentional trade-off the legacy
+   * code made: a page token is not a capability grant on its own (an unsigned/default-keyed one
+   * only replays what its own fields already say), so a temporarily-shared-but-public key is
+   * preferable to refusing to serve requests.
    */
   public String getPageTokenSecretKey() {
-    return serviceDiscoverHttpClient
-        .getConfig(ServiceDiscover.Config.PAGE_TOKEN_SECRET_KEY)
-        .orElse(ServiceDiscover.Config.DEFAULT_PAGE_TOKEN_SECRET_KEY);
+    String key = pageTokenSecretKey;
+    if (key == null) {
+      key =
+          serviceDiscoverHttpClient
+              .getConfig(ServiceDiscover.Config.PAGE_TOKEN_SECRET_KEY)
+              .orElse(null);
+      if (key == null) {
+        return ServiceDiscover.Config.DEFAULT_PAGE_TOKEN_SECRET_KEY;
+      }
+      pageTokenSecretKey = key;
+    }
+    return key;
   }
 
   /**

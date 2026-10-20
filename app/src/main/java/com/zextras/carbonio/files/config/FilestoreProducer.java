@@ -8,9 +8,15 @@ import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.quarkus.extensions.bootstrap.NetworkingConfigService;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.storages.api.StoragesClient;
+import com.zextras.storages.internal.client.StoragesClientImp;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Inject;
+import java.io.IOException;
+import okhttp3.Interceptor;
+import okhttp3.OkHttpClient;
+import okhttp3.Response;
+import okhttp3.internal.connection.RealConnection;
 
 /**
  * CDI producer for the {@link Filestore} blob-store client. Mirrors the legacy Guice {@code
@@ -48,6 +54,19 @@ public class FilestoreProducer {
     String storagesUrl =
         String.format("%s://%s:%s", Constants.Config.Storages.DEFAULT_PROTOCOL, host, port);
 
-    return StoragesClient.atUrl(storagesUrl);
+    return StoragesClientImp.atUrl(
+        storagesUrl,
+        new OkHttpClient.Builder().addNetworkInterceptor(FilestoreProducer::dropFailedConnection));
+  }
+
+  // okhttp hands out a never-successful pooled connection unchecked: closing its socket is not
+  // enough.
+  static Response dropFailedConnection(Interceptor.Chain chain) throws IOException {
+    try {
+      return chain.proceed(chain.request());
+    } catch (IOException | RuntimeException e) {
+      ((RealConnection) chain.connection()).noNewExchanges();
+      throw e;
+    }
   }
 }

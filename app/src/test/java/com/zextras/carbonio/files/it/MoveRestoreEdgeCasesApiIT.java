@@ -12,6 +12,9 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
@@ -128,16 +131,9 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     // When
     Response response = moveNodes(new String[] {nodeId}, destFolderId, OWNER_COOKIE);
 
-    // Then — the single blocked node bubbles TWO errors: the app's own nodeWriteError, PLUS a
-    // graphql-java-generated null-propagation error (schema declares `moveNodes: [Node!]`, a
-    // non-null list item resolving to null propagates as a second error — same divergence already
-    // documented by CopyNodesApiIT for the equivalent copyNodes shape).
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(2)
-        .contains(
-            "There was a problem while executing requested operation on node: " + destFolderId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
     Assertions.assertThat(movedNodes(response)).isEmpty();
   }
 
@@ -154,12 +150,9 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     // When
     Response response = moveNodes(new String[] {nodeId}, destFileId, OWNER_COOKIE);
 
-    // Then — see the destination-permission test above for why this is 2 errors, not 1
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(2)
-        .contains("There was a problem while executing requested operation on node: " + destFileId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   @Test
@@ -173,14 +166,10 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     // When
     Response response = moveNodes(new String[] {nodeId}, destFolderId, OWNER_COOKIE);
 
-    // Then — nodeIdsToMove ends up empty: the whole "movedNodesResult" building block is skipped;
-    // see the destination-permission test above for why this is 2 errors, not 1
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(movedNodes(response)).isEmpty();
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(2)
-        .contains("There was a problem while executing requested operation on node: " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   @Test
@@ -192,16 +181,10 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     Response response =
         moveNodes(new String[] {"LOCAL_ROOT", destFolderId}, destFolderId, OWNER_COOKIE);
 
-    // Then — TWO blocked nodes, each bubbling its own app error PLUS its own null-propagation
-    // error (see the destination-permission test above) -> 4 errors total
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(movedNodes(response)).isEmpty();
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(4)
-        .contains(
-            "There was a problem while executing requested operation on node: LOCAL_ROOT",
-            "There was a problem while executing requested operation on node: " + destFolderId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   @Test
@@ -327,6 +310,42 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
         .isEqualTo(1);
   }
 
+  private static List<String> parentAndAncestorsOf(String nodeId) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT folder_id, ancestor_ids FROM node WHERE node_id = ?")) {
+      statement.setString(1, nodeId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        resultSet.next();
+        return List.of(resultSet.getString(1).trim(), resultSet.getString(2).trim());
+      }
+    }
+  }
+
+  @Test
+  void givenAFolderMovingItIntoItsOwnSubFolderMoveNodesShouldReturnNodeWriteErrorAndTouchNothing()
+      throws SQLException {
+    // Given
+    String folderId = seedFolder("outer", LOCAL_ROOT, OWNER_COOKIE);
+    String subFolderId = seedFolder("inner", folderId, OWNER_COOKIE);
+    List<String> before = parentAndAncestorsOf(folderId);
+
+    // When
+    Response response = moveNodes(new String[] {folderId}, subFolderId, OWNER_COOKIE);
+
+    // Then
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.errorCode"))
+        .isEqualTo("NODE_WRITE_ERROR");
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
+        .isEqualTo(folderId);
+    Assertions.assertThat(response.jsonPath().getList("data.moveNodes")).isEmpty();
+    Assertions.assertThat(parentAndAncestorsOf(folderId)).isEqualTo(before);
+    Assertions.assertThat(parentAndAncestorsOf(subFolderId).get(0)).isEqualTo(folderId);
+  }
+
   // ---------------------------------------------------------------------------------------------
   // restoreNodes
   // ---------------------------------------------------------------------------------------------
@@ -341,13 +360,9 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     // When
     Response response = restoreNodes(new String[] {nodeId}, OWNER_COOKIE);
 
-    // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly(
-            "There was a problem while executing requested operation on node: " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   @Test
@@ -355,13 +370,9 @@ class MoveRestoreEdgeCasesApiIT extends AbstractFilesIT {
     // When
     Response response = restoreNodes(new String[] {"LOCAL_ROOT"}, OWNER_COOKIE);
 
-    // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errors = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly(
-            "There was a problem while executing requested operation on node: LOCAL_ROOT");
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   @Test

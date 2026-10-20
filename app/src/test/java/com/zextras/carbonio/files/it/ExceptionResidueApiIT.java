@@ -122,7 +122,7 @@ class ExceptionResidueApiIT extends AbstractFilesIT {
     String pageTokenHacked = forgeTamperedPageTokenMissingSignature();
 
     String query =
-        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+        GraphqlCommandBuilder.aQueryBuilder("findPublicNodes")
             .withString("folder_id", publicFolderId)
             .withInteger("limit", 1)
             .withString("node_link_id", publicId)
@@ -142,7 +142,6 @@ class ExceptionResidueApiIT extends AbstractFilesIT {
     // a signature mismatch (see NodeRepositoryImpl#decodeToken) — the message must not claim a
     // signature was checked when the failure never got that far.
     Assertions.assertThat(errors)
-        .hasSize(1)
-        .containsExactly("Exception while fetching data (/findNodes) : Malformed page token");
+        .containsExactly("Exception while fetching data (/findPublicNodes) : Malformed page token");
   }
 }

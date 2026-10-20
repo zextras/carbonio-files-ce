@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.it;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.FilesStackTestResource;
@@ -71,7 +72,7 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
   private static Response publicFindNodes(
       String folderId, Integer limit, String nodeLinkId, String pageToken) {
     GraphqlCommandBuilder builder =
-        GraphqlCommandBuilder.aQueryBuilder("findNodes").withString("folder_id", folderId);
+        GraphqlCommandBuilder.aQueryBuilder("findPublicNodes").withString("folder_id", folderId);
     if (limit != null) {
       builder = builder.withInteger("limit", limit);
     }
@@ -88,13 +89,14 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
 
   private static String pageTokenOf(Response response) {
     return (String)
-        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes").get("page_token");
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findPublicNodes")
+            .get("page_token");
   }
 
   @SuppressWarnings("unchecked")
   private static List<Map<String, Object>> nodesOf(Response response) {
     Map<String, Object> page =
-        TestUtils.jsonResponseToMap(response.getBody().asString(), "findNodes");
+        TestUtils.jsonResponseToMap(response.getBody().asString(), "findPublicNodes");
     Object nodes = page.get("nodes");
     return nodes == null ? null : (List<Map<String, Object>>) nodes;
   }
@@ -381,7 +383,10 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
             .build();
     Response firstPage = graphql(firstQuery, OWNER_COOKIE);
     Assertions.assertThat(firstPage.getStatusCode()).isEqualTo(200);
-    String legitToken = pageTokenOf(firstPage);
+    String legitToken =
+        (String)
+            TestUtils.jsonResponseToMap(firstPage.getBody().asString(), "findNodes")
+                .get("page_token");
     Assertions.assertThat(legitToken).isNotNull();
 
     NodeRepositoryImpl.PageToken tampered = decode(legitToken);
@@ -408,5 +413,44 @@ class PageTokenAuthorizationApiIT extends AbstractFilesIT {
             "a single authenticated page must never exceed Pagination.LIMIT (%d)",
             Constants.Config.Pagination.LIMIT)
         .isLessThanOrEqualTo(Constants.Config.Pagination.LIMIT);
+  }
+
+  private static Response findNodesWithToken(String folderId, String pageToken) {
+    GraphqlCommandBuilder builder =
+        GraphqlCommandBuilder.aQueryBuilder("findNodes")
+            .withString("folder_id", folderId)
+            .withInteger("limit", 1);
+    if (pageToken != null) {
+      builder = builder.withString("page_token", pageToken);
+    }
+    return graphql(
+        builder.withWantedResultFormat("{ nodes { id } page_token }").build(), OWNER_COOKIE);
+  }
+
+  @Test
+  void givenAGarbagePageTokenFindNodesShouldSurfaceTheMalformedTokenMessage() {
+    String folderId = seedFolder("pta garbage folder", LOCAL_ROOT, OWNER_COOKIE);
+
+    Response response = findNodesWithToken(folderId, "garbage");
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+        .containsExactly("Exception while fetching data (/findNodes) : Malformed page token");
+    assertDataFetchingErrorWithNullCode(response, "findNodes");
+  }
+
+  private static void assertDataFetchingErrorWithNullCode(Response response, String field) {
+    try {
+      JsonNode body = new ObjectMapper().readTree(response.getBody().asString());
+      JsonNode extensions = body.get("errors").get(0).get("extensions");
+      Assertions.assertThat(extensions.get("classification").asText())
+          .isEqualTo("DataFetchingException");
+      Assertions.assertThat(extensions.has("errorCode")).isTrue();
+      Assertions.assertThat(extensions.get("errorCode").isNull()).isTrue();
+      Assertions.assertThat(body.get("data").has(field)).isTrue();
+      Assertions.assertThat(body.get("data").get(field).isNull()).isTrue();
+    } catch (Exception e) {
+      throw new AssertionError(e);
+    }
   }
 }

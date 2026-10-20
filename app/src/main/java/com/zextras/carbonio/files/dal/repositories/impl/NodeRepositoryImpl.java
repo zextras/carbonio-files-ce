@@ -337,6 +337,20 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   @Override
+  public List<String> getTrashedNodeIds(List<String> nodeIds) {
+    if (nodeIds.isEmpty()) {
+      return List.of();
+    }
+    return entityManager
+        .createQuery("select tn.mNodeId from TrashedNode tn where tn.mNodeId in :ids", String.class)
+        .setParameter("ids", nodeIds.stream().map(NodeRepositoryImpl::normalizeId).toList())
+        .getResultList()
+        .stream()
+        .map(String::trim)
+        .toList();
+  }
+
+  @Override
   public List<String> getTrashedNodeIdsByOldParent(String oldParentId) {
     return entityManager
         .createQuery(
@@ -630,7 +644,7 @@ public class NodeRepositoryImpl implements NodeRepository {
       // exactly, or it is either stale (minted while browsing a different, unrelated link) or
       // tampered — reject outright rather than silently ignoring the mismatch.
       if (token.folderId != null && !token.folderId.trim().equals(folderId.trim())) {
-        throw new IllegalArgumentException("Page token does not match the requested folder");
+        throw new InvalidPageTokenException("Page token does not match the requested folder");
       }
       pageLimit = token.limit != null ? Math.min(token.limit, Pagination.LIMIT) : Pagination.LIMIT;
       cursor = Optional.of(token.cursor);
@@ -1028,19 +1042,19 @@ public class NodeRepositoryImpl implements NodeRepository {
     try {
       pageToken = MAPPER.readValue(Base64.getUrlDecoder().decode(token), PageToken.class);
     } catch (IllegalArgumentException | IOException e) {
-      throw new IllegalArgumentException("Malformed page token", e);
+      throw new InvalidPageTokenException("Malformed page token", e);
     }
     String expectedSignature;
     try {
       expectedSignature = computeSignature(pageToken);
     } catch (JsonProcessingException e) {
-      throw new IllegalArgumentException("Malformed page token", e);
+      throw new InvalidPageTokenException("Malformed page token", e);
     }
     byte[] expectedBytes = expectedSignature.getBytes(StandardCharsets.UTF_8);
     byte[] actualBytes =
         (pageToken.signature == null ? "" : pageToken.signature).getBytes(StandardCharsets.UTF_8);
     if (pageToken.signature == null || !MessageDigest.isEqual(expectedBytes, actualBytes)) {
-      throw new IllegalArgumentException("Invalid page token signature");
+      throw new InvalidPageTokenException("Invalid page token signature");
     }
     return pageToken;
   }

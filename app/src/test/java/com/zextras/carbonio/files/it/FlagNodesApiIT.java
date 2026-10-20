@@ -75,11 +75,8 @@ class FlagNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errorResponse)
-        .hasSize(1)
-        .containsExactly(
-            "There was a problem while executing requested operation on node: " + nonExistentId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   @Test
@@ -94,11 +91,8 @@ class FlagNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errorResponse)
-        .hasSize(1)
-        .containsExactly(
-            "There was a problem while executing requested operation on node: " + nodeId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 
   @Test
@@ -114,10 +108,7 @@ class FlagNodesApiIT extends AbstractFilesIT {
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorResponse = TestUtils.jsonResponseToErrors(response.getBody().asString());
-    Assertions.assertThat(errorResponse)
-        .hasSize(1)
-        .containsExactly(
-            "There was a problem while executing requested operation on node: " + nonExistentId);
+    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
+    Assertions.assertThat(errorCodes).containsExactly("NODE_WRITE_ERROR");
   }
 }
