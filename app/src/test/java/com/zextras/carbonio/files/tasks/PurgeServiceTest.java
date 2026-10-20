@@ -5,9 +5,11 @@
 package com.zextras.carbonio.files.tasks;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -20,14 +22,19 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
+import com.zextras.carbonio.files.dal.dao.ebean.VersionReservation;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
 import com.zextras.filestore.api.Filestore;
+import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
 import com.zextras.filestore.model.IdentifierType;
+import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -52,6 +59,7 @@ class PurgeServiceTest {
   private NodeRepository nodeRepository;
   private FileVersionRepository fileVersionRepository;
   private TombstoneRepository tombstoneRepository;
+  private VersionReservationRepository versionReservationRepository;
   private Filestore filestore;
   private PurgeService purgeService;
 
@@ -59,6 +67,22 @@ class PurgeServiceTest {
     long now = System.currentTimeMillis();
     return new Node(
         id, ownerId, ownerId, "TRASH_ROOT", now, now, "name-" + id, "desc", type, ancestorIds, 1L);
+  }
+
+  private static VersionReservation reservation(
+      String nodeId, int version, String ownerId, int attempts) {
+    VersionReservation reservation = mock(VersionReservation.class);
+    when(reservation.getNodeId()).thenReturn(nodeId);
+    when(reservation.getVersion()).thenReturn(version);
+    when(reservation.getOwnerId()).thenReturn(ownerId);
+    when(reservation.getAttempts()).thenReturn(attempts);
+    return reservation;
+  }
+
+  private static BulkDeleteResponseItem failedItem(String nodeId, int version) {
+    BulkDeleteResponseItem item = failedItem(nodeId);
+    when(item.getVersion()).thenReturn(Optional.of(version));
+    return item;
   }
 
   private static BulkDeleteResponseItem failedItem(String nodeId) {
@@ -72,12 +96,15 @@ class PurgeServiceTest {
     nodeRepository = mock(NodeRepository.class);
     fileVersionRepository = mock(FileVersionRepository.class);
     tombstoneRepository = mock(TombstoneRepository.class);
+    versionReservationRepository = mock(VersionReservationRepository.class);
     filestore = mock(Filestore.class);
 
     purgeService = new PurgeService();
     purgeService.nodeRepository = nodeRepository;
     purgeService.fileVersionRepository = fileVersionRepository;
     purgeService.tombstoneRepository = tombstoneRepository;
+    purgeService.versionReservationRepository = versionReservationRepository;
+    purgeService.reservationExpiry = Duration.ofHours(24);
     purgeService.fileStore = filestore;
   }
 
@@ -303,5 +330,111 @@ class PurgeServiceTest {
     purgeService.purgeTombstones();
 
     verifyNoMoreInteractions(filestore);
+  }
+
+  // ------------------------------------------------------------------- purgeExpiredReservations
+
+  @Test
+  void purgeExpiredReservationsClaimsTheReservationsOlderThanTheExpiry() {
+    when(versionReservationRepository.getPurging()).thenReturn(List.of());
+
+    purgeService.purgeExpiredReservations(100_000_000L);
+
+    verify(versionReservationRepository)
+        .claimExpired(100_000_000L - Duration.ofHours(24).toMillis());
+  }
+
+  @Test
+  void purgeExpiredReservationsRemovesTheReservationsWhoseBlobsWereDeleted() throws Exception {
+    VersionReservation first = reservation("node-a", 2, "owner-1", 0);
+    VersionReservation second = reservation("node-b", 4, "owner-1", 0);
+    when(versionReservationRepository.getPurging()).thenReturn(List.of(first, second));
+    when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList()))
+        .thenReturn(List.of());
+
+    purgeService.purgeExpiredReservations(System.currentTimeMillis());
+
+    ArgumentCaptor<List<BulkDeleteRequestItem>> items = ArgumentCaptor.forClass(List.class);
+    verify(filestore).bulkDelete(eq(IdentifierType.files), eq("owner-1"), items.capture());
+    assertThat(items.getValue())
+        .extracting(BulkDeleteRequestItem::getNode, BulkDeleteRequestItem::getVersion)
+        .containsExactly(tuple("node-a", Optional.of(2)), tuple("node-b", Optional.of(4)));
+    verify(versionReservationRepository).remove(first);
+    verify(versionReservationRepository).remove(second);
+    verify(versionReservationRepository, never()).recordFailedAttempt(any());
+  }
+
+  @Test
+  void purgeExpiredReservationsCountsAnAttemptOnlyForTheVersionReportedAsNotDeleted()
+      throws Exception {
+    VersionReservation failing = reservation("node-a", 2, "owner-1", 0);
+    VersionReservation deleted = reservation("node-a", 3, "owner-1", 0);
+    when(versionReservationRepository.getPurging()).thenReturn(List.of(failing, deleted));
+    List<BulkDeleteResponseItem> notDeleted = List.of(failedItem("node-a", 2));
+    when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList()))
+        .thenReturn(notDeleted);
+
+    purgeService.purgeExpiredReservations(System.currentTimeMillis());
+
+    verify(versionReservationRepository).recordFailedAttempt(failing);
+    verify(versionReservationRepository, never()).remove(failing);
+    verify(versionReservationRepository).remove(deleted);
+  }
+
+  @Test
+  void purgeExpiredReservationsDropsAReservationAtItsThirdNotDeletedAnswer() throws Exception {
+    VersionReservation failing = reservation("node-a", 2, "owner-1", 2);
+    when(versionReservationRepository.getPurging()).thenReturn(List.of(failing));
+    List<BulkDeleteResponseItem> notDeleted = List.of(failedItem("node-a", 2));
+    when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList()))
+        .thenReturn(notDeleted);
+
+    purgeService.purgeExpiredReservations(System.currentTimeMillis());
+
+    verify(versionReservationRepository).remove(failing);
+    verify(versionReservationRepository, never()).recordFailedAttempt(any());
+  }
+
+  @Test
+  void purgeExpiredReservationsLeavesTheReservationsUntouchedOnAnOutage() throws Exception {
+    VersionReservation reservation = reservation("node-a", 2, "owner-1", 2);
+    when(versionReservationRepository.getPurging()).thenReturn(List.of(reservation));
+    when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList()))
+        .thenThrow(new RuntimeException("connection refused"));
+
+    purgeService.purgeExpiredReservations(System.currentTimeMillis());
+
+    verify(versionReservationRepository, never()).remove(any());
+    verify(versionReservationRepository, never()).recordFailedAttempt(any());
+  }
+
+  @Test
+  void purgeExpiredReservationsLeavesTheReservationsUntouchedWhenBulkDeleteReturnsNull()
+      throws Exception {
+    VersionReservation reservation = reservation("node-a", 2, "owner-1", 2);
+    when(versionReservationRepository.getPurging()).thenReturn(List.of(reservation));
+    when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList())).thenReturn(null);
+
+    purgeService.purgeExpiredReservations(System.currentTimeMillis());
+
+    verify(versionReservationRepository, never()).remove(any());
+    verify(versionReservationRepository, never()).recordFailedAttempt(any());
+  }
+
+  @Test
+  void purgeExpiredReservationsCallsTheStoragePerBlobOwner() throws Exception {
+    VersionReservation ofFirstOwner = reservation("node-a", 2, "owner-1", 0);
+    VersionReservation ofSecondOwner = reservation("node-b", 2, "owner-2", 0);
+    when(versionReservationRepository.getPurging())
+        .thenReturn(List.of(ofFirstOwner, ofSecondOwner));
+    when(filestore.bulkDelete(eq(IdentifierType.files), anyString(), anyList()))
+        .thenReturn(List.of());
+
+    purgeService.purgeExpiredReservations(System.currentTimeMillis());
+
+    verify(filestore).bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList());
+    verify(filestore).bulkDelete(eq(IdentifierType.files), eq("owner-2"), anyList());
+    verify(versionReservationRepository).remove(ofFirstOwner);
+    verify(versionReservationRepository).remove(ofSecondOwner);
   }
 }

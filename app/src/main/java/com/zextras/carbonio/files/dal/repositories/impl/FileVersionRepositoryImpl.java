@@ -43,20 +43,34 @@ public class FileVersionRepositoryImpl
       long size,
       String digest,
       boolean autosave) {
+    return createNewFileVersion(
+        nodeId,
+        lastEditorId,
+        version,
+        mimeType,
+        size,
+        digest,
+        autosave,
+        System.currentTimeMillis());
+  }
+
+  @Override
+  @Transactional
+  public Optional<FileVersion> createNewFileVersion(
+      String nodeId,
+      String lastEditorId,
+      int version,
+      String mimeType,
+      long size,
+      String digest,
+      boolean autosave,
+      long timestamp) {
     if (getEntityManager().find(Node.class, nodeId) == null) {
       return Optional.empty();
     }
 
     FileVersion fileVersion =
-        new FileVersion(
-            nodeId,
-            lastEditorId,
-            System.currentTimeMillis(),
-            version,
-            mimeType,
-            size,
-            digest,
-            autosave);
+        new FileVersion(nodeId, lastEditorId, timestamp, version, mimeType, size, digest, autosave);
     persist(fileVersion);
     return Optional.of(fileVersion);
   }
@@ -111,6 +125,12 @@ public class FileVersionRepositoryImpl
         findByIdOptional(new FileVersionPK(fileVersion.getNodeId(), fileVersion.getVersion()));
     managed.ifPresent(this::delete);
     return managed.isPresent();
+  }
+
+  @Override
+  @Transactional
+  public boolean removeFileVersion(String nodeId, int version) {
+    return delete("mComposedId.mNodeId = ?1 and mVersion = ?2", nodeId, version) == 1;
   }
 
   @Override

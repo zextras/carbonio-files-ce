@@ -54,7 +54,8 @@ import java.util.regex.Pattern;
  *   <li>{@code PUT|POST /upload?node=&version=&type=} (multipart, part name {@code "file"}) → 200 +
  *       {@code {"digest":"…","digest_algorithm":"SHA-256","size":N}} (the {@code
  *       StoragesUploadResponse} Gson shape); {@link #setUploadFails} → 500; {@link
- *       #setUploadSkipsStore} → 200 but nothing is stored (a later download 404s).
+ *       #setUploadSkipsStore} → 200 but nothing is stored (a later download 404s); a POST on a
+ *       stored key → 409, like both real stores.
  *   <li>{@code PUT
  *       /copy?sourceNode=&sourceVersion=&destinationNode=&destinationVersion=&type=&override=} →
  *       duplicates the source blob to the destination key, 200 + the same upload-response JSON;
@@ -310,6 +311,9 @@ public class MockStoragesService {
     String node = queryParam(request, "node");
     Integer version = queryParamInt(request, "version");
     String key = key(node, version);
+    if ("POST".equals(request.getMethod().value()) && blobs.containsKey(key)) {
+      return Response.response().status(409).build();
+    }
     byte[] content = extractUploadBytes(request);
 
     if (uploadSkipsStore) {

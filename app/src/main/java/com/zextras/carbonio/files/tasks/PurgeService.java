@@ -8,10 +8,12 @@ import com.zextras.carbonio.files.Constants.Config;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
+import com.zextras.carbonio.files.dal.dao.ebean.VersionReservation;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
@@ -19,12 +21,14 @@ import com.zextras.filestore.model.IdentifierType;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,11 +61,16 @@ public class PurgeService {
   private static final Logger logger = LoggerFactory.getLogger(PurgeService.class);
 
   static final int MAX_TOMBSTONE_RETRIES = 3;
+  static final int MAX_RESERVATION_PURGE_ATTEMPTS = 3;
 
   @Inject NodeRepository nodeRepository;
   @Inject FileVersionRepository fileVersionRepository;
   @Inject TombstoneRepository tombstoneRepository;
+  @Inject VersionReservationRepository versionReservationRepository;
   @Inject Filestore fileStore;
+
+  @ConfigProperty(name = "carbonio.files.reservation-purge.expiry", defaultValue = "24h")
+  Duration reservationExpiry;
 
   void purgeTrashedNodes(long retentionDays) {
     long retentionTimestamp = System.currentTimeMillis() - (retentionDays * 86400 * 1000);
@@ -227,6 +236,82 @@ public class PurgeService {
         }
       }
     }
+  }
+
+  /**
+   * Deletes the blobs of the version reservations never confirmed within {@link #reservationExpiry}
+   * (their save failed: no revision references them), then the reservations. Claiming them first
+   * (PENDING → PURGING) makes a late confirmation fail instead of creating a version whose blob is
+   * being deleted. A whole-call failure is an outage and does not count; a reservation reported as
+   * not deleted {@link #MAX_RESERVATION_PURGE_ATTEMPTS} times (never written, or a persistent
+   * storage error) is dropped, leaving at most an orphan blob.
+   */
+  void purgeExpiredReservations(long now) {
+    versionReservationRepository.claimExpired(now - reservationExpiry.toMillis());
+
+    Map<String, List<VersionReservation>> byOwner =
+        versionReservationRepository.getPurging().stream()
+            .collect(Collectors.groupingBy(VersionReservation::getOwnerId));
+
+    byOwner.forEach(
+        (ownerId, reservations) -> {
+          List<BulkDeleteResponseItem> failedItems;
+          try {
+            failedItems =
+                fileStore.bulkDelete(
+                    IdentifierType.files,
+                    ownerId,
+                    reservations.stream()
+                        .map(r -> BulkDeleteRequestItem.filesItem(r.getNodeId(), r.getVersion()))
+                        .toList());
+          } catch (Exception e) {
+            logger.warn(
+                "purgeExpiredReservations: bulk delete failed for owner {}: {}. Kept for the next"
+                    + " run.",
+                ownerId,
+                e.getMessage());
+            return;
+          }
+          if (failedItems == null) {
+            logger.warn(
+                "purgeExpiredReservations: bulk delete returned null for owner {}. Kept for the"
+                    + " next run.",
+                ownerId);
+            return;
+          }
+
+          for (VersionReservation reservation : reservations) {
+            boolean failed =
+                failedItems.stream()
+                    .anyMatch(
+                        item ->
+                            reservation.getNodeId().equals(item.getNode())
+                                && item.getVersion()
+                                    .map(version -> version == reservation.getVersion())
+                                    .orElse(true));
+            if (!failed) {
+              versionReservationRepository.remove(reservation);
+            } else if (reservation.getAttempts() + 1 >= MAX_RESERVATION_PURGE_ATTEMPTS) {
+              logger.warn(
+                  "purgeExpiredReservations: giving up on blob nodeId={} version={} after {}"
+                      + " attempts",
+                  reservation.getNodeId(),
+                  reservation.getVersion(),
+                  reservation.getAttempts() + 1);
+              versionReservationRepository.remove(reservation);
+            } else {
+              versionReservationRepository.recordFailedAttempt(reservation);
+            }
+          }
+        });
+  }
+
+  @Scheduled(
+      every = "${carbonio.files.reservation-purge.interval:1h}",
+      delayed = "${carbonio.files.reservation-purge.delay:1m}",
+      concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+  void scheduledReservationPurge() {
+    purgeExpiredReservations(System.currentTimeMillis());
   }
 
   /**

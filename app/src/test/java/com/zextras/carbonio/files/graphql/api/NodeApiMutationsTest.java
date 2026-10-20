@@ -38,9 +38,12 @@ import com.zextras.carbonio.files.graphql.spi.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.support.NodeCreationHelper;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import com.zextras.carbonio.files.rest.services.VersionReservations;
+import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.UploadResponse;
+import com.zextras.filestore.model.FilesIdentifier;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.narayana.jta.TransactionRunnerOptions;
 import io.smallrye.graphql.api.Context;
@@ -71,6 +74,7 @@ class NodeApiMutationsTest {
   private NodeCreationHelper nodeCreationHelper;
   private FilesConfig filesConfig;
   private CopyFailureClassifier copyFailureClassifier;
+  private VersionReservations versionReservations;
   private Context gqlContext;
   private NodeApi nodeApi;
 
@@ -86,6 +90,7 @@ class NodeApiMutationsTest {
     shareCascade = mock(ShareCascadeHelper.class);
     filesConfig = mock(FilesConfig.class);
     copyFailureClassifier = mock(CopyFailureClassifier.class);
+    versionReservations = mock(VersionReservations.class);
     gqlContext = mock(Context.class);
 
     UserMyself requester = mock(UserMyself.class);
@@ -118,6 +123,7 @@ class NodeApiMutationsTest {
     nodeApi.validator = new GraphQLInputValidator();
     nodeApi.requester = requester;
     nodeApi.copyFailureClassifier = copyFailureClassifier;
+    nodeApi.versionReservations = versionReservations;
     nodeApi.gqlContext = gqlContext;
   }
 
@@ -185,7 +191,24 @@ class NodeApiMutationsTest {
         .thenReturn(List.of());
     when(fileVersionRepository.getFileVersion(NODE_ID_1, 1))
         .thenReturn(Optional.of(mock(FileVersion.class)));
+    when(versionReservations.reserve(NODE_ID_1, CLONING_USER_ID))
+        .thenReturn(Optional.of(new Reservation(NODE_ID_1, 7, 5000L, CLONING_USER_ID)));
     when(fileStore.copy(any(), any(), anyBoolean())).thenThrow(new RuntimeException("boom"));
+  }
+
+  @Test
+  void cloneVersionCopiesTheSourceVersionToTheReservedVersion() throws Exception {
+    givenACloneVersionWhoseStorageCopyFails();
+    when(copyFailureClassifier.classify(any())).thenReturn(ErrorCodes.OVER_QUOTA_REACHED);
+
+    assertThatThrownBy(() -> nodeApi.cloneVersion(NODE_ID_1, 1))
+        .isInstanceOf(FilesGraphQLException.class);
+
+    verify(fileStore)
+        .copy(
+            FilesIdentifier.of(NODE_ID_1, 1, CLONING_USER_ID),
+            FilesIdentifier.of(NODE_ID_1, 7, CLONING_USER_ID),
+            false);
   }
 
   @Test
@@ -225,7 +248,7 @@ class NodeApiMutationsTest {
     givenACloneVersionWhoseStorageCopyFails();
     doReturn(mock(UploadResponse.class)).when(fileStore).copy(any(), any(), anyBoolean());
     when(fileVersionRepository.createNewFileVersion(
-            any(), any(), anyInt(), any(), anyLong(), any(), anyBoolean()))
+            any(), any(), anyInt(), any(), anyLong(), any(), anyBoolean(), anyLong()))
         .thenThrow(new IllegalStateException("db down"));
 
     try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {

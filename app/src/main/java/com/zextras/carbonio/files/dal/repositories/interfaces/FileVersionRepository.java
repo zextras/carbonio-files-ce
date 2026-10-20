@@ -59,6 +59,19 @@ public interface FileVersionRepository {
       boolean autosave);
 
   /**
+   * As the other overload, dated {@code timestamp} instead of now (the version reservation time).
+   */
+  Optional<FileVersion> createNewFileVersion(
+      String nodeId,
+      String lastEditorId,
+      int version,
+      String mimeType,
+      long size,
+      String digest,
+      boolean autosave,
+      long timestamp);
+
+  /**
    * Returns the {@link List} of all {@link FileVersion}s associated to a specific {@link Node}.
    *
    * @param nodeId the {@link String} representing the identifier of the {@link Node} whose {@link
@@ -101,6 +114,13 @@ public interface FileVersionRepository {
   boolean deleteFileVersion(FileVersion fileVersion);
 
   void deleteFileVersions(String nodeId, Collection<Integer> versions);
+
+  /**
+   * Deletes one version row in the caller's transaction.
+   *
+   * @return false when it no longer exists (deleted by a concurrent transaction)
+   */
+  boolean removeFileVersion(String nodeId, int version);
 
   /**
    * Retrieves all @link FileVersion}s belonging to a {@link Node} representing a file having a

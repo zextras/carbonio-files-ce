@@ -159,4 +159,22 @@ class CloneVersionApiIT extends AbstractFilesIT {
     // path does not need to roll anything back because nothing was ever written
     Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2);
   }
+
+  @Test
+  void givenAFailedCloneItsVersionNumberIsNotReusedByTheNextClone() throws SQLException {
+    String nodeId =
+        seedFile("file.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    FilesStackTestResource.getStoragesService().setCopyFails(true);
+    cloneVersion(nodeId, 1);
+    FilesStackTestResource.getStoragesService().setCopyFails(false);
+
+    Response response = cloneVersion(nodeId, 1);
+
+    Assertions.assertThat(
+            TestUtils.jsonResponseToMap(response.getBody().asString(), "cloneVersion"))
+        .containsEntry("version", 3)
+        .containsEntry("cloned_from_version", 1);
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 3);
+    Assertions.assertThat(pendingReservations(nodeId)).containsExactly(2);
+  }
 }

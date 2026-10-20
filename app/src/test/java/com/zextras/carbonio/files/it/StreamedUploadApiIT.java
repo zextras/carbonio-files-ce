@@ -20,6 +20,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Base64;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
@@ -28,8 +29,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Uploads whose body is still streaming while the server works: a client that disconnects mid-body
- * (legacy deleted the placeholder node), a placeholder renamed mid-body, and a node renamed while
- * an upload-version holds its row lock (the new version must stay current).
+ * (legacy deleted the placeholder node), a placeholder renamed mid-body, and upload-versions whose
+ * version number is reserved before the body is read (no transaction or lock while it streams).
  */
 class StreamedUploadApiIT extends AbstractFilesIT {
 
@@ -99,107 +100,285 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenARenameWhileAnUploadVersionStreamsThenTheNewVersionStaysCurrent() throws Exception {
+  void givenARenameWhileAnUploadVersionStreamsThenTheRenameDoesNotWaitAndTheNewVersionIsCurrent()
+      throws Exception {
     String folderId = seedFolder("streamed-upload-version-rename", LOCAL_ROOT, REQUESTER_COOKIE);
-    String nodeId =
-        seedFile(
-            "versioned.txt",
-            folderId,
-            "content".getBytes(StandardCharsets.UTF_8),
-            REQUESTER_COOKIE);
+    String nodeId = seedFile("versioned.txt", folderId, CONTENT, REQUESTER_COOKIE);
 
-    CompletableFuture<Response> rename = null;
     String statusLine;
-    try {
-      try (Socket socket = new Socket("localhost", RestAssured.port)) {
-        socket.setSoTimeout(30_000);
-        OutputStream out = socket.getOutputStream();
-        out.write(
-            head(
-                    "/upload-version",
-                    "NodeId: " + nodeId + "\r\nOverwriteVersion: false",
-                    "versioned.txt",
-                    2 * CHUNK)
-                .getBytes(StandardCharsets.UTF_8));
-        out.write(new byte[CHUNK]);
-        out.flush();
-        eventually("upload-version holds the node row", () -> nodeRowLocked(nodeId));
+    try (Socket socket = startUploadVersion(nodeId, false)) {
+      eventually("version 2 reserved", () -> pendingReservations(nodeId).equals(List.of(2)));
+      Assertions.assertThat(filesConnectionsIdleInTransaction()).isZero();
 
-        rename =
-            CompletableFuture.supplyAsync(
-                () ->
-                    graphql(
-                        GraphqlCommandBuilder.aMutationBuilder("updateNode")
-                            .withString("node_id", nodeId)
-                            .withString("name", "renamed")
-                            .withWantedResultFormat("{ id }")
-                            .build(),
-                        REQUESTER_COOKIE));
-        eventually("rename waits for the node row", () -> lockWaiters() >= 1);
+      Response rename =
+          CompletableFuture.supplyAsync(
+                  () ->
+                      graphql(
+                          GraphqlCommandBuilder.aMutationBuilder("updateNode")
+                              .withString("node_id", nodeId)
+                              .withString("name", "renamed")
+                              .withWantedResultFormat("{ id }")
+                              .build(),
+                          REQUESTER_COOKIE))
+              .get(10, TimeUnit.SECONDS);
+      Assertions.assertThat(TestUtils.jsonResponseToErrors(rename.getBody().asString())).isEmpty();
 
-        out.write(new byte[CHUNK]);
-        out.flush();
-        statusLine =
-            new BufferedReader(
-                    new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
-                .readLine();
-      }
-    } finally {
-      if (rename != null) {
-        try {
-          rename.get(60, TimeUnit.SECONDS);
-        } catch (Exception ignored) {
-          // the outcome is asserted after the try
-        }
-      }
+      statusLine = finishUpload(socket);
     }
 
     Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
-    Response renameResponse = rename.get(60, TimeUnit.SECONDS);
-    Assertions.assertThat(TestUtils.jsonResponseToErrors(renameResponse.getBody().asString()))
-        .isEmpty();
-    try (Connection connection = jdbcConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(
-                "SELECT name, current_version FROM node WHERE node_id = ?")) {
-      statement.setString(1, nodeId);
-      try (ResultSet row = statement.executeQuery()) {
-        Assertions.assertThat(row.next()).isTrue();
-        Assertions.assertThat(row.getString("name")).isEqualTo("renamed.txt");
-        Assertions.assertThat(row.getInt("current_version")).isEqualTo(2);
-      }
-    }
+    Assertions.assertThat(nodeColumn(nodeId, "name")).isEqualTo("renamed.txt");
+    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("2");
     Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2);
+    Assertions.assertThat(pendingReservations(nodeId)).isEmpty();
   }
 
-  private static boolean nodeRowLocked(String nodeId) throws SQLException {
-    try (Connection connection = jdbcConnection()) {
-      connection.setAutoCommit(false);
-      try (PreparedStatement statement =
-          connection.prepareStatement(
-              "SELECT 1 FROM node WHERE node_id = ? FOR NO KEY UPDATE NOWAIT")) {
-        statement.setString(1, nodeId);
-        statement.executeQuery().close();
-        connection.rollback();
-        return false;
-      } catch (SQLException e) {
-        if ("55P03".equals(e.getSQLState())) {
-          return true;
+  @Test
+  void givenTwoUploadVersionsStreamingTogetherThenTheyGetVersionsInReservationOrder()
+      throws Exception {
+    String nodeId = seedFile("concurrent.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+
+    try (Socket first = startUploadVersion(nodeId, false)) {
+      eventually("version 2 reserved", () -> pendingReservations(nodeId).equals(List.of(2)));
+      try (Socket second = startUploadVersion(nodeId, false)) {
+        eventually("version 3 reserved", () -> pendingReservations(nodeId).equals(List.of(2, 3)));
+        Assertions.assertThat(finishUpload(second)).startsWith("HTTP/1.1 200");
+      }
+      Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("3");
+      Assertions.assertThat(finishUpload(first)).startsWith("HTTP/1.1 200");
+    }
+
+    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("3");
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2, 3);
+    Assertions.assertThat(versionTimestamp(nodeId, 2)).isLessThan(versionTimestamp(nodeId, 3));
+    Assertions.assertThat(pendingReservations(nodeId)).isEmpty();
+  }
+
+  @Test
+  void givenAnUploadVersionAbortedMidBodyThenTheNextOneGetsTheNextNumber() throws Exception {
+    String nodeId = seedFile("aborted.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+
+    try (Socket socket = startUploadVersion(nodeId, false)) {
+      eventually("version 2 reserved", () -> pendingReservations(nodeId).equals(List.of(2)));
+    }
+
+    Response next = uploadVersion(nodeId, CONTENT, "aborted.txt", false, REQUESTER_COOKIE);
+
+    Assertions.assertThat(next.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(next.jsonPath().getInt("version")).isEqualTo(3);
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 3);
+    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("3");
+    Assertions.assertThat(pendingReservations(nodeId)).containsExactly(2);
+  }
+
+  @Test
+  void givenABlobLeftAtTheNextVersionByAFailedSaveThenOnlyOneMoreSaveFails() throws Exception {
+    String nodeId = seedFile("stuck.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+    FilesStackTestResource.getStoragesService().seed(nodeId, 2, CONTENT);
+
+    Response blocked = uploadVersion(nodeId, CONTENT, "stuck.txt", false, REQUESTER_COOKIE);
+    Response next = uploadVersion(nodeId, CONTENT, "stuck.txt", false, REQUESTER_COOKIE);
+
+    Assertions.assertThat(blocked.getStatusCode()).isEqualTo(500);
+    Assertions.assertThat(next.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(next.jsonPath().getInt("version")).isEqualTo(3);
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 3);
+  }
+
+  @Test
+  void givenTheReservationIsClaimedWhileTheBodyStreamsThenTheVersionIsNotCreated()
+      throws Exception {
+    String nodeId = seedFile("claimed.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+
+    String statusLine;
+    try (Socket socket = startUploadVersion(nodeId, false)) {
+      eventually("version 2 reserved", () -> pendingReservations(nodeId).equals(List.of(2)));
+      try (Connection connection = jdbcConnection();
+          PreparedStatement claim =
+              connection.prepareStatement(
+                  "UPDATE version_reservation SET state = 'PURGING' WHERE node_id = ?")) {
+        claim.setString(1, nodeId);
+        Assertions.assertThat(claim.executeUpdate()).isEqualTo(1);
+      }
+      statusLine = finishUpload(socket);
+    }
+
+    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 500");
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
+    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("1");
+  }
+
+  @Test
+  void givenAnOverwriteStreamingThenNoTransactionIsHeldAndTheVersionIsRewritten() throws Exception {
+    String nodeId = seedFile("overwritten.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+
+    String statusLine;
+    try (Socket socket = startUploadVersion(nodeId, true)) {
+      assertNoTransactionHeldWhileTheBodyStreams();
+      statusLine = finishUpload(socket);
+    }
+
+    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
+    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("1");
+    Assertions.assertThat(nodeColumn(nodeId, "size")).isEqualTo(String.valueOf(2 * CHUNK));
+    Assertions.assertThat(pendingReservations(nodeId)).isEmpty();
+  }
+
+  @Test
+  void givenANewerVersionPublishedDuringAnOverwriteThenTheOverwriteDoesNotMoveTheCurrentBack()
+      throws Exception {
+    String nodeId = seedFile("raced.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+
+    String statusLine;
+    try (Socket socket = startUploadVersion(nodeId, true)) {
+      assertNoTransactionHeldWhileTheBodyStreams();
+      Assertions.assertThat(seedVersion(nodeId, CONTENT, "raced.txt", REQUESTER_COOKIE))
+          .isEqualTo(2);
+      statusLine = finishUpload(socket);
+    }
+
+    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2);
+    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("2");
+  }
+
+  @Test
+  void givenTheOverwrittenVersionIsDeletedMeanwhileThenTheOverwriteFailsInsteadOfRecreatingIt()
+      throws Exception {
+    String nodeId = seedFile("deleted-meanwhile.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+
+    String statusLine;
+    try (Socket socket = startUploadVersion(nodeId, true)) {
+      assertNoTransactionHeldWhileTheBodyStreams();
+      Assertions.assertThat(seedVersion(nodeId, CONTENT, "deleted-meanwhile.txt", REQUESTER_COOKIE))
+          .isEqualTo(2);
+      Response deleted =
+          graphql(
+              GraphqlCommandBuilder.aMutationBuilder("deleteVersions")
+                  .withString("node_id", nodeId)
+                  .withListOfIntegers("versions", new int[] {1})
+                  .withWantedResultFormat("")
+                  .build(),
+              REQUESTER_COOKIE);
+      Assertions.assertThat(TestUtils.jsonResponseToErrors(deleted.getBody().asString())).isEmpty();
+      statusLine = finishUpload(socket);
+    }
+
+    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 404");
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(2);
+    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("2");
+  }
+
+  @Test
+  void givenTwoSavesStreamingAtTheVersionCapThenBothSucceedAndEachTrimsOneVersion()
+      throws Exception {
+    setApplicationConfig("max-number-of-versions", "2");
+    try {
+      String nodeId = seedFile("capped.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+      seedVersion(nodeId, CONTENT, "capped.txt", REQUESTER_COOKIE);
+
+      try (Socket first = startUploadVersion(nodeId, false)) {
+        eventually("version 3 reserved", () -> pendingReservations(nodeId).equals(List.of(3)));
+        try (Socket second = startUploadVersion(nodeId, false)) {
+          eventually("version 4 reserved", () -> pendingReservations(nodeId).equals(List.of(3, 4)));
+          Assertions.assertThat(finishUpload(first)).startsWith("HTTP/1.1 200");
+          Assertions.assertThat(finishUpload(second)).startsWith("HTTP/1.1 200");
         }
-        throw e;
+      }
+
+      Assertions.assertThat(versionRows(nodeId)).containsExactly(3, 4);
+      Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("4");
+    } finally {
+      clearApplicationConfig("max-number-of-versions", "30");
+    }
+  }
+
+  @Test
+  void givenACloneWhileAnUploadVersionStreamsThenTheyGetVersionsInReservationOrder()
+      throws Exception {
+    String nodeId = seedFile("cloned.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+
+    try (Socket socket = startUploadVersion(nodeId, false)) {
+      eventually("version 2 reserved", () -> pendingReservations(nodeId).equals(List.of(2)));
+      Response clone =
+          graphql(
+              GraphqlCommandBuilder.aMutationBuilder("cloneVersion")
+                  .withString("node_id", nodeId)
+                  .withInteger("version", 1)
+                  .withWantedResultFormat("{ version }")
+                  .build(),
+              REQUESTER_COOKIE);
+      Assertions.assertThat(TestUtils.jsonResponseToMap(clone.getBody().asString(), "cloneVersion"))
+          .containsEntry("version", 3);
+      Assertions.assertThat(finishUpload(socket)).startsWith("HTTP/1.1 200");
+    }
+
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2, 3);
+    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("3");
+    Assertions.assertThat(versionTimestamp(nodeId, 2)).isLessThan(versionTimestamp(nodeId, 3));
+  }
+
+  private static final byte[] CONTENT = "content".getBytes(StandardCharsets.UTF_8);
+
+  /** Opens an upload-version of 2 chunks and sends only the first one. */
+  private static Socket startUploadVersion(String nodeId, boolean overwrite) throws Exception {
+    Socket socket = new Socket("localhost", RestAssured.port);
+    socket.setSoTimeout(30_000);
+    OutputStream out = socket.getOutputStream();
+    out.write(
+        head(
+                "/upload-version",
+                "NodeId: " + nodeId + "\r\nOverwriteVersion: " + overwrite,
+                "version.txt",
+                2 * CHUNK)
+            .getBytes(StandardCharsets.UTF_8));
+    out.write(new byte[CHUNK]);
+    out.flush();
+    return socket;
+  }
+
+  /** An overwrite reserves nothing to wait for: watch for a second that no transaction is open. */
+  private static void assertNoTransactionHeldWhileTheBodyStreams() throws Exception {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
+    while (System.nanoTime() < deadline) {
+      Assertions.assertThat(filesConnectionsIdleInTransaction()).isZero();
+    }
+  }
+
+  /** Sends the second chunk and returns the response status line. */
+  private static String finishUpload(Socket socket) throws Exception {
+    OutputStream out = socket.getOutputStream();
+    out.write(new byte[CHUNK]);
+    out.flush();
+    return new BufferedReader(
+            new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
+        .readLine();
+  }
+
+  private static String nodeColumn(String nodeId, String column) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("SELECT " + column + " FROM node WHERE node_id = ?")) {
+      statement.setString(1, nodeId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        Assertions.assertThat(resultSet.next()).isTrue();
+        return resultSet.getString(1).trim();
       }
     }
   }
 
-  private static int lockWaiters() throws SQLException {
+  private static long versionTimestamp(String nodeId, int version) throws SQLException {
     try (Connection connection = jdbcConnection();
         PreparedStatement statement =
             connection.prepareStatement(
-                "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND"
-                    + " cardinality(pg_blocking_pids(pid)) > 0 AND query ILIKE 'update node%'");
-        ResultSet resultSet = statement.executeQuery()) {
-      resultSet.next();
-      return resultSet.getInt(1);
+                "SELECT timestamp FROM revision WHERE node_id = ? AND version = ?")) {
+      statement.setString(1, nodeId);
+      statement.setInt(2, version);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        Assertions.assertThat(resultSet.next()).isTrue();
+        return resultSet.getLong(1);
+      }
     }
   }
 
