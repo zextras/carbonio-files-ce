@@ -28,7 +28,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Uploads whose body is still streaming while the server works: a client that disconnects mid-body
- * (legacy deleted the placeholder node) and a placeholder renamed mid-body.
+ * (legacy deleted the placeholder node), a placeholder renamed mid-body, and a node renamed while
+ * an upload-version holds its row lock (the new version must stay current).
  */
 class StreamedUploadApiIT extends AbstractFilesIT {
 
@@ -107,39 +108,50 @@ class StreamedUploadApiIT extends AbstractFilesIT {
             "content".getBytes(StandardCharsets.UTF_8),
             REQUESTER_COOKIE);
 
-    CompletableFuture<Response> rename;
+    CompletableFuture<Response> rename = null;
     String statusLine;
-    try (Socket socket = new Socket("localhost", RestAssured.port)) {
-      socket.setSoTimeout(30_000);
-      OutputStream out = socket.getOutputStream();
-      out.write(
-          head(
-                  "/upload-version",
-                  "NodeId: " + nodeId + "\r\nOverwriteVersion: false",
-                  "versioned.txt",
-                  2 * CHUNK)
-              .getBytes(StandardCharsets.UTF_8));
-      out.write(new byte[CHUNK]);
-      out.flush();
-      eventually("upload-version holds the node row", () -> nodeRowLocked(nodeId));
+    try {
+      try (Socket socket = new Socket("localhost", RestAssured.port)) {
+        socket.setSoTimeout(30_000);
+        OutputStream out = socket.getOutputStream();
+        out.write(
+            head(
+                    "/upload-version",
+                    "NodeId: " + nodeId + "\r\nOverwriteVersion: false",
+                    "versioned.txt",
+                    2 * CHUNK)
+                .getBytes(StandardCharsets.UTF_8));
+        out.write(new byte[CHUNK]);
+        out.flush();
+        eventually("upload-version holds the node row", () -> nodeRowLocked(nodeId));
 
-      rename =
-          CompletableFuture.supplyAsync(
-              () ->
-                  graphql(
-                      GraphqlCommandBuilder.aMutationBuilder("updateNode")
-                          .withString("node_id", nodeId)
-                          .withString("name", "renamed")
-                          .withWantedResultFormat("{ id }")
-                          .build(),
-                      REQUESTER_COOKIE));
-      eventually("rename waits for the node row", () -> lockWaiters() >= 1);
+        rename =
+            CompletableFuture.supplyAsync(
+                () ->
+                    graphql(
+                        GraphqlCommandBuilder.aMutationBuilder("updateNode")
+                            .withString("node_id", nodeId)
+                            .withString("name", "renamed")
+                            .withWantedResultFormat("{ id }")
+                            .build(),
+                        REQUESTER_COOKIE));
+        eventually("rename waits for the node row", () -> lockWaiters() >= 1);
 
-      out.write(new byte[CHUNK]);
-      out.flush();
-      statusLine =
-          new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
-              .readLine();
+        out.write(new byte[CHUNK]);
+        out.flush();
+        statusLine =
+            new BufferedReader(
+                    new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
+                .readLine();
+      }
+    } finally {
+      if (rename != null) {
+        try {
+          rename.get(60, TimeUnit.SECONDS);
+        } catch (Exception ignored) {
+          // the outcome is asserted after the try
+        }
+      }
     }
 
     Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
@@ -153,7 +165,7 @@ class StreamedUploadApiIT extends AbstractFilesIT {
       statement.setString(1, nodeId);
       try (ResultSet row = statement.executeQuery()) {
         Assertions.assertThat(row.next()).isTrue();
-        Assertions.assertThat(row.getString("name")).startsWith("renamed");
+        Assertions.assertThat(row.getString("name")).isEqualTo("renamed.txt");
         Assertions.assertThat(row.getInt("current_version")).isEqualTo(2);
       }
     }
@@ -183,8 +195,8 @@ class StreamedUploadApiIT extends AbstractFilesIT {
     try (Connection connection = jdbcConnection();
         PreparedStatement statement =
             connection.prepareStatement(
-                "SELECT count(*) FROM pg_stat_activity WHERE cardinality(pg_blocking_pids(pid)) >"
-                    + " 0");
+                "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND"
+                    + " cardinality(pg_blocking_pids(pid)) > 0 AND query ILIKE 'update node%'");
         ResultSet resultSet = statement.executeQuery()) {
       resultSet.next();
       return resultSet.getInt(1);

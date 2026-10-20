@@ -121,26 +121,6 @@ class NodeApiMutationsTest {
     nodeApi.gqlContext = gqlContext;
   }
 
-  private Node mockFolderNode(String id, String parentId) {
-    Node node = mock(Node.class);
-    when(node.getId()).thenReturn(id);
-    when(node.getName()).thenReturn("testfolder");
-    when(node.getNodeType()).thenReturn(NodeType.FOLDER);
-    when(node.getNodeCategory()).thenReturn(NodeCategory.FOLDER);
-    when(node.getDescription()).thenReturn(Optional.empty());
-    when(node.getParentId()).thenReturn(Optional.of(parentId));
-    when(node.getOwnerId()).thenReturn(REQUESTER_ID);
-    when(node.getCreatorId()).thenReturn(REQUESTER_ID);
-    when(node.getLastEditorId()).thenReturn(Optional.empty());
-    when(node.getCreatedAt()).thenReturn(1000L);
-    when(node.getUpdatedAt()).thenReturn(2000L);
-    when(node.getAncestorsList()).thenReturn(List.of("LOCAL_ROOT"));
-    when(node.getAncestorIds()).thenReturn("LOCAL_ROOT");
-    when(node.getCustomAttributes()).thenReturn(Collections.emptyList());
-    when(node.getFileVersions()).thenReturn(Collections.emptyList());
-    return node;
-  }
-
   private Node mockFileNode(String id, String parentId) {
     Node node = mock(Node.class);
     when(node.getId()).thenReturn(id);
@@ -192,8 +172,6 @@ class NodeApiMutationsTest {
     txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
     return txMock;
   }
-
-  // ─── restoreNodes ─────────────────────────────────────────────────────────────
 
   // ─── cloneVersion copy failures ───────────────────────────────────────────────
 

@@ -546,14 +546,12 @@ public class NodeApi {
             .filter(nodeId -> nodeRepository.getTrashedNode(nodeId).isPresent())
             .collect(Collectors.toList());
 
-    Map<String, Optional<Node>> destinations =
-        restoreDestinations(nodeRepository.getNodes(restorableNodeIds, Optional.empty()).toList());
     List<NodeModel> results =
         nodeRepository
             .getNodes(restorableNodeIds, Optional.empty())
             .map(
                 node -> {
-                  Optional<Node> parentNode = destinations.get(node.getId());
+                  Optional<Node> parentNode = restoreDestination(node.getId());
                   String destParentId;
                   String destAncestors;
                   if (parentNode.isEmpty()) {
@@ -1256,12 +1254,6 @@ public class NodeApi {
     return nodeIds.stream().filter(id -> !destinationAncestors.contains(id)).toList();
   }
 
-  private Map<String, Optional<Node>> restoreDestinations(List<Node> nodes) {
-    Map<String, Optional<Node>> destinations = new HashMap<>();
-    nodes.forEach(node -> destinations.put(node.getId(), restoreDestination(node.getId())));
-    return destinations;
-  }
-
   private Optional<Node> restoreDestination(String nodeId) {
     return nodeRepository
         .getNode(nodeRepository.getTrashedNode(nodeId).get().getParentId())
@@ -1354,24 +1346,25 @@ public class NodeApi {
             : destinationFolder.getOwnerId();
 
     Node createdNode =
-        QuarkusTransaction.requiringNew()
-            .call(
-                () ->
-                    nodeRepository.createNewNode(
-                        UUID.randomUUID().toString(),
-                        requesterId,
-                        ownerId,
-                        destinationFolder.getId(),
-                        dedupName
-                            ? allocateCopyName(sourceNode, destinationFolder)
-                            : sourceNode.getFullName(),
-                        sourceNode.getDescription().orElse(""),
-                        sourceNode.getNodeType(),
-                        com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                                destinationFolder.getNodeType())
-                            ? destinationFolder.getId()
-                            : destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
-                        sourceNode.getSize()));
+        nodeRepository.createNewNode(
+            UUID.randomUUID().toString(),
+            requesterId,
+            ownerId,
+            destinationFolder.getId(),
+            dedupName
+                ? searchAlternativeName(
+                    nodeRepository,
+                    sourceNode.getFullName(),
+                    destinationFolder.getId(),
+                    sourceNode.getOwnerId())
+                : sourceNode.getFullName(),
+            sourceNode.getDescription().orElse(""),
+            sourceNode.getNodeType(),
+            com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
+                    destinationFolder.getNodeType())
+                ? destinationFolder.getId()
+                : destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
+            sourceNode.getSize());
 
     boolean blobCopied = false;
     try {
@@ -1447,14 +1440,6 @@ public class NodeApi {
     }
   }
 
-  private String allocateCopyName(Node sourceNode, Node destinationFolder) {
-    return searchAlternativeName(
-        nodeRepository,
-        sourceNode.getFullName(),
-        destinationFolder.getId(),
-        sourceNode.getOwnerId());
-  }
-
   private Node copyFolder(
       Node sourceFolder, Node destinationFolder, String requesterId, boolean dedupName) {
     String ownerId =
@@ -1464,24 +1449,25 @@ public class NodeApi {
             ? requesterId
             : destinationFolder.getOwnerId();
 
-    return QuarkusTransaction.requiringNew()
-        .call(
-            () ->
-                nodeRepository.createNewNode(
-                    UUID.randomUUID().toString(),
-                    requesterId,
-                    ownerId,
-                    destinationFolder.getId(),
-                    dedupName
-                        ? allocateCopyName(sourceFolder, destinationFolder)
-                        : sourceFolder.getName(),
-                    sourceFolder.getDescription().orElse(""),
-                    com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER,
-                    com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                            destinationFolder.getNodeType())
-                        ? destinationFolder.getId()
-                        : destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
-                    0L));
+    return nodeRepository.createNewNode(
+        UUID.randomUUID().toString(),
+        requesterId,
+        ownerId,
+        destinationFolder.getId(),
+        dedupName
+            ? searchAlternativeName(
+                nodeRepository,
+                sourceFolder.getFullName(),
+                destinationFolder.getId(),
+                sourceFolder.getOwnerId())
+            : sourceFolder.getName(),
+        sourceFolder.getDescription().orElse(""),
+        com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER,
+        com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
+                destinationFolder.getNodeType())
+            ? destinationFolder.getId()
+            : destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
+        0L);
   }
 
   private void copyFolderCascade(

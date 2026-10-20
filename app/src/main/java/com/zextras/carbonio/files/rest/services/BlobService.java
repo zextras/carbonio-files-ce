@@ -385,24 +385,19 @@ public class BlobService {
 
       NodeType nodeType = NodeType.getNodeType(mediaType);
 
-      QuarkusTransaction.requiringNew()
-          .run(
-              () -> {
-                String nodeName =
-                    searchAlternativeName(nodeRepository, filename.trim(), folderId, nodeOwner);
-                nodeRepository.createNewNode(
-                    nodeId,
-                    requesterId,
-                    nodeOwner,
-                    folderId,
-                    nodeName,
-                    description,
-                    nodeType,
-                    NodeType.ROOT.equals(destinationFolder.getNodeType())
-                        ? folderId
-                        : destinationFolder.getAncestorIds() + "," + folderId,
-                    0L);
-              });
+      String nodeName = searchAlternativeName(nodeRepository, filename.trim(), folderId, nodeOwner);
+      nodeRepository.createNewNode(
+          nodeId,
+          requesterId,
+          nodeOwner,
+          folderId,
+          nodeName,
+          description,
+          nodeType,
+          NodeType.ROOT.equals(destinationFolder.getNodeType())
+              ? folderId
+              : destinationFolder.getAncestorIds() + "," + folderId,
+          0L);
 
       UploadResponse uploadResponse =
           Try.of(

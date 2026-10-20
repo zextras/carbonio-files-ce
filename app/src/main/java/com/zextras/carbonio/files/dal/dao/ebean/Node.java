@@ -33,6 +33,7 @@ import org.hibernate.annotations.DynamicUpdate;
  * <strong>must</strong> be already done.
  */
 @Entity
+// Writers update entities they did not lock: only dirty columns may be written.
 @DynamicUpdate
 @Table(name = Constants.Db.Tables.NODE)
 public class Node {
