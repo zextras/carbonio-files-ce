@@ -74,8 +74,8 @@ SPDX-License-Identifier: AGPL-3.0-only
     2.14.0 broke the commons-compress jar step in the augmentation).
   -->
 
-  <!-- Publish target for `mvn deploy` (the dt3 "Maven Publish" stage deploys the root pom with -N,
-       and the app module inherits this; the sdk module, parented on rest-sdk-parent, declares the
+  <!-- Publish target for `mvn deploy` (the dt3 "Maven Publish" stage deploys the root pom because
+       mavenPublish lists `.`, and the app module inherits this; the sdk module, parented on rest-sdk-parent, declares the
        same target). The `nexus-prod` id resolves to the credentials in the dt3-provided
        settings.xml. -->
   <distributionManagement>
