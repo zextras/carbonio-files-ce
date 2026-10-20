@@ -21,6 +21,7 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVers
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository.VersionSlot;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
@@ -30,6 +31,7 @@ import com.zextras.carbonio.files.exceptions.DependencyException;
 import com.zextras.carbonio.files.exceptions.FileSizeException;
 import com.zextras.carbonio.files.exceptions.FileTypeMismatchException;
 import com.zextras.carbonio.files.exceptions.MaxNumberOfFileVersionsException;
+import com.zextras.carbonio.files.exceptions.VersionInUseException;
 import com.zextras.carbonio.files.exceptions.ZipGenerationException;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
@@ -60,7 +62,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -628,45 +629,61 @@ public class BlobService {
     String ownerId = node.getOwnerId();
     int version = node.getCurrentVersion();
 
-    UploadResponse uploadResponse =
-        writeVersionBlob(
-            nodeId,
-            version,
-            ownerId,
-            () ->
-                fileStore.uploadPut(
-                    FilesIdentifier.of(nodeId, version, ownerId), blobStream, blobLength));
+    if (!versionReservations.markOverwrite(nodeId, version, ownerId)) {
+      throw new VersionInUseException(
+          "Version " + version + " of node " + nodeId + " is being overwritten");
+    }
+    try {
+      UploadResponse uploadResponse =
+          writeVersionBlob(
+              nodeId,
+              version,
+              ownerId,
+              () ->
+                  fileStore.uploadPut(
+                      FilesIdentifier.of(nodeId, version, ownerId), blobStream, blobLength));
 
-    QuarkusTransaction.requiringNew()
-        .run(
-            () -> {
-              long timestamp =
-                  nodeRepository
-                      .reserveTimestamp(nodeId, System.currentTimeMillis())
-                      .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
-              // A version deleted meanwhile (trimmed, deleteVersions) may have lost its blob
-              // already.
-              if (!fileVersionRepository.removeFileVersion(nodeId, version)) {
-                throw new NoSuchElementException(
-                    "Version " + version + " of node " + nodeId + " was deleted");
-              }
-              fileVersionRepository
-                  .createNewFileVersion(
-                      nodeId,
-                      requesterId,
-                      version,
-                      mediaType.toString(),
-                      uploadResponse.getSize(),
-                      uploadResponse.getDigest(),
-                      false,
-                      timestamp)
-                  .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
-              nodeRepository.moveCurrentVersion(
-                  nodeId, version, timestamp, uploadResponse.getSize(), requesterId);
-            });
+      QuarkusTransaction.requiringNew()
+          .run(
+              () -> {
+                versionReservations.confirmOverwrite(nodeId, version);
+                VersionSlot clock =
+                    nodeRepository
+                        .reserveTimestamp(nodeId, System.currentTimeMillis())
+                        .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+                // A version deleted meanwhile (trimmed, deleteVersions) may have lost its blob.
+                FileVersion replaced =
+                    fileVersionRepository
+                        .getFileVersion(nodeId, version)
+                        .orElseThrow(
+                            () ->
+                                new NoSuchElementException(
+                                    "Version " + version + " of node " + nodeId + " was deleted"));
+                fileVersionRepository.deleteFileVersion(replaced);
+                // A higher number already handed out keeps its later date: this one keeps its own.
+                long versionDate =
+                    clock.version() > version ? replaced.getUpdatedAt() : clock.reservedAt();
+                fileVersionRepository
+                    .createNewFileVersion(
+                        nodeId,
+                        requesterId,
+                        version,
+                        mediaType.toString(),
+                        uploadResponse.getSize(),
+                        uploadResponse.getDigest(),
+                        false,
+                        versionDate)
+                    .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+                nodeRepository.moveCurrentVersion(
+                    nodeId, version, clock.reservedAt(), uploadResponse.getSize(), requesterId);
+              });
 
-    logUploaded(nodeId, version, uploadResponse);
-    return version;
+      logUploaded(nodeId, version, uploadResponse);
+      return version;
+    } catch (RuntimeException e) {
+      versionReservations.releaseOverwrite(nodeId, version);
+      throw e;
+    }
   }
 
   private UploadResponse writeVersionBlob(
@@ -709,11 +726,17 @@ public class BlobService {
             .filter(fileVersion -> fileVersion.getVersion() != newVersion)
             .filter(fileVersion -> fileVersion.getVersion() != highestVersion)
             .toList();
-    // A concurrent save at the cap may have trimmed the oldest one already: take the next.
     for (FileVersion candidate : candidates) {
       if (fileVersionRepository.removeFileVersion(nodeId, candidate.getVersion())) {
         tombstoneRepository.createTombstonesBulk(List.of(candidate), ownerId);
         return List.of(candidate);
+      }
+      // Deleted by a concurrent transaction: trim the next one only if still over the limit.
+      if (fileVersionRepository
+              .getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC))
+              .size()
+          <= maxNumberOfVersions) {
+        return List.of();
       }
     }
     return List.of();
@@ -745,13 +768,14 @@ public class BlobService {
           nodeId);
       return;
     }
-    Set<Integer> failedVersions =
-        failedItems.stream()
-            .map(BulkDeleteResponseItem::getVersion)
-            .flatMap(Optional::stream)
-            .collect(Collectors.toSet());
     trimmed.stream()
-        .filter(fv -> !failedVersions.contains(fv.getVersion()))
+        .filter(
+            fv ->
+                failedItems.stream()
+                    .noneMatch(
+                        item ->
+                            fv.getNodeId().equals(item.getNode())
+                                && item.getVersion().map(v -> v == fv.getVersion()).orElse(true)))
         .forEach(
             fv -> {
               tombstoneRepository.deleteTombstonesByNodeAndVersion(fv.getNodeId(), fv.getVersion());

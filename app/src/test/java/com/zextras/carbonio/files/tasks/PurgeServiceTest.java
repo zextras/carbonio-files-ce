@@ -437,4 +437,29 @@ class PurgeServiceTest {
     verify(versionReservationRepository).remove(ofFirstOwner);
     verify(versionReservationRepository).remove(ofSecondOwner);
   }
+
+  @Test
+  void purgeExpiredReservationsDropsTheStaleOverwriteMarksWithoutTouchingTheirBlobs() {
+    when(versionReservationRepository.getPurging()).thenReturn(List.of());
+
+    purgeService.purgeExpiredReservations(100_000_000L);
+
+    verify(versionReservationRepository)
+        .removeStaleOverwrites(100_000_000L - Duration.ofHours(24).toMillis());
+    verifyNoMoreInteractions(filestore);
+  }
+
+  @Test
+  void purgeExpiredReservationsNeverDeletesTheBlobOfAnExistingVersion() throws Exception {
+    VersionReservation published = reservation("node-a", 2, "owner-1", 0);
+    when(versionReservationRepository.getPurging()).thenReturn(List.of(published));
+    when(fileVersionRepository.getFileVersion("node-a", 2))
+        .thenReturn(
+            Optional.of(new FileVersion("node-a", "owner-1", 1L, 2, "text/plain", 1L, "d", false)));
+
+    purgeService.purgeExpiredReservations(System.currentTimeMillis());
+
+    verify(versionReservationRepository).remove(published);
+    verifyNoMoreInteractions(filestore);
+  }
 }

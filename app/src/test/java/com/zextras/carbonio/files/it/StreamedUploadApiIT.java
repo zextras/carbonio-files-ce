@@ -214,7 +214,7 @@ class StreamedUploadApiIT extends AbstractFilesIT {
 
     String statusLine;
     try (Socket socket = startUploadVersion(nodeId, true)) {
-      assertNoTransactionHeldWhileTheBodyStreams();
+      assertNoTransactionHeldWhileTheBodyStreams(nodeId);
       statusLine = finishUpload(socket);
     }
 
@@ -232,7 +232,7 @@ class StreamedUploadApiIT extends AbstractFilesIT {
 
     String statusLine;
     try (Socket socket = startUploadVersion(nodeId, true)) {
-      assertNoTransactionHeldWhileTheBodyStreams();
+      assertNoTransactionHeldWhileTheBodyStreams(nodeId);
       Assertions.assertThat(seedVersion(nodeId, CONTENT, "raced.txt", REQUESTER_COOKIE))
           .isEqualTo(2);
       statusLine = finishUpload(socket);
@@ -250,7 +250,7 @@ class StreamedUploadApiIT extends AbstractFilesIT {
 
     String statusLine;
     try (Socket socket = startUploadVersion(nodeId, true)) {
-      assertNoTransactionHeldWhileTheBodyStreams();
+      assertNoTransactionHeldWhileTheBodyStreams(nodeId);
       Assertions.assertThat(seedVersion(nodeId, CONTENT, "deleted-meanwhile.txt", REQUESTER_COOKIE))
           .isEqualTo(2);
       Response deleted =
@@ -292,6 +292,51 @@ class StreamedUploadApiIT extends AbstractFilesIT {
     } finally {
       clearApplicationConfig("max-number-of-versions", "30");
     }
+  }
+
+  @Test
+  void givenAnOverwriteStreamingThenAConcurrentOverwriteOfTheSameVersionIsRefused()
+      throws Exception {
+    String nodeId = seedFile("overwritten-twice.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+
+    String statusLine;
+    try (Socket socket = startUploadVersion(nodeId, true)) {
+      eventually("overwrite marked", () -> overwriteMarks(nodeId).equals(List.of(1)));
+      Response concurrent =
+          uploadVersion(nodeId, CONTENT, "overwritten-twice.txt", true, REQUESTER_COOKIE);
+      Assertions.assertThat(concurrent.getStatusCode()).isEqualTo(409);
+      statusLine = finishUpload(socket);
+    }
+
+    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
+    Assertions.assertThat(nodeColumn(nodeId, "size")).isEqualTo(String.valueOf(2 * CHUNK));
+    Assertions.assertThat(overwriteMarks(nodeId)).isEmpty();
+    Assertions.assertThat(
+            uploadVersion(nodeId, CONTENT, "overwritten-twice.txt", true, REQUESTER_COOKIE)
+                .getStatusCode())
+        .isEqualTo(200);
+  }
+
+  @Test
+  void givenTheNodeDeletedWhileAnUploadVersionStreamsThenNoVersionIsCreated() throws Exception {
+    String nodeId = seedFile("deleted-node.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+
+    String statusLine;
+    try (Socket socket = startUploadVersion(nodeId, false)) {
+      eventually("version 2 reserved", () -> pendingReservations(nodeId).equals(List.of(2)));
+      try (Connection connection = jdbcConnection();
+          PreparedStatement delete =
+              connection.prepareStatement("DELETE FROM node WHERE node_id = ?")) {
+        delete.setString(1, nodeId);
+        Assertions.assertThat(delete.executeUpdate()).isEqualTo(1);
+      }
+      statusLine = finishUpload(socket);
+    }
+
+    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 404");
+    Assertions.assertThat(versionRows(nodeId)).isEmpty();
+    Assertions.assertThat(pendingReservations(nodeId)).containsExactly(2);
   }
 
   @Test
@@ -338,8 +383,9 @@ class StreamedUploadApiIT extends AbstractFilesIT {
     return socket;
   }
 
-  /** An overwrite reserves nothing to wait for: watch for a second that no transaction is open. */
-  private static void assertNoTransactionHeldWhileTheBodyStreams() throws Exception {
+  /** Once the overwrite is marked (a short committed transaction), none stays open for a second. */
+  private static void assertNoTransactionHeldWhileTheBodyStreams(String nodeId) throws Exception {
+    eventually("overwrite marked", () -> overwriteMarks(nodeId).equals(List.of(1)));
     long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
     while (System.nanoTime() < deadline) {
       Assertions.assertThat(filesConnectionsIdleInTransaction()).isZero();
@@ -364,6 +410,23 @@ class StreamedUploadApiIT extends AbstractFilesIT {
       try (ResultSet resultSet = statement.executeQuery()) {
         Assertions.assertThat(resultSet.next()).isTrue();
         return resultSet.getString(1).trim();
+      }
+    }
+  }
+
+  private static List<Integer> overwriteMarks(String nodeId) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT version FROM version_reservation WHERE node_id = ?"
+                    + " AND state = 'OVERWRITING'")) {
+      statement.setString(1, nodeId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<Integer> versions = new java.util.ArrayList<>();
+        while (resultSet.next()) {
+          versions.add(resultSet.getInt(1));
+        }
+        return versions;
       }
     }
   }

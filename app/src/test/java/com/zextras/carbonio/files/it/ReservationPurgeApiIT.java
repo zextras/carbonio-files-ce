@@ -58,14 +58,16 @@ class ReservationPurgeApiIT extends AbstractFilesIT {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", REQUESTER_ID);
   }
 
+  private static String file() {
+    return seedFile("purged.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+  }
+
   /** A failed save whose blob reached the storage: version 2 stays reserved, its blob orphaned. */
-  private static String fileWithAnOrphanBlobAtVersion2() {
-    String nodeId = seedFile("purged.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+  private static void failASaveLeavingAnOrphanBlobAtVersion2(String nodeId) {
     FilesStackTestResource.getStoragesService().seed(nodeId, 2, CONTENT);
     Assertions.assertThat(
             uploadVersion(nodeId, CONTENT, "purged.txt", false, REQUESTER_COOKIE).getStatusCode())
         .isEqualTo(500);
-    return nodeId;
   }
 
   private static List<String> reservations(String nodeId) throws SQLException {
@@ -86,7 +88,8 @@ class ReservationPurgeApiIT extends AbstractFilesIT {
 
   @Test
   void givenAnExpiredReservationThenItsBlobIsDeletedAndTheReservationRemoved() throws Exception {
-    String nodeId = fileWithAnOrphanBlobAtVersion2();
+    String nodeId = file();
+    failASaveLeavingAnOrphanBlobAtVersion2(nodeId);
 
     eventually("reservation purged", () -> reservations(nodeId).isEmpty());
 
@@ -98,8 +101,9 @@ class ReservationPurgeApiIT extends AbstractFilesIT {
   @Test
   void givenTheStorageKeepsRefusingTheDeleteThenTheReservationIsDroppedAfterThreeAnswers()
       throws Exception {
-    String nodeId = fileWithAnOrphanBlobAtVersion2();
+    String nodeId = file();
     FilesStackTestResource.getStoragesService().failBulkDeleteFor(nodeId);
+    failASaveLeavingAnOrphanBlobAtVersion2(nodeId);
 
     eventually("first refusal counted", () -> reservations(nodeId).equals(List.of("2/PURGING/1")));
     eventually("reservation dropped", () -> reservations(nodeId).isEmpty());
@@ -110,8 +114,9 @@ class ReservationPurgeApiIT extends AbstractFilesIT {
   @Test
   void givenAStorageOutageThenTheReservationWaitsWithoutCountingAttempts() throws Exception {
     MockStoragesService storages = FilesStackTestResource.getStoragesService();
-    String nodeId = fileWithAnOrphanBlobAtVersion2();
+    String nodeId = file();
     storages.setBulkDeleteAlwaysThrows(true);
+    failASaveLeavingAnOrphanBlobAtVersion2(nodeId);
 
     eventually("reservation claimed", () -> reservations(nodeId).equals(List.of("2/PURGING/0")));
     long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(4);

@@ -27,6 +27,7 @@ import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -127,8 +128,8 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   @Override
-  @Transactional
-  public Optional<Long> reserveTimestamp(String nodeId, long now) {
+  @Transactional(TxType.MANDATORY)
+  public Optional<VersionSlot> reserveTimestamp(String nodeId, long now) {
     String id = normalizeId(nodeId);
     int updated =
         entityManager
@@ -141,11 +142,14 @@ public class NodeRepositoryImpl implements NodeRepository {
     if (updated == 0) {
       return Optional.empty();
     }
-    return Optional.of(
+    Object[] slot =
         entityManager
-            .createQuery("select n.mLastReservedAt from Node n where n.mId = :id", Long.class)
+            .createQuery(
+                "select n.mLastVersion, n.mLastReservedAt from Node n where n.mId = :id",
+                Object[].class)
             .setParameter("id", id)
-            .getSingleResult());
+            .getSingleResult();
+    return Optional.of(new VersionSlot((Integer) slot[0], (Long) slot[1]));
   }
 
   @Override

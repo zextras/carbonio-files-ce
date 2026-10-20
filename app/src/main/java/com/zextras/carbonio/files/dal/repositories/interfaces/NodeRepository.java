@@ -46,10 +46,11 @@ public interface NodeRepository {
   Optional<VersionSlot> reserveNextVersion(String nodeId, long now);
 
   /**
-   * Same clock as {@link #reserveNextVersion} without a new number (overwrite of the current
-   * version).
+   * Same clock as {@link #reserveNextVersion} without a new number (overwrite of an existing
+   * version): the slot carries the highest number handed out so far and the new time. Requires the
+   * caller's transaction, which then holds the node row until it ends.
    */
-  Optional<Long> reserveTimestamp(String nodeId, long now);
+  Optional<VersionSlot> reserveTimestamp(String nodeId, long now);
 
   /**
    * Makes {@code version} the current version unless a newer one already is.

@@ -240,18 +240,35 @@ public class PurgeService {
 
   /**
    * Deletes the blobs of the version reservations never confirmed within {@link #reservationExpiry}
-   * (their save failed: no revision references them), then the reservations. Claiming them first
-   * (PENDING → PURGING) makes a late confirmation fail instead of creating a version whose blob is
-   * being deleted. A whole-call failure is an outage and does not count; a reservation reported as
-   * not deleted {@link #MAX_RESERVATION_PURGE_ATTEMPTS} times (never written, or a persistent
-   * storage error) is dropped, leaving at most an orphan blob.
+   * (their save failed: no revision references them, which is checked again), then the
+   * reservations; overwrite marks that old are dropped, their blob is a live version. Claiming them
+   * first (PENDING → PURGING) makes a late confirmation fail instead of creating a version whose
+   * blob is being deleted. A whole-call failure is an outage and does not count; a reservation
+   * reported as not deleted {@link #MAX_RESERVATION_PURGE_ATTEMPTS} times (never written, or a
+   * persistent storage error) is dropped, leaving at most an orphan blob.
    */
   void purgeExpiredReservations(long now) {
-    versionReservationRepository.claimExpired(now - reservationExpiry.toMillis());
+    long expiredBefore = now - reservationExpiry.toMillis();
+    versionReservationRepository.removeStaleOverwrites(expiredBefore);
+    versionReservationRepository.claimExpired(expiredBefore);
+
+    List<VersionReservation> purging = new ArrayList<>();
+    for (VersionReservation reservation : versionReservationRepository.getPurging()) {
+      if (fileVersionRepository
+          .getFileVersion(reservation.getNodeId(), reservation.getVersion())
+          .isPresent()) {
+        logger.warn(
+            "purgeExpiredReservations: version {} of node {} exists, its blob is kept",
+            reservation.getVersion(),
+            reservation.getNodeId());
+        versionReservationRepository.remove(reservation);
+      } else {
+        purging.add(reservation);
+      }
+    }
 
     Map<String, List<VersionReservation>> byOwner =
-        versionReservationRepository.getPurging().stream()
-            .collect(Collectors.groupingBy(VersionReservation::getOwnerId));
+        purging.stream().collect(Collectors.groupingBy(VersionReservation::getOwnerId));
 
     byOwner.forEach(
         (ownerId, reservations) -> {

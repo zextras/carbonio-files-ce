@@ -13,9 +13,10 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 
 /**
- * A version number handed out to an upload-version or a cloneVersion and not confirmed yet. The
- * blob it names is not referenced by any revision: a reservation never confirmed is purged together
- * with that blob.
+ * A version number handed out to an upload-version or a cloneVersion and not confirmed yet: the
+ * blob it names is not referenced by any revision, and a reservation never confirmed is purged
+ * together with that blob. Also the mark of an overwrite in progress ({@link
+ * VersionReservationState#OVERWRITING}), whose blob is a live version and is never purged.
  */
 @Entity
 @Table(name = Constants.Db.Tables.VERSION_RESERVATION)
@@ -39,11 +40,12 @@ public class VersionReservation {
   @Column(name = Constants.Db.VersionReservation.ATTEMPTS, nullable = false)
   private Integer mAttempts;
 
-  public VersionReservation(String nodeId, int version, String ownerId, long reservedAt) {
+  public VersionReservation(
+      String nodeId, int version, String ownerId, long reservedAt, VersionReservationState state) {
     mComposedId = new VersionReservationPK(nodeId, version);
     mOwnerId = ownerId;
     mReservedAt = reservedAt;
-    mState = VersionReservationState.PENDING;
+    mState = state;
     mAttempts = 0;
   }
 

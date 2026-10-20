@@ -7,8 +7,8 @@
 -- (the version number is part of it) and a failed save never makes the next one reuse its key.
 -- last_version starts from the highest number already used (current_version, or a higher revision left by an older
 -- bug), so no number backed by a blob is handed out again; a node blocked by a blob left at current_version + 1 by a
--- failed save of an older release fails one more save (409) and then moves on. last_reserved_at only grows per node:
--- revision dates follow the reservation order.
+-- failed save of an older release fails one more save (the storage refuses the existing key) and then moves on.
+-- last_reserved_at only grows per node: revision dates follow the reservation order.
 ALTER TABLE node ADD COLUMN last_version INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE node ADD COLUMN last_reserved_at BIGINT NOT NULL DEFAULT 0;
 
@@ -21,7 +21,8 @@ FROM (SELECT revision.node_id, MAX(revision.version) AS max_version, MAX(revisio
 WHERE node.node_id = revisions.node_id;
 
 -- One row per reserved version number until its save is confirmed. A row older than the purge expiry means the save
--- failed: no revision references its blob, so the purge job deletes the blob (if any) and then the row.
+-- failed: no revision references its blob, so the purge job deletes the blob (if any) and then the row. The same
+-- table marks an overwrite in progress (state OVERWRITING) so that two overwrites of one version never interleave.
 CREATE TABLE IF NOT EXISTS version_reservation (
     node_id CHARACTER(36) NOT NULL,
     version INTEGER NOT NULL,

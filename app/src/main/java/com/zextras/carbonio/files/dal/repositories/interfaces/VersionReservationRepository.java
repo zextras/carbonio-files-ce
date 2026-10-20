@@ -21,8 +21,24 @@ public interface VersionReservationRepository {
    */
   boolean consume(String nodeId, int version);
 
+  /**
+   * Marks an overwrite of an existing version as in progress; joins the caller's transaction, whose
+   * commit fails on the primary key if another overwrite of that version holds the mark.
+   */
+  void markOverwrite(String nodeId, int version, String ownerId, long reservedAt);
+
+  /**
+   * Removes the overwrite mark.
+   *
+   * @return false when it does not exist (released, or removed by the purge as stale)
+   */
+  boolean releaseOverwrite(String nodeId, int version);
+
   /** Hands every PENDING reservation older than {@code reservedBefore} to the purge. */
   int claimExpired(long reservedBefore);
+
+  /** Removes the overwrite marks left by saves that never ended (their blob stays). */
+  int removeStaleOverwrites(long reservedBefore);
 
   List<VersionReservation> getPurging();
 

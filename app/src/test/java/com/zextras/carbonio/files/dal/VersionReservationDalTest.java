@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.dal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -128,7 +129,7 @@ class VersionReservationDalTest {
     assertThat(
             QuarkusTransaction.requiringNew()
                 .call(() -> nodeRepository.reserveTimestamp(nodeId, 10L)))
-        .contains(1002L);
+        .contains(new VersionSlot(3, 1002L));
   }
 
   @Test
@@ -239,5 +240,40 @@ class VersionReservationDalTest {
     assertThat(nodeRepository.moveCurrentVersion(nodeId, 3, 5000L, 7L, "editor")).isTrue();
     assertThat(nodeRepository.moveCurrentVersion(nodeId, 5, 6000L)).isTrue();
     assertThat(counters(nodeId)[0]).isEqualTo(5);
+  }
+
+  @Test
+  void aSecondOverwriteMarkOfTheSameVersionIsRefused() {
+    String nodeId = fileWithCurrentVersion(1);
+    QuarkusTransaction.requiringNew()
+        .run(() -> reservationRepository.markOverwrite(nodeId, 1, "owner", 100L));
+
+    assertThatThrownBy(
+            () ->
+                QuarkusTransaction.requiringNew()
+                    .run(() -> reservationRepository.markOverwrite(nodeId, 1, "owner", 200L)))
+        .isInstanceOf(RuntimeException.class);
+    assertThat(reservationRepository.releaseOverwrite(nodeId, 1)).isTrue();
+    assertThat(reservationRepository.releaseOverwrite(nodeId, 1)).isFalse();
+  }
+
+  @Test
+  void overwriteMarksAreNeverClaimedForAPurgeOnlyDroppedWhenStale() {
+    String nodeId = fileWithCurrentVersion(1);
+    QuarkusTransaction.requiringNew()
+        .run(
+            () -> {
+              reservationRepository.markOverwrite(nodeId, 1, "owner", 100L);
+              reservationRepository.reserve(nodeId, 2, "owner", 100L);
+            });
+
+    reservationRepository.claimExpired(500L);
+    reservationRepository.removeStaleOverwrites(500L);
+
+    assertThat(reservationRepository.getPurging())
+        .filteredOn(r -> r.getNodeId().equals(nodeId))
+        .extracting(VersionReservation::getVersion)
+        .containsExactly(2);
+    assertThat(reservationRepository.releaseOverwrite(nodeId, 1)).isFalse();
   }
 }

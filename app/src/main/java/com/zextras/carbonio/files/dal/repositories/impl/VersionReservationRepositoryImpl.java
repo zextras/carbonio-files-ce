@@ -11,6 +11,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservation
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
 import java.util.List;
 
 @ApplicationScoped
@@ -19,13 +20,15 @@ public class VersionReservationRepositoryImpl
         PanacheRepositoryBase<VersionReservation, VersionReservationPK> {
 
   @Override
-  @Transactional
+  @Transactional(TxType.MANDATORY)
   public void reserve(String nodeId, int version, String ownerId, long reservedAt) {
-    persist(new VersionReservation(nodeId, version, ownerId, reservedAt));
+    persist(
+        new VersionReservation(
+            nodeId, version, ownerId, reservedAt, VersionReservationState.PENDING));
   }
 
   @Override
-  @Transactional
+  @Transactional(TxType.MANDATORY)
   public boolean consume(String nodeId, int version) {
     return delete(
             "mComposedId.mNodeId = ?1 and mComposedId.mVersion = ?2 and mState = ?3",
@@ -33,6 +36,36 @@ public class VersionReservationRepositoryImpl
             version,
             VersionReservationState.PENDING)
         == 1;
+  }
+
+  @Override
+  @Transactional(TxType.MANDATORY)
+  public void markOverwrite(String nodeId, int version, String ownerId, long reservedAt) {
+    persist(
+        new VersionReservation(
+            nodeId, version, ownerId, reservedAt, VersionReservationState.OVERWRITING));
+    flush();
+  }
+
+  @Override
+  @Transactional
+  public boolean releaseOverwrite(String nodeId, int version) {
+    return delete(
+            "mComposedId.mNodeId = ?1 and mComposedId.mVersion = ?2 and mState = ?3",
+            nodeId,
+            version,
+            VersionReservationState.OVERWRITING)
+        == 1;
+  }
+
+  @Override
+  @Transactional
+  public int removeStaleOverwrites(long reservedBefore) {
+    return (int)
+        delete(
+            "mState = ?1 and mReservedAt < ?2",
+            VersionReservationState.OVERWRITING,
+            reservedBefore);
   }
 
   @Override
