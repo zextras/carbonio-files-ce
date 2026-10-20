@@ -5,7 +5,6 @@
 package com.zextras.carbonio.files.dal;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -245,14 +244,15 @@ class VersionReservationDalTest {
   @Test
   void aSecondOverwriteMarkOfTheSameVersionIsRefused() {
     String nodeId = fileWithCurrentVersion(1);
-    QuarkusTransaction.requiringNew()
-        .run(() -> reservationRepository.markOverwrite(nodeId, 1, "owner", 100L));
+    assertThat(
+            QuarkusTransaction.requiringNew()
+                .call(() -> reservationRepository.markOverwrite(nodeId, 1, "owner", 100L)))
+        .isTrue();
 
-    assertThatThrownBy(
-            () ->
-                QuarkusTransaction.requiringNew()
-                    .run(() -> reservationRepository.markOverwrite(nodeId, 1, "owner", 200L)))
-        .isInstanceOf(RuntimeException.class);
+    assertThat(
+            QuarkusTransaction.requiringNew()
+                .call(() -> reservationRepository.markOverwrite(nodeId, 1, "owner", 200L)))
+        .isFalse();
     assertThat(reservationRepository.releaseOverwrite(nodeId, 1)).isTrue();
     assertThat(reservationRepository.releaseOverwrite(nodeId, 1)).isFalse();
   }

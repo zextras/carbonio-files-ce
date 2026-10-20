@@ -30,9 +30,10 @@ class VersionReservationMigrationDalTest {
   private static final String FILE = "aaaaaaaa-0000-0000-0000-000000000001";
   private static final String FILE_WITH_STRAY_REVISION = "aaaaaaaa-0000-0000-0000-000000000002";
   private static final String FOLDER = "aaaaaaaa-0000-0000-0000-000000000003";
+  private static final String FILE_WITH_STRAY_TOMBSTONE = "aaaaaaaa-0000-0000-0000-000000000004";
 
   @Test
-  void v12StartsTheVersionCounterAndTheReservationClockFromTheExistingRevisions() throws Exception {
+  void v12MovesTheVersionCounterOnlyPastTheNumbersUsedAboveTheCurrentVersion() throws Exception {
     String schema = "mig_v12_" + UUID.randomUUID().toString().replace("-", "");
     try (Connection connection = connect()) {
       try {
@@ -43,13 +44,17 @@ class VersionReservationMigrationDalTest {
         insertRevisions(
             connection, schema, FILE_WITH_STRAY_REVISION, Map.of(1, 10L, 2, 20L, 5, 50L));
         insertNode(connection, schema, FOLDER, "FOLDER", null);
+        insertNode(connection, schema, FILE_WITH_STRAY_TOMBSTONE, "TEXT", 2);
+        insertRevisions(connection, schema, FILE_WITH_STRAY_TOMBSTONE, Map.of(1, 10L, 2, 20L));
+        insertTombstone(connection, schema, FILE_WITH_STRAY_TOMBSTONE, 4);
 
         migrate(schema, "12");
 
         assertThat(counters(connection, schema))
-            .containsEntry(FILE, List.of(3L, 300L))
-            .containsEntry(FILE_WITH_STRAY_REVISION, List.of(5L, 50L))
-            .containsEntry(FOLDER, List.of(0L, 0L));
+            .containsEntry(FILE, List.of(0L, 0L))
+            .containsEntry(FILE_WITH_STRAY_REVISION, List.of(5L, 0L))
+            .containsEntry(FOLDER, List.of(0L, 0L))
+            .containsEntry(FILE_WITH_STRAY_TOMBSTONE, List.of(4L, 0L));
         assertThat(count(connection, schema + ".version_reservation")).isZero();
       } finally {
         try (Statement statement = connection.createStatement()) {
@@ -107,6 +112,19 @@ class VersionReservationMigrationDalTest {
         statement.setLong(3, revision.getValue());
         statement.executeUpdate();
       }
+    }
+  }
+
+  private static void insertTombstone(
+      Connection connection, String schema, String nodeId, int version) throws SQLException {
+    try (PreparedStatement statement =
+        connection.prepareStatement(
+            "INSERT INTO "
+                + schema
+                + ".tombstone (node_id, owner_id, timestamp, version) VALUES (?, 'owner', 1, ?)")) {
+      statement.setString(1, nodeId);
+      statement.setInt(2, version);
+      statement.executeUpdate();
     }
   }
 

@@ -23,7 +23,7 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-/** The purge of reservations never confirmed, run every second with no expiry. */
+/** The purge of reservations never confirmed, run every second with an expiry of 2 seconds. */
 @WithTestResource(
     value = ReservationPurgeApiIT.FastPurge.class,
     scope = TestResourceScope.RESTRICTED_TO_CLASS)
@@ -40,7 +40,7 @@ class ReservationPurgeApiIT extends AbstractFilesIT {
           "quarkus.scheduler.enabled", "true",
           "carbonio.files.reservation-purge.interval", "1s",
           "carbonio.files.reservation-purge.delay", "1s",
-          "carbonio.files.reservation-purge.expiry", "0s");
+          "carbonio.files.reservation-purge.expiry", "2s");
     }
 
     // Started after FilesStackTestResource, which disables the scheduler for every other IT.

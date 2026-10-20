@@ -5,20 +5,25 @@
 -- upload-version and cloneVersion no longer lock the node row while the blob is written: the next version number is
 -- reserved with one atomic UPDATE of node.last_version before any I/O, so two saves never write the same storage key
 -- (the version number is part of it) and a failed save never makes the next one reuse its key.
--- last_version starts from the highest number already used (current_version, or a higher revision left by an older
--- bug), so no number backed by a blob is handed out again; a node blocked by a blob left at current_version + 1 by a
--- failed save of an older release fails one more save (the storage refuses the existing key) and then moves on.
--- last_reserved_at only grows per node: revision dates follow the reservation order.
+-- A reservation hands out GREATEST(last_version, current_version) + 1, so last_version is set here only on the nodes
+-- that already used a number above current_version (a revision or a tombstone left by an older bug): those numbers
+-- may still be backed by a blob and are never handed out again. Every other node keeps 0 and starts from
+-- current_version. A node blocked by a blob left at current_version + 1 by a failed save of an older release (no row
+-- references it) fails one more save, because the storage refuses the existing key, and then moves on.
+-- last_reserved_at is a per-node clock that only grows, used to date the versions in reservation order; it starts at
+-- 0 and follows the instance clock from the first reservation.
 ALTER TABLE node ADD COLUMN last_version INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE node ADD COLUMN last_reserved_at BIGINT NOT NULL DEFAULT 0;
 
 UPDATE node
-SET last_version = GREATEST(COALESCE(node.current_version, 0), revisions.max_version),
-    last_reserved_at = revisions.max_timestamp
-FROM (SELECT revision.node_id, MAX(revision.version) AS max_version, MAX(revision.timestamp) AS max_timestamp
-      FROM revision
-      GROUP BY revision.node_id) AS revisions
-WHERE node.node_id = revisions.node_id;
+SET last_version = used.max_version
+FROM (SELECT node_id, MAX(version) AS max_version
+      FROM (SELECT node_id, version FROM revision
+            UNION ALL
+            SELECT node_id, version FROM tombstone) AS versions
+      GROUP BY node_id) AS used
+WHERE node.node_id = used.node_id
+  AND used.max_version > COALESCE(node.current_version, 0);
 
 -- One row per reserved version number until its save is confirmed. A row older than the purge expiry means the save
 -- failed: no revision references its blob, so the purge job deletes the blob (if any) and then the row. The same

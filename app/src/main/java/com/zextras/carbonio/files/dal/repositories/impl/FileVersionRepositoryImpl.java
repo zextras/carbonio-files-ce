@@ -128,6 +128,24 @@ public class FileVersionRepositoryImpl
   }
 
   @Override
+  public Optional<Long> latestDateBelow(String nodeId, int version) {
+    return Optional.ofNullable(
+        getEntityManager()
+            .createQuery(
+                "select max(fv.mUpdatedAt) from FileVersion fv where fv.mComposedId.mNodeId = :id"
+                    + " and fv.mVersion < :version",
+                Long.class)
+            .setParameter("id", nodeId)
+            .setParameter("version", version)
+            .getSingleResult());
+  }
+
+  @Override
+  public boolean existsAbove(String nodeId, int version) {
+    return count("mComposedId.mNodeId = ?1 and mVersion > ?2", nodeId, version) > 0;
+  }
+
+  @Override
   @Transactional
   public boolean removeFileVersion(String nodeId, int version) {
     return delete("mComposedId.mNodeId = ?1 and mVersion = ?2", nodeId, version) == 1;

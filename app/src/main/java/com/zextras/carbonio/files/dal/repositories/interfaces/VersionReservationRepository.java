@@ -23,9 +23,11 @@ public interface VersionReservationRepository {
 
   /**
    * Marks an overwrite of an existing version as in progress; joins the caller's transaction, whose
-   * commit fails on the primary key if another overwrite of that version holds the mark.
+   * commit fails on the primary key if a concurrent overwrite marked that version first.
+   *
+   * @return false when the version is already marked
    */
-  void markOverwrite(String nodeId, int version, String ownerId, long reservedAt);
+  boolean markOverwrite(String nodeId, int version, String ownerId, long reservedAt);
 
   /**
    * Removes the overwrite mark.

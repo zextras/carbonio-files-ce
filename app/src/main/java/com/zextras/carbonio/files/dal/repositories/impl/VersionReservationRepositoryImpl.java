@@ -40,11 +40,15 @@ public class VersionReservationRepositoryImpl
 
   @Override
   @Transactional(TxType.MANDATORY)
-  public void markOverwrite(String nodeId, int version, String ownerId, long reservedAt) {
+  public boolean markOverwrite(String nodeId, int version, String ownerId, long reservedAt) {
+    if (findByIdOptional(new VersionReservationPK(nodeId, version)).isPresent()) {
+      return false;
+    }
     persist(
         new VersionReservation(
             nodeId, version, ownerId, reservedAt, VersionReservationState.OVERWRITING));
     flush();
+    return true;
   }
 
   @Override

@@ -11,7 +11,6 @@ import com.zextras.carbonio.files.exceptions.FileTypeMismatchException;
 import com.zextras.carbonio.files.exceptions.MaxNumberOfFileVersionsException;
 import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
 import com.zextras.carbonio.files.exceptions.RequestEntityTooLargeException;
-import com.zextras.carbonio.files.exceptions.VersionInUseException;
 import com.zextras.carbonio.files.exceptions.ZipGenerationException;
 import jakarta.ws.rs.NotAllowedException;
 import jakarta.ws.rs.WebApplicationException;
@@ -80,9 +79,6 @@ public class BlobExceptionMapper implements ExceptionMapper<Throwable> {
       payload = statusLine(status);
     } else if (cause instanceof NodeNotFoundException || cause instanceof NoSuchElementException) {
       status = Response.Status.NOT_FOUND;
-      payload = statusLine(status);
-    } else if (cause instanceof VersionInUseException) {
-      status = Response.Status.CONFLICT;
       payload = statusLine(status);
     } else if (cause instanceof MaxNumberOfFileVersionsException) {
       status = Response.Status.METHOD_NOT_ALLOWED;

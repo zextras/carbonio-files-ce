@@ -21,7 +21,6 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVers
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository.VersionSlot;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
@@ -31,7 +30,6 @@ import com.zextras.carbonio.files.exceptions.DependencyException;
 import com.zextras.carbonio.files.exceptions.FileSizeException;
 import com.zextras.carbonio.files.exceptions.FileTypeMismatchException;
 import com.zextras.carbonio.files.exceptions.MaxNumberOfFileVersionsException;
-import com.zextras.carbonio.files.exceptions.VersionInUseException;
 import com.zextras.carbonio.files.exceptions.ZipGenerationException;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
@@ -561,7 +559,8 @@ public class BlobService {
 
     int version =
         overwrite
-            ? overwriteCurrentVersion(requesterId, blobStream, blobLength, node, mediaType)
+            ? overwriteCurrentVersion(
+                requesterId, blobStream, blobLength, node, mediaType, maxNumberOfVersions)
             : uploadNewVersion(
                 requesterId, blobStream, blobLength, node, mediaType, maxNumberOfVersions);
 
@@ -597,7 +596,8 @@ public class BlobService {
         QuarkusTransaction.requiringNew()
             .call(
                 () -> {
-                  versionReservations.confirm(reservation);
+                  long versionDate = versionReservations.confirm(reservation);
+                  requireOwner(nodeId, ownerId);
                   fileVersionRepository
                       .createNewFileVersion(
                           nodeId,
@@ -607,14 +607,10 @@ public class BlobService {
                           uploadResponse.getSize(),
                           uploadResponse.getDigest(),
                           false,
-                          reservation.reservedAt())
+                          versionDate)
                       .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
                   nodeRepository.moveCurrentVersion(
-                      nodeId,
-                      version,
-                      reservation.reservedAt(),
-                      uploadResponse.getSize(),
-                      requesterId);
+                      nodeId, version, versionDate, uploadResponse.getSize(), requesterId);
                   return trimOldestVersion(nodeId, ownerId, version, maxNumberOfVersions);
                 });
 
@@ -623,15 +619,29 @@ public class BlobService {
     return version;
   }
 
+  /**
+   * Rewrites the current version in place. When that version is already marked (a concurrent
+   * overwrite, or one that never ended) the save becomes a new version instead: two in-place writes
+   * of one blob never interleave and no overwrite is ever refused.
+   */
   private int overwriteCurrentVersion(
-      String requesterId, InputStream blobStream, long blobLength, Node node, MediaType mediaType) {
+      String requesterId,
+      InputStream blobStream,
+      long blobLength,
+      Node node,
+      MediaType mediaType,
+      int maxNumberOfVersions) {
     String nodeId = node.getId();
     String ownerId = node.getOwnerId();
     int version = node.getCurrentVersion();
 
     if (!versionReservations.markOverwrite(nodeId, version, ownerId)) {
-      throw new VersionInUseException(
-          "Version " + version + " of node " + nodeId + " is being overwritten");
+      logger.info(
+          "Version {} of node {} is being overwritten: saving a new version instead",
+          version,
+          nodeId);
+      return uploadNewVersion(
+          requesterId, blobStream, blobLength, node, mediaType, maxNumberOfVersions);
     }
     try {
       UploadResponse uploadResponse =
@@ -647,11 +657,12 @@ public class BlobService {
           .run(
               () -> {
                 versionReservations.confirmOverwrite(nodeId, version);
-                VersionSlot clock =
+                long now =
                     nodeRepository
                         .reserveTimestamp(nodeId, System.currentTimeMillis())
-                        .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
-                // A version deleted meanwhile (trimmed, deleteVersions) may have lost its blob.
+                        .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId))
+                        .reservedAt();
+                requireOwner(nodeId, ownerId);
                 FileVersion replaced =
                     fileVersionRepository
                         .getFileVersion(nodeId, version)
@@ -659,30 +670,63 @@ public class BlobService {
                             () ->
                                 new NoSuchElementException(
                                     "Version " + version + " of node " + nodeId + " was deleted"));
-                fileVersionRepository.deleteFileVersion(replaced);
-                // A higher number already handed out keeps its later date: this one keeps its own.
+                // A version published above it keeps the later date: this one keeps its own.
                 long versionDate =
-                    clock.version() > version ? replaced.getUpdatedAt() : clock.reservedAt();
-                fileVersionRepository
-                    .createNewFileVersion(
-                        nodeId,
-                        requesterId,
-                        version,
-                        mediaType.toString(),
-                        uploadResponse.getSize(),
-                        uploadResponse.getDigest(),
-                        false,
-                        versionDate)
-                    .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+                    fileVersionRepository.existsAbove(nodeId, version)
+                        ? replaced.getUpdatedAt()
+                        : now;
+                boolean keptForever = replaced.isKeptForever();
+                Optional<Integer> clonedFrom = replaced.getClonedFromVersion();
+                fileVersionRepository.deleteFileVersion(replaced);
+                FileVersion rewritten =
+                    fileVersionRepository
+                        .createNewFileVersion(
+                            nodeId,
+                            requesterId,
+                            version,
+                            mediaType.toString(),
+                            uploadResponse.getSize(),
+                            uploadResponse.getDigest(),
+                            false,
+                            versionDate)
+                        .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+                rewritten.keepForever(keptForever);
+                clonedFrom.ifPresent(rewritten::setClonedFromVersion);
                 nodeRepository.moveCurrentVersion(
-                    nodeId, version, clock.reservedAt(), uploadResponse.getSize(), requesterId);
+                    nodeId, version, now, uploadResponse.getSize(), requesterId);
               });
 
       logUploaded(nodeId, version, uploadResponse);
       return version;
-    } catch (RuntimeException e) {
+    } catch (Throwable failure) {
       versionReservations.releaseOverwrite(nodeId, version);
-      throw e;
+      tombstoneIfUnreferenced(nodeId, version, ownerId);
+      throw failure;
+    }
+  }
+
+  /** A transfer of ownership meanwhile moved the node: its blobs now live under another account. */
+  private void requireOwner(String nodeId, String ownerId) {
+    if (nodeRepository.getNode(nodeId).filter(n -> ownerId.equals(n.getOwnerId())).isEmpty()) {
+      throw new IllegalStateException("Owner of node " + nodeId + " changed during the save");
+    }
+  }
+
+  /**
+   * An overwrite whose version was deleted meanwhile (trimmed, deleteVersions, node deleted) may
+   * have recreated a blob that nothing references: the tombstone lets the purge delete it.
+   */
+  private void tombstoneIfUnreferenced(String nodeId, int version, String ownerId) {
+    try {
+      if (fileVersionRepository.getFileVersion(nodeId, version).isEmpty()) {
+        tombstoneRepository.createNewTombstone(nodeId, ownerId, version);
+      }
+    } catch (RuntimeException e) {
+      logger.warn(
+          "Unable to check the blob of version {} of node {} after a failed overwrite: {}",
+          version,
+          nodeId,
+          e.getMessage());
     }
   }
 
@@ -742,10 +786,22 @@ public class BlobService {
     return List.of();
   }
 
+  /** Runs after the commit: never fails the save, a tombstone left behind waits for the purge. */
   private void deleteTrimmedBlobs(String nodeId, String ownerId, List<FileVersion> trimmed) {
     if (trimmed.isEmpty()) {
       return;
     }
+    try {
+      bulkDeleteTrimmedBlobs(nodeId, ownerId, trimmed);
+    } catch (RuntimeException e) {
+      logger.warn(
+          "Cleanup of the trimmed versions of node {} failed: {}. Tombstones remain.",
+          nodeId,
+          e.getMessage());
+    }
+  }
+
+  private void bulkDeleteTrimmedBlobs(String nodeId, String ownerId, List<FileVersion> trimmed) {
     List<BulkDeleteResponseItem> failedItems;
     try {
       failedItems =

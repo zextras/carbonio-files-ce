@@ -4,12 +4,14 @@
 
 package com.zextras.carbonio.files.rest.services;
 
+import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.sql.SQLException;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.slf4j.Logger;
@@ -32,12 +34,16 @@ public class VersionReservations {
   public record Reservation(String nodeId, int version, long reservedAt, String blobOwnerId) {}
 
   private final NodeRepository nodeRepository;
+  private final FileVersionRepository fileVersionRepository;
   private final VersionReservationRepository reservationRepository;
 
   @Inject
   public VersionReservations(
-      NodeRepository nodeRepository, VersionReservationRepository reservationRepository) {
+      NodeRepository nodeRepository,
+      FileVersionRepository fileVersionRepository,
+      VersionReservationRepository reservationRepository) {
     this.nodeRepository = nodeRepository;
+    this.fileVersionRepository = fileVersionRepository;
     this.reservationRepository = reservationRepository;
   }
 
@@ -63,16 +69,16 @@ public class VersionReservations {
    * Marks an overwrite of {@code version} as in progress, in its own short transaction, before its
    * blob is written in place.
    *
-   * @return false when another overwrite of that version holds the mark
+   * @return false when the version is already marked (another overwrite in progress, or one that
+   *     never ended: its mark waits for the purge)
    */
   public boolean markOverwrite(String nodeId, int version, String blobOwnerId) {
     try {
-      QuarkusTransaction.requiringNew()
-          .run(
+      return QuarkusTransaction.requiringNew()
+          .call(
               () ->
                   reservationRepository.markOverwrite(
                       nodeId, version, blobOwnerId, System.currentTimeMillis()));
-      return true;
     } catch (RuntimeException e) {
       if (ExceptionUtils.getThrowableList(e).stream()
           .anyMatch(t -> t instanceof SQLException sql && "23505".equals(sql.getSQLState()))) {
@@ -108,19 +114,31 @@ public class VersionReservations {
   }
 
   /**
-   * Consumes the reservation inside the transaction that creates the version.
+   * Consumes the reservation inside the transaction that creates the version, which then holds the
+   * node row until it ends, so confirmations of one node never interleave.
    *
+   * @return the version date: the reservation date, later than every version numbered below it (an
+   *     overwrite of a lower version may have a later date)
    * @throws IllegalStateException when the purge already claimed it: the version must not be
    *     created, its blob may be deleted at any moment
+   * @throws NoSuchElementException when the node was deleted meanwhile
    */
-  public void confirm(Reservation reservation) {
-    if (!reservationRepository.consume(reservation.nodeId(), reservation.version())) {
+  public long confirm(Reservation reservation) {
+    String nodeId = reservation.nodeId();
+    if (!reservationRepository.consume(nodeId, reservation.version())) {
       throw new IllegalStateException(
           "Reservation of version "
               + reservation.version()
               + " of node "
-              + reservation.nodeId()
+              + nodeId
               + " is no longer pending");
     }
+    nodeRepository
+        .reserveTimestamp(nodeId, reservation.reservedAt())
+        .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+    return fileVersionRepository
+        .latestDateBelow(nodeId, reservation.version())
+        .map(latest -> Math.max(reservation.reservedAt(), latest + 1))
+        .orElse(reservation.reservedAt());
   }
 }

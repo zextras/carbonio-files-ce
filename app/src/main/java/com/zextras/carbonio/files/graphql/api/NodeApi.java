@@ -1176,7 +1176,7 @@ public class NodeApi {
     QuarkusTransaction.requiringNew()
         .run(
             () -> {
-              versionReservations.confirm(reservation);
+              long versionDate = versionReservations.confirm(reservation);
               fileVersionRepository
                   .createNewFileVersion(
                       nodeId,
@@ -1186,10 +1186,10 @@ public class NodeApi {
                       copiedBlobResponse.getSize(),
                       copiedBlobResponse.getDigest(),
                       false,
-                      reservation.reservedAt())
+                      versionDate)
                   .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
 
-              nodeRepository.moveCurrentVersion(nodeId, newVersion, reservation.reservedAt());
+              nodeRepository.moveCurrentVersion(nodeId, newVersion, versionDate);
 
               FileVersion newFv = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
               newFv.setClonedFromVersion(version);
