@@ -1,3 +1,46 @@
+## [3.0.0](https://github.com/zextras/carbonio-files-ce/compare/v2.1.7...v3.0.0) (2026-10-20)
+
+### ⚠ BREAKING CHANGES
+
+* GraphQL contract changes for clients.
+- /public/graphql is removed: public operations are served on /graphql
+  and need no cookie; like every other operation they answer 401/403 to
+  an invalid, guest or Files-disabled cookie.
+- Public operations and types are renamed: findNodes -> findPublicNodes,
+  Node/Folder/File/NodePage -> PublicNode/PublicFolder/PublicFile/
+  PublicNodePage; NodeType includes ROOT.
+- The DateTime scalar is now BigInteger (same epoch value) and list id
+  arguments are [String!] instead of [ID!].
+- A protected operation without a cookie answers HTTP 200 with errorCode
+  UNAUTHENTICATED instead of 401.
+- A partial failure reports one error with its errorCode; the successful
+  items stay in data.
+- Responses are application/graphql-response+json unless the client asks
+  for application/json.
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+
+* test(graphql): cover the code-first GraphQL API
+
+Unit tests for the API beans, auth (identity provider, access annotations
+of every root field, synchronous resolvers), error handling and logging,
+input validation, the query cache cap, the storages client eviction,
+non-cancellable transfers and the user field selection.
+
+ITs for the end-to-end contract, public operation auth, error messages and
+logging, introspection, the method guard, content negotiation, body size
+and numeric literal limits, client disconnects (no connection leak,
+mutations and multi-root mutations complete), in-flight and streamed
+uploads, storages connection reuse and user lookup counts. The existing ITs
+follow the new contract (single-error partial envelope, [String!] ids,
+BigInteger timestamps, public operations on /graphql).
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+
+### Features
+
+* migrate GraphQL to code-first SmallRye (schema-first graphql-java retired) ([#330](https://github.com/zextras/carbonio-files-ce/issues/330)) ([d97919a](https://github.com/zextras/carbonio-files-ce/commit/d97919aaf6af6f34c63ec3d960a30e1e269873e1)), closes [#335](https://github.com/zextras/carbonio-files-ce/issues/335)
+
 ## [2.1.7](https://github.com/zextras/carbonio-files-ce/compare/v2.1.6...v2.1.7) (2026-10-02)
 
 ## [2.1.6](https://github.com/zextras/carbonio-files-ce/compare/v2.1.5...v2.1.6) (2026-09-28)
