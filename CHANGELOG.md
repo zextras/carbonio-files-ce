@@ -1,3 +1,9 @@
+## [3.0.2](https://github.com/zextras/carbonio-files-ce/compare/v3.0.1...v3.0.2) (2026-10-21)
+
+### Bug Fixes
+
+* **upload-version:** reserve version numbers and lease overwrites instead of locking the node ([#338](https://github.com/zextras/carbonio-files-ce/issues/338)) ([fc696b6](https://github.com/zextras/carbonio-files-ce/commit/fc696b6f022dc2c7e413c7245977419d5b16aa03))
+
 ## [3.0.1](https://github.com/zextras/carbonio-files-ce/compare/v3.0.0...v3.0.1) (2026-10-20)
 
 ### Bug Fixes
