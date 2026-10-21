@@ -50,17 +50,18 @@ import jakarta.enterprise.inject.Any;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,6 +118,7 @@ public class BlobService {
   private final Instance<UploadCompletionListener> uploadCompletionListeners;
   private final VersionReservations versionReservations;
   private final TombstoneRepository tombstoneRepository;
+  private final int uploadVersionTransactionTimeoutSeconds;
 
   @Inject
   public BlobService(
@@ -133,7 +135,8 @@ public class BlobService {
       QuotaChecker quotaChecker,
       @Any Instance<UploadCompletionListener> uploadCompletionListeners,
       VersionReservations versionReservations,
-      TombstoneRepository tombstoneRepository) {
+      TombstoneRepository tombstoneRepository,
+      @ConfigProperty(name = "quarkus.http.read-timeout") Duration uploadWindow) {
     this.nodeRepository = nodeRepository;
     this.notificationRepository = notificationRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -148,6 +151,7 @@ public class BlobService {
     this.uploadCompletionListeners = uploadCompletionListeners;
     this.versionReservations = versionReservations;
     this.tombstoneRepository = tombstoneRepository;
+    this.uploadVersionTransactionTimeoutSeconds = (int) uploadWindow.toSeconds();
   }
 
   public Optional<List<Node>> checkDownloadMultiple(List<String> nodeIds, UserMyself requester) {
@@ -527,6 +531,10 @@ public class BlobService {
       return Optional.empty();
     }
 
+    if (overwrite) {
+      return overwriteCurrentVersion(requester, blobStream, blobLength, nodeId, filename);
+    }
+
     Node node =
         nodeRepository
             .getNode(nodeId)
@@ -536,11 +544,8 @@ public class BlobService {
     quotaChecker.ensureNotOverQuota(node.getOwnerId(), blobLength);
 
     int maxNumberOfVersions = filesConfig.getMaxNumberOfVersions();
-    if (!overwrite
-        && fileVersionRepository
-                .getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC))
-                .size()
-            > maxNumberOfVersions) {
+    if (fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)).size()
+        > maxNumberOfVersions) {
       throw new MaxNumberOfFileVersionsException(
           String.format(
               "Node %s has reached max number of versions (%d), cannot add more versions",
@@ -559,11 +564,7 @@ public class BlobService {
     }
 
     int version =
-        overwrite
-            ? overwriteCurrentVersion(
-                requesterId, blobStream, blobLength, node, mediaType, maxNumberOfVersions)
-            : uploadNewVersion(
-                requesterId, blobStream, blobLength, node, mediaType, maxNumberOfVersions);
+        uploadNewVersion(requesterId, blobStream, blobLength, node, mediaType, maxNumberOfVersions);
 
     meterRegistry.counter(METRIC_UPLOAD, "service", "files", "uri", "/upload/version").increment();
     return Optional.of(version);
@@ -620,109 +621,94 @@ public class BlobService {
   }
 
   /**
-   * Rewrites the current version in place while no other save was registered after it; otherwise (a
-   * save in flight or published above it, a concurrent overwrite, a mark that never ended) the save
-   * becomes a new version. Numbers and dates follow the registration order: the last registered
-   * save is the content of the latest version, two in-place writes of one blob never interleave and
-   * no overwrite is ever refused.
+   * Rewrites the current version in place as before the version reservations: one transaction
+   * holding the node row for the whole body stream (CO-3079).
    */
-  private int overwriteCurrentVersion(
-      String requesterId,
+  private Optional<Integer> overwriteCurrentVersion(
+      UserMyself requester,
       InputStream blobStream,
       long blobLength,
-      Node node,
-      MediaType mediaType,
-      int maxNumberOfVersions) {
-    String nodeId = node.getId();
-    String ownerId = node.getOwnerId();
-    int version = node.getCurrentVersion();
+      String nodeId,
+      String filename) {
+    String requesterId = requester.getId().getUserId();
+    return QuarkusTransaction.requiringNew()
+        .timeout(uploadVersionTransactionTimeoutSeconds)
+        .call(
+            () -> {
+              Node node =
+                  nodeRepository
+                      .getNodeForUpdate(nodeId)
+                      .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
 
-    OptionalLong registered = versionReservations.markOverwrite(nodeId, version, ownerId);
-    if (registered.isEmpty()) {
-      logger.info(
-          "Version {} of node {} cannot be rewritten in place: saving a new version instead",
-          version,
-          nodeId);
-      return uploadNewVersion(
-          requesterId, blobStream, blobLength, node, mediaType, maxNumberOfVersions);
-    }
-    long versionDate = registered.getAsLong();
-    boolean saved = false;
-    try {
-      UploadResponse uploadResponse =
-          writeVersionBlob(
-              nodeId,
-              version,
-              ownerId,
-              () ->
-                  fileStore.uploadPut(
-                      FilesIdentifier.of(nodeId, version, ownerId), blobStream, blobLength));
+              // P9 CE seam: quota check before the new version blob is stored (no-op in CE).
+              quotaChecker.ensureNotOverQuota(node.getOwnerId(), blobLength);
 
-      QuarkusTransaction.requiringNew()
-          .run(
-              () -> {
-                versionReservations.confirmOverwrite(nodeId, version);
-                requireOwner(nodeId, ownerId);
-                FileVersion replaced =
-                    fileVersionRepository
-                        .getFileVersion(nodeId, version)
-                        .orElseThrow(
-                            () ->
-                                new NoSuchElementException(
-                                    "Version " + version + " of node " + nodeId + " was deleted"));
-                boolean keptForever = replaced.isKeptForever();
-                Optional<Integer> clonedFrom = replaced.getClonedFromVersion();
-                fileVersionRepository.deleteFileVersion(replaced);
-                FileVersion rewritten =
-                    fileVersionRepository
-                        .createFileVersionAt(
-                            nodeId,
-                            requesterId,
-                            version,
-                            mediaType.toString(),
-                            uploadResponse.getSize(),
-                            uploadResponse.getDigest(),
-                            versionDate)
-                        .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
-                rewritten.keepForever(keptForever);
-                clonedFrom.ifPresent(rewritten::setClonedFromVersion);
-                nodeRepository.moveCurrentVersion(
-                    nodeId, version, versionDate, uploadResponse.getSize(), requesterId);
-              });
+              MediaType mediaType =
+                  mimeTypeUtils.detectMimeTypeFromFilename(
+                      filename, MediaType.OCTET_STREAM.toString());
 
-      saved = true;
-      logUploaded(nodeId, version, uploadResponse);
-      return version;
-    } finally {
-      if (!saved) {
-        versionReservations.releaseOverwrite(nodeId, version);
-        tombstoneIfUnreferenced(nodeId, version, ownerId);
-      }
-    }
+              NodeType nodeType = NodeType.getNodeType(mediaType);
+              if (nodeType != node.getNodeType()) {
+                throw new FileTypeMismatchException(
+                    String.format(
+                        "Node %s with wrong type %s, should be the same as old versions: %s",
+                        nodeId, nodeType, node.getNodeType()));
+              }
+
+              int version = node.getCurrentVersion();
+              UploadResponse uploadResponse;
+              try {
+                uploadResponse =
+                    fileStore.uploadPut(
+                        FilesIdentifier.of(nodeId, version, node.getOwnerId()),
+                        blobStream,
+                        blobLength);
+                fileVersionRepository.deleteFileVersions(
+                    nodeId, Collections.singletonList(version));
+              } catch (Exception exception) {
+                throw new DependencyException(
+                    String.format(
+                        "Storages failed: unable to upload node with id %s and version %d",
+                        nodeId, version),
+                    exception);
+              }
+
+              if (!verifyBlobExists(nodeId, version, node.getOwnerId())) {
+                throw new DependencyException(
+                    String.format(
+                        "Upload verification failed: blob not accessible for node %s version %d",
+                        nodeId, version));
+              }
+
+              Optional<FileVersion> result =
+                  fileVersionRepository.createNewFileVersion(
+                      nodeId,
+                      requesterId,
+                      version,
+                      mediaType.toString(),
+                      uploadResponse.getSize(),
+                      uploadResponse.getDigest(),
+                      false);
+
+              node.setSize(uploadResponse.getSize());
+              node.setLastEditorId(requesterId);
+              node.setCurrentVersion(version);
+              nodeRepository.updateNode(node);
+
+              logUploaded(nodeId, version, uploadResponse);
+              result.ifPresent(
+                  uploaded ->
+                      meterRegistry
+                          .counter(METRIC_UPLOAD, "service", "files", "uri", "/upload/version")
+                          .increment());
+              return result.map(FileVersion::getVersion);
+            });
   }
 
   /** A transfer of ownership meanwhile moved the node: its blobs now live under another account. */
   private void requireOwner(String nodeId, String ownerId) {
     if (nodeRepository.getNode(nodeId).filter(n -> ownerId.equals(n.getOwnerId())).isEmpty()) {
       throw new IllegalStateException("Owner of node " + nodeId + " changed during the save");
-    }
-  }
-
-  /**
-   * An overwrite whose version was deleted meanwhile (trimmed, deleteVersions, node deleted) may
-   * have recreated a blob that nothing references: the tombstone lets the purge delete it.
-   */
-  private void tombstoneIfUnreferenced(String nodeId, int version, String ownerId) {
-    try {
-      if (fileVersionRepository.getFileVersion(nodeId, version).isEmpty()) {
-        tombstoneRepository.createNewTombstone(nodeId, ownerId, version);
-      }
-    } catch (RuntimeException e) {
-      logger.warn(
-          "Unable to check the blob of version {} of node {} after a failed overwrite: {}",
-          version,
-          nodeId,
-          e.getMessage());
     }
   }
 

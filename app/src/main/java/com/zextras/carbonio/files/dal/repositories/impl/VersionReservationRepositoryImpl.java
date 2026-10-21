@@ -39,40 +39,6 @@ public class VersionReservationRepositoryImpl
   }
 
   @Override
-  @Transactional(TxType.MANDATORY)
-  public boolean markOverwrite(String nodeId, int version, String ownerId, long reservedAt) {
-    if (findByIdOptional(new VersionReservationPK(nodeId, version)).isPresent()) {
-      return false;
-    }
-    persist(
-        new VersionReservation(
-            nodeId, version, ownerId, reservedAt, VersionReservationState.OVERWRITING));
-    flush();
-    return true;
-  }
-
-  @Override
-  @Transactional
-  public boolean releaseOverwrite(String nodeId, int version) {
-    return delete(
-            "mComposedId.mNodeId = ?1 and mComposedId.mVersion = ?2 and mState = ?3",
-            nodeId,
-            version,
-            VersionReservationState.OVERWRITING)
-        == 1;
-  }
-
-  @Override
-  @Transactional
-  public int removeStaleOverwrites(long reservedBefore) {
-    return (int)
-        delete(
-            "mState = ?1 and mReservedAt < ?2",
-            VersionReservationState.OVERWRITING,
-            reservedBefore);
-  }
-
-  @Override
   @Transactional
   public int claimExpired(long reservedBefore) {
     return update(

@@ -26,8 +26,8 @@ WHERE node.node_id = used.node_id
   AND used.max_version > COALESCE(node.current_version, 0);
 
 -- One row per reserved version number until its save is confirmed. A row older than the purge expiry means the save
--- failed: no revision references its blob, so the purge job deletes the blob (if any) and then the row. The same
--- table marks an overwrite in progress (state OVERWRITING) so that two overwrites of one version never interleave.
+-- failed: no revision references its blob, so the purge job deletes the blob (if any) and then the row (state PENDING,
+-- then PURGING once the purge claims it). Overwrites of an existing version take no reservation.
 CREATE TABLE IF NOT EXISTS version_reservation (
     node_id CHARACTER(36) NOT NULL,
     version INTEGER NOT NULL,

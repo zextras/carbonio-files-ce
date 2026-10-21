@@ -439,17 +439,6 @@ class PurgeServiceTest {
   }
 
   @Test
-  void purgeExpiredReservationsDropsTheStaleOverwriteMarksWithoutTouchingTheirBlobs() {
-    when(versionReservationRepository.getPurging()).thenReturn(List.of());
-
-    purgeService.purgeExpiredReservations(100_000_000L);
-
-    verify(versionReservationRepository)
-        .removeStaleOverwrites(100_000_000L - Duration.ofHours(24).toMillis());
-    verifyNoMoreInteractions(filestore);
-  }
-
-  @Test
   void purgeExpiredReservationsNeverDeletesTheBlobOfAnExistingVersion() {
     VersionReservation published = reservation("node-a", 2, "owner-1", 0);
     when(versionReservationRepository.getPurging()).thenReturn(List.of(published));

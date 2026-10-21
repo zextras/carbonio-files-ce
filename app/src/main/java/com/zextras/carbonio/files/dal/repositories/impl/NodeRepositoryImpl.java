@@ -25,6 +25,7 @@ import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
@@ -102,6 +103,13 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   @Override
+  public Optional<Node> getNodeForUpdate(String nodeId) {
+    // The caller MUST already have an active transaction; the pessimistic lock lives until it ends.
+    return Optional.ofNullable(
+        entityManager.find(Node.class, normalizeId(nodeId), LockModeType.PESSIMISTIC_WRITE));
+  }
+
+  @Override
   @Transactional
   public Optional<VersionSlot> reserveNextVersion(String nodeId, long now) {
     String id = normalizeId(nodeId);
@@ -125,19 +133,6 @@ public class NodeRepositoryImpl implements NodeRepository {
             .setParameter("id", id)
             .getSingleResult();
     return Optional.of(new VersionSlot((Integer) slot[0], (Long) slot[1]));
-  }
-
-  @Override
-  @Transactional(TxType.MANDATORY)
-  public boolean claimInPlaceOverwrite(String nodeId, int version) {
-    return entityManager
-            .createQuery(
-                "update Node n set n.mLastVersion = :version where n.mId = :id and"
-                    + " n.mCurrentVersion = :version and n.mLastVersion <= :version")
-            .setParameter("version", version)
-            .setParameter("id", normalizeId(nodeId))
-            .executeUpdate()
-        == 1;
   }
 
   @Override

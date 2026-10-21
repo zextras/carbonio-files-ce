@@ -15,8 +15,7 @@ import jakarta.persistence.Table;
 /**
  * A version number handed out to an upload-version or a cloneVersion and not confirmed yet: the
  * blob it names is not referenced by any revision, and a reservation never confirmed is purged
- * together with that blob. Also the mark of an overwrite in progress ({@link
- * VersionReservationState#OVERWRITING}), whose blob is a live version and is never purged.
+ * together with that blob.
  */
 @Entity
 @Table(name = Constants.Db.Tables.VERSION_RESERVATION)

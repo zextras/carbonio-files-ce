@@ -216,77 +216,6 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAnOverwriteStreamingThenNoTransactionIsHeldAndTheVersionIsRewritten() throws Exception {
-    String nodeId = seedFile("overwritten.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
-
-    String statusLine;
-    try (Socket socket = startUploadVersion(nodeId, true)) {
-      assertNoTransactionHeldWhileTheBodyStreams(nodeId);
-      statusLine = finishUpload(socket);
-    }
-
-    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
-    Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
-    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("1");
-    Assertions.assertThat(nodeColumn(nodeId, "size")).isEqualTo(String.valueOf(2 * CHUNK));
-    Assertions.assertThat(pendingReservations(nodeId)).isEmpty();
-  }
-
-  @Test
-  void givenANewerVersionPublishedDuringAnOverwriteThenTheOverwriteDoesNotMoveTheCurrentBack()
-      throws Exception {
-    String nodeId = seedFile("raced.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
-
-    String statusLine;
-    try (Socket socket = startUploadVersion(nodeId, true)) {
-      assertNoTransactionHeldWhileTheBodyStreams(nodeId);
-      Assertions.assertThat(seedVersion(nodeId, CONTENT, "raced.txt", REQUESTER_COOKIE))
-          .isEqualTo(2);
-      statusLine = finishUpload(socket);
-    }
-
-    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
-    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2);
-    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("2");
-    Assertions.assertThat(versionTimestamp(nodeId, 1)).isLessThan(versionTimestamp(nodeId, 2));
-  }
-
-  @Test
-  void givenTheOverwrittenVersionIsDeletedMeanwhileThenTheOverwriteFailsInsteadOfRecreatingIt()
-      throws Exception {
-    String nodeId = seedFile("deleted-meanwhile.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
-
-    String statusLine;
-    try (Socket socket = startUploadVersion(nodeId, true)) {
-      assertNoTransactionHeldWhileTheBodyStreams(nodeId);
-      Assertions.assertThat(seedVersion(nodeId, CONTENT, "deleted-meanwhile.txt", REQUESTER_COOKIE))
-          .isEqualTo(2);
-      Response deleted =
-          graphql(
-              GraphqlCommandBuilder.aMutationBuilder("deleteVersions")
-                  .withString("node_id", nodeId)
-                  .withListOfIntegers("versions", new int[] {1})
-                  .withWantedResultFormat("")
-                  .build(),
-              REQUESTER_COOKIE);
-      Assertions.assertThat(TestUtils.jsonResponseToErrors(deleted.getBody().asString())).isEmpty();
-      try (Connection connection = jdbcConnection();
-          PreparedStatement purged =
-              connection.prepareStatement("DELETE FROM tombstone WHERE node_id = ?")) {
-        purged.setString(1, nodeId);
-        purged.executeUpdate();
-      }
-      statusLine = finishUpload(socket);
-    }
-
-    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 404");
-    Assertions.assertThat(versionRows(nodeId)).containsExactly(2);
-    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("2");
-    Assertions.assertThat(tombstoneRowsForNode(nodeId)).isEqualTo(1);
-    Assertions.assertThat(overwriteMarks(nodeId)).isEmpty();
-  }
-
-  @Test
   void givenTwoSavesStreamingAtTheVersionCapThenBothSucceedAndEachTrimsOneVersion()
       throws Exception {
     setApplicationConfig("max-number-of-versions", "2");
@@ -311,168 +240,34 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAnOverwriteStreamingThenAConcurrentOverwriteOfTheSameVersionSavesANewVersion()
+  void givenAnAutosaveWhileAManualSaveStreamsThenBothSucceedAndTheManualSaveIsTheLatestVersion()
       throws Exception {
-    String nodeId = seedFile("overwritten-twice.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
-
-    String statusLine;
-    try (Socket socket = startUploadVersion(nodeId, true)) {
-      eventually("overwrite marked", () -> overwriteMarks(nodeId).equals(List.of(1)));
-      Response concurrent =
-          uploadVersion(nodeId, CONTENT, "overwritten-twice.txt", true, REQUESTER_COOKIE);
-      Assertions.assertThat(concurrent.getStatusCode()).isEqualTo(200);
-      Assertions.assertThat(concurrent.jsonPath().getInt("version")).isEqualTo(2);
-      statusLine = finishUpload(socket);
-    }
-
-    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
-    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2);
-    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("2");
-    Assertions.assertThat(versionColumn(nodeId, 1, "size")).isEqualTo(String.valueOf(2 * CHUNK));
-    Assertions.assertThat(versionColumn(nodeId, 2, "size"))
-        .isEqualTo(String.valueOf(CONTENT.length));
-    Assertions.assertThat(overwriteMarks(nodeId)).isEmpty();
-    Assertions.assertThat(
-            uploadVersion(nodeId, CONTENT, "overwritten-twice.txt", true, REQUESTER_COOKIE)
-                .jsonPath()
-                .getInt("version"))
-        .isEqualTo(2);
-    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2);
-  }
-
-  @Test
-  void givenAnOverwriteMarkLeftBehindThenTheOverwriteSavesANewVersionInsteadOfFailing()
-      throws Exception {
-    String nodeId = seedFile("left-mark.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
-    try (Connection connection = jdbcConnection();
-        PreparedStatement mark =
-            connection.prepareStatement(
-                "INSERT INTO version_reservation (node_id, version, owner_id, reserved_at, state,"
-                    + " attempts) VALUES (?, 1, ?, 1, 'OVERWRITING', 0)")) {
-      mark.setString(1, nodeId);
-      mark.setString(2, REQUESTER_ID);
-      mark.executeUpdate();
-    }
-
-    Response saved = uploadVersion(nodeId, CONTENT, "left-mark.txt", true, REQUESTER_COOKIE);
-
-    Assertions.assertThat(saved.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(saved.jsonPath().getInt("version")).isEqualTo(2);
-    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2);
-    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("2");
-  }
-
-  @Test
-  void givenAFailedOverwriteThenItsMarkIsReleasedAndTheNextOverwriteRewritesInPlace()
-      throws Exception {
-    String nodeId = seedFile("failed-overwrite.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
-
-    FilesStackTestResource.getStoragesService().setUploadFails(true);
-    Response failed =
-        uploadVersion(nodeId, CONTENT, "failed-overwrite.txt", true, REQUESTER_COOKIE);
-    FilesStackTestResource.getStoragesService().setUploadFails(false);
-
-    Assertions.assertThat(failed.getStatusCode()).isGreaterThanOrEqualTo(400);
-    Assertions.assertThat(overwriteMarks(nodeId)).isEmpty();
-    Response next = uploadVersion(nodeId, CONTENT, "failed-overwrite.txt", true, REQUESTER_COOKIE);
-    Assertions.assertThat(next.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
-    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("1");
-  }
-
-  @Test
-  void givenAFailedSaveBeforeAnAutosaveThenTheAutosaveTakesANewNumberOnceThenRewritesInPlace()
-      throws Exception {
-    String nodeId = seedFile("gap-then-overwrite.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
-
-    try (Socket socket = startUploadVersion(nodeId, false)) {
-      eventually("version 2 reserved", () -> pendingReservations(nodeId).equals(List.of(2)));
-    }
-    Response afterTheGap =
-        uploadVersion(nodeId, CONTENT, "gap-then-overwrite.txt", true, REQUESTER_COOKIE);
-    Response next =
-        uploadVersion(nodeId, CONTENT, "gap-then-overwrite.txt", true, REQUESTER_COOKIE);
-
-    Assertions.assertThat(afterTheGap.jsonPath().getInt("version")).isEqualTo(3);
-    Assertions.assertThat(next.jsonPath().getInt("version")).isEqualTo(3);
-    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 3);
-    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("3");
-  }
-
-  @Test
-  void givenAnAutosaveWhileAManualSaveStreamsThenTheAutosaveIsTheLatestVersion() throws Exception {
-    String nodeId = seedFile("autosave-after.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+    String nodeId = seedFile("autosave-during.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+    byte[] autosaved = "autosaved".getBytes(StandardCharsets.UTF_8);
 
     try (Socket manual = startUploadVersion(nodeId, false, (byte) 'm')) {
       eventually("version 2 reserved", () -> pendingReservations(nodeId).equals(List.of(2)));
-      Response autosave =
-          uploadVersion(nodeId, CONTENT, "autosave-after.txt", true, REQUESTER_COOKIE);
-      Assertions.assertThat(autosave.jsonPath().getInt("version")).isEqualTo(3);
+      Assertions.assertThat(
+              uploadVersion(nodeId, autosaved, "autosave-during.txt", true, REQUESTER_COOKIE)
+                  .getStatusCode())
+          .isEqualTo(200);
       Assertions.assertThat(finishUpload(manual, (byte) 'm')).startsWith("HTTP/1.1 200");
     }
 
-    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2, 3);
-    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("3");
-    Assertions.assertThat(versionContent(nodeId, 3)).isEqualTo(CONTENT);
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2);
+    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("2");
+    Assertions.assertThat(versionContent(nodeId, 1)).isEqualTo(autosaved);
     Assertions.assertThat(versionContent(nodeId, 2)).containsOnly('m');
-    Assertions.assertThat(versionTimestamp(nodeId, 2)).isLessThan(versionTimestamp(nodeId, 3));
-  }
-
-  @Test
-  void givenAnAutosaveFinishingBeforeTwoLaterSavesFinishingInReverseThenTheDatesFollowTheNumbers()
-      throws Exception {
-    String nodeId = seedFile("dated-autosave.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
-
-    try (Socket autosave = startUploadVersion(nodeId, true, (byte) 'a')) {
-      eventually("version 1 marked", () -> overwriteMarks(nodeId).equals(List.of(1)));
-      try (Socket second = startUploadVersion(nodeId, false, (byte) 'b')) {
-        eventually("version 2 reserved", () -> pendingReservations(nodeId).equals(List.of(2)));
-        try (Socket third = startUploadVersion(nodeId, false, (byte) 'c')) {
-          eventually("version 3 reserved", () -> pendingReservations(nodeId).equals(List.of(2, 3)));
-          tickClock();
-          Assertions.assertThat(finishUpload(autosave, (byte) 'a')).startsWith("HTTP/1.1 200");
-          Assertions.assertThat(finishUpload(third, (byte) 'c')).startsWith("HTTP/1.1 200");
-          Assertions.assertThat(finishUpload(second, (byte) 'b')).startsWith("HTTP/1.1 200");
-        }
-      }
-    }
-
-    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2, 3);
-    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("3");
     Assertions.assertThat(versionTimestamp(nodeId, 1)).isLessThan(versionTimestamp(nodeId, 2));
-    Assertions.assertThat(versionTimestamp(nodeId, 2)).isLessThan(versionTimestamp(nodeId, 3));
-  }
-
-  @Test
-  void givenThreeOverlappingAutosavesThenTheLastRegisteredIsTheLatestVersion() throws Exception {
-    String nodeId = seedFile("three-autosaves.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
-
-    try (Socket first = startUploadVersion(nodeId, true, (byte) 'a')) {
-      eventually("version 1 marked", () -> overwriteMarks(nodeId).equals(List.of(1)));
-      try (Socket second = startUploadVersion(nodeId, true, (byte) 'b')) {
-        eventually("version 2 reserved", () -> pendingReservations(nodeId).equals(List.of(2)));
-        Assertions.assertThat(finishUpload(first, (byte) 'a')).startsWith("HTTP/1.1 200");
-        Response third =
-            uploadVersion(nodeId, CONTENT, "three-autosaves.txt", true, REQUESTER_COOKIE);
-        Assertions.assertThat(third.jsonPath().getInt("version")).isEqualTo(3);
-        Assertions.assertThat(finishUpload(second, (byte) 'b')).startsWith("HTTP/1.1 200");
-      }
-    }
-
-    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("3");
-    Assertions.assertThat(versionContent(nodeId, 3)).isEqualTo(CONTENT);
-    Assertions.assertThat(versionContent(nodeId, 2)).containsOnly('b');
-    Assertions.assertThat(versionContent(nodeId, 1)).containsOnly('a');
   }
 
   /**
-   * Manual saves and autosaves registered one after the other while earlier ones finish in a random
-   * order: the contents follow the registration order across the version numbers (and so do the
-   * dates), the latest version holds the last registered save and no blob mixes two saves.
+   * Manual saves registered one after the other while earlier ones finish in a random order: the
+   * contents follow the reservation order across the version numbers (and so do the dates), the
+   * latest version holds the last registered save and no blob mixes two saves.
    */
   @Test
-  void givenMixedSavesFinishingInAnyOrderThenTheLastRegisteredIsTheLatestVersion()
-      throws Exception {
+  void givenManualSavesFinishingInAnyOrderThenTheLastReservedIsTheLatestVersion() throws Exception {
     int saves = 8;
     for (long seed = 1; seed <= 12; seed++) {
       Random random = new Random(seed);
@@ -483,9 +278,9 @@ class StreamedUploadApiIT extends AbstractFilesIT {
         while (registered < saves || !inFlight.isEmpty()) {
           if (registered < saves && (inFlight.isEmpty() || random.nextBoolean())) {
             int save = ++registered;
-            inFlight.put(save, startUploadVersion(nodeId, random.nextBoolean(), (byte) save));
+            inFlight.put(save, startUploadVersion(nodeId, false, (byte) save));
             int expected = inFlight.size();
-            eventually("save registered", () -> registeredSaves(nodeId) == expected);
+            eventually("save reserved", () -> pendingReservations(nodeId).size() == expected);
           } else {
             List<Integer> open = new ArrayList<>(inFlight.keySet());
             int save = open.get(random.nextInt(open.size()));
@@ -501,16 +296,18 @@ class StreamedUploadApiIT extends AbstractFilesIT {
       }
 
       List<Integer> versions = versionRows(nodeId);
-      int current = Integer.parseInt(nodeColumn(nodeId, "current_version"));
-      Assertions.assertThat(current).as("seed %d", seed).isEqualTo(versions.getLast());
-      Assertions.assertThat(versionContent(nodeId, current))
+      Assertions.assertThat(versions).as("seed %d", seed).hasSize(1 + saves);
+      Assertions.assertThat(nodeColumn(nodeId, "current_version"))
+          .as("seed %d", seed)
+          .isEqualTo(String.valueOf(versions.getLast()));
+      Assertions.assertThat(versionContent(nodeId, versions.getLast()))
           .as("seed %d", seed)
           .containsOnly(saves);
       List<Integer> fills = new ArrayList<>();
       List<Long> dates = new ArrayList<>();
       for (int version : versions) {
         byte[] content = versionContent(nodeId, version);
-        if (!Arrays.equals(content, CONTENT)) {
+        if (version > 1) {
           Assertions.assertThat(content)
               .as("seed %d version %d", seed, version)
               .containsOnly(content[0]);
@@ -520,7 +317,7 @@ class StreamedUploadApiIT extends AbstractFilesIT {
       }
       Assertions.assertThat(fills).as("seed %d", seed).isSorted().doesNotHaveDuplicates();
       Assertions.assertThat(dates).as("seed %d", seed).isSorted().doesNotHaveDuplicates();
-      Assertions.assertThat(registeredSaves(nodeId)).as("seed %d", seed).isZero();
+      Assertions.assertThat(pendingReservations(nodeId)).as("seed %d", seed).isEmpty();
     }
   }
 
@@ -538,23 +335,6 @@ class StreamedUploadApiIT extends AbstractFilesIT {
     Assertions.assertThat(statusLine).startsWith("HTTP/1.1 500");
     Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
     Assertions.assertThat(pendingReservations(nodeId)).containsExactly(2);
-  }
-
-  @Test
-  void givenTheOwnerChangedWhileAnOverwriteStreamsThenTheVersionIsNotRewritten() throws Exception {
-    String nodeId = seedFile("transferred-overwrite.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
-
-    String statusLine;
-    try (Socket socket = startUploadVersion(nodeId, true)) {
-      eventually("overwrite marked", () -> overwriteMarks(nodeId).equals(List.of(1)));
-      changeOwner(nodeId);
-      statusLine = finishUpload(socket);
-    }
-
-    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 500");
-    Assertions.assertThat(versionColumn(nodeId, 1, "size"))
-        .isEqualTo(String.valueOf(CONTENT.length));
-    Assertions.assertThat(overwriteMarks(nodeId)).isEmpty();
   }
 
   @Test
@@ -635,14 +415,6 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   /** Once the overwrite is marked (a short committed transaction), none stays open for a second. */
-  private static void assertNoTransactionHeldWhileTheBodyStreams(String nodeId) throws Exception {
-    eventually("overwrite marked", () -> overwriteMarks(nodeId).equals(List.of(1)));
-    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
-    while (System.nanoTime() < deadline) {
-      Assertions.assertThat(filesConnectionsIdleInTransaction()).isZero();
-    }
-  }
-
   /** Sends the second chunk and returns the response status line. */
   private static String finishUpload(Socket socket) throws Exception {
     return finishUpload(socket, (byte) 0);
@@ -676,34 +448,6 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   /** Saves registered and not finished yet: reservations and overwrite marks. */
-  private static int registeredSaves(String nodeId) throws SQLException {
-    try (Connection connection = jdbcConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(
-                "SELECT count(*) FROM version_reservation WHERE node_id = ?")) {
-      statement.setString(1, nodeId);
-      try (ResultSet resultSet = statement.executeQuery()) {
-        resultSet.next();
-        return resultSet.getInt(1);
-      }
-    }
-  }
-
-  private static String versionColumn(String nodeId, int version, String column)
-      throws SQLException {
-    try (Connection connection = jdbcConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(
-                "SELECT " + column + " FROM revision WHERE node_id = ? AND version = ?")) {
-      statement.setString(1, nodeId);
-      statement.setInt(2, version);
-      try (ResultSet resultSet = statement.executeQuery()) {
-        Assertions.assertThat(resultSet.next()).isTrue();
-        return resultSet.getString(1).trim();
-      }
-    }
-  }
-
   /** A transfer of ownership committed while the save streams. */
   private static void changeOwner(String nodeId) throws SQLException {
     try (Connection connection = jdbcConnection();
@@ -713,23 +457,6 @@ class StreamedUploadApiIT extends AbstractFilesIT {
                     + " WHERE node_id = ?")) {
       transfer.setString(1, nodeId);
       Assertions.assertThat(transfer.executeUpdate()).isEqualTo(1);
-    }
-  }
-
-  private static List<Integer> overwriteMarks(String nodeId) throws SQLException {
-    try (Connection connection = jdbcConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(
-                "SELECT version FROM version_reservation WHERE node_id = ?"
-                    + " AND state = 'OVERWRITING'")) {
-      statement.setString(1, nodeId);
-      try (ResultSet resultSet = statement.executeQuery()) {
-        List<Integer> versions = new java.util.ArrayList<>();
-        while (resultSet.next()) {
-          versions.add(resultSet.getInt(1));
-        }
-        return versions;
-      }
     }
   }
 

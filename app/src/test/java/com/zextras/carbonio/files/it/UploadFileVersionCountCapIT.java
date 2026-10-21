@@ -196,33 +196,4 @@ class UploadFileVersionCountCapIT extends AbstractFilesIT {
       }
     }
   }
-
-  @Test
-  void givenAnOverwriteMarkLeftBehindAtTheCapThenTheOverwriteBecomesANewVersionAndEvictsTheOldest()
-      throws Exception {
-    String nodeId =
-        seedFile("fake.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
-    seedVersion(nodeId, "v2".getBytes(StandardCharsets.UTF_8), "fake.txt", REQUESTER_COOKIE);
-    try (Connection connection = jdbcConnection();
-        PreparedStatement mark =
-            connection.prepareStatement(
-                "INSERT INTO version_reservation (node_id, version, owner_id, reserved_at, state,"
-                    + " attempts) VALUES (?, 2, ?, 1, 'OVERWRITING', 0)")) {
-      mark.setString(1, nodeId);
-      mark.setString(2, REQUESTER_ID);
-      mark.executeUpdate();
-    }
-
-    Response response =
-        uploadVersion(
-            nodeId,
-            "v3 content".getBytes(StandardCharsets.UTF_8),
-            "fake.txt",
-            true,
-            REQUESTER_COOKIE);
-
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(response.jsonPath().getInt("version")).isEqualTo(3);
-    Assertions.assertThat(versionRows(nodeId)).containsExactly(2, 3);
-  }
 }
