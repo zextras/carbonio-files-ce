@@ -131,13 +131,20 @@ public class NodeRepositoryImpl implements NodeRepository {
   @Override
   @Transactional(TxType.MANDATORY)
   public Optional<VersionSlot> reserveTimestamp(String nodeId) {
+    return reserveTimestamp(nodeId, 0L);
+  }
+
+  @Override
+  @Transactional(TxType.MANDATORY)
+  public Optional<VersionSlot> reserveTimestamp(String nodeId, long notBefore) {
     String id = normalizeId(nodeId);
     int updated =
         entityManager
             .createQuery(
                 "update Node n set n.mLastReservedAt = greatest(n.mLastReservedAt + 1, "
                     + DatabaseClock.NOW_MILLIS
-                    + ") where n.mId = :id")
+                    + ", :notBefore) where n.mId = :id")
+            .setParameter("notBefore", notBefore)
             .setParameter("id", id)
             .executeUpdate();
     if (updated == 0) {

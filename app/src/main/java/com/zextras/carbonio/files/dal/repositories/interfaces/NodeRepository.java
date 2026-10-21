@@ -53,6 +53,9 @@ public interface NodeRepository {
    */
   Optional<VersionSlot> reserveTimestamp(String nodeId);
 
+  /** As {@link #reserveTimestamp(String)}, never earlier than {@code notBefore}. */
+  Optional<VersionSlot> reserveTimestamp(String nodeId, long notBefore);
+
   /**
    * Makes {@code version} the current version unless a newer one already is.
    *

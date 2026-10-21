@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.rest.services;
 
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.OverwriteLeaseRepository;
 import io.quarkus.narayana.jta.QuarkusTransaction;
@@ -34,11 +35,16 @@ public class OverwriteLeases {
   public record Lease(String nodeId, int version, String token, long date) {}
 
   private final NodeRepository nodeRepository;
+  private final FileVersionRepository fileVersionRepository;
   private final OverwriteLeaseRepository leaseRepository;
 
   @Inject
-  public OverwriteLeases(NodeRepository nodeRepository, OverwriteLeaseRepository leaseRepository) {
+  public OverwriteLeases(
+      NodeRepository nodeRepository,
+      FileVersionRepository fileVersionRepository,
+      OverwriteLeaseRepository leaseRepository) {
     this.nodeRepository = nodeRepository;
+    this.fileVersionRepository = fileVersionRepository;
     this.leaseRepository = leaseRepository;
   }
 
@@ -62,6 +68,15 @@ public class OverwriteLeases {
                       .getNode(nodeId)
                       .map(Node::getCurrentVersion)
                       .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+              // A version below may carry a later date (written by an instance clock).
+              Optional<Long> latest = fileVersionRepository.latestDateBelow(nodeId, version + 1);
+              if (latest.isPresent() && latest.get() >= date) {
+                date =
+                    nodeRepository
+                        .reserveTimestamp(nodeId, latest.get() + 1)
+                        .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId))
+                        .reservedAt();
+              }
               String token = UUID.randomUUID().toString();
               return leaseRepository.take(nodeId, version, token, date, LEASE)
                   ? Optional.of(new Lease(nodeId, version, token, date))

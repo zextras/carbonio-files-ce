@@ -463,6 +463,30 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenVersionsDatedAheadOfTheDatabaseClockThenAnOverwriteIsStillDatedAfterThem()
+      throws Exception {
+    String nodeId = seedFile("dated-ahead.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+    try (Connection connection = jdbcConnection();
+        PreparedStatement ahead =
+            connection.prepareStatement(
+                "UPDATE revision SET timestamp = ? WHERE node_id = ? AND version = 1")) {
+      ahead.setLong(1, System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1));
+      ahead.setString(2, nodeId);
+      ahead.executeUpdate();
+    }
+    Assertions.assertThat(seedVersion(nodeId, CONTENT, "dated-ahead.txt", REQUESTER_COOKIE))
+        .isEqualTo(2);
+
+    Assertions.assertThat(
+            uploadVersion(nodeId, CONTENT, "dated-ahead.txt", true, REQUESTER_COOKIE)
+                .getStatusCode())
+        .isEqualTo(200);
+
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2);
+    Assertions.assertThat(versionTimestamp(nodeId, 2)).isGreaterThan(versionTimestamp(nodeId, 1));
+  }
+
+  @Test
   void givenAnAutosaveWhileAManualSaveStreamsThenBothSucceedAndTheManualSaveIsTheLatestVersion()
       throws Exception {
     String nodeId = seedFile("autosave-during.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
