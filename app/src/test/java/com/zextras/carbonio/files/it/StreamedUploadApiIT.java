@@ -419,6 +419,31 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenAnAutosaveFinishingBeforeTwoLaterSavesFinishingInReverseThenTheDatesFollowTheNumbers()
+      throws Exception {
+    String nodeId = seedFile("dated-autosave.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+
+    try (Socket autosave = startUploadVersion(nodeId, true, (byte) 'a')) {
+      eventually("version 1 marked", () -> overwriteMarks(nodeId).equals(List.of(1)));
+      try (Socket second = startUploadVersion(nodeId, false, (byte) 'b')) {
+        eventually("version 2 reserved", () -> pendingReservations(nodeId).equals(List.of(2)));
+        try (Socket third = startUploadVersion(nodeId, false, (byte) 'c')) {
+          eventually("version 3 reserved", () -> pendingReservations(nodeId).equals(List.of(2, 3)));
+          tickClock();
+          Assertions.assertThat(finishUpload(autosave, (byte) 'a')).startsWith("HTTP/1.1 200");
+          Assertions.assertThat(finishUpload(third, (byte) 'c')).startsWith("HTTP/1.1 200");
+          Assertions.assertThat(finishUpload(second, (byte) 'b')).startsWith("HTTP/1.1 200");
+        }
+      }
+    }
+
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2, 3);
+    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("3");
+    Assertions.assertThat(versionTimestamp(nodeId, 1)).isLessThan(versionTimestamp(nodeId, 2));
+    Assertions.assertThat(versionTimestamp(nodeId, 2)).isLessThan(versionTimestamp(nodeId, 3));
+  }
+
+  @Test
   void givenThreeOverlappingAutosavesThenTheLastRegisteredIsTheLatestVersion() throws Exception {
     String nodeId = seedFile("three-autosaves.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
 

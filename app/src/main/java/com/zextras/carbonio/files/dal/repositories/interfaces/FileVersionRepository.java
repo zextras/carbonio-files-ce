@@ -122,9 +122,6 @@ public interface FileVersionRepository {
   /** Latest date among the versions numbered below {@code version}. */
   Optional<Long> latestDateBelow(String nodeId, int version);
 
-  /** Whether a version numbered above {@code version} exists. */
-  boolean existsAbove(String nodeId, int version);
-
   /**
    * Retrieves all @link FileVersion}s belonging to a {@link Node} representing a file having a
    * number of version greater than a specific value.

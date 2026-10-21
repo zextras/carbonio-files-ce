@@ -56,6 +56,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -621,8 +622,9 @@ public class BlobService {
   /**
    * Rewrites the current version in place while no other save was registered after it; otherwise (a
    * save in flight or published above it, a concurrent overwrite, a mark that never ended) the save
-   * becomes a new version. The last registered save is the content of the latest version, two
-   * in-place writes of one blob never interleave and no overwrite is ever refused.
+   * becomes a new version. Numbers and dates follow the registration order: the last registered
+   * save is the content of the latest version, two in-place writes of one blob never interleave and
+   * no overwrite is ever refused.
    */
   private int overwriteCurrentVersion(
       String requesterId,
@@ -635,7 +637,8 @@ public class BlobService {
     String ownerId = node.getOwnerId();
     int version = node.getCurrentVersion();
 
-    if (!versionReservations.markOverwrite(nodeId, version, ownerId)) {
+    OptionalLong registered = versionReservations.markOverwrite(nodeId, version, ownerId);
+    if (registered.isEmpty()) {
       logger.info(
           "Version {} of node {} cannot be rewritten in place: saving a new version instead",
           version,
@@ -643,6 +646,7 @@ public class BlobService {
       return uploadNewVersion(
           requesterId, blobStream, blobLength, node, mediaType, maxNumberOfVersions);
     }
+    long versionDate = registered.getAsLong();
     boolean saved = false;
     try {
       UploadResponse uploadResponse =
@@ -658,11 +662,6 @@ public class BlobService {
           .run(
               () -> {
                 versionReservations.confirmOverwrite(nodeId, version);
-                long now =
-                    nodeRepository
-                        .reserveTimestamp(nodeId, System.currentTimeMillis())
-                        .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId))
-                        .reservedAt();
                 requireOwner(nodeId, ownerId);
                 FileVersion replaced =
                     fileVersionRepository
@@ -671,11 +670,6 @@ public class BlobService {
                             () ->
                                 new NoSuchElementException(
                                     "Version " + version + " of node " + nodeId + " was deleted"));
-                // A version published above it keeps the later date: this one keeps its own.
-                long versionDate =
-                    fileVersionRepository.existsAbove(nodeId, version)
-                        ? replaced.getUpdatedAt()
-                        : now;
                 boolean keptForever = replaced.isKeptForever();
                 Optional<Integer> clonedFrom = replaced.getClonedFromVersion();
                 fileVersionRepository.deleteFileVersion(replaced);
@@ -693,7 +687,7 @@ public class BlobService {
                 rewritten.keepForever(keptForever);
                 clonedFrom.ifPresent(rewritten::setClonedFromVersion);
                 nodeRepository.moveCurrentVersion(
-                    nodeId, version, now, uploadResponse.getSize(), requesterId);
+                    nodeId, version, versionDate, uploadResponse.getSize(), requesterId);
               });
 
       saved = true;

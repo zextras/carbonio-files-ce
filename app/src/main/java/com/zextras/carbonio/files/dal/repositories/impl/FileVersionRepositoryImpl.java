@@ -143,11 +143,6 @@ public class FileVersionRepositoryImpl
   }
 
   @Override
-  public boolean existsAbove(String nodeId, int version) {
-    return count("mComposedId.mNodeId = ?1 and mVersion > ?2", nodeId, version) > 0;
-  }
-
-  @Override
   @Transactional
   public boolean removeFileVersion(String nodeId, int version) {
     return delete("mComposedId.mNodeId = ?1 and mVersion = ?2", nodeId, version) == 1;

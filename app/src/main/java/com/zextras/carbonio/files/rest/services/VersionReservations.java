@@ -13,6 +13,7 @@ import jakarta.inject.Inject;
 import java.sql.SQLException;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.OptionalLong;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,26 +67,41 @@ public class VersionReservations {
   }
 
   /**
-   * Marks an overwrite of {@code version} as in progress, in its own short transaction, before its
-   * blob is written in place. Saves are ordered by registration: a version is rewritten in place
-   * only while nothing was registered after it, otherwise the save must take a new number.
+   * Registers an overwrite of {@code version}, in its own short transaction, before its blob is
+   * written in place. Saves are ordered by registration: a version is rewritten in place only while
+   * nothing was registered after it, otherwise the save must take a new number.
    *
-   * @return false when the version cannot be rewritten in place: it is no longer current, a save
-   *     was registered after it (in flight, published or failed), or it is already marked (another
-   *     overwrite in progress, or one that never ended: its mark waits for the purge)
+   * @return the date of the rewritten version, taken now from the node clock (the registration
+   *     order), or empty when the version cannot be rewritten in place: it is no longer current, a
+   *     save was registered after it (in flight, published or failed), or it is already marked
+   *     (another overwrite in progress, or one that never ended: its mark waits for the purge)
    */
-  public boolean markOverwrite(String nodeId, int version, String blobOwnerId) {
+  public OptionalLong markOverwrite(String nodeId, int version, String blobOwnerId) {
     try {
       return QuarkusTransaction.requiringNew()
           .call(
-              () ->
-                  nodeRepository.claimInPlaceOverwrite(nodeId, version)
-                      && reservationRepository.markOverwrite(
-                          nodeId, version, blobOwnerId, System.currentTimeMillis()));
+              () -> {
+                if (!nodeRepository.claimInPlaceOverwrite(nodeId, version)) {
+                  return OptionalLong.empty();
+                }
+                long notBefore =
+                    fileVersionRepository
+                        .latestDateBelow(nodeId, version + 1)
+                        .map(latest -> latest + 1)
+                        .orElse(0L);
+                long date =
+                    nodeRepository
+                        .reserveTimestamp(nodeId, Math.max(System.currentTimeMillis(), notBefore))
+                        .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId))
+                        .reservedAt();
+                return reservationRepository.markOverwrite(nodeId, version, blobOwnerId, date)
+                    ? OptionalLong.of(date)
+                    : OptionalLong.empty();
+              });
     } catch (RuntimeException e) {
       if (ExceptionUtils.getThrowableList(e).stream()
           .anyMatch(t -> t instanceof SQLException sql && "23505".equals(sql.getSQLState()))) {
-        return false;
+        return OptionalLong.empty();
       }
       throw e;
     }
@@ -120,8 +136,8 @@ public class VersionReservations {
    * Consumes the reservation inside the transaction that creates the version, which then holds the
    * node row until it ends, so confirmations of one node never interleave.
    *
-   * @return the version date: the reservation date, later than every version numbered below it (an
-   *     overwrite of a lower version may have a later date)
+   * @return the version date: the reservation date, later than every version numbered below it
+   *     (only a date written before the reservations, by another instance clock, can be later)
    * @throws IllegalStateException when the purge already claimed it: the version must not be
    *     created, its blob may be deleted at any moment
    * @throws NoSuchElementException when the node was deleted meanwhile
