@@ -883,6 +883,8 @@ public class NodeApi {
     return successIds;
   }
 
+  // TODO: synchronous, kept alive by the GraphQLExecutionRoute heartbeat (an inactivity-timeout
+  // hack): make it an asynchronous job.
   @Mutation("copyNodes")
   @Transactional(TxType.NOT_SUPPORTED)
   public @Nullable List<@NonNull NodeModel> copyNodes(
@@ -1123,6 +1125,8 @@ public class NodeApi {
     return versionsUpdated;
   }
 
+  // TODO: synchronous, kept alive by the GraphQLExecutionRoute heartbeat (an inactivity-timeout
+  // hack): make it an asynchronous job.
   @Mutation("cloneVersion")
   @Transactional(TxType.NOT_SUPPORTED)
   public @NonNull FileModel cloneVersion(

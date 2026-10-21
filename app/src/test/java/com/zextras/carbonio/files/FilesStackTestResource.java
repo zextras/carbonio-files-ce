@@ -215,7 +215,8 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
             // disappearing out from under an assertion mid-test). Disable the scheduler outright
             // via
             // the same config channel.
-            Map.entry("quarkus.scheduler.enabled", "false"));
+            Map.entry("quarkus.scheduler.enabled", "false"),
+            Map.entry("carbonio.files.graphql.heartbeat-interval", "1s"));
 
     started = true;
     return cachedConfig;

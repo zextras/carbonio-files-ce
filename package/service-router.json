@@ -91,6 +91,16 @@
       "Destination": {
         "RequestTimeout": "3600s"
       }
+    },
+    {
+      "Match": {
+        "HTTP": {
+          "PathPrefix": "/graphql"
+        }
+      },
+      "Destination": {
+        "RequestTimeout": "3600s"
+      }
     }
   ]
 }
