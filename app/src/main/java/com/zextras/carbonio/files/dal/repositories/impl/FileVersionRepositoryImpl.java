@@ -43,11 +43,7 @@ public class FileVersionRepositoryImpl
       long size,
       String digest,
       boolean autosave) {
-    if (getEntityManager().find(Node.class, nodeId) == null) {
-      return Optional.empty();
-    }
-
-    FileVersion fileVersion =
+    return persistIfNodeExists(
         new FileVersion(
             nodeId,
             lastEditorId,
@@ -56,7 +52,27 @@ public class FileVersionRepositoryImpl
             mimeType,
             size,
             digest,
-            autosave);
+            autosave));
+  }
+
+  @Override
+  @Transactional
+  public Optional<FileVersion> createFileVersionAt(
+      String nodeId,
+      String lastEditorId,
+      int version,
+      String mimeType,
+      long size,
+      String digest,
+      long timestamp) {
+    return persistIfNodeExists(
+        new FileVersion(nodeId, lastEditorId, timestamp, version, mimeType, size, digest, false));
+  }
+
+  private Optional<FileVersion> persistIfNodeExists(FileVersion fileVersion) {
+    if (getEntityManager().find(Node.class, fileVersion.getNodeId()) == null) {
+      return Optional.empty();
+    }
     persist(fileVersion);
     return Optional.of(fileVersion);
   }
@@ -111,6 +127,39 @@ public class FileVersionRepositoryImpl
         findByIdOptional(new FileVersionPK(fileVersion.getNodeId(), fileVersion.getVersion()));
     managed.ifPresent(this::delete);
     return managed.isPresent();
+  }
+
+  @Override
+  public Optional<Long> latestDateBelow(String nodeId, int version) {
+    return Optional.ofNullable(
+        getEntityManager()
+            .createQuery(
+                "select max(fv.mUpdatedAt) from FileVersion fv where fv.mComposedId.mNodeId = :id"
+                    + " and fv.mVersion < :version",
+                Long.class)
+            .setParameter("id", nodeId)
+            .setParameter("version", version)
+            .getSingleResult());
+  }
+
+  @Override
+  @Transactional
+  public boolean removeFileVersion(String nodeId, int version) {
+    return delete("mComposedId.mNodeId = ?1 and mVersion = ?2", nodeId, version) == 1;
+  }
+
+  @Override
+  @Transactional
+  public boolean removeVersionNotKeptForever(String nodeId, int version) {
+    return delete(
+            "mComposedId.mNodeId = ?1 and mVersion = ?2 and isKeptForever = false", nodeId, version)
+        == 1;
+  }
+
+  @Override
+  @Transactional
+  public boolean existsAbove(String nodeId, int version) {
+    return count("mComposedId.mNodeId = ?1 and mVersion > ?2", nodeId, version) > 0;
   }
 
   @Override

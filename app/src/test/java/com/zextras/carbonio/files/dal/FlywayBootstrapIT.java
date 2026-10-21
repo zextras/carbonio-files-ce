@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 class FlywayBootstrapIT extends AbstractFilesIT {
 
   @Test
-  void flywayShouldMigrateSchemaUpToV11() throws Exception {
+  void flywayShouldMigrateSchemaUpToV12() throws Exception {
     try (Connection connection = jdbcConnection();
         PreparedStatement statement =
             connection.prepareStatement(
@@ -34,7 +34,7 @@ class FlywayBootstrapIT extends AbstractFilesIT {
                     + " ORDER BY installed_rank DESC LIMIT 1");
         ResultSet resultSet = statement.executeQuery()) {
       assertThat(resultSet.next()).as("at least one successful migration recorded").isTrue();
-      assertThat(resultSet.getString(1)).isEqualTo("11");
+      assertThat(resultSet.getString(1)).isEqualTo("12");
     }
   }
 

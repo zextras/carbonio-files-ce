@@ -93,6 +93,21 @@ public class Node {
   @Column(name = Constants.Db.Node.HIDDEN, nullable = false)
   private Boolean mHidden;
 
+  // Written only by the version reservation JPQL updates, never by an entity flush.
+  @Column(
+      name = Constants.Db.Node.LAST_VERSION,
+      nullable = false,
+      insertable = false,
+      updatable = false)
+  private Integer mLastVersion;
+
+  @Column(
+      name = Constants.Db.Node.LAST_RESERVED_AT,
+      nullable = false,
+      insertable = false,
+      updatable = false)
+  private Long mLastReservedAt;
+
   @OneToMany(fetch = FetchType.EAGER)
   @JoinColumn(
       name = Constants.Db.Node.ID,

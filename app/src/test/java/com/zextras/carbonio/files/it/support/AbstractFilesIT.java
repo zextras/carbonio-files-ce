@@ -122,7 +122,8 @@ public abstract class AbstractFilesIT {
       // above misses them.
       statement.execute(
           "TRUNCATE user_notification_interest, notification, snapshot_node, snapshot_user,"
-              + " user_notifications_info, tombstone CASCADE");
+              + " user_notifications_info, tombstone, version_reservation, overwrite_lease"
+              + " CASCADE");
     }
     FilesStackTestResource.getStoragesService().reset();
     FilesStackTestResource.getStoragesService().clearAll();
@@ -202,6 +203,37 @@ public abstract class AbstractFilesIT {
         resultSet.next();
         return resultSet.getInt(1);
       }
+    }
+  }
+
+  /** The version numbers reserved for {@code nodeId} and not confirmed, ascending. */
+  protected static List<Integer> pendingReservations(String nodeId) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT version FROM version_reservation WHERE node_id = ? AND state = 'PENDING'"
+                    + " ORDER BY version ASC")) {
+      statement.setString(1, nodeId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<Integer> versions = new ArrayList<>();
+        while (resultSet.next()) {
+          versions.add(resultSet.getInt(1));
+        }
+        return versions;
+      }
+    }
+  }
+
+  /** Files' own connections left idle inside an open transaction (none may wait on I/O). */
+  protected static int filesConnectionsIdleInTransaction() throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT count(*) FROM pg_stat_activity WHERE application_name = 'files'"
+                    + " AND state LIKE 'idle in transaction%'");
+        ResultSet resultSet = statement.executeQuery()) {
+      resultSet.next();
+      return resultSet.getInt(1);
     }
   }
 

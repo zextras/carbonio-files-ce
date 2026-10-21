@@ -10,16 +10,19 @@ import com.zextras.carbonio.files.exceptions.FileSizeException;
 import com.zextras.carbonio.files.exceptions.FileTypeMismatchException;
 import com.zextras.carbonio.files.exceptions.MaxNumberOfFileVersionsException;
 import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
+import com.zextras.carbonio.files.exceptions.OverwriteInProgressException;
 import com.zextras.carbonio.files.exceptions.RequestEntityTooLargeException;
 import com.zextras.carbonio.files.exceptions.ZipGenerationException;
 import jakarta.ws.rs.NotAllowedException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import jakarta.ws.rs.ext.ExceptionMapper;
 import jakarta.ws.rs.ext.Provider;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.RejectedExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +43,8 @@ public class BlobExceptionMapper implements ExceptionMapper<Throwable> {
 
   private static final Logger logger = LoggerFactory.getLogger(BlobExceptionMapper.class);
 
+  private static final String TEXT_PLAIN = MediaType.TEXT_PLAIN;
+
   @Context UriInfo uriInfo;
 
   @Override
@@ -55,7 +60,7 @@ public class BlobExceptionMapper implements ExceptionMapper<Throwable> {
     // rewrite here would NOT be legacy parity for them and must not be applied.
     if (exception instanceof NotAllowedException && isLegacyMethodGatedRoute()) {
       Response.Status status = Response.Status.BAD_REQUEST;
-      return Response.status(status).entity(statusLine(status)).type("text/plain").build();
+      return Response.status(status).entity(statusLine(status)).type(TEXT_PLAIN).build();
     }
 
     // Auth (and any other) WebApplicationException already carries its intended response.
@@ -64,8 +69,9 @@ public class BlobExceptionMapper implements ExceptionMapper<Throwable> {
     }
 
     Throwable cause = exception.getCause() == null ? exception : exception.getCause();
-    if (cause instanceof WebApplicationException wae) {
-      return wae.getResponse();
+    Optional<Response> ownResponse = ownResponse(cause);
+    if (ownResponse.isPresent()) {
+      return ownResponse.get();
     }
 
     Response.Status status;
@@ -104,7 +110,7 @@ public class BlobExceptionMapper implements ExceptionMapper<Throwable> {
     }
 
     logger.error("Failed to execute the blob request. {}", payload, cause);
-    return Response.status(status).entity(payload).type("text/plain").build();
+    return Response.status(status).entity(payload).type(TEXT_PLAIN).build();
   }
 
   /**
@@ -114,6 +120,18 @@ public class BlobExceptionMapper implements ExceptionMapper<Throwable> {
    * {@code AuthenticatedDownloadApiIT} expects {@code "404 Not Found"} / {@code "413 Request Entity
    * Too Large"}), so the bare reason phrase ({@code getReasonPhrase()}) alone is not enough.
    */
+  /** Exceptions that carry or define their own response. */
+  private static Optional<Response> ownResponse(Throwable cause) {
+    if (cause instanceof WebApplicationException wae) {
+      return Optional.of(wae.getResponse());
+    }
+    if (cause instanceof OverwriteInProgressException) {
+      logger.warn("Overwrite refused: {}", cause.getMessage());
+      return Optional.of(Response.status(423).entity("423 Locked").type(TEXT_PLAIN).build());
+    }
+    return Optional.empty();
+  }
+
   private static String statusLine(Response.Status status) {
     return status.getStatusCode() + " " + status.getReasonPhrase();
   }

@@ -25,9 +25,9 @@ import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -102,10 +102,96 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   @Override
-  public Optional<Node> getNodeForUpdate(String nodeId) {
-    // The caller MUST already have an active transaction; the pessimistic lock lives until it ends.
-    return Optional.ofNullable(
-        entityManager.find(Node.class, normalizeId(nodeId), LockModeType.PESSIMISTIC_WRITE));
+  @Transactional
+  public Optional<VersionSlot> reserveNextVersion(String nodeId) {
+    String id = normalizeId(nodeId);
+    int updated =
+        entityManager
+            .createQuery(
+                "update Node n set n.mLastVersion = greatest(n.mLastVersion,"
+                    + " coalesce(n.mCurrentVersion, 0)) + 1, n.mLastReservedAt ="
+                    + " greatest(n.mLastReservedAt + 1, "
+                    + DatabaseClock.NOW_MILLIS
+                    + ") where n.mId = :id")
+            .setParameter("id", id)
+            .executeUpdate();
+    if (updated == 0) {
+      return Optional.empty();
+    }
+    Object[] slot =
+        entityManager
+            .createQuery(
+                "select n.mLastVersion, n.mLastReservedAt from Node n where n.mId = :id",
+                Object[].class)
+            .setParameter("id", id)
+            .getSingleResult();
+    return Optional.of(new VersionSlot((Integer) slot[0], (Long) slot[1]));
+  }
+
+  @Override
+  @Transactional(TxType.MANDATORY)
+  public Optional<VersionSlot> reserveTimestamp(String nodeId) {
+    return reserveTimestamp(nodeId, 0L);
+  }
+
+  @Override
+  @Transactional(TxType.MANDATORY)
+  public Optional<VersionSlot> reserveTimestamp(String nodeId, long notBefore) {
+    String id = normalizeId(nodeId);
+    int updated =
+        entityManager
+            .createQuery(
+                "update Node n set n.mLastReservedAt = greatest(n.mLastReservedAt + 1, "
+                    + DatabaseClock.NOW_MILLIS
+                    + ", :notBefore) where n.mId = :id")
+            .setParameter("notBefore", notBefore)
+            .setParameter("id", id)
+            .executeUpdate();
+    if (updated == 0) {
+      return Optional.empty();
+    }
+    Object[] slot =
+        entityManager
+            .createQuery(
+                "select n.mLastVersion, n.mLastReservedAt from Node n where n.mId = :id",
+                Object[].class)
+            .setParameter("id", id)
+            .getSingleResult();
+    return Optional.of(new VersionSlot((Integer) slot[0], (Long) slot[1]));
+  }
+
+  @Override
+  @Transactional
+  public boolean moveCurrentVersion(String nodeId, int version, long updatedAt) {
+    return entityManager
+            .createQuery(
+                "update Node n set n.mCurrentVersion = :version, n.mUpdatedAt ="
+                    + " greatest(n.mUpdatedAt, :updatedAt) where n.mId = :id and"
+                    + " (n.mCurrentVersion is null or n.mCurrentVersion <= :version)")
+            .setParameter("version", version)
+            .setParameter("updatedAt", updatedAt)
+            .setParameter("id", normalizeId(nodeId))
+            .executeUpdate()
+        == 1;
+  }
+
+  @Override
+  @Transactional
+  public boolean moveCurrentVersion(
+      String nodeId, int version, long updatedAt, long size, String editorId) {
+    return entityManager
+            .createQuery(
+                "update Node n set n.mCurrentVersion = :version, n.mUpdatedAt ="
+                    + " greatest(n.mUpdatedAt, :updatedAt), n.mSize = :size, n.mLastEditorId ="
+                    + " :editorId where n.mId = :id and (n.mCurrentVersion is null or"
+                    + " n.mCurrentVersion <= :version)")
+            .setParameter("version", version)
+            .setParameter("updatedAt", updatedAt)
+            .setParameter("size", size)
+            .setParameter("editorId", editorId)
+            .setParameter("id", normalizeId(nodeId))
+            .executeUpdate()
+        == 1;
   }
 
   @Override

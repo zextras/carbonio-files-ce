@@ -58,6 +58,16 @@ public interface FileVersionRepository {
       String digest,
       boolean autosave);
 
+  /** As {@link #createNewFileVersion} (not autosaved), dated {@code timestamp} instead of now. */
+  Optional<FileVersion> createFileVersionAt(
+      String nodeId,
+      String lastEditorId,
+      int version,
+      String mimeType,
+      long size,
+      String digest,
+      long timestamp);
+
   /**
    * Returns the {@link List} of all {@link FileVersion}s associated to a specific {@link Node}.
    *
@@ -101,6 +111,26 @@ public interface FileVersionRepository {
   boolean deleteFileVersion(FileVersion fileVersion);
 
   void deleteFileVersions(String nodeId, Collection<Integer> versions);
+
+  /**
+   * Deletes one version row in the caller's transaction.
+   *
+   * @return false when it no longer exists (deleted by a concurrent transaction)
+   */
+  boolean removeFileVersion(String nodeId, int version);
+
+  /**
+   * Deletes a version unless it is kept forever, read at the deletion (a flag set meanwhile wins).
+   *
+   * @return false when it is kept forever or does not exist anymore
+   */
+  boolean removeVersionNotKeptForever(String nodeId, int version);
+
+  /** Whether a version numbered above {@code version} exists. */
+  boolean existsAbove(String nodeId, int version);
+
+  /** Latest date among the versions numbered below {@code version}. */
+  Optional<Long> latestDateBelow(String nodeId, int version);
 
   /**
    * Retrieves all @link FileVersion}s belonging to a {@link Node} representing a file having a

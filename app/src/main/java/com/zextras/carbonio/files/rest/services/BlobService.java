@@ -23,13 +23,17 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.exceptions.AccessCodeRequiredException;
 import com.zextras.carbonio.files.exceptions.AliasNotAloneInDownload;
 import com.zextras.carbonio.files.exceptions.DependencyException;
 import com.zextras.carbonio.files.exceptions.FileSizeException;
 import com.zextras.carbonio.files.exceptions.FileTypeMismatchException;
 import com.zextras.carbonio.files.exceptions.MaxNumberOfFileVersionsException;
+import com.zextras.carbonio.files.exceptions.OverwriteInProgressException;
 import com.zextras.carbonio.files.exceptions.ZipGenerationException;
+import com.zextras.carbonio.files.rest.services.OverwriteLeases.Lease;
+import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.utilities.MimeTypeUtils;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
@@ -48,7 +52,6 @@ import jakarta.enterprise.inject.Any;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.io.InputStream;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -57,9 +60,8 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +77,8 @@ import org.slf4j.LoggerFactory;
  *       QuarkusTransaction#requiringNew()} blocks, so the request-scoped {@code EntityManager} and
  *       the {@code @Transactional} repository methods join a single JTA transaction (same atomicity
  *       as the old {@code io.ebean.Transaction}). The DB-before-blob delete/write ordering is
- *       preserved verbatim.
+ *       preserved verbatim. Since the version reservations, upload-version writes its blob outside
+ *       any transaction: see {@link VersionReservations}.
  *   <li>upload bodies are plain {@link InputStream}s streamed straight from RESTEasy Reactive (the
  *       legacy Netty {@code BufferInputStream} is gone).
  *   <li>the ZIP multi-download no longer uses a {@code PipedInputStream} + off-thread producer:
@@ -90,6 +93,7 @@ import org.slf4j.LoggerFactory;
 @ApplicationScoped
 public class BlobService {
 
+  private static final String NODE_NOT_FOUND = "Node not found: ";
   private static final Logger logger = LoggerFactory.getLogger(BlobService.class);
 
   // P4b: re-added upload counters dropped by P4a; same metric name/tags as the legacy
@@ -112,7 +116,9 @@ public class BlobService {
   // the fan-out after a service-account upload is a no-op.
   private final QuotaChecker quotaChecker;
   private final Instance<UploadCompletionListener> uploadCompletionListeners;
-  private final int uploadVersionTransactionTimeoutSeconds;
+  private final VersionReservations versionReservations;
+  private final TombstoneRepository tombstoneRepository;
+  private final OverwriteLeases overwriteLeases;
 
   @Inject
   public BlobService(
@@ -128,7 +134,9 @@ public class BlobService {
       MeterRegistry meterRegistry,
       QuotaChecker quotaChecker,
       @Any Instance<UploadCompletionListener> uploadCompletionListeners,
-      @ConfigProperty(name = "quarkus.http.read-timeout") Duration uploadWindow) {
+      VersionReservations versionReservations,
+      TombstoneRepository tombstoneRepository,
+      OverwriteLeases overwriteLeases) {
     this.nodeRepository = nodeRepository;
     this.notificationRepository = notificationRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -141,7 +149,9 @@ public class BlobService {
     this.meterRegistry = meterRegistry;
     this.quotaChecker = quotaChecker;
     this.uploadCompletionListeners = uploadCompletionListeners;
-    this.uploadVersionTransactionTimeoutSeconds = (int) uploadWindow.toSeconds();
+    this.versionReservations = versionReservations;
+    this.tombstoneRepository = tombstoneRepository;
+    this.overwriteLeases = overwriteLeases;
   }
 
   public Optional<List<Node>> checkDownloadMultiple(List<String> nodeIds, UserMyself requester) {
@@ -433,8 +443,7 @@ public class BlobService {
                     Node createdNode =
                         nodeRepository
                             .getNode(nodeId)
-                            .orElseThrow(
-                                () -> new NoSuchElementException("Node not found: " + nodeId));
+                            .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
                     fileVersionRepository.createNewFileVersion(
                         nodeId,
                         requesterId,
@@ -483,7 +492,7 @@ public class BlobService {
                     return createdNode;
                   });
 
-      meterRegistry.counter(METRIC_UPLOAD, "service", "files", "uri", "/upload").increment();
+      countUpload("/upload");
 
       // P9 CE seam: notify listeners after a successful service-account upload (no user requester
       // entity). CE registers none, so this is a no-op fan-out.
@@ -522,116 +531,336 @@ public class BlobService {
       return Optional.empty();
     }
 
-    // Start transaction with row lock to prevent concurrent uploads on the same node
-    // It spans the client body stream, so it is bounded by the upload window, not the JTA default.
-    return QuarkusTransaction.requiringNew()
-        .timeout(uploadVersionTransactionTimeoutSeconds)
-        .call(
-            () -> {
+    if (overwrite) {
+      return overwriteCurrentVersion(requester, blobStream, blobLength, nodeId, filename);
+    }
 
-              // Lock the node row
-              Node node =
-                  nodeRepository
-                      .getNodeForUpdate(nodeId)
-                      .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+    Node node =
+        nodeRepository
+            .getNode(nodeId)
+            .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
 
-              // P9 CE seam: quota check before the new version blob is stored (no-op in CE).
-              quotaChecker.ensureNotOverQuota(node.getOwnerId(), blobLength);
+    // P9 CE seam: quota check before the new version blob is stored (no-op in CE).
+    quotaChecker.ensureNotOverQuota(node.getOwnerId(), blobLength);
 
-              List<FileVersion> allFileVersion =
-                  fileVersionRepository.getFileVersions(
-                      nodeId, List.of(FileVersionSort.VERSION_DESC));
-              int maxNumberOfVersions = filesConfig.getMaxNumberOfVersions();
+    int maxNumberOfVersions = filesConfig.getMaxNumberOfVersions();
+    if (fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)).size()
+        > maxNumberOfVersions) {
+      throw new MaxNumberOfFileVersionsException(
+          String.format(
+              "Node %s has reached max number of versions (%d), cannot add more versions",
+              nodeId, maxNumberOfVersions));
+    }
 
-              if (!overwrite && allFileVersion.size() > maxNumberOfVersions) {
-                throw new MaxNumberOfFileVersionsException(
-                    String.format(
-                        "Node %s has reached max number of versions (%d), cannot add more versions",
-                        nodeId, maxNumberOfVersions));
-              }
+    MediaType mediaType =
+        mimeTypeUtils.detectMimeTypeFromFilename(filename, MediaType.OCTET_STREAM.toString());
 
-              MediaType mediaType =
-                  mimeTypeUtils.detectMimeTypeFromFilename(
-                      filename, MediaType.OCTET_STREAM.toString());
+    NodeType nodeType = NodeType.getNodeType(mediaType);
+    if (nodeType != node.getNodeType()) {
+      throw new FileTypeMismatchException(
+          String.format(
+              "Node %s with wrong type %s, should be the same as old versions: %s",
+              nodeId, nodeType, node.getNodeType()));
+    }
 
-              NodeType nodeType = NodeType.getNodeType(mediaType);
-              if (nodeType != node.getNodeType()) {
-                throw new FileTypeMismatchException(
-                    String.format(
-                        "Node %s with wrong type %s, should be the same as old versions: %s",
-                        nodeId, nodeType, node.getNodeType()));
-              }
+    int version =
+        uploadNewVersion(requesterId, blobStream, blobLength, node, mediaType, maxNumberOfVersions);
 
-              Optional<Integer> result =
-                  uploadFileVersionOperationLocked(
-                      requester, blobStream, blobLength, node, mediaType, overwrite);
+    countUpload("/upload/version");
+    return Optional.of(version);
+  }
 
-              result.ifPresent(
-                  versionUploaded -> {
-                    if (!overwrite && allFileVersion.size() >= maxNumberOfVersions) {
-                      List<FileVersion> allVersionsNotKeptForever =
-                          allFileVersion.stream()
-                              .filter(version -> !version.isKeptForever())
-                              .collect(Collectors.toList());
+  private int uploadNewVersion(
+      String requesterId,
+      InputStream blobStream,
+      long blobLength,
+      Node node,
+      MediaType mediaType,
+      int maxNumberOfVersions) {
+    String nodeId = node.getId();
+    String ownerId = node.getOwnerId();
+    Reservation reservation =
+        versionReservations
+            .reserve(nodeId, ownerId)
+            .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
+    int version = reservation.version();
 
-                      if (!allVersionsNotKeptForever.isEmpty()) {
-                        FileVersion oldestVersionToDelete =
-                            allVersionsNotKeptForever.get(allVersionsNotKeptForever.size() - 1);
+    UploadResponse uploadResponse =
+        writeVersionBlob(
+            nodeId,
+            version,
+            ownerId,
+            () ->
+                fileStore.uploadPost(
+                    FilesIdentifier.of(nodeId, version, ownerId), blobStream, blobLength));
 
-                        try {
-                          List<BulkDeleteResponseItem> failedItems =
-                              fileStore.bulkDelete(
-                                  IdentifierType.files,
-                                  node.getOwnerId(),
-                                  List.of(
-                                      BulkDeleteRequestItem.filesItem(
-                                          oldestVersionToDelete.getNodeId(),
-                                          oldestVersionToDelete.getVersion())));
-                          if (failedItems == null) {
-                            failedItems = List.of();
-                          }
-                          if (failedItems.isEmpty()) {
-                            fileVersionRepository.deleteFileVersion(oldestVersionToDelete);
-                            logger.info(
-                                "File version limit for node {} has been reached, deleting version"
-                                    + " {} to make space",
-                                oldestVersionToDelete.getNodeId(),
-                                oldestVersionToDelete.getVersion());
-                          } else {
-                            logger.warn(
-                                "PowerStore failed to delete blob for node {} version {}, keeping"
-                                    + " version in DB",
-                                oldestVersionToDelete.getNodeId(),
-                                oldestVersionToDelete.getVersion());
-                          }
-                        } catch (NullPointerException e) {
-                          // SDK bug: all deletes succeeded
-                          fileVersionRepository.deleteFileVersion(oldestVersionToDelete);
-                          logger.info(
-                              "File version limit for node {} has been reached, deleting version {}"
-                                  + " to make space",
-                              oldestVersionToDelete.getNodeId(),
-                              oldestVersionToDelete.getVersion());
-                        } catch (Exception e) {
-                          logger.warn(
-                              "PowerStore error deleting blob for node {} version {}: {}. Keeping"
-                                  + " version in DB.",
-                              oldestVersionToDelete.getNodeId(),
-                              oldestVersionToDelete.getVersion(),
-                              e.getMessage());
-                        }
-                      }
+    List<FileVersion> trimmedVersions =
+        QuarkusTransaction.requiringNew()
+            .call(
+                () -> {
+                  long versionDate = versionReservations.confirm(reservation);
+                  requireOwner(nodeId, ownerId);
+                  fileVersionRepository
+                      .createFileVersionAt(
+                          nodeId,
+                          requesterId,
+                          version,
+                          mediaType.toString(),
+                          uploadResponse.getSize(),
+                          uploadResponse.getDigest(),
+                          versionDate)
+                      .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
+                  nodeRepository.moveCurrentVersion(
+                      nodeId, version, versionDate, uploadResponse.getSize(), requesterId);
+                  return trimOldestVersion(nodeId, ownerId, version, maxNumberOfVersions);
+                });
+
+    deleteTrimmedBlobs(nodeId, ownerId, trimmedVersions);
+    logUploaded(nodeId, version, uploadResponse);
+    return version;
+  }
+
+  /**
+   * Rewrites the current version in place, never a new version: one overwrite of a node at a time
+   * ({@link OverwriteLeases}), the blob written outside any transaction and never cut, the version
+   * rewritten only once the storage answered and only if it still exists (a version deleted
+   * meanwhile is never brought back). Once a newer version exists it keeps its date, so the dates
+   * follow the numbers.
+   */
+  private Optional<Integer> overwriteCurrentVersion(
+      UserMyself requester,
+      InputStream blobStream,
+      long blobLength,
+      String nodeId,
+      String filename) {
+    String requesterId = requester.getId().getUserId();
+    Node node =
+        nodeRepository
+            .getNode(nodeId)
+            .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
+
+    // P9 CE seam: quota check before the new version blob is stored (no-op in CE).
+    quotaChecker.ensureNotOverQuota(node.getOwnerId(), blobLength);
+
+    MediaType mediaType =
+        mimeTypeUtils.detectMimeTypeFromFilename(filename, MediaType.OCTET_STREAM.toString());
+    NodeType nodeType = NodeType.getNodeType(mediaType);
+    if (nodeType != node.getNodeType()) {
+      throw new FileTypeMismatchException(
+          String.format(
+              "Node %s with wrong type %s, should be the same as old versions: %s",
+              nodeId, nodeType, node.getNodeType()));
+    }
+
+    Lease lease =
+        overwriteLeases
+            .take(nodeId)
+            .orElseThrow(
+                () ->
+                    new OverwriteInProgressException(
+                        "Another overwrite of node " + nodeId + " is in progress"));
+    int version = lease.version();
+    String ownerId = node.getOwnerId();
+    boolean ended = false;
+    try {
+      UploadResponse uploadResponse =
+          writeVersionBlob(
+              nodeId,
+              version,
+              ownerId,
+              () ->
+                  fileStore.uploadPut(
+                      FilesIdentifier.of(nodeId, version, ownerId), blobStream, blobLength));
+
+      boolean rewritten =
+          QuarkusTransaction.requiringNew()
+              .call(
+                  () -> {
+                    // The node row first, as when the lease was taken: no lock-order inversion.
+                    nodeRepository
+                        .reserveTimestamp(nodeId)
+                        .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
+                    if (!overwriteLeases.confirm(lease)) {
+                      return false;
                     }
+                    FileVersion replaced =
+                        fileVersionRepository
+                            .getFileVersion(nodeId, version)
+                            .orElseThrow(
+                                () ->
+                                    new NoSuchElementException(
+                                        "Version "
+                                            + version
+                                            + " of node "
+                                            + nodeId
+                                            + " was deleted while it was overwritten"));
+                    long versionDate =
+                        fileVersionRepository.existsAbove(nodeId, version)
+                            ? replaced.getUpdatedAt()
+                            : lease.date();
+                    fileVersionRepository.deleteFileVersion(replaced);
+                    fileVersionRepository
+                        .createFileVersionAt(
+                            nodeId,
+                            requesterId,
+                            version,
+                            mediaType.toString(),
+                            uploadResponse.getSize(),
+                            uploadResponse.getDigest(),
+                            versionDate)
+                        .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
+                    nodeRepository.moveCurrentVersion(
+                        nodeId, version, versionDate, uploadResponse.getSize(), requesterId);
+                    return true;
                   });
+      ended = true;
+      if (rewritten) {
+        logUploaded(nodeId, version, uploadResponse);
+      } else {
+        logger.warn(
+            "Overwrite of version {} of node {} outlived its lease: the database is left as it is",
+            version,
+            nodeId);
+      }
+      countUpload("/upload/version");
+      return Optional.of(version);
+    } finally {
+      if (!ended) {
+        overwriteLeases.release(lease);
+      }
+    }
+  }
 
-              result.ifPresent(
-                  version ->
-                      meterRegistry
-                          .counter(METRIC_UPLOAD, "service", "files", "uri", "/upload/version")
-                          .increment());
+  private void countUpload(String uri) {
+    meterRegistry.counter(METRIC_UPLOAD, "service", "files", "uri", uri).increment();
+  }
 
-              return result;
+  /** A transfer of ownership meanwhile moved the node: its blobs now live under another account. */
+  private void requireOwner(String nodeId, String ownerId) {
+    if (nodeRepository.getNode(nodeId).filter(n -> ownerId.equals(n.getOwnerId())).isEmpty()) {
+      throw new IllegalStateException("Owner of node " + nodeId + " changed during the save");
+    }
+  }
+
+  private UploadResponse writeVersionBlob(
+      String nodeId, int version, String ownerId, Callable<UploadResponse> write) {
+    UploadResponse uploadResponse;
+    try {
+      uploadResponse = write.call();
+    } catch (Exception exception) {
+      throw new DependencyException(
+          String.format(
+              "Storages failed: unable to upload node with id %s and version %d", nodeId, version),
+          exception);
+    }
+
+    if (!verifyBlobExists(nodeId, version, ownerId)) {
+      throw new DependencyException(
+          String.format(
+              "Upload verification failed: blob not accessible for node %s version %d",
+              nodeId, version));
+    }
+    return uploadResponse;
+  }
+
+  /**
+   * Same rule as before the reservations: past the limit, the oldest version not kept forever goes,
+   * never the new version nor the highest (current) one. Runs in the confirming transaction; the
+   * blob is deleted after the commit and the tombstone keeps it for the purge if that fails.
+   */
+  private List<FileVersion> trimOldestVersion(
+      String nodeId, String ownerId, int newVersion, int maxNumberOfVersions) {
+    List<FileVersion> versions =
+        fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC));
+    if (versions.size() <= maxNumberOfVersions) {
+      return List.of();
+    }
+    int highestVersion = versions.get(0).getVersion();
+    List<FileVersion> candidates =
+        versions.reversed().stream()
+            .filter(fileVersion -> !fileVersion.isKeptForever())
+            .filter(fileVersion -> fileVersion.getVersion() != newVersion)
+            .filter(fileVersion -> fileVersion.getVersion() != highestVersion)
+            .toList();
+    for (FileVersion candidate : candidates) {
+      if (fileVersionRepository.removeVersionNotKeptForever(nodeId, candidate.getVersion())) {
+        tombstoneRepository.createTombstonesBulk(List.of(candidate), ownerId);
+        return List.of(candidate);
+      }
+      // Deleted by a concurrent transaction: trim the next one only if still over the limit.
+      if (fileVersionRepository
+              .getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC))
+              .size()
+          <= maxNumberOfVersions) {
+        return List.of();
+      }
+    }
+    return List.of();
+  }
+
+  /** Runs after the commit: never fails the save, a tombstone left behind waits for the purge. */
+  private void deleteTrimmedBlobs(String nodeId, String ownerId, List<FileVersion> trimmed) {
+    if (trimmed.isEmpty()) {
+      return;
+    }
+    try {
+      bulkDeleteTrimmedBlobs(nodeId, ownerId, trimmed);
+    } catch (RuntimeException e) {
+      logger.warn(
+          "Cleanup of the trimmed versions of node {} failed: {}. Tombstones remain.",
+          nodeId,
+          e.getMessage());
+    }
+  }
+
+  private void bulkDeleteTrimmedBlobs(String nodeId, String ownerId, List<FileVersion> trimmed) {
+    List<BulkDeleteResponseItem> failedItems;
+    try {
+      failedItems =
+          fileStore.bulkDelete(
+              IdentifierType.files,
+              ownerId,
+              trimmed.stream()
+                  .map(fv -> BulkDeleteRequestItem.filesItem(fv.getNodeId(), fv.getVersion()))
+                  .toList());
+    } catch (Exception e) {
+      logger.warn(
+          "Bulk delete of the trimmed versions of node {} failed: {}. Tombstones remain.",
+          nodeId,
+          e.getMessage());
+      return;
+    }
+    if (failedItems == null) {
+      logger.warn(
+          "Bulk delete of the trimmed versions of node {} returned null. Tombstones remain.",
+          nodeId);
+      return;
+    }
+    trimmed.stream()
+        .filter(
+            fv ->
+                failedItems.stream()
+                    .noneMatch(
+                        item ->
+                            fv.getNodeId().equals(item.getNode())
+                                && item.getVersion().map(v -> v == fv.getVersion()).orElse(true)))
+        .forEach(
+            fv -> {
+              tombstoneRepository.deleteTombstonesByNodeAndVersion(fv.getNodeId(), fv.getVersion());
+              logger.info(
+                  "File version limit for node {} has been reached, deleted version {}",
+                  fv.getNodeId(),
+                  fv.getVersion());
             });
+  }
+
+  private static void logUploaded(String nodeId, int version, UploadResponse uploadResponse) {
+    logger.info(
+        "Uploaded file to storages successfully: nodeId {}, version {}, size: {}, digest: {}",
+        nodeId,
+        version,
+        uploadResponse.getSize(),
+        uploadResponse.getDigest());
   }
 
   private Optional<BlobResponse> downloadFile(String nodeId, @Nullable Integer version) {
@@ -676,79 +905,6 @@ public class BlobService {
               logger.error("Unable to download node {}: the node id does not exist", nodeId);
               return Optional.empty();
             });
-  }
-
-  /**
-   * Internal method that performs the actual upload operation. MUST be called within a transaction
-   * that holds a FOR UPDATE lock on the node. This ensures concurrent uploads to the same node are
-   * serialized.
-   */
-  private Optional<Integer> uploadFileVersionOperationLocked(
-      UserMyself requester,
-      InputStream blobStream,
-      long blobLength,
-      Node node,
-      MediaType mediaType,
-      boolean overwrite) {
-    String nodeId = node.getId();
-    int versionToUpload = node.getCurrentVersion();
-
-    UploadResponse uploadResponse;
-    try {
-      if (overwrite) {
-        uploadResponse =
-            fileStore.uploadPut(
-                FilesIdentifier.of(nodeId, versionToUpload, node.getOwnerId()),
-                blobStream,
-                blobLength);
-        fileVersionRepository.deleteFileVersions(
-            nodeId, Collections.singletonList(versionToUpload));
-      } else {
-        versionToUpload += 1;
-        uploadResponse =
-            fileStore.uploadPost(
-                FilesIdentifier.of(nodeId, versionToUpload, node.getOwnerId()),
-                blobStream,
-                blobLength);
-      }
-    } catch (Exception exception) {
-      throw new DependencyException(
-          String.format(
-              "Storages failed: unable to upload node with id %s and version %d",
-              nodeId, versionToUpload),
-          exception);
-    }
-
-    if (!verifyBlobExists(nodeId, versionToUpload, node.getOwnerId())) {
-      throw new DependencyException(
-          String.format(
-              "Upload verification failed: blob not accessible for node %s version %d",
-              nodeId, versionToUpload));
-    }
-
-    Optional<FileVersion> result =
-        fileVersionRepository.createNewFileVersion(
-            nodeId,
-            requester.getId().getUserId(),
-            versionToUpload,
-            mediaType.toString(),
-            uploadResponse.getSize(),
-            uploadResponse.getDigest(),
-            false);
-
-    node.setSize(uploadResponse.getSize());
-    node.setLastEditorId(requester.getId().getUserId());
-    node.setCurrentVersion(versionToUpload);
-    nodeRepository.updateNode(node);
-
-    logger.info(
-        "Uploaded file to storages successfully: nodeId {}, version {}, size: {}, digest: {}",
-        nodeId,
-        versionToUpload,
-        uploadResponse.getSize(),
-        uploadResponse.getDigest());
-
-    return result.map(FileVersion::getVersion);
   }
 
   /**

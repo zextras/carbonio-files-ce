@@ -9,6 +9,12 @@ import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
@@ -133,5 +139,61 @@ class UploadFileVersionCountCapIT extends AbstractFilesIT {
     Map<String, Object> json = OBJECT_MAPPER.readValue(response.getBody().asString(), Map.class);
     Assertions.assertThat(json).containsEntry("version", 3);
     Assertions.assertThat(versionRows(nodeId)).containsExactly(2, 3);
+  }
+
+  @Test
+  void givenAnEvictedVersionItsBlobIsDeletedAfterTheCommitAndNoTombstoneIsLeft() throws Exception {
+    String nodeId =
+        seedFile("fake.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedVersion(nodeId, "v2".getBytes(StandardCharsets.UTF_8), "fake.txt", REQUESTER_COOKIE);
+
+    Response response =
+        uploadVersion(
+            nodeId,
+            "v3 content".getBytes(StandardCharsets.UTF_8),
+            "fake.txt",
+            false,
+            REQUESTER_COOKIE);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(2, 3);
+    Assertions.assertThat(FilesStackTestResource.getStoragesService().has(nodeId, 1)).isFalse();
+    Assertions.assertThat(tombstonedVersions(nodeId)).isEmpty();
+  }
+
+  @Test
+  void givenTheEvictedBlobCannotBeDeletedThenItsTombstoneStaysForThePurge() throws Exception {
+    String nodeId =
+        seedFile("fake.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+    seedVersion(nodeId, "v2".getBytes(StandardCharsets.UTF_8), "fake.txt", REQUESTER_COOKIE);
+    FilesStackTestResource.getStoragesService().failBulkDeleteFor(nodeId);
+
+    Response response =
+        uploadVersion(
+            nodeId,
+            "v3 content".getBytes(StandardCharsets.UTF_8),
+            "fake.txt",
+            false,
+            REQUESTER_COOKIE);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(2, 3);
+    Assertions.assertThat(tombstonedVersions(nodeId)).containsExactly(1);
+  }
+
+  private static List<Integer> tombstonedVersions(String nodeId) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT version FROM tombstone WHERE node_id = ? ORDER BY version")) {
+      statement.setString(1, nodeId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<Integer> versions = new ArrayList<>();
+        while (resultSet.next()) {
+          versions.add(resultSet.getInt(1));
+        }
+        return versions;
+      }
+    }
   }
 }

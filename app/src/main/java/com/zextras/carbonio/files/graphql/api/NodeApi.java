@@ -43,6 +43,8 @@ import com.zextras.carbonio.files.graphql.spi.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.support.NodeCreationHelper;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import com.zextras.carbonio.files.rest.services.VersionReservations;
+import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
@@ -64,6 +66,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -111,6 +114,7 @@ public class NodeApi {
   @Inject Filestore fileStore;
   @Inject ShareCascadeHelper shareCascade;
   @Inject NodeCreationHelper nodeCreationHelper;
+  @Inject VersionReservations versionReservations;
 
   // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -1129,8 +1133,7 @@ public class NodeApi {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
-    Node node =
-        nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
+    nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
 
     int maxNumberOfVersions = getMaxNumberOfVersions();
     if (fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)).size()
@@ -1145,7 +1148,11 @@ public class NodeApi {
             .getFileVersion(nodeId, version)
             .orElseThrow(() -> FilesGraphQLErrors.fileVersionNotFound(nodeId, version));
 
-    Integer newVersion = node.getCurrentVersion() + 1;
+    Reservation reservation =
+        versionReservations
+            .reserve(nodeId, me)
+            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
+    int newVersion = reservation.version();
 
     var copyAttempt =
         Try.of(
@@ -1169,18 +1176,19 @@ public class NodeApi {
     QuarkusTransaction.requiringNew()
         .run(
             () -> {
-              Node currentNode = nodeRepository.getNode(nodeId).get();
-              fileVersionRepository.createNewFileVersion(
-                  nodeId,
-                  me,
-                  newVersion,
-                  fileVersion.getMimeType(),
-                  copiedBlobResponse.getSize(),
-                  copiedBlobResponse.getDigest(),
-                  false);
+              long versionDate = versionReservations.confirm(reservation);
+              fileVersionRepository
+                  .createFileVersionAt(
+                      nodeId,
+                      me,
+                      newVersion,
+                      fileVersion.getMimeType(),
+                      copiedBlobResponse.getSize(),
+                      copiedBlobResponse.getDigest(),
+                      versionDate)
+                  .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
 
-              currentNode.setCurrentVersion(newVersion);
-              nodeRepository.updateNode(currentNode);
+              nodeRepository.moveCurrentVersion(nodeId, newVersion, versionDate);
 
               FileVersion newFv = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
               newFv.setClonedFromVersion(version);
