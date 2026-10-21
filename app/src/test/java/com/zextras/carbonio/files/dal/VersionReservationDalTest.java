@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.VersionReservation;
+import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository.VersionSlot;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
@@ -37,6 +38,7 @@ class VersionReservationDalTest {
 
   @Inject NodeRepository nodeRepository;
   @Inject VersionReservationRepository reservationRepository;
+  @Inject FileVersionRepository fileVersionRepository;
   @Inject EntityManager entityManager;
 
   private final List<String> nodes = new ArrayList<>();
@@ -49,6 +51,10 @@ class VersionReservationDalTest {
               entityManager
                   .createQuery(
                       "delete from VersionReservation r where r.mComposedId.mNodeId in :ids")
+                  .setParameter("ids", nodes)
+                  .executeUpdate();
+              entityManager
+                  .createQuery("delete from FileVersion v where v.mComposedId.mNodeId in :ids")
                   .setParameter("ids", nodes)
                   .executeUpdate();
               entityManager
@@ -260,5 +266,24 @@ class VersionReservationDalTest {
     assertThat(nodeRepository.moveCurrentVersion(nodeId, 3, 5000L, 7L, "editor")).isTrue();
     assertThat(nodeRepository.moveCurrentVersion(nodeId, 5, 6000L)).isTrue();
     assertThat(counters(nodeId)[0]).isEqualTo(5);
+  }
+
+  @Test
+  void aVersionKeptForeverIsNeverRemovedByTheTrimming() {
+    String nodeId = fileWithCurrentVersion(2);
+    QuarkusTransaction.requiringNew()
+        .run(
+            () -> {
+              fileVersionRepository.createNewFileVersion(
+                  nodeId, "owner", 1, "text/plain", 1L, "d", false);
+              fileVersionRepository
+                  .createNewFileVersion(nodeId, "owner", 2, "text/plain", 1L, "d", false)
+                  .orElseThrow()
+                  .keepForever(true);
+            });
+
+    assertThat(fileVersionRepository.removeVersionNotKeptForever(nodeId, 2)).isFalse();
+    assertThat(fileVersionRepository.removeVersionNotKeptForever(nodeId, 1)).isTrue();
+    assertThat(fileVersionRepository.getFileVersion(nodeId, 2)).isPresent();
   }
 }

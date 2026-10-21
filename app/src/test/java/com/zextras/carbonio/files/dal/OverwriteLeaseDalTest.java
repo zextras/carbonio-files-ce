@@ -82,6 +82,18 @@ class OverwriteLeaseDalTest {
     return id;
   }
 
+  private void expireAt(String nodeId, long expiresAt) {
+    QuarkusTransaction.requiringNew()
+        .run(
+            () ->
+                entityManager
+                    .createQuery(
+                        "update OverwriteLease l set l.mExpiresAt = :at where l.mNodeId = :id")
+                    .setParameter("at", expiresAt)
+                    .setParameter("id", nodeId)
+                    .executeUpdate());
+  }
+
   private void expire(String nodeId) {
     QuarkusTransaction.requiringNew()
         .run(
@@ -141,14 +153,18 @@ class OverwriteLeaseDalTest {
   @Test
   void onlyTheLeasesExpiredForLongerThanAGivenTimeAreRemoved() {
     String expiredLongAgo = fileWithCurrentVersion(1);
+    String expiredRecently = fileWithCurrentVersion(1);
     String held = fileWithCurrentVersion(1);
     overwriteLeases.take(expiredLongAgo).orElseThrow();
+    overwriteLeases.take(expiredRecently).orElseThrow();
     overwriteLeases.take(held).orElseThrow();
     expire(expiredLongAgo);
+    expireAt(expiredRecently, System.currentTimeMillis() - Duration.ofMinutes(10).toMillis());
 
     leaseRepository.removeExpired(Duration.ofHours(1));
 
     assertThat(leaseRepository.find(expiredLongAgo)).isEmpty();
+    assertThat(leaseRepository.find(expiredRecently)).isPresent();
     assertThat(leaseRepository.find(held)).isPresent();
   }
 

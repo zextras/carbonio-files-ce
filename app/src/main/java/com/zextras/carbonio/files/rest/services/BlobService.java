@@ -623,7 +623,9 @@ public class BlobService {
   /**
    * Rewrites the current version in place, never a new version: one overwrite of a node at a time
    * ({@link OverwriteLeases}), the blob written outside any transaction and never cut, the version
-   * rewritten only once the storage answered.
+   * rewritten only once the storage answered and only if it still exists (a version deleted
+   * meanwhile is never brought back). Once a newer version exists it keeps its date, so the dates
+   * follow the numbers.
    */
   private Optional<Integer> overwriteCurrentVersion(
       UserMyself requester,
@@ -674,11 +676,29 @@ public class BlobService {
           QuarkusTransaction.requiringNew()
               .call(
                   () -> {
+                    // The node row first, as when the lease was taken: no lock-order inversion.
+                    nodeRepository
+                        .reserveTimestamp(nodeId)
+                        .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
                     if (!overwriteLeases.confirm(lease)) {
                       return false;
                     }
-                    fileVersionRepository.deleteFileVersions(
-                        nodeId, Collections.singletonList(version));
+                    FileVersion replaced =
+                        fileVersionRepository
+                            .getFileVersion(nodeId, version)
+                            .orElseThrow(
+                                () ->
+                                    new NoSuchElementException(
+                                        "Version "
+                                            + version
+                                            + " of node "
+                                            + nodeId
+                                            + " was deleted while it was overwritten"));
+                    long versionDate =
+                        fileVersionRepository.existsAbove(nodeId, version)
+                            ? replaced.getUpdatedAt()
+                            : lease.date();
+                    fileVersionRepository.deleteFileVersion(replaced);
                     fileVersionRepository
                         .createFileVersionAt(
                             nodeId,
@@ -687,10 +707,10 @@ public class BlobService {
                             mediaType.toString(),
                             uploadResponse.getSize(),
                             uploadResponse.getDigest(),
-                            lease.date())
+                            versionDate)
                         .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
                     nodeRepository.moveCurrentVersion(
-                        nodeId, version, lease.date(), uploadResponse.getSize(), requesterId);
+                        nodeId, version, versionDate, uploadResponse.getSize(), requesterId);
                     return true;
                   });
       ended = true;
@@ -698,7 +718,7 @@ public class BlobService {
         logUploaded(nodeId, version, uploadResponse);
       } else {
         logger.warn(
-            "Overwrite of version {} of node {} outlived its lease: a newer overwrite owns it",
+            "Overwrite of version {} of node {} outlived its lease: the database is left as it is",
             version,
             nodeId);
       }
@@ -761,7 +781,7 @@ public class BlobService {
             .filter(fileVersion -> fileVersion.getVersion() != highestVersion)
             .toList();
     for (FileVersion candidate : candidates) {
-      if (fileVersionRepository.removeFileVersion(nodeId, candidate.getVersion())) {
+      if (fileVersionRepository.removeVersionNotKeptForever(nodeId, candidate.getVersion())) {
         tombstoneRepository.createTombstonesBulk(List.of(candidate), ownerId);
         return List.of(candidate);
       }

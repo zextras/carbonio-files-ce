@@ -119,6 +119,16 @@ public interface FileVersionRepository {
    */
   boolean removeFileVersion(String nodeId, int version);
 
+  /**
+   * Deletes a version unless it is kept forever, read at the deletion (a flag set meanwhile wins).
+   *
+   * @return false when it is kept forever or does not exist anymore
+   */
+  boolean removeVersionNotKeptForever(String nodeId, int version);
+
+  /** Whether a version numbered above {@code version} exists. */
+  boolean existsAbove(String nodeId, int version);
+
   /** Latest date among the versions numbered below {@code version}. */
   Optional<Long> latestDateBelow(String nodeId, int version);
 

@@ -63,8 +63,9 @@ public class VersionReservations {
    * Consumes the reservation inside the transaction that creates the version, which then holds the
    * node row until it ends, so confirmations of one node never interleave.
    *
-   * @return the version date: the reservation date, later than every version numbered below it
-   *     (only a date written before the reservations, by another instance clock, can be later)
+   * @return the version date: the reservation date, later than every version numbered below it (an
+   *     overwrite registered after this reservation, or a date written by an instance clock, can be
+   *     later)
    * @throws IllegalStateException when the purge already claimed it: the version must not be
    *     created, its blob may be deleted at any moment
    * @throws NoSuchElementException when the node was deleted meanwhile

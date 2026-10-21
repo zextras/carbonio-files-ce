@@ -11,7 +11,7 @@
 -- current_version. A node blocked by a blob left at current_version + 1 by a failed save of an older release (no row
 -- references it) fails one more save, because the storage refuses the existing key, and then moves on.
 -- last_reserved_at is a per-node clock that only grows, used to date the versions in reservation order; it starts at
--- 0 and follows the instance clock from the first reservation.
+-- 0 and follows the database clock from the first reservation.
 ALTER TABLE node ADD COLUMN last_version INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE node ADD COLUMN last_reserved_at BIGINT NOT NULL DEFAULT 0;
 

@@ -150,6 +150,20 @@ public class FileVersionRepositoryImpl
 
   @Override
   @Transactional
+  public boolean removeVersionNotKeptForever(String nodeId, int version) {
+    return delete(
+            "mComposedId.mNodeId = ?1 and mVersion = ?2 and isKeptForever = false", nodeId, version)
+        == 1;
+  }
+
+  @Override
+  @Transactional
+  public boolean existsAbove(String nodeId, int version) {
+    return count("mComposedId.mNodeId = ?1 and mVersion > ?2", nodeId, version) > 0;
+  }
+
+  @Override
+  @Transactional
   public void deleteFileVersions(String nodeId, Collection<Integer> versions) {
     // Fetch-then-remove (rather than a bulk "delete ... where ... in" JPQL statement) so entities
     // already managed in the current persistence context are correctly evicted; JPA bulk

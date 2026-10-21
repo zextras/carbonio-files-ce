@@ -328,8 +328,11 @@ public class PurgeService {
       delayed = "${carbonio.files.reservation-purge.delay:1m}",
       concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
   void scheduledReservationPurge() {
-    purgeExpiredReservations();
-    purgeExpiredOverwriteLeases();
+    try {
+      purgeExpiredReservations();
+    } finally {
+      purgeExpiredOverwriteLeases();
+    }
   }
 
   /**
