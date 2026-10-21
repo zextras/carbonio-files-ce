@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
@@ -240,6 +241,152 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenAnOverwriteStreamingThenNoTransactionIsHeldAndARenameDoesNotWait() throws Exception {
+    String nodeId = seedFile("overwritten.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+
+    String statusLine;
+    try (Socket socket = startUploadVersion(nodeId, true, (byte) 'o')) {
+      eventually("lease taken", () -> leasedVersion(nodeId).equals(List.of(1)));
+      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
+      while (System.nanoTime() < deadline) {
+        Assertions.assertThat(filesConnectionsIdleInTransaction()).isZero();
+      }
+      Response rename =
+          CompletableFuture.supplyAsync(
+                  () ->
+                      graphql(
+                          GraphqlCommandBuilder.aMutationBuilder("updateNode")
+                              .withString("node_id", nodeId)
+                              .withString("name", "renamed")
+                              .withWantedResultFormat("{ id }")
+                              .build(),
+                          REQUESTER_COOKIE))
+              .get(10, TimeUnit.SECONDS);
+      Assertions.assertThat(TestUtils.jsonResponseToErrors(rename.getBody().asString())).isEmpty();
+      statusLine = finishUpload(socket, (byte) 'o');
+    }
+
+    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
+    Assertions.assertThat(nodeColumn(nodeId, "size")).isEqualTo(String.valueOf(2 * CHUNK));
+    Assertions.assertThat(nodeColumn(nodeId, "name")).isEqualTo("renamed.txt");
+    Assertions.assertThat(versionContent(nodeId, 1)).containsOnly('o');
+    Assertions.assertThat(leasedVersion(nodeId)).isEmpty();
+  }
+
+  @Test
+  void givenAnOverwriteStreamingThenASecondOverwriteIsRefusedAndTheNextOneAfterItWorks()
+      throws Exception {
+    String nodeId = seedFile("overwritten-twice.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+
+    String statusLine;
+    try (Socket socket = startUploadVersion(nodeId, true, (byte) 'a')) {
+      eventually("lease taken", () -> leasedVersion(nodeId).equals(List.of(1)));
+      Response refused =
+          uploadVersion(nodeId, CONTENT, "overwritten-twice.txt", true, REQUESTER_COOKIE);
+      Assertions.assertThat(refused.getStatusCode()).isEqualTo(423);
+      statusLine = finishUpload(socket, (byte) 'a');
+    }
+
+    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
+    Assertions.assertThat(versionContent(nodeId, 1)).containsOnly('a');
+    Assertions.assertThat(
+            uploadVersion(nodeId, CONTENT, "overwritten-twice.txt", true, REQUESTER_COOKIE)
+                .getStatusCode())
+        .isEqualTo(200);
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
+    Assertions.assertThat(versionContent(nodeId, 1)).isEqualTo(CONTENT);
+  }
+
+  @Test
+  void givenTheLeaseExpiredWhileAnOverwriteStreamsThenANewOneProceedsAndTheLateOneLeavesItsRow()
+      throws Exception {
+    String nodeId = seedFile("expired-lease.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+    byte[] newer = "the newer overwrite".getBytes(StandardCharsets.UTF_8);
+
+    String statusLine;
+    try (Socket late = startUploadVersion(nodeId, true, (byte) 'l')) {
+      eventually("lease taken", () -> leasedVersion(nodeId).equals(List.of(1)));
+      expireLeases(nodeId);
+      Assertions.assertThat(
+              uploadVersion(nodeId, newer, "expired-lease.txt", true, REQUESTER_COOKIE)
+                  .getStatusCode())
+          .isEqualTo(200);
+      statusLine = finishUpload(late, (byte) 'l');
+    }
+
+    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
+    Assertions.assertThat(nodeColumn(nodeId, "size")).isEqualTo(String.valueOf(newer.length));
+    Assertions.assertThat(leasedVersion(nodeId)).isEmpty();
+  }
+
+  @Test
+  void givenAFailedOverwriteThenItsLeaseIsReleasedAndTheNextOneIsNotRefused() throws Exception {
+    String nodeId = seedFile("failed-overwrite.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+
+    FilesStackTestResource.getStoragesService().setUploadFails(true);
+    Response failed =
+        uploadVersion(nodeId, CONTENT, "failed-overwrite.txt", true, REQUESTER_COOKIE);
+    FilesStackTestResource.getStoragesService().setUploadFails(false);
+
+    Assertions.assertThat(failed.getStatusCode()).isGreaterThanOrEqualTo(500);
+    Assertions.assertThat(leasedVersion(nodeId)).isEmpty();
+    Assertions.assertThat(
+            uploadVersion(nodeId, CONTENT, "failed-overwrite.txt", true, REQUESTER_COOKIE)
+                .getStatusCode())
+        .isEqualTo(200);
+  }
+
+  @Test
+  void givenALeaseLeftByACrashThenOverwritesAreRefusedUntilItExpires() throws Exception {
+    String nodeId = seedFile("crashed-lease.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+    try (Connection connection = jdbcConnection();
+        PreparedStatement lease =
+            connection.prepareStatement(
+                "INSERT INTO overwrite_lease (node_id, version, token, registered_at, expires_at)"
+                    + " VALUES (?, 1, ?, 1, ?)")) {
+      lease.setString(1, nodeId);
+      lease.setString(2, UUID.randomUUID().toString());
+      lease.setLong(3, System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(10));
+      lease.executeUpdate();
+    }
+
+    Response refused = uploadVersion(nodeId, CONTENT, "crashed-lease.txt", true, REQUESTER_COOKIE);
+    expireLeases(nodeId);
+    Response accepted = uploadVersion(nodeId, CONTENT, "crashed-lease.txt", true, REQUESTER_COOKIE);
+
+    Assertions.assertThat(refused.getStatusCode()).isEqualTo(423);
+    Assertions.assertThat(accepted.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(leasedVersion(nodeId)).isEmpty();
+  }
+
+  @Test
+  void givenAManualSaveDuringAnOverwriteThenItDoesNotWaitAndBecomesTheLatestVersion()
+      throws Exception {
+    String nodeId = seedFile("manual-during.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+
+    String statusLine;
+    try (Socket overwrite = startUploadVersion(nodeId, true, (byte) 'o')) {
+      eventually("lease taken", () -> leasedVersion(nodeId).equals(List.of(1)));
+      Response manual =
+          CompletableFuture.supplyAsync(
+                  () ->
+                      uploadVersion(nodeId, CONTENT, "manual-during.txt", false, REQUESTER_COOKIE))
+              .get(10, TimeUnit.SECONDS);
+      Assertions.assertThat(manual.getStatusCode()).isEqualTo(200);
+      Assertions.assertThat(manual.jsonPath().getInt("version")).isEqualTo(2);
+      statusLine = finishUpload(overwrite, (byte) 'o');
+    }
+
+    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2);
+    Assertions.assertThat(nodeColumn(nodeId, "current_version")).isEqualTo("2");
+    Assertions.assertThat(versionContent(nodeId, 1)).containsOnly('o');
+    Assertions.assertThat(versionContent(nodeId, 2)).isEqualTo(CONTENT);
+  }
+
+  @Test
   void givenAnAutosaveWhileAManualSaveStreamsThenBothSucceedAndTheManualSaveIsTheLatestVersion()
       throws Exception {
     String nodeId = seedFile("autosave-during.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
@@ -427,6 +574,31 @@ class StreamedUploadApiIT extends AbstractFilesIT {
     return new BufferedReader(
             new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
         .readLine();
+  }
+
+  private static List<Integer> leasedVersion(String nodeId) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("SELECT version FROM overwrite_lease WHERE node_id = ?")) {
+      statement.setString(1, nodeId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<Integer> versions = new ArrayList<>();
+        while (resultSet.next()) {
+          versions.add(resultSet.getInt(1));
+        }
+        return versions;
+      }
+    }
+  }
+
+  private static void expireLeases(String nodeId) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement expire =
+            connection.prepareStatement(
+                "UPDATE overwrite_lease SET expires_at = 0 WHERE node_id = ?")) {
+      expire.setString(1, nodeId);
+      expire.executeUpdate();
+    }
   }
 
   private static String nodeColumn(String nodeId, String column) throws SQLException {

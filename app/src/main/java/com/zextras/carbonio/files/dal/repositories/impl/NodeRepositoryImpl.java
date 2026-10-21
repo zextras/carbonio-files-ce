@@ -25,7 +25,6 @@ import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
@@ -100,13 +99,6 @@ public class NodeRepositoryImpl implements NodeRepository {
   @Override
   public Optional<Node> getNode(String nodeId) {
     return Optional.ofNullable(entityManager.find(Node.class, normalizeId(nodeId)));
-  }
-
-  @Override
-  public Optional<Node> getNodeForUpdate(String nodeId) {
-    // The caller MUST already have an active transaction; the pessimistic lock lives until it ends.
-    return Optional.ofNullable(
-        entityManager.find(Node.class, normalizeId(nodeId), LockModeType.PESSIMISTIC_WRITE));
   }
 
   @Override

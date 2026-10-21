@@ -12,6 +12,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.VersionReservation;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.OverwriteLeaseRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
 import com.zextras.filestore.api.Filestore;
@@ -67,6 +68,7 @@ public class PurgeService {
   @Inject FileVersionRepository fileVersionRepository;
   @Inject TombstoneRepository tombstoneRepository;
   @Inject VersionReservationRepository versionReservationRepository;
+  @Inject OverwriteLeaseRepository overwriteLeaseRepository;
   @Inject Filestore fileStore;
 
   @ConfigProperty(name = "carbonio.files.reservation-purge.expiry", defaultValue = "24h")
@@ -327,6 +329,14 @@ public class PurgeService {
       concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
   void scheduledReservationPurge() {
     purgeExpiredReservations();
+    purgeExpiredOverwriteLeases();
+  }
+
+  /**
+   * Removes the rows of the overwrite leases expired for over an hour; the blobs are live versions.
+   */
+  void purgeExpiredOverwriteLeases() {
+    overwriteLeaseRepository.removeExpired(Duration.ofHours(1));
   }
 
   /**

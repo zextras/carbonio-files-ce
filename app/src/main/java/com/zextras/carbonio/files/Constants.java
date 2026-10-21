@@ -169,6 +169,7 @@ public final class Constants {
       public static final String COLLABORATION_LINK = "COLLABORATION_LINK";
       public static final String TOMBSTONE = "TOMBSTONE";
       public static final String VERSION_RESERVATION = "VERSION_RESERVATION";
+      public static final String OVERWRITE_LEASE = "OVERWRITE_LEASE";
       public static final String NOTIFICATION = "NOTIFICATION";
       public static final String NEW_SHARE_NOTIFICATION = "NEW_SHARE_NOTIFICATION";
       public static final String ADDED_NODE_NOTIFICATION = "ADDED_NODE_NOTIFICATION";
@@ -383,6 +384,18 @@ public final class Constants {
       public static final String RESERVED_AT = "reserved_at";
       public static final String STATE = "state";
       public static final String ATTEMPTS = "attempts";
+    }
+
+    /** Attributes' names for the FILES.OVERWRITE_LEASE table */
+    public static final class OverwriteLease {
+
+      private OverwriteLease() {}
+
+      public static final String NODE_ID = "node_id";
+      public static final String VERSION = "version";
+      public static final String TOKEN = "token";
+      public static final String REGISTERED_AT = "registered_at";
+      public static final String EXPIRES_AT = "expires_at";
     }
 
     /** Attributes' names for the FILES.COLLABORATION_LINK table */

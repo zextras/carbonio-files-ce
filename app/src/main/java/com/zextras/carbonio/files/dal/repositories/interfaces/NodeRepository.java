@@ -33,20 +33,6 @@ public interface NodeRepository {
    */
   Optional<Node> getNode(String nodeId);
 
-  /**
-   * Retrieves a {@link Node} from the database with a row-level lock (SELECT FOR UPDATE).
-   *
-   * <p>This method MUST be called within an active transaction. The lock is held until the
-   * transaction commits or rolls back, preventing concurrent modifications to the same node.
-   *
-   * <p>Use this method when you need to read a node and then update it atomically, such as when
-   * uploading a new version of a file.
-   *
-   * @param nodeId is a {@link String} representing the id of the node to retrieve and lock.
-   * @return an {@link Optional<Node>} containing the locked {@link Node} if found.
-   */
-  Optional<Node> getNodeForUpdate(String nodeId);
-
   /** A version number handed out to a single save, with the reservation time. */
   record VersionSlot(int version, long reservedAt) {}
 

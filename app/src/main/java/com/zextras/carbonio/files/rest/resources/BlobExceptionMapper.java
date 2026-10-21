@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.exceptions.FileSizeException;
 import com.zextras.carbonio.files.exceptions.FileTypeMismatchException;
 import com.zextras.carbonio.files.exceptions.MaxNumberOfFileVersionsException;
 import com.zextras.carbonio.files.exceptions.NodeNotFoundException;
+import com.zextras.carbonio.files.exceptions.OverwriteInProgressException;
 import com.zextras.carbonio.files.exceptions.RequestEntityTooLargeException;
 import com.zextras.carbonio.files.exceptions.ZipGenerationException;
 import jakarta.ws.rs.NotAllowedException;
@@ -66,6 +67,11 @@ public class BlobExceptionMapper implements ExceptionMapper<Throwable> {
     Throwable cause = exception.getCause() == null ? exception : exception.getCause();
     if (cause instanceof WebApplicationException wae) {
       return wae.getResponse();
+    }
+
+    if (cause instanceof OverwriteInProgressException) {
+      logger.warn("Overwrite refused: {}", cause.getMessage());
+      return Response.status(423).entity("423 Locked").type("text/plain").build();
     }
 
     Response.Status status;

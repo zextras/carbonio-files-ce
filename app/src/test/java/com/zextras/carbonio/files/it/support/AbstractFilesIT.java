@@ -122,7 +122,8 @@ public abstract class AbstractFilesIT {
       // above misses them.
       statement.execute(
           "TRUNCATE user_notification_interest, notification, snapshot_node, snapshot_user,"
-              + " user_notifications_info, tombstone, version_reservation CASCADE");
+              + " user_notifications_info, tombstone, version_reservation, overwrite_lease"
+              + " CASCADE");
     }
     FilesStackTestResource.getStoragesService().reset();
     FilesStackTestResource.getStoragesService().clearAll();

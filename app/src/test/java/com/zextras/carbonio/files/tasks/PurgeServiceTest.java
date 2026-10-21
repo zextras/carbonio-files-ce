@@ -15,6 +15,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
@@ -26,6 +27,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.VersionReservation;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.OverwriteLeaseRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
 import com.zextras.filestore.api.Filestore;
@@ -60,6 +62,7 @@ class PurgeServiceTest {
   private FileVersionRepository fileVersionRepository;
   private TombstoneRepository tombstoneRepository;
   private VersionReservationRepository versionReservationRepository;
+  private OverwriteLeaseRepository overwriteLeaseRepository;
   private Filestore filestore;
   private PurgeService purgeService;
 
@@ -97,6 +100,7 @@ class PurgeServiceTest {
     fileVersionRepository = mock(FileVersionRepository.class);
     tombstoneRepository = mock(TombstoneRepository.class);
     versionReservationRepository = mock(VersionReservationRepository.class);
+    overwriteLeaseRepository = mock(OverwriteLeaseRepository.class);
     filestore = mock(Filestore.class);
 
     purgeService = new PurgeService();
@@ -104,6 +108,7 @@ class PurgeServiceTest {
     purgeService.fileVersionRepository = fileVersionRepository;
     purgeService.tombstoneRepository = tombstoneRepository;
     purgeService.versionReservationRepository = versionReservationRepository;
+    purgeService.overwriteLeaseRepository = overwriteLeaseRepository;
     purgeService.reservationExpiry = Duration.ofHours(24);
     purgeService.fileStore = filestore;
   }
@@ -449,5 +454,13 @@ class PurgeServiceTest {
 
     verify(versionReservationRepository).remove(published);
     verifyNoMoreInteractions(filestore);
+  }
+
+  @Test
+  void purgeExpiredOverwriteLeasesRemovesOnlyTheRowsExpiredForOverAnHour() {
+    purgeService.purgeExpiredOverwriteLeases();
+
+    verify(overwriteLeaseRepository).removeExpired(Duration.ofHours(1));
+    verifyNoInteractions(filestore);
   }
 }

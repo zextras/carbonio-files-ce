@@ -39,3 +39,18 @@ CREATE TABLE IF NOT EXISTS version_reservation (
 );
 
 CREATE INDEX IF NOT EXISTS version_reservation_state_reserved_at ON version_reservation (state, reserved_at);
+
+-- An overwrite (the Docs autosave) rewrites the current version in place: the storages accept two writes of one key at
+-- the same time and may keep either or mix them, so Files lets one overwrite of a node start at a time. The lease is
+-- taken and released in short transactions (no transaction or connection held while the blob is written) and expires
+-- after 30 s, so a crashed or slow overwrite never blocks the next one longer than that; the write itself is never cut.
+-- registered_at dates the rewritten version; a row whose lease expired long ago is removed by the purge job.
+CREATE TABLE IF NOT EXISTS overwrite_lease (
+    node_id CHARACTER(36) NOT NULL PRIMARY KEY,
+    version INTEGER NOT NULL,
+    token CHARACTER(36) NOT NULL,
+    registered_at BIGINT NOT NULL,
+    expires_at BIGINT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS overwrite_lease_expires_at ON overwrite_lease (expires_at);
