@@ -67,18 +67,21 @@ public class VersionReservations {
 
   /**
    * Marks an overwrite of {@code version} as in progress, in its own short transaction, before its
-   * blob is written in place.
+   * blob is written in place. Saves are ordered by registration: a version is rewritten in place
+   * only while nothing was registered after it, otherwise the save must take a new number.
    *
-   * @return false when the version is already marked (another overwrite in progress, or one that
-   *     never ended: its mark waits for the purge)
+   * @return false when the version cannot be rewritten in place: it is no longer current, a save
+   *     was registered after it (in flight, published or failed), or it is already marked (another
+   *     overwrite in progress, or one that never ended: its mark waits for the purge)
    */
   public boolean markOverwrite(String nodeId, int version, String blobOwnerId) {
     try {
       return QuarkusTransaction.requiringNew()
           .call(
               () ->
-                  reservationRepository.markOverwrite(
-                      nodeId, version, blobOwnerId, System.currentTimeMillis()));
+                  nodeRepository.claimInPlaceOverwrite(nodeId, version)
+                      && reservationRepository.markOverwrite(
+                          nodeId, version, blobOwnerId, System.currentTimeMillis()));
     } catch (RuntimeException e) {
       if (ExceptionUtils.getThrowableList(e).stream()
           .anyMatch(t -> t instanceof SQLException sql && "23505".equals(sql.getSQLState()))) {

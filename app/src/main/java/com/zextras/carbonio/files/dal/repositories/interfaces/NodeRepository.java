@@ -46,6 +46,15 @@ public interface NodeRepository {
   Optional<VersionSlot> reserveNextVersion(String nodeId, long now);
 
   /**
+   * Claims {@code version} for an in-place overwrite, only while it is the current version and no
+   * higher number was handed out (no save registered after it, in flight or failed). Requires the
+   * caller's transaction, which then holds the node row until it ends.
+   *
+   * @return false when another version is current or a higher number was handed out
+   */
+  boolean claimInPlaceOverwrite(String nodeId, int version);
+
+  /**
    * Same clock as {@link #reserveNextVersion} without a new number (overwrite of an existing
    * version): the slot carries the highest number handed out so far and the new time. Requires the
    * caller's transaction, which then holds the node row until it ends.

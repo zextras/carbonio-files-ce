@@ -129,6 +129,19 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Override
   @Transactional(TxType.MANDATORY)
+  public boolean claimInPlaceOverwrite(String nodeId, int version) {
+    return entityManager
+            .createQuery(
+                "update Node n set n.mLastVersion = :version where n.mId = :id and"
+                    + " n.mCurrentVersion = :version and n.mLastVersion <= :version")
+            .setParameter("version", version)
+            .setParameter("id", normalizeId(nodeId))
+            .executeUpdate()
+        == 1;
+  }
+
+  @Override
+  @Transactional(TxType.MANDATORY)
   public Optional<VersionSlot> reserveTimestamp(String nodeId, long now) {
     String id = normalizeId(nodeId);
     int updated =

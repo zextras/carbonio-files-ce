@@ -276,4 +276,22 @@ class VersionReservationDalTest {
         .containsExactly(2);
     assertThat(reservationRepository.releaseOverwrite(nodeId, 1)).isFalse();
   }
+
+  @Test
+  void anInPlaceOverwriteIsClaimedOnlyOnTheCurrentVersionWithNothingRegisteredAfterIt() {
+    String nodeId = fileWithCurrentVersion(2);
+
+    assertThat(claimInPlace(nodeId, 1)).isFalse();
+    assertThat(claimInPlace(nodeId, 2)).isTrue();
+    reserve(nodeId, 1000L);
+    assertThat(claimInPlace(nodeId, 2)).isFalse();
+    assertThat(nodeRepository.moveCurrentVersion(nodeId, 3, 2000L)).isTrue();
+    assertThat(claimInPlace(nodeId, 3)).isTrue();
+    assertThat(reserve(nodeId, 3000L).map(VersionSlot::version)).contains(4);
+  }
+
+  private boolean claimInPlace(String nodeId, int version) {
+    return QuarkusTransaction.requiringNew()
+        .call(() -> nodeRepository.claimInPlaceOverwrite(nodeId, version));
+  }
 }

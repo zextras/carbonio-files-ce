@@ -619,9 +619,10 @@ public class BlobService {
   }
 
   /**
-   * Rewrites the current version in place. When that version is already marked (a concurrent
-   * overwrite, or one that never ended) the save becomes a new version instead: two in-place writes
-   * of one blob never interleave and no overwrite is ever refused.
+   * Rewrites the current version in place while no other save was registered after it; otherwise (a
+   * save in flight or published above it, a concurrent overwrite, a mark that never ended) the save
+   * becomes a new version. The last registered save is the content of the latest version, two
+   * in-place writes of one blob never interleave and no overwrite is ever refused.
    */
   private int overwriteCurrentVersion(
       String requesterId,
@@ -636,7 +637,7 @@ public class BlobService {
 
     if (!versionReservations.markOverwrite(nodeId, version, ownerId)) {
       logger.info(
-          "Version {} of node {} is being overwritten: saving a new version instead",
+          "Version {} of node {} cannot be rewritten in place: saving a new version instead",
           version,
           nodeId);
       return uploadNewVersion(
