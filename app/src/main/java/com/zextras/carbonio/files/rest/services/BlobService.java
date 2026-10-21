@@ -492,7 +492,7 @@ public class BlobService {
                     return createdNode;
                   });
 
-      meterRegistry.counter(METRIC_UPLOAD, "service", "files", "uri", "/upload").increment();
+      countUpload("/upload");
 
       // P9 CE seam: notify listeners after a successful service-account upload (no user requester
       // entity). CE registers none, so this is a no-op fan-out.
@@ -566,7 +566,7 @@ public class BlobService {
     int version =
         uploadNewVersion(requesterId, blobStream, blobLength, node, mediaType, maxNumberOfVersions);
 
-    meterRegistry.counter(METRIC_UPLOAD, "service", "files", "uri", "/upload/version").increment();
+    countUpload("/upload/version");
     return Optional.of(version);
   }
 
@@ -722,15 +722,17 @@ public class BlobService {
             version,
             nodeId);
       }
-      meterRegistry
-          .counter(METRIC_UPLOAD, "service", "files", "uri", "/upload/version")
-          .increment();
+      countUpload("/upload/version");
       return Optional.of(version);
     } finally {
       if (!ended) {
         overwriteLeases.release(lease);
       }
     }
+  }
+
+  private void countUpload(String uri) {
+    meterRegistry.counter(METRIC_UPLOAD, "service", "files", "uri", uri).increment();
   }
 
   /** A transfer of ownership meanwhile moved the node: its blobs now live under another account. */

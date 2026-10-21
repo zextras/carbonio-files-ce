@@ -31,6 +31,8 @@ public class OverwriteLeases {
 
   static final Duration LEASE = Duration.ofSeconds(30);
 
+  private static final String NODE_NOT_FOUND = "Node not found: ";
+
   /** The version an overwrite rewrites and its date (database clock, at registration). */
   public record Lease(String nodeId, int version, String token, long date) {}
 
@@ -61,20 +63,20 @@ public class OverwriteLeases {
               long date =
                   nodeRepository
                       .reserveTimestamp(nodeId)
-                      .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId))
+                      .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId))
                       .reservedAt();
               int version =
                   nodeRepository
                       .getNode(nodeId)
                       .map(Node::getCurrentVersion)
-                      .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+                      .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
               // A version below may carry a later date (written by an instance clock).
               Optional<Long> latest = fileVersionRepository.latestDateBelow(nodeId, version + 1);
               if (latest.isPresent() && latest.get() >= date) {
                 date =
                     nodeRepository
                         .reserveTimestamp(nodeId, latest.get() + 1)
-                        .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId))
+                        .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId))
                         .reservedAt();
               }
               String token = UUID.randomUUID().toString();
