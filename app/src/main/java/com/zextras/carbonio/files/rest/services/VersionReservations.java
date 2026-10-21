@@ -49,7 +49,7 @@ public class VersionReservations {
         .call(
             () ->
                 nodeRepository
-                    .reserveNextVersion(nodeId, System.currentTimeMillis())
+                    .reserveNextVersion(nodeId)
                     .map(
                         slot -> {
                           reservationRepository.reserve(
@@ -80,7 +80,7 @@ public class VersionReservations {
               + " is no longer pending");
     }
     nodeRepository
-        .reserveTimestamp(nodeId, reservation.reservedAt())
+        .reserveTimestamp(nodeId)
         .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
     return fileVersionRepository
         .latestDateBelow(nodeId, reservation.version())

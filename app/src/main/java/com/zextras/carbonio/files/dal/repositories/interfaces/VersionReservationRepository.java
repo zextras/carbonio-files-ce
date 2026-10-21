@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.dal.repositories.interfaces;
 
 import com.zextras.carbonio.files.dal.dao.ebean.VersionReservation;
+import java.time.Duration;
 import java.util.List;
 
 /** Version numbers handed out to saves that are not confirmed yet. */
@@ -21,8 +22,8 @@ public interface VersionReservationRepository {
    */
   boolean consume(String nodeId, int version);
 
-  /** Hands every PENDING reservation older than {@code reservedBefore} to the purge. */
-  int claimExpired(long reservedBefore);
+  /** Hands every PENDING reservation older than {@code expiry} (database clock) to the purge. */
+  int claimExpired(Duration expiry);
 
   List<VersionReservation> getPurging();
 

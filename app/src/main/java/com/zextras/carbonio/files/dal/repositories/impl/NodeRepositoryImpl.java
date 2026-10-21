@@ -111,15 +111,16 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Override
   @Transactional
-  public Optional<VersionSlot> reserveNextVersion(String nodeId, long now) {
+  public Optional<VersionSlot> reserveNextVersion(String nodeId) {
     String id = normalizeId(nodeId);
     int updated =
         entityManager
             .createQuery(
                 "update Node n set n.mLastVersion = greatest(n.mLastVersion,"
                     + " coalesce(n.mCurrentVersion, 0)) + 1, n.mLastReservedAt ="
-                    + " greatest(n.mLastReservedAt + 1, :now) where n.mId = :id")
-            .setParameter("now", now)
+                    + " greatest(n.mLastReservedAt + 1, "
+                    + DatabaseClock.NOW_MILLIS
+                    + ") where n.mId = :id")
             .setParameter("id", id)
             .executeUpdate();
     if (updated == 0) {
@@ -137,14 +138,14 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Override
   @Transactional(TxType.MANDATORY)
-  public Optional<VersionSlot> reserveTimestamp(String nodeId, long now) {
+  public Optional<VersionSlot> reserveTimestamp(String nodeId) {
     String id = normalizeId(nodeId);
     int updated =
         entityManager
             .createQuery(
-                "update Node n set n.mLastReservedAt = greatest(n.mLastReservedAt + 1, :now)"
-                    + " where n.mId = :id")
-            .setParameter("now", now)
+                "update Node n set n.mLastReservedAt = greatest(n.mLastReservedAt + 1, "
+                    + DatabaseClock.NOW_MILLIS
+                    + ") where n.mId = :id")
             .setParameter("id", id)
             .executeUpdate();
     if (updated == 0) {

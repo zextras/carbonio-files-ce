@@ -12,6 +12,7 @@ import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
+import java.time.Duration;
 import java.util.List;
 
 @ApplicationScoped
@@ -40,12 +41,12 @@ public class VersionReservationRepositoryImpl
 
   @Override
   @Transactional
-  public int claimExpired(long reservedBefore) {
+  public int claimExpired(Duration expiry) {
     return update(
-        "mState = ?1 where mState = ?2 and mReservedAt < ?3",
+        "mState = ?1 where mState = ?2 and mReservedAt < " + DatabaseClock.NOW_MILLIS + " - ?3",
         VersionReservationState.PURGING,
         VersionReservationState.PENDING,
-        reservedBefore);
+        expiry.toMillis());
   }
 
   @Override

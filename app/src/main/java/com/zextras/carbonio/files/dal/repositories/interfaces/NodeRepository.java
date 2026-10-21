@@ -53,18 +53,19 @@ public interface NodeRepository {
   /**
    * Hands out the next version number of a file. Runs in the caller's transaction (or its own): one
    * atomic update, so concurrent callers on any instance get distinct numbers and a number is never
-   * handed out twice; the reservation time is strictly greater than every previous one of the node.
+   * handed out twice; the reservation time comes from the database clock and is strictly greater
+   * than every previous one of the node.
    *
    * @return empty when the node does not exist
    */
-  Optional<VersionSlot> reserveNextVersion(String nodeId, long now);
+  Optional<VersionSlot> reserveNextVersion(String nodeId);
 
   /**
    * Same clock as {@link #reserveNextVersion} without a new number (overwrite of an existing
    * version): the slot carries the highest number handed out so far and the new time. Requires the
    * caller's transaction, which then holds the node row until it ends.
    */
-  Optional<VersionSlot> reserveTimestamp(String nodeId, long now);
+  Optional<VersionSlot> reserveTimestamp(String nodeId);
 
   /**
    * Makes {@code version} the current version unless a newer one already is.

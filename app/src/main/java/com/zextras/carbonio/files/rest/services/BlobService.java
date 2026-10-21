@@ -622,7 +622,8 @@ public class BlobService {
 
   /**
    * Rewrites the current version in place as before the version reservations: one transaction
-   * holding the node row for the whole body stream (CO-3079).
+   * holding the node row for the whole body stream (CO-3079). Dated by the database clock, like the
+   * reserved versions.
    */
   private Optional<Integer> overwriteCurrentVersion(
       UserMyself requester,
@@ -680,20 +681,23 @@ public class BlobService {
                         nodeId, version));
               }
 
+              long versionDate =
+                  nodeRepository
+                      .reserveTimestamp(nodeId)
+                      .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId))
+                      .reservedAt();
               Optional<FileVersion> result =
-                  fileVersionRepository.createNewFileVersion(
+                  fileVersionRepository.createFileVersionAt(
                       nodeId,
                       requesterId,
                       version,
                       mediaType.toString(),
                       uploadResponse.getSize(),
                       uploadResponse.getDigest(),
-                      false);
+                      versionDate);
 
-              node.setSize(uploadResponse.getSize());
-              node.setLastEditorId(requesterId);
-              node.setCurrentVersion(version);
-              nodeRepository.updateNode(node);
+              nodeRepository.moveCurrentVersion(
+                  nodeId, version, versionDate, uploadResponse.getSize(), requesterId);
 
               logUploaded(nodeId, version, uploadResponse);
               result.ifPresent(

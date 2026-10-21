@@ -240,15 +240,15 @@ public class PurgeService {
 
   /**
    * Deletes the blobs of the version reservations never confirmed within {@link #reservationExpiry}
-   * (their save failed: no revision references them, which is checked again), then the
-   * reservations. Claiming them first (PENDING → PURGING) makes a late confirmation fail instead of
-   * creating a version whose blob is being deleted. A whole-call failure is an outage and does not
-   * count; a reservation reported as not deleted {@link #MAX_RESERVATION_PURGE_ATTEMPTS} times
-   * (never written, or a persistent storage error) is dropped, leaving at most an orphan blob.
+   * of the database clock (their save failed: no revision references them, which is checked again),
+   * then the reservations. Claiming them first (PENDING → PURGING) makes a late confirmation fail
+   * instead of creating a version whose blob is being deleted. A whole-call failure is an outage
+   * and does not count; a reservation reported as not deleted {@link
+   * #MAX_RESERVATION_PURGE_ATTEMPTS} times (never written, or a persistent storage error) is
+   * dropped, leaving at most an orphan blob.
    */
-  void purgeExpiredReservations(long now) {
-    long expiredBefore = now - reservationExpiry.toMillis();
-    versionReservationRepository.claimExpired(expiredBefore);
+  void purgeExpiredReservations() {
+    versionReservationRepository.claimExpired(reservationExpiry);
 
     List<VersionReservation> purging = new ArrayList<>();
     for (VersionReservation reservation : versionReservationRepository.getPurging()) {
@@ -326,7 +326,7 @@ public class PurgeService {
       delayed = "${carbonio.files.reservation-purge.delay:1m}",
       concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
   void scheduledReservationPurge() {
-    purgeExpiredReservations(System.currentTimeMillis());
+    purgeExpiredReservations();
   }
 
   /**

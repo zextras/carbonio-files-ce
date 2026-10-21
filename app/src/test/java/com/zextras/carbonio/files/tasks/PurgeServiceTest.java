@@ -338,10 +338,9 @@ class PurgeServiceTest {
   void purgeExpiredReservationsClaimsTheReservationsOlderThanTheExpiry() {
     when(versionReservationRepository.getPurging()).thenReturn(List.of());
 
-    purgeService.purgeExpiredReservations(100_000_000L);
+    purgeService.purgeExpiredReservations();
 
-    verify(versionReservationRepository)
-        .claimExpired(100_000_000L - Duration.ofHours(24).toMillis());
+    verify(versionReservationRepository).claimExpired(Duration.ofHours(24));
   }
 
   @Test
@@ -352,7 +351,7 @@ class PurgeServiceTest {
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList()))
         .thenReturn(List.of());
 
-    purgeService.purgeExpiredReservations(System.currentTimeMillis());
+    purgeService.purgeExpiredReservations();
 
     ArgumentCaptor<List<BulkDeleteRequestItem>> items = ArgumentCaptor.forClass(List.class);
     verify(filestore).bulkDelete(eq(IdentifierType.files), eq("owner-1"), items.capture());
@@ -374,7 +373,7 @@ class PurgeServiceTest {
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList()))
         .thenReturn(notDeleted);
 
-    purgeService.purgeExpiredReservations(System.currentTimeMillis());
+    purgeService.purgeExpiredReservations();
 
     verify(versionReservationRepository).recordFailedAttempt(failing);
     verify(versionReservationRepository, never()).remove(failing);
@@ -389,7 +388,7 @@ class PurgeServiceTest {
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList()))
         .thenReturn(notDeleted);
 
-    purgeService.purgeExpiredReservations(System.currentTimeMillis());
+    purgeService.purgeExpiredReservations();
 
     verify(versionReservationRepository).remove(failing);
     verify(versionReservationRepository, never()).recordFailedAttempt(any());
@@ -402,7 +401,7 @@ class PurgeServiceTest {
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList()))
         .thenThrow(new RuntimeException("connection refused"));
 
-    purgeService.purgeExpiredReservations(System.currentTimeMillis());
+    purgeService.purgeExpiredReservations();
 
     verify(versionReservationRepository, never()).remove(any());
     verify(versionReservationRepository, never()).recordFailedAttempt(any());
@@ -415,7 +414,7 @@ class PurgeServiceTest {
     when(versionReservationRepository.getPurging()).thenReturn(List.of(reservation));
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList())).thenReturn(null);
 
-    purgeService.purgeExpiredReservations(System.currentTimeMillis());
+    purgeService.purgeExpiredReservations();
 
     verify(versionReservationRepository, never()).remove(any());
     verify(versionReservationRepository, never()).recordFailedAttempt(any());
@@ -430,7 +429,7 @@ class PurgeServiceTest {
     when(filestore.bulkDelete(eq(IdentifierType.files), anyString(), anyList()))
         .thenReturn(List.of());
 
-    purgeService.purgeExpiredReservations(System.currentTimeMillis());
+    purgeService.purgeExpiredReservations();
 
     verify(filestore).bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList());
     verify(filestore).bulkDelete(eq(IdentifierType.files), eq("owner-2"), anyList());
@@ -446,7 +445,7 @@ class PurgeServiceTest {
         .thenReturn(
             Optional.of(new FileVersion("node-a", "owner-1", 1L, 2, "text/plain", 1L, "d", false)));
 
-    purgeService.purgeExpiredReservations(System.currentTimeMillis());
+    purgeService.purgeExpiredReservations();
 
     verify(versionReservationRepository).remove(published);
     verifyNoMoreInteractions(filestore);

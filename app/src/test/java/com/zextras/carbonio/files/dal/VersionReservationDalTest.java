@@ -18,6 +18,7 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -83,9 +84,12 @@ class VersionReservationDalTest {
     return id;
   }
 
-  private Optional<VersionSlot> reserve(String nodeId, long now) {
-    return QuarkusTransaction.requiringNew()
-        .call(() -> nodeRepository.reserveNextVersion(nodeId, now));
+  private Optional<VersionSlot> reserve(String nodeId) {
+    return QuarkusTransaction.requiringNew().call(() -> nodeRepository.reserveNextVersion(nodeId));
+  }
+
+  private static long hoursAgo(int hours) {
+    return System.currentTimeMillis() - Duration.ofHours(hours).toMillis();
   }
 
   private Object[] counters(String nodeId) {
@@ -105,30 +109,47 @@ class VersionReservationDalTest {
   void reservationsHandOutTheNumbersAfterTheCurrentVersionOneByOne() {
     String nodeId = fileWithCurrentVersion(1);
 
-    assertThat(reserve(nodeId, 1000L)).contains(new VersionSlot(2, 1000L));
-    assertThat(reserve(nodeId, 2000L)).contains(new VersionSlot(3, 2000L));
+    assertThat(reserve(nodeId).map(VersionSlot::version)).contains(2);
+    assertThat(reserve(nodeId).map(VersionSlot::version)).contains(3);
   }
 
   @Test
   void aReservationNeverReusesANumberAboveTheCurrentVersion() {
     String nodeId = fileWithCurrentVersion(2);
-    reserve(nodeId, 1000L);
-    reserve(nodeId, 1000L);
+    reserve(nodeId);
+    reserve(nodeId);
 
-    assertThat(reserve(nodeId, 1000L).map(VersionSlot::version)).contains(5);
+    assertThat(reserve(nodeId).map(VersionSlot::version)).contains(5);
     assertThat(counters(nodeId)[0]).isEqualTo(2);
   }
 
   @Test
-  void reservationTimesStrictlyIncreaseWhenTheClockGoesBack() {
+  void reservationTimesComeFromTheDatabaseClock() {
     String nodeId = fileWithCurrentVersion(1);
+    long before = System.currentTimeMillis();
 
-    assertThat(reserve(nodeId, 1000L).map(VersionSlot::reservedAt)).contains(1000L);
-    assertThat(reserve(nodeId, 500L).map(VersionSlot::reservedAt)).contains(1001L);
+    long reservedAt = reserve(nodeId).orElseThrow().reservedAt();
+
+    assertThat(reservedAt).isBetween(before - 5_000, System.currentTimeMillis() + 5_000);
+  }
+
+  @Test
+  void reservationTimesStrictlyIncreaseWhenTheNodeClockIsAheadOfTheDatabaseClock() {
+    String nodeId = fileWithCurrentVersion(1);
+    long ahead = System.currentTimeMillis() + 3_600_000;
+    QuarkusTransaction.requiringNew()
+        .run(
+            () ->
+                entityManager
+                    .createQuery("update Node n set n.mLastReservedAt = :ahead where n.mId = :id")
+                    .setParameter("ahead", ahead)
+                    .setParameter("id", nodeId)
+                    .executeUpdate());
+
+    assertThat(reserve(nodeId)).contains(new VersionSlot(2, ahead + 1));
     assertThat(
-            QuarkusTransaction.requiringNew()
-                .call(() -> nodeRepository.reserveTimestamp(nodeId, 10L)))
-        .contains(new VersionSlot(3, 1002L));
+            QuarkusTransaction.requiringNew().call(() -> nodeRepository.reserveTimestamp(nodeId)))
+        .contains(new VersionSlot(2, ahead + 2));
   }
 
   @Test
@@ -144,7 +165,7 @@ class VersionReservationDalTest {
             pool.submit(
                 () -> {
                   start.await();
-                  return reserve(nodeId, System.currentTimeMillis());
+                  return reserve(nodeId);
                 }));
       }
       start.countDown();
@@ -166,7 +187,7 @@ class VersionReservationDalTest {
 
   @Test
   void aMissingNodeGetsNoReservation() {
-    assertThat(reserve(UUID.randomUUID().toString(), 1000L)).isEmpty();
+    assertThat(reserve(UUID.randomUUID().toString())).isEmpty();
   }
 
   @Test
@@ -189,11 +210,11 @@ class VersionReservationDalTest {
     QuarkusTransaction.requiringNew()
         .run(
             () -> {
-              reservationRepository.reserve(nodeId, 2, "owner", 100L);
-              reservationRepository.reserve(nodeId, 3, "owner", 900L);
+              reservationRepository.reserve(nodeId, 2, "owner", hoursAgo(2));
+              reservationRepository.reserve(nodeId, 3, "owner", System.currentTimeMillis());
             });
 
-    reservationRepository.claimExpired(500L);
+    reservationRepository.claimExpired(Duration.ofHours(1));
 
     assertThat(reservationRepository.getPurging())
         .filteredOn(r -> r.getNodeId().equals(nodeId))
@@ -211,8 +232,8 @@ class VersionReservationDalTest {
   void aFailedPurgeAttemptIsCountedOnTheClaimedReservation() {
     String nodeId = fileWithCurrentVersion(1);
     QuarkusTransaction.requiringNew()
-        .run(() -> reservationRepository.reserve(nodeId, 2, "owner", 100L));
-    reservationRepository.claimExpired(500L);
+        .run(() -> reservationRepository.reserve(nodeId, 2, "owner", hoursAgo(2)));
+    reservationRepository.claimExpired(Duration.ofHours(1));
     VersionReservation claimed =
         reservationRepository.getPurging().stream()
             .filter(r -> r.getNodeId().equals(nodeId))
