@@ -13,6 +13,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Inject;
 import java.io.IOException;
+import java.time.Duration;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Response;
@@ -54,9 +55,17 @@ public class FilestoreProducer {
     String storagesUrl =
         String.format("%s://%s:%s", Constants.Config.Storages.DEFAULT_PROTOCOL, host, port);
 
-    return StoragesClientImp.atUrl(
-        storagesUrl,
-        new OkHttpClient.Builder().addNetworkInterceptor(FilestoreProducer::dropFailedConnection));
+    return StoragesClientImp.atUrl(storagesUrl, storagesHttpClient());
+  }
+
+  // Copy and bulk delete answer only when the whole work is done: no time limit on any call.
+  static OkHttpClient.Builder storagesHttpClient() {
+    return new OkHttpClient.Builder()
+        .connectTimeout(Duration.ZERO)
+        .readTimeout(Duration.ZERO)
+        .writeTimeout(Duration.ZERO)
+        .callTimeout(Duration.ZERO)
+        .addNetworkInterceptor(FilestoreProducer::dropFailedConnection);
   }
 
   // okhttp hands out a never-successful pooled connection unchecked: closing its socket is not

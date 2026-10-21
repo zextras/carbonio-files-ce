@@ -75,6 +75,17 @@ class FilestoreProducerTest {
   }
 
   @Test
+  void storagesClient_hasNoTimeLimit() {
+    OkHttpClient storages = FilestoreProducer.storagesHttpClient().build();
+
+    assertThat(storages.connectTimeoutMillis()).isZero();
+    assertThat(storages.readTimeoutMillis()).isZero();
+    assertThat(storages.writeTimeoutMillis()).isZero();
+    assertThat(storages.callTimeoutMillis()).isZero();
+    assertThat(storages.networkInterceptors()).hasSize(1);
+  }
+
+  @Test
   void coldConnection_failedUploadThenPost_succeeds() throws IOException {
     abortUpload();
     assertVictimSucceeds(postRequest());

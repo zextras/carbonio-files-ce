@@ -61,6 +61,16 @@
       "Destination": {
         "RequestTimeout": "3600s"
       }
+    },
+    {
+      "Match": {
+        "HTTP": {
+          "PathPrefix": "/internal/nodes"
+        }
+      },
+      "Destination": {
+        "RequestTimeout": "3600s"
+      }
     }
   ]
 }
