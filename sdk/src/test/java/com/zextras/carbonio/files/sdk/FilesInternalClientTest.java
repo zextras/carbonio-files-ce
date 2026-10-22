@@ -38,10 +38,12 @@ class FilesInternalClientTest {
 
   private static final int PAYLOAD_SIZE = 500_000;
 
+  private final CountDownLatch released = new CountDownLatch(1);
   private HttpServer server;
 
   @AfterEach
   void stopServer() {
+    released.countDown();
     if (server != null) {
       server.stop(0);
     }
@@ -54,7 +56,7 @@ class FilesInternalClientTest {
         "/",
         exchange -> {
           try {
-            Thread.sleep(1500);
+            released.await();
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
           }
