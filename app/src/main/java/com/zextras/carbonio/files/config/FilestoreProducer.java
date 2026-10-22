@@ -58,11 +58,12 @@ public class FilestoreProducer {
     return StoragesClientImp.atUrl(storagesUrl, storagesHttpClient());
   }
 
-  // Copy and bulk delete answer only when the whole work is done: no time limit on any call.
+  // Copy and bulk delete answer only when the whole work is done: the only limit is one hour of
+  // silence, which frees the thread from a dead storage.
   static OkHttpClient.Builder storagesHttpClient() {
     return new OkHttpClient.Builder()
         .connectTimeout(Duration.ZERO)
-        .readTimeout(Duration.ZERO)
+        .readTimeout(Duration.ofHours(1))
         .writeTimeout(Duration.ZERO)
         .callTimeout(Duration.ZERO)
         .addNetworkInterceptor(FilestoreProducer::dropFailedConnection);
