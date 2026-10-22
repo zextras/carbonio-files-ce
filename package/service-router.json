@@ -61,6 +61,46 @@
       "Destination": {
         "RequestTimeout": "3600s"
       }
+    },
+    {
+      "Match": {
+        "HTTP": {
+          "PathPrefix": "/internal/nodes"
+        }
+      },
+      "Destination": {
+        "RequestTimeout": "3600s"
+      }
+    },
+    {
+      "Match": {
+        "HTTP": {
+          "PathPrefix": "/link"
+        }
+      },
+      "Destination": {
+        "RequestTimeout": "3600s"
+      }
+    },
+    {
+      "Match": {
+        "HTTP": {
+          "PathPrefix": "/preview"
+        }
+      },
+      "Destination": {
+        "RequestTimeout": "3600s"
+      }
+    },
+    {
+      "Match": {
+        "HTTP": {
+          "PathPrefix": "/graphql"
+        }
+      },
+      "Destination": {
+        "RequestTimeout": "3600s"
+      }
     }
   ]
 }

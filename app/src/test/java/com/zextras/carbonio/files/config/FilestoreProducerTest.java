@@ -60,11 +60,7 @@ class FilestoreProducerTest {
     server.setExecutor(serverExecutor);
     server.start();
     baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
-    client =
-        new OkHttpClient.Builder()
-            .addNetworkInterceptor(FilestoreProducer::dropFailedConnection)
-            .callTimeout(Duration.ofSeconds(5))
-            .build();
+    client = FilestoreProducer.storagesHttpClient().callTimeout(Duration.ofSeconds(5)).build();
   }
 
   @AfterEach
@@ -72,6 +68,17 @@ class FilestoreProducerTest {
     server.stop(0);
     serverExecutor.shutdownNow();
     client.connectionPool().evictAll();
+  }
+
+  @Test
+  void storagesClient_isLimitedOnlyByOneHourOfSilence() {
+    OkHttpClient storages = FilestoreProducer.storagesHttpClient().build();
+
+    assertThat(storages.connectTimeoutMillis()).isZero();
+    assertThat(storages.readTimeoutMillis()).isEqualTo(Duration.ofHours(1).toMillis());
+    assertThat(storages.writeTimeoutMillis()).isZero();
+    assertThat(storages.callTimeoutMillis()).isZero();
+    assertThat(storages.networkInterceptors()).hasSize(1);
   }
 
   @Test
