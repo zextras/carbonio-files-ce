@@ -60,11 +60,7 @@ class FilestoreProducerTest {
     server.setExecutor(serverExecutor);
     server.start();
     baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
-    client =
-        new OkHttpClient.Builder()
-            .addNetworkInterceptor(FilestoreProducer::dropFailedConnection)
-            .callTimeout(Duration.ofSeconds(5))
-            .build();
+    client = FilestoreProducer.storagesHttpClient().callTimeout(Duration.ofSeconds(5)).build();
   }
 
   @AfterEach

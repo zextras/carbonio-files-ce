@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * copyNodes, cloneVersion and transferOwnership answer with a 200 head and one space per interval
- * (1 s in the ITs) while they run longer than the interval, then the usual JSON result.
+ * (3 s in the ITs) while they run longer than the interval, then the usual JSON result.
  */
 class GraphQLHeartbeatApiIT extends AbstractFilesIT {
 
@@ -47,7 +47,7 @@ class GraphQLHeartbeatApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenACopySlowerThanTheIntervalThenTheHeadArrivesAtOnceAndTheResultAtTheEnd()
+  void givenACopySlowerThanTheIntervalThenTheHeadArrivesAfterOneIntervalAndTheResultAtTheEnd()
       throws Exception {
     String file = seedFile("slow.txt", LOCAL_ROOT, bytes("slow"), COOKIE);
     String destination = seedFolder("heartbeat-destination", LOCAL_ROOT, COOKIE);

@@ -11,6 +11,7 @@ import io.smallrye.graphql.execution.ExecutionResponseWriter;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.web.RoutingContext;
+import java.nio.charset.Charset;
 import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -30,24 +31,32 @@ final class HeartbeatResponseWriter implements ExecutionResponseWriter {
       "{\"errors\":[{\"message\":\"System error\"}],\"data\":null}";
 
   private final RoutingContext ctx;
-  private final String charset;
-  private final ScheduledFuture<?> beats;
+  private final Charset charset;
+  private ScheduledFuture<?> beats;
   private boolean streaming;
   private boolean done;
 
-  HeartbeatResponseWriter(
-      RoutingContext ctx, String charset, Duration interval, ScheduledExecutorService scheduler) {
+  HeartbeatResponseWriter(RoutingContext ctx, Charset charset) {
     this.ctx = ctx;
     this.charset = charset;
+  }
+
+  synchronized void start(Duration interval, ScheduledExecutorService scheduler) {
     long millis = interval.toMillis();
-    this.beats = scheduler.scheduleAtFixedRate(this::beat, millis, millis, TimeUnit.MILLISECONDS);
+    beats = scheduler.scheduleAtFixedRate(this::beat, millis, millis, TimeUnit.MILLISECONDS);
   }
 
   @Override
   public synchronized void write(ExecutionResponse executionResponse) {
     stop();
     HttpServerResponse response = ctx.response();
-    Buffer body = Buffer.buffer(executionResponse.getExecutionResultAsString(), charset);
+    Buffer body;
+    try {
+      body = encode(executionResponse.getExecutionResultAsString());
+    } catch (RuntimeException e) {
+      fail(e);
+      return;
+    }
     if (streaming) {
       response.end(body);
     } else if (aborted(executionResponse.getExecutionResult())) {
@@ -66,29 +75,41 @@ final class HeartbeatResponseWriter implements ExecutionResponseWriter {
     stop();
     if (streaming) {
       logger.error("GraphQL execution failed after the response started", failure);
-      ctx.response().end(Buffer.buffer(SYSTEM_ERROR, charset));
+      ctx.response().end(encode(SYSTEM_ERROR));
     } else {
       ctx.fail(failure);
     }
   }
 
   private synchronized void beat() {
-    HttpServerResponse response = ctx.response();
-    if (done || response.ended() || response.closed()) {
+    try {
+      HttpServerResponse response = ctx.response();
+      if (done || response.ended() || response.closed()) {
+        stop();
+        return;
+      }
+      if (!streaming) {
+        // Without it nginx holds the compressed spaces until the end and the browser side is
+        // silent.
+        response.putHeader("X-Accel-Buffering", "no").setStatusCode(200).setChunked(true);
+        streaming = true;
+      }
+      response.write(encode(" "));
+    } catch (RuntimeException e) {
+      logger.warn("GraphQL heartbeat stopped", e);
       stop();
-      return;
     }
-    if (!streaming) {
-      // Without it nginx holds the compressed spaces until the end and the browser side is silent.
-      response.putHeader("X-Accel-Buffering", "no").setStatusCode(200).setChunked(true);
-      streaming = true;
-    }
-    response.write(" ");
   }
 
   private void stop() {
     done = true;
-    beats.cancel(false);
+    if (beats != null) {
+      beats.cancel(false);
+    }
+  }
+
+  private Buffer encode(String text) {
+    return Buffer.buffer(text.getBytes(charset));
   }
 
   // SmallRye answers an empty 500 when an aborted execution still returned data.

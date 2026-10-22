@@ -20,19 +20,21 @@ import io.vertx.ext.web.MIMEHeader;
 import io.vertx.ext.web.ParsedHeaderValues;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonString;
+import java.nio.charset.Charset;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.regex.Pattern;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
@@ -60,9 +62,20 @@ public class GraphQLExecutionRoute {
   @ConfigProperty(name = "carbonio.files.graphql.heartbeat-interval", defaultValue = "10s")
   Duration heartbeatInterval;
 
-  private final ScheduledExecutorService heartbeats =
-      Executors.newSingleThreadScheduledExecutor(
-          runnable -> Thread.ofPlatform().name("graphql-heartbeat").daemon().unstarted(runnable));
+  private ScheduledThreadPoolExecutor heartbeats;
+
+  @PostConstruct
+  void startHeartbeats() {
+    if (heartbeatInterval.toMillis() <= 0) {
+      throw new IllegalStateException(
+          "carbonio.files.graphql.heartbeat-interval must be at least 1 ms: " + heartbeatInterval);
+    }
+    heartbeats =
+        new ScheduledThreadPoolExecutor(
+            1,
+            runnable -> Thread.ofPlatform().name("graphql-heartbeat").daemon().unstarted(runnable));
+    heartbeats.setRemoveOnCancelPolicy(true);
+  }
 
   public void register(@Observes Router router) {
     ExecutionHandler handler =
@@ -148,10 +161,12 @@ public class GraphQLExecutionRoute {
         currentVertxRequest.setCurrent(ctx);
         Optional<JsonObject> longBlobOperation = longBlobOperation(ctx);
         String contentType = longBlobOperation.isEmpty() ? null : responseContentType(ctx);
-        if (contentType == null) {
+        Optional<Charset> charset =
+            contentType == null ? Optional.empty() : supportedCharset(charsetOf(contentType));
+        if (charset.isEmpty()) {
           doHandle(ctx);
         } else {
-          executeWithHeartbeat(ctx, longBlobOperation.get(), contentType);
+          executeWithHeartbeat(ctx, longBlobOperation.get(), contentType, charset.get());
         }
       } finally {
         SmallRyeContextManager.clearCurrentSmallRyeContext();
@@ -176,10 +191,11 @@ public class GraphQLExecutionRoute {
       }
     }
 
-    private void executeWithHeartbeat(RoutingContext ctx, JsonObject input, String contentType) {
+    private void executeWithHeartbeat(
+        RoutingContext ctx, JsonObject input, String contentType, Charset charset) {
       ctx.response().headers().set(HttpHeaders.CONTENT_TYPE, contentType);
-      HeartbeatResponseWriter writer =
-          new HeartbeatResponseWriter(ctx, charsetOf(contentType), heartbeatInterval, heartbeats);
+      HeartbeatResponseWriter writer = new HeartbeatResponseWriter(ctx, charset);
+      writer.start(heartbeatInterval, heartbeats);
       try {
         getExecutionService().executeAsync(input, getMetaData(ctx), writer);
       } catch (RuntimeException e) {
@@ -212,6 +228,15 @@ public class GraphQLExecutionRoute {
       return mimeType.startsWith("application/json")
           || mimeType.startsWith("application/graphql-response+json")
           || mimeType.startsWith("application/graphql+json");
+    }
+
+    // An unsupported charset keeps SmallRye's own handling.
+    private static Optional<Charset> supportedCharset(String name) {
+      try {
+        return Optional.of(Charset.forName(name));
+      } catch (IllegalArgumentException e) {
+        return Optional.empty();
+      }
     }
 
     private static String charsetOf(String mimeType) {
