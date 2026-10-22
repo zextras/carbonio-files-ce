@@ -216,7 +216,7 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
             // via
             // the same config channel.
             Map.entry("quarkus.scheduler.enabled", "false"),
-            Map.entry("carbonio.files.graphql.heartbeat-interval", "3s"));
+            Map.entry("carbonio.files.graphql.heartbeat-interval", "100ms"));
 
     started = true;
     return cachedConfig;

@@ -9,8 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import com.zextras.carbonio.files.it.support.MockStoragesService;
-import io.restassured.RestAssured;
-import io.restassured.response.Response;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,7 +23,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * copyNodes, cloneVersion and transferOwnership answer with a 200 head and one space per interval
- * (3 s in the ITs) while they run longer than the interval, then the usual JSON result.
+ * (100 ms in the ITs) while they run longer than the interval, then the usual JSON result. The fast
+ * path is covered without real time by {@code HeartbeatResponseWriterTest}.
  */
 class GraphQLHeartbeatApiIT extends AbstractFilesIT {
 
@@ -99,32 +98,6 @@ class GraphQLHeartbeatApiIT extends AbstractFilesIT {
           .isEqualTo("NODE_COPY_ERROR");
     }
     Assertions.assertThat(childIds(destination, COOKIE)).isEmpty();
-  }
-
-  @Test
-  void givenAFastCopyThenTheResponseIsTheUsualOne() {
-    String file = seedFile("fast.txt", LOCAL_ROOT, bytes("fast"), COOKIE);
-    String destination = seedFolder("heartbeat-fast-destination", LOCAL_ROOT, COOKIE);
-
-    Response copy =
-        RestAssured.given()
-            .contentType("application/json")
-            .header("Cookie", COOKIE)
-            .body(copyNodes(file, destination))
-            .post("/graphql");
-    Response query =
-        RestAssured.given()
-            .contentType("application/json")
-            .header("Cookie", COOKIE)
-            .body("{\"query\":\"query { getNode(node_id: \\\"" + destination + "\\\") { id } }\"}")
-            .post("/graphql");
-
-    Assertions.assertThat(copy.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(copy.getHeader("Transfer-Encoding")).isNull();
-    Assertions.assertThat(copy.getHeader("Content-Length")).isNotNull();
-    Assertions.assertThat(copy.getContentType()).isEqualTo(query.getContentType());
-    Assertions.assertThat(copy.getBody().asString()).startsWith("{");
-    Assertions.assertThat(copy.jsonPath().getString("data.copyNodes[0].id")).isNotEmpty();
   }
 
   private static String copyNodes(String file, String destination) {
