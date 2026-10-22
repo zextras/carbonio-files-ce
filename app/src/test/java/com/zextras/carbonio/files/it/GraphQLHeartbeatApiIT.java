@@ -60,8 +60,9 @@ class GraphQLHeartbeatApiIT extends AbstractFilesIT {
       InputStream in = client.getInputStream();
       Map<String, String> head = readHead(in);
       Assertions.assertThat(head.get(":status")).startsWith("HTTP/1.1 200");
-      Assertions.assertThat(head.get("transfer-encoding")).isEqualTo("chunked");
-      Assertions.assertThat(head.get("x-accel-buffering")).isEqualTo("no");
+      Assertions.assertThat(head)
+          .containsEntry("transfer-encoding", "chunked")
+          .containsEntry("x-accel-buffering", "no");
       String firstChunk = readChunk(in);
       Assertions.assertThat(firstChunk).isNotEmpty().isBlank();
 

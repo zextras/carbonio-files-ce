@@ -27,6 +27,7 @@ import jakarta.inject.Inject;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonString;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
@@ -115,7 +116,7 @@ public class GraphQLExecutionRoute {
 
     private static final String DEFAULT_RESPONSE_CONTENT_TYPE =
         "application/graphql-response+json; charset=UTF-8";
-    private static final Pattern NEWLINE_OR_TAB = Pattern.compile("\\n|\\t|\\r");
+    private static final Pattern NEWLINE_OR_TAB = Pattern.compile("[\\n\\t\\r]");
 
     private final CurrentIdentityAssociation identityAssociation;
     private final CurrentVertxRequest currentVertxRequest;
@@ -145,12 +146,12 @@ public class GraphQLExecutionRoute {
           identityAssociation.setIdentity(QuarkusHttpUser.getSecurityIdentity(ctx, null));
         }
         currentVertxRequest.setCurrent(ctx);
-        JsonObject longBlobOperation = longBlobOperation(ctx);
-        String contentType = longBlobOperation == null ? null : responseContentType(ctx);
+        Optional<JsonObject> longBlobOperation = longBlobOperation(ctx);
+        String contentType = longBlobOperation.isEmpty() ? null : responseContentType(ctx);
         if (contentType == null) {
           doHandle(ctx);
         } else {
-          executeWithHeartbeat(ctx, longBlobOperation, contentType);
+          executeWithHeartbeat(ctx, longBlobOperation.get(), contentType);
         }
       } finally {
         SmallRyeContextManager.clearCurrentSmallRyeContext();
@@ -159,19 +160,19 @@ public class GraphQLExecutionRoute {
     }
 
     // A false positive (the name in a comment or a string) only adds the heartbeat.
-    private JsonObject longBlobOperation(RoutingContext ctx) {
+    private Optional<JsonObject> longBlobOperation(RoutingContext ctx) {
       String contentType = ctx.request().getHeader(HttpHeaders.CONTENT_TYPE);
       String body = ctx.body() == null ? null : ctx.body().asString();
       if (body == null
           || (contentType != null && contentType.startsWith("application/graphql"))
           || LONG_BLOB_OPERATIONS.stream().noneMatch(body::contains)) {
-        return null;
+        return Optional.empty();
       }
       try {
         JsonObject input = inputToJsonObject(NEWLINE_OR_TAB.matcher(body).replaceAll(" "));
-        return input.get("query") instanceof JsonString ? input : null;
+        return input.get("query") instanceof JsonString ? Optional.of(input) : Optional.empty();
       } catch (RuntimeException e) {
-        return null;
+        return Optional.empty();
       }
     }
 
