@@ -1,3 +1,9 @@
+## [3.0.3](https://github.com/zextras/carbonio-files-ce/compare/v3.0.2...v3.0.3) (2026-10-22)
+
+### Bug Fixes
+
+* lift the blob operation time limits and keep long GraphQL blob operations alive ([#339](https://github.com/zextras/carbonio-files-ce/issues/339)) ([bea29e1](https://github.com/zextras/carbonio-files-ce/commit/bea29e151435942004534532aa760dc0b814dee5))
+
 ## [3.0.2](https://github.com/zextras/carbonio-files-ce/compare/v3.0.1...v3.0.2) (2026-10-21)
 
 ### Bug Fixes
