@@ -79,19 +79,20 @@ public final class FilesServiceConfig implements CarbonioServiceConfig {
     /** Consul KV path: carbonio-files/transfer/max-threads */
     @ConfigKey(
         description =
-            "Threads of the transfer pool. The pool runs the REST byte transfers: upload,"
-                + " upload-version, downloads (single, zip, public), /internal accounts"
-                + " GetFile/PutFile, preview streaming and /upload-to. One thread per transfer for"
-                + " its whole duration; a transfer that finds all threads busy waits in the queue."
-                + " Not the Quarkus worker pool (server/max-threads)",
+            "Threads of the transfer pool. The pool runs the REST byte transfers (upload,"
+                + " upload-version, downloads: single, zip, public, /internal accounts"
+                + " GetFile/PutFile, preview streaming, /upload-to) and the long GraphQL blob"
+                + " mutations (copyNodes, cloneVersion, transferOwnership). One thread per"
+                + " operation for its whole duration; an operation that finds all threads busy"
+                + " waits in the queue. Not the Quarkus worker pool (server/max-threads)",
         ifNotPresent = "64")
     public static final String TRANSFER_MAX_THREADS = "transfer.max-threads";
 
     /** Consul KV path: carbonio-files/transfer/queue-size */
     @ConfigKey(
         description =
-            "Transfers that can wait for a free transfer-pool thread (see transfer/max-threads)."
-                + " When threads and queue are both full a new transfer is answered with 503",
+            "Operations that can wait for a free transfer-pool thread (see transfer/max-threads)."
+                + " When threads and queue are both full a new one is answered with 503",
         ifNotPresent = "256")
     public static final String TRANSFER_QUEUE_SIZE = "transfer.queue-size";
   }

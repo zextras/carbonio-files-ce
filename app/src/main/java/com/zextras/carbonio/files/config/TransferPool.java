@@ -20,8 +20,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Dedicated, bounded thread pool that runs the heavy REST byte-transfer work (single/ZIP blob
- * downloads, blob uploads and {@code /upload-to}) OFF the Vert.x event loop and OFF the shared
- * Quarkus worker pool, so a burst of large transfers cannot starve the rest of the service.
+ * downloads, blob uploads and {@code /upload-to}) and the long GraphQL blob mutations (copyNodes,
+ * cloneVersion, transferOwnership) OFF the Vert.x event loop and OFF the shared Quarkus worker
+ * pool, so a burst of large transfers cannot starve the rest of the service.
  *
  * <p>The pool is sized from Consul KV (overridable at {@code carbonio-files/transfer/max-threads}
  * and {@code carbonio-files/transfer/queue-size}, surfaced by the bootstrap extension as the {@code
