@@ -7,18 +7,28 @@ package com.zextras.carbonio.files.rest.resources;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import com.zextras.carbonio.files.exceptions.DependencyException;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.HttpServerResponse;
+import jakarta.ws.rs.core.Response;
 import java.io.InputStream;
+import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -83,7 +93,8 @@ class TransferStreamingRejectionTest {
 
       Uni<Void> uni = TransferStreaming.streamBlob(blob, resp, pool);
 
-      assertThatThrownBy(() -> uni.subscribeAsCompletionStage().get(5, TimeUnit.SECONDS))
+      CompletableFuture<Void> result = uni.subscribeAsCompletionStage();
+      assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS))
           .isInstanceOf(ExecutionException.class)
           .cause()
           .isInstanceOf(RejectedExecutionException.class);
@@ -121,6 +132,106 @@ class TransferStreamingRejectionTest {
     } finally {
       pool.shutdown();
     }
+  }
+
+  private static BlobResponse lazyBlob(AtomicInteger opened, InputStream stream) {
+    return new BlobResponse(
+        () -> {
+          opened.incrementAndGet();
+          return stream;
+        },
+        "file.txt",
+        10L,
+        "text/plain");
+  }
+
+  @Test
+  void theStreamIsNotOpenedWhenThePoolRejectsTheTask() throws Exception {
+    ThreadPoolExecutor pool = onePlaceExecutor();
+    CountDownLatch workerBusy = new CountDownLatch(1);
+    CountDownLatch release = new CountDownLatch(1);
+    try {
+      pool.execute(
+          () -> {
+            workerBusy.countDown();
+            awaitUninterruptibly(release);
+          });
+      assertThat(workerBusy.await(5, TimeUnit.SECONDS)).isTrue();
+      AtomicInteger opened = new AtomicInteger();
+
+      Uni<Void> uni =
+          TransferStreaming.streamBlob(
+              lazyBlob(opened, InputStream.nullInputStream()),
+              mock(HttpServerResponse.class),
+              pool);
+
+      CompletableFuture<Void> result = uni.subscribeAsCompletionStage();
+      assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS))
+          .cause()
+          .isInstanceOf(RejectedExecutionException.class);
+      assertThat(opened).hasValue(0);
+    } finally {
+      release.countDown();
+      pool.shutdown();
+    }
+  }
+
+  @Test
+  void theStreamIsNotOpenedWhenTheClientIsGoneWhileQueued() throws Exception {
+    AtomicInteger opened = new AtomicInteger();
+    HttpServerResponse resp = mock(HttpServerResponse.class);
+    when(resp.closed()).thenReturn(true);
+
+    ExecutorService pool = Executors.newSingleThreadExecutor();
+    try {
+      TransferStreaming.streamBlob(lazyBlob(opened, InputStream.nullInputStream()), resp, pool)
+          .subscribeAsCompletionStage()
+          .get(5, TimeUnit.SECONDS);
+    } finally {
+      pool.shutdown();
+    }
+
+    assertThat(opened).hasValue(0);
+    verify(resp, never())
+        .putHeader(
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+    verify(resp, never()).end();
+  }
+
+  @Test
+  void anOpenFailureFailsTheUniBeforeAnyHeaderAndKeepsItsStatus() {
+    ExecutorService pool = Executors.newSingleThreadExecutor();
+    HttpServerResponse resp = mock(HttpServerResponse.class);
+    BlobResponse blob =
+        new BlobResponse(
+            () -> {
+              throw new DependencyException("Storages failed", new NoSuchElementException("gone"));
+            },
+            "file.txt",
+            10L,
+            "text/plain");
+
+    Uni<Void> uni = TransferStreaming.streamBlob(blob, resp, pool);
+
+    try {
+      CompletableFuture<Void> result = uni.subscribeAsCompletionStage();
+      assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS))
+          .cause()
+          .isInstanceOf(DependencyException.class);
+    } finally {
+      pool.shutdown();
+    }
+    verify(resp, never())
+        .putHeader(
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+    verify(resp, never()).end();
+    assertThat(statusOf(new DependencyException("x", new NoSuchElementException()))).isEqualTo(404);
+    assertThat(statusOf(new DependencyException("x", new java.io.IOException()))).isEqualTo(500);
+  }
+
+  private static int statusOf(Throwable failure) {
+    Response response = new BlobExceptionMapper().toResponse(failure);
+    return response.getStatus();
   }
 
   private static void awaitUninterruptibly(CountDownLatch latch) {

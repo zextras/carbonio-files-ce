@@ -1068,8 +1068,7 @@ paths:
         "200":
           description: OK
           content:
-            application/json:
-              schema: {}
+            application/json: {}
       summary: Upload To
       tags:
       - Procedure Resource

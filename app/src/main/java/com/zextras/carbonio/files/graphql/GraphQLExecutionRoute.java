@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.graphql;
 
+import com.zextras.carbonio.files.config.TransferPool;
 import io.quarkus.arc.Arc;
 import io.quarkus.arc.ManagedContext;
 import io.quarkus.security.AuthenticationException;
@@ -43,6 +44,12 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  * ends, also when the client disconnects (SmallRye's handler ends it as soon as the connection
  * closes, under the running resolvers).
  *
+ * <p>copyNodes, cloneVersion and transferOwnership are handed from the event loop to the {@link
+ * TransferPool} and run there entirely, so a copy that takes minutes costs one transfer thread and
+ * no worker. That thread has no Vert.x context: the resolvers run on it directly, and the request
+ * context stays active between them because SmallRye's context propagation restores it after each
+ * one (see LongBlobOperationsTransferPoolTest).
+ *
  * <p>Removable once every resolver, reads included, runs in its own transaction (Quarkus ≥ 3.38
  * adds them) and the long blob operations run as asynchronous jobs: {@code
  * quarkus.smallrye-graphql.nonblocking.enabled=false} then covers the threading, and only the empty
@@ -77,16 +84,47 @@ public class GraphQLExecutionRoute {
     heartbeats.setRemoveOnCancelPolicy(true);
   }
 
-  public void register(@Observes Router router) {
+  public void register(@Observes Router router, TransferPool transferPool) {
     ExecutionHandler handler =
         new ExecutionHandler(
             identityAssociation, currentVertxRequest, heartbeatInterval, heartbeats);
     router
         .post("/graphql")
         .order(-198)
+        .handler(ctx -> handOffLongBlobOperation(handler, transferPool, ctx));
+    router
+        .post("/graphql")
+        .order(-198)
         .blockingHandler(handler, false)
         .failureHandler(GraphQLExecutionRoute::endWithoutBody);
   }
+
+  // Long blob operations run entirely on a transfer thread, never on a worker. A full pool answers
+  // 503 before any byte, like the REST transfers.
+  private static void handOffLongBlobOperation(
+      ExecutionHandler handler, TransferPool transferPool, RoutingContext ctx) {
+    Optional<LongBlobOperation> operation = handler.longBlobOperation(ctx);
+    if (operation.isEmpty()) {
+      ctx.next();
+      return;
+    }
+    try {
+      transferPool
+          .get()
+          .execute(
+              () -> {
+                try {
+                  handler.executeLongBlobOperation(ctx, operation.get());
+                } catch (RuntimeException failure) {
+                  ctx.fail(failure);
+                }
+              });
+    } catch (RejectedExecutionException rejected) {
+      ctx.fail(rejected);
+    }
+  }
+
+  private record LongBlobOperation(JsonObject input, String contentType, Charset charset) {}
 
   // The UI cannot decode QuarkusErrorHandler's JSON body; it still logs the failure.
   private static void endWithoutBody(RoutingContext ctx) {
@@ -150,6 +188,14 @@ public class GraphQLExecutionRoute {
 
     @Override
     public void handle(RoutingContext ctx) {
+      run(ctx, () -> doHandle(ctx));
+    }
+
+    void executeLongBlobOperation(RoutingContext ctx, LongBlobOperation operation) {
+      run(ctx, () -> executeWithHeartbeat(ctx, operation));
+    }
+
+    private void run(RoutingContext ctx, Runnable execution) {
       ManagedContext requestContext = Arc.container().requestContext();
       requestContext.activate();
       try {
@@ -159,15 +205,7 @@ public class GraphQLExecutionRoute {
           identityAssociation.setIdentity(QuarkusHttpUser.getSecurityIdentity(ctx, null));
         }
         currentVertxRequest.setCurrent(ctx);
-        Optional<JsonObject> longBlobOperation = longBlobOperation(ctx);
-        String contentType = longBlobOperation.isEmpty() ? null : responseContentType(ctx);
-        Optional<Charset> charset =
-            contentType == null ? Optional.empty() : supportedCharset(charsetOf(contentType));
-        if (charset.isEmpty()) {
-          doHandle(ctx);
-        } else {
-          executeWithHeartbeat(ctx, longBlobOperation.get(), contentType, charset.get());
-        }
+        execution.run();
       } finally {
         SmallRyeContextManager.clearCurrentSmallRyeContext();
         requestContext.terminate();
@@ -175,7 +213,7 @@ public class GraphQLExecutionRoute {
     }
 
     // A false positive (the name in a comment or a string) only adds the heartbeat.
-    private Optional<JsonObject> longBlobOperation(RoutingContext ctx) {
+    Optional<LongBlobOperation> longBlobOperation(RoutingContext ctx) {
       String contentType = ctx.request().getHeader(HttpHeaders.CONTENT_TYPE);
       String body = ctx.body() == null ? null : ctx.body().asString();
       if (body == null
@@ -183,21 +221,29 @@ public class GraphQLExecutionRoute {
           || LONG_BLOB_OPERATIONS.stream().noneMatch(body::contains)) {
         return Optional.empty();
       }
+      JsonObject input;
       try {
-        JsonObject input = inputToJsonObject(NEWLINE_OR_TAB.matcher(body).replaceAll(" "));
-        return input.get("query") instanceof JsonString ? Optional.of(input) : Optional.empty();
+        input = inputToJsonObject(NEWLINE_OR_TAB.matcher(body).replaceAll(" "));
       } catch (RuntimeException e) {
         return Optional.empty();
       }
+      if (!(input.get("query") instanceof JsonString)) {
+        return Optional.empty();
+      }
+      String responseContentType = responseContentType(ctx);
+      if (responseContentType == null) {
+        return Optional.empty();
+      }
+      return supportedCharset(charsetOf(responseContentType))
+          .map(charset -> new LongBlobOperation(input, responseContentType, charset));
     }
 
-    private void executeWithHeartbeat(
-        RoutingContext ctx, JsonObject input, String contentType, Charset charset) {
-      ctx.response().headers().set(HttpHeaders.CONTENT_TYPE, contentType);
-      HeartbeatResponseWriter writer = new HeartbeatResponseWriter(ctx, charset);
+    private void executeWithHeartbeat(RoutingContext ctx, LongBlobOperation operation) {
+      ctx.response().headers().set(HttpHeaders.CONTENT_TYPE, operation.contentType());
+      HeartbeatResponseWriter writer = new HeartbeatResponseWriter(ctx, operation.charset());
       writer.start(heartbeatInterval, heartbeats);
       try {
-        getExecutionService().executeAsync(input, getMetaData(ctx), writer);
+        getExecutionService().executeAsync(operation.input(), getMetaData(ctx), writer);
       } catch (RuntimeException e) {
         writer.fail(e);
       }

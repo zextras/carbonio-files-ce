@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.config;
 
+import com.zextras.carbonio.quarkus.extensions.bootstrap.CarbonioServiceConfig;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -19,8 +20,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Dedicated, bounded thread pool that runs the heavy REST byte-transfer work (single/ZIP blob
- * downloads and blob uploads) OFF the Vert.x event loop and OFF the shared Quarkus worker pool, so
- * a burst of large transfers cannot starve the rest of the service.
+ * downloads, blob uploads and {@code /upload-to}) and the long GraphQL blob mutations (copyNodes,
+ * cloneVersion, transferOwnership) OFF the Vert.x event loop and OFF the shared Quarkus worker
+ * pool, so a burst of large transfers cannot starve the rest of the service.
  *
  * <p>The pool is sized from Consul KV (overridable at {@code carbonio-files/transfer/max-threads}
  * and {@code carbonio-files/transfer/queue-size}, surfaced by the bootstrap extension as the {@code
@@ -35,10 +37,18 @@ public class TransferPool {
 
   private static final Logger logger = LoggerFactory.getLogger(TransferPool.class);
 
-  @ConfigProperty(name = "application-config.transfer.max-threads", defaultValue = "64")
+  @ConfigProperty(
+      name =
+          CarbonioServiceConfig.APPLICATION_CONFIG_PREFIX
+              + FilesServiceConfig.ApplicationConfig.TRANSFER_MAX_THREADS,
+      defaultValue = "64")
   int maxThreads;
 
-  @ConfigProperty(name = "application-config.transfer.queue-size", defaultValue = "256")
+  @ConfigProperty(
+      name =
+          CarbonioServiceConfig.APPLICATION_CONFIG_PREFIX
+              + FilesServiceConfig.ApplicationConfig.TRANSFER_QUEUE_SIZE,
+      defaultValue = "256")
   int queueSize;
 
   private ThreadPoolExecutor executor;

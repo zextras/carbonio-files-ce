@@ -55,7 +55,10 @@ final class TransferStreaming {
    * transfer pool. The source stream is always closed (success or failure); the returned {@link
    * Uni} completes when the response is fully written and ended, or fails on any transfer error
    * (client disconnect, storages read error, pool saturation). All headers are set on the pool
-   * thread before the first write, so they land before {@code headWritten()}.
+   * thread before the first write, so they land before {@code headWritten()}. The blob stream is
+   * opened on the pool thread, after a check that the client is still connected, and before the
+   * response head: an open failure fails the {@link Uni} so {@code BlobExceptionMapper} sets the
+   * status.
    */
   static Uni<Void> streamBlob(
       BlobResponse blob,
@@ -68,7 +71,14 @@ final class TransferStreaming {
               try {
                 pool.execute(
                     () -> {
+                      InputStream stream = null;
                       try {
+                        if (resp.closed()) {
+                          blob.close();
+                          emitter.complete(null);
+                          return;
+                        }
+                        stream = blob.openBlobStream();
                         extraHeaders.forEach(resp::putHeader);
                         resp.putHeader(HttpHeaders.CONTENT_TYPE, blob.getMimeType());
                         resp.putHeader(
@@ -83,18 +93,17 @@ final class TransferStreaming {
                           // either fixed-length (Content-Length) OR explicitly chunked.
                           resp.setChunked(true);
                         }
-                        pumpInputStream(blob.getBlobStream(), resp);
+                        pumpInputStream(stream, resp);
                         emitter.complete(null);
                       } catch (Throwable failure) {
-                        closeQuietly(blob.getBlobStream());
+                        closeQuietly(stream);
                         handleTransferFailure(resp, emitter, failure);
                       }
                     });
               } catch (RejectedExecutionException rejected) {
-                // Transfer pool saturated (AbortPolicy): the storages stream is already open, so
-                // close it here to avoid leaking it (the pool task that would have closed it never
-                // runs).
-                closeQuietly(blob.getBlobStream());
+                // Transfer pool saturated (AbortPolicy): a lazy blob has nothing open; a stream
+                // handed over already open (preview) is closed here, the task never runs.
+                blob.close();
                 emitter.fail(rejected);
               }
             });

@@ -75,5 +75,25 @@ public final class FilesServiceConfig implements CarbonioServiceConfig {
     /** Consul KV path: carbonio-files/max-downloadable-size-in-mb */
     @ConfigKey(description = "Max downloadable file size in MB", ifNotPresent = "no limit")
     public static final String MAX_DOWNLOADABLE_SIZE_IN_MB = "max-downloadable-size-in-mb";
+
+    /** Consul KV path: carbonio-files/transfer/max-threads */
+    @ConfigKey(
+        description =
+            "Threads of the transfer pool. The pool runs the REST byte transfers (upload,"
+                + " upload-version, downloads: single, zip, public, /internal accounts"
+                + " GetFile/PutFile, preview streaming, /upload-to) and the long GraphQL blob"
+                + " mutations (copyNodes, cloneVersion, transferOwnership). One thread per"
+                + " operation for its whole duration; an operation that finds all threads busy"
+                + " waits in the queue. Not the Quarkus worker pool (server/max-threads)",
+        ifNotPresent = "64")
+    public static final String TRANSFER_MAX_THREADS = "transfer.max-threads";
+
+    /** Consul KV path: carbonio-files/transfer/queue-size */
+    @ConfigKey(
+        description =
+            "Operations that can wait for a free transfer-pool thread (see transfer/max-threads)."
+                + " When threads and queue are both full a new one is answered with 503",
+        ifNotPresent = "256")
+    public static final String TRANSFER_QUEUE_SIZE = "transfer.queue-size";
   }
 }
