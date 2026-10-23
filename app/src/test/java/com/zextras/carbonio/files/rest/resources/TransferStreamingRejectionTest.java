@@ -18,6 +18,7 @@ import io.vertx.core.http.HttpServerResponse;
 import jakarta.ws.rs.core.Response;
 import java.io.InputStream;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -92,7 +93,8 @@ class TransferStreamingRejectionTest {
 
       Uni<Void> uni = TransferStreaming.streamBlob(blob, resp, pool);
 
-      assertThatThrownBy(() -> uni.subscribeAsCompletionStage().get(5, TimeUnit.SECONDS))
+      CompletableFuture<Void> result = uni.subscribeAsCompletionStage();
+      assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS))
           .isInstanceOf(ExecutionException.class)
           .cause()
           .isInstanceOf(RejectedExecutionException.class);
@@ -163,7 +165,8 @@ class TransferStreamingRejectionTest {
               mock(HttpServerResponse.class),
               pool);
 
-      assertThatThrownBy(() -> uni.subscribeAsCompletionStage().get(5, TimeUnit.SECONDS))
+      CompletableFuture<Void> result = uni.subscribeAsCompletionStage();
+      assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS))
           .cause()
           .isInstanceOf(RejectedExecutionException.class);
       assertThat(opened).hasValue(0);
@@ -211,7 +214,8 @@ class TransferStreamingRejectionTest {
     Uni<Void> uni = TransferStreaming.streamBlob(blob, resp, pool);
 
     try {
-      assertThatThrownBy(() -> uni.subscribeAsCompletionStage().get(5, TimeUnit.SECONDS))
+      CompletableFuture<Void> result = uni.subscribeAsCompletionStage();
+      assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS))
           .cause()
           .isInstanceOf(DependencyException.class);
     } finally {

@@ -65,7 +65,6 @@ public class GraphQLExecutionRoute {
 
   @Inject CurrentIdentityAssociation identityAssociation;
   @Inject CurrentVertxRequest currentVertxRequest;
-  @Inject TransferPool transferPool;
 
   @ConfigProperty(name = "carbonio.files.graphql.heartbeat-interval", defaultValue = "10s")
   Duration heartbeatInterval;
@@ -85,11 +84,14 @@ public class GraphQLExecutionRoute {
     heartbeats.setRemoveOnCancelPolicy(true);
   }
 
-  public void register(@Observes Router router) {
+  public void register(@Observes Router router, TransferPool transferPool) {
     ExecutionHandler handler =
         new ExecutionHandler(
             identityAssociation, currentVertxRequest, heartbeatInterval, heartbeats);
-    router.post("/graphql").order(-198).handler(ctx -> handOffLongBlobOperation(handler, ctx));
+    router
+        .post("/graphql")
+        .order(-198)
+        .handler(ctx -> handOffLongBlobOperation(handler, transferPool, ctx));
     router
         .post("/graphql")
         .order(-198)
@@ -97,9 +99,10 @@ public class GraphQLExecutionRoute {
         .failureHandler(GraphQLExecutionRoute::endWithoutBody);
   }
 
-  // The long blob operations take a transfer thread for their whole execution and never a worker;
-  // a full pool answers 503 before any byte, like the REST transfers.
-  private void handOffLongBlobOperation(ExecutionHandler handler, RoutingContext ctx) {
+  // Long blob operations run entirely on a transfer thread, never on a worker. A full pool answers
+  // 503 before any byte, like the REST transfers.
+  private static void handOffLongBlobOperation(
+      ExecutionHandler handler, TransferPool transferPool, RoutingContext ctx) {
     Optional<LongBlobOperation> operation = handler.longBlobOperation(ctx);
     if (operation.isEmpty()) {
       ctx.next();
@@ -112,7 +115,7 @@ public class GraphQLExecutionRoute {
               () -> {
                 try {
                   handler.executeLongBlobOperation(ctx, operation.get());
-                } catch (Throwable failure) {
+                } catch (RuntimeException failure) {
                   ctx.fail(failure);
                 }
               });

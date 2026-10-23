@@ -285,7 +285,7 @@ class LongBlobOperationsTransferPoolTest {
   }
 
   @Test
-  void aFullPoolAnswers503ForALongOperationAndTheWorkerStaysFree() throws Exception {
+  void aFullPoolAnswers503ForALongOperationAndTheWorkerStaysFree() {
     ThreadPoolExecutor pool = (ThreadPoolExecutor) transferPool.get();
     CountDownLatch release = new CountDownLatch(1);
     int capacity = pool.getMaximumPoolSize() + pool.getQueue().remainingCapacity();
