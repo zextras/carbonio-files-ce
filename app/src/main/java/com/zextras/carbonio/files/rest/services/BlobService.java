@@ -877,34 +877,31 @@ public class BlobService {
                         node.getId(), version == null ? node.getCurrentVersion() : version)
                     .map(
                         fileVersion ->
-                            Try.of(
-                                    () ->
-                                        fileStore.download(
-                                            FilesIdentifier.of(
-                                                fileVersion.getNodeId(),
-                                                fileVersion.getVersion(),
-                                                node.getOwnerId())))
-                                .map(
-                                    blob ->
-                                        new BlobResponse(
-                                            blob,
-                                            node.getFullName(),
-                                            fileVersion.getSize(),
-                                            fileVersion.getMimeType()))
-                                .getOrElseThrow(
-                                    failure -> {
-                                      throw new DependencyException(
-                                          String.format(
-                                              "Storages failed: unable to download node with id %s"
-                                                  + " and version %s",
-                                              fileVersion.getNodeId(), fileVersion.getVersion()),
-                                          failure);
-                                    })))
+                            new BlobResponse(
+                                () ->
+                                    openBlobStream(
+                                        fileVersion.getNodeId(),
+                                        fileVersion.getVersion(),
+                                        node.getOwnerId()),
+                                node.getFullName(),
+                                fileVersion.getSize(),
+                                fileVersion.getMimeType())))
         .orElseGet(
             () -> {
               logger.error("Unable to download node {}: the node id does not exist", nodeId);
               return Optional.empty();
             });
+  }
+
+  private InputStream openBlobStream(String nodeId, int version, String ownerId) {
+    return Try.of(() -> fileStore.download(FilesIdentifier.of(nodeId, version, ownerId)))
+        .getOrElseThrow(
+            failure ->
+                new DependencyException(
+                    String.format(
+                        "Storages failed: unable to download node with id %s and version %s",
+                        nodeId, version),
+                    failure));
   }
 
   /**

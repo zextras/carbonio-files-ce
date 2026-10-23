@@ -287,9 +287,9 @@ public class BlobResource {
       Integer version,
       HttpServerResponse resp) {
     // @Blocking: this runs on a worker thread (request context + EntityManager active). Auth +
-    // metadata resolution + opening the storages InputStream happen here, throwing 404/403 BEFORE
-    // any byte or header is written (so BlobExceptionMapper sets the status). Only the byte pump of
-    // the already-open storages stream is offloaded to the transfer pool (no EntityManager there).
+    // metadata resolution happen here, throwing 404/403 BEFORE any byte or header is written (so
+    // BlobExceptionMapper sets the status). The storages stream is opened and pumped on the
+    // transfer pool (no EntityManager there), still before the response head.
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
     BlobResponse blob =
         blobService
