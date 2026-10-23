@@ -1,3 +1,9 @@
+## [3.0.4](https://github.com/zextras/carbonio-files-ce/compare/v3.0.3...v3.0.4) (2026-10-23)
+
+### Bug Fixes
+
+* open storage streams on the transfer pool and run upload-to and the long GraphQL blob mutations there ([#344](https://github.com/zextras/carbonio-files-ce/issues/344)) ([630b384](https://github.com/zextras/carbonio-files-ce/commit/630b384d65544b4eb855dfd73105d59c92f15ce8))
+
 ## [3.0.3](https://github.com/zextras/carbonio-files-ce/compare/v3.0.2...v3.0.3) (2026-10-22)
 
 ### Bug Fixes
