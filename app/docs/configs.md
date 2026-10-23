@@ -38,4 +38,6 @@ Overridable by Consul KV
 | `carbonio-files/server/max-connections` | *(not set)* | Quarkus default: no limit |
 | `carbonio-files/server/max-threads` | *(not set)* | Quarkus default: 200 |
 | `carbonio-files/server/queue-size` | *(not set)* | Quarkus default: unbounded |
+| `carbonio-files/transfer/max-threads` | `64` |  |
+| `carbonio-files/transfer/queue-size` | `256` |  |
 
