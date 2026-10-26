@@ -68,11 +68,13 @@ class VersionReservationMigrationDalTest {
     return DriverManager.getConnection(FilesStackTestResource.POSTGRES_JDBC_URL, "test", "test");
   }
 
+  // The hierarchical config repeatable migration supports only the default schema.
   private static void migrate(String schema, String target) {
     Flyway.configure()
         .dataSource(FilesStackTestResource.POSTGRES_JDBC_URL, "test", "test")
         .schemas(schema)
         .locations("classpath:db/migration")
+        .javaMigrationClassProvider(List::of)
         .target(target)
         .load()
         .migrate();

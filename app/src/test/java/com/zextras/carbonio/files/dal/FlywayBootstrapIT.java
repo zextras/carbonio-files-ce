@@ -11,6 +11,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -30,11 +31,39 @@ class FlywayBootstrapIT extends AbstractFilesIT {
     try (Connection connection = jdbcConnection();
         PreparedStatement statement =
             connection.prepareStatement(
-                "SELECT version FROM flyway_schema_history WHERE success = true"
-                    + " ORDER BY installed_rank DESC LIMIT 1");
+                "SELECT version FROM flyway_schema_history WHERE success = true AND version IS NOT"
+                    + " NULL ORDER BY installed_rank DESC LIMIT 1");
         ResultSet resultSet = statement.executeQuery()) {
       assertThat(resultSet.next()).as("at least one successful migration recorded").isTrue();
       assertThat(resultSet.getString(1)).isEqualTo("12");
+    }
+  }
+
+  @Test
+  void hierarchicalConfigRepeatableMigrationShouldBeRecorded() throws Exception {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT type, checksum FROM flyway_schema_history WHERE success = true"
+                    + " AND version IS NULL AND description = 'carbonio hierarchical config'");
+        ResultSet resultSet = statement.executeQuery()) {
+      assertThat(resultSet.next()).as("repeatable migration row recorded").isTrue();
+      assertThat(resultSet.getString("type")).isEqualTo("JDBC");
+      assertThat(resultSet.getInt("checksum")).isEqualTo(1);
+      assertThat(resultSet.next()).as("exactly one such row").isFalse();
+    }
+  }
+
+  @Test
+  void hierarchicalConfigTablesShouldExist() throws Exception {
+    for (String table :
+        List.of(
+            "carbonio_account_config",
+            "carbonio_cos_config",
+            "carbonio_domain_config",
+            "carbonio_global_config",
+            "carbonio_config_schema")) {
+      assertThat(tableExists(table)).as(table).isTrue();
     }
   }
 
