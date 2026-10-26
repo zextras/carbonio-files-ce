@@ -29,21 +29,21 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
       "Test key of the hierarchical config skeleton (CO-4496), no behaviour";
 
   private static final String ADMIN_ID = "dddddddd-dddd-dddd-dddd-dddddddddd01";
-  private static final String DELEGATED_ADMIN_ID = "dddddddd-dddd-dddd-dddd-dddddddddd02";
+  private static final String NON_GLOBAL_ADMIN_ID = "dddddddd-dddd-dddd-dddd-dddddddddd02";
   private static final String USER_ID = "dddddddd-dddd-dddd-dddd-dddddddddd03";
   private static final String COS_ID = "cos-1";
   private static final String DOMAIN_ID = "dom-1";
 
   private static final String ADMIN_COOKIE = "ZM_ADMIN_AUTH_TOKEN=hcfg-admin-token";
-  private static final String DELEGATED_ADMIN_COOKIE = "ZM_ADMIN_AUTH_TOKEN=hcfg-delegated-token";
+  private static final String NON_GLOBAL_ADMIN_COOKIE = "ZM_ADMIN_AUTH_TOKEN=hcfg-delegated-token";
   private static final String USER_COOKIE = "ZM_AUTH_TOKEN=hcfg-user-token";
-  private static final String USER_TOKEN_AS_ADMIN_COOKIE = "ZM_AUTH_TOKEN=hcfg-admin-token";
+  private static final String ADMIN_TOKEN_IN_USER_COOKIE = "ZM_AUTH_TOKEN=hcfg-admin-token";
 
   @BeforeAll
   static void registerAccounts() {
     var userManagement = FilesStackTestResource.getUserManagementService();
     userManagement.registerAccount("hcfg-admin-token", ADMIN_ID, null, null, true);
-    userManagement.registerAccount("hcfg-delegated-token", DELEGATED_ADMIN_ID, null, null, false);
+    userManagement.registerAccount("hcfg-delegated-token", NON_GLOBAL_ADMIN_ID, null, null, false);
     userManagement.registerAccount("hcfg-user-token", USER_ID, COS_ID, DOMAIN_ID, false);
   }
 
@@ -73,6 +73,7 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   void adminCanWriteDeclaredKeyAndOnlyThat() throws SQLException {
     assertThat(put("/admin/config/raw/global", ADMIN_COOKIE, body(KEY, "g")).statusCode())
         .isEqualTo(204);
@@ -93,10 +94,13 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
   void adminEndpointsRejectMissingWrongAndNonGlobalCredentials() throws SQLException {
     assertThat(get("/admin/config/keys", null).statusCode()).isEqualTo(401);
     assertThat(put("/admin/config/raw/global", null, body(KEY, "x")).statusCode()).isEqualTo(401);
-    assertThat(get("/admin/config/keys", DELEGATED_ADMIN_COOKIE).statusCode()).isEqualTo(403);
-    assertThat(put("/admin/config/raw/global", DELEGATED_ADMIN_COOKIE, body(KEY, "x")).statusCode())
+    // The 403 reflects the skeleton's /myself-based resolveAdmin; it changes when the
+    // admin-session check lands.
+    assertThat(get("/admin/config/keys", NON_GLOBAL_ADMIN_COOKIE).statusCode()).isEqualTo(403);
+    assertThat(
+            put("/admin/config/raw/global", NON_GLOBAL_ADMIN_COOKIE, body(KEY, "x")).statusCode())
         .isEqualTo(403);
-    assertThat(get("/admin/config/keys", USER_TOKEN_AS_ADMIN_COOKIE).statusCode()).isEqualTo(401);
+    assertThat(get("/admin/config/keys", ADMIN_TOKEN_IN_USER_COOKIE).statusCode()).isEqualTo(401);
     assertThat(globalRows()).isZero();
   }
 
@@ -152,6 +156,7 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
     assertThat(get("/config", null).statusCode()).isEqualTo(401);
   }
 
+  @SuppressWarnings("unchecked")
   private static Map<String, Object> userConfig() {
     Response response = get("/config", USER_COOKIE);
     assertThat(response.statusCode()).isEqualTo(200);

@@ -10,8 +10,10 @@ public final class FilesHierarchicalConfig {
 
   private FilesHierarchicalConfig() {}
 
-  public interface HierarchicalConfig {
+  public static final class HierarchicalConfig {
+    private HierarchicalConfig() {}
+
     @ConfigKey(description = "Test key of the hierarchical config skeleton (CO-4496), no behaviour")
-    String TEST_KEY = "test-key";
+    public static final String TEST_KEY = "test-key";
   }
 }

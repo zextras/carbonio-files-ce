@@ -21,10 +21,8 @@ public interface UserRepository {
 
   /**
    * Resolves the authenticated user from a bare auth-token value (already extracted from its
-   * cookie), forwarded to user-management {@code /myself} as-is. Used by the admin path, which
-   * reads the {@code ZM_ADMIN_AUTH_TOKEN} cookie: mailbox validates the token value regardless of
-   * the cookie name it arrives under, so the resolved {@link UserMyself} (including {@code
-   * isGlobalAdmin}) is correct for the admin session.
+   * cookie), forwarded to user-management {@code /myself} as-is. Validates the token value only; it
+   * does not prove an admin-console session.
    *
    * @param token the raw auth-token value (no {@code NAME=} prefix)
    * @return the resolved {@link UserMyself}, or {@link Optional#empty()} if the token is invalid
