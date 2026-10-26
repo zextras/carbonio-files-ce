@@ -1,6 +1,351 @@
 ---
 openapi: 3.1.0
+components:
+  schemas:
+    CreateFolderRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        destinationId:
+          type: string
+        name:
+          type: string
+    CreatePublicLinkRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        nodeId:
+          type: string
+    DeleteAllRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+    DeleteAllResponse:
+      type: object
+      properties:
+        deleted:
+          type: boolean
+    HierarchicalConfigKey:
+      type: object
+      properties:
+        key:
+          type: string
+        description:
+          type: string
+        defaultValue:
+          type: string
+    HierarchicalConfigResolvedValue:
+      type: object
+      properties:
+        value:
+          type: string
+        source:
+          type: string
+    HierarchicalConfigSetRequest:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+    InternalNodeDto:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        extension:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+          format: int64
+        version:
+          type: integer
+          format: int32
+        updatedAt:
+          type: integer
+          format: int64
+        owner:
+          $ref: "#/components/schemas/OwnerDto"
+        parent:
+          $ref: "#/components/schemas/ParentDto"
+        permissions:
+          $ref: "#/components/schemas/PermissionsDto"
+    InternalNodeIdDto:
+      type: object
+      properties:
+        nodeId:
+          type: string
+    OwnerDto:
+      type: object
+      properties:
+        id:
+          type: string
+    ParentDto:
+      type: object
+      properties:
+        id:
+          type: string
+    PermissionsDto:
+      type: object
+      properties:
+        canWriteFile:
+          type: boolean
+    PublicLinkDto:
+      type: object
+      properties:
+        url:
+          type: string
+  securitySchemes:
+    carbonioAdminCookie:
+      type: apiKey
+      name: ZM_ADMIN_AUTH_TOKEN
+      in: cookie
 paths:
+  /admin/config:
+    get:
+      parameters:
+      - name: accountId
+        in: query
+        schema:
+          type: string
+      - name: key
+        in: query
+        schema:
+          type: string
+      responses:
+        "401":
+          description: Missing or invalid admin token
+        "403":
+          description: Not a global administrator
+        "200":
+          description: Resolved value and source of each declared key
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: "#/components/schemas/HierarchicalConfigResolvedValue"
+        "400":
+          description: Missing accountId
+        "404":
+          description: Unknown account or config key
+      security:
+      - carbonioAdminCookie: []
+      summary: Get Resolved
+      tags:
+      - Admin Config Resource
+  /admin/config/keys:
+    get:
+      responses:
+        "401":
+          description: Missing or invalid admin token
+        "403":
+          description: Not a global administrator
+        "200":
+          description: Declared config keys with their base default
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HierarchicalConfigKey"
+      security:
+      - carbonioAdminCookie: []
+      summary: Get Keys
+      tags:
+      - Admin Config Resource
+  /admin/config/raw/global:
+    put:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HierarchicalConfigSetRequest"
+        required: true
+      responses:
+        "401":
+          description: Missing or invalid admin token
+        "403":
+          description: Not a global administrator
+        "204":
+          description: Value stored
+        "400":
+          description: Invalid body
+      security:
+      - carbonioAdminCookie: []
+      summary: Set Global
+      tags:
+      - Admin Config Resource
+    get:
+      responses:
+        "401":
+          description: Missing or invalid admin token
+        "403":
+          description: Not a global administrator
+        "200":
+          description: Declared keys set at global scope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+      security:
+      - carbonioAdminCookie: []
+      summary: Get Global
+      tags:
+      - Admin Config Resource
+  /admin/config/raw/global/{key}:
+    delete:
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "401":
+          description: Missing or invalid admin token
+        "403":
+          description: Not a global administrator
+        "204":
+          description: Override removed (or absent)
+      security:
+      - carbonioAdminCookie: []
+      summary: Delete Global
+      tags:
+      - Admin Config Resource
+  /admin/config/raw/{scope}/{scopeId}:
+    put:
+      parameters:
+      - name: scope
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: scopeId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HierarchicalConfigSetRequest"
+        required: true
+      responses:
+        "401":
+          description: Missing or invalid admin token
+        "403":
+          description: Not a global administrator
+        "204":
+          description: Value stored
+        "400":
+          description: "Invalid body, unknown scope or blank scope id"
+      security:
+      - carbonioAdminCookie: []
+      summary: Set Scoped
+      tags:
+      - Admin Config Resource
+    get:
+      parameters:
+      - name: scope
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: scopeId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "401":
+          description: Missing or invalid admin token
+        "403":
+          description: Not a global administrator
+        "200":
+          description: Declared keys set at the given scope
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+        "400":
+          description: Unknown scope or blank scope id
+      security:
+      - carbonioAdminCookie: []
+      summary: Get Scoped
+      tags:
+      - Admin Config Resource
+  /admin/config/raw/{scope}/{scopeId}/{key}:
+    delete:
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: scope
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: scopeId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "401":
+          description: Missing or invalid admin token
+        "403":
+          description: Not a global administrator
+        "204":
+          description: Override removed (or absent)
+        "400":
+          description: Unknown scope or blank scope id
+      security:
+      - carbonioAdminCookie: []
+      summary: Delete Scoped
+      tags:
+      - Admin Config Resource
+  /config:
+    get:
+      parameters:
+      - name: key
+        in: query
+        schema:
+          type: string
+      - name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Resolved value of each declared key
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+        "401":
+          description: Missing or invalid auth token
+        "404":
+          description: Unknown config key
+      summary: Get Config
+      tags:
+      - User Config Resource
   /download-multiple:
     post:
       parameters:
@@ -1115,85 +1460,6 @@ paths:
       summary: Upload Version
       tags:
       - Blob Resource
-components:
-  schemas:
-    CreateFolderRequest:
-      type: object
-      properties:
-        userId:
-          type: string
-        destinationId:
-          type: string
-        name:
-          type: string
-    CreatePublicLinkRequest:
-      type: object
-      properties:
-        userId:
-          type: string
-        nodeId:
-          type: string
-    DeleteAllRequest:
-      type: object
-      properties:
-        userId:
-          type: string
-    DeleteAllResponse:
-      type: object
-      properties:
-        deleted:
-          type: boolean
-    InternalNodeDto:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        extension:
-          type: string
-        mimeType:
-          type: string
-        size:
-          type: integer
-          format: int64
-        version:
-          type: integer
-          format: int32
-        updatedAt:
-          type: integer
-          format: int64
-        owner:
-          $ref: "#/components/schemas/OwnerDto"
-        parent:
-          $ref: "#/components/schemas/ParentDto"
-        permissions:
-          $ref: "#/components/schemas/PermissionsDto"
-    InternalNodeIdDto:
-      type: object
-      properties:
-        nodeId:
-          type: string
-    OwnerDto:
-      type: object
-      properties:
-        id:
-          type: string
-    ParentDto:
-      type: object
-      properties:
-        id:
-          type: string
-    PermissionsDto:
-      type: object
-      properties:
-        canWriteFile:
-          type: boolean
-    PublicLinkDto:
-      type: object
-      properties:
-        url:
-          type: string
 info:
   title: carbonio-files-ce-app API
   version: unversioned

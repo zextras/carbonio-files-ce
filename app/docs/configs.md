@@ -41,3 +41,11 @@ Overridable by Consul KV
 | `carbonio-files/transfer/max-threads` | `64` |  | Threads of the transfer pool. The pool runs the REST byte transfers (upload, upload-version, downloads: single, zip, public, /internal accounts GetFile/PutFile, preview streaming, /upload-to) and the long GraphQL blob mutations (copyNodes, cloneVersion, transferOwnership). One thread per operation for its whole duration; an operation that finds all threads busy waits in the queue. Not the Quarkus worker pool (server/max-threads) |
 | `carbonio-files/transfer/queue-size` | `256` |  | Operations that can wait for a free transfer-pool thread (see transfer/max-threads). When threads and queue are both full a new one is answered with 503 |
 
+## Hierarchical Config
+
+Overridable using admin panel
+
+| Key | Default | Description |
+| --- | ------- | ----------- |
+| `test-key` | `default-value` | Test key of the hierarchical config skeleton (CO-4496), no behaviour |
+

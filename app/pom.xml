@@ -42,6 +42,16 @@ SPDX-License-Identifier: AGPL-3.0-only
       <artifactId>carbonio-quarkus-extensions-rest</artifactId>
       <version>${carbonio-quarkus-extensions.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.zextras.carbonio.quarkus</groupId>
+      <artifactId>carbonio-quarkus-extensions-config-hierarchical</artifactId>
+      <version>${carbonio-quarkus-extensions.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.zextras.carbonio.quarkus</groupId>
+      <artifactId>carbonio-quarkus-extensions-config-hierarchical-rest</artifactId>
+      <version>${carbonio-quarkus-extensions.version}</version>
+    </dependency>
 
     <!-- Bean validation (jakarta.validation annotations on DTOs) -->
     <dependency>
