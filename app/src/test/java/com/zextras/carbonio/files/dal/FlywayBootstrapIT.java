@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.dal;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
+import db.migration.R__carbonio_hierarchical_config;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -49,7 +50,8 @@ class FlywayBootstrapIT extends AbstractFilesIT {
         ResultSet resultSet = statement.executeQuery()) {
       assertThat(resultSet.next()).as("repeatable migration row recorded").isTrue();
       assertThat(resultSet.getString("type")).isEqualTo("JDBC");
-      assertThat(resultSet.getInt("checksum")).isEqualTo(1);
+      assertThat(resultSet.getInt("checksum"))
+          .isEqualTo(new R__carbonio_hierarchical_config().getChecksum());
       assertThat(resultSet.next()).as("exactly one such row").isFalse();
     }
   }
@@ -61,8 +63,7 @@ class FlywayBootstrapIT extends AbstractFilesIT {
             "carbonio_account_config",
             "carbonio_cos_config",
             "carbonio_domain_config",
-            "carbonio_global_config",
-            "carbonio_config_schema")) {
+            "carbonio_global_config")) {
       assertThat(tableExists(table)).as(table).isTrue();
     }
   }
