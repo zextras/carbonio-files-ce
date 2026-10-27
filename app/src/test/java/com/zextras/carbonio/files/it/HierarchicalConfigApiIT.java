@@ -23,10 +23,10 @@ import org.junit.jupiter.api.Test;
 
 class HierarchicalConfigApiIT extends AbstractFilesIT {
 
-  private static final String KEY = "test-key";
-  private static final String DEFAULT_VALUE = "default-value";
+  private static final String KEY = "public-links-enabled";
+  private static final String DEFAULT_VALUE = "true";
   private static final String KEY_DESCRIPTION =
-      "Test key of the hierarchical config skeleton (CO-4496), no behaviour";
+      "Whether the user may create and update public links, Smart Links included";
 
   private static final String ADMIN_ID = "dddddddd-dddd-dddd-dddd-dddddddddd01";
   private static final String NON_GLOBAL_ADMIN_ID = "dddddddd-dddd-dddd-dddd-dddddddddd02";
@@ -50,26 +50,28 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
   @BeforeEach
   @AfterEach
   void cleanConfigTables() throws SQLException {
-    try (Connection connection = jdbcConnection();
-        Statement statement = connection.createStatement()) {
-      statement.execute("DELETE FROM carbonio_account_config");
-      statement.execute("DELETE FROM carbonio_cos_config");
-      statement.execute("DELETE FROM carbonio_domain_config");
-      statement.execute("DELETE FROM carbonio_global_config");
-    }
+    clearHierarchicalConfig();
   }
 
   @Test
-  void adminKeysListsOnlyTheDeclaredKey() {
+  void adminKeysListsTheFiveSharingKeys() {
     Response response = get("/admin/config/keys", ADMIN_COOKIE);
 
     assertThat(response.statusCode()).isEqualTo(200);
     List<Map<String, Object>> keys = response.jsonPath().getList("$");
-    assertThat(keys).hasSize(1);
-    assertThat(keys.get(0))
-        .containsEntry("key", KEY)
-        .containsEntry("description", KEY_DESCRIPTION)
-        .containsEntry("defaultValue", DEFAULT_VALUE);
+    assertThat(keys)
+        .extracting(k -> k.get("key"))
+        .containsExactly(
+            "account-shares-enabled",
+            "collaboration-links-enabled",
+            "public-links-enabled",
+            "share-reshare-permission-enabled",
+            "share-write-permission-enabled");
+    assertThat(keys).allSatisfy(k -> assertThat(k).containsEntry("defaultValue", DEFAULT_VALUE));
+    assertThat(keys)
+        .filteredOn(k -> KEY.equals(k.get("key")))
+        .singleElement()
+        .satisfies(k -> assertThat(k).containsEntry("description", KEY_DESCRIPTION));
   }
 
   @Test
@@ -114,20 +116,20 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
     assertThat(put("/admin/config/raw/cos/" + COS_ID, ADMIN_COOKIE, body(KEY, "c")).statusCode())
         .isEqualTo(204);
 
-    assertThat(userConfig()).containsOnly(Map.entry(KEY, "c"));
+    assertThat(userConfig()).hasSize(5).containsEntry(KEY, "c");
     assertThat(resolvedFor(USER_ID)).containsEntry("value", "c").containsEntry("source", "cos");
 
     assertThat(delete("/admin/config/raw/cos/" + COS_ID + "/" + KEY).statusCode()).isEqualTo(204);
-    assertThat(userConfig()).containsOnly(Map.entry(KEY, "d"));
+    assertThat(userConfig()).hasSize(5).containsEntry(KEY, "d");
     assertThat(resolvedFor(USER_ID)).containsEntry("value", "d").containsEntry("source", "domain");
 
     assertThat(delete("/admin/config/raw/domain/" + DOMAIN_ID + "/" + KEY).statusCode())
         .isEqualTo(204);
-    assertThat(userConfig()).containsOnly(Map.entry(KEY, "g"));
+    assertThat(userConfig()).hasSize(5).containsEntry(KEY, "g");
     assertThat(resolvedFor(USER_ID)).containsEntry("value", "g").containsEntry("source", "global");
 
     assertThat(delete("/admin/config/raw/global/" + KEY).statusCode()).isEqualTo(204);
-    assertThat(userConfig()).containsOnly(Map.entry(KEY, DEFAULT_VALUE));
+    assertThat(userConfig()).hasSize(5).containsEntry(KEY, DEFAULT_VALUE);
     assertThat(resolvedFor(USER_ID))
         .containsEntry("value", DEFAULT_VALUE)
         .containsEntry("source", "default");
@@ -141,7 +143,7 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
             put("/admin/config/raw/account/" + USER_ID, ADMIN_COOKIE, body(KEY, "a")).statusCode())
         .isEqualTo(204);
 
-    assertThat(userConfig()).containsOnly(Map.entry(KEY, "a"));
+    assertThat(userConfig()).hasSize(5).containsEntry(KEY, "a");
     assertThat(resolvedFor(USER_ID)).containsEntry("value", "a").containsEntry("source", "account");
   }
 
@@ -168,7 +170,7 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
     Response response = get("/admin/config?accountId=" + accountId, ADMIN_COOKIE);
     assertThat(response.statusCode()).isEqualTo(200);
     Map<String, Object> all = response.as(Map.class);
-    assertThat(all).containsOnlyKeys(KEY);
+    assertThat(all).hasSize(5).containsKey(KEY);
     return (Map<String, Object>) all.get(KEY);
   }
 

@@ -47,5 +47,9 @@ Overridable using admin panel
 
 | Key | Default | Description |
 | --- | ------- | ----------- |
-| `test-key` | `default-value` | Test key of the hierarchical config skeleton (CO-4496), no behaviour |
+| `account-shares-enabled` | `true` | Whether the user may create and update shares with specific accounts |
+| `collaboration-links-enabled` | `true` | Whether the user may create internal (collaboration) links |
+| `public-links-enabled` | `true` | Whether the user may create and update public links, Smart Links included |
+| `share-reshare-permission-enabled` | `true` | Whether the user may grant the reshare permission in shares and collaboration links |
+| `share-write-permission-enabled` | `true` | Whether the user may grant the write permission in shares and collaboration links |
 

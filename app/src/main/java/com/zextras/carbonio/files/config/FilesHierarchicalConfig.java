@@ -13,7 +13,25 @@ public final class FilesHierarchicalConfig {
   public static final class HierarchicalConfig {
     private HierarchicalConfig() {}
 
-    @ConfigKey(description = "Test key of the hierarchical config skeleton (CO-4496), no behaviour")
-    public static final String TEST_KEY = "test-key";
+    @ConfigKey(description = "Whether the user may create and update shares with specific accounts")
+    public static final String ACCOUNT_SHARES_ENABLED = "account-shares-enabled";
+
+    @ConfigKey(description = "Whether the user may create internal (collaboration) links")
+    public static final String COLLABORATION_LINKS_ENABLED = "collaboration-links-enabled";
+
+    @ConfigKey(
+        description = "Whether the user may create and update public links, Smart Links included")
+    public static final String PUBLIC_LINKS_ENABLED = "public-links-enabled";
+
+    @ConfigKey(
+        description =
+            "Whether the user may grant the write permission in shares and collaboration links")
+    public static final String SHARE_WRITE_PERMISSION_ENABLED = "share-write-permission-enabled";
+
+    @ConfigKey(
+        description =
+            "Whether the user may grant the reshare permission in shares and collaboration links")
+    public static final String SHARE_RESHARE_PERMISSION_ENABLED =
+        "share-reshare-permission-enabled";
   }
 }
