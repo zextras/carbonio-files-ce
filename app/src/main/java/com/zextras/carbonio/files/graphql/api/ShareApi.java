@@ -160,8 +160,13 @@ public class ShareApi {
     if (!sharingPolicy.isEnabled(SharingType.ACCOUNT_SHARES, scope)) {
       throw FilesGraphQLErrors.sharingTypeDisabled(SharingType.ACCOUNT_SHARES);
     }
+    ACL.SharePermission requested = mapToAclPermission(permission);
+    if (!sharingPolicy.allowsGrant(requested, scope)) {
+      throw FilesGraphQLErrors.sharePermissionNotAllowed(permission.name());
+    }
     String me = requester.getId().getUserId();
-    if (!permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_AND_SHARE)) {
+    ACL own = permissionsChecker.getPermissions(nodeId, me);
+    if (!own.has(ACL.SharePermission.READ_AND_SHARE) || !own.has(requested)) {
       throw FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId);
     }
 
@@ -174,7 +179,7 @@ public class ShareApi {
     }
 
     Optional<Long> optExpiresAt = Optional.ofNullable(expiresAt);
-    ACL acl = ACL.decode(mapToAclPermission(permission));
+    ACL acl = ACL.decode(requested);
 
     Optional<Share> optCreatedShare;
     try {
@@ -214,15 +219,19 @@ public class ShareApi {
     if (!sharingPolicy.isEnabled(SharingType.ACCOUNT_SHARES, scope)) {
       throw FilesGraphQLErrors.sharingTypeDisabled(SharingType.ACCOUNT_SHARES);
     }
+    Optional<ACL.SharePermission> optNewPermission =
+        Optional.ofNullable(permission).map(ShareApi::mapToAclPermission);
+    if (optNewPermission.isPresent() && !sharingPolicy.allowsGrant(optNewPermission.get(), scope)) {
+      throw FilesGraphQLErrors.sharePermissionNotAllowed(permission.name());
+    }
     String me = requester.getId().getUserId();
+    ACL own = permissionsChecker.getPermissions(nodeId, me);
     boolean hasPermission =
-        permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_AND_SHARE);
+        own.has(ACL.SharePermission.READ_AND_SHARE) && optNewPermission.map(own::has).orElse(true);
 
     List<ShareModel> updated = new ArrayList<>();
     List<String> failed = new ArrayList<>();
 
-    Optional<ACL.SharePermission> optNewPermission =
-        Optional.ofNullable(permission).map(ShareApi::mapToAclPermission);
     Optional<Long> optNewExpiresAt = Optional.ofNullable(expiresAt);
 
     for (String targetId : shareTargetIds) {

@@ -57,6 +57,7 @@ class CollaborationLinkApiTest {
     collaborationLinkApi.requester = requester;
     SharingPolicy sharingPolicy = mock(SharingPolicy.class);
     when(sharingPolicy.isEnabled(any(), any())).thenReturn(true);
+    when(sharingPolicy.allowsGrant(any(), any())).thenReturn(true);
     collaborationLinkApi.sharingPolicy = sharingPolicy;
   }
 

@@ -123,7 +123,11 @@ public class CollaborationLinkApi {
     }
     String me = requester.getId().getUserId();
     ACL.SharePermission aclPerm = ACL.SharePermission.valueOf(permission.name());
-    if (!permissionsChecker.getPermissions(nodeId, me).has(aclPerm)) {
+    if (!sharingPolicy.allowsGrant(aclPerm, scope)) {
+      throw FilesGraphQLErrors.sharePermissionNotAllowed(permission.name());
+    }
+    ACL own = permissionsChecker.getPermissions(nodeId, me);
+    if (!own.has(ACL.SharePermission.READ_AND_SHARE) || !own.has(aclPerm)) {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
     CollaborationLink link =
