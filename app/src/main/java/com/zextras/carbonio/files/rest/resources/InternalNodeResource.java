@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.rest.resources;
 
+import com.zextras.carbonio.files.config.SharingPolicy;
 import com.zextras.carbonio.files.dal.dao.UserId;
 import com.zextras.carbonio.files.dal.dao.UserInfo;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
@@ -26,6 +27,7 @@ import com.zextras.carbonio.files.rest.types.internal.OwnerDto;
 import com.zextras.carbonio.files.rest.types.internal.ParentDto;
 import com.zextras.carbonio.files.rest.types.internal.PermissionsDto;
 import com.zextras.carbonio.files.rest.types.internal.PublicLinkDto;
+import com.zextras.carbonio.files.rest.types.internal.SharingPolicyErrorDto;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.smallrye.common.annotation.Blocking;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -39,7 +41,9 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import java.util.Optional;
 import org.jboss.resteasy.reactive.RestResponse;
@@ -235,7 +239,12 @@ public class InternalNodeResource {
     try {
       Link link =
           linkCreationHelper.createPublicLink(
-              userId, nodeId, Optional.empty(), Optional.empty(), Optional.empty());
+              SharingPolicy.scopeOf(requester.get()),
+              userId,
+              nodeId,
+              Optional.empty(),
+              Optional.empty(),
+              Optional.empty());
 
       String url =
           linkCreationHelper.buildPublicLinkUrl(
@@ -246,6 +255,12 @@ public class InternalNodeResource {
       return RestResponse.status(Status.TOO_MANY_REQUESTS);
     } catch (LinkCreationHelper.NodeAccessException e) {
       return RestResponse.status(Status.FORBIDDEN);
+    } catch (LinkCreationHelper.PublicLinksDisabledException e) {
+      throw new WebApplicationException(
+          Response.status(Status.FORBIDDEN)
+              .type(MediaType.APPLICATION_JSON)
+              .entity(new SharingPolicyErrorDto("SHARING_TYPE_DISABLED", "PUBLIC_LINKS"))
+              .build());
     }
   }
 

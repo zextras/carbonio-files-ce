@@ -12,6 +12,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.zextras.carbonio.files.config.SharingPolicy;
 import com.zextras.carbonio.files.dal.dao.UserId;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
@@ -52,6 +53,9 @@ class LinkApiTest {
     linkApi.permissionsChecker = permissionsChecker;
     linkApi.validator = new GraphQLInputValidator();
     linkApi.requester = requester;
+    SharingPolicy sharingPolicy = mock(SharingPolicy.class);
+    when(sharingPolicy.isEnabled(any(), any())).thenReturn(true);
+    linkApi.sharingPolicy = sharingPolicy;
   }
 
   private ACL aclWith(ACL.SharePermission perm) {

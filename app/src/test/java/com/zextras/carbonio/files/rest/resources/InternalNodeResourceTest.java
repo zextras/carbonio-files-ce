@@ -35,6 +35,7 @@ import com.zextras.carbonio.files.rest.types.internal.DeleteAllResponse;
 import com.zextras.carbonio.files.rest.types.internal.InternalNodeDto;
 import com.zextras.carbonio.files.rest.types.internal.InternalNodeIdDto;
 import com.zextras.carbonio.files.rest.types.internal.PublicLinkDto;
+import com.zextras.carbonio.files.rest.types.internal.SharingPolicyErrorDto;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import java.util.List;
 import java.util.Optional;
@@ -371,7 +372,12 @@ class InternalNodeResourceTest {
 
     Link link = new Link("link-id", NODE_ID, "publicId123", 123L, null, null);
     when(linkCreationHelper.createPublicLink(
-            USER_ID, NODE_ID, Optional.empty(), Optional.empty(), Optional.empty()))
+            any(),
+            eq(USER_ID),
+            eq(NODE_ID),
+            eq(Optional.empty()),
+            eq(Optional.empty()),
+            eq(Optional.empty())))
         .thenReturn(link);
     when(linkCreationHelper.buildPublicLinkUrl(link, "https://mydomain.example", true))
         .thenReturn("https://mydomain.example/files/public/link/access/publicId123");
@@ -390,7 +396,7 @@ class InternalNodeResourceTest {
         .thenReturn(Optional.of(aUser("https://mydomain.example")));
     Node node = mock(Node.class);
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
-    when(linkCreationHelper.createPublicLink(any(), any(), any(), any(), any()))
+    when(linkCreationHelper.createPublicLink(any(), any(), any(), any(), any(), any()))
         .thenThrow(new LinkCreationHelper.LinkLimitReachedException(NODE_ID));
 
     RestResponse<PublicLinkDto> response =
@@ -405,13 +411,33 @@ class InternalNodeResourceTest {
         .thenReturn(Optional.of(aUser("https://mydomain.example")));
     Node node = mock(Node.class);
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
-    when(linkCreationHelper.createPublicLink(any(), any(), any(), any(), any()))
+    when(linkCreationHelper.createPublicLink(any(), any(), any(), any(), any(), any()))
         .thenThrow(new LinkCreationHelper.NodeAccessException(NODE_ID));
 
     RestResponse<PublicLinkDto> response =
         resource.createPublicLink(new CreatePublicLinkRequest(USER_ID, NODE_ID));
 
     assertThat(response.getStatus()).isEqualTo(403);
+  }
+
+  @Test
+  void createPublicLink_mapsPublicLinksDisabledToForbiddenWithExplicitBody() {
+    when(userRepository.getUserById(null, USER_ID))
+        .thenReturn(Optional.of(aUser("https://mydomain.example")));
+    Node node = mock(Node.class);
+    when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
+    when(linkCreationHelper.createPublicLink(any(), any(), any(), any(), any(), any()))
+        .thenThrow(new LinkCreationHelper.PublicLinksDisabledException());
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () -> resource.createPublicLink(new CreatePublicLinkRequest(USER_ID, NODE_ID)))
+        .isInstanceOfSatisfying(
+            jakarta.ws.rs.WebApplicationException.class,
+            e -> {
+              assertThat(e.getResponse().getStatus()).isEqualTo(403);
+              assertThat(e.getResponse().getEntity())
+                  .isEqualTo(new SharingPolicyErrorDto("SHARING_TYPE_DISABLED", "PUBLIC_LINKS"));
+            });
   }
 
   // ---------------------------------------------------------------------------

@@ -5,6 +5,8 @@
 package com.zextras.carbonio.files.graphql.api;
 
 import com.zextras.carbonio.files.config.FilesConfig;
+import com.zextras.carbonio.files.config.SharingPolicy;
+import com.zextras.carbonio.files.config.SharingType;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -24,6 +26,7 @@ import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigScope;
 import io.quarkus.security.Authenticated;
 import io.smallrye.graphql.api.Nullable;
 import jakarta.inject.Inject;
@@ -52,6 +55,7 @@ public class ShareApi {
   @Inject NotificationRepository notificationRepository;
   @Inject FilesConfig filesConfig;
   @Inject GraphQLInputValidator validator;
+  @Inject SharingPolicy sharingPolicy;
   @Inject @AuthenticatedUser UserMyself requester;
 
   static ShareModel toModel(Share share) {
@@ -152,6 +156,10 @@ public class ShareApi {
       @Name("custom_message") String customMessage)
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).checkUserId(shareTargetId).validate();
+    ConfigScope scope = SharingPolicy.scopeOf(requester);
+    if (!sharingPolicy.isEnabled(SharingType.ACCOUNT_SHARES, scope)) {
+      throw FilesGraphQLErrors.sharingTypeDisabled(SharingType.ACCOUNT_SHARES);
+    }
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_AND_SHARE)) {
       throw FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId);
@@ -202,6 +210,10 @@ public class ShareApi {
       @Name("expires_at") Long expiresAt)
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).checkUserIds(shareTargetIds).validate();
+    ConfigScope scope = SharingPolicy.scopeOf(requester);
+    if (!sharingPolicy.isEnabled(SharingType.ACCOUNT_SHARES, scope)) {
+      throw FilesGraphQLErrors.sharingTypeDisabled(SharingType.ACCOUNT_SHARES);
+    }
     String me = requester.getId().getUserId();
     boolean hasPermission =
         permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_AND_SHARE);

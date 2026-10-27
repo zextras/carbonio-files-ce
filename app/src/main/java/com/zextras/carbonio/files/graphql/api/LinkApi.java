@@ -5,6 +5,8 @@
 package com.zextras.carbonio.files.graphql.api;
 
 import com.zextras.carbonio.files.Constants.API.Endpoints;
+import com.zextras.carbonio.files.config.SharingPolicy;
+import com.zextras.carbonio.files.config.SharingType;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
@@ -22,6 +24,7 @@ import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
 import com.zextras.carbonio.files.graphql.support.LinkCreationHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigScope;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
@@ -45,6 +48,7 @@ public class LinkApi {
   @Inject NodeRepository nodeRepository;
   @Inject PermissionsChecker permissionsChecker;
   @Inject GraphQLInputValidator validator;
+  @Inject SharingPolicy sharingPolicy;
   @Inject @AuthenticatedUser UserMyself requester;
   @Inject LinkCreationHelper linkCreationHelper;
 
@@ -131,6 +135,7 @@ public class LinkApi {
     try {
       Link created =
           linkCreationHelper.createPublicLink(
+              SharingPolicy.scopeOf(requester),
               me,
               nodeId,
               Optional.ofNullable(expiresAt),
@@ -146,6 +151,8 @@ public class LinkApi {
       throw FilesGraphQLErrors.linkLimitExceeded(nodeId);
     } catch (LinkCreationHelper.NodeAccessException e) {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
+    } catch (LinkCreationHelper.PublicLinksDisabledException e) {
+      throw FilesGraphQLErrors.sharingTypeDisabled(SharingType.PUBLIC_LINKS);
     }
   }
 
@@ -161,6 +168,10 @@ public class LinkApi {
         .checkLinkDescription(description)
         .checkLinkAccessCode(accessCode)
         .validate();
+    ConfigScope scope = SharingPolicy.scopeOf(requester);
+    if (!sharingPolicy.isEnabled(SharingType.PUBLIC_LINKS, scope)) {
+      throw FilesGraphQLErrors.sharingTypeDisabled(SharingType.PUBLIC_LINKS);
+    }
     String me = requester.getId().getUserId();
     Link link =
         linkRepository

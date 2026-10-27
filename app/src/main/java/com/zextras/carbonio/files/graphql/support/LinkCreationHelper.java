@@ -7,6 +7,8 @@ package com.zextras.carbonio.files.graphql.support;
 import static com.zextras.carbonio.files.Constants.Config.Link.MAX_LINKS_PER_NODE;
 
 import com.zextras.carbonio.files.Constants.API.Endpoints;
+import com.zextras.carbonio.files.config.SharingPolicy;
+import com.zextras.carbonio.files.config.SharingType;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -14,6 +16,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigScope;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.Optional;
@@ -32,15 +35,18 @@ public class LinkCreationHelper {
   private final LinkRepository linkRepository;
   private final NodeRepository nodeRepository;
   private final PermissionsChecker permissionsChecker;
+  private final SharingPolicy sharingPolicy;
 
   @Inject
   public LinkCreationHelper(
       LinkRepository linkRepository,
       NodeRepository nodeRepository,
-      PermissionsChecker permissionsChecker) {
+      PermissionsChecker permissionsChecker,
+      SharingPolicy sharingPolicy) {
     this.linkRepository = linkRepository;
     this.nodeRepository = nodeRepository;
     this.permissionsChecker = permissionsChecker;
+    this.sharingPolicy = sharingPolicy;
   }
 
   /**
@@ -58,20 +64,26 @@ public class LinkCreationHelper {
   }
 
   /**
-   * Enforces READ_AND_SHARE, checks the node exists and is not a {@link NodeType#ROOT}, enforces
-   * the per-node link cap, then creates the public link and returns it.
+   * Checks the public-links switch for the requester, enforces READ_AND_SHARE, checks the node
+   * exists and is not a {@link NodeType#ROOT}, enforces the per-node link cap, then creates the
+   * public link and returns it.
    *
    * @throws LinkLimitReachedException if the node already has {@link
    *     com.zextras.carbonio.files.Constants.Config.Link#MAX_LINKS_PER_NODE} links
+   * @throws PublicLinksDisabledException if public links are disabled for the requester
    * @throws NodeAccessException if the requester lacks READ_AND_SHARE, or the node is missing / a
    *     root
    */
   public Link createPublicLink(
+      ConfigScope requesterScope,
       String requesterId,
       String nodeId,
       Optional<Long> optExpiresAt,
       Optional<String> optDescription,
       Optional<String> optAccessCode) {
+    if (!sharingPolicy.isEnabled(SharingType.PUBLIC_LINKS, requesterScope)) {
+      throw new PublicLinksDisabledException();
+    }
     Optional<Node> optNode = nodeRepository.getNode(nodeId);
     if (permissionsChecker.getPermissions(nodeId, requesterId).has(SharePermission.READ_AND_SHARE)
         && optNode.isPresent()
@@ -92,6 +104,13 @@ public class LinkCreationHelper {
     }
 
     throw new NodeAccessException(nodeId);
+  }
+
+  /** Thrown by {@link #createPublicLink} when public links are disabled for the requester. */
+  public static class PublicLinksDisabledException extends RuntimeException {
+    public PublicLinksDisabledException() {
+      super("Public links are disabled for the requester");
+    }
   }
 
   /** Thrown by {@link #createPublicLink} when a node already has the maximum number of links. */
