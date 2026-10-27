@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.graphql.errors;
 
+import com.zextras.carbonio.files.config.SharingType;
 import java.text.MessageFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -126,6 +127,22 @@ public final class FilesGraphQLErrors {
   public static FilesGraphQLException dataFetching(String path, String message) {
     return new FilesGraphQLException(
         null, "Exception while fetching data (" + path + ") : " + message, Map.of());
+  }
+
+  public static FilesGraphQLException sharingTypeDisabled(SharingType type) {
+    return build(
+        ErrorCodes.SHARING_TYPE_DISABLED,
+        "Sharing type " + type.name() + " has been disabled by the administrator",
+        "sharingType",
+        type.name());
+  }
+
+  public static FilesGraphQLException sharePermissionNotAllowed(String permission) {
+    return build(
+        ErrorCodes.SHARE_PERMISSION_NOT_ALLOWED,
+        "Permission " + permission + " exceeds what the administrator allows",
+        "permission",
+        permission);
   }
 
   private static FilesGraphQLException overQuota(String nodeId) {
