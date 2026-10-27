@@ -5,19 +5,24 @@
 package com.zextras.carbonio.files.graphql.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.zextras.carbonio.files.config.SharingPolicy;
+import com.zextras.carbonio.files.config.SharingType;
 import com.zextras.carbonio.files.dal.dao.UserId;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.CollaborationLinkModel;
 import com.zextras.carbonio.files.graphql.model.SharePermission;
@@ -38,6 +43,7 @@ class CollaborationLinkApiTest {
   private CollaborationLinkRepository collaborationLinkRepository;
   private NodeRepository nodeRepository;
   private PermissionsChecker permissionsChecker;
+  private SharingPolicy sharingPolicy;
   private CollaborationLinkApi collaborationLinkApi;
 
   @BeforeEach
@@ -55,7 +61,7 @@ class CollaborationLinkApiTest {
     collaborationLinkApi.permissionsChecker = permissionsChecker;
     collaborationLinkApi.validator = new GraphQLInputValidator();
     collaborationLinkApi.requester = requester;
-    SharingPolicy sharingPolicy = mock(SharingPolicy.class);
+    sharingPolicy = mock(SharingPolicy.class);
     when(sharingPolicy.isEnabled(any(), any())).thenReturn(true);
     when(sharingPolicy.allowsGrant(any(), any())).thenReturn(true);
     collaborationLinkApi.sharingPolicy = sharingPolicy;
@@ -90,5 +96,46 @@ class CollaborationLinkApiTest {
 
     assertThat(result.getId()).isEqualTo(COLLAB_UUID_1.toString());
     verify(collaborationLinkRepository, never()).createLink(any(), any(), any(), any());
+  }
+
+  @Test
+  void createCollaborationLinkRejectsADisabledTypeBeforeAnythingElse() {
+    when(sharingPolicy.isEnabled(eq(SharingType.COLLABORATION_LINKS), any())).thenReturn(false);
+
+    assertThatThrownBy(
+            () ->
+                collaborationLinkApi.createCollaborationLink(
+                    NODE_ID, SharePermission.READ_AND_SHARE))
+        .isInstanceOfSatisfying(
+            FilesGraphQLException.class,
+            ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.SHARING_TYPE_DISABLED));
+    verifyNoInteractions(permissionsChecker, collaborationLinkRepository);
+  }
+
+  @Test
+  void createCollaborationLinkRejectsAnExcessivePermissionBeforeNodeAuthorization() {
+    when(sharingPolicy.allowsGrant(eq(ACL.SharePermission.READ_AND_WRITE), any()))
+        .thenReturn(false);
+
+    assertThatThrownBy(
+            () ->
+                collaborationLinkApi.createCollaborationLink(
+                    NODE_ID, SharePermission.READ_AND_WRITE))
+        .isInstanceOfSatisfying(
+            FilesGraphQLException.class,
+            ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.SHARE_PERMISSION_NOT_ALLOWED));
+    verifyNoInteractions(permissionsChecker, collaborationLinkRepository);
+  }
+
+  @Test
+  void createCollaborationLinkDoesNotEvaluateTheGrantCapWhenTheTypeIsDisabled() {
+    when(sharingPolicy.isEnabled(eq(SharingType.COLLABORATION_LINKS), any())).thenReturn(false);
+
+    assertThatThrownBy(
+            () ->
+                collaborationLinkApi.createCollaborationLink(
+                    NODE_ID, SharePermission.READ_AND_WRITE))
+        .isInstanceOf(FilesGraphQLException.class);
+    verify(sharingPolicy, never()).allowsGrant(any(), any());
   }
 }

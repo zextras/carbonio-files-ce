@@ -21,6 +21,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +41,8 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
   private static final String OWNER_DOMAIN = "policy-a-dom";
   private static final String DISABLED = "SHARING_TYPE_DISABLED";
   private static final long FAR_FUTURE = 4102444800000L;
+  private static final int INVITATION_ID_LENGTH = 8;
+  private static final int PUBLIC_ID_LENGTH = 50;
 
   @BeforeAll
   static void registerAccounts() {
@@ -174,6 +177,12 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
     assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
   }
 
+  private static void assertError(Response response, String code) {
+    assertThat(response.getStatusCode()).isEqualTo(200);
+    assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly(code);
+  }
+
   private static void assertDisabled(Response response, String sharingType) {
     assertThat(response.getStatusCode()).isEqualTo(200);
     assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
@@ -191,8 +200,19 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
         TestUtils.jsonResponseToMap(response.getBody().asString(), operation).get(field);
   }
 
-  private static String suffix(String url, int length) {
-    return url.substring(url.length() - length);
+  private static String invitationIdOf(String collaborationLinkUrl) {
+    return collaborationLinkUrl.substring(collaborationLinkUrl.length() - INVITATION_ID_LENGTH);
+  }
+
+  private static String publicIdOf(String publicLinkUrl) {
+    return publicLinkUrl.substring(publicLinkUrl.length() - PUBLIC_ID_LENGTH);
+  }
+
+  private static void disableEveryTypeFor(String accountId) throws SQLException {
+    for (String key :
+        List.of("account-shares-enabled", "collaboration-links-enabled", "public-links-enabled")) {
+      setHierarchicalConfig("account", accountId, key, "false");
+    }
   }
 
   private static long linkCount(String nodeId) throws SQLException {
@@ -214,7 +234,9 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
     return count("SELECT count(*) FROM collaboration_link WHERE node_id = ?", nodeId);
   }
 
-  private static List<Object> shareRow(String nodeId, String target) throws SQLException {
+  private record ShareRow(int rights, Long expireDate) {}
+
+  private static Optional<ShareRow> shareRow(String nodeId, String target) throws SQLException {
     try (Connection connection = jdbcConnection();
         PreparedStatement statement =
             connection.prepareStatement(
@@ -223,9 +245,11 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
       statement.setString(2, target);
       try (ResultSet rows = statement.executeQuery()) {
         if (!rows.next()) {
-          return List.of();
+          return Optional.empty();
         }
-        return List.of(rows.getInt(1), rows.getLong(2));
+        int rights = rows.getInt(1);
+        long expireDate = rows.getLong(2);
+        return Optional.of(new ShareRow(rights, rows.wasNull() ? null : expireDate));
       }
     }
   }
@@ -236,7 +260,7 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
             connection.prepareStatement("SELECT description FROM link WHERE id = ?")) {
       statement.setString(1, linkId);
       try (ResultSet rows = statement.executeQuery()) {
-        rows.next();
+        assertThat(rows.next()).isTrue();
         return rows.getString(1);
       }
     }
@@ -261,7 +285,8 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
     String nodeId = newFile();
     String other = newFile();
     assertNoErrors(createShare(other, RECIPIENT_ID, SharePermission.READ_ONLY, OWNER_COOKIE));
-    List<Object> before = shareRow(other, RECIPIENT_ID);
+    Optional<ShareRow> before = shareRow(other, RECIPIENT_ID);
+    assertThat(before).isPresent();
     setHierarchicalConfig("account", OWNER_ID, "account-shares-enabled", "false");
 
     assertDisabled(
@@ -335,7 +360,34 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
     String otherNode =
         seedFile("o.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
 
+    assertDisabled(createLink(newFile(), OWNER_COOKIE), "PUBLIC_LINKS");
     assertNoErrors(createLink(otherNode, OTHER_COOKIE));
+  }
+
+  @Test
+  void thePolicyOfTheCallerIsEvaluatedBeforeNodeAuthorization() throws Exception {
+    String folderId = seedFolder("shared-with-recipient", LOCAL_ROOT, OWNER_COOKIE);
+    assertNoErrors(createShare(folderId, RECIPIENT_ID, SharePermission.READ_ONLY, OWNER_COOKIE));
+    String hiddenFile = newFile();
+
+    assertError(
+        createShare(folderId, OTHER_ID, SharePermission.READ_ONLY, RECIPIENT_COOKIE),
+        "SHARE_CREATION_ERROR");
+    assertThat(
+            TestUtils.jsonResponseToErrorCodes(
+                createLink(hiddenFile, RECIPIENT_COOKIE).getBody().asString()))
+        .isNotEmpty()
+        .doesNotContain(DISABLED);
+
+    setHierarchicalConfig("account", RECIPIENT_ID, "account-shares-enabled", "false");
+    setHierarchicalConfig("account", RECIPIENT_ID, "public-links-enabled", "false");
+
+    assertDisabled(
+        createShare(folderId, OTHER_ID, SharePermission.READ_ONLY, RECIPIENT_COOKIE),
+        "ACCOUNT_SHARES");
+    assertDisabled(createLink(hiddenFile, RECIPIENT_COOKIE), "PUBLIC_LINKS");
+    assertThat(shareRow(folderId, OTHER_ID)).isEmpty();
+    assertThat(linkCount(hiddenFile)).isZero();
   }
 
   @Test
@@ -349,18 +401,14 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
       Response link = createLink(folderId, OWNER_COOKIE);
       assertNoErrors(link);
 
-      for (String key :
-          List.of(
-              "account-shares-enabled", "collaboration-links-enabled", "public-links-enabled")) {
-        setHierarchicalConfig("account", OWNER_ID, key, "false");
-      }
+      disableEveryTypeFor(OWNER_ID);
 
       assertDisabledBehaviour(
           folderId,
           field(collaboration, "createCollaborationLink", "id"),
-          suffix(field(collaboration, "createCollaborationLink", "url"), 8),
+          invitationIdOf(field(collaboration, "createCollaborationLink", "url")),
           field(link, "createLink", "id"),
-          suffix(field(link, "createLink", "url"), 50));
+          publicIdOf(field(link, "createLink", "url")));
 
       clearHierarchicalConfig();
     }
@@ -375,6 +423,7 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
       throws Exception {
     assertDisabled(
         createShare(folderId, OTHER_ID, SharePermission.READ_ONLY, OWNER_COOKIE), "ACCOUNT_SHARES");
+    assertThat(shareRow(folderId, OTHER_ID)).isEmpty();
     assertDisabled(
         createCollaborationLink(folderId, SharePermission.READ_AND_WRITE, OWNER_COOKIE),
         "COLLABORATION_LINKS");
@@ -389,6 +438,7 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
         "ACCOUNT_SHARES");
     assertDisabled(updateLink(linkId, "x", OWNER_COOKIE), "PUBLIC_LINKS");
 
+    disableEveryTypeFor(OTHER_ID);
     Response getShare =
         graphql(
             GraphqlCommandBuilder.aQueryBuilder("getShare")
@@ -410,7 +460,7 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
     assertNoErrors(getLinks);
     assertThat(TestUtils.jsonResponseToList(getLinks.getBody().asString(), "getLinks"))
         .extracting(m -> m.get("id"))
-        .contains(linkId);
+        .containsExactly(linkId);
 
     Response getCollaborationLinks =
         graphql(
@@ -424,19 +474,24 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
             TestUtils.jsonResponseToList(
                 getCollaborationLinks.getBody().asString(), "getCollaborationLinks"))
         .extracting(m -> m.get("id"))
-        .contains(collaborationLinkId);
+        .containsExactly(collaborationLinkId);
 
     Response publicNode = getPublicNode(publicId);
     assertNoErrors(publicNode);
     assertThat(field(publicNode, "getPublicNode", "id")).isEqualTo(folderId);
 
     assertThat(clickInvite(invitationId, OTHER_COOKIE).getStatusCode()).isEqualTo(307);
-    assertThat(shareExists(folderId, OTHER_ID, OWNER_COOKIE)).isTrue();
+    assertThat(shareRow(folderId, OTHER_ID))
+        .hasValueSatisfying(
+            row -> assertThat(row.rights()).isEqualTo(SharePermission.READ_ONLY.encode()));
 
     assertNoErrors(deleteLinks(new String[] {linkId}, OWNER_COOKIE));
     assertNoErrors(deleteCollaborationLinks(new String[] {collaborationLinkId}, OWNER_COOKIE));
     assertNoErrors(deleteShares(folderId, new String[] {RECIPIENT_ID, OTHER_ID}, OWNER_COOKIE));
-    assertThat(shareExists(folderId, RECIPIENT_ID, OWNER_COOKIE)).isFalse();
+    assertThat(linkCount(folderId)).isZero();
+    assertThat(collaborationLinkCount(folderId)).isZero();
+    assertThat(shareRow(folderId, RECIPIENT_ID)).isEmpty();
+    assertThat(shareRow(folderId, OTHER_ID)).isEmpty();
   }
 
   @Test
@@ -448,24 +503,26 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
     String fileId =
         seedFile("in.txt", folderId, "c".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
 
-    assertThat(shareExists(fileId, RECIPIENT_ID, OWNER_COOKIE)).isTrue();
+    assertThat(nodeExists(fileId, RECIPIENT_COOKIE)).isTrue();
   }
 
   @Test
   void internalLinkEndpointRejectsWithAnExplicitBody() throws Exception {
     String nodeId = newFile();
-    setHierarchicalConfig("account", OWNER_ID, "public-links-enabled", "false");
+    setHierarchicalConfig("domain", OWNER_DOMAIN, "public-links-enabled", "false");
 
     Response rejected = postInternalLink(OWNER_ID, nodeId);
 
     assertThat(rejected.getStatusCode()).isEqualTo(403);
-    assertThat(rejected.getBody().asString())
-        .isEqualTo("{\"code\":\"SHARING_TYPE_DISABLED\",\"sharingType\":\"PUBLIC_LINKS\"}");
+    assertThat(rejected.getContentType()).startsWith("application/json");
+    assertThat(rejected.jsonPath().getString("code")).isEqualTo(DISABLED);
+    assertThat(rejected.jsonPath().getString("sharingType")).isEqualTo("PUBLIC_LINKS");
     assertThat(linkCount(nodeId)).isZero();
 
     clearHierarchicalConfig();
     Response accepted = postInternalLink(OWNER_ID, nodeId);
     assertThat(accepted.getStatusCode()).isEqualTo(200);
     assertThat(accepted.jsonPath().getString("url")).isNotBlank();
+    assertThat(linkCount(nodeId)).isEqualTo(1);
   }
 }

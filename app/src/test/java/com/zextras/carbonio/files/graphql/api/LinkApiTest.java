@@ -7,12 +7,15 @@ package com.zextras.carbonio.files.graphql.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.zextras.carbonio.files.config.SharingPolicy;
+import com.zextras.carbonio.files.config.SharingType;
 import com.zextras.carbonio.files.dal.dao.UserId;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
@@ -36,6 +39,7 @@ class LinkApiTest {
   private LinkRepository linkRepository;
   private NodeRepository nodeRepository;
   private PermissionsChecker permissionsChecker;
+  private SharingPolicy sharingPolicy;
   private LinkApi linkApi;
 
   @BeforeEach
@@ -53,7 +57,7 @@ class LinkApiTest {
     linkApi.permissionsChecker = permissionsChecker;
     linkApi.validator = new GraphQLInputValidator();
     linkApi.requester = requester;
-    SharingPolicy sharingPolicy = mock(SharingPolicy.class);
+    sharingPolicy = mock(SharingPolicy.class);
     when(sharingPolicy.isEnabled(any(), any())).thenReturn(true);
     linkApi.sharingPolicy = sharingPolicy;
   }
@@ -108,5 +112,16 @@ class LinkApiTest {
             ex ->
                 assertThat(((FilesGraphQLException) ex).getErrorCode())
                     .isEqualTo(ErrorCodes.LINK_NOT_FOUND));
+  }
+
+  @Test
+  void updateLinkRejectsADisabledTypeBeforeAnythingElse() {
+    when(sharingPolicy.isEnabled(eq(SharingType.PUBLIC_LINKS), any())).thenReturn(false);
+
+    assertThatThrownBy(() -> linkApi.updateLink(LINK_ID_1, null, "description", null))
+        .isInstanceOfSatisfying(
+            FilesGraphQLException.class,
+            ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.SHARING_TYPE_DISABLED));
+    verifyNoInteractions(permissionsChecker, linkRepository);
   }
 }

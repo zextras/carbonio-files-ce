@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.rest.resources;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -37,6 +38,8 @@ import com.zextras.carbonio.files.rest.types.internal.InternalNodeIdDto;
 import com.zextras.carbonio.files.rest.types.internal.PublicLinkDto;
 import com.zextras.carbonio.files.rest.types.internal.SharingPolicyErrorDto;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigScope;
+import jakarta.ws.rs.WebApplicationException;
 import java.util.List;
 import java.util.Optional;
 import org.jboss.resteasy.reactive.RestResponse;
@@ -55,6 +58,9 @@ class InternalNodeResourceTest {
   private static final String OWNER_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
   private static final String NODE_ID = "cccccccc-cccc-cccc-cccc-cccccccccccc";
   private static final String PARENT_ID = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+  private static final String COS_ID = "cos-id";
+  private static final String DOMAIN_ID = "domain-id";
+  private static final ConfigScope SCOPE = ConfigScope.account(USER_ID, COS_ID, DOMAIN_ID);
 
   private NodeRepository nodeRepository;
   private UserRepository userRepository;
@@ -372,7 +378,7 @@ class InternalNodeResourceTest {
 
     Link link = new Link("link-id", NODE_ID, "publicId123", 123L, null, null);
     when(linkCreationHelper.createPublicLink(
-            any(),
+            eq(SCOPE),
             eq(USER_ID),
             eq(NODE_ID),
             eq(Optional.empty()),
@@ -426,13 +432,13 @@ class InternalNodeResourceTest {
         .thenReturn(Optional.of(aUser("https://mydomain.example")));
     Node node = mock(Node.class);
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
-    when(linkCreationHelper.createPublicLink(any(), any(), any(), any(), any(), any()))
+    when(linkCreationHelper.createPublicLink(eq(SCOPE), any(), any(), any(), any(), any()))
         .thenThrow(new LinkCreationHelper.PublicLinksDisabledException());
 
-    org.assertj.core.api.Assertions.assertThatThrownBy(
+    assertThatThrownBy(
             () -> resource.createPublicLink(new CreatePublicLinkRequest(USER_ID, NODE_ID)))
         .isInstanceOfSatisfying(
-            jakarta.ws.rs.WebApplicationException.class,
+            WebApplicationException.class,
             e -> {
               assertThat(e.getResponse().getStatus()).isEqualTo(403);
               assertThat(e.getResponse().getEntity())
@@ -456,12 +462,16 @@ class InternalNodeResourceTest {
   // --------------------------------------------------------------------------------------- helpers
 
   private static UserInfo aUser(String domain) {
-    return new UserInfo(
-        new UserId(USER_ID),
-        "user@example.com",
-        "A User",
-        domain,
-        UserStatus.ACTIVE,
-        UserType.INTERNAL);
+    UserInfo user =
+        new UserInfo(
+            new UserId(USER_ID),
+            "user@example.com",
+            "A User",
+            domain,
+            UserStatus.ACTIVE,
+            UserType.INTERNAL);
+    user.setCosId(COS_ID);
+    user.setDomainId(DOMAIN_ID);
+    return user;
   }
 }

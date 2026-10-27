@@ -21,6 +21,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class SharePermissionPolicyApiIT extends AbstractFilesIT {
 
@@ -120,7 +122,7 @@ class SharePermissionPolicyApiIT extends AbstractFilesIT {
     setHierarchicalConfig("account", OWNER_ID, "share-reshare-permission-enabled", "false");
   }
 
-  private static Integer rights(String nodeId, String target) throws SQLException {
+  private static Short rights(String nodeId, String target) throws SQLException {
     try (Connection connection = jdbcConnection();
         PreparedStatement statement =
             connection.prepareStatement(
@@ -128,13 +130,24 @@ class SharePermissionPolicyApiIT extends AbstractFilesIT {
       statement.setString(1, nodeId);
       statement.setString(2, target);
       try (ResultSet rows = statement.executeQuery()) {
-        return rows.next() ? rows.getInt(1) : null;
+        return rows.next() ? rows.getShort(1) : null;
       }
     }
   }
 
-  private static int code(SharePermission permission) {
-    return permission.mValue;
+  private static Long expireDate(String nodeId, String target) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT expire_date FROM share WHERE node_id = ? AND target_uuid = ?")) {
+      statement.setString(1, nodeId);
+      statement.setString(2, target);
+      try (ResultSet rows = statement.executeQuery()) {
+        assertThat(rows.next()).isTrue();
+        long value = rows.getLong(1);
+        return rows.wasNull() ? null : value;
+      }
+    }
   }
 
   private static long collaborationLinkCount(String nodeId) throws SQLException {
@@ -157,6 +170,8 @@ class SharePermissionPolicyApiIT extends AbstractFilesIT {
 
     assertNoErrors(createShare(nodeId, HOLDER_ID, SharePermission.READ_ONLY, OWNER_COOKIE));
     assertNoErrors(createShare(nodeId, TARGET_ID, SharePermission.READ_AND_SHARE, OWNER_COOKIE));
+    assertThat(rights(nodeId, HOLDER_ID)).isEqualTo(SharePermission.READ_ONLY.encode());
+    assertThat(rights(nodeId, TARGET_ID)).isEqualTo(SharePermission.READ_AND_SHARE.encode());
 
     String rejected = newFile();
     assertNotAllowed(
@@ -167,8 +182,8 @@ class SharePermissionPolicyApiIT extends AbstractFilesIT {
         SharePermission.READ_WRITE_AND_SHARE);
     assertThat(rights(rejected, HOLDER_ID)).isNull();
     assertThat(rights(rejected, TARGET_ID)).isNull();
-    assertThat(rights(nodeId, HOLDER_ID)).isEqualTo(code(SharePermission.READ_ONLY));
-    assertThat(rights(nodeId, TARGET_ID)).isEqualTo(code(SharePermission.READ_AND_SHARE));
+    assertThat(rights(nodeId, HOLDER_ID)).isEqualTo(SharePermission.READ_ONLY.encode());
+    assertThat(rights(nodeId, TARGET_ID)).isEqualTo(SharePermission.READ_AND_SHARE.encode());
   }
 
   @Test
@@ -177,6 +192,7 @@ class SharePermissionPolicyApiIT extends AbstractFilesIT {
     capReshare();
 
     assertNoErrors(createShare(nodeId, HOLDER_ID, SharePermission.READ_AND_WRITE, OWNER_COOKIE));
+    assertThat(rights(nodeId, HOLDER_ID)).isEqualTo(SharePermission.READ_AND_WRITE.encode());
 
     String rejected = newFile();
     assertNotAllowed(
@@ -196,6 +212,7 @@ class SharePermissionPolicyApiIT extends AbstractFilesIT {
     capReshare();
 
     assertNoErrors(createShare(nodeId, HOLDER_ID, SharePermission.READ_ONLY, OWNER_COOKIE));
+    assertThat(rights(nodeId, HOLDER_ID)).isEqualTo(SharePermission.READ_ONLY.encode());
     for (SharePermission denied :
         new SharePermission[] {
           SharePermission.READ_AND_WRITE,
@@ -214,15 +231,22 @@ class SharePermissionPolicyApiIT extends AbstractFilesIT {
         createShare(nodeId, HOLDER_ID, SharePermission.READ_WRITE_AND_SHARE, OWNER_COOKIE));
     capWrite();
 
+    assertNoErrors(updateShares(nodeId, HOLDER_ID, null, FAR_FUTURE, OWNER_COOKIE));
+    assertThat(rights(nodeId, HOLDER_ID)).isEqualTo(SharePermission.READ_WRITE_AND_SHARE.encode());
+    assertThat(expireDate(nodeId, HOLDER_ID)).isEqualTo(FAR_FUTURE);
+
+    assertNotAllowed(
+        updateShares(nodeId, HOLDER_ID, SharePermission.READ_AND_WRITE, null, OWNER_COOKIE),
+        SharePermission.READ_AND_WRITE);
+    assertThat(rights(nodeId, HOLDER_ID)).isEqualTo(SharePermission.READ_WRITE_AND_SHARE.encode());
+
     assertNoErrors(updateShares(nodeId, HOLDER_ID, SharePermission.READ_ONLY, null, OWNER_COOKIE));
-    assertThat(rights(nodeId, HOLDER_ID)).isEqualTo(code(SharePermission.READ_ONLY));
+    assertThat(rights(nodeId, HOLDER_ID)).isEqualTo(SharePermission.READ_ONLY.encode());
 
     assertNotAllowed(
         updateShares(nodeId, HOLDER_ID, SharePermission.READ_WRITE_AND_SHARE, null, OWNER_COOKIE),
         SharePermission.READ_WRITE_AND_SHARE);
-    assertThat(rights(nodeId, HOLDER_ID)).isEqualTo(code(SharePermission.READ_ONLY));
-
-    assertNoErrors(updateShares(nodeId, HOLDER_ID, null, FAR_FUTURE, OWNER_COOKIE));
+    assertThat(rights(nodeId, HOLDER_ID)).isEqualTo(SharePermission.READ_ONLY.encode());
   }
 
   @Test
@@ -258,6 +282,18 @@ class SharePermissionPolicyApiIT extends AbstractFilesIT {
         SharePermission.READ_AND_WRITE);
     assertThat(collaborationLinkCount(nodeId)).isZero();
     assertNoErrors(createCollaborationLink(nodeId, SharePermission.READ_ONLY, OWNER_COOKIE));
+    assertThat(collaborationLinkCount(nodeId)).isEqualTo(1);
+  }
+
+  @Test
+  void collaborationLinksWithTheShareBitAreCappedByTheReshareCap() throws Exception {
+    String nodeId = newFile();
+    capReshare();
+
+    assertNotAllowed(
+        createCollaborationLink(nodeId, SharePermission.READ_AND_SHARE, OWNER_COOKIE),
+        SharePermission.READ_AND_SHARE);
+    assertThat(collaborationLinkCount(nodeId)).isZero();
   }
 
   @Test
@@ -290,11 +326,11 @@ class SharePermissionPolicyApiIT extends AbstractFilesIT {
     assertError(
         updateShares(nodeId, TARGET_ID, SharePermission.READ_WRITE_AND_SHARE, null, HOLDER_COOKIE),
         NOT_FOUND);
-    assertThat(rights(nodeId, TARGET_ID)).isEqualTo(code(SharePermission.READ_ONLY));
+    assertThat(rights(nodeId, TARGET_ID)).isEqualTo(SharePermission.READ_ONLY.encode());
 
     assertNoErrors(
         updateShares(nodeId, TARGET_ID, SharePermission.READ_AND_SHARE, null, HOLDER_COOKIE));
-    assertThat(rights(nodeId, TARGET_ID)).isEqualTo(code(SharePermission.READ_AND_SHARE));
+    assertThat(rights(nodeId, TARGET_ID)).isEqualTo(SharePermission.READ_AND_SHARE.encode());
   }
 
   @Test
@@ -305,7 +341,7 @@ class SharePermissionPolicyApiIT extends AbstractFilesIT {
 
     assertNoErrors(
         createShare(nodeId, TARGET_ID, SharePermission.READ_WRITE_AND_SHARE, HOLDER_COOKIE));
-    assertThat(rights(nodeId, TARGET_ID)).isEqualTo(code(SharePermission.READ_WRITE_AND_SHARE));
+    assertThat(rights(nodeId, TARGET_ID)).isEqualTo(SharePermission.READ_WRITE_AND_SHARE.encode());
   }
 
   @Test
@@ -319,9 +355,47 @@ class SharePermissionPolicyApiIT extends AbstractFilesIT {
     String reshare = newFile();
     assertNoErrors(createShare(reshare, HOLDER_ID, SharePermission.READ_AND_SHARE, OWNER_COOKIE));
     assertNoErrors(createCollaborationLink(reshare, SharePermission.READ_ONLY, HOLDER_COOKIE));
+    assertThat(collaborationLinkCount(reshare)).isEqualTo(1);
     assertError(
         createCollaborationLink(reshare, SharePermission.READ_AND_WRITE, HOLDER_COOKIE),
         WRITE_ERROR);
+    assertThat(collaborationLinkCount(reshare)).isEqualTo(1);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"cos", "domain", "global"})
+  void everyTierCapsTheWritePermissionAndTheAccountTierReEnablesIt(String tier) throws Exception {
+    String scopeId =
+        switch (tier) {
+          case "cos" -> "policy-b-cos";
+          case "domain" -> "policy-b-dom";
+          default -> null;
+        };
+    String nodeId = newFile();
+    setHierarchicalConfig(tier, scopeId, "share-write-permission-enabled", "false");
+
+    assertNotAllowed(
+        createShare(nodeId, HOLDER_ID, SharePermission.READ_AND_WRITE, OWNER_COOKIE),
+        SharePermission.READ_AND_WRITE);
+    assertThat(rights(nodeId, HOLDER_ID)).isNull();
+
+    setHierarchicalConfig("account", OWNER_ID, "share-write-permission-enabled", "true");
+    assertNoErrors(createShare(nodeId, HOLDER_ID, SharePermission.READ_AND_WRITE, OWNER_COOKIE));
+    assertThat(rights(nodeId, HOLDER_ID)).isEqualTo(SharePermission.READ_AND_WRITE.encode());
+  }
+
+  @Test
+  void theCapIsReadFromTheCallerAndNotFromTheOwner() throws Exception {
+    String nodeId = newFile();
+    assertNoErrors(
+        createShare(nodeId, HOLDER_ID, SharePermission.READ_WRITE_AND_SHARE, OWNER_COOKIE));
+    capWrite();
+
+    assertNotAllowed(
+        createShare(nodeId, TARGET_ID, SharePermission.READ_AND_WRITE, OWNER_COOKIE),
+        SharePermission.READ_AND_WRITE);
+    assertNoErrors(createShare(nodeId, TARGET_ID, SharePermission.READ_AND_WRITE, HOLDER_COOKIE));
+    assertThat(rights(nodeId, TARGET_ID)).isEqualTo(SharePermission.READ_AND_WRITE.encode());
   }
 
   @Test

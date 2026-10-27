@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.zextras.carbonio.files.dal.dao.UserId;
+import com.zextras.carbonio.files.dal.dao.UserInfo;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigResolver;
@@ -101,5 +102,14 @@ class SharingPolicyTest {
     when(user.getCosId()).thenReturn("cos");
     when(user.getDomainId()).thenReturn(null);
     assertThat(SharingPolicy.scopeOf(user)).isEqualTo(ConfigScope.account("acc", "cos", null));
+  }
+
+  @Test
+  void scopeOfUserInfoCarriesAccountCosAndDomain() {
+    UserInfo user = new UserInfo();
+    user.setId(new UserId("acc"));
+    user.setCosId("cos");
+    user.setDomainId("dom");
+    assertThat(SharingPolicy.scopeOf(user)).isEqualTo(ConfigScope.account("acc", "cos", "dom"));
   }
 }
