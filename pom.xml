@@ -40,7 +40,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <properties>
     <!-- Maven CI Friendly properties -->
-    <revision>3.0.5</revision>
+    <revision>3.0.6</revision>
 
     <carbonio-quarkus-extensions.version>1.16.2-1</carbonio-quarkus-extensions.version>
     <!-- P6e: user-management REST client SDK (UserRepositoryImpl co-requisite). Replaces the
