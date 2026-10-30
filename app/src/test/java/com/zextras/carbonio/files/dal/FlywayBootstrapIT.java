@@ -64,6 +64,19 @@ class FlywayBootstrapIT extends AbstractFilesIT {
   }
 
   @Test
+  void legacyDatabaseSeededAtV9ByTheStackIsBaselinedFromDbInfo() throws Exception {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT version FROM flyway_schema_history WHERE type = 'BASELINE'");
+        ResultSet resultSet = statement.executeQuery()) {
+      assertThat(resultSet.next()).as("baseline row recorded").isTrue();
+      assertThat(resultSet.getString(1)).isEqualTo("9");
+      assertThat(resultSet.next()).isFalse();
+    }
+  }
+
+  @Test
   void dbInfoTableShouldNotExistBecauseV10DroppedIt() throws Exception {
     assertThat(tableExists("db_info")).isFalse();
   }

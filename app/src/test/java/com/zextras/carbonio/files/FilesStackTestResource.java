@@ -17,7 +17,13 @@ import com.github.tomakehurst.wiremock.http.RequestMethod;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import com.zextras.carbonio.files.it.support.MockStoragesService;
 import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -102,6 +108,18 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
 
   private static volatile StubMapping rootRecurseOverride;
 
+  private static final List<String> LEGACY_MIGRATIONS =
+      List.of(
+          "db/migration/V1__init.sql",
+          "db/migration/V2__migration.sql",
+          "db/migration/V3__migration.sql",
+          "db/migration/V4__migration.sql",
+          "db/migration/V5__migration.sql",
+          "db/migration/V6__migration.sql",
+          "db/migration/V7__migration.sql",
+          "db/migration/V8__migration.sql",
+          "db/migration/V9__migration.sql");
+
   @Override
   public Map<String, String> start() {
     if (started) {
@@ -148,6 +166,7 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
             "jdbc:postgresql://%s:%d/%s?sslmode=disable",
             postgres.getHost(), postgres.getFirstMappedPort(), DB_NAME);
     POSTGRES_JDBC_URL = jdbcUrl;
+    seedLegacySchema(jdbcUrl);
 
     cachedConfig =
         Map.ofEntries(
@@ -503,5 +522,19 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
     }
     sb.append("]");
     return sb.toString();
+  }
+
+  private static void seedLegacySchema(String jdbcUrl) {
+    try (Connection connection = DriverManager.getConnection(jdbcUrl, DB_USER, DB_PASSWORD);
+        Statement statement = connection.createStatement()) {
+      for (String file : LEGACY_MIGRATIONS) {
+        try (InputStream in =
+            FilesStackTestResource.class.getClassLoader().getResourceAsStream(file)) {
+          statement.execute(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+        }
+      }
+    } catch (SQLException | IOException e) {
+      throw new IllegalStateException("Cannot seed the legacy 25.12 schema", e);
+    }
   }
 }
