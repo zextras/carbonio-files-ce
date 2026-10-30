@@ -35,13 +35,13 @@ public class FilesConfigIdentityResolver implements HierarchicalConfigIdentityRe
   public Optional<ConfigScope> resolveCaller(String userToken) {
     return userRepository
         .getUserMyselfByToken(userToken)
-        .map(u -> ConfigScope.account(u.getId().getUserId(), u.getCosId(), u.getDomainId()));
+        .map(u -> ConfigScope.account(u.getId().getUserId(), u.getCosId()));
   }
 
   @Override
   public Optional<ConfigScope> scopeOfAccount(String accountId) {
     return userRepository
         .getUserById(null, accountId)
-        .map(u -> ConfigScope.account(u.getId().getUserId(), u.getCosId(), u.getDomainId()));
+        .map(u -> ConfigScope.account(u.getId().getUserId(), u.getCosId()));
   }
 }

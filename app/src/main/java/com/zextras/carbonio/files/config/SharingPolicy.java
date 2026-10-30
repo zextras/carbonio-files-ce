@@ -28,11 +28,11 @@ public class SharingPolicy {
   }
 
   public static ConfigScope scopeOf(UserMyself user) {
-    return ConfigScope.account(user.getId().getUserId(), user.getCosId(), user.getDomainId());
+    return ConfigScope.account(user.getId().getUserId(), user.getCosId());
   }
 
   public static ConfigScope scopeOf(UserInfo user) {
-    return ConfigScope.account(user.getId().getUserId(), user.getCosId(), user.getDomainId());
+    return ConfigScope.account(user.getId().getUserId(), user.getCosId());
   }
 
   public boolean isEnabled(SharingType type, ConfigScope scope) {

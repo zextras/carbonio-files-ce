@@ -18,7 +18,6 @@ public class UserInfo {
   private UserStatus status;
   private UserType type;
   private String cosId;
-  private String domainId;
 
   public UserInfo() {}
 
@@ -80,21 +79,12 @@ public class UserInfo {
     this.type = type;
   }
 
-  /** Opaque zimbra COS id (from user-management); may be {@code null} on the domain-default COS. */
+  /** Opaque zimbra COS id (from user-management); may be {@code null} without an explicit COS. */
   public String getCosId() {
     return cosId;
   }
 
   public void setCosId(String cosId) {
     this.cosId = cosId;
-  }
-
-  /** Opaque zimbra domain id (from user-management). */
-  public String getDomainId() {
-    return domainId;
-  }
-
-  public void setDomainId(String domainId) {
-    this.domainId = domainId;
   }
 }

@@ -21,8 +21,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 class SharePermissionPolicyApiIT extends AbstractFilesIT {
 
@@ -40,12 +38,9 @@ class SharePermissionPolicyApiIT extends AbstractFilesIT {
   @BeforeAll
   static void registerAccounts() {
     var userManagement = FilesStackTestResource.getUserManagementService();
-    userManagement.registerAccount(
-        "policy-b-owner", OWNER_ID, "policy-b-cos", "policy-b-dom", false);
-    userManagement.registerAccount(
-        "policy-b-holder", HOLDER_ID, "policy-b-cos-h", "policy-b-dom-h", false);
-    userManagement.registerAccount(
-        "policy-b-target", TARGET_ID, "policy-b-cos-t", "policy-b-dom-t", false);
+    userManagement.registerAccount("policy-b-owner", OWNER_ID, "policy-b-cos", false);
+    userManagement.registerAccount("policy-b-holder", HOLDER_ID, "policy-b-cos-h", false);
+    userManagement.registerAccount("policy-b-target", TARGET_ID, "policy-b-cos-t", false);
   }
 
   @BeforeEach
@@ -362,17 +357,10 @@ class SharePermissionPolicyApiIT extends AbstractFilesIT {
     assertThat(collaborationLinkCount(reshare)).isEqualTo(1);
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"cos", "domain", "global"})
-  void everyTierCapsTheWritePermissionAndTheAccountTierReEnablesIt(String tier) throws Exception {
-    String scopeId =
-        switch (tier) {
-          case "cos" -> "policy-b-cos";
-          case "domain" -> "policy-b-dom";
-          default -> null;
-        };
+  @Test
+  void theCosCapsTheWritePermissionAndTheAccountTierReEnablesIt() throws Exception {
     String nodeId = newFile();
-    setHierarchicalConfig(tier, scopeId, "share-write-permission-enabled", "false");
+    setHierarchicalConfig("cos", "policy-b-cos", "share-write-permission-enabled", "false");
 
     assertNotAllowed(
         createShare(nodeId, HOLDER_ID, SharePermission.READ_AND_WRITE, OWNER_COOKIE),

@@ -28,7 +28,6 @@ public class UserMyself {
   private Map<String, String> carbonioAttributes;
   private List<String> features;
   private String cosId;
-  private String domainId;
   private boolean globalAdmin;
 
   public UserMyself() {}
@@ -191,8 +190,8 @@ public class UserMyself {
 
   /**
    * The opaque zimbra COS id of this account (from user-management, itself from the mailbox
-   * internal API). May be {@code null} when the account inherits the domain-default COS (no
-   * explicit zimbraCOSId).
+   * internal API). May be {@code null} when the account has no explicit COS (no explicit
+   * zimbraCOSId).
    */
   public String getCosId() {
     return cosId;
@@ -200,15 +199,6 @@ public class UserMyself {
 
   public void setCosId(String cosId) {
     this.cosId = cosId;
-  }
-
-  /** The opaque zimbra domain id of this account (from user-management). */
-  public String getDomainId() {
-    return domainId;
-  }
-
-  public void setDomainId(String domainId) {
-    this.domainId = domainId;
   }
 
   /**

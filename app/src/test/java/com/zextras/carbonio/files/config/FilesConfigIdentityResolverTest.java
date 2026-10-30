@@ -26,27 +26,24 @@ class FilesConfigIdentityResolverTest {
   private final FilesConfigIdentityResolver resolver =
       new FilesConfigIdentityResolver(userRepository);
 
-  private static UserMyself myself(boolean globalAdmin, String cosId, String domainId) {
+  private static UserMyself myself(boolean globalAdmin, String cosId) {
     UserMyself user = new UserMyself();
     user.setId(new UserId(ACCOUNT_ID));
     user.setGlobalAdmin(globalAdmin);
     user.setCosId(cosId);
-    user.setDomainId(domainId);
     return user;
   }
 
-  private static UserInfo info(String cosId, String domainId) {
+  private static UserInfo info(String cosId) {
     UserInfo user = new UserInfo();
     user.setId(new UserId(ACCOUNT_ID));
     user.setCosId(cosId);
-    user.setDomainId(domainId);
     return user;
   }
 
   @Test
   void givenAGlobalAdminTokenResolveAdminShouldReturnAnAdmin() {
-    when(userRepository.getUserMyselfByToken(TOKEN))
-        .thenReturn(Optional.of(myself(true, "cos-1", "dom-1")));
+    when(userRepository.getUserMyselfByToken(TOKEN)).thenReturn(Optional.of(myself(true, "cos-1")));
 
     assertThat(resolver.resolveAdmin(TOKEN)).contains(new ConfigAdmin(ACCOUNT_ID, true));
   }
@@ -54,7 +51,7 @@ class FilesConfigIdentityResolverTest {
   @Test
   void givenANonAdminTokenResolveAdminShouldReturnANonGlobalAdmin() {
     when(userRepository.getUserMyselfByToken(TOKEN))
-        .thenReturn(Optional.of(myself(false, "cos-1", "dom-1")));
+        .thenReturn(Optional.of(myself(false, "cos-1")));
 
     assertThat(resolver.resolveAdmin(TOKEN)).contains(new ConfigAdmin(ACCOUNT_ID, false));
   }
@@ -67,24 +64,21 @@ class FilesConfigIdentityResolverTest {
   }
 
   @Test
-  void givenAUserWithCosAndDomainResolveCallerShouldReturnTheAccountScope() {
+  void givenAUserWithACosResolveCallerShouldReturnTheAccountScope() {
     when(userRepository.getUserMyselfByToken(TOKEN))
-        .thenReturn(Optional.of(myself(false, "cos-1", "dom-1")));
+        .thenReturn(Optional.of(myself(false, "cos-1")));
 
-    assertThat(resolver.resolveCaller(TOKEN))
-        .contains(ConfigScope.account(ACCOUNT_ID, "cos-1", "dom-1"));
+    assertThat(resolver.resolveCaller(TOKEN)).contains(ConfigScope.account(ACCOUNT_ID, "cos-1"));
   }
 
   @Test
-  void givenAUserWithoutCosAndDomainResolveCallerShouldReturnAScopeWithNulls() {
-    when(userRepository.getUserMyselfByToken(TOKEN))
-        .thenReturn(Optional.of(myself(false, null, null)));
+  void givenAUserWithoutCosResolveCallerShouldReturnAScopeWithNullCos() {
+    when(userRepository.getUserMyselfByToken(TOKEN)).thenReturn(Optional.of(myself(false, null)));
 
     Optional<ConfigScope> scope = resolver.resolveCaller(TOKEN);
 
-    assertThat(scope).contains(ConfigScope.account(ACCOUNT_ID, null, null));
+    assertThat(scope).contains(ConfigScope.account(ACCOUNT_ID, null));
     assertThat(scope.get().cosId()).isNull();
-    assertThat(scope.get().domainId()).isNull();
   }
 
   @Test
@@ -95,12 +89,11 @@ class FilesConfigIdentityResolverTest {
   }
 
   @Test
-  void givenAnExistingAccountScopeOfAccountShouldUseItsCosAndDomain() {
-    when(userRepository.getUserById(null, ACCOUNT_ID))
-        .thenReturn(Optional.of(info("cos-2", "dom-2")));
+  void givenAnExistingAccountScopeOfAccountShouldUseItsCos() {
+    when(userRepository.getUserById(null, ACCOUNT_ID)).thenReturn(Optional.of(info("cos-2")));
 
     assertThat(resolver.scopeOfAccount(ACCOUNT_ID))
-        .contains(ConfigScope.account(ACCOUNT_ID, "cos-2", "dom-2"));
+        .contains(ConfigScope.account(ACCOUNT_ID, "cos-2"));
   }
 
   @Test

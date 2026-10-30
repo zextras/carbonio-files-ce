@@ -28,13 +28,12 @@ class SharingPolicyTest {
 
   private final ConfigResolver resolver = mock(ConfigResolver.class);
   private final SharingPolicy policy = new SharingPolicy(resolver);
-  private final ConfigScope scope = ConfigScope.account("acc", "cos", "dom");
+  private final ConfigScope scope = ConfigScope.account("acc", "cos");
 
   private void resolves(String key, String value) {
     when(resolver.resolve(scope, key))
         .thenReturn(
-            new ConfigResolver.Resolution(
-                Optional.ofNullable(value), ConfigResolver.Source.GLOBAL));
+            new ConfigResolver.Resolution(Optional.ofNullable(value), ConfigResolver.Source.COS));
   }
 
   @ParameterizedTest
@@ -96,20 +95,18 @@ class SharingPolicyTest {
   }
 
   @Test
-  void scopeOfUserMyselfCarriesAccountCosAndDomain() {
+  void scopeOfUserMyselfCarriesAccountAndCos() {
     UserMyself user = mock(UserMyself.class);
     when(user.getId()).thenReturn(new UserId("acc"));
     when(user.getCosId()).thenReturn("cos");
-    when(user.getDomainId()).thenReturn(null);
-    assertThat(SharingPolicy.scopeOf(user)).isEqualTo(ConfigScope.account("acc", "cos", null));
+    assertThat(SharingPolicy.scopeOf(user)).isEqualTo(ConfigScope.account("acc", "cos"));
   }
 
   @Test
-  void scopeOfUserInfoCarriesAccountCosAndDomain() {
+  void scopeOfUserInfoCarriesAccountAndCos() {
     UserInfo user = new UserInfo();
     user.setId(new UserId("acc"));
     user.setCosId("cos");
-    user.setDomainId("dom");
-    assertThat(SharingPolicy.scopeOf(user)).isEqualTo(ConfigScope.account("acc", "cos", "dom"));
+    assertThat(SharingPolicy.scopeOf(user)).isEqualTo(ConfigScope.account("acc", "cos"));
   }
 }

@@ -32,7 +32,6 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
   private static final String NON_GLOBAL_ADMIN_ID = "dddddddd-dddd-dddd-dddd-dddddddddd02";
   private static final String USER_ID = "dddddddd-dddd-dddd-dddd-dddddddddd03";
   private static final String COS_ID = "cos-1";
-  private static final String DOMAIN_ID = "dom-1";
 
   private static final String ADMIN_COOKIE = "ZM_ADMIN_AUTH_TOKEN=hcfg-admin-token";
   private static final String NON_GLOBAL_ADMIN_COOKIE = "ZM_ADMIN_AUTH_TOKEN=hcfg-delegated-token";
@@ -42,9 +41,9 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
   @BeforeAll
   static void registerAccounts() {
     var userManagement = FilesStackTestResource.getUserManagementService();
-    userManagement.registerAccount("hcfg-admin-token", ADMIN_ID, null, null, true);
-    userManagement.registerAccount("hcfg-delegated-token", NON_GLOBAL_ADMIN_ID, null, null, false);
-    userManagement.registerAccount("hcfg-user-token", USER_ID, COS_ID, DOMAIN_ID, false);
+    userManagement.registerAccount("hcfg-admin-token", ADMIN_ID, null, true);
+    userManagement.registerAccount("hcfg-delegated-token", NON_GLOBAL_ADMIN_ID, null, false);
+    userManagement.registerAccount("hcfg-user-token", USER_ID, COS_ID, false);
   }
 
   @BeforeEach
@@ -77,58 +76,71 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
   @Test
   @SuppressWarnings("unchecked")
   void adminCanWriteDeclaredKeyAndOnlyThat() throws SQLException {
+    String path = "/admin/config/raw/account/" + USER_ID;
+    assertThat(put(path, ADMIN_COOKIE, body(KEY, "a")).statusCode()).isEqualTo(204);
+    assertThat(accountRows()).isEqualTo(1);
+
+    assertThat(put(path, ADMIN_COOKIE, body("not-declared", "x")).statusCode()).isEqualTo(400);
+    assertThat(put(path, ADMIN_COOKIE, body(KEY, "  ")).statusCode()).isEqualTo(400);
+    assertThat(accountRows()).as("only the declared key was stored").isEqualTo(1);
+
+    Map<String, String> raw = get(path, ADMIN_COOKIE).as(Map.class);
+    assertThat(raw).containsOnly(Map.entry(KEY, "a"));
+  }
+
+  @Test
+  void domainScopeIsRejectedAndTheGlobalRoutesAreGone() throws SQLException {
+    Response domain = put("/admin/config/raw/domain/x", ADMIN_COOKIE, body(KEY, "d"));
+    assertThat(domain.statusCode()).isEqualTo(400);
+    assertThat(domain.asString()).contains("Unknown scope (expected account|cos)");
+
+    assertThat(get("/admin/config/raw/global", ADMIN_COOKIE).statusCode()).isEqualTo(404);
     assertThat(put("/admin/config/raw/global", ADMIN_COOKIE, body(KEY, "g")).statusCode())
-        .isEqualTo(204);
-    assertThat(globalRows()).isEqualTo(1);
-
-    assertThat(
-            put("/admin/config/raw/global", ADMIN_COOKIE, body("not-declared", "x")).statusCode())
-        .isEqualTo(400);
-    assertThat(put("/admin/config/raw/global", ADMIN_COOKIE, body(KEY, "  ")).statusCode())
-        .isEqualTo(400);
-    assertThat(globalRows()).as("only the declared key was stored").isEqualTo(1);
-
-    Map<String, String> raw = get("/admin/config/raw/global", ADMIN_COOKIE).as(Map.class);
-    assertThat(raw).containsOnly(Map.entry(KEY, "g"));
+        .isEqualTo(404);
+    assertThat(delete("/admin/config/raw/global/" + KEY).statusCode()).isEqualTo(405);
+    assertThat(accountRows()).isZero();
   }
 
   @Test
   void adminEndpointsRejectMissingWrongAndNonGlobalCredentials() throws SQLException {
     assertThat(get("/admin/config/keys", null).statusCode()).isEqualTo(401);
-    assertThat(put("/admin/config/raw/global", null, body(KEY, "x")).statusCode()).isEqualTo(401);
+    assertThat(put("/admin/config/raw/cos/" + COS_ID, null, body(KEY, "x")).statusCode())
+        .isEqualTo(401);
     // The 403 reflects the skeleton's /myself-based resolveAdmin; it changes when the
     // admin-session check lands.
     assertThat(get("/admin/config/keys", NON_GLOBAL_ADMIN_COOKIE).statusCode()).isEqualTo(403);
     assertThat(
-            put("/admin/config/raw/global", NON_GLOBAL_ADMIN_COOKIE, body(KEY, "x")).statusCode())
+            put("/admin/config/raw/cos/" + COS_ID, NON_GLOBAL_ADMIN_COOKIE, body(KEY, "x"))
+                .statusCode())
         .isEqualTo(403);
     assertThat(get("/admin/config/keys", ADMIN_TOKEN_IN_USER_COOKIE).statusCode()).isEqualTo(401);
-    assertThat(globalRows()).isZero();
+    assertThat(accountRows()).isZero();
   }
 
   @Test
   void valueIsResolvedThroughUserManagementIds() {
-    assertThat(put("/admin/config/raw/global", ADMIN_COOKIE, body(KEY, "g")).statusCode())
-        .isEqualTo(204);
-    assertThat(
-            put("/admin/config/raw/domain/" + DOMAIN_ID, ADMIN_COOKIE, body(KEY, "d")).statusCode())
-        .isEqualTo(204);
+    assertThat(userConfig()).hasSize(5).containsEntry(KEY, DEFAULT_VALUE);
+    assertThat(resolvedFor(USER_ID))
+        .containsEntry("value", DEFAULT_VALUE)
+        .containsEntry("source", "default");
+
     assertThat(put("/admin/config/raw/cos/" + COS_ID, ADMIN_COOKIE, body(KEY, "c")).statusCode())
         .isEqualTo(204);
+    assertThat(userConfig()).hasSize(5).containsEntry(KEY, "c");
+    assertThat(resolvedFor(USER_ID)).containsEntry("value", "c").containsEntry("source", "cos");
 
+    assertThat(
+            put("/admin/config/raw/account/" + USER_ID, ADMIN_COOKIE, body(KEY, "a")).statusCode())
+        .isEqualTo(204);
+    assertThat(userConfig()).hasSize(5).containsEntry(KEY, "a");
+    assertThat(resolvedFor(USER_ID)).containsEntry("value", "a").containsEntry("source", "account");
+
+    assertThat(delete("/admin/config/raw/account/" + USER_ID + "/" + KEY).statusCode())
+        .isEqualTo(204);
     assertThat(userConfig()).hasSize(5).containsEntry(KEY, "c");
     assertThat(resolvedFor(USER_ID)).containsEntry("value", "c").containsEntry("source", "cos");
 
     assertThat(delete("/admin/config/raw/cos/" + COS_ID + "/" + KEY).statusCode()).isEqualTo(204);
-    assertThat(userConfig()).hasSize(5).containsEntry(KEY, "d");
-    assertThat(resolvedFor(USER_ID)).containsEntry("value", "d").containsEntry("source", "domain");
-
-    assertThat(delete("/admin/config/raw/domain/" + DOMAIN_ID + "/" + KEY).statusCode())
-        .isEqualTo(204);
-    assertThat(userConfig()).hasSize(5).containsEntry(KEY, "g");
-    assertThat(resolvedFor(USER_ID)).containsEntry("value", "g").containsEntry("source", "global");
-
-    assertThat(delete("/admin/config/raw/global/" + KEY).statusCode()).isEqualTo(204);
     assertThat(userConfig()).hasSize(5).containsEntry(KEY, DEFAULT_VALUE);
     assertThat(resolvedFor(USER_ID))
         .containsEntry("value", DEFAULT_VALUE)
@@ -136,7 +148,7 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void accountOverrideWinsOverTheOtherTiers() {
+  void accountOverrideWinsOverTheCos() {
     assertThat(put("/admin/config/raw/cos/" + COS_ID, ADMIN_COOKIE, body(KEY, "c")).statusCode())
         .isEqualTo(204);
     assertThat(
@@ -198,11 +210,11 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
     return RestAssured.given().header("Cookie", ADMIN_COOKIE).delete(path);
   }
 
-  private static int globalRows() throws SQLException {
+  private static int accountRows() throws SQLException {
     try (Connection connection = jdbcConnection();
         Statement statement = connection.createStatement();
         ResultSet resultSet =
-            statement.executeQuery("SELECT count(*) FROM carbonio_global_config")) {
+            statement.executeQuery("SELECT count(*) FROM carbonio_account_config")) {
       resultSet.next();
       return resultSet.getInt(1);
     }

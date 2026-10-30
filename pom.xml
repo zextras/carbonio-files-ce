@@ -42,7 +42,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <!-- Maven CI Friendly properties -->
     <revision>3.0.5</revision>
 
-    <carbonio-quarkus-extensions.version>1.16.2-192.68d77dab-SNAPSHOT</carbonio-quarkus-extensions.version>
+    <carbonio-quarkus-extensions.version>1.16.2-195.ddbd23f7-SNAPSHOT</carbonio-quarkus-extensions.version>
     <!-- P6e: user-management REST client SDK (UserRepositoryImpl co-requisite). Replaces the
          retired carbonio-user-management-grpc-sdk now that files-ce is 100% gRPC-free. -->
     <carbonio-user-management-rest-sdk.version>1.4.5-1</carbonio-user-management-rest-sdk.version>

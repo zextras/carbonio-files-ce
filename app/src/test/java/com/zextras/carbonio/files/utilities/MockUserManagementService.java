@@ -193,18 +193,18 @@ public class MockUserManagementService {
    */
   public synchronized void registerToken(
       String token, String userId, String status, boolean isGuest, boolean filesFeatureEnabled) {
-    registerToken(token, userId, status, isGuest, filesFeatureEnabled, null, null, false);
+    registerToken(token, userId, status, isGuest, filesFeatureEnabled, null, false);
   }
 
   /**
    * Registers (or overwrites) an ACTIVE, INTERNAL account carrying the hierarchical-config identity
-   * fields ({@code cosId}, {@code domainId}, {@code isGlobalAdmin}) in the {@code info} of both
-   * {@code /internal/users/myself} and {@code /internal/users/id/{userId}}. A null cosId/domainId
-   * is omitted from the JSON.
+   * fields ({@code cosId}, {@code isGlobalAdmin}) in the {@code info} of both {@code
+   * /internal/users/myself} and {@code /internal/users/id/{userId}}. A null cosId is omitted from
+   * the JSON.
    */
   public synchronized void registerAccount(
-      String token, String userId, String cosId, String domainId, boolean globalAdmin) {
-    registerToken(token, userId, "active", false, true, cosId, domainId, globalAdmin);
+      String token, String userId, String cosId, boolean globalAdmin) {
+    registerToken(token, userId, "active", false, true, cosId, globalAdmin);
   }
 
   private void registerToken(
@@ -214,7 +214,6 @@ public class MockUserManagementService {
       boolean isGuest,
       boolean filesFeatureEnabled,
       String cosId,
-      String domainId,
       boolean globalAdmin) {
     String infoJson =
         userInfoJson(
@@ -225,7 +224,6 @@ public class MockUserManagementService {
             status,
             isGuest,
             cosId,
-            domainId,
             globalAdmin);
     String myselfBody = myselfJson(infoJson, DEFAULT_LOCALE, filesFeatureEnabled);
 
@@ -276,8 +274,7 @@ public class MockUserManagementService {
    */
   public synchronized void registerUserById(
       String userId, String email, String fullName, String domain, String status) {
-    String infoJson =
-        userInfoJson(userId, email, fullName, domain, status, false, null, null, false);
+    String infoJson = userInfoJson(userId, email, fullName, domain, status, false, null, false);
     registerUserInfoStubs(userId, email, infoJson);
   }
 
@@ -349,7 +346,6 @@ public class MockUserManagementService {
       String status,
       boolean isGuest,
       String cosId,
-      String domainId,
       boolean globalAdmin) {
     StringBuilder json =
         new StringBuilder(
@@ -363,9 +359,6 @@ public class MockUserManagementService {
                 isGuest ? "GUEST" : "INTERNAL"));
     if (cosId != null) {
       json.append(",\"cosId\":\"").append(jsonEscape(cosId)).append('"');
-    }
-    if (domainId != null) {
-      json.append(",\"domainId\":\"").append(jsonEscape(domainId)).append('"');
     }
     if (globalAdmin) {
       json.append(",\"isGlobalAdmin\":true");

@@ -59,8 +59,7 @@ class InternalNodeResourceTest {
   private static final String NODE_ID = "cccccccc-cccc-cccc-cccc-cccccccccccc";
   private static final String PARENT_ID = "dddddddd-dddd-dddd-dddd-dddddddddddd";
   private static final String COS_ID = "cos-id";
-  private static final String DOMAIN_ID = "domain-id";
-  private static final ConfigScope SCOPE = ConfigScope.account(USER_ID, COS_ID, DOMAIN_ID);
+  private static final ConfigScope SCOPE = ConfigScope.account(USER_ID, COS_ID);
 
   private NodeRepository nodeRepository;
   private UserRepository userRepository;
@@ -471,7 +470,6 @@ class InternalNodeResourceTest {
             UserStatus.ACTIVE,
             UserType.INTERNAL);
     user.setCosId(COS_ID);
-    user.setDomainId(DOMAIN_ID);
     return user;
   }
 }

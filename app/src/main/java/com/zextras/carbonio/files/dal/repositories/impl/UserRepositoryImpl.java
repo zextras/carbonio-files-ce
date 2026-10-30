@@ -148,7 +148,6 @@ public class UserRepositoryImpl implements UserRepository {
             mapType(info.getType()),
             features != null ? features : Collections.emptyList());
     user.setCosId(info.getCosId());
-    user.setDomainId(info.getDomainId());
     user.setGlobalAdmin(Boolean.TRUE.equals(info.getIsGlobalAdmin()));
     return Optional.of(user);
   }
@@ -164,7 +163,6 @@ public class UserRepositoryImpl implements UserRepository {
             mapStatus(info.getStatus()),
             mapType(info.getType()));
     userInfo.setCosId(info.getCosId());
-    userInfo.setDomainId(info.getDomainId());
     return userInfo;
   }
 

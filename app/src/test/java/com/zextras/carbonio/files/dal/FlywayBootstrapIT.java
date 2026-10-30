@@ -58,12 +58,7 @@ class FlywayBootstrapIT extends AbstractFilesIT {
 
   @Test
   void hierarchicalConfigTablesShouldExist() throws Exception {
-    for (String table :
-        List.of(
-            "carbonio_account_config",
-            "carbonio_cos_config",
-            "carbonio_domain_config",
-            "carbonio_global_config")) {
+    for (String table : List.of("carbonio_account_config", "carbonio_cos_config")) {
       assertThat(tableExists(table)).as(table).isTrue();
     }
   }

@@ -38,7 +38,6 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
   private static final String RECIPIENT_COOKIE = "ZM_AUTH_TOKEN=policy-a-recipient";
   private static final String OTHER_COOKIE = "ZM_AUTH_TOKEN=policy-a-other";
   private static final String OWNER_COS = "policy-a-cos";
-  private static final String OWNER_DOMAIN = "policy-a-dom";
   private static final String DISABLED = "SHARING_TYPE_DISABLED";
   private static final long FAR_FUTURE = 4102444800000L;
   private static final int INVITATION_ID_LENGTH = 8;
@@ -47,11 +46,9 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
   @BeforeAll
   static void registerAccounts() {
     var userManagement = FilesStackTestResource.getUserManagementService();
-    userManagement.registerAccount("policy-a-owner", OWNER_ID, OWNER_COS, OWNER_DOMAIN, false);
-    userManagement.registerAccount(
-        "policy-a-recipient", RECIPIENT_ID, "policy-a-cos-r", "policy-a-dom-r", false);
-    userManagement.registerAccount(
-        "policy-a-other", OTHER_ID, "policy-a-cos-o", "policy-a-dom-o", false);
+    userManagement.registerAccount("policy-a-owner", OWNER_ID, OWNER_COS, false);
+    userManagement.registerAccount("policy-a-recipient", RECIPIENT_ID, "policy-a-cos-r", false);
+    userManagement.registerAccount("policy-a-other", OTHER_ID, "policy-a-cos-o", false);
   }
 
   @BeforeEach
@@ -325,7 +322,7 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
     String nodeId = newFile();
     String linkId = seedLink(nodeId, OWNER_COOKIE);
     assertNoErrors(updateLink(linkId, "before", OWNER_COOKIE));
-    setHierarchicalConfig("domain", OWNER_DOMAIN, "public-links-enabled", "false");
+    setHierarchicalConfig("cos", OWNER_COS, "public-links-enabled", "false");
 
     assertDisabled(createLink(nodeId, OWNER_COOKIE), "PUBLIC_LINKS");
     assertThat(linkCount(nodeId)).isEqualTo(1);
@@ -334,15 +331,13 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"account", "cos", "domain", "global"})
+  @ValueSource(strings = {"account", "cos"})
   void everyTierDisablesAndAMoreSpecificTierReEnables(String tier) throws Exception {
     String nodeId = newFile();
     String scopeId =
         switch (tier) {
           case "account" -> OWNER_ID;
-          case "cos" -> OWNER_COS;
-          case "domain" -> OWNER_DOMAIN;
-          default -> null;
+          default -> OWNER_COS;
         };
     setHierarchicalConfig(tier, scopeId, "public-links-enabled", "false");
 
@@ -509,7 +504,7 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
   @Test
   void internalLinkEndpointRejectsWithAnExplicitBody() throws Exception {
     String nodeId = newFile();
-    setHierarchicalConfig("domain", OWNER_DOMAIN, "public-links-enabled", "false");
+    setHierarchicalConfig("cos", OWNER_COS, "public-links-enabled", "false");
 
     Response rejected = postInternalLink(OWNER_ID, nodeId);
 
