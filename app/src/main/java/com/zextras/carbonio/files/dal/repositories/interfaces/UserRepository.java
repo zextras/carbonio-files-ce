@@ -19,6 +19,16 @@ public interface UserRepository {
    */
   Optional<UserMyself> getUserMyselfByCookie(String cookies);
 
+  /**
+   * Resolves the authenticated user from a bare auth-token value (already extracted from its
+   * cookie), forwarded to user-management {@code /myself} as-is. Validates the token value only; it
+   * does not prove an admin-console session.
+   *
+   * @param token the raw auth-token value (no {@code NAME=} prefix)
+   * @return the resolved {@link UserMyself}, or {@link Optional#empty()} if the token is invalid
+   */
+  Optional<UserMyself> getUserMyselfByToken(String token);
+
   Optional<UserInfo> getUserById(String cookies, String userId);
 
   /**

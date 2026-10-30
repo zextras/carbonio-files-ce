@@ -59,8 +59,12 @@ public class UserRepositoryImpl implements UserRepository {
 
   @Override
   public Optional<UserMyself> getUserMyselfByCookie(String cookies) {
+    return getUserMyselfByToken(extractToken(cookies));
+  }
+
+  @Override
+  public Optional<UserMyself> getUserMyselfByToken(String token) {
     try {
-      String token = extractToken(cookies);
       // bypassCache=null (unset): mirrors the pre-1.3.0 behavior of not sending the query param.
       MyselfDto response = userResourceApi.internalUsersMyselfGet(null, token);
       // The generated client returns null (rather than throwing) for a 2xx response with a
@@ -133,7 +137,7 @@ public class UserRepositoryImpl implements UserRepository {
       return Optional.empty();
     }
     List<String> features = response.getFeatures();
-    return Optional.of(
+    UserMyself user =
         new UserMyself(
             new UserId(info.getUserId()),
             info.getEmail(),
@@ -142,18 +146,24 @@ public class UserRepositoryImpl implements UserRepository {
             mapStatus(info.getStatus()),
             parseLocale(response.getLocale()),
             mapType(info.getType()),
-            features != null ? features : Collections.emptyList()));
+            features != null ? features : Collections.emptyList());
+    user.setCosId(info.getCosId());
+    user.setGlobalAdmin(Boolean.TRUE.equals(info.getIsGlobalAdmin()));
+    return Optional.of(user);
   }
 
   /** Maps a {@link UserInfoDto} to the local {@link UserInfo} domain type. */
   private UserInfo mapToUserInfo(UserInfoDto info) {
-    return new UserInfo(
-        new UserId(info.getUserId()),
-        info.getEmail(),
-        info.getFullName(),
-        info.getDomain(),
-        mapStatus(info.getStatus()),
-        mapType(info.getType()));
+    UserInfo userInfo =
+        new UserInfo(
+            new UserId(info.getUserId()),
+            info.getEmail(),
+            info.getFullName(),
+            info.getDomain(),
+            mapStatus(info.getStatus()),
+            mapType(info.getType()));
+    userInfo.setCosId(info.getCosId());
+    return userInfo;
   }
 
   /**

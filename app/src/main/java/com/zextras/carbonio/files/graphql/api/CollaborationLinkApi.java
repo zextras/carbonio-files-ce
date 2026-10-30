@@ -5,6 +5,8 @@
 package com.zextras.carbonio.files.graphql.api;
 
 import com.zextras.carbonio.files.Constants.API.Endpoints;
+import com.zextras.carbonio.files.config.SharingPolicy;
+import com.zextras.carbonio.files.config.SharingType;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
@@ -19,6 +21,7 @@ import com.zextras.carbonio.files.graphql.model.SharePermission;
 import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigScope;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import java.text.MessageFormat;
@@ -45,6 +48,7 @@ public class CollaborationLinkApi {
   @Inject NodeRepository nodeRepository;
   @Inject PermissionsChecker permissionsChecker;
   @Inject GraphQLInputValidator validator;
+  @Inject SharingPolicy sharingPolicy;
   @Inject @AuthenticatedUser UserMyself requester;
 
   private static CollaborationLinkModel toModel(CollaborationLink link, String domain) {
@@ -113,9 +117,17 @@ public class CollaborationLinkApi {
       @Name("permission") @NonNull SharePermission permission)
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).validate();
+    ConfigScope scope = SharingPolicy.scopeOf(requester);
+    if (!sharingPolicy.isEnabled(SharingType.COLLABORATION_LINKS, scope)) {
+      throw FilesGraphQLErrors.sharingTypeDisabled(SharingType.COLLABORATION_LINKS);
+    }
     String me = requester.getId().getUserId();
     ACL.SharePermission aclPerm = ACL.SharePermission.valueOf(permission.name());
-    if (!permissionsChecker.getPermissions(nodeId, me).has(aclPerm)) {
+    if (!sharingPolicy.allowsGrant(aclPerm, scope)) {
+      throw FilesGraphQLErrors.sharePermissionNotAllowed(permission.name());
+    }
+    ACL own = permissionsChecker.getPermissions(nodeId, me);
+    if (!own.has(ACL.SharePermission.READ_AND_SHARE) || !own.has(aclPerm)) {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
     CollaborationLink link =

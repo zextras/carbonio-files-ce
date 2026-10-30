@@ -68,11 +68,14 @@ class VersionReservationMigrationDalTest {
     return DriverManager.getConnection(FilesStackTestResource.POSTGRES_JDBC_URL, "test", "test");
   }
 
+  // All Java migration discovery is turned off: today the only Java migration is the extension's
+  // R__, which refuses non-default schemas.
   private static void migrate(String schema, String target) {
     Flyway.configure()
         .dataSource(FilesStackTestResource.POSTGRES_JDBC_URL, "test", "test")
         .schemas(schema)
         .locations("classpath:db/migration")
+        .javaMigrationClassProvider(List::of)
         .target(target)
         .load()
         .migrate();

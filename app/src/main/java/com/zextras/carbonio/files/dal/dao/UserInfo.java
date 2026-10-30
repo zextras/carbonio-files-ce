@@ -17,6 +17,7 @@ public class UserInfo {
   private String domain;
   private UserStatus status;
   private UserType type;
+  private String cosId;
 
   public UserInfo() {}
 
@@ -76,5 +77,17 @@ public class UserInfo {
 
   public void setType(UserType type) {
     this.type = type;
+  }
+
+  /**
+   * Opaque zimbra COS id of the account's effective COS (explicit, else the domain default, else
+   * "default"), from user-management; null only if no COS can be resolved.
+   */
+  public String getCosId() {
+    return cosId;
+  }
+
+  public void setCosId(String cosId) {
+    this.cosId = cosId;
   }
 }

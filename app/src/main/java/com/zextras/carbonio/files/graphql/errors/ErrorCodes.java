@@ -20,6 +20,8 @@ public enum ErrorCodes {
   ACCESS_CODE_REQUIRED,
   WRONG_ACCESS_CODE,
   LINK_LIMIT_EXCEEDED,
+  SHARING_TYPE_DISABLED,
+  SHARE_PERMISSION_NOT_ALLOWED,
   // Never produced by CE (no quota concept). Reserved for the Advanced edition's
   // CopyFailureClassifier
   // seam, which maps a storage over-quota (Powerstore HTTP 422) during copy/clone to this code so

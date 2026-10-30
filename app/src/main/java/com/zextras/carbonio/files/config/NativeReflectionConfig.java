@@ -13,6 +13,7 @@ import com.zextras.carbonio.files.rest.types.UploadVersionResponse;
 import com.zextras.carbonio.files.rest.types.health.DependencyType;
 import com.zextras.carbonio.files.rest.types.health.HealthResponse;
 import com.zextras.carbonio.files.rest.types.health.ServiceHealth;
+import com.zextras.carbonio.files.rest.types.internal.SharingPolicyErrorDto;
 import com.zextras.carbonio.user_management.sdk.rest.model.MyselfDto;
 import com.zextras.carbonio.user_management.sdk.rest.model.UserInfoDto;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -39,6 +40,7 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
       UploadAttachmentResponse.class,
       UploadVersionResponse.class,
       UploadToRequest.class,
+      SharingPolicyErrorDto.class,
       PreviewQueryParameters.class,
       // Keyset pagination cursor (Base64 JSON via a raw ObjectMapper in NodeRepositoryImpl)
       NodeRepositoryImpl.PageToken.class,

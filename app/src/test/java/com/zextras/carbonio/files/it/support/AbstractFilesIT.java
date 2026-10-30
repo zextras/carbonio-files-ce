@@ -136,6 +136,35 @@ public abstract class AbstractFilesIT {
     return DriverManager.getConnection(FilesStackTestResource.POSTGRES_JDBC_URL, "test", "test");
   }
 
+  protected static void setHierarchicalConfig(String tier, String scopeId, String key, String value)
+      throws SQLException {
+    String sql =
+        switch (tier) {
+          case "account" ->
+              "INSERT INTO carbonio_account_config (account_id, config_key, value) VALUES (?, ?,"
+                  + " ?)";
+          case "cos" ->
+              "INSERT INTO carbonio_cos_config (cos_id, config_key, value) VALUES (?, ?, ?)";
+          default -> throw new IllegalArgumentException(tier);
+        };
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement = connection.prepareStatement(sql)) {
+      int i = 1;
+      statement.setString(i++, scopeId);
+      statement.setString(i++, key);
+      statement.setString(i, value);
+      statement.executeUpdate();
+    }
+  }
+
+  protected static void clearHierarchicalConfig() throws SQLException {
+    try (Connection connection = jdbcConnection();
+        Statement statement = connection.createStatement()) {
+      statement.execute("DELETE FROM carbonio_account_config");
+      statement.execute("DELETE FROM carbonio_cos_config");
+    }
+  }
+
   protected static int backendPid(Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement();
         ResultSet pid = statement.executeQuery("SELECT pg_backend_pid()")) {

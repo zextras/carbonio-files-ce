@@ -27,6 +27,8 @@ public class UserMyself {
   private UserType type;
   private Map<String, String> carbonioAttributes;
   private List<String> features;
+  private String cosId;
+  private boolean globalAdmin;
 
   public UserMyself() {}
 
@@ -184,5 +186,29 @@ public class UserMyself {
 
   public void setFeatures(List<String> features) {
     this.features = features;
+  }
+
+  /**
+   * Opaque zimbra COS id of the account's effective COS (explicit, else the domain default, else
+   * "default"), from user-management; null only if no COS can be resolved.
+   */
+  public String getCosId() {
+    return cosId;
+  }
+
+  public void setCosId(String cosId) {
+    this.cosId = cosId;
+  }
+
+  /**
+   * Whether this account is a global (system) administrator (mailbox attr {@code
+   * zimbraIsAdminAccount}). Taken from the mailbox account flag.
+   */
+  public boolean isGlobalAdmin() {
+    return globalAdmin;
+  }
+
+  public void setGlobalAdmin(boolean globalAdmin) {
+    this.globalAdmin = globalAdmin;
   }
 }

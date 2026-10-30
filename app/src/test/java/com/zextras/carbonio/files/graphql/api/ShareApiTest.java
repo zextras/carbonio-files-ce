@@ -5,19 +5,32 @@
 package com.zextras.carbonio.files.graphql.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.zextras.carbonio.files.config.SharingPolicy;
+import com.zextras.carbonio.files.config.SharingType;
+import com.zextras.carbonio.files.dal.dao.UserId;
+import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
+import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
+import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
 import com.zextras.carbonio.files.graphql.model.FolderModel;
 import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.ShareModel;
+import com.zextras.carbonio.files.graphql.model.SharePermission;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,16 +41,29 @@ class ShareApiTest {
   private static final String NODE_ID = "00000000-0000-0000-0000-000000000001";
   private static final String TARGET_ID_1 = "target-user-1";
   private static final String TARGET_ID_2 = "target-user-2";
+  private static final String REQUESTER_ID = "requester-user-id";
 
   private ShareRepository shareRepository;
+  private PermissionsChecker permissionsChecker;
+  private SharingPolicy sharingPolicy;
   private ShareApi shareApi;
 
   @BeforeEach
   void setUp() {
     shareRepository = mock(ShareRepository.class);
+    permissionsChecker = mock(PermissionsChecker.class);
+    sharingPolicy = mock(SharingPolicy.class);
+    when(sharingPolicy.isEnabled(any(), any())).thenReturn(true);
+    when(sharingPolicy.allowsGrant(any(), any())).thenReturn(true);
+
+    UserMyself requester = mock(UserMyself.class);
+    when(requester.getId()).thenReturn(new UserId(REQUESTER_ID));
 
     shareApi = new ShareApi();
     shareApi.shareRepository = shareRepository;
+    shareApi.permissionsChecker = permissionsChecker;
+    shareApi.sharingPolicy = sharingPolicy;
+    shareApi.requester = requester;
     shareApi.validator = new GraphQLInputValidator();
   }
 
@@ -143,5 +169,68 @@ class ShareApiTest {
     assertThat(result.get(0).get(0).getShareTargetId()).isEqualTo(TARGET_ID_1);
     assertThat(result.get(0).get(1)).isNull();
     assertThat(result.get(0).get(2).getShareTargetId()).isEqualTo(TARGET_ID_3);
+  }
+
+  private static void assertErrorCode(Throwable thrown, ErrorCodes code) {
+    assertThat(thrown)
+        .isInstanceOfSatisfying(
+            FilesGraphQLException.class, ex -> assertThat(ex.getErrorCode()).isEqualTo(code));
+  }
+
+  @Test
+  void createShareRejectsAnExcessivePermissionBeforeNodeAuthorization() {
+    when(sharingPolicy.allowsGrant(eq(ACL.SharePermission.READ_AND_WRITE), any()))
+        .thenReturn(false);
+
+    assertThatThrownBy(
+            () ->
+                shareApi.createShare(
+                    NODE_ID, TARGET_ID_1, SharePermission.READ_AND_WRITE, null, null))
+        .satisfies(ex -> assertErrorCode(ex, ErrorCodes.SHARE_PERMISSION_NOT_ALLOWED));
+    verifyNoInteractions(permissionsChecker);
+  }
+
+  @Test
+  void updateSharesRejectsAnExcessivePermissionBeforeNodeAuthorization() {
+    when(sharingPolicy.allowsGrant(eq(ACL.SharePermission.READ_AND_WRITE), any()))
+        .thenReturn(false);
+
+    assertThatThrownBy(
+            () ->
+                shareApi.updateShares(
+                    NODE_ID, List.of(TARGET_ID_1), SharePermission.READ_AND_WRITE, null))
+        .satisfies(ex -> assertErrorCode(ex, ErrorCodes.SHARE_PERMISSION_NOT_ALLOWED));
+    verifyNoInteractions(permissionsChecker);
+  }
+
+  @Test
+  void updateSharesWithoutAPermissionDoesNotEvaluateTheGrantCap() throws Exception {
+    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
+        .thenReturn(aclWith(ACL.SharePermission.READ_AND_SHARE));
+    Share existing = mockShare(NODE_ID, TARGET_ID_1);
+    when(shareRepository.getShare(NODE_ID, TARGET_ID_1)).thenReturn(Optional.of(existing));
+    when(shareRepository.updateShare(any())).thenAnswer(i -> i.getArgument(0));
+
+    shareApi.updateShares(NODE_ID, List.of(TARGET_ID_1), null, 5000L);
+
+    verify(sharingPolicy, never()).allowsGrant(any(), any());
+  }
+
+  @Test
+  void aDisabledTypeIsRejectedBeforeTheGrantCapAndNodeAuthorization() {
+    when(sharingPolicy.isEnabled(eq(SharingType.ACCOUNT_SHARES), any())).thenReturn(false);
+
+    assertThatThrownBy(
+            () ->
+                shareApi.createShare(
+                    NODE_ID, TARGET_ID_1, SharePermission.READ_AND_WRITE, null, null))
+        .satisfies(ex -> assertErrorCode(ex, ErrorCodes.SHARING_TYPE_DISABLED));
+    assertThatThrownBy(
+            () ->
+                shareApi.updateShares(
+                    NODE_ID, List.of(TARGET_ID_1), SharePermission.READ_AND_WRITE, null))
+        .satisfies(ex -> assertErrorCode(ex, ErrorCodes.SHARING_TYPE_DISABLED));
+    verify(sharingPolicy, never()).allowsGrant(any(), any());
+    verifyNoInteractions(permissionsChecker);
   }
 }

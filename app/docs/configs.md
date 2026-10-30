@@ -41,3 +41,15 @@ Overridable by Consul KV
 | `carbonio-files/transfer/max-threads` | `64` |  | Threads of the transfer pool. The pool runs the REST byte transfers (upload, upload-version, downloads: single, zip, public, /internal accounts GetFile/PutFile, preview streaming, /upload-to) and the long GraphQL blob mutations (copyNodes, cloneVersion, transferOwnership). One thread per operation for its whole duration; an operation that finds all threads busy waits in the queue. Not the Quarkus worker pool (server/max-threads) |
 | `carbonio-files/transfer/queue-size` | `256` |  | Operations that can wait for a free transfer-pool thread (see transfer/max-threads). When threads and queue are both full a new one is answered with 503 |
 
+## Hierarchical Config
+
+Overridable using admin panel
+
+| Key | Default | Description |
+| --- | ------- | ----------- |
+| `account-shares-enabled` | `true` | Whether the user may create and update shares with specific accounts |
+| `collaboration-links-enabled` | `true` | Whether the user may create internal (collaboration) links |
+| `public-links-enabled` | `true` | Whether the user may create and update public links, Smart Links included |
+| `share-reshare-permission-enabled` | `true` | Whether the user may grant the reshare permission in shares and collaboration links |
+| `share-write-permission-enabled` | `true` | Whether the user may grant the write permission in shares and collaboration links |
+
