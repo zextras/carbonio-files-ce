@@ -260,7 +260,8 @@ class LegacyDbInfoBaselineCustomizerTest {
         Statement statement = connection.createStatement();
         ResultSet result =
             statement.executeQuery(
-                "SELECT type, version FROM flyway_schema_history ORDER BY installed_rank")) {
+                "SELECT type, version FROM flyway_schema_history WHERE version IS NOT NULL"
+                    + " ORDER BY installed_rank")) {
       while (result.next()) {
         rows.add(result.getString(1) + ":" + result.getString(2));
       }
@@ -273,7 +274,8 @@ class LegacyDbInfoBaselineCustomizerTest {
         Statement statement = connection.createStatement();
         ResultSet result =
             statement.executeQuery(
-                "SELECT version FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1")) {
+                "SELECT version FROM flyway_schema_history WHERE version IS NOT NULL"
+                    + " ORDER BY installed_rank DESC LIMIT 1")) {
       result.next();
       return result.getString(1);
     }
