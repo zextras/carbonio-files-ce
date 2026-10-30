@@ -34,6 +34,8 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
   private static final String OWNER_ID = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01";
   private static final String RECIPIENT_ID = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee02";
   private static final String OTHER_ID = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee03";
+  private static final String SIBLING_ID = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeee04";
+  private static final String SIBLING_COOKIE = "ZM_AUTH_TOKEN=policy-a-sibling";
   private static final String OWNER_COOKIE = "ZM_AUTH_TOKEN=policy-a-owner";
   private static final String RECIPIENT_COOKIE = "ZM_AUTH_TOKEN=policy-a-recipient";
   private static final String OTHER_COOKIE = "ZM_AUTH_TOKEN=policy-a-other";
@@ -48,6 +50,7 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
     var userManagement = FilesStackTestResource.getUserManagementService();
     userManagement.registerAccount("policy-a-owner", OWNER_ID, OWNER_COS, false);
     userManagement.registerAccount("policy-a-recipient", RECIPIENT_ID, "policy-a-cos-r", false);
+    userManagement.registerAccount("policy-a-sibling", SIBLING_ID, OWNER_COS, false);
     userManagement.registerAccount("policy-a-other", OTHER_ID, "policy-a-cos-o", false);
   }
 
@@ -212,6 +215,14 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
     }
   }
 
+  private static String scopeIdOf(String tier) {
+    return switch (tier) {
+      case "account" -> OWNER_ID;
+      case "cos" -> OWNER_COS;
+      default -> throw new IllegalArgumentException(tier);
+    };
+  }
+
   private static long linkCount(String nodeId) throws SQLException {
     return count("SELECT count(*) FROM link WHERE node_id = ?", nodeId);
   }
@@ -277,14 +288,15 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
     assertThat(linkDescription(field(link, "createLink", "id"))).isEqualTo("desc");
   }
 
-  @Test
-  void disabledAccountSharesRejectCreateAndUpdate() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"account", "cos"})
+  void disabledAccountSharesRejectCreateAndUpdate(String tier) throws Exception {
     String nodeId = newFile();
     String other = newFile();
     assertNoErrors(createShare(other, RECIPIENT_ID, SharePermission.READ_ONLY, OWNER_COOKIE));
     Optional<ShareRow> before = shareRow(other, RECIPIENT_ID);
     assertThat(before).isPresent();
-    setHierarchicalConfig("account", OWNER_ID, "account-shares-enabled", "false");
+    setHierarchicalConfig(tier, scopeIdOf(tier), "account-shares-enabled", "false");
 
     assertDisabled(
         createShare(nodeId, RECIPIENT_ID, SharePermission.READ_ONLY, OWNER_COOKIE),
@@ -334,12 +346,7 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
   @ValueSource(strings = {"account", "cos"})
   void everyTierDisablesAndAMoreSpecificTierReEnables(String tier) throws Exception {
     String nodeId = newFile();
-    String scopeId =
-        switch (tier) {
-          case "account" -> OWNER_ID;
-          default -> OWNER_COS;
-        };
-    setHierarchicalConfig(tier, scopeId, "public-links-enabled", "false");
+    setHierarchicalConfig(tier, scopeIdOf(tier), "public-links-enabled", "false");
 
     assertDisabled(createLink(nodeId, OWNER_COOKIE), "PUBLIC_LINKS");
 
@@ -357,6 +364,21 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
 
     assertDisabled(createLink(newFile(), OWNER_COOKIE), "PUBLIC_LINKS");
     assertNoErrors(createLink(otherNode, OTHER_COOKIE));
+  }
+
+  @Test
+  void anAccountOverrideDoesNotLeakToASiblingOfTheSameCos() throws Exception {
+    setHierarchicalConfig("cos", OWNER_COS, "public-links-enabled", "false");
+    String siblingNode =
+        seedFile("s.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), SIBLING_COOKIE);
+
+    assertDisabled(createLink(newFile(), OWNER_COOKIE), "PUBLIC_LINKS");
+    assertDisabled(createLink(siblingNode, SIBLING_COOKIE), "PUBLIC_LINKS");
+
+    setHierarchicalConfig("account", OWNER_ID, "public-links-enabled", "true");
+
+    assertNoErrors(createLink(newFile(), OWNER_COOKIE));
+    assertDisabled(createLink(siblingNode, SIBLING_COOKIE), "PUBLIC_LINKS");
   }
 
   @Test
@@ -501,10 +523,11 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
     assertThat(nodeExists(fileId, RECIPIENT_COOKIE)).isTrue();
   }
 
-  @Test
-  void internalLinkEndpointRejectsWithAnExplicitBody() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"account", "cos"})
+  void internalLinkEndpointRejectsWithAnExplicitBody(String tier) throws Exception {
     String nodeId = newFile();
-    setHierarchicalConfig("cos", OWNER_COS, "public-links-enabled", "false");
+    setHierarchicalConfig(tier, scopeIdOf(tier), "public-links-enabled", "false");
 
     Response rejected = postInternalLink(OWNER_ID, nodeId);
 

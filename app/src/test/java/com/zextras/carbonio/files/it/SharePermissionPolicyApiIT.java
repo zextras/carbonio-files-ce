@@ -373,6 +373,21 @@ class SharePermissionPolicyApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void theCosCapsTheReshareAndTheAccountTierReEnablesIt() throws Exception {
+    String nodeId = newFile();
+    setHierarchicalConfig("cos", "policy-b-cos", "share-reshare-permission-enabled", "false");
+
+    assertNotAllowed(
+        createShare(nodeId, HOLDER_ID, SharePermission.READ_AND_SHARE, OWNER_COOKIE),
+        SharePermission.READ_AND_SHARE);
+    assertThat(rights(nodeId, HOLDER_ID)).isNull();
+
+    setHierarchicalConfig("account", OWNER_ID, "share-reshare-permission-enabled", "true");
+    assertNoErrors(createShare(nodeId, HOLDER_ID, SharePermission.READ_AND_SHARE, OWNER_COOKIE));
+    assertThat(rights(nodeId, HOLDER_ID)).isEqualTo(SharePermission.READ_AND_SHARE.encode());
+  }
+
+  @Test
   void theCapIsReadFromTheCallerAndNotFromTheOwner() throws Exception {
     String nodeId = newFile();
     assertNoErrors(

@@ -79,7 +79,10 @@ public class UserInfo {
     this.type = type;
   }
 
-  /** Opaque zimbra COS id (from user-management); may be {@code null} without an explicit COS. */
+  /**
+   * Opaque zimbra COS id of the account's effective COS (explicit, else the domain default, else
+   * "default"), from user-management; null only if no COS can be resolved.
+   */
   public String getCosId() {
     return cosId;
   }

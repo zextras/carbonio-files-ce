@@ -78,11 +78,11 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
   void adminCanWriteDeclaredKeyAndOnlyThat() throws SQLException {
     String path = "/admin/config/raw/account/" + USER_ID;
     assertThat(put(path, ADMIN_COOKIE, body(KEY, "a")).statusCode()).isEqualTo(204);
-    assertThat(accountRows()).isEqualTo(1);
+    assertThat(configRows()).isEqualTo(1);
 
     assertThat(put(path, ADMIN_COOKIE, body("not-declared", "x")).statusCode()).isEqualTo(400);
     assertThat(put(path, ADMIN_COOKIE, body(KEY, "  ")).statusCode()).isEqualTo(400);
-    assertThat(accountRows()).as("only the declared key was stored").isEqualTo(1);
+    assertThat(configRows()).as("only the declared key was stored").isEqualTo(1);
 
     Map<String, String> raw = get(path, ADMIN_COOKIE).as(Map.class);
     assertThat(raw).containsOnly(Map.entry(KEY, "a"));
@@ -98,23 +98,29 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
     assertThat(put("/admin/config/raw/global", ADMIN_COOKIE, body(KEY, "g")).statusCode())
         .isEqualTo(404);
     assertThat(delete("/admin/config/raw/global/" + KEY).statusCode()).isEqualTo(405);
-    assertThat(accountRows()).isZero();
+    assertThat(get("/admin/config/raw/domain/x", ADMIN_COOKIE).statusCode()).isEqualTo(400);
+    assertThat(delete("/admin/config/raw/domain/x/" + KEY).statusCode()).isEqualTo(400);
+    assertThat(configRows()).isZero();
   }
 
   @Test
   void adminEndpointsRejectMissingWrongAndNonGlobalCredentials() throws SQLException {
     assertThat(get("/admin/config/keys", null).statusCode()).isEqualTo(401);
-    assertThat(put("/admin/config/raw/cos/" + COS_ID, null, body(KEY, "x")).statusCode())
-        .isEqualTo(401);
     // The 403 reflects the skeleton's /myself-based resolveAdmin; it changes when the
     // admin-session check lands.
     assertThat(get("/admin/config/keys", NON_GLOBAL_ADMIN_COOKIE).statusCode()).isEqualTo(403);
-    assertThat(
-            put("/admin/config/raw/cos/" + COS_ID, NON_GLOBAL_ADMIN_COOKIE, body(KEY, "x"))
-                .statusCode())
-        .isEqualTo(403);
     assertThat(get("/admin/config/keys", ADMIN_TOKEN_IN_USER_COOKIE).statusCode()).isEqualTo(401);
-    assertThat(accountRows()).isZero();
+
+    for (String scoped :
+        List.of("/admin/config/raw/account/" + USER_ID, "/admin/config/raw/cos/" + COS_ID)) {
+      assertThat(get(scoped, null).statusCode()).isEqualTo(401);
+      assertThat(put(scoped, null, body(KEY, "x")).statusCode()).isEqualTo(401);
+      assertThat(delete(scoped + "/" + KEY, null).statusCode()).isEqualTo(401);
+      assertThat(get(scoped, NON_GLOBAL_ADMIN_COOKIE).statusCode()).isEqualTo(403);
+      assertThat(put(scoped, NON_GLOBAL_ADMIN_COOKIE, body(KEY, "x")).statusCode()).isEqualTo(403);
+      assertThat(delete(scoped + "/" + KEY, NON_GLOBAL_ADMIN_COOKIE).statusCode()).isEqualTo(403);
+    }
+    assertThat(configRows()).isZero();
   }
 
   @Test
@@ -207,14 +213,24 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
   }
 
   private static Response delete(String path) {
-    return RestAssured.given().header("Cookie", ADMIN_COOKIE).delete(path);
+    return delete(path, ADMIN_COOKIE);
   }
 
-  private static int accountRows() throws SQLException {
+  private static Response delete(String path, String cookie) {
+    var request = RestAssured.given();
+    if (cookie != null) {
+      request = request.header("Cookie", cookie);
+    }
+    return request.delete(path);
+  }
+
+  private static int configRows() throws SQLException {
     try (Connection connection = jdbcConnection();
         Statement statement = connection.createStatement();
         ResultSet resultSet =
-            statement.executeQuery("SELECT count(*) FROM carbonio_account_config")) {
+            statement.executeQuery(
+                "SELECT (SELECT count(*) FROM carbonio_account_config)"
+                    + " + (SELECT count(*) FROM carbonio_cos_config)")) {
       resultSet.next();
       return resultSet.getInt(1);
     }

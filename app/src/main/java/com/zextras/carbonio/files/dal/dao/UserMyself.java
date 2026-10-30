@@ -189,9 +189,8 @@ public class UserMyself {
   }
 
   /**
-   * The opaque zimbra COS id of this account (from user-management, itself from the mailbox
-   * internal API). May be {@code null} when the account has no explicit COS (no explicit
-   * zimbraCOSId).
+   * Opaque zimbra COS id of the account's effective COS (explicit, else the domain default, else
+   * "default"), from user-management; null only if no COS can be resolved.
    */
   public String getCosId() {
     return cosId;
