@@ -83,7 +83,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>com.zextras.carbonio</groupId>
       <artifactId>carbonio-systemd-notify</artifactId>
-      <version>1.0.1</version>
+      <version>1.0.2</version>
     </dependency>
 
     <dependency>
@@ -194,7 +194,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>com.zextras.carbonio.message-broker</groupId>
       <artifactId>carbonio-message-broker-sdk</artifactId>
-      <version>1.1.10-1</version>
+      <version>1.1.13-1</version>
       <exclusions>
         <exclusion>
           <groupId>ch.qos.logback</groupId>
@@ -221,7 +221,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <dependency>
       <groupId>com.zextras.carbonio.preview</groupId>
       <artifactId>carbonio-preview-ce-rest-sdk</artifactId>
-      <version>3.1.11-1</version>
+      <version>3.1.13-1</version>
     </dependency>
 
     <!--
