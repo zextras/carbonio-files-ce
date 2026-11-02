@@ -43,7 +43,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
@@ -251,13 +254,30 @@ public abstract class AbstractFilesIT {
    * the holder). The poll cadence is the query round-trip itself.
    */
   protected static void awaitBlockedBy(int blockedCount, Integer... holderPids) throws Exception {
+    awaitBlockedOrDone(blockedCount, List.of(holderPids), new CompletableFuture<?>[0]);
+  }
+
+  protected static final ExecutorService RACE_EXECUTOR = Executors.newCachedThreadPool();
+
+  /**
+   * Like {@link #awaitBlockedBy(Connection, int)} but also returns as soon as every given future is
+   * either done or waiting behind the holder, so that a test on code without locks reaches its
+   * invariant assertions instead of failing at the gate.
+   */
+  protected static void awaitBlockedOrDone(
+      Connection lockHolder, int blockedCount, CompletableFuture<?>... futures) throws Exception {
+    awaitBlockedOrDone(blockedCount, List.of(backendPid(lockHolder)), futures);
+  }
+
+  private static void awaitBlockedOrDone(
+      int blockedCount, List<Integer> holderPids, CompletableFuture<?>[] futures) throws Exception {
     long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
     try (Connection observer = jdbcConnection();
         PreparedStatement blocked =
             observer.prepareStatement(
                 "SELECT pid FROM pg_stat_activity WHERE pg_blocking_pids(pid) && ?::int[]")) {
       while (true) {
-        Set<Integer> blockers = new LinkedHashSet<>(List.of(holderPids));
+        Set<Integer> blockers = new LinkedHashSet<>(holderPids);
         Set<Integer> waiting = new LinkedHashSet<>();
         boolean grew = true;
         while (grew) {
@@ -273,9 +293,13 @@ public abstract class AbstractFilesIT {
         if (waiting.size() >= blockedCount) {
           return;
         }
+        long done = java.util.Arrays.stream(futures).filter(CompletableFuture::isDone).count();
+        if (futures.length > 0 && waiting.size() + done >= futures.length) {
+          return;
+        }
         if (System.nanoTime() > deadline) {
           throw new AssertionError(
-              "Fewer than " + blockedCount + " backends waited for " + List.of(holderPids));
+              "Fewer than " + blockedCount + " backends waited for " + holderPids);
         }
       }
     }

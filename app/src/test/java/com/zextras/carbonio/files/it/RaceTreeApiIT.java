@@ -135,9 +135,9 @@ class RaceTreeApiIT extends AbstractFilesIT {
     List<CompletableFuture<Response>> pending = new ArrayList<>();
     try (Connection holder = holdRow(sql, lockedId)) {
       try {
-        pending.add(CompletableFuture.supplyAsync(first));
-        pending.add(CompletableFuture.supplyAsync(second));
-        awaitBlockedBy(holder, 2);
+        pending.add(CompletableFuture.supplyAsync(first, RACE_EXECUTOR));
+        pending.add(CompletableFuture.supplyAsync(second, RACE_EXECUTOR));
+        awaitBlockedOrDone(holder, 2, pending.toArray(new CompletableFuture<?>[0]));
       } finally {
         holder.rollback();
       }
@@ -229,9 +229,11 @@ class RaceTreeApiIT extends AbstractFilesIT {
     try {
       advisory(holder, "pg_advisory_lock", OWNER_ID);
       try {
-        pending.add(CompletableFuture.supplyAsync(() -> createFolder(LOCAL_ROOT, name)));
-        pending.add(CompletableFuture.supplyAsync(() -> createFolder(LOCAL_ROOT, name)));
-        awaitBlockedBy(holder, 2);
+        pending.add(
+            CompletableFuture.supplyAsync(() -> createFolder(LOCAL_ROOT, name), RACE_EXECUTOR));
+        pending.add(
+            CompletableFuture.supplyAsync(() -> createFolder(LOCAL_ROOT, name), RACE_EXECUTOR));
+        awaitBlockedOrDone(holder, 2, pending.toArray(new CompletableFuture<?>[0]));
       } finally {
         advisory(holder, "pg_advisory_unlock", OWNER_ID);
         released = true;
@@ -341,22 +343,26 @@ class RaceTreeApiIT extends AbstractFilesIT {
     String victim = gate.equals(fileA) ? fileB : fileA;
 
     List<CompletableFuture<Response>> pending = new ArrayList<>();
+    List<Response> responses = new ArrayList<>();
     try (Connection holder = holdRow("SELECT 1 FROM node WHERE node_id = ? FOR UPDATE", gate)) {
       try {
-        pending.add(CompletableFuture.supplyAsync(() -> moveNodes(destination, gate, victim)));
+        pending.add(
+            CompletableFuture.supplyAsync(
+                () -> moveNodes(destination, gate, victim), RACE_EXECUTOR));
         awaitBlockedBy(holder, 1);
-        pending.add(CompletableFuture.supplyAsync(() -> trashNodes(victim)));
-        awaitBlockedBy(holder, 2);
+        pending.add(CompletableFuture.supplyAsync(() -> trashNodes(victim), RACE_EXECUTOR));
+        awaitBlockedOrDone(holder, 2, pending.toArray(new CompletableFuture<?>[0]));
       } finally {
         holder.rollback();
       }
-      join(pending, new ArrayList<>());
+      join(pending, responses);
     } finally {
       awaitAll(pending);
     }
 
-    boolean inTrashRoot = "TRASH_ROOT".equals(nodeColumnRaw(victim, "folder_id"));
-    Assertions.assertThat(isTrashed(victim)).isEqualTo(inTrashRoot);
+    responses.forEach(response -> Assertions.assertThat(hasError(response)).isFalse());
+    Assertions.assertThat(nodeColumnRaw(victim, "folder_id")).isEqualTo("TRASH_ROOT");
+    Assertions.assertThat(isTrashed(victim)).isTrue();
   }
 
   @Test
@@ -373,10 +379,28 @@ class RaceTreeApiIT extends AbstractFilesIT {
     Assertions.assertThat(nodeColumnRaw(file, "ancestor_ids")).doesNotContain("TRASH_ROOT");
   }
 
+  private static void assertNoCycle() throws SQLException {
+    Assertions.assertThat(
+            rowExists(
+                "SELECT 1 FROM node WHERE position(trim(node_id) in coalesce(ancestor_ids,''))"
+                    + " > 0"))
+        .isFalse();
+  }
+
+  private static void assertAtMostOneSucceeded(List<Response> responses) {
+    List<Response> succeeded = responses.stream().filter(r -> !hasError(r)).toList();
+    Assertions.assertThat(succeeded.size()).isLessThanOrEqualTo(1);
+    responses.stream()
+        .filter(RaceTreeApiIT::hasError)
+        .forEach(r -> Assertions.assertThat(r.getBody().asString()).doesNotContain("System error"));
+  }
+
   @Test
   void givenCrossingMovesThenNoCycle() throws Exception {
-    String folderA = seedFolder("race-tree-cross-a", LOCAL_ROOT, OWNER_COOKIE);
-    String folderB = seedFolder("race-tree-cross-b", LOCAL_ROOT, OWNER_COOKIE);
+    String parentOne = seedFolder("race-tree-cross-p1", LOCAL_ROOT, OWNER_COOKIE);
+    String parentTwo = seedFolder("race-tree-cross-p2", LOCAL_ROOT, OWNER_COOKIE);
+    String folderA = seedFolder("race-tree-cross-a", parentOne, OWNER_COOKIE);
+    String folderB = seedFolder("race-tree-cross-b", parentTwo, OWNER_COOKIE);
 
     List<Response> responses =
         twoConcurrentUnderRowLock(
@@ -385,28 +409,85 @@ class RaceTreeApiIT extends AbstractFilesIT {
             () -> moveNodes(folderB, folderA),
             () -> moveNodes(folderA, folderB));
 
+    assertAtMostOneSucceeded(responses);
     List<Response> failed = responses.stream().filter(RaceTreeApiIT::hasError).toList();
     Assertions.assertThat(failed).hasSize(1);
     Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(failed.get(0).getBody().asString()))
         .containsExactly("NODE_WRITE_ERROR");
-    Assertions.assertThat(
-            rowExists(
-                "SELECT 1 FROM node WHERE position(trim(node_id) in coalesce(ancestor_ids,''))"
-                    + " > 0"))
-        .isFalse();
+    assertNoCycle();
   }
 
   @Test
-  void givenARestoreRacingADeleteOfItsDestinationThenNoOrphan() throws Exception {
-    String folder = seedFolder("race-tree-orphan-f", LOCAL_ROOT, OWNER_COOKIE);
-    String file = seedFile("orphan-x", folder, new byte[] {1}, OWNER_COOKIE);
+  void givenNestedCrossingMovesThenNoCycle() throws Exception {
+    String root = seedFolder("race-tree-nested-root", LOCAL_ROOT, OWNER_COOKIE);
+    String p = seedFolder("race-tree-nested-p", root, OWNER_COOKIE);
+    String d = seedFolder("race-tree-nested-d", p, OWNER_COOKIE);
+    String q = seedFolder("race-tree-nested-q", root, OWNER_COOKIE);
+    String x = seedFolder("race-tree-nested-x", q, OWNER_COOKIE);
+    String y = seedFolder("race-tree-nested-y", x, OWNER_COOKIE);
+    String childOfX = seedFolder("race-tree-nested-cx", x, OWNER_COOKIE);
+    String childOfP = seedFolder("race-tree-nested-cp", p, OWNER_COOKIE);
+
+    List<CompletableFuture<Response>> pending = new ArrayList<>();
+    List<Response> responses = new ArrayList<>();
+    try (Connection holder =
+        holdRow("SELECT 1 FROM node WHERE node_id IN (?, ?) FOR SHARE", childOfX, childOfP)) {
+      try {
+        pending.add(CompletableFuture.supplyAsync(() -> moveNodes(d, x), RACE_EXECUTOR));
+        pending.add(CompletableFuture.supplyAsync(() -> moveNodes(y, p), RACE_EXECUTOR));
+        awaitBlockedOrDone(holder, 2, pending.toArray(new CompletableFuture<?>[0]));
+      } finally {
+        holder.rollback();
+      }
+      join(pending, responses);
+    } finally {
+      awaitAll(pending);
+    }
+
+    assertAtMostOneSucceeded(responses);
+    assertNoCycle();
+  }
+
+  @Test
+  void givenARestoreRacingAMoveOutOfTheTrashThenOneWins() throws Exception {
+    String folder = seedFolder("race-tree-rm-f", LOCAL_ROOT, OWNER_COOKIE);
+    String destination = seedFolder("race-tree-rm-d", LOCAL_ROOT, OWNER_COOKIE);
+    String file = seedFile("rm-x", folder, new byte[] {1}, OWNER_COOKIE);
     seedTrashed(file, OWNER_COOKIE);
 
     twoConcurrentUnderRowLock(
         "SELECT 1 FROM node WHERE node_id = ? FOR SHARE",
-        folder,
+        file,
         () -> restoreNodes(file),
-        () -> deleteNodes(folder));
+        () -> moveNodes(destination, file));
+
+    String where = nodeColumnRaw(file, "folder_id");
+    Assertions.assertThat(where).isIn(folder, destination);
+    Assertions.assertThat(isTrashed(file)).isFalse();
+    Assertions.assertThat(nodeColumnRaw(file, "ancestor_ids")).doesNotContain("TRASH_ROOT");
+  }
+
+  private void restoreAndDeleteDestination(boolean restoreFirst) throws Exception {
+    String folder = seedFolder("race-tree-orphan-f", LOCAL_ROOT, OWNER_COOKIE);
+    String file = seedFile("orphan-x", folder, new byte[] {1}, OWNER_COOKIE);
+    seedTrashed(file, OWNER_COOKIE);
+
+    List<CompletableFuture<Response>> pending = new ArrayList<>();
+    try (Connection holder = holdRow("SELECT 1 FROM node WHERE node_id = ? FOR SHARE", folder)) {
+      try {
+        Supplier<Response> restore = () -> restoreNodes(file);
+        Supplier<Response> delete = () -> deleteNodes(folder);
+        pending.add(CompletableFuture.supplyAsync(restoreFirst ? restore : delete, RACE_EXECUTOR));
+        awaitBlockedBy(holder, 1);
+        pending.add(CompletableFuture.supplyAsync(restoreFirst ? delete : restore, RACE_EXECUTOR));
+        awaitBlockedOrDone(holder, 2, pending.toArray(new CompletableFuture<?>[0]));
+      } finally {
+        holder.rollback();
+      }
+      join(pending, new ArrayList<>());
+    } finally {
+      awaitAll(pending);
+    }
 
     Assertions.assertThat(
             rowExists(
@@ -414,6 +495,16 @@ class RaceTreeApiIT extends AbstractFilesIT {
                     + " (SELECT 1 FROM node p WHERE p.node_id = n.folder_id) AND n.node_id = ?",
                 file))
         .isFalse();
+  }
+
+  @Test
+  void givenARestoreThenADeleteOfItsDestinationThenNoOrphan() throws Exception {
+    restoreAndDeleteDestination(true);
+  }
+
+  @Test
+  void givenADeleteOfTheDestinationThenARestoreThenNoOrphan() throws Exception {
+    restoreAndDeleteDestination(false);
   }
 
   @Test

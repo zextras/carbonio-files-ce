@@ -151,4 +151,28 @@ public class NodeLocks {
             .getResultList();
     return rows.stream().collect(Collectors.toMap(row -> (String) row[0], row -> (String) row[1]));
   }
+
+  /**
+   * Non-locking read: the ids among {@code parentIds} that cannot receive a restored node, because
+   * the row does not exist or sits in the trash.
+   */
+  public Set<String> unusableRestoreParents(Collection<String> parentIds) {
+    if (parentIds.isEmpty()) {
+      return Set.of();
+    }
+    List<String> ids = parentIds.stream().map(String::trim).toList();
+    @SuppressWarnings("unchecked")
+    List<String> usable =
+        entityManager
+            .createNativeQuery(
+                "SELECT trim(node_id) FROM node WHERE node_id IN (:ids) AND node_id <> 'TRASH_ROOT'"
+                    + " AND coalesce(folder_id, '') <> 'TRASH_ROOT' AND position('TRASH_ROOT' in"
+                    + " coalesce(ancestor_ids, '')) = 0")
+            .setFlushMode(FlushModeType.COMMIT)
+            .setParameter("ids", ids)
+            .getResultList();
+    Set<String> unusable = new HashSet<>(ids);
+    unusable.removeAll(usable);
+    return unusable;
+  }
 }

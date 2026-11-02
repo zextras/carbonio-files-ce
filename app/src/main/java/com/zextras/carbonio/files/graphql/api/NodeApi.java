@@ -498,13 +498,9 @@ public class NodeApi {
     return places;
   }
 
-  private void requireUnmoved(List<NodeLocks.NodePlace> places) {
-    for (NodeLocks.NodePlace place : places) {
-      String parent =
-          nodeRepository.getNode(place.nodeId()).flatMap(Node::getParentId).orElse(null);
-      if (parent != null && !parent.equals(place.parentId())) {
-        throw new LockSetChangedException("node " + place.nodeId() + " moved");
-      }
+  private void requireUnmoved(List<NodeLocks.NodePlace> places, Collection<String> nodeIds) {
+    if (!Set.copyOf(places).equals(Set.copyOf(nodeLocks.placesOf(nodeIds)))) {
+      throw new LockSetChangedException("nodes moved or changed owner");
     }
   }
 
@@ -513,7 +509,7 @@ public class NodeApi {
   public @Nullable @Id List<@NonNull String> trashNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
-    requireUnmoved(lockNodesAndParents(nodeIds, List.of()));
+    requireUnmoved(lockNodesAndParents(nodeIds, List.of()), nodeIds);
     String me = requester.getId().getUserId();
 
     List<String> trashableNodes =
@@ -591,20 +587,22 @@ public class NodeApi {
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
     Map<String, String> predicted = nodeLocks.trashedParentsOf(nodeIds);
+    Set<String> predictedFallback = nodeLocks.unusableRestoreParents(predicted.values());
     List<LockKey> restoreKeys = new ArrayList<>();
     for (NodeLocks.NodePlace place : nodeLocks.placesOf(nodeIds)) {
       restoreKeys.add(LockKey.node(place.nodeId()));
-      if (place.ownerId() != null) {
-        String predictedParent = predicted.get(place.nodeId());
-        if (predictedParent != null) {
-          restoreKeys.add(LockKey.children(predictedParent, place.ownerId()));
+      String predictedParent = predicted.get(place.nodeId());
+      if (place.ownerId() != null && predictedParent != null) {
+        restoreKeys.add(LockKey.children(predictedParent, place.ownerId()));
+        if (predictedFallback.contains(predictedParent)) {
+          restoreKeys.add(LockKey.children(RootId.LOCAL_ROOT, place.ownerId()));
         }
-        restoreKeys.add(LockKey.children(RootId.LOCAL_ROOT, place.ownerId()));
       }
     }
     nodeLocks.lock(restoreKeys);
-    if (!predicted.equals(nodeLocks.trashedParentsOf(nodeIds))) {
-      throw new LockSetChangedException("trashed destinations changed");
+    if (!predicted.equals(nodeLocks.trashedParentsOf(nodeIds))
+        || !predictedFallback.equals(nodeLocks.unusableRestoreParents(predicted.values()))) {
+      throw new LockSetChangedException("restore destinations changed");
     }
     String me = requester.getId().getUserId();
 
@@ -716,7 +714,7 @@ public class NodeApi {
             .distinct()
             .map(owner -> LockKey.children(destinationId, owner))
             .toList();
-    requireUnmoved(lockPlaces(movePlaces, destinationKeys));
+    requireUnmoved(lockPlaces(movePlaces, destinationKeys), nodeIds);
     String me = requester.getId().getUserId();
 
     if (!permissionsChecker.getPermissions(destinationId, me).has(SharePermission.READ_AND_WRITE)) {
@@ -754,7 +752,8 @@ public class NodeApi {
       nodeIdsToMove.forEach(
           nodeId -> {
             Node node = nodeRepository.getNode(nodeId).get();
-            if (nodeRepository.getTrashedNode(nodeId).isPresent()) {
+            if (!RootId.TRASH_ROOT.equals(destinationId)
+                && nodeRepository.getTrashedNode(nodeId).isPresent()) {
               nodeRepository.restoreNode(nodeId);
             }
             if (node.getParentId().isPresent() && !node.getParentId().get().equals(destinationId)) {
