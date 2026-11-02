@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.it;
 
 import com.zextras.carbonio.files.Constants.Config.Link;
 import com.zextras.carbonio.files.FilesStackTestResource;
+import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
@@ -150,6 +151,58 @@ class RaceTreeApiIT extends AbstractFilesIT {
     }
   }
 
+  private static Response moveNodes(String destinationId, String... nodeIds) {
+    return graphql(
+        GraphqlCommandBuilder.aMutationBuilder("moveNodes")
+            .withListOfStrings("node_ids", nodeIds)
+            .withString("destination_id", destinationId)
+            .withWantedResultFormat("{ id }")
+            .build(),
+        OWNER_COOKIE);
+  }
+
+  private static Response trashNodes(String... nodeIds) {
+    return graphql(
+        GraphqlCommandBuilder.aMutationBuilder("trashNodes")
+            .withListOfStrings("node_ids", nodeIds)
+            .withWantedResultFormat("")
+            .build(),
+        OWNER_COOKIE);
+  }
+
+  private static Response restoreNodes(String... nodeIds) {
+    return graphql(
+        GraphqlCommandBuilder.aMutationBuilder("restoreNodes")
+            .withListOfStrings("node_ids", nodeIds)
+            .withWantedResultFormat("{ id }")
+            .build(),
+        OWNER_COOKIE);
+  }
+
+  private static Response deleteNodes(String... nodeIds) {
+    return graphql(
+        GraphqlCommandBuilder.aMutationBuilder("deleteNodes")
+            .withListOfStrings("node_ids", nodeIds)
+            .withWantedResultFormat("")
+            .build(),
+        OWNER_COOKIE);
+  }
+
+  private static boolean isTrashed(String nodeId) throws SQLException {
+    return rowExists("SELECT 1 FROM trashed WHERE node_id = ?", nodeId);
+  }
+
+  private static boolean hasError(Response response) {
+    return response.jsonPath().getList("errors") != null;
+  }
+
+  private static void join(List<CompletableFuture<Response>> pending, List<Response> out)
+      throws Exception {
+    for (CompletableFuture<Response> future : pending) {
+      out.add(future.get(30, TimeUnit.SECONDS));
+    }
+  }
+
   @Test
   void givenTwoSameNameCreateFolderTogetherThenNamesAreDistinct() throws Exception {
     String parent = seedFolder("race-tree-parent", LOCAL_ROOT, OWNER_COOKIE);
@@ -276,5 +329,109 @@ class RaceTreeApiIT extends AbstractFilesIT {
         response -> Assertions.assertThat(response.jsonPath().getList("errors")).isNull());
     Assertions.assertThat(count("SELECT count(*) FROM collaboration_link WHERE node_id = ?", node))
         .isEqualTo(1);
+  }
+
+  @Test
+  void givenAMoveRacingATrashOfTheSameNodeThenNoGhost() throws Exception {
+    String source = seedFolder("race-tree-ghost-src", LOCAL_ROOT, OWNER_COOKIE);
+    String destination = seedFolder("race-tree-ghost-dst", LOCAL_ROOT, OWNER_COOKIE);
+    String fileA = seedFile("ghost-a", source, new byte[] {1}, OWNER_COOKIE);
+    String fileB = seedFile("ghost-b", source, new byte[] {1}, OWNER_COOKIE);
+    String gate = fileA.compareTo(fileB) < 0 ? fileA : fileB;
+    String victim = gate.equals(fileA) ? fileB : fileA;
+
+    List<CompletableFuture<Response>> pending = new ArrayList<>();
+    try (Connection holder = holdRow("SELECT 1 FROM node WHERE node_id = ? FOR UPDATE", gate)) {
+      try {
+        pending.add(CompletableFuture.supplyAsync(() -> moveNodes(destination, gate, victim)));
+        awaitBlockedBy(holder, 1);
+        pending.add(CompletableFuture.supplyAsync(() -> trashNodes(victim)));
+        awaitBlockedBy(holder, 2);
+      } finally {
+        holder.rollback();
+      }
+      join(pending, new ArrayList<>());
+    } finally {
+      awaitAll(pending);
+    }
+
+    boolean inTrashRoot = "TRASH_ROOT".equals(nodeColumnRaw(victim, "folder_id"));
+    Assertions.assertThat(isTrashed(victim)).isEqualTo(inTrashRoot);
+  }
+
+  @Test
+  void givenATrashedNodeMovedThenItLeavesTheTrash() throws Exception {
+    String destination = seedFolder("race-tree-b0-dst", LOCAL_ROOT, OWNER_COOKIE);
+    String file = seedFile("b0-file", LOCAL_ROOT, new byte[] {1}, OWNER_COOKIE);
+    seedTrashed(file, OWNER_COOKIE);
+
+    Response response = moveNodes(destination, file);
+
+    Assertions.assertThat(hasError(response)).isFalse();
+    Assertions.assertThat(nodeColumnRaw(file, "folder_id")).isEqualTo(destination);
+    Assertions.assertThat(isTrashed(file)).isFalse();
+    Assertions.assertThat(nodeColumnRaw(file, "ancestor_ids")).doesNotContain("TRASH_ROOT");
+  }
+
+  @Test
+  void givenCrossingMovesThenNoCycle() throws Exception {
+    String folderA = seedFolder("race-tree-cross-a", LOCAL_ROOT, OWNER_COOKIE);
+    String folderB = seedFolder("race-tree-cross-b", LOCAL_ROOT, OWNER_COOKIE);
+
+    List<Response> responses =
+        twoConcurrentUnderRowLock(
+            "SELECT 1 FROM node WHERE node_id = ? FOR SHARE",
+            folderA,
+            () -> moveNodes(folderB, folderA),
+            () -> moveNodes(folderA, folderB));
+
+    List<Response> failed = responses.stream().filter(RaceTreeApiIT::hasError).toList();
+    Assertions.assertThat(failed).hasSize(1);
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(failed.get(0).getBody().asString()))
+        .containsExactly("NODE_WRITE_ERROR");
+    Assertions.assertThat(
+            rowExists(
+                "SELECT 1 FROM node WHERE position(trim(node_id) in coalesce(ancestor_ids,''))"
+                    + " > 0"))
+        .isFalse();
+  }
+
+  @Test
+  void givenARestoreRacingADeleteOfItsDestinationThenNoOrphan() throws Exception {
+    String folder = seedFolder("race-tree-orphan-f", LOCAL_ROOT, OWNER_COOKIE);
+    String file = seedFile("orphan-x", folder, new byte[] {1}, OWNER_COOKIE);
+    seedTrashed(file, OWNER_COOKIE);
+
+    twoConcurrentUnderRowLock(
+        "SELECT 1 FROM node WHERE node_id = ? FOR SHARE",
+        folder,
+        () -> restoreNodes(file),
+        () -> deleteNodes(folder));
+
+    Assertions.assertThat(
+            rowExists(
+                "SELECT 1 FROM node n WHERE n.folder_id IS NOT NULL AND NOT EXISTS"
+                    + " (SELECT 1 FROM node p WHERE p.node_id = n.folder_id) AND n.node_id = ?",
+                file))
+        .isFalse();
+  }
+
+  @Test
+  void givenTwoTrashOfTheSameNodeTogetherThenOneSucceedsWithoutSystemError() throws Exception {
+    String file = seedFile("double-trash", LOCAL_ROOT, new byte[] {1}, OWNER_COOKIE);
+
+    List<Response> responses =
+        twoConcurrentUnderRowLock(
+            "SELECT 1 FROM node WHERE node_id = ? FOR SHARE",
+            file,
+            () -> trashNodes(file),
+            () -> trashNodes(file));
+
+    List<Response> failed = responses.stream().filter(RaceTreeApiIT::hasError).toList();
+    Assertions.assertThat(failed).hasSize(1);
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(failed.get(0).getBody().asString()))
+        .containsExactly("NODE_WRITE_ERROR");
+    Assertions.assertThat(failed.get(0).getBody().asString()).doesNotContain("System error");
+    Assertions.assertThat(isTrashed(file)).isTrue();
   }
 }

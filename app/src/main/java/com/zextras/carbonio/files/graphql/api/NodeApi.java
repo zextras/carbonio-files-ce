@@ -67,6 +67,7 @@ import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -477,10 +478,42 @@ public class NodeApi {
     return flaggableNodes;
   }
 
+  private List<NodeLocks.NodePlace> lockNodesAndParents(
+      Collection<String> nodeIds, Collection<LockKey> extra) {
+    List<NodeLocks.NodePlace> places = nodeLocks.placesOf(nodeIds);
+    return lockPlaces(places, extra);
+  }
+
+  private List<NodeLocks.NodePlace> lockPlaces(
+      List<NodeLocks.NodePlace> places, Collection<LockKey> extra) {
+    List<LockKey> keys = new ArrayList<>(extra);
+    places.forEach(
+        place -> {
+          keys.add(LockKey.node(place.nodeId()));
+          if (place.parentId() != null && place.ownerId() != null) {
+            keys.add(LockKey.children(place.parentId(), place.ownerId()));
+          }
+        });
+    nodeLocks.lock(keys);
+    return places;
+  }
+
+  private void requireUnmoved(List<NodeLocks.NodePlace> places) {
+    for (NodeLocks.NodePlace place : places) {
+      String parent =
+          nodeRepository.getNode(place.nodeId()).flatMap(Node::getParentId).orElse(null);
+      if (parent != null && !parent.equals(place.parentId())) {
+        throw new LockSetChangedException("node " + place.nodeId() + " moved");
+      }
+    }
+  }
+
   @Mutation("trashNodes")
+  @RetryOnLockConflict
   public @Nullable @Id List<@NonNull String> trashNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
+    requireUnmoved(lockNodesAndParents(nodeIds, List.of()));
     String me = requester.getId().getUserId();
 
     List<String> trashableNodes =
@@ -553,9 +586,26 @@ public class NodeApi {
   }
 
   @Mutation("restoreNodes")
+  @RetryOnLockConflict
   public @Nullable List<NodeModel> restoreNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
+    Map<String, String> predicted = nodeLocks.trashedParentsOf(nodeIds);
+    List<LockKey> restoreKeys = new ArrayList<>();
+    for (NodeLocks.NodePlace place : nodeLocks.placesOf(nodeIds)) {
+      restoreKeys.add(LockKey.node(place.nodeId()));
+      if (place.ownerId() != null) {
+        String predictedParent = predicted.get(place.nodeId());
+        if (predictedParent != null) {
+          restoreKeys.add(LockKey.children(predictedParent, place.ownerId()));
+        }
+        restoreKeys.add(LockKey.children(RootId.LOCAL_ROOT, place.ownerId()));
+      }
+    }
+    nodeLocks.lock(restoreKeys);
+    if (!predicted.equals(nodeLocks.trashedParentsOf(nodeIds))) {
+      throw new LockSetChangedException("trashed destinations changed");
+    }
     String me = requester.getId().getUserId();
 
     List<String> restorableNodeIds =
@@ -652,11 +702,21 @@ public class NodeApi {
   }
 
   @Mutation("moveNodes")
+  @RetryOnLockConflict
   public @Nullable List<@NonNull NodeModel> moveNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("destination_id") @Id @NonNull String destinationId)
       throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).checkNodeId(destinationId).validate();
+    List<NodeLocks.NodePlace> movePlaces = nodeLocks.placesOf(nodeIds);
+    List<LockKey> destinationKeys =
+        movePlaces.stream()
+            .map(NodeLocks.NodePlace::ownerId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .map(owner -> LockKey.children(destinationId, owner))
+            .toList();
+    requireUnmoved(lockPlaces(movePlaces, destinationKeys));
     String me = requester.getId().getUserId();
 
     if (!permissionsChecker.getPermissions(destinationId, me).has(SharePermission.READ_AND_WRITE)) {
@@ -694,6 +754,9 @@ public class NodeApi {
       nodeIdsToMove.forEach(
           nodeId -> {
             Node node = nodeRepository.getNode(nodeId).get();
+            if (nodeRepository.getTrashedNode(nodeId).isPresent()) {
+              nodeRepository.restoreNode(nodeId);
+            }
             if (node.getParentId().isPresent() && !node.getParentId().get().equals(destinationId)) {
               String newName =
                   searchAlternativeName(
