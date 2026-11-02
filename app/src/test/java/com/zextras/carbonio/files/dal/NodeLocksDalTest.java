@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -331,6 +332,39 @@ class NodeLocksDalTest {
               } catch (SQLException e) {
                 throw new IllegalStateException(e);
               }
+            });
+  }
+
+  @Test
+  void midTransactionLocksDoNotFlushThePersistenceContext() {
+    String parent = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
+    String unrelated = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
+    String child = seed(unrelated, NodeType.TEXT);
+    String pending = id();
+
+    QuarkusTransaction.requiringNew()
+        .run(
+            () -> {
+              nodeLocks.lock(List.of(LockKey.node(parent)));
+              entityManager.persist(
+                  new Node(
+                      pending,
+                      "u1",
+                      "u1",
+                      parent,
+                      1L,
+                      1L,
+                      "n-" + pending,
+                      "d",
+                      NodeType.TEXT,
+                      "LOCAL_ROOT," + parent,
+                      0L));
+              seeded.add(pending);
+              assertThat(entityManager.unwrap(Session.class).isDirty()).isTrue();
+              assertThat(nodeLocks.lockChildren(List.of(unrelated))).containsExactly(child);
+              assertThat(nodeLocks.lockChildFolders(List.of(unrelated))).isEmpty();
+              assertThat(nodeLocks.lockRows(List.of(child))).containsExactly(child);
+              assertThat(entityManager.unwrap(Session.class).isDirty()).isTrue();
             });
   }
 

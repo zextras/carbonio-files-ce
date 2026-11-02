@@ -104,6 +104,7 @@ public class NodeLocks {
                       + " 'FOLDER' ORDER BY "
                       + DEPTH
                       + ", node_id FOR NO KEY UPDATE")
+              .setFlushMode(FlushModeType.COMMIT)
               .setParameter(
                   "parents", sorted.subList(from, Math.min(from + LOCK_CHUNK, sorted.size())))
               .getResultList();
@@ -131,6 +132,7 @@ public class NodeLocks {
                   "SELECT trim(node_id) FROM node WHERE folder_id IN (:parents) ORDER BY "
                       + DEPTH
                       + ", node_id FOR NO KEY UPDATE")
+              .setFlushMode(FlushModeType.COMMIT)
               .setParameter(
                   "parents", sorted.subList(from, Math.min(from + LOCK_CHUNK, sorted.size())))
               .getResultList();
@@ -155,6 +157,7 @@ public class NodeLocks {
                   "SELECT trim(node_id) FROM node WHERE node_id IN (:ids) ORDER BY "
                       + DEPTH
                       + ", node_id FOR NO KEY UPDATE")
+              .setFlushMode(FlushModeType.COMMIT)
               .setParameter("ids", sorted.subList(from, Math.min(from + LOCK_CHUNK, sorted.size())))
               .getResultList();
       result.addAll(rows);
