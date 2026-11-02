@@ -234,4 +234,35 @@ class NodeQueryDalTest {
         .extracting(Node::getId)
         .containsExactly(literalPercent);
   }
+
+  @Test
+  @TestTransaction
+  void getChildrenOfSeveralParentsHonoursShowMarked() {
+    String owner = id();
+    String parentA = id();
+    String parentB = id();
+    String fileA = id();
+    String folderA = id();
+    String trashedB = id();
+    String plainB = id();
+    persist(parentA, "pa", owner, NodeType.FOLDER, false, 0L, "LOCAL_ROOT", "LOCAL_ROOT");
+    persist(parentB, "pb", owner, NodeType.FOLDER, false, 0L, "LOCAL_ROOT", "LOCAL_ROOT");
+    String ancestorsA = "LOCAL_ROOT," + parentA;
+    String ancestorsB = "LOCAL_ROOT," + parentB;
+    persist(fileA, "fa", owner, NodeType.TEXT, false, 1L, parentA, ancestorsA);
+    persist(folderA, "fo", owner, NodeType.FOLDER, false, 0L, parentA, ancestorsA);
+    persist(trashedB, "tb", owner, NodeType.TEXT, false, 1L, parentB, ancestorsB);
+    persist(plainB, "pbf", owner, NodeType.TEXT, false, 1L, parentB, ancestorsB);
+    entityManager.flush();
+    nodeRepository.trashNode(trashedB, parentB);
+    entityManager.flush();
+
+    assertThat(nodeRepository.getChildren(List.of(parentA, parentB), true))
+        .extracting(Node::getId)
+        .containsExactlyInAnyOrder(fileA, folderA, trashedB, plainB);
+    assertThat(nodeRepository.getChildren(List.of(parentA, parentB), false))
+        .extracting(Node::getId)
+        .containsExactlyInAnyOrder(fileA, folderA, plainB);
+    assertThat(nodeRepository.getChildren(List.of(), true)).isEmpty();
+  }
 }

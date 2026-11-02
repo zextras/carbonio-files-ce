@@ -13,9 +13,11 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
@@ -35,59 +37,57 @@ public class ShareCascadeHelper {
 
   public void cascadeUpsertShare(
       String nodeId, String userId, ACL permission, Optional<Long> expiredAt) {
-    nodeLocks.lockChildren(List.of(nodeId));
-    List<String> childrenIds =
-        nodeRepository.getChildrenIds(nodeId, Optional.empty(), Optional.empty(), false);
-    if (!childrenIds.isEmpty()) {
-      List<Node> childrenNodes =
-          nodeRepository.getNodes(childrenIds, Optional.empty()).collect(Collectors.toList());
-      List<Node> folderNodes =
-          childrenNodes.stream()
-              .filter(n -> n.getNodeType() == NodeType.FOLDER)
-              .collect(Collectors.toList());
-
-      shareRepository.upsertShareBulk(childrenIds, userId, permission, false, false, expiredAt);
-
-      folderNodes.forEach(
-          folderNode -> cascadeUpsertShare(folderNode.getId(), userId, permission, expiredAt));
+    List<String> frontier = List.of(nodeId);
+    while (!frontier.isEmpty()) {
+      nodeLocks.lockChildren(frontier);
+      List<Node> children = nodeRepository.getChildren(frontier, false);
+      shareRepository.upsertShareBulk(
+          children.stream().map(Node::getId).toList(), userId, permission, false, false, expiredAt);
+      frontier = folderIds(children);
     }
   }
 
   public void cascadeDeleteShare(String nodeId, String userId) {
-    nodeLocks.lockChildren(List.of(nodeId));
-    // NodeRepositoryImpl#getChildrenIds returns an unmodifiable list (Stream#toList), so it must be
-    // copied into a mutable one before appending the trashed children below.
-    List<String> childrenIds =
-        new ArrayList<>(
-            nodeRepository.getChildrenIds(nodeId, Optional.empty(), Optional.empty(), true));
-    nodeLocks.lockRows(nodeRepository.getTrashedNodeIdsByOldParent(nodeId));
-    List<String> trashedChildrenIds = nodeRepository.getTrashedNodeIdsByOldParent(nodeId);
-    childrenIds.addAll(trashedChildrenIds);
-    if (!childrenIds.isEmpty()) {
-      List<Node> childrenNodes =
-          nodeRepository.getNodes(childrenIds, Optional.empty()).collect(Collectors.toList());
-      List<Share> shares =
-          shareRepository
-              .getShares(
-                  childrenNodes.stream().map(Node::getId).collect(Collectors.toList()), userId)
-              .stream()
+    List<String> frontier = List.of(nodeId);
+    while (!frontier.isEmpty()) {
+      nodeLocks.lockChildren(frontier);
+      Map<String, Node> level = new LinkedHashMap<>();
+      nodeRepository.getChildren(frontier, true).forEach(node -> level.put(node.getId(), node));
+
+      nodeLocks.lockRows(trashedChildrenOf(frontier));
+      List<String> trashedIds =
+          trashedChildrenOf(frontier).stream().filter(id -> !level.containsKey(id)).toList();
+      nodeRepository
+          .getNodes(trashedIds, Optional.empty())
+          .forEach(node -> level.put(node.getId(), node));
+
+      if (level.isEmpty()) {
+        return;
+      }
+      Set<String> directlyShared =
+          shareRepository.getShares(List.copyOf(level.keySet()), userId).stream()
               .filter(Share::isDirect)
-              .collect(Collectors.toList());
+              .map(Share::getNodeId)
+              .collect(Collectors.toSet());
       List<Node> deletableNodes =
-          childrenNodes.stream()
-              .filter(
-                  node ->
-                      shares.stream().noneMatch(share -> share.getNodeId().equals(node.getId())))
-              .collect(Collectors.toList());
-      List<Node> folderNodes =
-          deletableNodes.stream()
-              .filter(n -> n.getNodeType() == NodeType.FOLDER)
-              .collect(Collectors.toList());
+          level.values().stream().filter(node -> !directlyShared.contains(node.getId())).toList();
 
-      shareRepository.deleteSharesBulk(
-          deletableNodes.stream().map(Node::getId).collect(Collectors.toList()), userId);
-
-      folderNodes.forEach(folderNode -> cascadeDeleteShare(folderNode.getId(), userId));
+      shareRepository.deleteSharesBulk(deletableNodes.stream().map(Node::getId).toList(), userId);
+      frontier = folderIds(deletableNodes);
     }
+  }
+
+  private List<String> trashedChildrenOf(List<String> folderIds) {
+    return folderIds.stream()
+        .flatMap(id -> nodeRepository.getTrashedNodeIdsByOldParent(id).stream())
+        .distinct()
+        .toList();
+  }
+
+  private static List<String> folderIds(List<Node> nodes) {
+    return nodes.stream()
+        .filter(node -> node.getNodeType() == NodeType.FOLDER)
+        .map(Node::getId)
+        .toList();
   }
 }

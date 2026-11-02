@@ -11,6 +11,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import jakarta.annotation.Nullable;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -241,6 +242,14 @@ public interface NodeRepository {
 
   /** Which of the nodes have a trash row, read from the database and not from the session cache. */
   List<String> getTrashedNodeIds(List<String> nodeIds);
+
+  /**
+   * Returns the direct children of all the given folders, without sorting.
+   *
+   * @param showMarked when false, children marked for deletion (present in the TRASHED table) are
+   *     excluded.
+   */
+  List<Node> getChildren(Collection<String> parentIds, boolean showMarked);
 
   List<String> getTrashedNodeIdsByOldParent(String oldParentId);
 

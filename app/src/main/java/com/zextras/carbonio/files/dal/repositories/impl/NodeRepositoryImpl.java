@@ -35,6 +35,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -273,6 +274,26 @@ public class NodeRepositoryImpl implements NodeRepository {
     TypedQuery<String> query = entityManager.createQuery(hql.toString(), String.class);
     params.forEach(query::setParameter);
     return query.getResultList().stream().map(String::trim).toList();
+  }
+
+  @Override
+  public List<Node> getChildren(Collection<String> parentIds, boolean showMarked) {
+    List<String> parents =
+        parentIds.stream().map(NodeRepositoryImpl::normalizeId).distinct().toList();
+    String hql =
+        "select n from Node n where n.mParentId in :parents"
+            + (showMarked
+                ? ""
+                : " and not exists (select 1 from TrashedNode tn where tn.mNodeId = n.mId)");
+    List<Node> result = new ArrayList<>();
+    for (int from = 0; from < parents.size(); from += 1000) {
+      result.addAll(
+          entityManager
+              .createQuery(hql, Node.class)
+              .setParameter("parents", parents.subList(from, Math.min(from + 1000, parents.size())))
+              .getResultList());
+    }
+    return result;
   }
 
   // ---------------------------------------------------------------------------------------------
