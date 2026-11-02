@@ -26,6 +26,8 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.locks.LockRetry;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -50,8 +52,10 @@ import io.smallrye.graphql.api.Context;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
@@ -76,6 +80,8 @@ class NodeApiMutationsTest {
   private CopyFailureClassifier copyFailureClassifier;
   private VersionReservations versionReservations;
   private Context gqlContext;
+  private NodeLocks nodeLocks;
+  private LockRetry lockRetry;
   private NodeApi nodeApi;
 
   @BeforeEach
@@ -92,6 +98,10 @@ class NodeApiMutationsTest {
     copyFailureClassifier = mock(CopyFailureClassifier.class);
     versionReservations = mock(VersionReservations.class);
     gqlContext = mock(Context.class);
+    nodeLocks = mock(NodeLocks.class);
+    lockRetry = mock(LockRetry.class);
+    when(lockRetry.inNewTransaction(any()))
+        .thenAnswer(inv -> ((Supplier<?>) inv.getArgument(0)).get());
 
     UserMyself requester = mock(UserMyself.class);
     UserId userId = new UserId(REQUESTER_ID);
@@ -125,6 +135,8 @@ class NodeApiMutationsTest {
     nodeApi.copyFailureClassifier = copyFailureClassifier;
     nodeApi.versionReservations = versionReservations;
     nodeApi.gqlContext = gqlContext;
+    nodeApi.nodeLocks = nodeLocks;
+    nodeApi.lockRetry = lockRetry;
   }
 
   private Node mockFileNode(String id, String parentId) {
@@ -241,6 +253,53 @@ class NodeApiMutationsTest {
     assertThat(error.getErrorCode()).isEqualTo(ErrorCodes.NODE_WRITE_ERROR);
     assertThat(error.getMessage())
         .isEqualTo("There was a problem while executing requested operation on node: " + NODE_ID_1);
+  }
+
+  @Test
+  void copyNodesWritesTheBlobForTheOwnerOfTheDestinationFolder() throws Exception {
+    String destinationOwner = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+    String copyId = "copied-node-id";
+    Node source = mockFileNode(NODE_ID_1, PARENT_ID);
+    when(source.getOwnerId()).thenReturn(CLONING_USER_ID);
+    when(nodeApi.requester.getId()).thenReturn(new UserId(CLONING_USER_ID));
+    Node destination = mock(Node.class);
+    when(destination.getId()).thenReturn(NODE_ID_2);
+    when(destination.getNodeType()).thenReturn(NodeType.FOLDER);
+    when(destination.getOwnerId()).thenReturn(destinationOwner);
+    when(destination.getAncestorIds()).thenReturn("LOCAL_ROOT");
+    when(destination.getAncestorsList()).thenReturn(List.of("LOCAL_ROOT"));
+    Node copied = mockFileNode(copyId, NODE_ID_2);
+    when(permissionsChecker.getPermissions(any(String.class), any(String.class)))
+        .thenReturn(aclWith(true));
+    when(nodeRepository.getNode(NODE_ID_2)).thenReturn(Optional.of(destination));
+    when(nodeRepository.getNodes(List.of(NODE_ID_1), Optional.empty()))
+        .thenAnswer(inv -> java.util.stream.Stream.of(source));
+    when(nodeRepository.getChildrenIds(NODE_ID_2, Optional.empty(), Optional.empty(), false))
+        .thenReturn(List.of());
+    when(nodeRepository.getNodes(List.of(), Optional.empty()))
+        .thenAnswer(inv -> java.util.stream.Stream.empty());
+    when(fileVersionRepository.getFileVersion(NODE_ID_1, 1))
+        .thenReturn(Optional.of(mock(FileVersion.class)));
+    UploadResponse response = mock(UploadResponse.class);
+    when(response.getSize()).thenReturn(5L);
+    when(response.getDigest()).thenReturn("digest");
+    doReturn(response).when(fileStore).copy(any(), any(), anyBoolean());
+    when(nodeRepository.createNewNode(
+            any(), any(), any(), any(), any(), any(), any(), any(), anyLong()))
+        .thenReturn(copied);
+    when(nodeRepository.getNode(copyId)).thenReturn(Optional.of(copied));
+
+    nodeApi.copyNodes(List.of(NODE_ID_1), NODE_ID_2);
+
+    ArgumentCaptor<FilesIdentifier> destinationBlob =
+        ArgumentCaptor.forClass(FilesIdentifier.class);
+    verify(fileStore)
+        .copy(
+            org.mockito.ArgumentMatchers.eq(FilesIdentifier.of(NODE_ID_1, 1, CLONING_USER_ID)),
+            destinationBlob.capture(),
+            org.mockito.ArgumentMatchers.eq(false));
+    assertThat(destinationBlob.getValue().getAccountId()).isEqualTo(destinationOwner);
+    assertThat(destinationBlob.getValue().getVersion()).isEqualTo(1);
   }
 
   @Test

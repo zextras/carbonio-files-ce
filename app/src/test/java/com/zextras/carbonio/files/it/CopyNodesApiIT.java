@@ -14,9 +14,10 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -358,32 +359,39 @@ class CopyNodesApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAFailureAfterTheCopiedNodeIsCreatedCopyShouldLeaveNoNodeBehind() throws Exception {
+  void givenAFailureAtPublishCopyShouldLeaveNoNodeBehind() throws Exception {
     String sourceId =
         seedFile(
-            "src-p4.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
+            "src-p4.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
     String destFolderId = seedFolder("dest-p4", LOCAL_ROOT, REQUESTER_COOKIE);
+    seedShare(destFolderId, OTHER_USER_ID, ACL.SharePermission.READ_AND_WRITE, REQUESTER_COOKIE);
+    var storages = FilesStackTestResource.getStoragesService();
 
     Response response;
-    try (Connection connection = jdbcConnection();
-        Statement statement = connection.createStatement()) {
-      statement.execute(
-          "CREATE OR REPLACE FUNCTION fail_revision_insert() RETURNS trigger LANGUAGE plpgsql AS"
-              + " $$ BEGIN RAISE EXCEPTION 'injected revision insert failure'; END $$");
-      statement.execute(
-          "CREATE TRIGGER fail_revision_insert BEFORE INSERT ON revision FOR EACH ROW EXECUTE"
-              + " FUNCTION fail_revision_insert()");
-      try {
-        response = copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE);
-      } finally {
-        statement.execute("DROP TRIGGER fail_revision_insert ON revision");
-        statement.execute("DROP FUNCTION fail_revision_insert()");
-      }
+    storages.holdCopies();
+    try {
+      CompletableFuture<Response> pending =
+          CompletableFuture.supplyAsync(
+              () -> copyNodes(new String[] {sourceId}, destFolderId, OTHER_COOKIE));
+      storages.awaitHeldCopy();
+      graphql(
+          GraphqlCommandBuilder.aMutationBuilder("deleteShares")
+              .withString("node_id", destFolderId)
+              .withListOfStrings("share_target_ids", new String[] {OTHER_USER_ID})
+              .withWantedResultFormat("")
+              .build(),
+          REQUESTER_COOKIE);
+      storages.releaseCopies();
+      response = pending.get(30, TimeUnit.SECONDS);
+    } finally {
+      storages.releaseCopies();
     }
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
-        .isNotEmpty();
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("NODE_WRITE_ERROR");
+    Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.nodeId"))
+        .isEqualTo(destFolderId);
     try (Connection connection = jdbcConnection();
         PreparedStatement statement =
             connection.prepareStatement("SELECT COUNT(*) FROM node WHERE folder_id = ?")) {
