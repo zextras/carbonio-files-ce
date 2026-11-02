@@ -190,6 +190,21 @@ public interface NodeRepository {
       Long size);
 
   /**
+   * As {@link #createNewNode} but only persists the node: no flush and no refresh, for callers that
+   * create many nodes in one transaction and flush once at the end.
+   */
+  Node persistNewNode(
+      String nodeId,
+      String creatorId,
+      String ownerId,
+      String parentId,
+      String name,
+      String description,
+      NodeType type,
+      String ancestorIds,
+      Long size);
+
+  /**
    * Deletes a {@link Node} from the database.
    *
    * <p>if the {@link Node} does not exist, then the method does nothing and returns <code>false

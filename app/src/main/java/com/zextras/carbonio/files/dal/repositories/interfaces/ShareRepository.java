@@ -85,6 +85,13 @@ public interface ShareRepository {
       Optional<Long> expireTimestamp);
 
   /**
+   * Persists a new inherited {@link Share} for each of the given nodes, without checking whether
+   * one already exists: the ids must be of nodes just created.
+   */
+  void insertInheritedShares(
+      List<String> nodeIds, String targetUserId, ACL permissions, Optional<Long> expireTimestamp);
+
+  /**
    * This method is used to update a share on database. It requires the updated share and it will
    * update it on database.
    *

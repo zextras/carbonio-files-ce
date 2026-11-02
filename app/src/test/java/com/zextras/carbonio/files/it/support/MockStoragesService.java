@@ -114,6 +114,8 @@ public class MockStoragesService {
   private volatile boolean uploadSkipsStore = false;
   private volatile boolean downloadFails = false;
   private volatile boolean copyFails = false;
+  private final java.util.concurrent.atomic.AtomicInteger copiesBeforeFailure =
+      new java.util.concurrent.atomic.AtomicInteger(-1);
   private volatile CountDownLatch copyGate;
   private final Semaphore heldCopies = new Semaphore(0);
   private volatile CountDownLatch bulkDeleteGate;
@@ -302,6 +304,11 @@ public class MockStoragesService {
     forcedMissingKeys.add(key(node, version));
   }
 
+  /** The first {@code n} copies succeed, the following ones answer 500. */
+  public void failCopiesAfter(int n) {
+    copiesBeforeFailure.set(n);
+  }
+
   public void setCopyFails(boolean value) {
     this.copyFails = value;
   }
@@ -322,6 +329,7 @@ public class MockStoragesService {
     uploadSkipsStore = false;
     downloadFails = false;
     copyFails = false;
+    copiesBeforeFailure.set(-1);
     releaseCopies();
     heldCopies.drainPermits();
     releaseBulkDeletes();
@@ -414,7 +422,7 @@ public class MockStoragesService {
         Thread.currentThread().interrupt();
       }
     }
-    if (copyFails) {
+    if (copyFails || copiesBeforeFailure.getAndUpdate(n -> n > 0 ? n - 1 : n) == 0) {
       return Response.response().status(500).build();
     }
     String sourceNode = queryParam(request, "sourceNode");

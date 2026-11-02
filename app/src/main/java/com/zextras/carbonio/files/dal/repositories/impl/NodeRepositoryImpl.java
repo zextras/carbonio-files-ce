@@ -319,6 +319,36 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Override
   @Transactional
+  public Node persistNewNode(
+      String nodeId,
+      String creatorId,
+      String ownerId,
+      String parentId,
+      String name,
+      String description,
+      NodeType type,
+      String ancestorIds,
+      Long size) {
+    long now = System.currentTimeMillis();
+    Node node =
+        new Node(
+            nodeId,
+            creatorId,
+            ownerId,
+            parentId,
+            now,
+            now,
+            name,
+            description,
+            type,
+            ancestorIds,
+            size);
+    entityManager.persist(node);
+    return node;
+  }
+
+  @Override
+  @Transactional
   public Node updateNode(Node node) {
     node.setUpdatedAt(System.currentTimeMillis());
     return entityManager.merge(node);

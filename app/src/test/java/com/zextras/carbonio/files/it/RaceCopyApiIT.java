@@ -55,9 +55,43 @@ class RaceCopyApiIT extends AbstractFilesIT {
         OWNER_COOKIE);
   }
 
-  private static CompletableFuture<Response> copyAsync(
-      String[] nodeIds, String destinationId, String cookie) {
-    return CompletableFuture.supplyAsync(() -> copyNodes(nodeIds, destinationId, cookie));
+  @FunctionalInterface
+  private interface HeldAction {
+    void run() throws Exception;
+  }
+
+  private static Response copyWhileHeld(
+      String[] nodeIds, String destinationId, String cookie, HeldAction duringHold)
+      throws Exception {
+    var storages = FilesStackTestResource.getStoragesService();
+    storages.holdCopies();
+    CompletableFuture<Response> pending = null;
+    try {
+      pending = CompletableFuture.supplyAsync(() -> copyNodes(nodeIds, destinationId, cookie));
+      storages.awaitHeldCopy();
+      duringHold.run();
+      storages.releaseCopies();
+      return pending.get(30, TimeUnit.SECONDS);
+    } finally {
+      storages.releaseCopies();
+      if (pending != null) {
+        try {
+          pending.get(30, TimeUnit.SECONDS);
+        } catch (Exception ignored) {
+        }
+      }
+    }
+  }
+
+  private static boolean inheritsShare(String copiedNode, String destination, String target)
+      throws SQLException {
+    return rowExists(
+        "SELECT 1 FROM share s JOIN share d ON d.node_id = ? AND d.target_uuid = s.target_uuid"
+            + " AND d.rights = s.rights WHERE s.node_id = ? AND s.target_uuid = ?"
+            + " AND s.direct = false",
+        destination,
+        copiedNode,
+        target);
   }
 
   private static String seedSourceFolderWithTwoFiles(String name) {
@@ -111,20 +145,13 @@ class RaceCopyApiIT extends AbstractFilesIT {
   void givenACopyInProgressThenNothingExistsInTheDestination() throws Exception {
     String source = seedSourceFolderWithTwoFiles("race-copy-progress");
     String destination = seedFolder("race-copy-progress-dest", LOCAL_ROOT, OWNER_COOKIE);
-    var storages = FilesStackTestResource.getStoragesService();
 
-    storages.holdCopies();
-    Response response;
-    try {
-      CompletableFuture<Response> pending =
-          copyAsync(new String[] {source}, destination, OWNER_COOKIE);
-      storages.awaitHeldCopy();
-      Assertions.assertThat(childCount(destination)).isZero();
-      storages.releaseCopies();
-      response = pending.get(30, TimeUnit.SECONDS);
-    } finally {
-      storages.releaseCopies();
-    }
+    Response response =
+        copyWhileHeld(
+            new String[] {source},
+            destination,
+            OWNER_COOKIE,
+            () -> Assertions.assertThat(childCount(destination)).isZero());
 
     Assertions.assertThat(response.jsonPath().getList("errors")).isNull();
     String copied = onlyChildId(destination);
@@ -153,11 +180,11 @@ class RaceCopyApiIT extends AbstractFilesIT {
     int blobsBefore = storages.blobCount();
 
     Response response;
-    storages.setCopyFails(true);
+    storages.failCopiesAfter(1);
     try {
       response = copyNodes(new String[] {source}, destination, OWNER_COOKIE);
     } finally {
-      storages.setCopyFails(false);
+      storages.failCopiesAfter(-1);
     }
 
     Assertions.assertThat(response.jsonPath().getList("errors")).hasSize(1);
@@ -168,25 +195,19 @@ class RaceCopyApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.jsonPath().getList("data.copyNodes")).isEmpty();
     Assertions.assertThat(childCount(destination)).isZero();
     Assertions.assertThat(storages.blobCount()).isEqualTo(blobsBefore);
+    Assertions.assertThat(storages.copyRequests().size()).isGreaterThanOrEqualTo(2);
   }
 
   @Test
   void givenTheDestinationTrashedMidCopyThenEveryCopiedNodeIsUnderTheTrash() throws Exception {
     String source = seedSourceFolderWithTwoFiles("race-copy-trashed");
     String destination = seedFolder("race-copy-trashed-dest", LOCAL_ROOT, OWNER_COOKIE);
-    var storages = FilesStackTestResource.getStoragesService();
 
-    storages.holdCopies();
-    try {
-      CompletableFuture<Response> pending =
-          copyAsync(new String[] {source}, destination, OWNER_COOKIE);
-      storages.awaitHeldCopy();
-      mutateNode("trashNodes", destination);
-      storages.releaseCopies();
-      pending.get(30, TimeUnit.SECONDS);
-    } finally {
-      storages.releaseCopies();
-    }
+    copyWhileHeld(
+        new String[] {source},
+        destination,
+        OWNER_COOKIE,
+        () -> mutateNode("trashNodes", destination));
 
     String copied = onlyChildId(destination);
     Assertions.assertThat(nodeColumnRaw(copied, "ancestor_ids")).startsWith("TRASH_ROOT");
@@ -200,21 +221,14 @@ class RaceCopyApiIT extends AbstractFilesIT {
   void givenTheDestinationDeletedMidCopyThenNodeWriteErrorAndNoRows() throws Exception {
     String source = seedSourceFolderWithTwoFiles("race-copy-deleted");
     String destination = seedFolder("race-copy-deleted-dest", LOCAL_ROOT, OWNER_COOKIE);
-    var storages = FilesStackTestResource.getStoragesService();
-    int blobsBefore = storages.blobCount();
+    int blobsBefore = FilesStackTestResource.getStoragesService().blobCount();
 
-    Response response;
-    storages.holdCopies();
-    try {
-      CompletableFuture<Response> pending =
-          copyAsync(new String[] {source}, destination, OWNER_COOKIE);
-      storages.awaitHeldCopy();
-      mutateNode("deleteNodes", destination);
-      storages.releaseCopies();
-      response = pending.get(30, TimeUnit.SECONDS);
-    } finally {
-      storages.releaseCopies();
-    }
+    Response response =
+        copyWhileHeld(
+            new String[] {source},
+            destination,
+            OWNER_COOKIE,
+            () -> mutateNode("deleteNodes", destination));
 
     Assertions.assertThat(response.jsonPath().getString("errors[0].extensions.errorCode"))
         .isEqualTo("NODE_WRITE_ERROR");
@@ -224,25 +238,8 @@ class RaceCopyApiIT extends AbstractFilesIT {
             rowExists(
                 "SELECT 1 FROM node WHERE name = ? AND node_id <> ?", "race-copy-deleted", source))
         .isFalse();
-    Assertions.assertThat(storages.blobCount()).isEqualTo(blobsBefore);
-  }
-
-  @Test
-  void givenACopyIntoAFolderOwnedByAnotherUserThenTheCopyBelongsToTheOwner() throws Exception {
-    String destination = seedFolder("race-copy-owned-dest", LOCAL_ROOT, OWNER_COOKIE);
-    seedShare(destination, USER_ID, SharePermission.READ_AND_WRITE, OWNER_COOKIE);
-    String file = seedFile("race-copy-owned.txt", LOCAL_ROOT, "o".getBytes(UTF_8), USER_COOKIE);
-    var storages = FilesStackTestResource.getStoragesService();
-    int requestsBefore = storages.copyRequests().size();
-
-    Response response = copyNodes(new String[] {file}, destination, USER_COOKIE);
-
-    Assertions.assertThat(response.jsonPath().getList("errors")).isNull();
-    List<String> requests = storages.copyRequests();
-    Assertions.assertThat(requests).hasSize(requestsBefore + 1);
-    String copied = onlyChildId(destination);
-    Assertions.assertThat(requests.get(requestsBefore)).contains("destinationNode=" + copied);
-    Assertions.assertThat(nodeColumnRaw(copied, "owner_id")).isEqualTo(OWNER_ID);
+    Assertions.assertThat(FilesStackTestResource.getStoragesService().blobCount())
+        .isEqualTo(blobsBefore);
   }
 
   @Test
@@ -250,11 +247,9 @@ class RaceCopyApiIT extends AbstractFilesIT {
     String file1 = seedFile("race-copy-two-a.txt", LOCAL_ROOT, "a".getBytes(UTF_8), OWNER_COOKIE);
     String file2 = seedFile("race-copy-two-b.txt", LOCAL_ROOT, "b".getBytes(UTF_8), OWNER_COOKIE);
     String destination = seedFolder("race-copy-two-dest", LOCAL_ROOT, OWNER_COOKIE);
-    var storages = FilesStackTestResource.getStoragesService();
 
-    Response response;
-    storages.forceMissing(file2, 1);
-    response = copyNodes(new String[] {file1, file2}, destination, OWNER_COOKIE);
+    FilesStackTestResource.getStoragesService().forceMissing(file2, 1);
+    Response response = copyNodes(new String[] {file1, file2}, destination, OWNER_COOKIE);
 
     Assertions.assertThat(response.jsonPath().getList("data.copyNodes.name"))
         .containsExactly("race-copy-two-a");
@@ -271,27 +266,58 @@ class RaceCopyApiIT extends AbstractFilesIT {
     String destination = seedFolder("race-copy-held-dest", LOCAL_ROOT, OWNER_COOKIE);
     var storages = FilesStackTestResource.getStoragesService();
 
-    Response response;
-    storages.holdCopies();
-    try {
-      CompletableFuture<Response> pending =
-          copyAsync(new String[] {file}, destination, OWNER_COOKIE);
-      storages.awaitHeldCopy();
-      try (Connection holder = holdRowForShare(destination)) {
-        storages.releaseCopies();
-        awaitBlockedBy(holder, 1);
-        holder.rollback();
-      }
-      response = pending.get(30, TimeUnit.SECONDS);
-    } finally {
-      storages.releaseCopies();
-    }
+    Response response =
+        copyWhileHeld(
+            new String[] {file},
+            destination,
+            OWNER_COOKIE,
+            () -> {
+              try (Connection holder =
+                  holdRow("SELECT 1 FROM node WHERE node_id = ? FOR SHARE", destination)) {
+                storages.releaseCopies();
+                awaitBlockedBy(holder, 1);
+                holder.rollback();
+              }
+            });
 
     Assertions.assertThat(response.jsonPath().getList("errors")).isNull();
     Assertions.assertThat(childCount(destination)).isEqualTo(1);
   }
 
-  private static Connection holdRowForShare(String nodeId) throws SQLException {
-    return holdRow("SELECT 1 FROM node WHERE node_id = ? FOR SHARE", nodeId);
+  @Test
+  void givenASameNameFileUploadedDuringTheCopyThenTheCopyIsRenamedAtPublish() throws Exception {
+    String file = seedFile("race-copy-dedup.txt", LOCAL_ROOT, "x".getBytes(UTF_8), OWNER_COOKIE);
+    String destination = seedFolder("race-copy-dedup-dest", LOCAL_ROOT, OWNER_COOKIE);
+
+    Response response =
+        copyWhileHeld(
+            new String[] {file},
+            destination,
+            OWNER_COOKIE,
+            () -> seedFile("race-copy-dedup.txt", destination, "y".getBytes(UTF_8), OWNER_COOKIE));
+
+    Assertions.assertThat(response.jsonPath().getList("errors")).isNull();
+    Assertions.assertThat(response.jsonPath().getList("data.copyNodes.name"))
+        .containsExactly("race-copy-dedup (1)");
+    Assertions.assertThat(childCount(destination)).isEqualTo(2);
+  }
+
+  @Test
+  void givenACopyIntoASharedFolderThenEveryCopiedDescendantInheritsTheShares() throws Exception {
+    String destination = seedFolder("race-copy-shared-dest", LOCAL_ROOT, OWNER_COOKIE);
+    seedShare(destination, USER_ID, SharePermission.READ_AND_WRITE, OWNER_COOKIE);
+    String source = seedFolder("race-copy-shared-src", LOCAL_ROOT, OWNER_COOKIE);
+    String sub = seedFolder("race-copy-shared-sub", source, OWNER_COOKIE);
+    seedFile("race-copy-shared-file.txt", sub, "s".getBytes(UTF_8), OWNER_COOKIE);
+
+    Response response = copyNodes(new String[] {source}, destination, OWNER_COOKIE);
+
+    Assertions.assertThat(response.jsonPath().getList("errors")).isNull();
+    String copiedFolder = onlyChildId(destination);
+    String copiedSub = onlyChildId(copiedFolder);
+    String copiedFile = onlyChildId(copiedSub);
+    Assertions.assertThat(inheritsShare(copiedFolder, destination, USER_ID)).isTrue();
+    Assertions.assertThat(inheritsShare(copiedSub, destination, USER_ID)).isTrue();
+    Assertions.assertThat(inheritsShare(copiedFile, destination, USER_ID)).isTrue();
   }
 }

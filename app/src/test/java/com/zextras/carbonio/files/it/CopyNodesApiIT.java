@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -346,8 +347,7 @@ class CopyNodesApiIT extends AbstractFilesIT {
     // When
     Response response = copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE);
 
-    // Then — copyFile's Try#onFailure deletes the just-created node row and reports the error
-    // using the SOURCE node's id/version.
+    // Then — nothing is published and the error uses the SOURCE node's id/version.
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
     Assertions.assertThat(errorCodes).containsExactly("NODE_COPY_ERROR");
@@ -359,13 +359,14 @@ class CopyNodesApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAFailureAtPublishCopyShouldLeaveNoNodeBehind() throws Exception {
+  void givenWritePermissionRevokedMidCopyThenNodeWriteErrorAndNoNode() throws Exception {
     String sourceId =
         seedFile(
             "src-p4.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
     String destFolderId = seedFolder("dest-p4", LOCAL_ROOT, REQUESTER_COOKIE);
     seedShare(destFolderId, OTHER_USER_ID, ACL.SharePermission.READ_AND_WRITE, REQUESTER_COOKIE);
     var storages = FilesStackTestResource.getStoragesService();
+    int blobsBefore = storages.blobCount();
 
     Response response;
     storages.holdCopies();
@@ -401,6 +402,43 @@ class CopyNodesApiIT extends AbstractFilesIT {
         Assertions.assertThat(count.getInt(1)).isZero();
       }
     }
+    Assertions.assertThat(storages.blobCount()).isEqualTo(blobsBefore);
+  }
+
+  @Test
+  void givenAFailureWhilePublishingCopyShouldLeaveNoNodeAndNoBlobBehind() throws Exception {
+    String sourceId =
+        seedFile(
+            "src-p4b.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+    String destFolderId = seedFolder("dest-p4b", LOCAL_ROOT, REQUESTER_COOKIE);
+    int blobsBefore = FilesStackTestResource.getStoragesService().blobCount();
+
+    Response response;
+    try (Connection connection = jdbcConnection();
+        Statement statement = connection.createStatement()) {
+      statement.execute(
+          "CREATE OR REPLACE FUNCTION fail_revision_insert() RETURNS trigger LANGUAGE plpgsql AS"
+              + " $$ BEGIN RAISE EXCEPTION 'injected revision insert failure'; END $$");
+      statement.execute(
+          "CREATE TRIGGER fail_revision_insert BEFORE INSERT ON revision FOR EACH ROW EXECUTE"
+              + " FUNCTION fail_revision_insert()");
+      try {
+        response = copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE);
+      } finally {
+        statement.execute("DROP TRIGGER fail_revision_insert ON revision");
+        statement.execute("DROP FUNCTION fail_revision_insert()");
+      }
+    }
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+        .isNotEmpty();
+    Assertions.assertThat(childCount(destFolderId)).isZero();
+    Assertions.assertThat(FilesStackTestResource.getStoragesService().blobCount())
+        .isEqualTo(blobsBefore);
   }
 
   @Test

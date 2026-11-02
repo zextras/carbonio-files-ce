@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -26,6 +27,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.locks.LockKey;
 import com.zextras.carbonio.files.dal.locks.LockRetry;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
@@ -54,6 +56,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -260,7 +263,6 @@ class NodeApiMutationsTest {
   @Test
   void copyNodesWritesTheBlobForTheOwnerOfTheDestinationFolder() throws Exception {
     String destinationOwner = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
-    String copyId = "copied-node-id";
     Node source = mockFileNode(NODE_ID_1, PARENT_ID);
     when(source.getOwnerId()).thenReturn(CLONING_USER_ID);
     when(nodeApi.requester.getId()).thenReturn(new UserId(CLONING_USER_ID));
@@ -270,26 +272,25 @@ class NodeApiMutationsTest {
     when(destination.getOwnerId()).thenReturn(destinationOwner);
     when(destination.getAncestorIds()).thenReturn("LOCAL_ROOT");
     when(destination.getAncestorsList()).thenReturn(List.of("LOCAL_ROOT"));
-    Node copied = mockFileNode(copyId, NODE_ID_2);
+    Node copied = mockFileNode("copied-node-id", NODE_ID_2);
     when(permissionsChecker.getPermissions(any(String.class), any(String.class)))
         .thenReturn(aclWith(true));
     when(nodeRepository.getNode(NODE_ID_2)).thenReturn(Optional.of(destination));
     when(nodeRepository.getNodes(List.of(NODE_ID_1), Optional.empty()))
-        .thenAnswer(inv -> java.util.stream.Stream.of(source));
+        .thenAnswer(inv -> Stream.of(source));
     when(nodeRepository.getChildrenIds(NODE_ID_2, Optional.empty(), Optional.empty(), false))
         .thenReturn(List.of());
-    when(nodeRepository.getNodes(List.of(), Optional.empty()))
-        .thenAnswer(inv -> java.util.stream.Stream.empty());
+    when(nodeRepository.getNodes(List.of(), Optional.empty())).thenAnswer(inv -> Stream.empty());
     when(fileVersionRepository.getFileVersion(NODE_ID_1, 1))
         .thenReturn(Optional.of(mock(FileVersion.class)));
     UploadResponse response = mock(UploadResponse.class);
     when(response.getSize()).thenReturn(5L);
     when(response.getDigest()).thenReturn("digest");
     doReturn(response).when(fileStore).copy(any(), any(), anyBoolean());
-    when(nodeRepository.createNewNode(
-            any(), any(), any(), any(), any(), any(), any(), any(), anyLong()))
+    ArgumentCaptor<String> createdNodeId = ArgumentCaptor.forClass(String.class);
+    when(nodeRepository.persistNewNode(
+            createdNodeId.capture(), any(), any(), any(), any(), any(), any(), any(), anyLong()))
         .thenReturn(copied);
-    when(nodeRepository.getNode(copyId)).thenReturn(Optional.of(copied));
 
     nodeApi.copyNodes(List.of(NODE_ID_1), NODE_ID_2);
 
@@ -297,11 +298,13 @@ class NodeApiMutationsTest {
         ArgumentCaptor.forClass(FilesIdentifier.class);
     verify(fileStore)
         .copy(
-            org.mockito.ArgumentMatchers.eq(FilesIdentifier.of(NODE_ID_1, 1, CLONING_USER_ID)),
+            eq(FilesIdentifier.of(NODE_ID_1, 1, CLONING_USER_ID)),
             destinationBlob.capture(),
-            org.mockito.ArgumentMatchers.eq(false));
+            eq(false));
     assertThat(destinationBlob.getValue().getAccountId()).isEqualTo(destinationOwner);
     assertThat(destinationBlob.getValue().getVersion()).isEqualTo(1);
+    assertThat(destinationBlob.getValue().getNode()).isEqualTo(createdNodeId.getValue());
+    verify(nodeLocks).lock(List.of(LockKey.children(NODE_ID_2, destinationOwner)));
   }
 
   @Test

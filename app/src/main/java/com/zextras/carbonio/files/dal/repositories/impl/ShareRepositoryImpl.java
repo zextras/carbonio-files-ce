@@ -113,6 +113,18 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
   }
 
   @Override
+  @Transactional
+  public void insertInheritedShares(
+      List<String> nodeIds, String targetUserId, ACL permissions, Optional<Long> expireTimestamp) {
+    long now = System.currentTimeMillis();
+    for (String nodeId : nodeIds) {
+      Share share = new Share(nodeId, targetUserId, permissions, now, false, false, null);
+      expireTimestamp.ifPresent(share::setExpiredAt);
+      persist(share);
+    }
+  }
+
+  @Override
   public void flush() {
     getEntityManager().flush();
   }
