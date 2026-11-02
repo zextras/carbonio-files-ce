@@ -16,6 +16,9 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.locks.LockKey;
+import com.zextras.carbonio.files.dal.locks.LockRetry;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
@@ -119,6 +122,8 @@ public class BlobService {
   private final VersionReservations versionReservations;
   private final TombstoneRepository tombstoneRepository;
   private final OverwriteLeases overwriteLeases;
+  private final NodeLocks nodeLocks;
+  private final LockRetry lockRetry;
 
   @Inject
   public BlobService(
@@ -136,7 +141,9 @@ public class BlobService {
       @Any Instance<UploadCompletionListener> uploadCompletionListeners,
       VersionReservations versionReservations,
       TombstoneRepository tombstoneRepository,
-      OverwriteLeases overwriteLeases) {
+      OverwriteLeases overwriteLeases,
+      NodeLocks nodeLocks,
+      LockRetry lockRetry) {
     this.nodeRepository = nodeRepository;
     this.notificationRepository = notificationRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -152,6 +159,8 @@ public class BlobService {
     this.versionReservations = versionReservations;
     this.tombstoneRepository = tombstoneRepository;
     this.overwriteLeases = overwriteLeases;
+    this.nodeLocks = nodeLocks;
+    this.lockRetry = lockRetry;
   }
 
   public Optional<List<Node>> checkDownloadMultiple(List<String> nodeIds, UserMyself requester) {
@@ -395,34 +404,18 @@ public class BlobService {
 
       NodeType nodeType = NodeType.getNodeType(mediaType);
 
-      String nodeName = searchAlternativeName(nodeRepository, filename.trim(), folderId, nodeOwner);
-      nodeRepository.createNewNode(
-          nodeId,
-          requesterId,
-          nodeOwner,
-          folderId,
-          nodeName,
-          description,
-          nodeType,
-          NodeType.ROOT.equals(destinationFolder.getNodeType())
-              ? folderId
-              : destinationFolder.getAncestorIds() + "," + folderId,
-          0L);
-
       UploadResponse uploadResponse =
           Try.of(
                   () ->
                       fileStore.uploadPost(
                           FilesIdentifier.of(nodeId, 1, nodeOwner), blobStream, blobLength))
               .getOrElseThrow(
-                  failure -> {
-                    nodeRepository.deleteNode(nodeId);
-                    throw new DependencyException(
-                        String.format(
-                            "Storages failed: unable to upload node with id %s and version 1",
-                            nodeId),
-                        failure);
-                  });
+                  failure ->
+                      new DependencyException(
+                          String.format(
+                              "Storages failed: unable to upload node with id %s and version 1",
+                              nodeId),
+                          failure));
 
       logger.info(
           "Uploaded file to storages successfully: nodeId {}, version 1, size: {}, digest: {}",
@@ -431,66 +424,38 @@ public class BlobService {
           uploadResponse.getDigest());
 
       if (!verifyBlobExists(nodeId, 1, nodeOwner)) {
-        nodeRepository.deleteNode(nodeId);
+        deleteOrphanBlob(nodeId, 1, nodeOwner);
         throw new DependencyException(
             String.format("Upload verification failed: blob not accessible for node %s", nodeId));
       }
 
-      Node uploadedNode =
-          QuarkusTransaction.requiringNew()
-              .call(
-                  () -> {
-                    Node createdNode =
-                        nodeRepository
-                            .getNode(nodeId)
-                            .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
-                    fileVersionRepository.createNewFileVersion(
-                        nodeId,
+      Optional<PublishedUpload> published;
+      try {
+        published =
+            lockRetry.inNewTransaction(
+                () ->
+                    publishUpload(
                         requesterId,
-                        1,
-                        mediaType.toString(),
-                        uploadResponse.getSize(),
-                        uploadResponse.getDigest(),
-                        false);
+                        requesterEntity,
+                        folderId,
+                        nodeId,
+                        nodeOwner,
+                        filename,
+                        description,
+                        nodeType,
+                        mediaType,
+                        uploadResponse));
+      } catch (RuntimeException e) {
+        deleteOrphanBlob(nodeId, 1, nodeOwner);
+        throw e;
+      }
 
-                    createdNode.setSize(uploadResponse.getSize());
-                    nodeRepository.updateNode(createdNode);
-
-                    List<String> usersToNotify = new ArrayList<>();
-
-                    shareRepository
-                        .getShares(folderId, Collections.emptyList())
-                        .forEach(
-                            share -> {
-                              if (!share.getTargetUserId().equals(requesterId)) {
-                                usersToNotify.add(share.getTargetUserId());
-                              }
-                              shareRepository.upsertShare(
-                                  nodeId,
-                                  share.getTargetUserId(),
-                                  share.getPermissions(),
-                                  false,
-                                  false,
-                                  share.getExpiredAt());
-                            });
-
-                    if (!destinationFolder.getNodeType().equals(NodeType.ROOT)
-                        && !requesterId.equals(destinationFolder.getOwnerId())
-                        && !usersToNotify.contains(requesterId)) {
-                      usersToNotify.add(destinationFolder.getOwnerId());
-                    }
-
-                    if (!usersToNotify.isEmpty()
-                        && filesConfig.areNotificationsEnabled()
-                        && requesterEntity.isPresent())
-                      notificationRepository.createAddedNodeNotification(
-                          createdNode,
-                          destinationFolder,
-                          requesterEntity.get(),
-                          AddedNodeType.UPLOAD,
-                          usersToNotify);
-                    return createdNode;
-                  });
+      if (published.isEmpty()) {
+        deleteOrphanBlob(nodeId, 1, nodeOwner);
+        logger.warn(
+            "Folder {} is no longer writable by {}: upload discarded", folderId, requesterId);
+        return Optional.empty();
+      }
 
       countUpload("/upload");
 
@@ -498,7 +463,9 @@ public class BlobService {
       // entity). CE registers none, so this is a no-op fan-out.
       if (requesterEntity.isEmpty()) {
         uploadCompletionListeners.forEach(
-            listener -> listener.onUploadCompleted(uploadedNode, destinationFolder, requesterId));
+            listener ->
+                listener.onUploadCompleted(
+                    published.get().node(), published.get().destination(), requesterId));
       }
 
       return Optional.of(nodeId);
@@ -510,6 +477,114 @@ public class BlobService {
         filename,
         folderId);
     return Optional.empty();
+  }
+
+  private record PublishedUpload(Node node, Node destination) {}
+
+  private Optional<PublishedUpload> publishUpload(
+      String requesterId,
+      Optional<UserMyself> requesterEntity,
+      String folderId,
+      String nodeId,
+      String nodeOwner,
+      String filename,
+      String description,
+      NodeType nodeType,
+      MediaType mediaType,
+      UploadResponse uploadResponse) {
+    nodeLocks.lock(List.of(LockKey.children(folderId, nodeOwner)));
+    Optional<Node> destination =
+        nodeRepository
+            .getNode(folderId)
+            .filter(n -> n.getNodeType() == NodeType.FOLDER || n.getNodeType() == NodeType.ROOT);
+    if (destination.isEmpty()
+        || !permissionsChecker
+            .getPermissions(folderId, requesterId)
+            .has(SharePermission.READ_AND_WRITE)) {
+      return Optional.empty();
+    }
+    Node destinationFolder = destination.get();
+    String currentOwner =
+        folderId.equals(RootId.LOCAL_ROOT) ? requesterId : destinationFolder.getOwnerId();
+    if (!currentOwner.equals(nodeOwner)) {
+      throw new IllegalStateException("Owner of folder " + folderId + " changed during the upload");
+    }
+    String nodeName = searchAlternativeName(nodeRepository, filename.trim(), folderId, nodeOwner);
+    Node createdNode =
+        nodeRepository.createNewNode(
+            nodeId,
+            requesterId,
+            nodeOwner,
+            folderId,
+            nodeName,
+            description,
+            nodeType,
+            NodeType.ROOT.equals(destinationFolder.getNodeType())
+                ? folderId
+                : destinationFolder.getAncestorIds() + "," + folderId,
+            uploadResponse.getSize());
+    fileVersionRepository.createNewFileVersion(
+        nodeId,
+        requesterId,
+        1,
+        mediaType.toString(),
+        uploadResponse.getSize(),
+        uploadResponse.getDigest(),
+        false);
+
+    List<String> usersToNotify = new ArrayList<>();
+
+    shareRepository
+        .getShares(folderId, Collections.emptyList())
+        .forEach(
+            share -> {
+              if (!share.getTargetUserId().equals(requesterId)) {
+                usersToNotify.add(share.getTargetUserId());
+              }
+              shareRepository.upsertShare(
+                  nodeId,
+                  share.getTargetUserId(),
+                  share.getPermissions(),
+                  false,
+                  false,
+                  share.getExpiredAt());
+            });
+
+    if (!destinationFolder.getNodeType().equals(NodeType.ROOT)
+        && !requesterId.equals(destinationFolder.getOwnerId())
+        && !usersToNotify.contains(requesterId)) {
+      usersToNotify.add(destinationFolder.getOwnerId());
+    }
+
+    if (!usersToNotify.isEmpty()
+        && filesConfig.areNotificationsEnabled()
+        && requesterEntity.isPresent())
+      notificationRepository.createAddedNodeNotification(
+          createdNode,
+          destinationFolder,
+          requesterEntity.get(),
+          AddedNodeType.UPLOAD,
+          usersToNotify);
+    return Optional.of(new PublishedUpload(createdNode, destinationFolder));
+  }
+
+  private void deleteOrphanBlob(String nodeId, int version, String ownerId) {
+    try {
+      List<BulkDeleteResponseItem> failed =
+          fileStore.bulkDelete(
+              IdentifierType.files,
+              ownerId,
+              List.of(BulkDeleteRequestItem.filesItem(nodeId, version)));
+      if (failed == null || !failed.isEmpty()) {
+        logger.warn("Unable to delete the orphan blob of node {} version {}", nodeId, version);
+      }
+    } catch (Exception e) {
+      logger.warn(
+          "Unable to delete the orphan blob of node {} version {}: {}",
+          nodeId,
+          version,
+          e.getMessage());
+    }
   }
 
   public Optional<Integer> uploadFileVersion(
