@@ -8,8 +8,10 @@ import com.zextras.carbonio.files.Constants.Db.RootId;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.FlushModeType;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -23,7 +25,9 @@ public class NodeLocks {
 
   public record NodePlace(String nodeId, String parentId, String ownerId) {}
 
-  static final String LOCK_TIMEOUT = "5s";
+  private static final String LOCK_TIMEOUT = "5s";
+
+  private static final int LOCK_CHUNK = 1000;
 
   private static final Set<String> ROOTS = Set.of(RootId.LOCAL_ROOT, RootId.TRASH_ROOT);
 
@@ -32,15 +36,26 @@ public class NodeLocks {
 
   @Inject EntityManager entityManager;
 
-  /** Must be the first statement of the writing transaction: every later read is fresh. */
+  /**
+   * Must be the first statement of the writing transaction: entities loaded before are detached,
+   * reload them; every later read is fresh. Callable once per transaction.
+   */
   @Transactional(TxType.MANDATORY)
   public Set<String> lock(Collection<LockKey> keys) {
     if (entityManager.unwrap(Session.class).isDirty()) {
       throw new IllegalStateException("Node locks must be taken before any write");
     }
-    entityManager
-        .createNativeQuery("SET LOCAL lock_timeout = '" + LOCK_TIMEOUT + "'")
-        .executeUpdate();
+    Object[] state =
+        (Object[])
+            entityManager
+                .createNativeQuery(
+                    "SELECT set_config('lock_timeout', :timeout, true),"
+                        + " pg_current_xact_id_if_assigned() IS NULL")
+                .setParameter("timeout", LOCK_TIMEOUT)
+                .getSingleResult();
+    if (!Boolean.TRUE.equals(state[1])) {
+      throw new IllegalStateException("Node locks must be taken before any write");
+    }
     keys.stream()
         .filter(key -> key.kind() == LockKey.Kind.CHILDREN && ROOTS.contains(key.nodeId()))
         .map(key -> "files-children/" + key.nodeId() + "/" + key.ownerId())
@@ -78,18 +93,29 @@ public class NodeLocks {
     if (parentIds.isEmpty()) {
       return List.of();
     }
-    @SuppressWarnings("unchecked")
-    List<String> rows =
-        entityManager
-            .createNativeQuery(
-                "SELECT trim(node_id) FROM node WHERE folder_id IN (:parents) AND node_type ="
-                    + " 'FOLDER' ORDER BY node_id FOR NO KEY UPDATE")
-            .setParameter("parents", parentIds.stream().map(String::trim).toList())
-            .getResultList();
-    return rows;
+    List<String> sorted = parentIds.stream().map(String::trim).distinct().sorted().toList();
+    List<String> result = new ArrayList<>();
+    for (int from = 0; from < sorted.size(); from += LOCK_CHUNK) {
+      @SuppressWarnings("unchecked")
+      List<String> rows =
+          entityManager
+              .createNativeQuery(
+                  "SELECT trim(node_id) FROM node WHERE folder_id IN (:parents) AND node_type ="
+                      + " 'FOLDER' ORDER BY "
+                      + DEPTH
+                      + ", node_id FOR NO KEY UPDATE")
+              .setParameter(
+                  "parents", sorted.subList(from, Math.min(from + LOCK_CHUNK, sorted.size())))
+              .getResultList();
+      result.addAll(rows);
+    }
+    return result;
   }
 
-  /** Non-locking read used to predict a lock set; compare with the fresh state after locking. */
+  /**
+   * Non-locking read used to predict a lock set; compare with the fresh state after locking. Needs
+   * an active transaction or request context like any repository read.
+   */
   public List<NodePlace> placesOf(Collection<String> nodeIds) {
     if (nodeIds.isEmpty()) {
       return List.of();
@@ -99,6 +125,7 @@ public class NodeLocks {
         entityManager
             .createNativeQuery(
                 "SELECT trim(node_id), trim(folder_id), owner_id FROM node WHERE node_id IN (:ids)")
+            .setFlushMode(FlushModeType.COMMIT)
             .setParameter("ids", nodeIds.stream().map(String::trim).toList())
             .getResultList();
     return rows.stream()
@@ -106,7 +133,10 @@ public class NodeLocks {
         .toList();
   }
 
-  /** Non-locking read of the trashed rows' original parents. */
+  /**
+   * Non-locking read of the trashed rows' original parents. Needs an active transaction or request
+   * context like any repository read.
+   */
   public Map<String, String> trashedParentsOf(Collection<String> nodeIds) {
     if (nodeIds.isEmpty()) {
       return Map.of();
@@ -116,6 +146,7 @@ public class NodeLocks {
         entityManager
             .createNativeQuery(
                 "SELECT trim(node_id), trim(parent_id) FROM trashed WHERE node_id IN (:ids)")
+            .setFlushMode(FlushModeType.COMMIT)
             .setParameter("ids", nodeIds.stream().map(String::trim).toList())
             .getResultList();
     return rows.stream().collect(Collectors.toMap(row -> (String) row[0], row -> (String) row[1]));

@@ -4,6 +4,8 @@
 
 package com.zextras.carbonio.files.dal.locks;
 
+import java.util.Objects;
+
 public record LockKey(Kind kind, String nodeId, String ownerId) {
 
   public enum Kind {
@@ -16,6 +18,6 @@ public record LockKey(Kind kind, String nodeId, String ownerId) {
   }
 
   public static LockKey children(String folderId, String ownerId) {
-    return new LockKey(Kind.CHILDREN, folderId.trim(), ownerId);
+    return new LockKey(Kind.CHILDREN, folderId.trim(), Objects.requireNonNull(ownerId, "ownerId"));
   }
 }

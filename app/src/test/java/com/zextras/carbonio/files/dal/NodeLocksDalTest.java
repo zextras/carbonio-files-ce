@@ -19,6 +19,7 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -30,8 +31,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 @QuarkusTest
 @QuarkusTestResource(FilesStackTestResource.class)
@@ -41,6 +45,7 @@ class NodeLocksDalTest {
 
   @Inject NodeLocks nodeLocks;
   @Inject NodeRepository nodeRepository;
+  @Inject EntityManager entityManager;
 
   private final List<String> seeded = new ArrayList<>();
 
@@ -134,10 +139,89 @@ class NodeLocksDalTest {
                           node.setDescription("x");
                           nodeLocks.lock(List.of(LockKey.node(a)));
                         }))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("before any write");
+  }
+
+  @Test
+  void lockAfterAFlushedWriteFails() {
+    String a = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
+
+    assertThatThrownBy(
+            () ->
+                QuarkusTransaction.requiringNew()
+                    .run(
+                        () -> {
+                          Node node = nodeRepository.getNode(a).orElseThrow();
+                          node.setDescription("x");
+                          entityManager.flush();
+                          nodeLocks.lock(List.of(LockKey.node(a)));
+                        }))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("before any write");
+  }
+
+  @Test
+  void lockCalledTwiceInATransactionFails() {
+    String a = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
+    String b = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
+
+    assertThatThrownBy(
+            () ->
+                QuarkusTransaction.requiringNew()
+                    .run(
+                        () -> {
+                          nodeLocks.lock(List.of(LockKey.node(a)));
+                          nodeLocks.lock(List.of(LockKey.node(b)));
+                        }))
         .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
+  @Timeout(60)
+  void lockTakesParentsBeforeChildren() throws Exception {
+    String parent = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
+    String child = seed(parent, NodeType.FOLDER);
+
+    try (Connection holder = jdbc();
+        Connection observer = jdbc()) {
+      holder.setAutoCommit(false);
+      observer.setAutoCommit(false);
+      try (Statement statement = holder.createStatement()) {
+        statement.execute("SELECT 1 FROM node WHERE node_id = '" + child + "' FOR UPDATE");
+      }
+      CompletableFuture<Set<String>> future =
+          CompletableFuture.supplyAsync(
+              () ->
+                  QuarkusTransaction.requiringNew()
+                      .call(
+                          () ->
+                              nodeLocks.lock(List.of(LockKey.node(child), LockKey.node(parent)))));
+      try {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+        boolean blocked = false;
+        while (!blocked && System.nanoTime() < deadline) {
+          try (Statement statement = observer.createStatement();
+              ResultSet resultSet =
+                  statement.executeQuery(
+                      "SELECT count(*) FROM pg_stat_activity WHERE"
+                          + " cardinality(pg_blocking_pids(pid)) > 0")) {
+            resultSet.next();
+            blocked = resultSet.getInt(1) >= 1;
+          }
+          observer.rollback();
+        }
+        assertThat(blocked).isTrue();
+        assertThat(tryLockNoWait(observer, parent)).isEqualTo(LOCK_NOT_AVAILABLE);
+      } finally {
+        holder.rollback();
+      }
+      assertThat(future.get(30, TimeUnit.SECONDS)).containsExactlyInAnyOrder(child, parent);
+    }
+  }
+
+  @Test
+  @Timeout(30)
   void lockWaitsAtMostTheTimeout() throws SQLException {
     String a = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
 
@@ -145,6 +229,7 @@ class NodeLocksDalTest {
       holder.setAutoCommit(false);
       try (Statement statement = holder.createStatement()) {
         statement.execute("SELECT 1 FROM node WHERE node_id = '" + a + "' FOR UPDATE");
+        long start = System.nanoTime();
         assertThatThrownBy(
                 () ->
                     QuarkusTransaction.requiringNew()
@@ -161,6 +246,8 @@ class NodeLocksDalTest {
                   }
                   assertThat(state).isEqualTo(LOCK_NOT_AVAILABLE);
                 });
+        long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+        assertThat(elapsedMs).isBetween(4500L, 15000L);
       } finally {
         holder.rollback();
       }
@@ -237,13 +324,17 @@ class NodeLocksDalTest {
   }
 
   @Test
-  void placesAndTrashedParentsAreReadWithoutLocking() {
+  void placesAndTrashedParentsAreRead() {
     String parent = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
     String a = seed(parent, NodeType.FOLDER);
     String trashed = seed(parent, NodeType.TEXT);
     QuarkusTransaction.requiringNew().run(() -> nodeRepository.trashNode(trashed, parent));
 
+    String top = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
+
     assertThat(nodeLocks.placesOf(List.of(a))).containsExactly(new NodePlace(a, parent, "u1"));
+    assertThat(nodeLocks.placesOf(List.of(top)))
+        .containsExactly(new NodePlace(top, RootId.LOCAL_ROOT, "u1"));
     assertThat(nodeLocks.trashedParentsOf(List.of(trashed, a))).isEqualTo(Map.of(trashed, parent));
   }
 }
