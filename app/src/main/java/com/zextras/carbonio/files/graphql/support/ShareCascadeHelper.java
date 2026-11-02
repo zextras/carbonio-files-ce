@@ -78,10 +78,7 @@ public class ShareCascadeHelper {
   }
 
   private List<String> trashedChildrenOf(List<String> folderIds) {
-    return folderIds.stream()
-        .flatMap(id -> nodeRepository.getTrashedNodeIdsByOldParent(id).stream())
-        .distinct()
-        .toList();
+    return nodeRepository.getTrashedNodeIdsByOldParents(folderIds).stream().distinct().toList();
   }
 
   private static List<String> folderIds(List<Node> nodes) {

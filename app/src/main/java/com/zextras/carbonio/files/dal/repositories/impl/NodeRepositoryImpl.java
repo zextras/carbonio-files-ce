@@ -500,6 +500,23 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   @Override
+  public List<String> getTrashedNodeIdsByOldParents(Collection<String> oldParentIds) {
+    List<String> parents =
+        oldParentIds.stream().map(NodeRepositoryImpl::normalizeId).distinct().toList();
+    List<String> result = new ArrayList<>();
+    for (int from = 0; from < parents.size(); from += 1000) {
+      entityManager
+          .createQuery(
+              "select tn.mNodeId from TrashedNode tn where tn.mOldParentId in :parents",
+              String.class)
+          .setParameter("parents", parents.subList(from, Math.min(from + 1000, parents.size())))
+          .getResultList()
+          .forEach(id -> result.add(id.trim()));
+    }
+    return result;
+  }
+
+  @Override
   @Transactional
   public void trashNode(String nodeId, String parentId) {
     entityManager.persist(new TrashedNode(normalizeId(nodeId), normalizeId(parentId)));

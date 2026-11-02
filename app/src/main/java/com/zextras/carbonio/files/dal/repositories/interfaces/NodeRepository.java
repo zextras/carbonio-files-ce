@@ -253,6 +253,8 @@ public interface NodeRepository {
 
   List<String> getTrashedNodeIdsByOldParent(String oldParentId);
 
+  List<String> getTrashedNodeIdsByOldParents(Collection<String> oldParentIds);
+
   /**
    * Trashes a node putting it into the TRASHED table.
    *

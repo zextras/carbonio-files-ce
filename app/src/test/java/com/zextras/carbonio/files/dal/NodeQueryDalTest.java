@@ -265,4 +265,31 @@ class NodeQueryDalTest {
         .containsExactlyInAnyOrder(fileA, folderA, plainB);
     assertThat(nodeRepository.getChildren(List.of(), true)).isEmpty();
   }
+
+  @Test
+  @TestTransaction
+  void getTrashedNodeIdsByOldParentsCollectsAllGivenParents() {
+    String owner = id();
+    String parentA = id();
+    String parentB = id();
+    String parentC = id();
+    String inA = id();
+    String inB = id();
+    String inC = id();
+    persist(parentA, "pa", owner, NodeType.FOLDER, false, 0L, "LOCAL_ROOT", "LOCAL_ROOT");
+    persist(parentB, "pb", owner, NodeType.FOLDER, false, 0L, "LOCAL_ROOT", "LOCAL_ROOT");
+    persist(parentC, "pc", owner, NodeType.FOLDER, false, 0L, "LOCAL_ROOT", "LOCAL_ROOT");
+    persist(inA, "a", owner, NodeType.TEXT, false, 1L, parentA, "LOCAL_ROOT," + parentA);
+    persist(inB, "b", owner, NodeType.TEXT, false, 1L, parentB, "LOCAL_ROOT," + parentB);
+    persist(inC, "c", owner, NodeType.TEXT, false, 1L, parentC, "LOCAL_ROOT," + parentC);
+    entityManager.flush();
+    nodeRepository.trashNode(inA, parentA);
+    nodeRepository.trashNode(inB, parentB);
+    nodeRepository.trashNode(inC, parentC);
+    entityManager.flush();
+
+    assertThat(nodeRepository.getTrashedNodeIdsByOldParents(List.of(parentA, parentB)))
+        .containsExactlyInAnyOrder(inA, inB);
+    assertThat(nodeRepository.getTrashedNodeIdsByOldParents(List.of())).isEmpty();
+  }
 }
