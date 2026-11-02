@@ -179,9 +179,25 @@ public abstract class AbstractFilesIT {
     OutputStream out = socket.getOutputStream();
     out.write(new byte[chunk]);
     out.flush();
+    return readStatusLine(socket);
+  }
+
+  protected static String readStatusLine(Socket socket) throws IOException {
     return new BufferedReader(
             new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
         .readLine();
+  }
+
+  protected static int childCount(String folderId) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("SELECT count(*) FROM node WHERE folder_id = ?")) {
+      statement.setString(1, folderId);
+      try (ResultSet rows = statement.executeQuery()) {
+        rows.next();
+        return rows.getInt(1);
+      }
+    }
   }
 
   protected static String filenameHeader(String filename) {

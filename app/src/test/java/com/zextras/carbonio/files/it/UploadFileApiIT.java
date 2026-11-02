@@ -240,8 +240,7 @@ class UploadFileApiIT extends AbstractFilesIT {
             REQUESTER_COOKIE);
 
     // Then — DependencyException falls into ExceptionsHandler's generic else-branch -> 500;
-    // the node row created before the storages call is deleted (BlobService#uploadFile's
-    // Try#getOrElseThrow rollback).
+    // no node row is created when the storages call fails.
     Assertions.assertThat(response.getStatusCode()).isEqualTo(500);
     Assertions.assertThat(response.getBody().asString()).isEqualTo("500 Internal Server Error");
     Assertions.assertThat(childNodeIds(LOCAL_ROOT)).isEqualTo(childrenBefore);

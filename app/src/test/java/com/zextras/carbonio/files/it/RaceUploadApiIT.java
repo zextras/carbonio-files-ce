@@ -4,15 +4,21 @@
 
 package com.zextras.carbonio.files.it;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.Socket;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
@@ -35,15 +41,24 @@ class RaceUploadApiIT extends AbstractFilesIT {
   }
 
   private static Socket startUpload(String folderId, String name) throws Exception {
+    return startUpload(folderId, name, OWNER_COOKIE);
+  }
+
+  private static Socket startUpload(String folderId, String name, String cookie) throws Exception {
     return startRawUpload(
-        "/upload", "ParentId: " + folderId + "\r\n" + filenameHeader(name), OWNER_COOKIE, CHUNK);
+        "/upload", "ParentId: " + folderId + "\r\n" + filenameHeader(name), cookie, CHUNK);
   }
 
   private static Socket startHeldUpload(String folderId, String name) throws Exception {
+    return startHeldUpload(folderId, name, OWNER_COOKIE);
+  }
+
+  private static Socket startHeldUpload(String folderId, String name, String cookie)
+      throws Exception {
     var storages = FilesStackTestResource.getStoragesService();
     storages.holdUploads();
     try {
-      Socket socket = startUpload(folderId, name);
+      Socket socket = startUpload(folderId, name, cookie);
       socket.getOutputStream().write(new byte[CHUNK]);
       socket.getOutputStream().flush();
       storages.awaitHeldUpload();
@@ -56,10 +71,7 @@ class RaceUploadApiIT extends AbstractFilesIT {
 
   private static String finishHeldUpload(Socket socket) throws Exception {
     FilesStackTestResource.getStoragesService().releaseUploads();
-    return new java.io.BufferedReader(
-            new java.io.InputStreamReader(
-                socket.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))
-        .readLine();
+    return readStatusLine(socket);
   }
 
   @Test
@@ -68,12 +80,12 @@ class RaceUploadApiIT extends AbstractFilesIT {
 
     String status;
     try (Socket socket = startHeldUpload(folder, "streaming.bin")) {
-      Assertions.assertThat(children(folder)).isZero();
+      Assertions.assertThat(childCount(folder)).isZero();
       status = finishHeldUpload(socket);
     }
 
     Assertions.assertThat(status).startsWith("HTTP/1.1 200");
-    Assertions.assertThat(children(folder)).isEqualTo(1);
+    Assertions.assertThat(childCount(folder)).isEqualTo(1);
     Assertions.assertThat(revisionRows(onlyChildId(folder))).isEqualTo(1);
   }
 
@@ -174,6 +186,46 @@ class RaceUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenTheWritePermissionRevokedMidUploadThenTheUploadIs404AndNoBlobRemains()
+      throws Exception {
+    String folder = seedFolder("race-upload-write-revoked", LOCAL_ROOT, OWNER_COOKIE);
+    seedShare(folder, SHAREE_ID, SharePermission.READ_AND_WRITE, OWNER_COOKIE);
+    int blobsBefore = FilesStackTestResource.getStoragesService().blobCount();
+
+    String status;
+    try (Socket socket = startHeldUpload(folder, "write-revoked.bin", SHAREE_COOKIE)) {
+      graphql(
+          GraphqlCommandBuilder.aMutationBuilder("deleteShares")
+              .withString("node_id", folder)
+              .withListOfStrings("share_target_ids", new String[] {SHAREE_ID})
+              .withWantedResultFormat("")
+              .build(),
+          OWNER_COOKIE);
+      status = finishHeldUpload(socket);
+    }
+
+    Assertions.assertThat(status).startsWith("HTTP/1.1 404");
+    Assertions.assertThat(childCount(folder)).isZero();
+    Assertions.assertThat(FilesStackTestResource.getStoragesService().blobCount())
+        .isEqualTo(blobsBefore);
+  }
+
+  @Test
+  void givenAFileAsParentThenTheUploadIs404BeforeTheBody() throws Exception {
+    String file = seedFile("race-upload-parent.txt", LOCAL_ROOT, "x".getBytes(UTF_8), OWNER_COOKIE);
+    int blobsBefore = FilesStackTestResource.getStoragesService().blobCount();
+
+    String status;
+    try (Socket socket = startUpload(file, "child.bin", OWNER_COOKIE)) {
+      status = finishRawUpload(socket, CHUNK);
+    }
+
+    Assertions.assertThat(status).startsWith("HTTP/1.1 404");
+    Assertions.assertThat(FilesStackTestResource.getStoragesService().blobCount())
+        .isEqualTo(blobsBefore);
+  }
+
+  @Test
   void givenTwoSameNameUploadsPublishingTogetherThenNamesAreDistinct() throws Exception {
     String folder = seedFolder("race-upload-same-name", LOCAL_ROOT, OWNER_COOKIE);
 
@@ -198,20 +250,8 @@ class RaceUploadApiIT extends AbstractFilesIT {
   private static String finish(Socket socket) {
     try {
       return finishRawUpload(socket, CHUNK);
-    } catch (java.io.IOException e) {
-      throw new java.io.UncheckedIOException(e);
-    }
-  }
-
-  private static int children(String folderId) throws SQLException {
-    try (Connection connection = jdbcConnection();
-        PreparedStatement statement =
-            connection.prepareStatement("SELECT count(*) FROM node WHERE folder_id = ?")) {
-      statement.setString(1, folderId);
-      try (ResultSet rows = statement.executeQuery()) {
-        rows.next();
-        return rows.getInt(1);
-      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
     }
   }
 
@@ -227,8 +267,8 @@ class RaceUploadApiIT extends AbstractFilesIT {
     }
   }
 
-  private static java.util.List<String> childNames(String folderId) throws SQLException {
-    java.util.List<String> names = new java.util.ArrayList<>();
+  private static List<String> childNames(String folderId) throws SQLException {
+    List<String> names = new ArrayList<>();
     try (Connection connection = jdbcConnection();
         PreparedStatement statement =
             connection.prepareStatement("SELECT name FROM node WHERE folder_id = ?")) {

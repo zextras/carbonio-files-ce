@@ -79,9 +79,10 @@ import org.slf4j.LoggerFactory;
  *   <li>the two manual Ebean transactions (upload / upload-version) become {@link
  *       QuarkusTransaction#requiringNew()} blocks, so the request-scoped {@code EntityManager} and
  *       the {@code @Transactional} repository methods join a single JTA transaction (same atomicity
- *       as the old {@code io.ebean.Transaction}). The DB-before-blob delete/write ordering is
- *       preserved verbatim. Since the version reservations, upload-version writes its blob outside
- *       any transaction: see {@link VersionReservations}.
+ *       as the old {@code io.ebean.Transaction}). Uploads write the blob first and create the node
+ *       in one short transaction after it; the DB-before-blob delete ordering is preserved. Since
+ *       the version reservations, upload-version writes its blob outside any transaction: see
+ *       {@link VersionReservations}.
  *   <li>upload bodies are plain {@link InputStream}s streamed straight from RESTEasy Reactive (the
  *       legacy Netty {@code BufferInputStream} is gone).
  *   <li>the ZIP multi-download no longer uses a {@code PipedInputStream} + off-thread producer:
@@ -392,9 +393,17 @@ public class BlobService {
         .getPermissions(folderId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {
       Node destinationFolder = nodeRepository.getNode(folderId).get();
+      if (destinationFolder.getNodeType() != NodeType.FOLDER
+          && destinationFolder.getNodeType() != NodeType.ROOT) {
+        logger.warn(
+            "User {} does not have the necessary permission to upload the node {} on the folder {}",
+            requesterId,
+            filename,
+            folderId);
+        return Optional.empty();
+      }
       String nodeId = UUID.randomUUID().toString();
-      String nodeOwner =
-          folderId.equals(RootId.LOCAL_ROOT) ? requesterId : destinationFolder.getOwnerId();
+      String nodeOwner = ownerOfUploads(folderId, requesterId, destinationFolder);
 
       // P9 CE seam: quota check before the blob is stored (no-op in CE).
       quotaChecker.ensureNotOverQuota(nodeOwner, blobLength);
@@ -410,12 +419,14 @@ public class BlobService {
                       fileStore.uploadPost(
                           FilesIdentifier.of(nodeId, 1, nodeOwner), blobStream, blobLength))
               .getOrElseThrow(
-                  failure ->
-                      new DependencyException(
-                          String.format(
-                              "Storages failed: unable to upload node with id %s and version 1",
-                              nodeId),
-                          failure));
+                  failure -> {
+                    deleteOrphanBlob(nodeId, 1, nodeOwner);
+                    return new DependencyException(
+                        String.format(
+                            "Storages failed: unable to upload node with id %s and version 1",
+                            nodeId),
+                        failure);
+                  });
 
       logger.info(
           "Uploaded file to storages successfully: nodeId {}, version 1, size: {}, digest: {}",
@@ -446,7 +457,17 @@ public class BlobService {
                         mediaType,
                         uploadResponse));
       } catch (RuntimeException e) {
-        deleteOrphanBlob(nodeId, 1, nodeOwner);
+        boolean absent;
+        try {
+          absent =
+              QuarkusTransaction.requiringNew()
+                  .call(() -> nodeRepository.getNode(nodeId).isEmpty());
+        } catch (RuntimeException readFailure) {
+          absent = false;
+        }
+        if (absent) {
+          deleteOrphanBlob(nodeId, 1, nodeOwner);
+        }
         throw e;
       }
 
@@ -504,8 +525,7 @@ public class BlobService {
       return Optional.empty();
     }
     Node destinationFolder = destination.get();
-    String currentOwner =
-        folderId.equals(RootId.LOCAL_ROOT) ? requesterId : destinationFolder.getOwnerId();
+    String currentOwner = ownerOfUploads(folderId, requesterId, destinationFolder);
     if (!currentOwner.equals(nodeOwner)) {
       throw new IllegalStateException("Owner of folder " + folderId + " changed during the upload");
     }
@@ -568,22 +588,41 @@ public class BlobService {
     return Optional.of(new PublishedUpload(createdNode, destinationFolder));
   }
 
+  private static String ownerOfUploads(String folderId, String requesterId, Node folder) {
+    return folderId.equals(RootId.LOCAL_ROOT) ? requesterId : folder.getOwnerId();
+  }
+
   private void deleteOrphanBlob(String nodeId, int version, String ownerId) {
+    boolean deleted;
     try {
       List<BulkDeleteResponseItem> failed =
           fileStore.bulkDelete(
               IdentifierType.files,
               ownerId,
               List.of(BulkDeleteRequestItem.filesItem(nodeId, version)));
-      if (failed == null || !failed.isEmpty()) {
+      deleted = failed != null && failed.isEmpty();
+      if (!deleted) {
         logger.warn("Unable to delete the orphan blob of node {} version {}", nodeId, version);
       }
     } catch (Exception e) {
+      deleted = false;
       logger.warn(
           "Unable to delete the orphan blob of node {} version {}: {}",
           nodeId,
           version,
           e.getMessage());
+    }
+    if (!deleted) {
+      try {
+        QuarkusTransaction.requiringNew()
+            .run(() -> tombstoneRepository.createNewTombstone(nodeId, ownerId, version));
+      } catch (RuntimeException e) {
+        logger.warn(
+            "Unable to record the tombstone of the orphan blob of node {} version {}: {}",
+            nodeId,
+            version,
+            e.getMessage());
+      }
     }
   }
 

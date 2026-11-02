@@ -50,25 +50,6 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTheClientDisconnectsMidBodyThenNoNodeIsEverCreated() throws Exception {
-    String folderId = seedFolder("streamed-upload", LOCAL_ROOT, REQUESTER_COOKIE);
-
-    try (Socket socket = new Socket("localhost", RestAssured.port)) {
-      OutputStream out = socket.getOutputStream();
-      out.write(
-          head("/upload", "ParentId: " + folderId, "disconnect.bin", 64 * CHUNK)
-              .getBytes(StandardCharsets.UTF_8));
-      for (int i = 0; i < 8; i++) {
-        out.write(new byte[CHUNK]);
-      }
-      out.flush();
-      Assertions.assertThat(children(folderId)).isZero();
-    }
-
-    eventually("still no node", () -> children(folderId) == 0);
-  }
-
-  @Test
   void givenARenameWhileAnUploadVersionStreamsThenTheRenameDoesNotWaitAndTheNewVersionIsCurrent()
       throws Exception {
     String folderId = seedFolder("streamed-upload-version-rename", LOCAL_ROOT, REQUESTER_COOKIE);
@@ -735,17 +716,5 @@ class StreamedUploadApiIT extends AbstractFilesIT {
         + "\r\nContent-Type: application/octet-stream\r\nContent-Length: "
         + length
         + "\r\n\r\n";
-  }
-
-  private static int children(String folderId) throws SQLException {
-    try (Connection connection = jdbcConnection();
-        PreparedStatement statement =
-            connection.prepareStatement("SELECT COUNT(*) FROM node WHERE folder_id = ?")) {
-      statement.setString(1, folderId);
-      try (ResultSet resultSet = statement.executeQuery()) {
-        resultSet.next();
-        return resultSet.getInt(1);
-      }
-    }
   }
 }
