@@ -227,17 +227,6 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   @Override
-  public Optional<Node> findFirstByOwner(String ownerId) {
-    return entityManager
-        .createQuery("select n from Node n where n.mOwnerId = :owner", Node.class)
-        .setParameter("owner", ownerId)
-        .setMaxResults(1)
-        .getResultList()
-        .stream()
-        .findFirst();
-  }
-
-  @Override
   public Stream<Node> getNodes(List<String> nodeIds, Optional<NodeSort> sort) {
     if (nodeIds.isEmpty()) {
       return Stream.empty();
@@ -433,8 +422,14 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Override
   @Transactional
-  public void invertHiddenFlagNodes(List<Node> nodesToFlag) {
-    nodesToFlag.forEach(node -> entityManager.merge(node.setHidden(!node.isHidden())));
+  public int setHiddenForOwner(String ownerId, boolean hidden) {
+    return entityManager
+        .createQuery(
+            "update Node n set n.mHidden = :hidden where n.mOwnerId = :owner and n.mHidden <>"
+                + " :hidden")
+        .setParameter("hidden", hidden)
+        .setParameter("owner", ownerId)
+        .executeUpdate();
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -532,15 +527,27 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   @Override
+  public boolean isTrashed(String nodeId) {
+    return entityManager
+            .createQuery("select count(tn) from TrashedNode tn where tn.mNodeId = :id", Long.class)
+            .setParameter("id", normalizeId(nodeId))
+            .getSingleResult()
+        > 0;
+  }
+
+  @Override
   @Transactional
-  public List<Node> getAllTrashedNodes(Long retentionTimestamp) {
+  public List<String> getTrashedTopNodeIds(long olderThan) {
     return entityManager
         .createQuery(
-            "select n from Node n where n.mAncestorIds like :trash and n.mUpdatedAt < :ts",
-            Node.class)
-        .setParameter("trash", "%" + RootId.TRASH_ROOT + "%")
-        .setParameter("ts", retentionTimestamp)
-        .getResultList();
+            "select tn.mNodeId from TrashedNode tn, Node n where n.mId = tn.mNodeId and"
+                + " n.mUpdatedAt < :ts",
+            String.class)
+        .setParameter("ts", olderThan)
+        .getResultList()
+        .stream()
+        .map(String::trim)
+        .toList();
   }
 
   // ---------------------------------------------------------------------------------------------

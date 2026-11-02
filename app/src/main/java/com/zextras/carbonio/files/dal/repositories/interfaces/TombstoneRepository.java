@@ -53,9 +53,8 @@ public interface TombstoneRepository {
   void deleteTombstonesByNodeAndVersion(String nodeId, Integer version);
 
   /**
-   * Persists an updated {@link Tombstone} (e.g. after incrementing the attempts counter).
-   *
-   * @param tombstone the tombstone to update
+   * Increments the attempts counter of a tombstone in the database. A tombstone already deleted by
+   * another instance is not re-created.
    */
-  void updateTombstone(Tombstone tombstone);
+  void incrementAttempts(String nodeId, int version);
 }

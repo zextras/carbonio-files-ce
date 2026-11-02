@@ -55,12 +55,15 @@ public class TombstoneRepositoryImpl
   @Override
   @Transactional
   public void deleteTombstonesByNodeAndVersion(String nodeId, Integer version) {
-    deleteById(new TombstonePK(nodeId, version));
+    delete("mComposedId.mNodeId = ?1 and mComposedId.mVersion = ?2", nodeId, version);
   }
 
   @Override
   @Transactional
-  public void updateTombstone(Tombstone tombstone) {
-    getEntityManager().merge(tombstone);
+  public void incrementAttempts(String nodeId, int version) {
+    update(
+        "mAttempts = mAttempts + 1 where mComposedId.mNodeId = ?1 and mComposedId.mVersion = ?2",
+        nodeId,
+        version);
   }
 }

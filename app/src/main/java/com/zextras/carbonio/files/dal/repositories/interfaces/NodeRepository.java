@@ -292,11 +292,16 @@ public interface NodeRepository {
   Node updateNode(Node node);
 
   /**
-   * Returns all Nodes trashed.
-   *
-   * @return the list of all Nodes trashed.
+   * Whether the node is directly trashed, read without loading the {@link TrashedNode} entity: a
+   * managed one would reference a node removed later in the same transaction.
    */
-  List<Node> getAllTrashedNodes(Long retentionTimestamp);
+  boolean isTrashed(String nodeId);
+
+  /**
+   * Returns the ids of the directly trashed nodes (the tops of the trashed subtrees) last updated
+   * before {@code olderThan}.
+   */
+  List<String> getTrashedTopNodeIds(long olderThan);
 
   /**
    * Returns a {@link List} containing all the root folders.
@@ -321,15 +326,11 @@ public interface NodeRepository {
   List<Node> findNodesByOwner(String ownerId);
 
   /**
-   * @param ownerId is the owner id from which to return node.
-   *     <p>Returns the first {@link Node} of all nodes owned by ownerIds.
+   * Sets the hidden flag of every node owned by {@code ownerId} that does not have that value yet.
+   *
+   * @return the number of nodes updated
    */
-  Optional<Node> findFirstByOwner(String ownerId);
-
-  /**
-   * @param nodesToFlag is the list of the nodes to show/hide.
-   */
-  void invertHiddenFlagNodes(List<Node> nodesToFlag);
+  int setHiddenForOwner(String ownerId, boolean hidden);
 
   /*
   Calculates the absolute size of a folder by performing a sum of the sizes of all files that have that folder

@@ -9,10 +9,15 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
 import com.zextras.carbonio.files.dal.dao.ebean.VersionReservation;
+import com.zextras.carbonio.files.dal.locks.LockKey;
+import com.zextras.carbonio.files.dal.locks.LockRetry;
+import com.zextras.carbonio.files.dal.locks.LockedTree;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.OverwriteLeaseRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
 import com.zextras.filestore.api.Filestore;
@@ -26,6 +31,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -38,15 +44,11 @@ import org.slf4j.LoggerFactory;
  * raw {@link java.util.concurrent.ScheduledExecutorService}.
  *
  * <p><b>No DB transaction ever wraps the {@code fileStore.bulkDelete} storages round-trips.</b>
- * {@link #purgeTrashedNodes}, {@link #purgeTombstones} and {@link #scheduledRun} are deliberately
- * NOT {@code @Transactional}: they orchestrate, interleaving short DB operations with the blocking
- * storages calls. Each DB read/write is transactional at the repository layer (e.g. {@code
- * getAllTrashedNodes}/{@code getFileVersions}/{@code getTombstones} and {@code deleteNodes}/{@code
- * deleteTombstonesByNodeAndVersion}/{@code updateTombstone}), so a connection is acquired and
- * released per operation and NONE is held (idle-in-transaction) across a bulkDelete. This restores
- * the legacy Ebean transaction-per-query behaviour: the tradeoff is that a mid-run crash leaves a
- * partially-purged state, which the next cycle finishes (the deletes are idempotent and the
- * tombstone retry scheme self-heals).
+ * {@link #purgeTrashedNodes} claims each expired trashed subtree in one short locked transaction
+ * (rows deleted, tombstones created, re-checked under the lock), then {@link #purgeTombstones}
+ * deletes the blobs outside any transaction; a crash in between leaves tombstones that the next
+ * cycle purges. Tombstone deletes are idempotent and the retry counter is incremented in the
+ * database, so two instances running together cannot re-create a deleted tombstone.
  *
  * <p>{@link #scheduledRun} uses {@code concurrentExecution = SKIP} so a purge that outlives the
  * interval is never overlapped by the next tick (the legacy single-thread {@code
@@ -69,6 +71,10 @@ public class PurgeService {
   @Inject TombstoneRepository tombstoneRepository;
   @Inject VersionReservationRepository versionReservationRepository;
   @Inject OverwriteLeaseRepository overwriteLeaseRepository;
+  @Inject ShareRepository shareRepository;
+  @Inject NodeLocks nodeLocks;
+  @Inject LockedTree lockedTree;
+  @Inject LockRetry lockRetry;
   @Inject Filestore fileStore;
 
   @ConfigProperty(name = "carbonio.files.reservation-purge.expiry", defaultValue = "24h")
@@ -77,99 +83,41 @@ public class PurgeService {
   void purgeTrashedNodes(long retentionDays) {
     long retentionTimestamp = System.currentTimeMillis() - (retentionDays * 86400 * 1000);
 
-    List<Node> trashedNodesToDelete = nodeRepository.getAllTrashedNodes(retentionTimestamp);
-    if (trashedNodesToDelete.isEmpty()) {
-      return;
-    }
-
-    List<Node> fileNodes =
-        trashedNodesToDelete.stream()
-            .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
-            .toList();
-
-    // Build bulk delete requests grouped by owner (bulkDelete requires a userId).
-    Map<String, List<BulkDeleteRequestItem>> requestsByOwner =
-        fileNodes.stream()
-            .collect(
-                Collectors.groupingBy(
-                    Node::getOwnerId,
-                    Collectors.flatMapping(
-                        node ->
-                            fileVersionRepository
-                                .getFileVersions(node.getId(), List.of(FileVersionSort.VERSION_ASC))
-                                .stream()
-                                .map(
-                                    fv ->
-                                        BulkDeleteRequestItem.filesItem(
-                                            node.getId(), fv.getVersion())),
-                        Collectors.toList())));
-
-    Set<String> failedFileNodeIds = new java.util.HashSet<>();
-
-    for (Map.Entry<String, List<BulkDeleteRequestItem>> entry : requestsByOwner.entrySet()) {
-      String ownerId = entry.getKey();
-      List<BulkDeleteRequestItem> deleteRequests = entry.getValue();
-
-      if (deleteRequests.isEmpty()) {
-        continue;
-      }
-
+    for (String topId : nodeRepository.getTrashedTopNodeIds(retentionTimestamp)) {
       try {
-        List<BulkDeleteResponseItem> failedItems =
-            fileStore.bulkDelete(IdentifierType.files, ownerId, deleteRequests);
-        if (failedItems == null) {
-          failedItems = List.of();
-        }
-        failedItems.stream().map(BulkDeleteResponseItem::getNode).forEach(failedFileNodeIds::add);
-      } catch (NullPointerException e) {
-        logger.debug("PowerStore returned null ids (all deletes succeeded): {}", e.getMessage());
+        lockRetry.runInNewTransaction(() -> claimTrashedSubtree(topId, retentionTimestamp));
       } catch (Exception e) {
         logger.warn(
-            "Bulk delete failed for owner {}: {}. Nodes will be retried next cycle.",
-            ownerId,
-            e.getMessage());
-        deleteRequests.stream().map(BulkDeleteRequestItem::getNode).forEach(failedFileNodeIds::add);
+            "Purge of trashed node {} failed, retried next cycle: {}", topId, e.getMessage());
       }
     }
 
-    // Only delete from DB nodes whose blobs were all successfully deleted.
-    // For folders: only delete if they contain no failed file nodes (simple approach:
-    // delete all folders since PowerStore doesn't know about them, but only if no file children
-    // failed).
-    List<String> confirmedNodeIds =
-        trashedNodesToDelete.stream()
-            .filter(node -> !failedFileNodeIds.contains(node.getId()))
-            .map(Node::getId)
-            .collect(Collectors.toList());
+    purgeTombstones();
+  }
 
-    // Remove folders that still contain failed file nodes.
-    // A folder should stay if any of its descendant files failed to delete from PowerStore.
-    Set<String> confirmedSet = new java.util.HashSet<>(confirmedNodeIds);
-    trashedNodesToDelete.stream()
-        .filter(node -> node.getNodeType().equals(NodeType.FOLDER))
+  private void claimTrashedSubtree(String topId, long retentionTimestamp) {
+    if (nodeLocks.lock(List.of(LockKey.node(topId))).isEmpty()) {
+      return;
+    }
+    Optional<Node> top = nodeRepository.getNode(topId);
+    if (top.isEmpty()
+        || !nodeRepository.isTrashed(topId)
+        || top.get().getUpdatedAt() >= retentionTimestamp) {
+      return;
+    }
+    List<Node> subtree = lockedTree.collect(List.of(top.get()));
+    subtree.stream()
+        .filter(node -> !NodeType.FOLDER.equals(node.getNodeType()))
         .forEach(
-            folder -> {
-              boolean hasFailedChild =
-                  trashedNodesToDelete.stream()
-                      .filter(n -> !n.getNodeType().equals(NodeType.FOLDER))
-                      .filter(n -> failedFileNodeIds.contains(n.getId()))
-                      .anyMatch(n -> n.getAncestorIds().contains(folder.getId()));
-              if (hasFailedChild) {
-                confirmedSet.remove(folder.getId());
-              }
-            });
-
-    if (!confirmedSet.isEmpty()) {
-      nodeRepository.deleteNodes(new ArrayList<>(confirmedSet));
-      logger.info("Purged {} trashed nodes from database", confirmedSet.size());
-    }
-
-    if (!failedFileNodeIds.isEmpty()) {
-      logger.warn(
-          "Failed to delete blobs for {} nodes, they will be retried next cycle: {}",
-          failedFileNodeIds.size(),
-          failedFileNodeIds);
-    }
+            node ->
+                tombstoneRepository.createTombstonesBulk(
+                    fileVersionRepository.getFileVersions(
+                        node.getId(), List.of(FileVersionSort.VERSION_ASC)),
+                    node.getOwnerId()));
+    List<String> ids = subtree.stream().map(Node::getId).toList();
+    shareRepository.deleteSharesBulk(ids);
+    nodeRepository.deleteNodes(ids);
+    logger.info("Claimed {} trashed nodes of {} for purge", ids.size(), topId);
   }
 
   void purgeTombstones() {
@@ -233,7 +181,7 @@ public class PurgeService {
                 t.getAttempts() + 1);
             tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
           } else {
-            tombstoneRepository.updateTombstone(t.setAttempts(t.getAttempts() + 1));
+            tombstoneRepository.incrementAttempts(t.getNodeId(), t.getVersion());
           }
         }
       }
