@@ -14,6 +14,8 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -150,17 +152,21 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
     // already managed in the current persistence context are correctly evicted; JPA bulk
     // statements bypass the first-level cache and would otherwise leave stale managed instances
     // behind for the rest of the transaction.
-    list(
-            "composedPrimaryKey.mNodeId in ?1 and composedPrimaryKey.mTargetUserId = ?2",
-            nodeIds,
-            targetUserId)
-        .forEach(this::delete);
+    for (List<String> chunk : Chunks.of(nodeIds)) {
+      list(
+              "composedPrimaryKey.mNodeId in ?1 and composedPrimaryKey.mTargetUserId = ?2",
+              chunk,
+              targetUserId)
+          .forEach(this::delete);
+    }
   }
 
   @Override
   @Transactional
   public void deleteSharesBulk(List<String> nodeIds) {
-    list("composedPrimaryKey.mNodeId in ?1", nodeIds).forEach(this::delete);
+    for (List<String> chunk : Chunks.of(nodeIds)) {
+      list("composedPrimaryKey.mNodeId in ?1", chunk).forEach(this::delete);
+    }
   }
 
   @Override
@@ -170,26 +176,33 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
 
   @Override
   public Map<String, ACL> getSharePermissions(List<String> nodeIds, String userId) {
-    return getEntityManager()
-        .createQuery(
-            "select s.composedPrimaryKey.mNodeId, s.permissions from Share s "
-                + "where s.composedPrimaryKey.mNodeId in :nodeIds "
-                + "and s.composedPrimaryKey.mTargetUserId = :userId",
-            Object[].class)
-        .setParameter("nodeIds", nodeIds)
-        .setParameter("userId", userId)
-        .getResultList()
-        .stream()
-        .collect(
-            Collectors.toMap(row -> ((String) row[0]).trim(), row -> ACL.decode((Short) row[1])));
+    Map<String, ACL> result = new HashMap<>();
+    for (List<String> chunk : Chunks.of(nodeIds)) {
+      getEntityManager()
+          .createQuery(
+              "select s.composedPrimaryKey.mNodeId, s.permissions from Share s "
+                  + "where s.composedPrimaryKey.mNodeId in :nodeIds "
+                  + "and s.composedPrimaryKey.mTargetUserId = :userId",
+              Object[].class)
+          .setParameter("nodeIds", chunk)
+          .setParameter("userId", userId)
+          .getResultList()
+          .forEach(row -> result.put(((String) row[0]).trim(), ACL.decode((Short) row[1])));
+    }
+    return result;
   }
 
   @Override
   public List<Share> getShares(List<String> nodeIds, String targetUserId) {
-    return list(
-        "composedPrimaryKey.mNodeId in ?1 and composedPrimaryKey.mTargetUserId = ?2",
-        nodeIds,
-        targetUserId);
+    List<Share> result = new ArrayList<>();
+    for (List<String> chunk : Chunks.of(nodeIds)) {
+      result.addAll(
+          list(
+              "composedPrimaryKey.mNodeId in ?1 and composedPrimaryKey.mTargetUserId = ?2",
+              chunk,
+              targetUserId));
+    }
+    return result;
   }
 
   @Override
@@ -207,7 +220,11 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
   public List<Share> getShares(List<String> nodeIds) {
     // Single batch query (used by the GraphQL DataLoader); grouping per input nodeId, if needed,
     // is left to the caller since the interface declares a flat List<Share> here.
-    return list("composedPrimaryKey.mNodeId in ?1", nodeIds);
+    List<Share> result = new ArrayList<>();
+    for (List<String> chunk : Chunks.of(nodeIds)) {
+      result.addAll(list("composedPrimaryKey.mNodeId in ?1", chunk));
+    }
+    return result;
   }
 
   @Override

@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.FilesStackTestResource;
+import com.zextras.carbonio.files.dal.LockWaits;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -126,38 +127,6 @@ class PurgeRaceDalTest {
     }
   }
 
-  private static long blockedBy(int holderPid) throws SQLException {
-    return scalar(
-        "SELECT count(*) FROM pg_stat_activity WHERE cardinality(pg_blocking_pids(pid)) > 0"
-            + " AND pid <> ?",
-        holderPid);
-  }
-
-  private static int backendPid(Connection connection) throws SQLException {
-    try (Statement statement = connection.createStatement();
-        ResultSet rs = statement.executeQuery("SELECT pg_backend_pid()")) {
-      rs.next();
-      return rs.getInt(1);
-    }
-  }
-
-  private static void awaitBlockedOrDone(
-      int holderPid, long expectedBlocked, List<CompletableFuture<Void>> purges) throws Exception {
-    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-    while (System.nanoTime() < deadline) {
-      long done = purges.stream().filter(CompletableFuture::isDone).count();
-      if (done == purges.size() || done + blockedBy(holderPid) >= expectedBlocked) {
-        return;
-      }
-      java.util.concurrent.locks.LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(20));
-    }
-    throw new AssertionError(
-        "the purge did not reach the lock held by the test: blocked="
-            + blockedBy(holderPid)
-            + " done="
-            + purges.stream().filter(CompletableFuture::isDone).count());
-  }
-
   private CompletableFuture<Void> purgeAsync() {
     return CompletableFuture.runAsync(() -> purgeService.purgeTrashedNodes(30), executor);
   }
@@ -178,13 +147,13 @@ class PurgeRaceDalTest {
 
     try (Connection holder = jdbc()) {
       holder.setAutoCommit(false);
-      int holderPid = backendPid(holder);
+      int holderPid = LockWaits.backendPid(holder);
       try (Statement statement = holder.createStatement()) {
         statement.execute("SELECT 1 FROM node WHERE node_id = '" + nodeId + "' FOR SHARE");
       }
 
       CompletableFuture<Void> purge = purgeAsync();
-      awaitBlockedOrDone(holderPid, 1, List.of(purge));
+      LockWaits.awaitBlockedOrDone(1, List.of(holderPid), purge);
 
       try (Statement statement = holder.createStatement()) {
         statement.execute("DELETE FROM trashed WHERE node_id = '" + nodeId + "'");
@@ -211,14 +180,14 @@ class PurgeRaceDalTest {
 
     try (Connection holder = jdbc()) {
       holder.setAutoCommit(false);
-      int holderPid = backendPid(holder);
+      int holderPid = LockWaits.backendPid(holder);
       try (Statement statement = holder.createStatement()) {
         statement.execute("SELECT 1 FROM node WHERE node_id = '" + nodeId + "' FOR SHARE");
       }
 
       CompletableFuture<Void> first = purgeAsync();
       CompletableFuture<Void> second = purgeAsync();
-      awaitBlockedOrDone(holderPid, 2, List.of(first, second));
+      LockWaits.awaitBlockedOrDone(2, List.of(holderPid), first, second);
       holder.commit();
 
       first.get(60, TimeUnit.SECONDS);

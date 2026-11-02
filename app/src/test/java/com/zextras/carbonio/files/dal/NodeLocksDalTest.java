@@ -200,20 +200,7 @@ class NodeLocksDalTest {
                           () ->
                               nodeLocks.lock(List.of(LockKey.node(child), LockKey.node(parent)))));
       try {
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-        boolean blocked = false;
-        while (!blocked && System.nanoTime() < deadline) {
-          try (Statement statement = observer.createStatement();
-              ResultSet resultSet =
-                  statement.executeQuery(
-                      "SELECT count(*) FROM pg_stat_activity WHERE"
-                          + " cardinality(pg_blocking_pids(pid)) > 0")) {
-            resultSet.next();
-            blocked = resultSet.getInt(1) >= 1;
-          }
-          observer.rollback();
-        }
-        assertThat(blocked).isTrue();
+        LockWaits.awaitBlockedBy(1, LockWaits.backendPid(holder));
         assertThat(tryLockNoWait(observer, parent)).isEqualTo(LOCK_NOT_AVAILABLE);
       } finally {
         holder.rollback();
@@ -295,26 +282,6 @@ class NodeLocksDalTest {
   }
 
   @Test
-  void lockChildFoldersLocksOnlyFolderChildren() {
-    String parent = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
-    String folder = seed(parent, NodeType.FOLDER);
-    String file = seed(parent, NodeType.TEXT);
-
-    QuarkusTransaction.requiringNew()
-        .run(
-            () -> {
-              assertThat(nodeLocks.lockChildFolders(List.of(parent))).containsExactly(folder);
-              try (Connection connection = jdbc()) {
-                connection.setAutoCommit(false);
-                assertThat(tryLockNoWait(connection, folder)).isEqualTo(LOCK_NOT_AVAILABLE);
-                assertThat(tryLockNoWait(connection, file)).isNull();
-              } catch (SQLException e) {
-                throw new IllegalStateException(e);
-              }
-            });
-  }
-
-  @Test
   void lockChildrenLocksFilesAndFolders() {
     String parent = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
     String folder = seed(parent, NodeType.FOLDER);
@@ -362,7 +329,6 @@ class NodeLocksDalTest {
               seeded.add(pending);
               assertThat(entityManager.unwrap(Session.class).isDirty()).isTrue();
               assertThat(nodeLocks.lockChildren(List.of(unrelated))).containsExactly(child);
-              assertThat(nodeLocks.lockChildFolders(List.of(unrelated))).isEmpty();
               assertThat(nodeLocks.lockRows(List.of(child))).containsExactly(child);
               assertThat(entityManager.unwrap(Session.class).isDirty()).isTrue();
             });

@@ -233,11 +233,22 @@ public class NodeRepositoryImpl implements NodeRepository {
     }
     List<String> ids = nodeIds.stream().map(NodeRepositoryImpl::normalizeId).toList();
     String orderBy = sort.map(s -> " order by " + orderFragment(s) + ", n.mId asc").orElse("");
-    return entityManager
-        .createQuery("select n from Node n where n.mId in :ids" + orderBy, Node.class)
-        .setParameter("ids", ids)
-        .getResultList()
-        .stream();
+    if (sort.isPresent() || ids.size() <= Chunks.IN_LIST_LIMIT) {
+      return entityManager
+          .createQuery("select n from Node n where n.mId in :ids" + orderBy, Node.class)
+          .setParameter("ids", ids)
+          .getResultList()
+          .stream();
+    }
+    List<Node> result = new ArrayList<>();
+    for (List<String> chunk : Chunks.of(ids)) {
+      result.addAll(
+          entityManager
+              .createQuery("select n from Node n where n.mId in :ids", Node.class)
+              .setParameter("ids", chunk)
+              .getResultList());
+    }
+    return result.stream();
   }
 
   @Override
@@ -384,13 +395,17 @@ public class NodeRepositoryImpl implements NodeRepository {
     // Fetch-then-remove: a JPQL bulk delete would bypass the L1 cache leaving stale managed
     // instances; removing managed entities keeps the persistence context consistent (and lets the
     // DB-level ON DELETE CASCADE clean child tables).
-    List<Node> nodes =
-        entityManager
-            .createQuery("select n from Node n where n.mId in :ids", Node.class)
-            .setParameter("ids", nodesIds.stream().map(NodeRepositoryImpl::normalizeId).toList())
-            .getResultList();
-    nodes.forEach(entityManager::remove);
-    return nodes.size();
+    int removed = 0;
+    for (List<String> chunk : Chunks.of(nodesIds)) {
+      List<Node> nodes =
+          entityManager
+              .createQuery("select n from Node n where n.mId in :ids", Node.class)
+              .setParameter("ids", chunk.stream().map(NodeRepositoryImpl::normalizeId).toList())
+              .getResultList();
+      nodes.forEach(entityManager::remove);
+      removed += nodes.size();
+    }
+    return removed;
   }
 
   @Override
@@ -473,13 +488,17 @@ public class NodeRepositoryImpl implements NodeRepository {
     if (nodeIds.isEmpty()) {
       return List.of();
     }
-    return entityManager
-        .createQuery("select tn.mNodeId from TrashedNode tn where tn.mNodeId in :ids", String.class)
-        .setParameter("ids", nodeIds.stream().map(NodeRepositoryImpl::normalizeId).toList())
-        .getResultList()
-        .stream()
-        .map(String::trim)
-        .toList();
+    List<String> result = new ArrayList<>();
+    for (List<String> chunk :
+        Chunks.of(nodeIds.stream().map(NodeRepositoryImpl::normalizeId).toList())) {
+      entityManager
+          .createQuery(
+              "select tn.mNodeId from TrashedNode tn where tn.mNodeId in :ids", String.class)
+          .setParameter("ids", chunk)
+          .getResultList()
+          .forEach(id -> result.add(id.trim()));
+    }
+    return result;
   }
 
   @Override

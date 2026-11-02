@@ -15,6 +15,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import io.quarkus.test.TestTransaction;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -50,6 +51,7 @@ import org.junit.jupiter.api.Test;
 class NodeQueryDalTest {
 
   @Inject NodeRepository nodeRepository;
+  @Inject ShareRepository shareRepository;
   @Inject EntityManager entityManager;
 
   private static String id() {
@@ -291,5 +293,36 @@ class NodeQueryDalTest {
     assertThat(nodeRepository.getTrashedNodeIdsByOldParents(List.of(parentA, parentB)))
         .containsExactlyInAnyOrder(inA, inB);
     assertThat(nodeRepository.getTrashedNodeIdsByOldParents(List.of())).isEmpty();
+  }
+
+  @Test
+  @TestTransaction
+  void listsLargerThanTheInLimitAreChunked() {
+    String owner = id();
+    String user = id();
+    List<String> ids = new java.util.ArrayList<>();
+    for (int i = 0; i < 2500; i++) {
+      ids.add(id());
+    }
+    List<String> real = List.of(ids.get(5), ids.get(1200), ids.get(2400));
+    real.forEach(
+        nodeId -> {
+          persist(
+              nodeId, "n-" + nodeId, owner, NodeType.TEXT, false, 1L, "LOCAL_ROOT", "LOCAL_ROOT");
+          shareTo(nodeId, user);
+        });
+    entityManager.flush();
+
+    assertThat(nodeRepository.getNodes(ids, Optional.empty()).map(Node::getId))
+        .containsExactlyInAnyOrderElementsOf(real);
+    assertThat(shareRepository.getShares(ids, user)).hasSize(3);
+    assertThat(shareRepository.getSharePermissions(ids, user)).hasSize(3);
+
+    shareRepository.deleteSharesBulk(ids, user);
+    entityManager.flush();
+    assertThat(shareRepository.getShares(ids, user)).isEmpty();
+
+    shareRepository.deleteSharesBulk(ids);
+    assertThat(nodeRepository.deleteNodes(ids)).isEqualTo(3);
   }
 }

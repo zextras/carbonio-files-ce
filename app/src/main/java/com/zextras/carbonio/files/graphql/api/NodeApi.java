@@ -73,6 +73,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -1057,32 +1058,38 @@ public class NodeApi {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
-    DeletedVersions deleted =
-        lockRetry.inNewTransaction(
-            () -> {
-              nodeLocks.lock(List.of(LockKey.node(nodeId)));
-              Optional<Node> node = nodeRepository.getNode(nodeId);
-              if (node.isEmpty()) {
-                return DeletedVersions.NODE_MISSING;
-              }
-              List<FileVersion> toDelete =
-                  (versions != null
-                          ? fileVersionRepository.getFileVersions(nodeId, versions)
-                          : fileVersionRepository.getFileVersions(
-                              nodeId, List.of(FileVersionSort.VERSION_DESC)))
-                      .stream()
-                          .filter(fv -> !fv.isKeptForever())
-                          .filter(fv -> !node.get().getCurrentVersion().equals(fv.getVersion()))
-                          .collect(Collectors.toList());
-              String owner = node.get().getOwnerId();
-              if (!toDelete.isEmpty()) {
-                List<Integer> toDeleteNumbers =
-                    toDelete.stream().map(FileVersion::getVersion).collect(Collectors.toList());
-                tombstoneRepository.createTombstonesBulk(toDelete, owner);
-                fileVersionRepository.deleteFileVersions(nodeId, toDeleteNumbers);
-              }
-              return new DeletedVersions(toDelete, owner);
-            });
+    DeletedVersions deleted;
+    try {
+      deleted =
+          lockRetry.inNewTransaction(
+              () -> {
+                nodeLocks.lock(List.of(LockKey.node(nodeId)));
+                Optional<Node> node = nodeRepository.getNode(nodeId);
+                if (node.isEmpty()) {
+                  return DeletedVersions.NODE_MISSING;
+                }
+                List<FileVersion> toDelete =
+                    (versions != null
+                            ? fileVersionRepository.getFileVersions(nodeId, versions)
+                            : fileVersionRepository.getFileVersions(
+                                nodeId, List.of(FileVersionSort.VERSION_DESC)))
+                        .stream()
+                            .filter(fv -> !fv.isKeptForever())
+                            .filter(fv -> !node.get().getCurrentVersion().equals(fv.getVersion()))
+                            .collect(Collectors.toList());
+                String owner = node.get().getOwnerId();
+                if (!toDelete.isEmpty()) {
+                  List<Integer> toDeleteNumbers =
+                      toDelete.stream().map(FileVersion::getVersion).collect(Collectors.toList());
+                  tombstoneRepository.createTombstonesBulk(toDelete, owner);
+                  fileVersionRepository.deleteFileVersions(nodeId, toDeleteNumbers);
+                }
+                return new DeletedVersions(toDelete, owner);
+              });
+    } catch (RuntimeException e) {
+      logger.error("DB error during deleteVersions, rolling back: {}", e.getMessage());
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
+    }
     if (deleted == DeletedVersions.NODE_MISSING) {
       throw FilesGraphQLErrors.nodeNotFound(nodeId);
     }
@@ -1283,33 +1290,6 @@ public class NodeApi {
         : max - Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
   }
 
-  private List<String> createIndirectShare(String sharedParentId, Node nodeToShare) {
-    List<String> targetUserIds = new ArrayList<>();
-    shareRepository
-        .getShares(sharedParentId, Collections.emptyList())
-        .forEach(
-            share -> {
-              targetUserIds.add(share.getTargetUserId());
-              shareRepository.upsertShare(
-                  nodeToShare.getId(),
-                  share.getTargetUserId(),
-                  share.getPermissions(),
-                  false,
-                  false,
-                  share.getExpiredAt());
-              if (nodeToShare
-                  .getNodeType()
-                  .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER)) {
-                shareCascade.cascadeUpsertShare(
-                    nodeToShare.getId(),
-                    share.getTargetUserId(),
-                    share.getPermissions(),
-                    share.getExpiredAt());
-              }
-            });
-    return targetUserIds;
-  }
-
   private void cascadeUpdateAncestors(Node parentNode) {
     List<String> childrenIds =
         nodeRepository.getChildrenIds(parentNode.getId(), Optional.empty(), Optional.empty(), true);
@@ -1501,21 +1481,47 @@ public class NodeApi {
     if (copyIds.isEmpty()) {
       return;
     }
+    Set<String> notDeleted = new LinkedHashSet<>();
     try {
       List<BulkDeleteResponseItem> failedItems =
           fileStore.bulkDelete(
               IdentifierType.files,
               ownerId,
               copyIds.stream().map(id -> BulkDeleteRequestItem.filesItem(id, 1)).toList());
-      if (failedItems == null || !failedItems.isEmpty()) {
-        logger.warn("Unable to delete the blobs {} of owner {} of a failed copy", copyIds, ownerId);
+      if (failedItems == null) {
+        notDeleted.addAll(copyIds);
+      } else {
+        failedItems.stream()
+            .map(BulkDeleteResponseItem::getNode)
+            .filter(copyIds::contains)
+            .forEach(notDeleted::add);
+      }
+      if (!notDeleted.isEmpty()) {
+        logger.warn(
+            "Unable to delete the blobs {} of owner {} of a failed copy", notDeleted, ownerId);
       }
     } catch (Exception e) {
+      notDeleted.addAll(copyIds);
       logger.warn(
           "Unable to delete the blobs {} of owner {} of a failed copy: {}",
           copyIds,
           ownerId,
           e.getMessage());
+    }
+    if (!notDeleted.isEmpty()) {
+      try {
+        QuarkusTransaction.requiringNew()
+            .run(
+                () ->
+                    notDeleted.forEach(
+                        id -> tombstoneRepository.createNewTombstone(id, ownerId, 1)));
+      } catch (RuntimeException e) {
+        logger.warn(
+            "Unable to record the tombstones of the blobs {} of owner {} of a failed copy: {}",
+            notDeleted,
+            ownerId,
+            e.getMessage());
+      }
     }
   }
 

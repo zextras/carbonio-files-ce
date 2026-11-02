@@ -89,22 +89,14 @@ public class CollaborationLinkService {
                               optShare.get().setCreatedViaLink(true);
                               shareRepository.updateShare(optShare.get());
                             } else {
-                              try {
-                                shareRepository.upsertShare(
-                                    collaborationLink.getNodeId(),
-                                    requesterId,
-                                    ACL.decode(collaborationLink.getPermissions()),
-                                    true,
-                                    true,
-                                    Optional.empty());
-                                shareRepository.flush();
-                              } catch (RuntimeException e) {
-                                // A concurrent click created the share and cascades it.
-                                if (ShareRepository.isUniqueViolation(e)) {
-                                  return Try.success(node);
-                                }
-                                throw e;
-                              }
+                              shareRepository.upsertShare(
+                                  collaborationLink.getNodeId(),
+                                  requesterId,
+                                  ACL.decode(collaborationLink.getPermissions()),
+                                  true,
+                                  true,
+                                  Optional.empty());
+                              shareRepository.flush();
                             }
 
                             // Called synchronously (see class javadoc): the request-scoped

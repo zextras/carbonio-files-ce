@@ -87,32 +87,6 @@ public class NodeLocks {
     return locked;
   }
 
-  /** Locks the folder children of the given folders; cascades call it before reading below them. */
-  @Transactional(TxType.MANDATORY)
-  public List<String> lockChildFolders(Collection<String> parentIds) {
-    if (parentIds.isEmpty()) {
-      return List.of();
-    }
-    List<String> sorted = parentIds.stream().map(String::trim).distinct().sorted().toList();
-    List<String> result = new ArrayList<>();
-    for (int from = 0; from < sorted.size(); from += LOCK_CHUNK) {
-      @SuppressWarnings("unchecked")
-      List<String> rows =
-          entityManager
-              .createNativeQuery(
-                  "SELECT trim(node_id) FROM node WHERE folder_id IN (:parents) AND node_type ="
-                      + " 'FOLDER' ORDER BY "
-                      + DEPTH
-                      + ", node_id FOR NO KEY UPDATE")
-              .setFlushMode(FlushModeType.COMMIT)
-              .setParameter(
-                  "parents", sorted.subList(from, Math.min(from + LOCK_CHUNK, sorted.size())))
-              .getResultList();
-      result.addAll(rows);
-    }
-    return result;
-  }
-
   /**
    * Locks every child, of any type, of the given folders; cascades call it before reading below
    * them.
