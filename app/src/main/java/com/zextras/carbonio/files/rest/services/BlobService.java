@@ -714,6 +714,7 @@ public class BlobService {
                 () -> {
                   long versionDate = versionReservations.confirm(reservation);
                   requireOwner(nodeId, ownerId);
+                  requireWritePermission(nodeId, requesterId);
                   fileVersionRepository
                       .createFileVersionAt(
                           nodeId,
@@ -794,6 +795,7 @@ public class BlobService {
                     nodeRepository
                         .reserveTimestamp(nodeId)
                         .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
+                    requireWritePermission(nodeId, requesterId);
                     if (!overwriteLeases.confirm(lease)) {
                       return false;
                     }
@@ -842,6 +844,14 @@ public class BlobService {
       if (!ended) {
         overwriteLeases.release(lease);
       }
+    }
+  }
+
+  private void requireWritePermission(String nodeId, String requesterId) {
+    if (!permissionsChecker
+        .getPermissions(nodeId, requesterId)
+        .has(SharePermission.READ_AND_WRITE)) {
+      throw new NoSuchElementException(NODE_NOT_FOUND + nodeId);
     }
   }
 

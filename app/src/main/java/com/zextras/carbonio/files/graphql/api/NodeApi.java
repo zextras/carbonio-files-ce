@@ -1085,36 +1085,41 @@ public class NodeApi {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
-    Node node =
-        nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
-
-    List<FileVersion> fileVersionsToDelete =
-        (versions != null
-                ? fileVersionRepository.getFileVersions(nodeId, versions)
-                : fileVersionRepository.getFileVersions(
-                    nodeId, List.of(FileVersionSort.VERSION_DESC)))
-            .stream()
-                .filter(fv -> !fv.isKeptForever())
-                .filter(fv -> !node.getCurrentVersion().equals(fv.getVersion()))
-                .collect(Collectors.toList());
-
+    DeletedVersions deleted =
+        lockRetry.inNewTransaction(
+            () -> {
+              nodeLocks.lock(List.of(LockKey.node(nodeId)));
+              Optional<Node> node = nodeRepository.getNode(nodeId);
+              if (node.isEmpty()) {
+                return DeletedVersions.NODE_MISSING;
+              }
+              List<FileVersion> toDelete =
+                  (versions != null
+                          ? fileVersionRepository.getFileVersions(nodeId, versions)
+                          : fileVersionRepository.getFileVersions(
+                              nodeId, List.of(FileVersionSort.VERSION_DESC)))
+                      .stream()
+                          .filter(fv -> !fv.isKeptForever())
+                          .filter(fv -> !node.get().getCurrentVersion().equals(fv.getVersion()))
+                          .collect(Collectors.toList());
+              String owner = node.get().getOwnerId();
+              if (!toDelete.isEmpty()) {
+                List<Integer> toDeleteNumbers =
+                    toDelete.stream().map(FileVersion::getVersion).collect(Collectors.toList());
+                tombstoneRepository.createTombstonesBulk(toDelete, owner);
+                fileVersionRepository.deleteFileVersions(nodeId, toDeleteNumbers);
+              }
+              return new DeletedVersions(toDelete, owner);
+            });
+    if (deleted == DeletedVersions.NODE_MISSING) {
+      throw FilesGraphQLErrors.nodeNotFound(nodeId);
+    }
+    List<FileVersion> fileVersionsToDelete = deleted.versions();
     List<Integer> versionsToDelete =
         fileVersionsToDelete.stream().map(FileVersion::getVersion).collect(Collectors.toList());
 
     if (!versionsToDelete.isEmpty()) {
-      String ownerId = node.getOwnerId();
-      try {
-        QuarkusTransaction.requiringNew()
-            .run(
-                () -> {
-                  tombstoneRepository.createTombstonesBulk(fileVersionsToDelete, ownerId);
-                  fileVersionRepository.deleteFileVersions(nodeId, versionsToDelete);
-                });
-      } catch (RuntimeException e) {
-        logger.error("DB error during deleteVersions, rolling back: {}", e.getMessage());
-        throw FilesGraphQLErrors.nodeWriteError(nodeId);
-      }
-
+      String ownerId = deleted.ownerId();
       List<BulkDeleteRequestItem> deleteRequests =
           fileVersionsToDelete.stream()
               .map(fv -> BulkDeleteRequestItem.filesItem(nodeId, fv.getVersion()))
@@ -1158,11 +1163,13 @@ public class NodeApi {
   }
 
   @Mutation("keepVersions")
+  @RetryOnLockConflict
   public @NonNull List<Integer> keepVersions(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("versions") @NonNull List<@NonNull Integer> versions,
       @Name("keep_forever") @NonNull Boolean keepForever)
       throws FilesGraphQLException {
+    nodeLocks.lock(List.of(LockKey.node(nodeId)));
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
@@ -1252,27 +1259,36 @@ public class NodeApi {
     }
     var copiedBlobResponse = copyAttempt.get();
 
-    QuarkusTransaction.requiringNew()
-        .run(
-            () -> {
-              long versionDate = versionReservations.confirm(reservation);
-              fileVersionRepository
-                  .createFileVersionAt(
-                      nodeId,
-                      me,
-                      newVersion,
-                      fileVersion.getMimeType(),
-                      copiedBlobResponse.getSize(),
-                      copiedBlobResponse.getDigest(),
-                      versionDate)
-                  .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+    try {
+      QuarkusTransaction.requiringNew()
+          .run(
+              () -> {
+                long versionDate = versionReservations.confirm(reservation);
+                if (!permissionsChecker
+                    .getPermissions(nodeId, me)
+                    .has(SharePermission.READ_AND_WRITE)) {
+                  throw new WritePermissionRevokedException();
+                }
+                fileVersionRepository
+                    .createFileVersionAt(
+                        nodeId,
+                        me,
+                        newVersion,
+                        fileVersion.getMimeType(),
+                        copiedBlobResponse.getSize(),
+                        copiedBlobResponse.getDigest(),
+                        versionDate)
+                    .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
 
-              nodeRepository.moveCurrentVersion(nodeId, newVersion, versionDate);
+                nodeRepository.moveCurrentVersion(nodeId, newVersion, versionDate);
 
-              FileVersion newFv = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
-              newFv.setClonedFromVersion(version);
-              fileVersionRepository.updateFileVersion(newFv);
-            });
+                FileVersion newFv = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
+                newFv.setClonedFromVersion(version);
+                fileVersionRepository.updateFileVersion(newFv);
+              });
+    } catch (WritePermissionRevokedException e) {
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
+    }
 
     logger.debug(
         MessageFormat.format(
@@ -1423,6 +1439,16 @@ public class NodeApi {
 
   private record CopyItem(
       Node source, String copyId, Optional<FileVersion> sourceVersion, List<CopyItem> children) {}
+
+  private static final class WritePermissionRevokedException extends RuntimeException {
+    WritePermissionRevokedException() {
+      super(null, null, false, false);
+    }
+  }
+
+  private record DeletedVersions(List<FileVersion> versions, String ownerId) {
+    static final DeletedVersions NODE_MISSING = new DeletedVersions(List.of(), null);
+  }
 
   private record CopiedBlob(String copyId, long size, String digest) {}
 
