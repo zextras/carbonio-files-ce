@@ -163,29 +163,25 @@ public class NodeCreationHelper {
    * @throws RuntimeException if the DB transaction fails (caller must treat as a rollback)
    */
   public void deleteAllNodesAndBlobsForUser(String userId) {
-    List<Node> allNodes =
-        nodeRepository.findNodesByOwner(userId).stream()
-            .filter(Objects::nonNull)
-            .filter(node -> !node.getNodeType().equals(NodeType.ROOT))
-            .toList();
-
-    List<Node> fileNodes =
-        allNodes.stream().filter(node -> !node.getNodeType().equals(NodeType.FOLDER)).toList();
-
     Map<String, List<FileVersion>> fileVersionsByOwner = new HashMap<>();
-    fileNodes.forEach(
-        node -> {
-          List<FileVersion> versions =
-              fileVersionRepository.getFileVersions(
-                  node.getId(), List.of(FileVersionSort.VERSION_ASC));
-          fileVersionsByOwner
-              .computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
-              .addAll(versions);
-        });
-
     QuarkusTransaction.requiringNew()
         .run(
             () -> {
+              fileVersionsByOwner.clear();
+              List<Node> allNodes =
+                  nodeRepository.findNodesByOwner(userId).stream()
+                      .filter(Objects::nonNull)
+                      .filter(node -> !node.getNodeType().equals(NodeType.ROOT))
+                      .toList();
+              allNodes.stream()
+                  .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
+                  .forEach(
+                      node ->
+                          fileVersionsByOwner
+                              .computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
+                              .addAll(
+                                  fileVersionRepository.getFileVersions(
+                                      node.getId(), List.of(FileVersionSort.VERSION_ASC))));
               fileVersionsByOwner.forEach(
                   (ownerId, versions) ->
                       tombstoneRepository.createTombstonesBulk(versions, ownerId));

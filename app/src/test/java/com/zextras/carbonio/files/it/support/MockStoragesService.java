@@ -290,6 +290,13 @@ public class MockStoragesService {
     }
   }
 
+  public List<String> blobNodeIds() {
+    return blobs.keySet().stream()
+        .map(key -> key.substring(0, key.lastIndexOf('/')))
+        .distinct()
+        .toList();
+  }
+
   public int blobCount() {
     return blobs.size();
   }

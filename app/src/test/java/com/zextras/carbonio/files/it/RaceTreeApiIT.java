@@ -11,6 +11,7 @@ import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
+import java.net.Socket;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -524,5 +525,134 @@ class RaceTreeApiIT extends AbstractFilesIT {
         .containsExactly("NODE_WRITE_ERROR");
     Assertions.assertThat(failed.get(0).getBody().asString()).doesNotContain("System error");
     Assertions.assertThat(isTrashed(file)).isTrue();
+  }
+
+  private static final int CHUNK = 32 * 1024;
+  private static final String NODE_ROW_SHARE = "SELECT 1 FROM node WHERE node_id = ? FOR SHARE";
+
+  private static Socket startHeldRawUpload(String path, String headers) throws Exception {
+    var storages = FilesStackTestResource.getStoragesService();
+    storages.holdUploads();
+    try {
+      Socket socket = startRawUpload(path, headers, OWNER_COOKIE, CHUNK);
+      socket.getOutputStream().write(new byte[CHUNK]);
+      socket.getOutputStream().flush();
+      storages.awaitHeldUpload();
+      return socket;
+    } catch (Exception | Error e) {
+      storages.releaseUploads();
+      throw e;
+    }
+  }
+
+  private static void assertNoUncoveredBlob() throws SQLException {
+    for (String nodeId : FilesStackTestResource.getStoragesService().blobNodeIds()) {
+      Assertions.assertThat(
+              rowExists("SELECT 1 FROM node WHERE node_id = ?", nodeId)
+                  || tombstoneRowsForNode(nodeId) > 0
+                  || !pendingReservations(nodeId).isEmpty())
+          .as("blob of node %s has no node, tombstone or pending reservation", nodeId)
+          .isTrue();
+    }
+  }
+
+  @Test
+  void givenAnUploadPublishingWhileTheFolderIsDeletedThenNoBlobIsLeaked() throws Exception {
+    String folder = seedFolder("race-tree-del-upload", LOCAL_ROOT, OWNER_COOKIE);
+    seedFile("a.bin", folder, new byte[] {1}, OWNER_COOKIE);
+    var storages = FilesStackTestResource.getStoragesService();
+
+    List<CompletableFuture<Response>> pending = new ArrayList<>();
+    String status;
+    try (Socket upload =
+        startHeldRawUpload(
+            "/upload", "ParentId: " + folder + "\r\n" + filenameHeader("late-upload.bin"))) {
+      try (Connection holder = holdRow(NODE_ROW_SHARE, folder)) {
+        try {
+          storages.releaseUploads();
+          awaitBlockedBy(holder, 1);
+          CompletableFuture<Response> delete =
+              CompletableFuture.supplyAsync(() -> deleteNodes(folder), RACE_EXECUTOR);
+          pending.add(delete);
+          awaitBlockedOrDone(holder, 2, delete);
+        } finally {
+          holder.rollback();
+        }
+      }
+      status = readStatusLine(upload);
+      join(pending, new ArrayList<>());
+    } finally {
+      storages.releaseUploads();
+      awaitAll(pending);
+    }
+
+    Assertions.assertThat(status).matches("HTTP/1.1 (200|404).*");
+    Assertions.assertThat(childCount(folder)).isZero();
+    assertNoUncoveredBlob();
+  }
+
+  @Test
+  void givenAVersionConfirmedWhileTheFolderIsDeletedThenItsBlobIsNotLeaked() throws Exception {
+    String folder = seedFolder("race-tree-del-version", LOCAL_ROOT, OWNER_COOKIE);
+    String file = seedFile("v.bin", folder, new byte[] {1}, OWNER_COOKIE);
+    var storages = FilesStackTestResource.getStoragesService();
+
+    List<CompletableFuture<Response>> pending = new ArrayList<>();
+    try (Socket upload =
+        startHeldRawUpload(
+            "/upload-version",
+            "NodeId: " + file + "\r\nOverwriteVersion: false\r\n" + filenameHeader("v.bin"))) {
+      try (Connection holder = holdRow(NODE_ROW_SHARE, file)) {
+        try {
+          storages.releaseUploads();
+          awaitBlockedBy(holder, 1);
+          CompletableFuture<Response> delete =
+              CompletableFuture.supplyAsync(() -> deleteNodes(folder), RACE_EXECUTOR);
+          pending.add(delete);
+          awaitBlockedOrDone(holder, 2, delete);
+        } finally {
+          holder.rollback();
+        }
+      }
+      readStatusLine(upload);
+      join(pending, new ArrayList<>());
+    } finally {
+      storages.releaseUploads();
+      awaitAll(pending);
+    }
+
+    Assertions.assertThat(rowExists("SELECT 1 FROM node WHERE node_id = ?", file)).isFalse();
+    Assertions.assertThat(versionRows(file)).isEmpty();
+    assertNoUncoveredBlob();
+    Assertions.assertThat(
+            !storages.has(file, 2)
+                || tombstoneRowsForNode(file) > 0
+                || pendingReservations(file).contains(2))
+        .isTrue();
+  }
+
+  @Test
+  void givenAFolderCreatedWhileItsParentIsDeletedThenNoOrphanRemains() throws Exception {
+    String folder = seedFolder("race-tree-del-create", LOCAL_ROOT, OWNER_COOKIE);
+
+    List<CompletableFuture<Response>> pending = new ArrayList<>();
+    try (Connection holder = holdRow(NODE_ROW_SHARE, folder)) {
+      try {
+        pending.add(
+            CompletableFuture.supplyAsync(() -> createFolder(folder, "late"), RACE_EXECUTOR));
+        pending.add(CompletableFuture.supplyAsync(() -> deleteNodes(folder), RACE_EXECUTOR));
+        awaitBlockedOrDone(holder, 2, pending.toArray(new CompletableFuture<?>[0]));
+      } finally {
+        holder.rollback();
+      }
+      join(pending, new ArrayList<>());
+    } finally {
+      awaitAll(pending);
+    }
+
+    if (!rowExists("SELECT 1 FROM node WHERE node_id = ?", folder)) {
+      Assertions.assertThat(count("SELECT count(*) FROM node n WHERE n.folder_id = ?", folder))
+          .isZero();
+    }
   }
 }

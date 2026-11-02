@@ -20,6 +20,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.locks.LockKey;
 import com.zextras.carbonio.files.dal.locks.LockRetry;
 import com.zextras.carbonio.files.dal.locks.LockSetChangedException;
+import com.zextras.carbonio.files.dal.locks.LockedTree;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.locks.RetryOnLockConflict;
 import com.zextras.carbonio.files.dal.repositories.impl.InvalidPageTokenException;
@@ -71,12 +72,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -124,6 +127,7 @@ public class NodeApi {
   @Inject VersionReservations versionReservations;
   @Inject EntityManager entityManager;
   @Inject NodeLocks nodeLocks;
+  @Inject LockedTree lockedTree;
   @Inject LockRetry lockRetry;
 
   // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -883,50 +887,18 @@ public class NodeApi {
                         .has(SharePermission.READ_AND_WRITE))
             .collect(Collectors.toList());
 
-    Set<String> requestedNodeIds =
-        requestedNodes.stream().map(Node::getId).collect(Collectors.toSet());
+    Set<String> candidateIds =
+        requestedNodes.stream().map(Node::getId).collect(Collectors.toCollection(TreeSet::new));
 
-    List<Node> allNodes = collectAllDescendants(requestedNodes);
-
-    List<Node> fileNodes =
-        allNodes.stream()
-            .filter(
-                node ->
-                    !node.getNodeType()
-                        .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
-            .toList();
-
-    Map<String, List<FileVersion>> fileVersionsByOwner = new HashMap<>();
-    fileNodes.forEach(
-        node -> {
-          List<FileVersion> versions =
-              fileVersionRepository.getFileVersions(
-                  node.getId(), List.of(FileVersionSort.VERSION_ASC));
-          fileVersionsByOwner
-              .computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
-              .addAll(versions);
-        });
-
+    TreeDeletion deletion;
     try {
-      QuarkusTransaction.requiringNew()
-          .run(
-              () -> {
-                fileVersionsByOwner.forEach(
-                    (ownerId, versions) ->
-                        tombstoneRepository.createTombstonesBulk(versions, ownerId));
-                deleteNodesFromDb(allNodes);
-                allNodes.stream()
-                    .filter(
-                        node ->
-                            node.getNodeType()
-                                .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
-                    .map(Node::getId)
-                    .forEach(this::cascadeDeleteNodeHelper);
-              });
+      deletion = lockRetry.inNewTransaction(() -> deleteLockedTree(candidateIds, me));
     } catch (RuntimeException e) {
       logger.error("DB error during deleteNodes, rolling back: {}", e.getMessage());
-      throw deleteNodesFailure(nodeIds, requestedNodeIds);
+      throw deleteNodesFailure(nodeIds, candidateIds);
     }
+    Set<String> requestedNodeIds = deletion.deletedRootIds();
+    Map<String, List<FileVersion>> fileVersionsByOwner = deletion.versionsByOwner();
 
     fileVersionsByOwner.forEach(
         (ownerId, versions) -> {
@@ -1363,40 +1335,56 @@ public class NodeApi {
         .filter(parent -> !parent.getAncestorsList().contains(RootId.TRASH_ROOT));
   }
 
-  private List<Node> collectAllDescendants(List<Node> rootNodes) {
-    List<Node> result = new ArrayList<>(rootNodes);
-    for (Node node : rootNodes) {
-      if (node.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER)) {
-        List<String> childrenIds =
-            nodeRepository.getChildrenIds(node.getId(), Optional.empty(), Optional.empty(), true);
-        if (!childrenIds.isEmpty()) {
-          List<Node> children =
-              nodeRepository
-                  .getNodes(childrenIds, Optional.empty())
-                  .filter(Objects::nonNull)
-                  .collect(Collectors.toList());
-          result.addAll(collectAllDescendants(children));
-        }
-      }
-    }
-    return result;
-  }
+  private TreeDeletion deleteLockedTree(Set<String> candidateIds, String me) {
+    List<String> ids = List.copyOf(candidateIds);
+    requireUnmoved(lockNodesAndParents(ids, List.of()), ids);
 
-  private void cascadeDeleteNodeHelper(String nodeId) {
-    List<String> childrenIds =
-        nodeRepository.getChildrenIds(nodeId, Optional.empty(), Optional.empty(), true);
-    if (!childrenIds.isEmpty()) {
-      List<Node> children =
-          nodeRepository.getNodes(childrenIds, Optional.empty()).collect(Collectors.toList());
-      deleteNodesFromDb(children);
-      children.stream()
-          .filter(
-              node ->
-                  node.getNodeType()
-                      .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
-          .forEach(node -> cascadeDeleteNodeHelper(node.getId()));
+    List<Node> roots =
+        nodeRepository
+            .getNodes(ids, Optional.empty())
+            .filter(Objects::nonNull)
+            .filter(
+                node ->
+                    permissionsChecker
+                        .getPermissions(node.getId(), me)
+                        .has(SharePermission.READ_AND_WRITE))
+            .toList();
+    Set<String> rootIds = roots.stream().map(Node::getId).collect(Collectors.toSet());
+
+    Map<String, Node> tree = new LinkedHashMap<>();
+    lockedTree.collect(roots).forEach(node -> tree.putIfAbsent(node.getId(), node));
+    List<Node> allNodes = List.copyOf(tree.values());
+
+    Map<String, List<FileVersion>> versionsByOwner = new HashMap<>();
+    allNodes.stream()
+        .filter(
+            node ->
+                !node.getNodeType()
+                    .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
+        .forEach(
+            node ->
+                versionsByOwner
+                    .computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
+                    .addAll(
+                        fileVersionRepository.getFileVersions(
+                            node.getId(), List.of(FileVersionSort.VERSION_ASC))));
+    versionsByOwner.forEach(
+        (ownerId, versions) -> tombstoneRepository.createTombstonesBulk(versions, ownerId));
+
+    deleteNodesFromDb(allNodes);
+    List<String> folderIds =
+        allNodes.stream()
+            .filter(
+                node ->
+                    node.getNodeType()
+                        .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
+            .map(Node::getId)
+            .toList();
+    if (!folderIds.isEmpty()) {
+      shareRepository.deleteSharesBulk(
+          nodeRepository.getTrashedNodeIdsByOldParents(folderIds).stream().distinct().toList());
     }
-    shareRepository.deleteSharesBulk(nodeRepository.getTrashedNodeIdsByOldParent(nodeId));
+    return new TreeDeletion(versionsByOwner, rootIds);
   }
 
   private void deleteNodesFromDb(List<Node> nodes) {
@@ -1445,6 +1433,9 @@ public class NodeApi {
       super(null, null, false, false);
     }
   }
+
+  private record TreeDeletion(
+      Map<String, List<FileVersion>> versionsByOwner, Set<String> deletedRootIds) {}
 
   private record DeletedVersions(List<FileVersion> versions, String ownerId) {
     static final DeletedVersions NODE_MISSING = new DeletedVersions(List.of(), null);
