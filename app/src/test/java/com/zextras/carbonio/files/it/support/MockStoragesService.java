@@ -116,6 +116,11 @@ public class MockStoragesService {
   private volatile boolean copyFails = false;
   private volatile CountDownLatch copyGate;
   private final Semaphore heldCopies = new Semaphore(0);
+  private volatile CountDownLatch bulkDeleteGate;
+  private final Semaphore heldBulkDeletes = new Semaphore(0);
+  private volatile CountDownLatch uploadGate;
+  private final Semaphore heldUploads = new Semaphore(0);
+  private final List<String> copyLog = Collections.synchronizedList(new ArrayList<>());
   private volatile boolean bulkDeleteAlwaysThrows = false;
   private volatile boolean bulkDeleteReturnsNull = false;
   private volatile boolean unreachable = false;
@@ -243,6 +248,60 @@ public class MockStoragesService {
     }
   }
 
+  /** Bulk deletes wait at the storages until {@link #releaseBulkDeletes()}. */
+  public void holdBulkDeletes() {
+    bulkDeleteGate = new CountDownLatch(1);
+  }
+
+  /** Returns once a bulk-delete request is waiting at the storages. */
+  public void awaitHeldBulkDelete() throws InterruptedException {
+    if (!heldBulkDeletes.tryAcquire(30, TimeUnit.SECONDS)) {
+      throw new AssertionError("no bulk delete reached the storages");
+    }
+  }
+
+  public void releaseBulkDeletes() {
+    CountDownLatch gate = bulkDeleteGate;
+    bulkDeleteGate = null;
+    if (gate != null) {
+      gate.countDown();
+    }
+  }
+
+  /** Uploads wait at the storages until {@link #releaseUploads()}. */
+  public void holdUploads() {
+    uploadGate = new CountDownLatch(1);
+  }
+
+  /** Returns once an upload request is waiting at the storages. */
+  public void awaitHeldUpload() throws InterruptedException {
+    if (!heldUploads.tryAcquire(30, TimeUnit.SECONDS)) {
+      throw new AssertionError("no upload reached the storages");
+    }
+  }
+
+  public void releaseUploads() {
+    CountDownLatch gate = uploadGate;
+    uploadGate = null;
+    if (gate != null) {
+      gate.countDown();
+    }
+  }
+
+  public int blobCount() {
+    return blobs.size();
+  }
+
+  public List<String> copyRequests() {
+    synchronized (copyLog) {
+      return new ArrayList<>(copyLog);
+    }
+  }
+
+  public void forceMissing(String node, int version) {
+    forcedMissingKeys.add(key(node, version));
+  }
+
   public void setCopyFails(boolean value) {
     this.copyFails = value;
   }
@@ -265,6 +324,11 @@ public class MockStoragesService {
     copyFails = false;
     releaseCopies();
     heldCopies.drainPermits();
+    releaseBulkDeletes();
+    heldBulkDeletes.drainPermits();
+    releaseUploads();
+    heldUploads.drainPermits();
+    copyLog.clear();
     unreachable = false;
     downloadLog.clear();
   }
@@ -305,6 +369,15 @@ public class MockStoragesService {
   }
 
   private Response handleUpload(Request request) {
+    CountDownLatch gate = uploadGate;
+    if (gate != null) {
+      heldUploads.release();
+      try {
+        gate.await(30, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
     if (uploadFails) {
       return Response.response().status(500).build();
     }
@@ -331,6 +404,7 @@ public class MockStoragesService {
   }
 
   private Response handleCopy(Request request) {
+    copyLog.add(request.getUrl());
     CountDownLatch gate = copyGate;
     if (gate != null) {
       heldCopies.release();
@@ -367,6 +441,15 @@ public class MockStoragesService {
   }
 
   private Response handleBulkDelete(Request request) {
+    CountDownLatch gate = bulkDeleteGate;
+    if (gate != null) {
+      heldBulkDeletes.release();
+      try {
+        gate.await(30, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
     if (bulkDeleteAlwaysThrows) {
       return Response.response().status(500).build();
     }

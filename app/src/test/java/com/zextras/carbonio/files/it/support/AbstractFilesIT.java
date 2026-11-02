@@ -21,8 +21,10 @@ import io.quarkus.test.common.WithTestResource;
 import io.quarkus.test.junit.QuarkusIntegrationTest;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.URLEncoder;
@@ -134,6 +136,81 @@ public abstract class AbstractFilesIT {
   /** Opens a raw JDBC connection to the shared Postgres Testcontainer (test/test credentials). */
   protected static Connection jdbcConnection() throws SQLException {
     return DriverManager.getConnection(FilesStackTestResource.POSTGRES_JDBC_URL, "test", "test");
+  }
+
+  protected static Connection holdRow(String sql, String... params) throws SQLException {
+    Connection holder = jdbcConnection();
+    holder.setAutoCommit(false);
+    try (PreparedStatement statement = holder.prepareStatement(sql)) {
+      for (int i = 0; i < params.length; i++) {
+        statement.setString(i + 1, params[i]);
+      }
+      try (ResultSet rows = statement.executeQuery()) {
+        if (!rows.next()) {
+          throw new IllegalStateException("nothing locked by " + sql);
+        }
+      }
+    }
+    return holder;
+  }
+
+  protected static Socket startRawUpload(String path, String headers, String cookie, int chunk)
+      throws IOException {
+    Socket socket = new Socket("localhost", RestAssured.port);
+    socket.setSoTimeout(30_000);
+    OutputStream out = socket.getOutputStream();
+    out.write(
+        ("POST "
+                + path
+                + " HTTP/1.1\r\nHost: localhost\r\nCookie: "
+                + cookie
+                + "\r\n"
+                + headers
+                + "\r\nContent-Type: application/octet-stream\r\nContent-Length: "
+                + (2 * chunk)
+                + "\r\n\r\n")
+            .getBytes(StandardCharsets.UTF_8));
+    out.write(new byte[chunk]);
+    out.flush();
+    return socket;
+  }
+
+  protected static String finishRawUpload(Socket socket, int chunk) throws IOException {
+    OutputStream out = socket.getOutputStream();
+    out.write(new byte[chunk]);
+    out.flush();
+    return new BufferedReader(
+            new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
+        .readLine();
+  }
+
+  protected static String filenameHeader(String filename) {
+    return "Filename: "
+        + Base64.getEncoder().encodeToString(filename.getBytes(StandardCharsets.UTF_8));
+  }
+
+  protected static String nodeColumnRaw(String nodeId, String column) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT trim(" + column + ") FROM node WHERE node_id = ?")) {
+      statement.setString(1, nodeId);
+      try (ResultSet rows = statement.executeQuery()) {
+        return rows.next() ? rows.getString(1) : null;
+      }
+    }
+  }
+
+  protected static boolean rowExists(String sql, String... params) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement = connection.prepareStatement(sql)) {
+      for (int i = 0; i < params.length; i++) {
+        statement.setString(i + 1, params[i]);
+      }
+      try (ResultSet rows = statement.executeQuery()) {
+        return rows.next();
+      }
+    }
   }
 
   protected static int backendPid(Connection connection) throws SQLException {
