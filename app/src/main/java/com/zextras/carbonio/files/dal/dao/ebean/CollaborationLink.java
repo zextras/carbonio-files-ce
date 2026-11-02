@@ -14,6 +14,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.DynamicUpdate;
 
 /**
  * Represents an Ebean {@link CollaborationLink} entity that matches a record of the {@link
@@ -34,6 +35,8 @@ import java.util.UUID;
  * controls <strong>must</strong> be already done before calling the constructor.
  */
 @Entity
+// Writers update entities they did not lock: only dirty columns may be written.
+@DynamicUpdate
 @Table(name = Tables.COLLABORATION_LINK)
 public class CollaborationLink {
 

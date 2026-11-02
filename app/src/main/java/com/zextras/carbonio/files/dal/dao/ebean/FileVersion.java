@@ -11,6 +11,7 @@ import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import java.util.Optional;
+import org.hibernate.annotations.DynamicUpdate;
 
 /**
  * Represents an Ebean {@link FileVersion} entity that matches a record of the {@link
@@ -21,6 +22,8 @@ import java.util.Optional;
  * already done.
  */
 @Entity
+// Writers update entities they did not lock: only dirty columns may be written.
+@DynamicUpdate
 @Table(name = Constants.Db.Tables.FILE_VERSION)
 public class FileVersion {
 

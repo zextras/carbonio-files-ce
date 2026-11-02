@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.util.Optional;
+import org.hibernate.annotations.DynamicUpdate;
 
 /**
  * Represents an Ebean {@link Share} entity that matches a record of the {@link
@@ -36,6 +37,8 @@ import java.util.Optional;
  * <strong>must</strong> be already done.
  */
 @Entity
+// Writers update entities they did not lock: only dirty columns may be written.
+@DynamicUpdate
 @Table(name = Constants.Db.Tables.SHARE)
 public class Share {
 
