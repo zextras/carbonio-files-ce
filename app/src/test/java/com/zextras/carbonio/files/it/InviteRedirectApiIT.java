@@ -225,6 +225,11 @@ class InviteRedirectApiIT extends AbstractFilesIT {
     Response response;
     try (Connection concurrent = jdbcConnection()) {
       concurrent.setAutoCommit(false);
+      try (PreparedStatement lockNode =
+          concurrent.prepareStatement("SELECT 1 FROM node WHERE node_id = ? FOR NO KEY UPDATE")) {
+        lockNode.setString(1, nodeId);
+        lockNode.execute();
+      }
       try (PreparedStatement insertShare =
           concurrent.prepareStatement(
               "INSERT INTO share (node_id, rights, timestamp, target_uuid, direct,"
