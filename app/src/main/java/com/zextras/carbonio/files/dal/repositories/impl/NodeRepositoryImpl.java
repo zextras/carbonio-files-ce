@@ -541,8 +541,9 @@ public class NodeRepositoryImpl implements NodeRepository {
     return entityManager
         .createQuery(
             "select tn.mNodeId from TrashedNode tn, Node n where n.mId = tn.mNodeId and"
-                + " n.mUpdatedAt < :ts",
+                + " n.mParentId = :trashRoot and n.mUpdatedAt < :ts",
             String.class)
+        .setParameter("trashRoot", normalizeId(RootId.TRASH_ROOT))
         .setParameter("ts", olderThan)
         .getResultList()
         .stream()

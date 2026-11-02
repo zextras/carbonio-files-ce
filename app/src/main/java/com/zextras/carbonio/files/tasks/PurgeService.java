@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.tasks;
 
 import com.zextras.carbonio.files.Constants.Config;
+import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
@@ -102,6 +103,7 @@ public class PurgeService {
     Optional<Node> top = nodeRepository.getNode(topId);
     if (top.isEmpty()
         || !nodeRepository.isTrashed(topId)
+        || !top.get().getParentId().map(RootId.TRASH_ROOT::equals).orElse(false)
         || top.get().getUpdatedAt() >= retentionTimestamp) {
       return;
     }

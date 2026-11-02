@@ -249,4 +249,18 @@ class PurgeRaceDalTest {
     assertThat(scalar("SELECT count(*) FROM node WHERE node_id = ?", childId)).isZero();
     assertThat(storages.has(childId, 1)).isFalse();
   }
+
+  @Test
+  void givenAGhostTrashedNodeInANormalFolderThenItIsNotPurged() throws Exception {
+    String folderId = seedFolder(RootId.LOCAL_ROOT, RootId.LOCAL_ROOT);
+    String nodeId = seedFile(folderId, RootId.LOCAL_ROOT + "," + folderId);
+    execute("INSERT INTO trashed (node_id, parent_id) VALUES (?, ?)", nodeId, folderId);
+    execute("UPDATE node SET updated_timestamp = 0 WHERE node_id = ?", nodeId);
+
+    purgeService.purgeTrashedNodes(30);
+
+    assertThat(scalar("SELECT count(*) FROM node WHERE node_id = ?", nodeId)).isEqualTo(1);
+    assertThat(scalar("SELECT count(*) FROM revision WHERE node_id = ?", nodeId)).isEqualTo(1);
+    assertThat(storages.has(nodeId, 1)).isTrue();
+  }
 }
