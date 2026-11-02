@@ -314,6 +314,32 @@ class NodeLocksDalTest {
   }
 
   @Test
+  void lockRowsLocksTheGivenRowsAfterAWrite() {
+    String parent = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
+    String a = seed(parent, NodeType.TEXT);
+    String b = seed(parent, NodeType.FOLDER);
+    String other = seed(parent, NodeType.TEXT);
+
+    QuarkusTransaction.requiringNew()
+        .run(
+            () -> {
+              nodeLocks.lock(List.of(LockKey.node(parent)));
+              nodeRepository.getNode(parent).orElseThrow().setDescription("written");
+              entityManager.flush();
+              assertThat(nodeLocks.lockRows(List.of(a, b))).containsExactlyInAnyOrder(a, b);
+              assertThat(nodeLocks.lockRows(List.of())).isEmpty();
+              try (Connection connection = jdbc()) {
+                connection.setAutoCommit(false);
+                assertThat(tryLockNoWait(connection, a)).isEqualTo(LOCK_NOT_AVAILABLE);
+                assertThat(tryLockNoWait(connection, b)).isEqualTo(LOCK_NOT_AVAILABLE);
+                assertThat(tryLockNoWait(connection, other)).isNull();
+              } catch (SQLException e) {
+                throw new IllegalStateException(e);
+              }
+            });
+  }
+
+  @Test
   void placesAndTrashedParentsAreRead() {
     String parent = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
     String a = seed(parent, NodeType.FOLDER);

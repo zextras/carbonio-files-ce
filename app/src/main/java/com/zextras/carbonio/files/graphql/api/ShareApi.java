@@ -10,6 +10,9 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
+import com.zextras.carbonio.files.dal.locks.LockKey;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
+import com.zextras.carbonio.files.dal.locks.RetryOnLockConflict;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
@@ -52,6 +55,7 @@ public class ShareApi {
   @Inject NotificationRepository notificationRepository;
   @Inject FilesConfig filesConfig;
   @Inject GraphQLInputValidator validator;
+  @Inject NodeLocks nodeLocks;
   @Inject @AuthenticatedUser UserMyself requester;
 
   static ShareModel toModel(Share share) {
@@ -144,6 +148,7 @@ public class ShareApi {
   }
 
   @Mutation("createShare")
+  @RetryOnLockConflict
   public @NonNull ShareModel createShare(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("share_target_id") @Id @NonNull String shareTargetId,
@@ -152,6 +157,7 @@ public class ShareApi {
       @Name("custom_message") String customMessage)
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).checkUserId(shareTargetId).validate();
+    nodeLocks.lock(List.of(LockKey.node(nodeId)));
     String me = requester.getId().getUserId();
     if (!permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_AND_SHARE)) {
       throw FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId);
@@ -195,6 +201,7 @@ public class ShareApi {
   }
 
   @Mutation("updateShares")
+  @RetryOnLockConflict
   public @NonNull List<ShareModel> updateShares(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("share_target_ids") @NonNull List<@NonNull String> shareTargetIds,
@@ -202,6 +209,7 @@ public class ShareApi {
       @Name("expires_at") Long expiresAt)
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).checkUserIds(shareTargetIds).validate();
+    nodeLocks.lock(List.of(LockKey.node(nodeId)));
     String me = requester.getId().getUserId();
     boolean hasPermission =
         permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_AND_SHARE);
@@ -239,11 +247,13 @@ public class ShareApi {
   }
 
   @Mutation("deleteShares")
+  @RetryOnLockConflict
   public @NonNull @Id List<String> deleteShares(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("share_target_ids") @NonNull List<@NonNull String> shareTargetIds)
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).checkUserIds(shareTargetIds).validate();
+    nodeLocks.lock(List.of(LockKey.node(nodeId)));
     String me = requester.getId().getUserId();
 
     List<String> deleted = new ArrayList<>();

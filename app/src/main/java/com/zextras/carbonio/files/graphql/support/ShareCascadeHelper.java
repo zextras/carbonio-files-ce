@@ -8,6 +8,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -22,15 +23,19 @@ public class ShareCascadeHelper {
 
   private final NodeRepository nodeRepository;
   private final ShareRepository shareRepository;
+  private final NodeLocks nodeLocks;
 
   @Inject
-  public ShareCascadeHelper(NodeRepository nodeRepository, ShareRepository shareRepository) {
+  public ShareCascadeHelper(
+      NodeRepository nodeRepository, ShareRepository shareRepository, NodeLocks nodeLocks) {
     this.nodeRepository = nodeRepository;
     this.shareRepository = shareRepository;
+    this.nodeLocks = nodeLocks;
   }
 
   public void cascadeUpsertShare(
       String nodeId, String userId, ACL permission, Optional<Long> expiredAt) {
+    nodeLocks.lockChildFolders(List.of(nodeId));
     List<String> childrenIds =
         nodeRepository.getChildrenIds(nodeId, Optional.empty(), Optional.empty(), false);
     if (!childrenIds.isEmpty()) {
@@ -49,11 +54,13 @@ public class ShareCascadeHelper {
   }
 
   public void cascadeDeleteShare(String nodeId, String userId) {
+    nodeLocks.lockChildFolders(List.of(nodeId));
     // NodeRepositoryImpl#getChildrenIds returns an unmodifiable list (Stream#toList), so it must be
     // copied into a mutable one before appending the trashed children below.
     List<String> childrenIds =
         new ArrayList<>(
             nodeRepository.getChildrenIds(nodeId, Optional.empty(), Optional.empty(), true));
+    nodeLocks.lockRows(nodeRepository.getTrashedNodeIdsByOldParent(nodeId));
     List<String> trashedChildrenIds = nodeRepository.getTrashedNodeIdsByOldParent(nodeId);
     childrenIds.addAll(trashedChildrenIds);
     if (!childrenIds.isEmpty()) {
