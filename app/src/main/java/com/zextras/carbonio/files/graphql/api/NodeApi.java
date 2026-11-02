@@ -60,6 +60,7 @@ import io.smallrye.graphql.api.Context;
 import io.smallrye.graphql.api.Nullable;
 import io.vavr.control.Try;
 import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import java.text.MessageFormat;
@@ -118,6 +119,7 @@ public class NodeApi {
   @Inject ShareCascadeHelper shareCascade;
   @Inject NodeCreationHelper nodeCreationHelper;
   @Inject VersionReservations versionReservations;
+  @Inject EntityManager entityManager;
   @Inject NodeLocks nodeLocks;
   @Inject LockRetry lockRetry;
 
@@ -967,7 +969,7 @@ public class NodeApi {
         continue;
       }
 
-      Optional<Node> published;
+      Optional<NodeModel> published;
       try {
         published =
             lockRetry.inNewTransaction(() -> publishCopy(plan, blobs, destinationId, ownerId, me));
@@ -982,9 +984,7 @@ public class NodeApi {
         throw FilesGraphQLErrors.nodeWriteError(destinationId)
             .withPartialResults(copiedNodesResult);
       }
-      nodeRepository
-          .getNode(published.get().getId())
-          .ifPresent(copied -> copiedNodesResult.add(NodeModelFactory.from(copied, null, me)));
+      copiedNodesResult.add(published.get());
     }
 
     List<Node> nodesWithoutPermission =
@@ -1430,7 +1430,7 @@ public class NodeApi {
     }
   }
 
-  private Optional<Node> publishCopy(
+  private Optional<NodeModel> publishCopy(
       CopyItem plan,
       Map<String, CopiedBlob> blobs,
       String destinationId,
@@ -1474,7 +1474,9 @@ public class NodeApi {
       notificationRepository.createAddedNodeNotification(
           top, destinationFolder, requester, AddedNodeType.COPY, usersToNotify);
     }
-    return nodeRepository.getNode(top.getId());
+    entityManager.flush();
+    entityManager.refresh(top);
+    return Optional.of(NodeModelFactory.from(top, null, me));
   }
 
   private Node createCopy(

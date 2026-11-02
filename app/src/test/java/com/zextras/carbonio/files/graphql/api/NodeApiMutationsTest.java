@@ -49,6 +49,7 @@ import com.zextras.filestore.model.FilesIdentifier;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.narayana.jta.TransactionRunnerOptions;
 import io.smallrye.graphql.api.Context;
+import jakarta.persistence.EntityManager;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -135,6 +136,7 @@ class NodeApiMutationsTest {
     nodeApi.copyFailureClassifier = copyFailureClassifier;
     nodeApi.versionReservations = versionReservations;
     nodeApi.gqlContext = gqlContext;
+    nodeApi.entityManager = mock(EntityManager.class);
     nodeApi.nodeLocks = nodeLocks;
     nodeApi.lockRetry = lockRetry;
   }
