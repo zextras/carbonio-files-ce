@@ -19,7 +19,9 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.locks.LockKey;
 import com.zextras.carbonio.files.dal.locks.LockRetry;
+import com.zextras.carbonio.files.dal.locks.LockSetChangedException;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
+import com.zextras.carbonio.files.dal.locks.RetryOnLockConflict;
 import com.zextras.carbonio.files.dal.repositories.impl.InvalidPageTokenException;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
@@ -373,6 +375,7 @@ public class NodeApi {
   // ─── Mutations ────────────────────────────────────────────────────────────────
 
   @Mutation("createFolder")
+  @RetryOnLockConflict
   public @NonNull NodeModel createFolder(
       @Name("destination_id") @NonNull String destinationId, @Name("name") @NonNull String name)
       throws FilesGraphQLException {
@@ -389,6 +392,7 @@ public class NodeApi {
   }
 
   @Mutation("updateNode")
+  @RetryOnLockConflict
   public @NonNull NodeModel updateNode(
       @Name("node_id") @NonNull String nodeId,
       @Name("name") String name,
@@ -397,6 +401,13 @@ public class NodeApi {
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).checkNodeName(name).checkNodeDescription(description).validate();
     String me = requester.getId().getUserId();
+    List<NodeLocks.NodePlace> places = nodeLocks.placesOf(List.of(nodeId));
+    List<LockKey> keys = new ArrayList<>();
+    keys.add(LockKey.node(nodeId));
+    places.stream()
+        .filter(place -> place.parentId() != null && place.ownerId() != null)
+        .forEach(place -> keys.add(LockKey.children(place.parentId(), place.ownerId())));
+    nodeLocks.lock(keys);
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
       throw FilesGraphQLErrors.nodeNotFound(nodeId);
     }
@@ -404,6 +415,11 @@ public class NodeApi {
         nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
 
     String parentFolderId = nodeToUpdate.getParentId().orElse(RootId.LOCAL_ROOT);
+    if (!places.isEmpty()
+        && places.get(0).parentId() != null
+        && !places.get(0).parentId().equals(parentFolderId)) {
+      throw new LockSetChangedException("node " + nodeId + " moved");
+    }
 
     if (name != null) {
       String nodeFullName = nodeToUpdate.getExtension().map(ext -> name + "." + ext).orElse(name);
@@ -424,11 +440,13 @@ public class NodeApi {
   }
 
   @Mutation("flagNodes")
+  @RetryOnLockConflict
   public @Nullable @Id List<@NonNull String> flagNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("flag") @NonNull Boolean flag)
       throws FilesGraphQLException {
     validator.requireNodeIds(nodeIds).validate();
+    nodeLocks.lock(nodeIds.stream().map(LockKey::node).toList());
     String me = requester.getId().getUserId();
 
     List<String> flaggableNodes =

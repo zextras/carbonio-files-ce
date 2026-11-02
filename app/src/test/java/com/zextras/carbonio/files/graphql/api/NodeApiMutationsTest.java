@@ -121,7 +121,8 @@ class NodeApiMutationsTest {
             tombstoneRepository,
             fileStore,
             permissionsChecker,
-            shareCascade);
+            shareCascade,
+            nodeLocks);
 
     nodeApi = new NodeApi();
     nodeApi.nodeRepository = nodeRepository;

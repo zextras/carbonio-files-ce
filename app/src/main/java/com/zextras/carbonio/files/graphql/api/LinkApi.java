@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.locks.RetryOnLockConflict;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.LinkSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -116,6 +117,7 @@ public class LinkApi {
   }
 
   @Mutation("createLink")
+  @RetryOnLockConflict
   public @NonNull LinkModel createLink(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("expires_at") Long expiresAt,

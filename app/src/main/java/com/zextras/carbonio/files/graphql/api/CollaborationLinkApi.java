@@ -8,6 +8,9 @@ import com.zextras.carbonio.files.Constants.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
+import com.zextras.carbonio.files.dal.locks.LockKey;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
+import com.zextras.carbonio.files.dal.locks.RetryOnLockConflict;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
@@ -43,6 +46,7 @@ public class CollaborationLinkApi {
 
   @Inject CollaborationLinkRepository collaborationLinkRepository;
   @Inject NodeRepository nodeRepository;
+  @Inject NodeLocks nodeLocks;
   @Inject PermissionsChecker permissionsChecker;
   @Inject GraphQLInputValidator validator;
   @Inject @AuthenticatedUser UserMyself requester;
@@ -108,11 +112,13 @@ public class CollaborationLinkApi {
   }
 
   @Mutation("createCollaborationLink")
+  @RetryOnLockConflict
   public @NonNull CollaborationLinkModel createCollaborationLink(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("permission") @NonNull SharePermission permission)
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).validate();
+    nodeLocks.lock(List.of(LockKey.node(nodeId)));
     String me = requester.getId().getUserId();
     ACL.SharePermission aclPerm = ACL.SharePermission.valueOf(permission.name());
     if (!permissionsChecker.getPermissions(nodeId, me).has(aclPerm)) {

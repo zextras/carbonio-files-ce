@@ -11,11 +11,14 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.locks.LockKey;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -32,15 +35,18 @@ public class LinkCreationHelper {
   private final LinkRepository linkRepository;
   private final NodeRepository nodeRepository;
   private final PermissionsChecker permissionsChecker;
+  private final NodeLocks nodeLocks;
 
   @Inject
   public LinkCreationHelper(
       LinkRepository linkRepository,
       NodeRepository nodeRepository,
-      PermissionsChecker permissionsChecker) {
+      PermissionsChecker permissionsChecker,
+      NodeLocks nodeLocks) {
     this.linkRepository = linkRepository;
     this.nodeRepository = nodeRepository;
     this.permissionsChecker = permissionsChecker;
+    this.nodeLocks = nodeLocks;
   }
 
   /**
@@ -72,6 +78,7 @@ public class LinkCreationHelper {
       Optional<Long> optExpiresAt,
       Optional<String> optDescription,
       Optional<String> optAccessCode) {
+    nodeLocks.lock(List.of(LockKey.node(nodeId)));
     Optional<Node> optNode = nodeRepository.getNode(nodeId);
     if (permissionsChecker.getPermissions(nodeId, requesterId).has(SharePermission.READ_AND_SHARE)
         && optNode.isPresent()

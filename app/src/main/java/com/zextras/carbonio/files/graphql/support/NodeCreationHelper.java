@@ -12,6 +12,8 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.locks.LockKey;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
@@ -61,6 +63,7 @@ public class NodeCreationHelper {
   private final Filestore fileStore;
   private final PermissionsChecker permissionsChecker;
   private final ShareCascadeHelper shareCascade;
+  private final NodeLocks nodeLocks;
 
   @Inject
   public NodeCreationHelper(
@@ -72,7 +75,8 @@ public class NodeCreationHelper {
       TombstoneRepository tombstoneRepository,
       Filestore fileStore,
       PermissionsChecker permissionsChecker,
-      ShareCascadeHelper shareCascade) {
+      ShareCascadeHelper shareCascade,
+      NodeLocks nodeLocks) {
     this.nodeRepository = nodeRepository;
     this.shareRepository = shareRepository;
     this.notificationRepository = notificationRepository;
@@ -82,6 +86,7 @@ public class NodeCreationHelper {
     this.fileStore = fileStore;
     this.permissionsChecker = permissionsChecker;
     this.shareCascade = shareCascade;
+    this.nodeLocks = nodeLocks;
   }
 
   /**
@@ -95,6 +100,7 @@ public class NodeCreationHelper {
    * @throws NodeNotFoundException if the parent is neither a FOLDER nor a ROOT
    */
   public Node createFolder(String requesterId, String parentId, String name, UserMyself requester) {
+    nodeLocks.lock(List.of(LockKey.children(parentId, requesterId)));
     if (!permissionsChecker
         .getPermissions(parentId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {

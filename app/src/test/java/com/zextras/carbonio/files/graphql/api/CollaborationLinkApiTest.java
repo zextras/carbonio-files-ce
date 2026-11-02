@@ -15,6 +15,7 @@ import com.zextras.carbonio.files.dal.dao.UserId;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
@@ -51,6 +52,7 @@ class CollaborationLinkApiTest {
     collaborationLinkApi = new CollaborationLinkApi();
     collaborationLinkApi.collaborationLinkRepository = collaborationLinkRepository;
     collaborationLinkApi.nodeRepository = nodeRepository;
+    collaborationLinkApi.nodeLocks = mock(NodeLocks.class);
     collaborationLinkApi.permissionsChecker = permissionsChecker;
     collaborationLinkApi.validator = new GraphQLInputValidator();
     collaborationLinkApi.requester = requester;

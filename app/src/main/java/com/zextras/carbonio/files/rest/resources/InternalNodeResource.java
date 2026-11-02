@@ -12,6 +12,8 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.locks.LockRetry;
+import com.zextras.carbonio.files.dal.locks.RetryOnLockConflict;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.support.LinkCreationHelper;
@@ -81,6 +83,7 @@ public class InternalNodeResource {
   private final PermissionsChecker permissionsChecker;
   private final NodeCreationHelper nodeCreationHelper;
   private final LinkCreationHelper linkCreationHelper;
+  private final LockRetry lockRetry;
 
   @Inject
   public InternalNodeResource(
@@ -88,12 +91,14 @@ public class InternalNodeResource {
       UserRepository userRepository,
       PermissionsChecker permissionsChecker,
       NodeCreationHelper nodeCreationHelper,
-      LinkCreationHelper linkCreationHelper) {
+      LinkCreationHelper linkCreationHelper,
+      LockRetry lockRetry) {
     this.nodeRepository = nodeRepository;
     this.userRepository = userRepository;
     this.permissionsChecker = permissionsChecker;
     this.nodeCreationHelper = nodeCreationHelper;
     this.linkCreationHelper = linkCreationHelper;
+    this.lockRetry = lockRetry;
   }
 
   // -------------------------------------------------------------------------------------- getNode
@@ -189,6 +194,7 @@ public class InternalNodeResource {
   @Consumes(MediaType.APPLICATION_JSON)
   @Blocking
   @Transactional
+  @RetryOnLockConflict
   public RestResponse<InternalNodeIdDto> createFolder(CreateFolderRequest request) {
     try {
       Node createdFolder =
@@ -227,21 +233,26 @@ public class InternalNodeResource {
       return RestResponse.status(Status.NOT_FOUND);
     }
 
-    Optional<Node> node = nodeRepository.getNode(nodeId);
-    if (node.isEmpty()) {
-      return RestResponse.status(Status.NOT_FOUND);
-    }
-
     try {
-      Link link =
-          linkCreationHelper.createPublicLink(
-              userId, nodeId, Optional.empty(), Optional.empty(), Optional.empty());
+      return lockRetry.inNewTransaction(
+          () -> {
+            Optional<Node> node = nodeRepository.getNode(nodeId);
+            if (node.isEmpty()) {
+              return RestResponse.status(Status.NOT_FOUND);
+            }
 
-      String url =
-          linkCreationHelper.buildPublicLinkUrl(
-              link, requester.get().getDomain(), node.get().getNodeType().equals(NodeType.FOLDER));
+            Link link =
+                linkCreationHelper.createPublicLink(
+                    userId, nodeId, Optional.empty(), Optional.empty(), Optional.empty());
 
-      return RestResponse.ok(new PublicLinkDto(url));
+            String url =
+                linkCreationHelper.buildPublicLinkUrl(
+                    link,
+                    requester.get().getDomain(),
+                    node.get().getNodeType().equals(NodeType.FOLDER));
+
+            return RestResponse.ok(new PublicLinkDto(url));
+          });
     } catch (LinkCreationHelper.LinkLimitReachedException e) {
       return RestResponse.status(Status.TOO_MANY_REQUESTS);
     } catch (LinkCreationHelper.NodeAccessException e) {

@@ -24,6 +24,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.locks.LockRetry;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.support.LinkCreationHelper;
@@ -38,6 +39,7 @@ import com.zextras.carbonio.files.rest.types.internal.PublicLinkDto;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,6 +62,7 @@ class InternalNodeResourceTest {
   private PermissionsChecker permissionsChecker;
   private NodeCreationHelper nodeCreationHelper;
   private LinkCreationHelper linkCreationHelper;
+  private LockRetry lockRetry;
   private InternalNodeResource resource;
 
   @BeforeEach
@@ -69,13 +72,17 @@ class InternalNodeResourceTest {
     permissionsChecker = mock(PermissionsChecker.class);
     nodeCreationHelper = mock(NodeCreationHelper.class);
     linkCreationHelper = mock(LinkCreationHelper.class);
+    lockRetry = mock(LockRetry.class);
+    when(lockRetry.inNewTransaction(any()))
+        .thenAnswer(inv -> ((Supplier<?>) inv.getArgument(0)).get());
     resource =
         new InternalNodeResource(
             nodeRepository,
             userRepository,
             permissionsChecker,
             nodeCreationHelper,
-            linkCreationHelper);
+            linkCreationHelper,
+            lockRetry);
   }
 
   // -------------------------------------------------------------------------------------- getNode
