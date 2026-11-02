@@ -314,6 +314,27 @@ class NodeLocksDalTest {
   }
 
   @Test
+  void lockChildrenLocksFilesAndFolders() {
+    String parent = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
+    String folder = seed(parent, NodeType.FOLDER);
+    String file = seed(parent, NodeType.TEXT);
+
+    QuarkusTransaction.requiringNew()
+        .run(
+            () -> {
+              assertThat(nodeLocks.lockChildren(List.of(parent)))
+                  .containsExactlyInAnyOrder(folder, file);
+              try (Connection connection = jdbc()) {
+                connection.setAutoCommit(false);
+                assertThat(tryLockNoWait(connection, folder)).isEqualTo(LOCK_NOT_AVAILABLE);
+                assertThat(tryLockNoWait(connection, file)).isEqualTo(LOCK_NOT_AVAILABLE);
+              } catch (SQLException e) {
+                throw new IllegalStateException(e);
+              }
+            });
+  }
+
+  @Test
   void lockRowsLocksTheGivenRowsAfterAWrite() {
     String parent = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
     String a = seed(parent, NodeType.TEXT);

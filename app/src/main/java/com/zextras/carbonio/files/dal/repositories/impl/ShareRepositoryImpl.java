@@ -78,33 +78,6 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
       return Optional.of(updateShare(share));
     }
 
-    if (!direct) {
-      getEntityManager().flush();
-      getEntityManager()
-          .createNativeQuery(
-              "INSERT INTO share ("
-                  + String.join(
-                      ", ",
-                      Db.Share.NODE_ID,
-                      Db.Share.SHARE_TARGET_UUID,
-                      Db.Share.PERMISSIONS,
-                      Db.Share.CREATED_AT,
-                      Db.Share.EXPIRED_AT,
-                      Db.Share.DIRECT,
-                      Db.Share.CREATED_VIA_LINK)
-                  + ") VALUES (:nodeId, :target, :rights, :ts, CAST(:expire AS BIGINT), false,"
-                  + " :viaLink) ON CONFLICT (node_id, target_uuid) DO NOTHING")
-          .setParameter("nodeId", nodeId)
-          .setParameter("target", targetUserId)
-          .setParameter("rights", permissions.encode())
-          .setParameter("ts", System.currentTimeMillis())
-          .setParameter("expire", expireTimestamp.orElse(null))
-          .setParameter("viaLink", createdViaCollaborationLink)
-          .executeUpdate();
-      Optional<Share> stored = getShare(nodeId, targetUserId);
-      return stored.filter(share -> !share.isDirect());
-    }
-
     Share share =
         new Share(
             nodeId,

@@ -35,7 +35,7 @@ public class ShareCascadeHelper {
 
   public void cascadeUpsertShare(
       String nodeId, String userId, ACL permission, Optional<Long> expiredAt) {
-    nodeLocks.lockChildFolders(List.of(nodeId));
+    nodeLocks.lockChildren(List.of(nodeId));
     List<String> childrenIds =
         nodeRepository.getChildrenIds(nodeId, Optional.empty(), Optional.empty(), false);
     if (!childrenIds.isEmpty()) {
@@ -54,7 +54,7 @@ public class ShareCascadeHelper {
   }
 
   public void cascadeDeleteShare(String nodeId, String userId) {
-    nodeLocks.lockChildFolders(List.of(nodeId));
+    nodeLocks.lockChildren(List.of(nodeId));
     // NodeRepositoryImpl#getChildrenIds returns an unmodifiable list (Stream#toList), so it must be
     // copied into a mutable one before appending the trashed children below.
     List<String> childrenIds =

@@ -106,6 +106,20 @@ class RaceShareApiIT extends AbstractFilesIT {
     }
   }
 
+  private static Connection holdInheritedShareInsert(String nodeId) throws SQLException {
+    Connection holder = jdbcConnection();
+    holder.setAutoCommit(false);
+    try (PreparedStatement statement =
+        holder.prepareStatement(
+            "INSERT INTO share (node_id, target_uuid, rights, timestamp, direct, created_via_link)"
+                + " VALUES (?, ?, 1, 0, false, false)")) {
+      statement.setString(1, nodeId);
+      statement.setString(2, USER_ID);
+      statement.executeUpdate();
+    }
+    return holder;
+  }
+
   private static void awaitAll(List<CompletableFuture<Response>> pending) {
     for (CompletableFuture<Response> future : pending) {
       try {
@@ -186,11 +200,27 @@ class RaceShareApiIT extends AbstractFilesIT {
     String file = seedFile("race-share-move.txt", shared, "x".getBytes(), OWNER_COOKIE);
     String privateFolder = seedFolder("race-share-move-private", LOCAL_ROOT, OWNER_COOKIE);
 
-    concurrentUnderLock(
-        NODE_ROW_LOCK,
-        List.of(shared),
-        () -> createShare(shared, SharePermission.READ_ONLY),
-        () -> moveNodes(privateFolder, file));
+    List<CompletableFuture<Response>> pending = new ArrayList<>();
+    try (Connection holder = holdInheritedShareInsert(file)) {
+      try {
+        CompletableFuture<Response> share =
+            CompletableFuture.supplyAsync(
+                () -> createShare(shared, SharePermission.READ_ONLY), RACE_EXECUTOR);
+        pending.add(share);
+        awaitBlockedBy(holder, 1);
+        CompletableFuture<Response> move =
+            CompletableFuture.supplyAsync(() -> moveNodes(privateFolder, file), RACE_EXECUTOR);
+        pending.add(move);
+        awaitBlockedOrDone(holder, 2, share, move);
+      } finally {
+        holder.rollback();
+      }
+      for (CompletableFuture<Response> future : pending) {
+        future.get(30, TimeUnit.SECONDS);
+      }
+    } finally {
+      awaitAll(pending);
+    }
 
     String folderOfFile = nodeColumnRaw(file, "folder_id");
     if (folderOfFile.trim().equals(privateFolder)) {
@@ -225,14 +255,37 @@ class RaceShareApiIT extends AbstractFilesIT {
     String parent = seedFolder("race-share-direct-p", LOCAL_ROOT, OWNER_COOKIE);
     String child = seedFolder("race-share-direct-c", parent, OWNER_COOKIE);
 
-    concurrentUnderLock(
-        NODE_ROW_LOCK,
-        List.of(child),
-        () -> createShare(child, SharePermission.READ_AND_WRITE),
-        () -> createShare(parent, SharePermission.READ_ONLY));
+    List<Response> responses =
+        concurrentUnderLock(
+            NODE_ROW_LOCK,
+            List.of(child),
+            () -> createShare(child, SharePermission.READ_AND_WRITE),
+            () -> createShare(parent, SharePermission.READ_ONLY));
 
+    responses.forEach(
+        response -> Assertions.assertThat(response.jsonPath().getList("errors")).isNull());
     Assertions.assertThat(shareColumn(child, "direct")).isEqualTo("true");
     Assertions.assertThat(shareColumn(child, "rights"))
+        .isEqualTo(String.valueOf(SharePermission.READ_AND_WRITE.encode()));
+  }
+
+  @Test
+  void givenADirectShareOnAFileCreatedDuringAnInheritedCascadeThenBothSucceedAndItStaysDirect()
+      throws Exception {
+    String parent = seedFolder("race-share-file-p", LOCAL_ROOT, OWNER_COOKIE);
+    String file = seedFile("race-share-file-c.txt", parent, "x".getBytes(), OWNER_COOKIE);
+
+    List<Response> responses =
+        concurrentUnderLock(
+            NODE_ROW_LOCK,
+            List.of(file),
+            () -> createShare(file, SharePermission.READ_AND_WRITE),
+            () -> createShare(parent, SharePermission.READ_ONLY));
+
+    responses.forEach(
+        response -> Assertions.assertThat(response.jsonPath().getList("errors")).isNull());
+    Assertions.assertThat(shareColumn(file, "direct")).isEqualTo("true");
+    Assertions.assertThat(shareColumn(file, "rights"))
         .isEqualTo(String.valueOf(SharePermission.READ_AND_WRITE.encode()));
   }
 

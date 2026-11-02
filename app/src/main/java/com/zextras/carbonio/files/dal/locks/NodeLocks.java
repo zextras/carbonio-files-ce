@@ -112,6 +112,33 @@ public class NodeLocks {
     return result;
   }
 
+  /**
+   * Locks every child, of any type, of the given folders; cascades call it before reading below
+   * them.
+   */
+  @Transactional(TxType.MANDATORY)
+  public List<String> lockChildren(Collection<String> parentIds) {
+    if (parentIds.isEmpty()) {
+      return List.of();
+    }
+    List<String> sorted = parentIds.stream().map(String::trim).distinct().sorted().toList();
+    List<String> result = new ArrayList<>();
+    for (int from = 0; from < sorted.size(); from += LOCK_CHUNK) {
+      @SuppressWarnings("unchecked")
+      List<String> rows =
+          entityManager
+              .createNativeQuery(
+                  "SELECT trim(node_id) FROM node WHERE folder_id IN (:parents) ORDER BY "
+                      + DEPTH
+                      + ", node_id FOR NO KEY UPDATE")
+              .setParameter(
+                  "parents", sorted.subList(from, Math.min(from + LOCK_CHUNK, sorted.size())))
+              .getResultList();
+      result.addAll(rows);
+    }
+    return result;
+  }
+
   /** Locks the given node rows mid-transaction, ordered depth then id; returns the locked ids. */
   @Transactional(TxType.MANDATORY)
   public List<String> lockRows(Collection<String> nodeIds) {
