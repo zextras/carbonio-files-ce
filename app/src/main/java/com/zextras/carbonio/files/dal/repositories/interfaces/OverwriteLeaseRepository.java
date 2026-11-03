@@ -31,7 +31,9 @@ public interface OverwriteLeaseRepository {
   /** Removes the leases expired for longer than {@code expiredFor}. */
   int removeExpired(Duration expiredFor);
 
-  /** The nodes among {@code nodeIds} whose lease is not expired; joins the caller's transaction. */
+  /**
+   * The nodes among {@code nodeIds} with a lease not expired yet; joins the caller's transaction.
+   */
   Set<String> activeOn(Collection<String> nodeIds);
 
   Optional<OverwriteLease> find(String nodeId);

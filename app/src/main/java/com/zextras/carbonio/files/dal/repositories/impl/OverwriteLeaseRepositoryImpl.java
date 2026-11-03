@@ -13,6 +13,7 @@ import jakarta.transaction.Transactional.TxType;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -72,18 +73,19 @@ public class OverwriteLeaseRepositoryImpl
   @Override
   @Transactional
   public Set<String> activeOn(Collection<String> nodeIds) {
-    if (nodeIds.isEmpty()) {
-      return Set.of();
+    Set<String> active = new HashSet<>();
+    for (List<String> chunk : Chunks.of(nodeIds)) {
+      active.addAll(
+          getEntityManager()
+              .createQuery(
+                  "select l.mNodeId from OverwriteLease l where l.mNodeId in :ids"
+                      + " and l.mExpiresAt >= "
+                      + DatabaseClock.NOW_MILLIS,
+                  String.class)
+              .setParameter("ids", chunk)
+              .getResultList());
     }
-    return new HashSet<>(
-        getEntityManager()
-            .createQuery(
-                "select l.mNodeId from OverwriteLease l where l.mNodeId in :ids and l.mExpiresAt >="
-                    + " "
-                    + DatabaseClock.NOW_MILLIS,
-                String.class)
-            .setParameter("ids", nodeIds)
-            .getResultList());
+    return active;
   }
 
   @Override

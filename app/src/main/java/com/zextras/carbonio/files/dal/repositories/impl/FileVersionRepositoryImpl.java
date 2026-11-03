@@ -13,7 +13,9 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionReposit
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -112,6 +114,21 @@ public class FileVersionRepositoryImpl
         .setParameter("ids", nodeIds)
         .getResultStream()
         .collect(Collectors.toMap(FileVersion::getNodeId, fv -> fv));
+  }
+
+  @Override
+  public Map<String, List<FileVersion>> getFileVersionsOf(Collection<String> nodeIds) {
+    Map<String, List<FileVersion>> versions = new HashMap<>();
+    for (List<String> chunk : Chunks.of(nodeIds)) {
+      getEntityManager()
+          .createQuery(
+              "select fv from FileVersion fv where fv.mComposedId.mNodeId in :ids",
+              FileVersion.class)
+          .setParameter("ids", chunk)
+          .getResultList()
+          .forEach(fv -> versions.computeIfAbsent(fv.getNodeId(), id -> new ArrayList<>()).add(fv));
+    }
+    return versions;
   }
 
   @Override

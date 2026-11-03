@@ -366,11 +366,11 @@ class RaceVersionApiIT extends AbstractFilesIT {
     String status;
     try (Connection holder = jdbcConnection()) {
       holder.setAutoCommit(false);
-      try (PreparedStatement transfer =
+      try (PreparedStatement ownerChange =
           holder.prepareStatement("UPDATE node SET owner_id = ? WHERE node_id = ?")) {
-        transfer.setString(1, NEW_OWNER_ID);
-        transfer.setString(2, file);
-        transfer.executeUpdate();
+        ownerChange.setString(1, NEW_OWNER_ID);
+        ownerChange.setString(2, file);
+        ownerChange.executeUpdate();
       }
       try (Socket overwrite = startUploadVersion(file, true, SHAREE_COOKIE)) {
         awaitBlockedBy(holder);
@@ -402,12 +402,11 @@ class RaceVersionApiIT extends AbstractFilesIT {
 
   private static void changeOwner(String nodeId) throws SQLException {
     try (Connection connection = jdbcConnection();
-        PreparedStatement transfer =
-            connection.prepareStatement(
-                "UPDATE node SET owner_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'"
-                    + " WHERE node_id = ?")) {
-      transfer.setString(1, nodeId);
-      Assertions.assertThat(transfer.executeUpdate()).isEqualTo(1);
+        PreparedStatement ownerChange =
+            connection.prepareStatement("UPDATE node SET owner_id = ? WHERE node_id = ?")) {
+      ownerChange.setString(1, NEW_OWNER_ID);
+      ownerChange.setString(2, nodeId);
+      Assertions.assertThat(ownerChange.executeUpdate()).isEqualTo(1);
     }
   }
 }

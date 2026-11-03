@@ -1476,7 +1476,7 @@ public class NodeApi {
                     FilesIdentifier.of(item.copyId(), 1, ownerId),
                     false));
     if (copyAttempt.isFailure()) {
-      logger.error("Unable to copy node {}. {}", source.getId(), copyAttempt.getCause());
+      logger.error("Unable to copy node {}", source.getId(), copyAttempt.getCause());
       return Optional.of(copyAttempt.getCause());
     }
     var response = copyAttempt.get();

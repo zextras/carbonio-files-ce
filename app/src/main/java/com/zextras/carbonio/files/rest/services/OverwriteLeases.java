@@ -91,9 +91,6 @@ public class OverwriteLeases {
             });
   }
 
-  /**
-   * The nodes among {@code nodeIds} with a lease not expired yet; joins the caller's transaction.
-   */
   public Set<String> activeOn(Collection<String> nodeIds) {
     return leaseRepository.activeOn(nodeIds);
   }

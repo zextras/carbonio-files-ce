@@ -190,6 +190,22 @@ class OverwriteLeaseDalTest {
   }
 
   @Test
+  void activeOnReadsMoreNodesThanOneInListHolds() {
+    String held = fileWithCurrentVersion(1);
+    overwriteLeases.take(held).orElseThrow();
+    List<String> ids = new ArrayList<>();
+    for (int i = 0; i < 70_000; i++) {
+      ids.add(UUID.randomUUID().toString());
+    }
+    ids.add(held);
+
+    Set<String> active =
+        QuarkusTransaction.requiringNew().call(() -> overwriteLeases.activeOn(ids));
+
+    assertThat(active).containsExactly(held);
+  }
+
+  @Test
   void concurrentOverwritesOfANodeGetOneLease() throws Exception {
     String nodeId = fileWithCurrentVersion(1);
     int threads = 8;

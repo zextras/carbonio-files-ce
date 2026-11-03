@@ -90,6 +90,9 @@ public interface FileVersionRepository {
 
   Map<String, FileVersion> getLastFileVersions(Collection<String> nodeIds);
 
+  /** Every version of each of the nodes, by node id; a node without versions is absent. */
+  Map<String, List<FileVersion>> getFileVersionsOf(Collection<String> nodeIds);
+
   /**
    * Updates a {@link FileVersion} on database.
    *
