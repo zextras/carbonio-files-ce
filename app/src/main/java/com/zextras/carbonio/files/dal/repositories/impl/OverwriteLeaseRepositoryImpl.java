@@ -11,7 +11,10 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import java.time.Duration;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 @ApplicationScoped
 public class OverwriteLeaseRepositoryImpl
@@ -64,6 +67,23 @@ public class OverwriteLeaseRepositoryImpl
   public int removeExpired(Duration expiredFor) {
     return (int)
         delete("mExpiresAt < " + DatabaseClock.NOW_MILLIS + " - ?1", expiredFor.toMillis());
+  }
+
+  @Override
+  @Transactional
+  public Set<String> activeOn(Collection<String> nodeIds) {
+    if (nodeIds.isEmpty()) {
+      return Set.of();
+    }
+    return new HashSet<>(
+        getEntityManager()
+            .createQuery(
+                "select l.mNodeId from OverwriteLease l where l.mNodeId in :ids and l.mExpiresAt >="
+                    + " "
+                    + DatabaseClock.NOW_MILLIS,
+                String.class)
+            .setParameter("ids", nodeIds)
+            .getResultList());
   }
 
   @Override

@@ -6,7 +6,9 @@ package com.zextras.carbonio.files.dal.repositories.interfaces;
 
 import com.zextras.carbonio.files.dal.dao.ebean.OverwriteLease;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 
 /** Leases of the overwrites in progress, one per node; expiry by the database clock. */
 public interface OverwriteLeaseRepository {
@@ -28,6 +30,9 @@ public interface OverwriteLeaseRepository {
 
   /** Removes the leases expired for longer than {@code expiredFor}. */
   int removeExpired(Duration expiredFor);
+
+  /** The nodes among {@code nodeIds} whose lease is not expired; joins the caller's transaction. */
+  Set<String> activeOn(Collection<String> nodeIds);
 
   Optional<OverwriteLease> find(String nodeId);
 }

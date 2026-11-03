@@ -12,8 +12,10 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,8 +35,11 @@ public class OverwriteLeases {
 
   private static final String NODE_NOT_FOUND = "Node not found: ";
 
-  /** The version an overwrite rewrites and its date (database clock, at registration). */
-  public record Lease(String nodeId, int version, String token, long date) {}
+  /**
+   * The version an overwrite rewrites, its date (database clock, at registration) and the owner of
+   * the node when the lease was taken, whose account the blob is written under.
+   */
+  public record Lease(String nodeId, int version, String token, long date, String ownerId) {}
 
   private final NodeRepository nodeRepository;
   private final FileVersionRepository fileVersionRepository;
@@ -65,11 +70,11 @@ public class OverwriteLeases {
                       .reserveTimestamp(nodeId)
                       .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId))
                       .reservedAt();
-              int version =
+              Node node =
                   nodeRepository
                       .getNode(nodeId)
-                      .map(Node::getCurrentVersion)
                       .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
+              int version = node.getCurrentVersion();
               // A version below may carry a later date (written by an instance clock).
               Optional<Long> latest = fileVersionRepository.latestDateBelow(nodeId, version + 1);
               if (latest.isPresent() && latest.get() >= date) {
@@ -81,9 +86,16 @@ public class OverwriteLeases {
               }
               String token = UUID.randomUUID().toString();
               return leaseRepository.take(nodeId, version, token, date, LEASE)
-                  ? Optional.of(new Lease(nodeId, version, token, date))
+                  ? Optional.of(new Lease(nodeId, version, token, date, node.getOwnerId()))
                   : Optional.<Lease>empty();
             });
+  }
+
+  /**
+   * The nodes among {@code nodeIds} with a lease not expired yet; joins the caller's transaction.
+   */
+  public Set<String> activeOn(Collection<String> nodeIds) {
+    return leaseRepository.activeOn(nodeIds);
   }
 
   /**

@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -114,6 +115,7 @@ class OverwriteLeaseDalTest {
 
     assertThat(first).isPresent();
     assertThat(first.get().version()).isEqualTo(3);
+    assertThat(first.get().ownerId()).isEqualTo("owner");
     assertThat(second).isEmpty();
     OverwriteLease stored = leaseRepository.find(nodeId).orElseThrow();
     assertThat(stored.getToken()).isEqualTo(first.get().token());
@@ -166,6 +168,25 @@ class OverwriteLeaseDalTest {
     assertThat(leaseRepository.find(expiredLongAgo)).isEmpty();
     assertThat(leaseRepository.find(expiredRecently)).isPresent();
     assertThat(leaseRepository.find(held)).isPresent();
+  }
+
+  @Test
+  void activeOnReturnsTheNodesWithAnUnexpiredLeaseOnly() {
+    String held = fileWithCurrentVersion(1);
+    String expired = fileWithCurrentVersion(1);
+    String free = fileWithCurrentVersion(1);
+    overwriteLeases.take(held).orElseThrow();
+    overwriteLeases.take(expired).orElseThrow();
+    expire(expired);
+
+    Set<String> active =
+        QuarkusTransaction.requiringNew()
+            .call(() -> overwriteLeases.activeOn(List.of(held, expired, free)));
+    Set<String> none =
+        QuarkusTransaction.requiringNew().call(() -> overwriteLeases.activeOn(List.of()));
+
+    assertThat(active).containsExactly(held);
+    assertThat(none).isEmpty();
   }
 
   @Test

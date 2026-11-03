@@ -775,7 +775,7 @@ public class BlobService {
                     new OverwriteInProgressException(
                         "Another overwrite of node " + nodeId + " is in progress"));
     int version = lease.version();
-    String ownerId = node.getOwnerId();
+    String ownerId = lease.ownerId();
     boolean ended = false;
     try {
       UploadResponse uploadResponse =
@@ -795,7 +795,6 @@ public class BlobService {
                     nodeRepository
                         .reserveTimestamp(nodeId)
                         .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
-                    requireOwner(nodeId, ownerId);
                     requireWritePermission(nodeId, requesterId);
                     if (!overwriteLeases.confirm(lease)) {
                       return false;

@@ -529,25 +529,6 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTheOwnerChangedWhileAnOverwriteStreamsThenTheVersionRowIsLeftAsItWas()
-      throws Exception {
-    String nodeId = seedFile("transferred-overwrite.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
-    String rowBefore = versionRow(nodeId, 1);
-
-    String statusLine;
-    try (Socket socket = startUploadVersion(nodeId, true, (byte) 'o')) {
-      eventually("lease taken", () -> leasedVersion(nodeId).equals(List.of(1)));
-      changeOwner(nodeId);
-      statusLine = finishUpload(socket, (byte) 'o');
-    }
-
-    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 500");
-    Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
-    Assertions.assertThat(versionRow(nodeId, 1)).isEqualTo(rowBefore);
-    Assertions.assertThat(leasedVersion(nodeId)).isEmpty();
-  }
-
-  @Test
   void givenTheNodeDeletedWhileAnUploadVersionStreamsThenNoVersionIsCreated() throws Exception {
     String nodeId = seedFile("deleted-node.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
 
@@ -706,21 +687,6 @@ class StreamedUploadApiIT extends AbstractFilesIT {
                     + " WHERE node_id = ?")) {
       transfer.setString(1, nodeId);
       Assertions.assertThat(transfer.executeUpdate()).isEqualTo(1);
-    }
-  }
-
-  private static String versionRow(String nodeId, int version) throws SQLException {
-    try (Connection connection = jdbcConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(
-                "SELECT size || '/' || digest || '/' || timestamp FROM revision"
-                    + " WHERE node_id = ? AND version = ?")) {
-      statement.setString(1, nodeId);
-      statement.setInt(2, version);
-      try (ResultSet resultSet = statement.executeQuery()) {
-        Assertions.assertThat(resultSet.next()).isTrue();
-        return resultSet.getString(1);
-      }
     }
   }
 

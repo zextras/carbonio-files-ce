@@ -32,6 +32,7 @@ class RaceVersionApiIT extends AbstractFilesIT {
   private static final String OWNER_COOKIE = "ZM_AUTH_TOKEN=race-version-owner";
   private static final String SHAREE_ID = "62222222-2222-2222-2222-222222222222";
   private static final String SHAREE_COOKIE = "ZM_AUTH_TOKEN=race-version-sharee";
+  private static final String NEW_OWNER_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
   private static final int CHUNK = 32 * 1024;
   private static final byte[] CONTENT = "v".getBytes();
 
@@ -129,9 +130,19 @@ class RaceVersionApiIT extends AbstractFilesIT {
   }
 
   private static Socket startUploadVersion(String nodeId, String cookie) throws Exception {
+    return startUploadVersion(nodeId, false, cookie);
+  }
+
+  private static Socket startUploadVersion(String nodeId, boolean overwrite, String cookie)
+      throws Exception {
     return startRawUpload(
         "/upload-version",
-        "NodeId: " + nodeId + "\r\nOverwriteVersion: false\r\n" + filenameHeader("race.txt"),
+        "NodeId: "
+            + nodeId
+            + "\r\nOverwriteVersion: "
+            + overwrite
+            + "\r\n"
+            + filenameHeader("race.txt"),
         cookie,
         CHUNK);
   }
@@ -343,6 +354,50 @@ class RaceVersionApiIT extends AbstractFilesIT {
     Assertions.assertThat(errorCodes(response)).containsExactly("NODE_WRITE_ERROR");
     Assertions.assertThat(versionRows(file)).containsExactly(1);
     Assertions.assertThat(currentVersion(file)).isEqualTo(1);
+  }
+
+  @Test
+  void givenTheOwnerChangedWhileAnOverwriteWaitsForTheNodeRowThenTheOverwriteStillCompletes()
+      throws Exception {
+    String file = seedFile("race-version-owner-overwrite.txt", LOCAL_ROOT, CONTENT, OWNER_COOKIE);
+    seedShare(file, SHAREE_ID, SharePermission.READ_AND_WRITE, OWNER_COOKIE);
+    String rowBefore = versionRow(file, 1);
+
+    String status;
+    try (Connection holder = jdbcConnection()) {
+      holder.setAutoCommit(false);
+      try (PreparedStatement transfer =
+          holder.prepareStatement("UPDATE node SET owner_id = ? WHERE node_id = ?")) {
+        transfer.setString(1, NEW_OWNER_ID);
+        transfer.setString(2, file);
+        transfer.executeUpdate();
+      }
+      try (Socket overwrite = startUploadVersion(file, true, SHAREE_COOKIE)) {
+        awaitBlockedBy(holder);
+        holder.commit();
+        status = finishRawUpload(overwrite, CHUNK);
+      } finally {
+        holder.rollback();
+      }
+    }
+
+    Assertions.assertThat(status).isEqualTo("HTTP/1.1 200 OK");
+    Assertions.assertThat(versionRows(file)).containsExactly(1);
+    Assertions.assertThat(versionRow(file, 1)).isNotEqualTo(rowBefore);
+  }
+
+  private static String versionRow(String nodeId, int version) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT size || '/' || digest FROM revision WHERE node_id = ? AND version = ?")) {
+      statement.setString(1, nodeId);
+      statement.setInt(2, version);
+      try (ResultSet rows = statement.executeQuery()) {
+        Assertions.assertThat(rows.next()).isTrue();
+        return rows.getString(1);
+      }
+    }
   }
 
   private static void changeOwner(String nodeId) throws SQLException {
