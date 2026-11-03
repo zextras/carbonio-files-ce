@@ -716,6 +716,7 @@ public class BlobService {
         QuarkusTransaction.requiringNew()
             .call(
                 () -> {
+                  nodeLocks.boundLockWaits();
                   long versionDate = versionReservations.confirm(reservation);
                   requireOwner(nodeId, ownerId);
                   requireWritePermission(nodeId, requesterId);
@@ -796,6 +797,7 @@ public class BlobService {
           QuarkusTransaction.requiringNew()
               .call(
                   () -> {
+                    nodeLocks.boundLockWaits();
                     // The node row first, as when the lease was taken: no lock-order inversion.
                     nodeRepository
                         .reserveTimestamp(nodeId)

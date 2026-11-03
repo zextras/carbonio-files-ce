@@ -90,6 +90,21 @@ public class OverwriteLeaseRepositoryImpl
 
   @Override
   @Transactional
+  public Set<String> anyOn(Collection<String> nodeIds) {
+    Set<String> any = new HashSet<>();
+    for (List<String> chunk : Chunks.of(nodeIds)) {
+      any.addAll(
+          getEntityManager()
+              .createQuery(
+                  "select l.mNodeId from OverwriteLease l where l.mNodeId in :ids", String.class)
+              .setParameter("ids", chunk)
+              .getResultList());
+    }
+    return any;
+  }
+
+  @Override
+  @Transactional
   public Optional<OverwriteLease> find(String nodeId) {
     return findByIdOptional(nodeId);
   }

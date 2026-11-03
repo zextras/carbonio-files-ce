@@ -368,6 +368,73 @@ class RaceTreeApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenACascadeWaitingBehindADescendantLockThenItWritesFreshAncestorIds() throws Exception {
+    String top = seedFolder("race-tree-cascade-top", LOCAL_ROOT, OWNER_COOKIE);
+    String middle = seedFolder("race-tree-cascade-mid", top, OWNER_COOKIE);
+    String file = seedFile("cascade-file", middle, new byte[] {1}, OWNER_COOKIE);
+
+    List<CompletableFuture<Response>> pending = new ArrayList<>();
+    Response trash;
+    try (Connection holder = holdRow("SELECT 1 FROM node WHERE node_id = ? FOR UPDATE", file)) {
+      try {
+        pending.add(CompletableFuture.supplyAsync(() -> trashNodes(top), RACE_EXECUTOR));
+        awaitBlockedBy(holder, 1);
+        try (PreparedStatement moveOut =
+            holder.prepareStatement(
+                "UPDATE node SET folder_id = 'LOCAL_ROOT', ancestor_ids = 'LOCAL_ROOT'"
+                    + " WHERE node_id = ?")) {
+          moveOut.setString(1, file);
+          moveOut.executeUpdate();
+        }
+        holder.commit();
+      } finally {
+        holder.rollback();
+      }
+      trash = pending.get(0).get(30, TimeUnit.SECONDS);
+    } finally {
+      awaitAll(pending);
+    }
+
+    Assertions.assertThat(hasError(trash)).isFalse();
+    Assertions.assertThat(isTrashed(top)).isTrue();
+    Assertions.assertThat(nodeColumnRaw(middle, "ancestor_ids")).isEqualTo("TRASH_ROOT," + top);
+    Assertions.assertThat(nodeColumnRaw(file, "folder_id")).isEqualTo(LOCAL_ROOT);
+    Assertions.assertThat(nodeColumnRaw(file, "ancestor_ids")).isEqualTo(LOCAL_ROOT);
+  }
+
+  @Test
+  void givenADeleteWhoseLockSetChangedThenItFailsWithResourceBusy() throws Exception {
+    String source = seedFolder("race-tree-delete-src", LOCAL_ROOT, OWNER_COOKIE);
+    String elsewhere = seedFolder("race-tree-delete-dst", LOCAL_ROOT, OWNER_COOKIE);
+    String file = seedFile("delete-moved", source, new byte[] {1}, OWNER_COOKIE);
+
+    List<CompletableFuture<Response>> pending = new ArrayList<>();
+    Response deletion;
+    try (Connection holder = holdRow("SELECT 1 FROM node WHERE node_id = ? FOR UPDATE", file)) {
+      try {
+        pending.add(CompletableFuture.supplyAsync(() -> deleteNodes(file), RACE_EXECUTOR));
+        awaitBlockedBy(holder, 1);
+        try (PreparedStatement moveOut =
+            holder.prepareStatement("UPDATE node SET folder_id = ? WHERE node_id = ?")) {
+          moveOut.setString(1, elsewhere);
+          moveOut.setString(2, file);
+          moveOut.executeUpdate();
+        }
+        holder.commit();
+      } finally {
+        holder.rollback();
+      }
+      deletion = pending.get(0).get(30, TimeUnit.SECONDS);
+    } finally {
+      awaitAll(pending);
+    }
+
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(deletion.getBody().asString()))
+        .containsExactly("RESOURCE_BUSY");
+    Assertions.assertThat(nodeColumnRaw(file, "folder_id")).isEqualTo(elsewhere);
+  }
+
+  @Test
   void givenATrashedNodeMovedThenItLeavesTheTrash() throws Exception {
     String destination = seedFolder("race-tree-b0-dst", LOCAL_ROOT, OWNER_COOKIE);
     String file = seedFile("b0-file", LOCAL_ROOT, new byte[] {1}, OWNER_COOKIE);

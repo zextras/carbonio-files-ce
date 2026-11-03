@@ -27,6 +27,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.locks.LockKey;
+import com.zextras.carbonio.files.dal.locks.NodeBusyException;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.locks.NodeWriteGuard;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
@@ -55,6 +56,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -328,6 +330,50 @@ class NodeApiMutationsTest {
     assertThat(destinationBlob.getValue().getVersion()).isEqualTo(1);
     assertThat(destinationBlob.getValue().getNode()).isEqualTo(createdNodeId.getValue());
     verify(nodeLocks).lock(List.of(LockKey.children(NODE_ID_2, destinationOwner)));
+  }
+
+  @Test
+  void copyNodesWhoseSecondTopIsBusyFailsWithResourceBusyKeepingTheFirstAsPartialResult()
+      throws Exception {
+    String thirdId = "00000000-0000-0000-0000-000000000003";
+    Node first = mockFileNode(NODE_ID_1, PARENT_ID);
+    Node second = mockFileNode(thirdId, PARENT_ID);
+    when(first.getOwnerId()).thenReturn(CLONING_USER_ID);
+    when(second.getOwnerId()).thenReturn(CLONING_USER_ID);
+    when(nodeApi.requester.getId()).thenReturn(new UserId(CLONING_USER_ID));
+    Node destination = mock(Node.class);
+    when(destination.getId()).thenReturn(NODE_ID_2);
+    when(destination.getNodeType()).thenReturn(NodeType.FOLDER);
+    when(destination.getOwnerId()).thenReturn(CLONING_USER_ID);
+    when(destination.getAncestorIds()).thenReturn("LOCAL_ROOT");
+    when(destination.getAncestorsList()).thenReturn(List.of("LOCAL_ROOT"));
+    Node copied = mockFileNode("copied-node-id", NODE_ID_2);
+    when(permissionsChecker.getPermissions(any(String.class), any(String.class)))
+        .thenReturn(aclWith(true));
+    when(nodeRepository.getNode(NODE_ID_2)).thenReturn(Optional.of(destination));
+    when(nodeRepository.getNodes(List.of(NODE_ID_1, thirdId), Optional.empty()))
+        .thenAnswer(inv -> Stream.of(first, second));
+    when(nodeRepository.getChildrenIds(NODE_ID_2, Optional.empty(), Optional.empty(), false))
+        .thenReturn(List.of());
+    when(nodeRepository.getNodes(List.of(), Optional.empty())).thenAnswer(inv -> Stream.empty());
+    when(fileVersionRepository.getFileVersion(any(), eq(1)))
+        .thenReturn(Optional.of(mock(FileVersion.class)));
+    UploadResponse response = mock(UploadResponse.class);
+    when(response.getSize()).thenReturn(5L);
+    when(response.getDigest()).thenReturn("digest");
+    doReturn(response).when(fileStore).copy(any(), any(), anyBoolean());
+    when(nodeRepository.persistNewNode(
+            any(), any(), any(), any(), any(), any(), any(), any(), anyLong()))
+        .thenReturn(copied);
+    when(nodeLocks.lock(any())).thenReturn(Set.of()).thenThrow(new NodeBusyException(NODE_ID_2));
+
+    assertThatThrownBy(() -> nodeApi.copyNodes(List.of(NODE_ID_1, thirdId), NODE_ID_2))
+        .isInstanceOfSatisfying(
+            FilesGraphQLException.class,
+            e -> {
+              assertThat(e.getErrorCode()).isEqualTo(ErrorCodes.RESOURCE_BUSY);
+              assertThat((List<?>) e.getPartialResults()).hasSize(1);
+            });
   }
 
   @Test

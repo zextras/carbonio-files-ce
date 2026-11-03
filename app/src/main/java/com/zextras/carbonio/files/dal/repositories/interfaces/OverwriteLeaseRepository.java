@@ -36,5 +36,11 @@ public interface OverwriteLeaseRepository {
    */
   Set<String> activeOn(Collection<String> nodeIds);
 
+  /**
+   * The nodes among {@code nodeIds} with a lease row, expired or not; joins the caller's
+   * transaction.
+   */
+  Set<String> anyOn(Collection<String> nodeIds);
+
   Optional<OverwriteLease> find(String nodeId);
 }

@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.rest.services;
 
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.locks.NodeWriteGuard;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -47,17 +48,20 @@ public class OverwriteLeases {
   private final FileVersionRepository fileVersionRepository;
   private final OverwriteLeaseRepository leaseRepository;
   private final NodeWriteGuard writeGuard;
+  private final NodeLocks nodeLocks;
 
   @Inject
   public OverwriteLeases(
       NodeRepository nodeRepository,
       FileVersionRepository fileVersionRepository,
       OverwriteLeaseRepository leaseRepository,
-      NodeWriteGuard writeGuard) {
+      NodeWriteGuard writeGuard,
+      NodeLocks nodeLocks) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
     this.leaseRepository = leaseRepository;
     this.writeGuard = writeGuard;
+    this.nodeLocks = nodeLocks;
   }
 
   /**
@@ -70,6 +74,7 @@ public class OverwriteLeases {
     return QuarkusTransaction.requiringNew()
         .call(
             () -> {
+              nodeLocks.boundLockWaits();
               long date =
                   nodeRepository
                       .reserveTimestamp(nodeId)
@@ -99,6 +104,10 @@ public class OverwriteLeases {
 
   public Set<String> activeOn(Collection<String> nodeIds) {
     return leaseRepository.activeOn(nodeIds);
+  }
+
+  public Set<String> anyOn(Collection<String> nodeIds) {
+    return leaseRepository.anyOn(nodeIds);
   }
 
   /**

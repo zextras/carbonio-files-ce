@@ -24,12 +24,15 @@ import jakarta.inject.Inject;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -347,6 +350,163 @@ class NodeWriteGuardDalTest {
                 .build());
 
     assertRefusedGraphql(response, 1);
+  }
+
+  private static String text(String sql) throws SQLException {
+    try (Connection connection = jdbc();
+        Statement statement = connection.createStatement();
+        ResultSet rs = statement.executeQuery(sql)) {
+      rs.next();
+      return rs.getString(1);
+    }
+  }
+
+  private static String ancestorsOf(String nodeId) throws SQLException {
+    return text("SELECT trim(ancestor_ids) FROM node WHERE node_id = '" + nodeId + "'");
+  }
+
+  private static String folder(String parentId) {
+    Response response =
+        graphql(
+            GraphqlCommandBuilder.aMutationBuilder("createFolder")
+                .withString("destination_id", parentId)
+                .withString("name", "f-" + UUID.randomUUID())
+                .withWantedResultFormat("{ id }")
+                .build());
+    String id = response.jsonPath().getString("data.createFolder.id");
+    assertThat(id).isNotNull();
+    return id;
+  }
+
+  private static Response treeMutation(String name, String key, String value) {
+    GraphqlCommandBuilder builder =
+        GraphqlCommandBuilder.aMutationBuilder(name)
+            .withListOfStrings("node_ids", new String[] {value});
+    if (key != null) {
+      builder = builder.withString("destination_id", key);
+    }
+    return graphql(
+        builder.withWantedResultFormat("trashNodes".equals(name) ? "" : "{ id }").build());
+  }
+
+  private static void assertBusy(Response response) {
+    assertThat(response.jsonPath().getList("errors")).isNotEmpty();
+  }
+
+  @Test
+  void trashOfAnAncestorOfARefusedDescendantFailsBusyAndChangesNothing() throws SQLException {
+    String top = folder(RootId.LOCAL_ROOT);
+    String middle = folder(top);
+    String file = upload(middle, "deep.bin").jsonPath().getString("nodeId");
+    String middleAncestors = ancestorsOf(middle);
+    String fileAncestors = ancestorsOf(file);
+    RefusingNodeWriteGuard.refuse(file);
+
+    Response response = treeMutation("trashNodes", null, top);
+
+    assertBusy(response);
+    assertThat(RefusingNodeWriteGuard.refusals()).isEqualTo(1);
+    assertThat(count("SELECT count(*) FROM trashed WHERE node_id = '" + top + "'")).isZero();
+    assertThat(text("SELECT trim(folder_id) FROM node WHERE node_id = '" + top + "'"))
+        .isEqualTo(RootId.LOCAL_ROOT);
+    assertThat(ancestorsOf(middle)).isEqualTo(middleAncestors);
+    assertThat(ancestorsOf(file)).isEqualTo(fileAncestors);
+  }
+
+  @Test
+  void moveOfAnAncestorOfARefusedDescendantFailsBusyAndChangesNothing() throws SQLException {
+    String destination = folder(RootId.LOCAL_ROOT);
+    String top = folder(RootId.LOCAL_ROOT);
+    String middle = folder(top);
+    String file = upload(middle, "deep.bin").jsonPath().getString("nodeId");
+    String middleAncestors = ancestorsOf(middle);
+    String fileAncestors = ancestorsOf(file);
+    RefusingNodeWriteGuard.refuse(file);
+
+    Response response = treeMutation("moveNodes", destination, top);
+
+    assertBusy(response);
+    assertThat(RefusingNodeWriteGuard.refusals()).isEqualTo(1);
+    assertThat(text("SELECT trim(folder_id) FROM node WHERE node_id = '" + top + "'"))
+        .isEqualTo(RootId.LOCAL_ROOT);
+    assertThat(ancestorsOf(middle)).isEqualTo(middleAncestors);
+    assertThat(ancestorsOf(file)).isEqualTo(fileAncestors);
+  }
+
+  @Test
+  void restoreOfAnAncestorOfARefusedDescendantFailsBusyAndChangesNothing() throws SQLException {
+    String top = folder(RootId.LOCAL_ROOT);
+    String middle = folder(top);
+    String file = upload(middle, "deep.bin").jsonPath().getString("nodeId");
+    assertThat(treeMutation("trashNodes", null, top).jsonPath().getList("errors")).isNull();
+    String middleAncestors = ancestorsOf(middle);
+    String fileAncestors = ancestorsOf(file);
+    RefusingNodeWriteGuard.refuse(file);
+
+    Response response = treeMutation("restoreNodes", null, top);
+
+    assertBusy(response);
+    assertThat(RefusingNodeWriteGuard.refusals()).isEqualTo(1);
+    assertThat(count("SELECT count(*) FROM trashed WHERE node_id = '" + top + "'")).isEqualTo(1);
+    assertThat(ancestorsOf(middle)).isEqualTo(middleAncestors);
+    assertThat(ancestorsOf(file)).isEqualTo(fileAncestors);
+  }
+
+  private static Response deleteAllNodesOf(String userId) {
+    return io.restassured.RestAssured.given()
+        .contentType("application/json")
+        .body("{\"userId\":\"" + userId + "\"}")
+        .delete("/internal/nodes");
+  }
+
+  @Test
+  void deleteAllOfAUserWithARefusedNodeAnswers423AndDeletesNothing() throws SQLException {
+    String file = uploadedFile();
+    String other = uploadedFile();
+    RefusingNodeWriteGuard.refuse(other);
+
+    Response response = deleteAllNodesOf(USER_ID);
+
+    assertThat(response.getStatusCode()).isEqualTo(423);
+    assertThat(RefusingNodeWriteGuard.refusals()).isEqualTo(1);
+    assertThat(count("SELECT count(*) FROM node WHERE node_id IN ('" + file + "','" + other + "')"))
+        .isEqualTo(2);
+    assertThat(count("SELECT count(*) FROM tombstone")).isZero();
+    assertThat(FilesStackTestResource.getStoragesService().has(file, 1)).isTrue();
+  }
+
+  @Test
+  void deleteAllNeitherTombstonesNorDeletesANodeWhoseOwnerChangedBeforeTheLock() throws Exception {
+    String kept = uploadedFile();
+    String transferred = uploadedFile();
+    CompletableFuture<Response> deletion;
+    try (Connection holder = jdbc()) {
+      holder.setAutoCommit(false);
+      try (PreparedStatement lock =
+          holder.prepareStatement("SELECT 1 FROM node WHERE node_id = ? FOR UPDATE")) {
+        lock.setString(1, transferred);
+        lock.execute();
+      }
+      deletion = CompletableFuture.supplyAsync(() -> deleteAllNodesOf(USER_ID));
+      LockWaits.awaitBlockedBy(1, LockWaits.backendPid(holder));
+      try (PreparedStatement transfer =
+          holder.prepareStatement("UPDATE node SET owner_id = ? WHERE node_id = ?")) {
+        transfer.setString(1, "someone-else");
+        transfer.setString(2, transferred);
+        transfer.execute();
+      }
+      holder.commit();
+    }
+
+    Response response = deletion.get(30, TimeUnit.SECONDS);
+
+    assertThat(response.getStatusCode()).isEqualTo(200);
+    assertThat(count("SELECT count(*) FROM node WHERE node_id = '" + kept + "'")).isZero();
+    assertThat(count("SELECT count(*) FROM node WHERE node_id = '" + transferred + "'"))
+        .isEqualTo(1);
+    assertThat(count("SELECT count(*) FROM tombstone WHERE node_id = '" + transferred + "'"))
+        .isZero();
+    assertThat(FilesStackTestResource.getStoragesService().has(transferred, 1)).isTrue();
   }
 
   private static String cloneMutation(String nodeId) {

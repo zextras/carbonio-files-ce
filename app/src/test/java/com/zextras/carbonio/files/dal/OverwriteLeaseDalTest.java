@@ -5,11 +5,13 @@
 package com.zextras.carbonio.files.dal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.OverwriteLease;
+import com.zextras.carbonio.files.dal.locks.LockFailures;
 import com.zextras.carbonio.files.dal.repositories.interfaces.OverwriteLeaseRepository;
 import com.zextras.carbonio.files.rest.services.OverwriteLeases;
 import com.zextras.carbonio.files.rest.services.OverwriteLeases.Lease;
@@ -18,6 +20,9 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -203,6 +208,63 @@ class OverwriteLeaseDalTest {
         QuarkusTransaction.requiringNew().call(() -> overwriteLeases.activeOn(ids));
 
     assertThat(active).containsExactly(held);
+  }
+
+  @Test
+  void anyOnReturnsTheNodesWithALeaseRowExpiredOrNot() {
+    String held = fileWithCurrentVersion(1);
+    String expired = fileWithCurrentVersion(1);
+    String free = fileWithCurrentVersion(1);
+    overwriteLeases.take(held).orElseThrow();
+    overwriteLeases.take(expired).orElseThrow();
+    expire(expired);
+
+    Set<String> any =
+        QuarkusTransaction.requiringNew()
+            .call(() -> overwriteLeases.anyOn(List.of(held, expired, free)));
+    Set<String> none =
+        QuarkusTransaction.requiringNew().call(() -> overwriteLeases.anyOn(List.of()));
+
+    assertThat(any).containsExactlyInAnyOrder(held, expired);
+    assertThat(none).isEmpty();
+  }
+
+  @Test
+  void anyOnReadsMoreNodesThanOneInListHolds() {
+    String expired = fileWithCurrentVersion(1);
+    overwriteLeases.take(expired).orElseThrow();
+    expire(expired);
+    List<String> ids = new ArrayList<>();
+    for (int i = 0; i < 70_000; i++) {
+      ids.add(UUID.randomUUID().toString());
+    }
+    ids.add(expired);
+
+    Set<String> any = QuarkusTransaction.requiringNew().call(() -> overwriteLeases.anyOn(ids));
+
+    assertThat(any).containsExactly(expired);
+  }
+
+  @Test
+  void takeBehindAHeldNodeRowFailsBusyAfterTheLockTimeout() throws Exception {
+    String nodeId = fileWithCurrentVersion(1);
+    try (Connection holder =
+            DriverManager.getConnection(FilesStackTestResource.POSTGRES_JDBC_URL, "test", "test");
+        PreparedStatement lock =
+            holder.prepareStatement("SELECT 1 FROM node WHERE node_id = ? FOR UPDATE")) {
+      holder.setAutoCommit(false);
+      lock.setString(1, nodeId);
+      lock.execute();
+      long start = System.nanoTime();
+
+      assertThatThrownBy(() -> overwriteLeases.take(nodeId))
+          .satisfies(e -> assertThat(LockFailures.isBusy(e)).isTrue());
+
+      assertThat(Duration.ofNanos(System.nanoTime() - start))
+          .isBetween(Duration.ofMillis(4500), Duration.ofSeconds(15));
+      holder.rollback();
+    }
+    assertThat(leaseRepository.find(nodeId)).isEmpty();
   }
 
   @Test

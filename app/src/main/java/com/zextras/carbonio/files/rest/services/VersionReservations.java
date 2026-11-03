@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.rest.services;
 
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
@@ -30,15 +31,18 @@ public class VersionReservations {
   private final NodeRepository nodeRepository;
   private final FileVersionRepository fileVersionRepository;
   private final VersionReservationRepository reservationRepository;
+  private final NodeLocks nodeLocks;
 
   @Inject
   public VersionReservations(
       NodeRepository nodeRepository,
       FileVersionRepository fileVersionRepository,
-      VersionReservationRepository reservationRepository) {
+      VersionReservationRepository reservationRepository,
+      NodeLocks nodeLocks) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
     this.reservationRepository = reservationRepository;
+    this.nodeLocks = nodeLocks;
   }
 
   /**
@@ -47,16 +51,18 @@ public class VersionReservations {
   public Optional<Reservation> reserve(String nodeId, String blobOwnerId) {
     return QuarkusTransaction.requiringNew()
         .call(
-            () ->
-                nodeRepository
-                    .reserveNextVersion(nodeId)
-                    .map(
-                        slot -> {
-                          reservationRepository.reserve(
-                              nodeId, slot.version(), blobOwnerId, slot.reservedAt());
-                          return new Reservation(
-                              nodeId, slot.version(), slot.reservedAt(), blobOwnerId);
-                        }));
+            () -> {
+              nodeLocks.boundLockWaits();
+              return nodeRepository
+                  .reserveNextVersion(nodeId)
+                  .map(
+                      slot -> {
+                        reservationRepository.reserve(
+                            nodeId, slot.version(), blobOwnerId, slot.reservedAt());
+                        return new Reservation(
+                            nodeId, slot.version(), slot.reservedAt(), blobOwnerId);
+                      });
+            });
   }
 
   /**

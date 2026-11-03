@@ -20,6 +20,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.locks.LockFailures;
 import com.zextras.carbonio.files.dal.locks.LockKey;
 import com.zextras.carbonio.files.dal.locks.LockedTree;
+import com.zextras.carbonio.files.dal.locks.NodeBusyException;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.locks.NodeWriteGuard;
 import com.zextras.carbonio.files.dal.repositories.impl.InvalidPageTokenException;
@@ -499,8 +500,7 @@ public class NodeApi {
     return places;
   }
 
-  private void requireUnmoved(List<NodeLocks.NodePlace> places, Collection<String> nodeIds)
-      throws FilesGraphQLException {
+  private void requireUnmoved(List<NodeLocks.NodePlace> places, Collection<String> nodeIds) {
     List<NodeLocks.NodePlace> current = nodeLocks.placesOf(nodeIds);
     if (!Set.copyOf(places).equals(Set.copyOf(current))) {
       Set<NodeLocks.NodePlace> before = Set.copyOf(places);
@@ -510,7 +510,7 @@ public class NodeApi {
               .map(NodeLocks.NodePlace::nodeId)
               .findFirst()
               .orElseGet(() -> nodeIds.iterator().next());
-      throw FilesGraphQLErrors.resourceBusy(changed);
+      throw new NodeBusyException(changed);
     }
   }
 
@@ -1032,6 +1032,10 @@ public class NodeApi {
         if (copiedTopNodeIsAbsent(plan.copyId())) {
           discardBlobs(blobs.keySet(), ownerId);
         }
+        if (LockFailures.isBusy(e)) {
+          throw FilesGraphQLErrors.resourceBusy(LockFailures.busyNodeId(e).orElse(node.getId()))
+              .withPartialResults(copiedNodesResult);
+        }
         throw e;
       }
       if (published.isEmpty()) {
@@ -1258,6 +1262,7 @@ public class NodeApi {
       QuarkusTransaction.requiringNew()
           .run(
               () -> {
+                nodeLocks.boundLockWaits();
                 long versionDate = versionReservations.confirm(reservation);
                 if (nodeRepository
                     .getNode(nodeId)
@@ -1318,16 +1323,25 @@ public class NodeApi {
   }
 
   private void cascadeUpdateAncestors(Node parentNode) {
-    List<String> childrenIds =
-        nodeRepository.getChildrenIds(parentNode.getId(), Optional.empty(), Optional.empty(), true);
-    if (!childrenIds.isEmpty()) {
-      nodeRepository.moveNodes(childrenIds, parentNode);
-      List<Node> childrenNodes =
-          nodeRepository.getNodes(childrenIds, Optional.empty()).collect(Collectors.toList());
-      childrenNodes.stream()
-          .filter(
-              n -> n.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
-          .forEach(this::cascadeUpdateAncestors);
+    List<Node> frontier = List.of(parentNode);
+    while (!frontier.isEmpty()) {
+      nodeLocks.lockChildren(frontier.stream().map(Node::getId).toList());
+      List<Node> nextFrontier = new ArrayList<>();
+      for (Node folder : frontier) {
+        List<String> childrenIds =
+            nodeRepository.getChildrenIds(folder.getId(), Optional.empty(), Optional.empty(), true);
+        if (!childrenIds.isEmpty()) {
+          nodeRepository.moveNodes(childrenIds, folder);
+          nodeRepository
+              .getNodes(childrenIds, Optional.empty())
+              .filter(
+                  n ->
+                      n.getNodeType()
+                          .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
+              .forEach(nextFrontier::add);
+        }
+      }
+      frontier = nextFrontier;
     }
   }
 
@@ -1344,11 +1358,7 @@ public class NodeApi {
 
   private TreeDeletion deleteLockedTree(Set<String> candidateIds, String me) {
     List<String> ids = List.copyOf(candidateIds);
-    try {
-      requireUnmoved(lockNodesAndParents(ids, List.of()), ids);
-    } catch (FilesGraphQLException e) {
-      throw new IllegalStateException(e);
-    }
+    requireUnmoved(lockNodesAndParents(ids, List.of()), ids);
 
     List<Node> roots =
         nodeRepository

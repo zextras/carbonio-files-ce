@@ -414,6 +414,29 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Override
   @Transactional
+  public List<Node> findNodesOwnedBy(List<String> nodeIds, String ownerId) {
+    List<Node> owned = new ArrayList<>();
+    for (List<String> chunk : Chunks.of(nodeIds)) {
+      owned.addAll(
+          entityManager
+              .createQuery(SELECT_NODES_BY_IDS + " and n.mOwnerId = :owner", Node.class)
+              .setParameter("ids", chunk.stream().map(NodeRepositoryImpl::normalizeId).toList())
+              .setParameter(OWNER_PARAM, ownerId)
+              .getResultList());
+    }
+    return owned;
+  }
+
+  @Override
+  @Transactional
+  public int deleteNodesOwnedBy(List<String> nodesIds, String ownerId) {
+    List<Node> owned = findNodesOwnedBy(nodesIds, ownerId);
+    owned.forEach(entityManager::remove);
+    return owned.size();
+  }
+
+  @Override
+  @Transactional
   public int moveNodes(List<String> nodesIds, Node destinationFolder) {
     if (nodesIds.isEmpty()) {
       return 0;

@@ -168,11 +168,15 @@ public class NodeCreationHelper {
         .run(
             () -> {
               fileVersionsByOwner.clear();
-              List<Node> allNodes =
+              nodeLocks.boundLockWaits();
+              List<String> candidateIds =
                   nodeRepository.findNodesByOwner(userId).stream()
                       .filter(Objects::nonNull)
                       .filter(node -> !node.getNodeType().equals(NodeType.ROOT))
+                      .map(Node::getId)
                       .toList();
+              nodeLocks.lockRows(candidateIds);
+              List<Node> allNodes = nodeRepository.findNodesOwnedBy(candidateIds, userId);
               allNodes.stream()
                   .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
                   .forEach(
@@ -185,7 +189,7 @@ public class NodeCreationHelper {
               fileVersionsByOwner.forEach(
                   (ownerId, versions) ->
                       tombstoneRepository.createTombstonesBulk(versions, ownerId));
-              deleteNodes(allNodes);
+              deleteOwnedNodes(allNodes, userId);
               allNodes.stream()
                   .filter(node -> node.getNodeType().equals(NodeType.FOLDER))
                   .map(Node::getId)
@@ -267,6 +271,15 @@ public class NodeCreationHelper {
     }
 
     shareRepository.deleteSharesBulk(nodeRepository.getTrashedNodeIdsByOldParent(nodeId));
+  }
+
+  private void deleteOwnedNodes(List<Node> nodes, String ownerId) {
+    List<String> nodeIds = nodes.stream().map(Node::getId).collect(Collectors.toList());
+
+    if (!nodeIds.isEmpty()) {
+      shareRepository.deleteSharesBulk(nodeIds);
+      nodeRepository.deleteNodesOwnedBy(nodeIds, ownerId);
+    }
   }
 
   private void deleteNodes(List<Node> nodes) {

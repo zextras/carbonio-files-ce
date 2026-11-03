@@ -219,6 +219,12 @@ public interface NodeRepository {
 
   int deleteNodes(List<String> nodesIds);
 
+  /** The nodes among {@code nodeIds} that the database still has owned by {@code ownerId}. */
+  List<Node> findNodesOwnedBy(List<String> nodeIds, String ownerId);
+
+  /** Deletes the nodes among {@code nodesIds} still owned by {@code ownerId}. */
+  int deleteNodesOwnedBy(List<String> nodesIds, String ownerId);
+
   /**
    * Changes the flag custom attribute for a {@link Node}.
    *

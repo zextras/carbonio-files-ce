@@ -92,6 +92,16 @@ public class NodeLocks {
     return locked;
   }
 
+  /** Bounds the lock waits of a transaction that locks through an implicit UPDATE. */
+  @Transactional(TxType.MANDATORY)
+  public void boundLockWaits() {
+    entityManager
+        .createNativeQuery("SELECT set_config('lock_timeout', :timeout, true)")
+        .setFlushMode(FlushModeType.COMMIT)
+        .setParameter("timeout", LOCK_TIMEOUT)
+        .getSingleResult();
+  }
+
   /**
    * Locks every child, of any type, of the given folders; cascades call it before reading below
    * them.
