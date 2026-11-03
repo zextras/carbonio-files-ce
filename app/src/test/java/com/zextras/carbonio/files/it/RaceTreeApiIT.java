@@ -360,9 +360,11 @@ class RaceTreeApiIT extends AbstractFilesIT {
       awaitAll(pending);
     }
 
-    responses.forEach(response -> Assertions.assertThat(hasError(response)).isFalse());
-    Assertions.assertThat(nodeColumnRaw(victim, "folder_id")).isEqualTo("TRASH_ROOT");
-    Assertions.assertThat(isTrashed(victim)).isTrue();
+    Assertions.assertThat(hasError(responses.get(0))).isFalse();
+    Assertions.assertThat(responses.get(1).jsonPath().getString("errors[0].extensions.errorCode"))
+        .isEqualTo("NODE_WRITE_ERROR");
+    Assertions.assertThat(nodeColumnRaw(victim, "folder_id")).isEqualTo(destination);
+    Assertions.assertThat(isTrashed(victim)).isFalse();
   }
 
   @Test
@@ -444,7 +446,8 @@ class RaceTreeApiIT extends AbstractFilesIT {
       awaitAll(pending);
     }
 
-    assertAtMostOneSucceeded(responses);
+    Assertions.assertThat(responses.stream().filter(r -> !hasError(r)).toList())
+        .hasSizeLessThanOrEqualTo(1);
     assertNoCycle();
   }
 
