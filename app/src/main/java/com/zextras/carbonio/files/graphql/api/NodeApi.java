@@ -1095,7 +1095,7 @@ public class NodeApi {
     }
     List<FileVersion> fileVersionsToDelete = deleted.versions();
     List<Integer> versionsToDelete =
-        fileVersionsToDelete.stream().map(FileVersion::getVersion).collect(Collectors.toList());
+        fileVersionsToDelete.stream().map(FileVersion::getVersion).toList();
 
     if (!versionsToDelete.isEmpty()) {
       String ownerId = deleted.ownerId();

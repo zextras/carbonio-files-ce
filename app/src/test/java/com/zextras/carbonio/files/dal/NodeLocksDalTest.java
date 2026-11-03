@@ -132,7 +132,9 @@ class NodeLocksDalTest {
   void lockAfterAWriteFails() {
     String a = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
 
-    assertThatThrownBy(() -> QuarkusTransaction.requiringNew().run(() -> writeThenLock(a, false)))
+    var transaction = QuarkusTransaction.requiringNew();
+
+    assertThatThrownBy(() -> transaction.run(() -> writeThenLock(a, false)))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("before any write");
   }
@@ -141,7 +143,9 @@ class NodeLocksDalTest {
   void lockAfterAFlushedWriteFails() {
     String a = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
 
-    assertThatThrownBy(() -> QuarkusTransaction.requiringNew().run(() -> writeThenLock(a, true)))
+    var transaction = QuarkusTransaction.requiringNew();
+
+    assertThatThrownBy(() -> transaction.run(() -> writeThenLock(a, true)))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("before any write");
   }
@@ -151,7 +155,9 @@ class NodeLocksDalTest {
     String a = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
     String b = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
 
-    assertThatThrownBy(() -> QuarkusTransaction.requiringNew().run(() -> lockTwice(a, b)))
+    var transaction = QuarkusTransaction.requiringNew();
+
+    assertThatThrownBy(() -> transaction.run(() -> lockTwice(a, b)))
         .isInstanceOf(IllegalStateException.class);
   }
 
