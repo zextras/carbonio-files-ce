@@ -101,6 +101,14 @@ public class ErrorLoggingEventingService implements EventingService {
             "GraphQL operation '{}' failed at '{}': {}", operationName, path, throwable.toString());
         return;
       }
+      if (LockFailures.isBusy(throwable)) {
+        logger.warn(
+            "GraphQL operation '{}' at '{}' refused, resource busy: {}",
+            operationName,
+            path,
+            signature(throwable));
+        return;
+      }
       // A failed batch fails every key with the same root cause, possibly re-wrapped per key.
       if (capped || !signatures.add(signature(throwable))) {
         return;

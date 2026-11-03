@@ -109,6 +109,18 @@ class ErrorLoggingEventingServiceTest {
   }
 
   @Test
+  void aLockTimeoutIsLoggedAsOneWarningWithoutStackTrace() {
+    Logger logger = mock(Logger.class);
+    var state = new ErrorLoggingEventingService.RequestErrorLog(logger);
+
+    record(state, new RuntimeException(new SQLException("timeout", "55P03")), "/m");
+
+    verify(logger, times(1))
+        .warn(anyString(), eq("Op"), eq("/m"), eq("java.sql.SQLException: timeout"));
+    verify(logger, never()).error(anyString(), any(), any(), any(Throwable.class));
+  }
+
+  @Test
   @Timeout(5)
   void aCauseCycleLongerThanOneTerminates() {
     Logger logger = mock(Logger.class);
