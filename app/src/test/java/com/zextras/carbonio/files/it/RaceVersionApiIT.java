@@ -313,4 +313,46 @@ class RaceVersionApiIT extends AbstractFilesIT {
     Assertions.assertThat(errorCodes(response)).containsExactly("NODE_WRITE_ERROR");
     Assertions.assertThat(versionRows(file)).containsExactly(1);
   }
+
+  @Test
+  void givenTheOwnerChangedDuringACloneThenItIsRefusedAndNoVersionIsCreated() throws Exception {
+    String file = seedFile("race-version-owner-clone.txt", LOCAL_ROOT, CONTENT, OWNER_COOKIE);
+    seedShare(file, SHAREE_ID, SharePermission.READ_AND_WRITE, OWNER_COOKIE);
+
+    var storages = FilesStackTestResource.getStoragesService();
+    storages.holdCopies();
+    CompletableFuture<Response> clone = null;
+    Response response;
+    try {
+      clone =
+          CompletableFuture.supplyAsync(() -> cloneVersion(file, 1, SHAREE_COOKIE), RACE_EXECUTOR);
+      storages.awaitHeldCopy();
+      changeOwner(file);
+      storages.releaseCopies();
+      response = clone.get(30, TimeUnit.SECONDS);
+    } finally {
+      storages.releaseCopies();
+      if (clone != null) {
+        try {
+          clone.get(30, TimeUnit.SECONDS);
+        } catch (Exception ignored) {
+        }
+      }
+    }
+
+    Assertions.assertThat(errorCodes(response)).containsExactly("NODE_WRITE_ERROR");
+    Assertions.assertThat(versionRows(file)).containsExactly(1);
+    Assertions.assertThat(currentVersion(file)).isEqualTo(1);
+  }
+
+  private static void changeOwner(String nodeId) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement transfer =
+            connection.prepareStatement(
+                "UPDATE node SET owner_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'"
+                    + " WHERE node_id = ?")) {
+      transfer.setString(1, nodeId);
+      Assertions.assertThat(transfer.executeUpdate()).isEqualTo(1);
+    }
+  }
 }

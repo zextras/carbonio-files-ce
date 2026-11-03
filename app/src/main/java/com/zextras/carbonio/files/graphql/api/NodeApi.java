@@ -1198,7 +1198,11 @@ public class NodeApi {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
-    nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
+    String ownerId =
+        nodeRepository
+            .getNode(nodeId)
+            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId))
+            .getOwnerId();
 
     int maxNumberOfVersions = getMaxNumberOfVersions();
     if (fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)).size()
@@ -1243,6 +1247,12 @@ public class NodeApi {
           .run(
               () -> {
                 long versionDate = versionReservations.confirm(reservation);
+                if (nodeRepository
+                    .getNode(nodeId)
+                    .filter(n -> ownerId.equals(n.getOwnerId()))
+                    .isEmpty()) {
+                  throw new WritePermissionRevokedException();
+                }
                 if (!permissionsChecker
                     .getPermissions(nodeId, me)
                     .has(SharePermission.READ_AND_WRITE)) {
