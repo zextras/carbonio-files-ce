@@ -241,8 +241,7 @@ class RaceVersionApiIT extends AbstractFilesIT {
 
     Assertions.assertThat(status).isEqualTo("HTTP/1.1 200 OK");
     List<Integer> rows = versionRows(file);
-    Assertions.assertThat(rows).contains(currentVersion(file));
-    Assertions.assertThat(rows).contains(3);
+    Assertions.assertThat(rows).contains(currentVersion(file)).contains(3);
   }
 
   @Test

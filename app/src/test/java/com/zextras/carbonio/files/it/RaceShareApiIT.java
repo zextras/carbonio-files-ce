@@ -80,15 +80,6 @@ class RaceShareApiIT extends AbstractFilesIT {
         OWNER_COOKIE);
   }
 
-  private static Response trashNodes(String... nodeIds) {
-    return graphql(
-        GraphqlCommandBuilder.aMutationBuilder("trashNodes")
-            .withListOfStrings("node_ids", nodeIds)
-            .withWantedResultFormat("")
-            .build(),
-        OWNER_COOKIE);
-  }
-
   private static boolean shareRow(String nodeId) throws SQLException {
     return rowExists("SELECT 1 FROM share WHERE node_id = ? AND target_uuid = ?", nodeId, USER_ID);
   }

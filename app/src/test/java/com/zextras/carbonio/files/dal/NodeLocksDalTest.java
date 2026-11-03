@@ -132,15 +132,7 @@ class NodeLocksDalTest {
   void lockAfterAWriteFails() {
     String a = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
 
-    assertThatThrownBy(
-            () ->
-                QuarkusTransaction.requiringNew()
-                    .run(
-                        () -> {
-                          Node node = nodeRepository.getNode(a).orElseThrow();
-                          node.setDescription("x");
-                          nodeLocks.lock(List.of(LockKey.node(a)));
-                        }))
+    assertThatThrownBy(() -> QuarkusTransaction.requiringNew().run(() -> writeThenLock(a, false)))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("before any write");
   }
@@ -149,16 +141,7 @@ class NodeLocksDalTest {
   void lockAfterAFlushedWriteFails() {
     String a = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
 
-    assertThatThrownBy(
-            () ->
-                QuarkusTransaction.requiringNew()
-                    .run(
-                        () -> {
-                          Node node = nodeRepository.getNode(a).orElseThrow();
-                          node.setDescription("x");
-                          entityManager.flush();
-                          nodeLocks.lock(List.of(LockKey.node(a)));
-                        }))
+    assertThatThrownBy(() -> QuarkusTransaction.requiringNew().run(() -> writeThenLock(a, true)))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("before any write");
   }
@@ -168,15 +151,22 @@ class NodeLocksDalTest {
     String a = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
     String b = seed(RootId.LOCAL_ROOT, NodeType.FOLDER);
 
-    assertThatThrownBy(
-            () ->
-                QuarkusTransaction.requiringNew()
-                    .run(
-                        () -> {
-                          nodeLocks.lock(List.of(LockKey.node(a)));
-                          nodeLocks.lock(List.of(LockKey.node(b)));
-                        }))
+    assertThatThrownBy(() -> QuarkusTransaction.requiringNew().run(() -> lockTwice(a, b)))
         .isInstanceOf(IllegalStateException.class);
+  }
+
+  private void writeThenLock(String nodeId, boolean flush) {
+    Node node = nodeRepository.getNode(nodeId).orElseThrow();
+    node.setDescription("x");
+    if (flush) {
+      entityManager.flush();
+    }
+    nodeLocks.lock(List.of(LockKey.node(nodeId)));
+  }
+
+  private void lockTwice(String first, String second) {
+    nodeLocks.lock(List.of(LockKey.node(first)));
+    nodeLocks.lock(List.of(LockKey.node(second)));
   }
 
   @Test

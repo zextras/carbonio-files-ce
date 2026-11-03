@@ -1076,11 +1076,11 @@ public class NodeApi {
                         .stream()
                             .filter(fv -> !fv.isKeptForever())
                             .filter(fv -> !node.get().getCurrentVersion().equals(fv.getVersion()))
-                            .collect(Collectors.toList());
+                            .toList();
                 String owner = node.get().getOwnerId();
                 if (!toDelete.isEmpty()) {
                   List<Integer> toDeleteNumbers =
-                      toDelete.stream().map(FileVersion::getVersion).collect(Collectors.toList());
+                      toDelete.stream().map(FileVersion::getVersion).toList();
                   tombstoneRepository.createTombstonesBulk(toDelete, owner);
                   fileVersionRepository.deleteFileVersions(nodeId, toDeleteNumbers);
                 }
@@ -1466,9 +1466,7 @@ public class NodeApi {
                     FilesIdentifier.of(item.copyId(), 1, ownerId),
                     false));
     if (copyAttempt.isFailure()) {
-      logger.error(
-          MessageFormat.format(
-              "Unable to copy node {0}. {1}", source.getId(), copyAttempt.getCause()));
+      logger.error("Unable to copy node {}. {}", source.getId(), copyAttempt.getCause());
       return Optional.of(copyAttempt.getCause());
     }
     var response = copyAttempt.get();
@@ -1571,13 +1569,14 @@ public class NodeApi {
     List<CopyItem> created = new ArrayList<>();
     Node top = persistCopy(plan, destinationFolder, ownerId, me, true, created);
     for (CopyItem item : created) {
-      if (item.sourceVersion().isPresent()) {
+      var sourceVersion = item.sourceVersion();
+      if (sourceVersion.isPresent()) {
         CopiedBlob blob = blobs.get(item.copyId());
         fileVersionRepository.createNewFileVersion(
             item.copyId(),
             me,
             1,
-            item.sourceVersion().get().getMimeType(),
+            sourceVersion.get().getMimeType(),
             blob.size(),
             blob.digest(),
             false);

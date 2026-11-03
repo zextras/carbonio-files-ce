@@ -27,6 +27,8 @@ public class NodeLocks {
 
   private static final String LOCK_TIMEOUT = "5s";
 
+  private static final String ORDER_TAIL = ", node_id FOR NO KEY UPDATE";
+
   private static final int LOCK_CHUNK = 1000;
 
   private static final Set<String> ROOTS = Set.of(RootId.LOCAL_ROOT, RootId.TRASH_ROOT);
@@ -78,7 +80,7 @@ public class NodeLocks {
               .createNativeQuery(
                   "SELECT trim(node_id) FROM node WHERE node_id IN (:ids) ORDER BY "
                       + DEPTH
-                      + ", node_id FOR NO KEY UPDATE")
+                      + ORDER_TAIL)
               .setParameter("ids", rowIds)
               .getResultList();
       locked.addAll(rows);
@@ -105,7 +107,7 @@ public class NodeLocks {
               .createNativeQuery(
                   "SELECT trim(node_id) FROM node WHERE folder_id IN (:parents) ORDER BY "
                       + DEPTH
-                      + ", node_id FOR NO KEY UPDATE")
+                      + ORDER_TAIL)
               .setFlushMode(FlushModeType.COMMIT)
               .setParameter(
                   "parents", sorted.subList(from, Math.min(from + LOCK_CHUNK, sorted.size())))
@@ -130,7 +132,7 @@ public class NodeLocks {
               .createNativeQuery(
                   "SELECT trim(node_id) FROM node WHERE node_id IN (:ids) ORDER BY "
                       + DEPTH
-                      + ", node_id FOR NO KEY UPDATE")
+                      + ORDER_TAIL)
               .setFlushMode(FlushModeType.COMMIT)
               .setParameter("ids", sorted.subList(from, Math.min(from + LOCK_CHUNK, sorted.size())))
               .getResultList();

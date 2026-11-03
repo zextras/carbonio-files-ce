@@ -173,7 +173,7 @@ class KeyValueChangedHandlerTest {
   }
 
   @Test
-  void givenANodeDeletedMeanwhileThenNothingIsDone() throws Exception {
+  void givenANodeDeletedMeanwhileThenNothingIsDone() {
     nodeWithVersions(3, version(1, false), version(2, false), version(3, false));
     when(nodeRepository.getNode("node-1")).thenReturn(Optional.empty());
 

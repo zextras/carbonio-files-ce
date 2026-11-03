@@ -75,6 +75,10 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
+  private static final String SELECT_NODES_BY_IDS = "select n from Node n where n.mId in :ids";
+
+  private static final String OWNER_PARAM = "owner";
+
   private static final Logger logger = LoggerFactory.getLogger(NodeRepositoryImpl.class);
 
   /** Maps a {@link Db.Node} sortable column name to the JPA entity field of {@link Node}. */
@@ -205,7 +209,7 @@ public class NodeRepositoryImpl implements NodeRepository {
             Node.class)
         .setParameter("name", nodeName)
         .setParameter("parent", normalizeId(folderId))
-        .setParameter("owner", nodeOwner)
+        .setParameter(OWNER_PARAM, nodeOwner)
         .getResultList()
         .stream()
         .findFirst();
@@ -222,7 +226,7 @@ public class NodeRepositoryImpl implements NodeRepository {
   public List<Node> findNodesByOwner(String ownerId) {
     return entityManager
         .createQuery("select n from Node n where n.mOwnerId = :owner", Node.class)
-        .setParameter("owner", ownerId)
+        .setParameter(OWNER_PARAM, ownerId)
         .getResultList();
   }
 
@@ -235,7 +239,7 @@ public class NodeRepositoryImpl implements NodeRepository {
     String orderBy = sort.map(s -> " order by " + orderFragment(s) + ", n.mId asc").orElse("");
     if (sort.isPresent() || ids.size() <= Chunks.IN_LIST_LIMIT) {
       return entityManager
-          .createQuery("select n from Node n where n.mId in :ids" + orderBy, Node.class)
+          .createQuery(SELECT_NODES_BY_IDS + orderBy, Node.class)
           .setParameter("ids", ids)
           .getResultList()
           .stream();
@@ -244,7 +248,7 @@ public class NodeRepositoryImpl implements NodeRepository {
     for (List<String> chunk : Chunks.of(ids)) {
       result.addAll(
           entityManager
-              .createQuery("select n from Node n where n.mId in :ids", Node.class)
+              .createQuery(SELECT_NODES_BY_IDS, Node.class)
               .setParameter("ids", chunk)
               .getResultList());
     }
@@ -399,7 +403,7 @@ public class NodeRepositoryImpl implements NodeRepository {
     for (List<String> chunk : Chunks.of(nodesIds)) {
       List<Node> nodes =
           entityManager
-              .createQuery("select n from Node n where n.mId in :ids", Node.class)
+              .createQuery(SELECT_NODES_BY_IDS, Node.class)
               .setParameter("ids", chunk.stream().map(NodeRepositoryImpl::normalizeId).toList())
               .getResultList();
       nodes.forEach(entityManager::remove);
@@ -426,7 +430,7 @@ public class NodeRepositoryImpl implements NodeRepository {
     // cache; Hibernate dirty-checking flushes the changes.
     List<Node> nodes =
         entityManager
-            .createQuery("select n from Node n where n.mId in :ids", Node.class)
+            .createQuery(SELECT_NODES_BY_IDS, Node.class)
             .setParameter("ids", nodesIds.stream().map(NodeRepositoryImpl::normalizeId).toList())
             .getResultList();
     nodes.forEach(
@@ -443,7 +447,7 @@ public class NodeRepositoryImpl implements NodeRepository {
             "update Node n set n.mHidden = :hidden where n.mOwnerId = :owner and n.mHidden <>"
                 + " :hidden")
         .setParameter("hidden", hidden)
-        .setParameter("owner", ownerId)
+        .setParameter(OWNER_PARAM, ownerId)
         .executeUpdate();
   }
 

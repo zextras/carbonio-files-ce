@@ -28,7 +28,6 @@ class RaceCopyApiIT extends AbstractFilesIT {
   private static final String OWNER_ID = "41111111-1111-1111-1111-111111111111";
   private static final String OWNER_COOKIE = "ZM_AUTH_TOKEN=race-copy-owner";
   private static final String USER_ID = "42222222-2222-2222-2222-222222222222";
-  private static final String USER_COOKIE = "ZM_AUTH_TOKEN=race-copy-user";
 
   @BeforeAll
   static void registerUsers() {
@@ -195,7 +194,7 @@ class RaceCopyApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.jsonPath().getList("data.copyNodes")).isEmpty();
     Assertions.assertThat(childCount(destination)).isZero();
     Assertions.assertThat(storages.blobCount()).isEqualTo(blobsBefore);
-    Assertions.assertThat(storages.copyRequests().size()).isGreaterThanOrEqualTo(2);
+    Assertions.assertThat(storages.copyRequests()).hasSizeGreaterThanOrEqualTo(2);
   }
 
   @Test
@@ -212,8 +211,8 @@ class RaceCopyApiIT extends AbstractFilesIT {
     String copied = onlyChildId(destination);
     Assertions.assertThat(nodeColumnRaw(copied, "ancestor_ids")).startsWith("TRASH_ROOT");
     List<String[]> inside = descendants(copied);
-    Assertions.assertThat(inside).hasSize(2);
     Assertions.assertThat(inside)
+        .hasSize(2)
         .allSatisfy(row -> Assertions.assertThat(row[1]).contains("TRASH_ROOT"));
   }
 

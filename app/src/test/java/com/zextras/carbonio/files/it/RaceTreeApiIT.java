@@ -269,8 +269,7 @@ class RaceTreeApiIT extends AbstractFilesIT {
         () -> createFolder(parent, "b"));
 
     List<String> names = namesUnder(parent);
-    Assertions.assertThat(names).hasSize(2);
-    Assertions.assertThat(names).doesNotHaveDuplicates();
+    Assertions.assertThat(names).hasSize(2).doesNotHaveDuplicates();
   }
 
   @Test
@@ -390,7 +389,7 @@ class RaceTreeApiIT extends AbstractFilesIT {
 
   private static void assertAtMostOneSucceeded(List<Response> responses) {
     List<Response> succeeded = responses.stream().filter(r -> !hasError(r)).toList();
-    Assertions.assertThat(succeeded.size()).isLessThanOrEqualTo(1);
+    Assertions.assertThat(succeeded).hasSizeLessThanOrEqualTo(1);
     responses.stream()
         .filter(RaceTreeApiIT::hasError)
         .forEach(r -> Assertions.assertThat(r.getBody().asString()).doesNotContain("System error"));
