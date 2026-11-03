@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.rest.resources;
 
+import com.zextras.carbonio.files.dal.locks.LockFailures;
 import com.zextras.carbonio.files.exceptions.AliasNotAloneInDownload;
 import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.exceptions.FileSizeException;
@@ -66,6 +67,11 @@ public class BlobExceptionMapper implements ExceptionMapper<Throwable> {
     // Auth (and any other) WebApplicationException already carries its intended response.
     if (exception instanceof WebApplicationException wae) {
       return wae.getResponse();
+    }
+
+    if (LockFailures.isBusy(exception)) {
+      logger.warn("Request refused, resource busy: {}", exception.getMessage());
+      return Response.status(423).entity("423 Locked").type(TEXT_PLAIN).build();
     }
 
     Throwable cause = exception.getCause() == null ? exception : exception.getCause();

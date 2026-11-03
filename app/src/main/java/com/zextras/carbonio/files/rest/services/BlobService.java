@@ -18,6 +18,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.locks.LockKey;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
+import com.zextras.carbonio.files.dal.locks.NodeWriteGuard;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
@@ -123,6 +124,7 @@ public class BlobService {
   private final TombstoneRepository tombstoneRepository;
   private final OverwriteLeases overwriteLeases;
   private final NodeLocks nodeLocks;
+  private final NodeWriteGuard writeGuard;
 
   @Inject
   public BlobService(
@@ -141,7 +143,8 @@ public class BlobService {
       VersionReservations versionReservations,
       TombstoneRepository tombstoneRepository,
       OverwriteLeases overwriteLeases,
-      NodeLocks nodeLocks) {
+      NodeLocks nodeLocks,
+      NodeWriteGuard writeGuard) {
     this.nodeRepository = nodeRepository;
     this.notificationRepository = notificationRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -158,6 +161,7 @@ public class BlobService {
     this.tombstoneRepository = tombstoneRepository;
     this.overwriteLeases = overwriteLeases;
     this.nodeLocks = nodeLocks;
+    this.writeGuard = writeGuard;
   }
 
   public Optional<List<Node>> checkDownloadMultiple(List<String> nodeIds, UserMyself requester) {
@@ -398,6 +402,7 @@ public class BlobService {
             folderId);
         return Optional.empty();
       }
+      requireWritableNow(folderId);
       String nodeId = UUID.randomUUID().toString();
       String nodeOwner = ownerOfUploads(folderId, requesterId, destinationFolder);
 
@@ -642,6 +647,8 @@ public class BlobService {
       return Optional.empty();
     }
 
+    requireWritableNow(nodeId);
+
     if (overwrite) {
       return overwriteCurrentVersion(requester, blobStream, blobLength, nodeId, filename);
     }
@@ -724,6 +731,7 @@ public class BlobService {
                       .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
                   nodeRepository.moveCurrentVersion(
                       nodeId, version, versionDate, uploadResponse.getSize(), requesterId);
+                  writeGuard.requireWritable(List.of(nodeId));
                   return trimOldestVersion(nodeId, ownerId, version, maxNumberOfVersions);
                 });
 
@@ -792,6 +800,7 @@ public class BlobService {
                     nodeRepository
                         .reserveTimestamp(nodeId)
                         .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
+                    writeGuard.requireWritable(List.of(nodeId));
                     requireWritePermission(nodeId, requesterId);
                     if (!overwriteLeases.confirm(lease)) {
                       return false;
@@ -842,6 +851,10 @@ public class BlobService {
         overwriteLeases.release(lease);
       }
     }
+  }
+
+  private void requireWritableNow(String nodeId) {
+    QuarkusTransaction.requiringNew().run(() -> writeGuard.requireWritable(List.of(nodeId)));
   }
 
   private void requireWritePermission(String nodeId, String requesterId) {

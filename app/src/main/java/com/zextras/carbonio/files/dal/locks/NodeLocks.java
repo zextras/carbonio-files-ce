@@ -38,6 +38,8 @@ public class NodeLocks {
 
   @Inject EntityManager entityManager;
 
+  @Inject NodeWriteGuard writeGuard;
+
   /**
    * Must be the first statement of the writing transaction: entities loaded before are detached,
    * reload them; every later read is fresh. Callable once per transaction.
@@ -84,6 +86,7 @@ public class NodeLocks {
               .setParameter("ids", rowIds)
               .getResultList();
       locked.addAll(rows);
+      writeGuard.requireWritable(rows);
     }
     entityManager.clear();
     return locked;
@@ -114,6 +117,7 @@ public class NodeLocks {
               .getResultList();
       result.addAll(rows);
     }
+    writeGuard.requireWritable(result);
     return result;
   }
 
@@ -138,6 +142,7 @@ public class NodeLocks {
               .getResultList();
       result.addAll(rows);
     }
+    writeGuard.requireWritable(result);
     return result;
   }
 

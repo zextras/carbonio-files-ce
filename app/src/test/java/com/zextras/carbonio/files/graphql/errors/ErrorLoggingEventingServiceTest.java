@@ -14,11 +14,26 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
+import com.zextras.carbonio.files.dal.locks.NodeBusyException;
+import graphql.GraphQLContext;
+import graphql.GraphQLError;
+import graphql.Scalars;
+import graphql.execution.DataFetcherExceptionHandlerParameters;
+import graphql.execution.DataFetcherExceptionHandlerResult;
+import graphql.execution.ExecutionStepInfo;
+import graphql.execution.MergedField;
+import graphql.execution.ResultPath;
+import graphql.language.Field;
+import graphql.language.OperationDefinition;
+import graphql.schema.DataFetchingEnvironment;
 import io.quarkus.security.AuthenticationCompletionException;
 import io.quarkus.security.AuthenticationFailedException;
 import io.quarkus.security.ForbiddenException;
 import io.quarkus.security.UnauthorizedException;
+import io.smallrye.graphql.execution.error.GraphQLExceptionWhileDataFetching;
 import java.lang.reflect.InvocationTargetException;
+import java.sql.SQLException;
+import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.Test;
@@ -121,5 +136,64 @@ class ErrorLoggingEventingServiceTest {
     verify(logger, times(10)).debug(anyString(), any(), any(), any());
     verify(logger, times(1)).error(anyString(), any(), any(), any(Throwable.class));
     verify(logger, never()).warn(anyString(), any(Object.class));
+  }
+
+  private static List<GraphQLError> handled(Throwable failure) throws Exception {
+    DataFetchingEnvironment environment = mock(DataFetchingEnvironment.class);
+    org.mockito.Mockito.when(environment.getGraphQlContext())
+        .thenReturn(GraphQLContext.newContext().build());
+    org.mockito.Mockito.when(environment.getMergedField())
+        .thenReturn(MergedField.newMergedField(Field.newField("f").build()).build());
+    org.mockito.Mockito.when(environment.getExecutionStepInfo())
+        .thenReturn(
+            ExecutionStepInfo.newExecutionStepInfo()
+                .type(Scalars.GraphQLString)
+                .path(ResultPath.rootPath().segment("f"))
+                .build());
+    org.mockito.Mockito.when(environment.getOperationDefinition())
+        .thenReturn(OperationDefinition.newOperationDefinition().name("Op").build());
+    DataFetcherExceptionHandlerParameters parameters =
+        DataFetcherExceptionHandlerParameters.newExceptionParameters()
+            .dataFetchingEnvironment(environment)
+            .exception(failure)
+            .build();
+    DataFetcherExceptionHandlerResult result =
+        new ErrorLoggingEventingService.LoggingExceptionHandler().handleException(parameters).get();
+    return result.getErrors();
+  }
+
+  private static String errorCodeOf(GraphQLError error) {
+    Throwable cause = ((GraphQLExceptionWhileDataFetching) error).getException();
+    return ((FilesGraphQLException) cause).getErrorCode().name();
+  }
+
+  @Test
+  void aNodeBusyExceptionIsAnsweredWithResourceBusyAndTheNodeId() throws Exception {
+    List<GraphQLError> errors = handled(new RuntimeException(new NodeBusyException("n1")));
+
+    assertThat(errors).hasSize(1);
+    assertThat(errorCodeOf(errors.get(0))).isEqualTo("RESOURCE_BUSY");
+    assertThat(errors.get(0).getMessage()).contains("n1");
+    assertThat(errors.get(0).getExtensions()).containsKey("nodeId");
+  }
+
+  @Test
+  void aLockTimeoutOrDeadlockIsAnsweredWithResourceBusyWithoutANodeId() throws Exception {
+    for (String state : new String[] {"55P03", "40P01"}) {
+      SQLException sql = new SQLException("lock", state);
+      List<GraphQLError> errors = handled(new RuntimeException("tx", new RuntimeException(sql)));
+
+      assertThat(errors).hasSize(1);
+      assertThat(errorCodeOf(errors.get(0))).isEqualTo("RESOURCE_BUSY");
+      assertThat(errors.get(0).getExtensions()).doesNotContainKey("nodeId");
+    }
+  }
+
+  @Test
+  void aLockSqlStateOnTheNextExceptionIsAnsweredWithResourceBusy() throws Exception {
+    SQLException first = new SQLException("batch", "23505");
+    first.setNextException(new SQLException("lock", "55P03"));
+
+    assertThat(errorCodeOf(handled(new RuntimeException(first)).get(0))).isEqualTo("RESOURCE_BUSY");
   }
 }

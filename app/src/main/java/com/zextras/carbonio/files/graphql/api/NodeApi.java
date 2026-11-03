@@ -17,9 +17,11 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
+import com.zextras.carbonio.files.dal.locks.LockFailures;
 import com.zextras.carbonio.files.dal.locks.LockKey;
 import com.zextras.carbonio.files.dal.locks.LockedTree;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
+import com.zextras.carbonio.files.dal.locks.NodeWriteGuard;
 import com.zextras.carbonio.files.dal.repositories.impl.InvalidPageTokenException;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
@@ -125,6 +127,7 @@ public class NodeApi {
   @Inject VersionReservations versionReservations;
   @Inject EntityManager entityManager;
   @Inject NodeLocks nodeLocks;
+  @Inject NodeWriteGuard writeGuard;
   @Inject LockedTree lockedTree;
 
   // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -418,7 +421,7 @@ public class NodeApi {
     if (!places.isEmpty()
         && places.get(0).parentId() != null
         && !places.get(0).parentId().equals(parentFolderId)) {
-      throw FilesGraphQLErrors.nodeWriteError(nodeId);
+      throw FilesGraphQLErrors.resourceBusy(nodeId);
     }
 
     if (name != null) {
@@ -507,7 +510,7 @@ public class NodeApi {
               .map(NodeLocks.NodePlace::nodeId)
               .findFirst()
               .orElseGet(() -> nodeIds.iterator().next());
-      throw FilesGraphQLErrors.nodeWriteError(changed);
+      throw FilesGraphQLErrors.resourceBusy(changed);
     }
   }
 
@@ -607,7 +610,7 @@ public class NodeApi {
     nodeLocks.lock(restoreKeys);
     if (!predicted.equals(nodeLocks.trashedParentsOf(nodeIds))
         || !predictedFallback.equals(nodeLocks.unusableRestoreParents(predicted.values()))) {
-      throw FilesGraphQLErrors.nodeWriteError(nodeIds.get(0));
+      throw FilesGraphQLErrors.resourceBusy(nodeIds.get(0));
     }
     String me = requester.getId().getUserId();
 
@@ -894,6 +897,9 @@ public class NodeApi {
     try {
       deletion = QuarkusTransaction.requiringNew().call(() -> deleteLockedTree(candidateIds, me));
     } catch (RuntimeException e) {
+      if (LockFailures.isBusy(e)) {
+        throw e;
+      }
       logger.error("DB error during deleteNodes, rolling back: {}", e.getMessage());
       throw deleteNodesFailure(nodeIds, candidateIds);
     }
@@ -966,6 +972,7 @@ public class NodeApi {
                         || com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
                             p.getNodeType()))
             .orElseThrow(() -> FilesGraphQLErrors.nodeWriteError(destinationId));
+    requireWritableNow(destinationId);
 
     List<Node> nodes =
         nodeRepository.getNodes(nodeIds, Optional.empty()).collect(Collectors.toList());
@@ -1089,6 +1096,9 @@ public class NodeApi {
                     return new DeletedVersions(toDelete, owner);
                   });
     } catch (RuntimeException e) {
+      if (LockFailures.isBusy(e)) {
+        throw e;
+      }
       logger.error("DB error during deleteVersions, rolling back: {}", e.getMessage());
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
@@ -1204,6 +1214,7 @@ public class NodeApi {
             .getNode(nodeId)
             .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId))
             .getOwnerId();
+    requireWritableNow(nodeId);
 
     int maxNumberOfVersions = getMaxNumberOfVersions();
     if (fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)).size()
@@ -1271,6 +1282,7 @@ public class NodeApi {
                     .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
 
                 nodeRepository.moveCurrentVersion(nodeId, newVersion, versionDate);
+                writeGuard.requireWritable(List.of(nodeId));
 
                 FileVersion newFv = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
                 newFv.setClonedFromVersion(version);
@@ -1289,6 +1301,10 @@ public class NodeApi {
   }
 
   // ─── Private helpers (ported from NodeDataFetcher) ────────────────────────────
+
+  private void requireWritableNow(String nodeId) {
+    QuarkusTransaction.requiringNew().run(() -> writeGuard.requireWritable(List.of(nodeId)));
+  }
 
   private int getMaxNumberOfVersions() {
     return filesConfig.getMaxNumberOfVersions();

@@ -6,7 +6,9 @@ package com.zextras.carbonio.files.rest.resources;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.zextras.carbonio.files.dal.locks.NodeBusyException;
 import jakarta.ws.rs.core.Response;
+import java.sql.SQLException;
 import java.util.concurrent.RejectedExecutionException;
 import org.junit.jupiter.api.Test;
 
@@ -47,5 +49,23 @@ class BlobExceptionMapperTest {
     Response response = mapper.toResponse(wrapper);
 
     assertThat(response.getStatus()).isEqualTo(Response.Status.SERVICE_UNAVAILABLE.getStatusCode());
+  }
+
+  @Test
+  void aBusyNodeMapsTo423() {
+    Response response = new BlobExceptionMapper().toResponse(new NodeBusyException("n1"));
+
+    assertThat(response.getStatus()).isEqualTo(423);
+    assertThat(response.getEntity()).isEqualTo("423 Locked");
+  }
+
+  @Test
+  void aWrappedLockTimeoutOrDeadlockMapsTo423() {
+    for (String state : new String[] {"55P03", "40P01"}) {
+      RuntimeException failure =
+          new RuntimeException("tx", new RuntimeException(new SQLException("lock", state)));
+
+      assertThat(new BlobExceptionMapper().toResponse(failure).getStatus()).isEqualTo(423);
+    }
   }
 }

@@ -37,6 +37,20 @@ public final class FilesGraphQLErrors {
         nodeId);
   }
 
+  public static FilesGraphQLException resourceBusy(String nodeId) {
+    return nodeId == null
+        ? resourceBusy()
+        : build(
+            ErrorCodes.RESOURCE_BUSY,
+            "Node " + nodeId + " is busy, try again later",
+            "nodeId",
+            nodeId);
+  }
+
+  public static FilesGraphQLException resourceBusy() {
+    return build(ErrorCodes.RESOURCE_BUSY, "Resource busy, try again later");
+  }
+
   public static FilesGraphQLException duplicateNode(String nodeId, String destinationFolderId) {
     return build(
         ErrorCodes.NODE_DUPLICATED,

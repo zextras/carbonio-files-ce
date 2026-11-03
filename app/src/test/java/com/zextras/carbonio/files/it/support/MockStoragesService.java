@@ -297,6 +297,14 @@ public class MockStoragesService {
         .toList();
   }
 
+  public int uploadRequestCount() {
+    return server
+        .findAll(
+            com.github.tomakehurst.wiremock.client.WireMock.anyRequestedFor(
+                urlPathEqualTo("/upload")))
+        .size();
+  }
+
   public int blobCount() {
     return blobs.size();
   }

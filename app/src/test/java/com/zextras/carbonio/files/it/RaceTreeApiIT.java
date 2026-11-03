@@ -362,7 +362,7 @@ class RaceTreeApiIT extends AbstractFilesIT {
 
     Assertions.assertThat(hasError(responses.get(0))).isFalse();
     Assertions.assertThat(responses.get(1).jsonPath().getString("errors[0].extensions.errorCode"))
-        .isEqualTo("NODE_WRITE_ERROR");
+        .isEqualTo("RESOURCE_BUSY");
     Assertions.assertThat(nodeColumnRaw(victim, "folder_id")).isEqualTo(destination);
     Assertions.assertThat(isTrashed(victim)).isFalse();
   }
@@ -446,8 +446,7 @@ class RaceTreeApiIT extends AbstractFilesIT {
       awaitAll(pending);
     }
 
-    Assertions.assertThat(responses.stream().filter(r -> !hasError(r)).toList())
-        .hasSizeLessThanOrEqualTo(1);
+    assertAtMostOneSucceeded(responses);
     assertNoCycle();
   }
 
@@ -524,7 +523,7 @@ class RaceTreeApiIT extends AbstractFilesIT {
     List<Response> failed = responses.stream().filter(RaceTreeApiIT::hasError).toList();
     Assertions.assertThat(failed).hasSize(1);
     Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(failed.get(0).getBody().asString()))
-        .containsExactly("NODE_WRITE_ERROR");
+        .containsExactly("RESOURCE_BUSY");
     Assertions.assertThat(failed.get(0).getBody().asString()).doesNotContain("System error");
     Assertions.assertThat(isTrashed(file)).isTrue();
   }

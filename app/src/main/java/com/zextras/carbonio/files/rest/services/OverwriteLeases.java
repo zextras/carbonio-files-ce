@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.rest.services;
 
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.locks.NodeWriteGuard;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.OverwriteLeaseRepository;
@@ -13,6 +14,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Duration;
 import java.util.Collection;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
@@ -44,15 +46,18 @@ public class OverwriteLeases {
   private final NodeRepository nodeRepository;
   private final FileVersionRepository fileVersionRepository;
   private final OverwriteLeaseRepository leaseRepository;
+  private final NodeWriteGuard writeGuard;
 
   @Inject
   public OverwriteLeases(
       NodeRepository nodeRepository,
       FileVersionRepository fileVersionRepository,
-      OverwriteLeaseRepository leaseRepository) {
+      OverwriteLeaseRepository leaseRepository,
+      NodeWriteGuard writeGuard) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
     this.leaseRepository = leaseRepository;
+    this.writeGuard = writeGuard;
   }
 
   /**
@@ -70,6 +75,7 @@ public class OverwriteLeases {
                       .reserveTimestamp(nodeId)
                       .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId))
                       .reservedAt();
+              writeGuard.requireWritable(List.of(nodeId));
               Node node =
                   nodeRepository
                       .getNode(nodeId)

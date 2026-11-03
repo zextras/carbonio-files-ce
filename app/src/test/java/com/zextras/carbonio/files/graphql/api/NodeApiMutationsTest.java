@@ -28,6 +28,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.locks.LockKey;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
+import com.zextras.carbonio.files.dal.locks.NodeWriteGuard;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -143,6 +144,7 @@ class NodeApiMutationsTest {
     nodeApi.gqlContext = gqlContext;
     nodeApi.entityManager = mock(EntityManager.class);
     nodeApi.nodeLocks = nodeLocks;
+    nodeApi.writeGuard = mock(NodeWriteGuard.class);
   }
 
   private Node mockFileNode(String id, String parentId) {
@@ -248,7 +250,7 @@ class NodeApiMutationsTest {
   }
 
   @Test
-  void updateNodeOfANodeMovedAfterTheLookupFailsWithNodeWriteError() throws Exception {
+  void updateNodeOfANodeMovedAfterTheLookupFailsWithResourceBusy() throws Exception {
     Node node = mockFileNode(NODE_ID_1, PARENT_ID);
     when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
     when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node));
@@ -259,14 +261,14 @@ class NodeApiMutationsTest {
         .isInstanceOfSatisfying(
             FilesGraphQLException.class,
             e -> {
-              assertThat(e.getErrorCode()).isEqualTo(ErrorCodes.NODE_WRITE_ERROR);
-              assertThat(e.getMessage()).endsWith(NODE_ID_1);
+              assertThat(e.getErrorCode()).isEqualTo(ErrorCodes.RESOURCE_BUSY);
+              assertThat(e.getMessage()).contains(NODE_ID_1);
             });
     verify(nodeRepository, never()).updateNode(any());
   }
 
   @Test
-  void restoreNodesWhoseDestinationChangedAfterThePredictionFailsWithNodeWriteError() {
+  void restoreNodesWhoseDestinationChangedAfterThePredictionFailsWithResourceBusy() {
     when(nodeLocks.trashedParentsOf(List.of(NODE_ID_1)))
         .thenReturn(Map.of(NODE_ID_1, PARENT_ID))
         .thenReturn(Map.of(NODE_ID_1, NODE_ID_2));
@@ -276,8 +278,8 @@ class NodeApiMutationsTest {
         .isInstanceOfSatisfying(
             FilesGraphQLException.class,
             e -> {
-              assertThat(e.getErrorCode()).isEqualTo(ErrorCodes.NODE_WRITE_ERROR);
-              assertThat(e.getMessage()).endsWith(NODE_ID_1);
+              assertThat(e.getErrorCode()).isEqualTo(ErrorCodes.RESOURCE_BUSY);
+              assertThat(e.getMessage()).contains(NODE_ID_1);
             });
   }
 

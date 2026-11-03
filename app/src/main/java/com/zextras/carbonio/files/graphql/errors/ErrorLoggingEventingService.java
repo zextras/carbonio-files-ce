@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.graphql.errors;
 
+import com.zextras.carbonio.files.dal.locks.LockFailures;
 import graphql.GraphQL;
 import graphql.execution.DataFetcherExceptionHandler;
 import graphql.execution.DataFetcherExceptionHandlerParameters;
@@ -115,7 +116,7 @@ public class ErrorLoggingEventingService implements EventingService {
     }
   }
 
-  private static final class LoggingExceptionHandler implements DataFetcherExceptionHandler {
+  static final class LoggingExceptionHandler implements DataFetcherExceptionHandler {
 
     private final DataFetcherExceptionHandler delegate = new ExceptionHandler();
 
@@ -136,6 +137,16 @@ public class ErrorLoggingEventingService implements EventingService {
             parameters.getException());
       } catch (RuntimeException e) {
         logger.warn("Unable to log a GraphQL data fetch error", e);
+      }
+      if (LockFailures.isBusy(parameters.getException())) {
+        FilesGraphQLException busy =
+            FilesGraphQLErrors.resourceBusy(
+                LockFailures.busyNodeId(parameters.getException()).orElse(null));
+        return delegate.handleException(
+            DataFetcherExceptionHandlerParameters.newExceptionParameters()
+                .dataFetchingEnvironment(parameters.getDataFetchingEnvironment())
+                .exception(busy)
+                .build());
       }
       return delegate.handleException(parameters);
     }
