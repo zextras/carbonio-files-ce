@@ -17,7 +17,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.locks.LockKey;
-import com.zextras.carbonio.files.dal.locks.LockRetry;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
@@ -124,7 +123,6 @@ public class BlobService {
   private final TombstoneRepository tombstoneRepository;
   private final OverwriteLeases overwriteLeases;
   private final NodeLocks nodeLocks;
-  private final LockRetry lockRetry;
 
   @Inject
   public BlobService(
@@ -143,8 +141,7 @@ public class BlobService {
       VersionReservations versionReservations,
       TombstoneRepository tombstoneRepository,
       OverwriteLeases overwriteLeases,
-      NodeLocks nodeLocks,
-      LockRetry lockRetry) {
+      NodeLocks nodeLocks) {
     this.nodeRepository = nodeRepository;
     this.notificationRepository = notificationRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -161,7 +158,6 @@ public class BlobService {
     this.tombstoneRepository = tombstoneRepository;
     this.overwriteLeases = overwriteLeases;
     this.nodeLocks = nodeLocks;
-    this.lockRetry = lockRetry;
   }
 
   public Optional<List<Node>> checkDownloadMultiple(List<String> nodeIds, UserMyself requester) {
@@ -443,19 +439,20 @@ public class BlobService {
       Optional<PublishedUpload> published;
       try {
         published =
-            lockRetry.inNewTransaction(
-                () ->
-                    publishUpload(
-                        requesterId,
-                        requesterEntity,
-                        folderId,
-                        nodeId,
-                        nodeOwner,
-                        filename,
-                        description,
-                        nodeType,
-                        mediaType,
-                        uploadResponse));
+            QuarkusTransaction.requiringNew()
+                .call(
+                    () ->
+                        publishUpload(
+                            requesterId,
+                            requesterEntity,
+                            folderId,
+                            nodeId,
+                            nodeOwner,
+                            filename,
+                            description,
+                            nodeType,
+                            mediaType,
+                            uploadResponse));
       } catch (RuntimeException e) {
         boolean absent;
         try {

@@ -24,7 +24,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.locks.LockRetry;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.support.LinkCreationHelper;
@@ -36,14 +35,17 @@ import com.zextras.carbonio.files.rest.types.internal.DeleteAllResponse;
 import com.zextras.carbonio.files.rest.types.internal.InternalNodeDto;
 import com.zextras.carbonio.files.rest.types.internal.InternalNodeIdDto;
 import com.zextras.carbonio.files.rest.types.internal.PublicLinkDto;
+import com.zextras.carbonio.files.utilities.InlineTransactions;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Supplier;
 import org.jboss.resteasy.reactive.RestResponse;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 
 /**
  * Plain JUnit (NOT {@code @QuarkusTest}) unit test for {@link InternalNodeResource}: every
@@ -62,8 +64,13 @@ class InternalNodeResourceTest {
   private PermissionsChecker permissionsChecker;
   private NodeCreationHelper nodeCreationHelper;
   private LinkCreationHelper linkCreationHelper;
-  private LockRetry lockRetry;
+  private MockedStatic<QuarkusTransaction> transactions;
   private InternalNodeResource resource;
+
+  @AfterEach
+  void closeTransactions() {
+    transactions.close();
+  }
 
   @BeforeEach
   void setUp() {
@@ -72,17 +79,14 @@ class InternalNodeResourceTest {
     permissionsChecker = mock(PermissionsChecker.class);
     nodeCreationHelper = mock(NodeCreationHelper.class);
     linkCreationHelper = mock(LinkCreationHelper.class);
-    lockRetry = mock(LockRetry.class);
-    when(lockRetry.inNewTransaction(any()))
-        .thenAnswer(inv -> ((Supplier<?>) inv.getArgument(0)).get());
+    transactions = InlineTransactions.open();
     resource =
         new InternalNodeResource(
             nodeRepository,
             userRepository,
             permissionsChecker,
             nodeCreationHelper,
-            linkCreationHelper,
-            lockRetry);
+            linkCreationHelper);
   }
 
   // -------------------------------------------------------------------------------------- getNode

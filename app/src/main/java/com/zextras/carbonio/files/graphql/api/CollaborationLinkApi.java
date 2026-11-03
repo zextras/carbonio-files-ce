@@ -10,7 +10,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.locks.LockKey;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
-import com.zextras.carbonio.files.dal.locks.RetryOnLockConflict;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
@@ -112,7 +111,6 @@ public class CollaborationLinkApi {
   }
 
   @Mutation("createCollaborationLink")
-  @RetryOnLockConflict
   public @NonNull CollaborationLinkModel createCollaborationLink(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("permission") @NonNull SharePermission permission)

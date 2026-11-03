@@ -19,25 +19,29 @@ import static org.mockito.Mockito.when;
 
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.locks.LockRetry;
+import com.zextras.carbonio.files.dal.locks.LockKey;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.message_broker.consumers.KeyValueChangedConsumer;
+import com.zextras.carbonio.files.utilities.InlineTransactions;
 import com.zextras.carbonio.message_broker.events.services.service_discover.KeyValueChanged;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
 import com.zextras.filestore.model.IdentifierType;
+import io.quarkus.narayana.jta.QuarkusTransaction;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Supplier;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import org.mockito.MockedStatic;
 
 class KeyValueChangedHandlerTest {
 
@@ -46,7 +50,7 @@ class KeyValueChangedHandlerTest {
   private FileVersionRepository fileVersionRepository;
   private NodeRepository nodeRepository;
   private TombstoneRepository tombstoneRepository;
-  private LockRetry lockRetry;
+  private MockedStatic<QuarkusTransaction> transactions;
   private Filestore filestore;
   private KeyValueChangedConsumer consumer;
 
@@ -69,23 +73,25 @@ class KeyValueChangedHandlerTest {
         .thenReturn(List.of(versions));
   }
 
+  @AfterEach
+  void closeTransactions() {
+    transactions.close();
+  }
+
   @BeforeEach
   @SuppressWarnings("unchecked")
   void setUp() {
     fileVersionRepository = mock(FileVersionRepository.class);
     nodeRepository = mock(NodeRepository.class);
     tombstoneRepository = mock(TombstoneRepository.class);
-    lockRetry = mock(LockRetry.class);
+    transactions = InlineTransactions.open();
     filestore = mock(Filestore.class);
-    when(lockRetry.inNewTransaction(any()))
-        .thenAnswer(invocation -> invocation.<Supplier<Object>>getArgument(0).get());
     consumer =
         new KeyValueChangedConsumer(
             fileVersionRepository,
             nodeRepository,
             tombstoneRepository,
             mock(NodeLocks.class),
-            lockRetry,
             filestore);
   }
 
@@ -170,6 +176,37 @@ class KeyValueChangedHandlerTest {
 
     verify(tombstoneRepository).createTombstonesBulk(anyList(), eq("owner-1"));
     verify(tombstoneRepository, never()).deleteTombstonesByNodeAndVersion(any(), any());
+  }
+
+  @Test
+  void givenALockedNodeThenTheOtherNodesAreStillTrimmed() throws Exception {
+    NodeLocks locks = mock(NodeLocks.class);
+    KeyValueChangedConsumer lockedConsumer =
+        new KeyValueChangedConsumer(
+            fileVersionRepository, nodeRepository, tombstoneRepository, locks, filestore);
+    when(locks.lock(List.of(LockKey.node("node-1"))))
+        .thenThrow(new IllegalStateException("lock timeout"));
+    Node second = mock(Node.class);
+    when(second.getCurrentVersion()).thenReturn(3);
+    when(second.getOwnerId()).thenReturn("owner-2");
+    when(nodeRepository.getNode("node-2")).thenReturn(Optional.of(second));
+    FileVersion v1 = version(1, false);
+    FileVersion v2 = version(2, false);
+    FileVersion v3 = version(3, false);
+    when(fileVersionRepository.getFileVersions("node-2", List.of(FileVersionSort.VERSION_ASC)))
+        .thenReturn(List.of(v1, v2, v3));
+    Map<String, List<FileVersion>> candidates = new LinkedHashMap<>();
+    candidates.put("node-1", List.of(v1));
+    candidates.put("node-2", List.of(v1, v2, v3));
+    when(fileVersionRepository.getFileVersionsRelatedToNodesHavingVersionsGreaterThan(anyInt()))
+        .thenReturn(candidates);
+    when(filestore.bulkDelete(any(), anyString(), anyList())).thenReturn(List.of());
+
+    lockedConsumer.doHandle(new KeyValueChanged(KEY, "2"));
+
+    verify(nodeRepository, never()).getNode("node-1");
+    verify(tombstoneRepository).createTombstonesBulk(List.of(v1), "owner-2");
+    verify(fileVersionRepository).deleteFileVersions("node-2", List.of(1));
   }
 
   @Test

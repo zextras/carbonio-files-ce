@@ -11,7 +11,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
 import com.zextras.carbonio.files.dal.dao.ebean.VersionReservation;
 import com.zextras.carbonio.files.dal.locks.LockKey;
-import com.zextras.carbonio.files.dal.locks.LockRetry;
 import com.zextras.carbonio.files.dal.locks.LockedTree;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
@@ -25,6 +24,7 @@ import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
 import com.zextras.filestore.model.IdentifierType;
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -75,7 +75,6 @@ public class PurgeService {
   @Inject ShareRepository shareRepository;
   @Inject NodeLocks nodeLocks;
   @Inject LockedTree lockedTree;
-  @Inject LockRetry lockRetry;
   @Inject Filestore fileStore;
 
   @ConfigProperty(name = "carbonio.files.reservation-purge.expiry", defaultValue = "24h")
@@ -86,7 +85,7 @@ public class PurgeService {
 
     for (String topId : nodeRepository.getTrashedTopNodeIds(retentionTimestamp)) {
       try {
-        lockRetry.runInNewTransaction(() -> claimTrashedSubtree(topId, retentionTimestamp));
+        QuarkusTransaction.requiringNew().run(() -> claimTrashedSubtree(topId, retentionTimestamp));
       } catch (Exception e) {
         logger.warn(
             "Purge of trashed node {} failed, retried next cycle: {}", topId, e.getMessage());

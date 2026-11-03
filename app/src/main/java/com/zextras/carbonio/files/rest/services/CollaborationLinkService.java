@@ -10,7 +10,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.locks.LockKey;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
-import com.zextras.carbonio.files.dal.locks.RetryOnLockConflict;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
@@ -62,7 +61,6 @@ public class CollaborationLinkService {
   }
 
   @Transactional
-  @RetryOnLockConflict
   public Try<Node> createShareByInvitationId(String invitationId, String requesterId) {
     Optional<CollaborationLink> link =
         collaborationLinkRepository.getLinkByInvitationId(invitationId);

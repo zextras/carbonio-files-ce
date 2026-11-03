@@ -12,8 +12,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.locks.LockRetry;
-import com.zextras.carbonio.files.dal.locks.RetryOnLockConflict;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.support.LinkCreationHelper;
@@ -29,6 +27,7 @@ import com.zextras.carbonio.files.rest.types.internal.ParentDto;
 import com.zextras.carbonio.files.rest.types.internal.PermissionsDto;
 import com.zextras.carbonio.files.rest.types.internal.PublicLinkDto;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.smallrye.common.annotation.Blocking;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -83,7 +82,6 @@ public class InternalNodeResource {
   private final PermissionsChecker permissionsChecker;
   private final NodeCreationHelper nodeCreationHelper;
   private final LinkCreationHelper linkCreationHelper;
-  private final LockRetry lockRetry;
 
   @Inject
   public InternalNodeResource(
@@ -91,14 +89,12 @@ public class InternalNodeResource {
       UserRepository userRepository,
       PermissionsChecker permissionsChecker,
       NodeCreationHelper nodeCreationHelper,
-      LinkCreationHelper linkCreationHelper,
-      LockRetry lockRetry) {
+      LinkCreationHelper linkCreationHelper) {
     this.nodeRepository = nodeRepository;
     this.userRepository = userRepository;
     this.permissionsChecker = permissionsChecker;
     this.nodeCreationHelper = nodeCreationHelper;
     this.linkCreationHelper = linkCreationHelper;
-    this.lockRetry = lockRetry;
   }
 
   // -------------------------------------------------------------------------------------- getNode
@@ -194,7 +190,6 @@ public class InternalNodeResource {
   @Consumes(MediaType.APPLICATION_JSON)
   @Blocking
   @Transactional
-  @RetryOnLockConflict
   public RestResponse<InternalNodeIdDto> createFolder(CreateFolderRequest request) {
     try {
       Node createdFolder =
@@ -234,25 +229,26 @@ public class InternalNodeResource {
     }
 
     try {
-      return lockRetry.inNewTransaction(
-          () -> {
-            Optional<Node> node = nodeRepository.getNode(nodeId);
-            if (node.isEmpty()) {
-              return RestResponse.status(Status.NOT_FOUND);
-            }
+      return QuarkusTransaction.requiringNew()
+          .call(
+              () -> {
+                Optional<Node> node = nodeRepository.getNode(nodeId);
+                if (node.isEmpty()) {
+                  return RestResponse.status(Status.NOT_FOUND);
+                }
 
-            Link link =
-                linkCreationHelper.createPublicLink(
-                    userId, nodeId, Optional.empty(), Optional.empty(), Optional.empty());
+                Link link =
+                    linkCreationHelper.createPublicLink(
+                        userId, nodeId, Optional.empty(), Optional.empty(), Optional.empty());
 
-            String url =
-                linkCreationHelper.buildPublicLinkUrl(
-                    link,
-                    requester.get().getDomain(),
-                    node.get().getNodeType().equals(NodeType.FOLDER));
+                String url =
+                    linkCreationHelper.buildPublicLinkUrl(
+                        link,
+                        requester.get().getDomain(),
+                        node.get().getNodeType().equals(NodeType.FOLDER));
 
-            return RestResponse.ok(new PublicLinkDto(url));
-          });
+                return RestResponse.ok(new PublicLinkDto(url));
+              });
     } catch (LinkCreationHelper.LinkLimitReachedException e) {
       return RestResponse.status(Status.TOO_MANY_REQUESTS);
     } catch (LinkCreationHelper.NodeAccessException e) {

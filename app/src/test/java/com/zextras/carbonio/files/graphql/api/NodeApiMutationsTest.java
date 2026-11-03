@@ -11,7 +11,6 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -28,7 +27,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.locks.LockKey;
-import com.zextras.carbonio.files.dal.locks.LockRetry;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
@@ -44,24 +42,24 @@ import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.rest.services.VersionReservations;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
+import com.zextras.carbonio.files.utilities.InlineTransactions;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.UploadResponse;
 import com.zextras.filestore.model.FilesIdentifier;
 import io.quarkus.narayana.jta.QuarkusTransaction;
-import io.quarkus.narayana.jta.TransactionRunnerOptions;
 import io.smallrye.graphql.api.Context;
 import jakarta.persistence.EntityManager;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 
 class NodeApiMutationsTest {
 
@@ -85,8 +83,13 @@ class NodeApiMutationsTest {
   private VersionReservations versionReservations;
   private Context gqlContext;
   private NodeLocks nodeLocks;
-  private LockRetry lockRetry;
+  private MockedStatic<QuarkusTransaction> transactions;
   private NodeApi nodeApi;
+
+  @AfterEach
+  void closeTransactions() {
+    transactions.close();
+  }
 
   @BeforeEach
   void setUp() {
@@ -103,9 +106,7 @@ class NodeApiMutationsTest {
     versionReservations = mock(VersionReservations.class);
     gqlContext = mock(Context.class);
     nodeLocks = mock(NodeLocks.class);
-    lockRetry = mock(LockRetry.class);
-    when(lockRetry.inNewTransaction(any()))
-        .thenAnswer(inv -> ((Supplier<?>) inv.getArgument(0)).get());
+    transactions = InlineTransactions.open();
 
     UserMyself requester = mock(UserMyself.class);
     UserId userId = new UserId(REQUESTER_ID);
@@ -142,7 +143,6 @@ class NodeApiMutationsTest {
     nodeApi.gqlContext = gqlContext;
     nodeApi.entityManager = mock(EntityManager.class);
     nodeApi.nodeLocks = nodeLocks;
-    nodeApi.lockRetry = lockRetry;
   }
 
   private Node mockFileNode(String id, String parentId) {
@@ -181,20 +181,6 @@ class NodeApiMutationsTest {
   private ACL aclWith(boolean readAndWrite) {
     if (readAndWrite) return ACL.decode(SharePermission.READ_AND_WRITE);
     return ACL.decode((short) 0);
-  }
-
-  private static MockedStatic<QuarkusTransaction> inlineTransactions() {
-    TransactionRunnerOptions runOptions = mock(TransactionRunnerOptions.class);
-    doAnswer(
-            inv -> {
-              ((Runnable) inv.getArgument(0)).run();
-              return null;
-            })
-        .when(runOptions)
-        .run(any(Runnable.class));
-    MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class);
-    txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
-    return txMock;
   }
 
   // ─── cloneVersion copy failures ───────────────────────────────────────────────
@@ -262,6 +248,40 @@ class NodeApiMutationsTest {
   }
 
   @Test
+  void updateNodeOfANodeMovedAfterTheLookupFailsWithNodeWriteError() throws Exception {
+    Node node = mockFileNode(NODE_ID_1, PARENT_ID);
+    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
+    when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node));
+    when(nodeLocks.placesOf(List.of(NODE_ID_1)))
+        .thenReturn(List.of(new NodeLocks.NodePlace(NODE_ID_1, NODE_ID_2, REQUESTER_ID)));
+
+    assertThatThrownBy(() -> nodeApi.updateNode(NODE_ID_1, "renamed", null, null))
+        .isInstanceOfSatisfying(
+            FilesGraphQLException.class,
+            e -> {
+              assertThat(e.getErrorCode()).isEqualTo(ErrorCodes.NODE_WRITE_ERROR);
+              assertThat(e.getMessage()).endsWith(NODE_ID_1);
+            });
+    verify(nodeRepository, never()).updateNode(any());
+  }
+
+  @Test
+  void restoreNodesWhoseDestinationChangedAfterThePredictionFailsWithNodeWriteError() {
+    when(nodeLocks.trashedParentsOf(List.of(NODE_ID_1)))
+        .thenReturn(Map.of(NODE_ID_1, PARENT_ID))
+        .thenReturn(Map.of(NODE_ID_1, NODE_ID_2));
+    when(nodeLocks.placesOf(List.of(NODE_ID_1))).thenReturn(List.of());
+
+    assertThatThrownBy(() -> nodeApi.restoreNodes(List.of(NODE_ID_1)))
+        .isInstanceOfSatisfying(
+            FilesGraphQLException.class,
+            e -> {
+              assertThat(e.getErrorCode()).isEqualTo(ErrorCodes.NODE_WRITE_ERROR);
+              assertThat(e.getMessage()).endsWith(NODE_ID_1);
+            });
+  }
+
+  @Test
   void copyNodesWritesTheBlobForTheOwnerOfTheDestinationFolder() throws Exception {
     String destinationOwner = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
     Node source = mockFileNode(NODE_ID_1, PARENT_ID);
@@ -316,11 +336,9 @@ class NodeApiMutationsTest {
             any(), any(), anyInt(), any(), anyLong(), any(), anyLong()))
         .thenThrow(new IllegalStateException("db down"));
 
-    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
-      assertThatThrownBy(() -> nodeApi.cloneVersion(NODE_ID_1, 1))
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessage("db down");
-    }
+    assertThatThrownBy(() -> nodeApi.cloneVersion(NODE_ID_1, 1))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("db down");
     verify(copyFailureClassifier, never()).classify(any());
   }
 

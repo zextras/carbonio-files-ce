@@ -28,7 +28,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
 import com.zextras.carbonio.files.dal.dao.ebean.VersionReservation;
 import com.zextras.carbonio.files.dal.locks.LockKey;
-import com.zextras.carbonio.files.dal.locks.LockRetry;
 import com.zextras.carbonio.files.dal.locks.LockedTree;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
@@ -38,19 +37,23 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.OverwriteLeaseRepo
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
+import com.zextras.carbonio.files.utilities.InlineTransactions;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
 import com.zextras.filestore.model.IdentifierType;
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import org.mockito.MockedStatic;
 
 /**
  * Plain JUnit (NOT {@code @QuarkusTest}) unit test for {@link PurgeService}'s orchestration/outage
@@ -75,7 +78,7 @@ class PurgeServiceTest {
   private ShareRepository shareRepository;
   private NodeLocks nodeLocks;
   private LockedTree lockedTree;
-  private LockRetry lockRetry;
+  private MockedStatic<QuarkusTransaction> transactions;
   private VersionReservationRepository versionReservationRepository;
   private OverwriteLeaseRepository overwriteLeaseRepository;
   private Filestore filestore;
@@ -128,6 +131,11 @@ class PurgeServiceTest {
         .incrementAttempts(tombstone.getNodeId(), tombstone.getVersion());
   }
 
+  @AfterEach
+  void closeTransactions() {
+    transactions.close();
+  }
+
   @BeforeEach
   void setUp() {
     nodeRepository = mock(NodeRepository.class);
@@ -139,14 +147,7 @@ class PurgeServiceTest {
     shareRepository = mock(ShareRepository.class);
     nodeLocks = mock(NodeLocks.class);
     lockedTree = mock(LockedTree.class);
-    lockRetry = mock(LockRetry.class);
-    doAnswer(
-            invocation -> {
-              invocation.<Runnable>getArgument(0).run();
-              return null;
-            })
-        .when(lockRetry)
-        .runInNewTransaction(any());
+    transactions = InlineTransactions.open();
 
     purgeService = new PurgeService();
     purgeService.nodeRepository = nodeRepository;
@@ -159,7 +160,6 @@ class PurgeServiceTest {
     purgeService.shareRepository = shareRepository;
     purgeService.nodeLocks = nodeLocks;
     purgeService.lockedTree = lockedTree;
-    purgeService.lockRetry = lockRetry;
   }
 
   // ---------------------------------------------------------------------------- purgeTrashedNodes

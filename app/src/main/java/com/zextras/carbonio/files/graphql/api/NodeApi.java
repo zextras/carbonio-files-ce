@@ -18,11 +18,8 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.locks.LockKey;
-import com.zextras.carbonio.files.dal.locks.LockRetry;
-import com.zextras.carbonio.files.dal.locks.LockSetChangedException;
 import com.zextras.carbonio.files.dal.locks.LockedTree;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
-import com.zextras.carbonio.files.dal.locks.RetryOnLockConflict;
 import com.zextras.carbonio.files.dal.repositories.impl.InvalidPageTokenException;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
@@ -129,7 +126,6 @@ public class NodeApi {
   @Inject EntityManager entityManager;
   @Inject NodeLocks nodeLocks;
   @Inject LockedTree lockedTree;
-  @Inject LockRetry lockRetry;
 
   // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -381,7 +377,6 @@ public class NodeApi {
   // ─── Mutations ────────────────────────────────────────────────────────────────
 
   @Mutation("createFolder")
-  @RetryOnLockConflict
   public @NonNull NodeModel createFolder(
       @Name("destination_id") @NonNull String destinationId, @Name("name") @NonNull String name)
       throws FilesGraphQLException {
@@ -398,7 +393,6 @@ public class NodeApi {
   }
 
   @Mutation("updateNode")
-  @RetryOnLockConflict
   public @NonNull NodeModel updateNode(
       @Name("node_id") @NonNull String nodeId,
       @Name("name") String name,
@@ -424,7 +418,7 @@ public class NodeApi {
     if (!places.isEmpty()
         && places.get(0).parentId() != null
         && !places.get(0).parentId().equals(parentFolderId)) {
-      throw new LockSetChangedException("node " + nodeId + " moved");
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
     if (name != null) {
@@ -446,7 +440,6 @@ public class NodeApi {
   }
 
   @Mutation("flagNodes")
-  @RetryOnLockConflict
   public @Nullable @Id List<@NonNull String> flagNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("flag") @NonNull Boolean flag)
@@ -503,14 +496,22 @@ public class NodeApi {
     return places;
   }
 
-  private void requireUnmoved(List<NodeLocks.NodePlace> places, Collection<String> nodeIds) {
-    if (!Set.copyOf(places).equals(Set.copyOf(nodeLocks.placesOf(nodeIds)))) {
-      throw new LockSetChangedException("nodes moved or changed owner");
+  private void requireUnmoved(List<NodeLocks.NodePlace> places, Collection<String> nodeIds)
+      throws FilesGraphQLException {
+    List<NodeLocks.NodePlace> current = nodeLocks.placesOf(nodeIds);
+    if (!Set.copyOf(places).equals(Set.copyOf(current))) {
+      Set<NodeLocks.NodePlace> before = Set.copyOf(places);
+      String changed =
+          current.stream()
+              .filter(place -> !before.contains(place))
+              .map(NodeLocks.NodePlace::nodeId)
+              .findFirst()
+              .orElseGet(() -> nodeIds.iterator().next());
+      throw FilesGraphQLErrors.nodeWriteError(changed);
     }
   }
 
   @Mutation("trashNodes")
-  @RetryOnLockConflict
   public @Nullable @Id List<@NonNull String> trashNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
@@ -587,7 +588,6 @@ public class NodeApi {
   }
 
   @Mutation("restoreNodes")
-  @RetryOnLockConflict
   public @Nullable List<NodeModel> restoreNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
@@ -607,7 +607,7 @@ public class NodeApi {
     nodeLocks.lock(restoreKeys);
     if (!predicted.equals(nodeLocks.trashedParentsOf(nodeIds))
         || !predictedFallback.equals(nodeLocks.unusableRestoreParents(predicted.values()))) {
-      throw new LockSetChangedException("restore destinations changed");
+      throw FilesGraphQLErrors.nodeWriteError(nodeIds.get(0));
     }
     String me = requester.getId().getUserId();
 
@@ -705,7 +705,6 @@ public class NodeApi {
   }
 
   @Mutation("moveNodes")
-  @RetryOnLockConflict
   public @Nullable List<@NonNull NodeModel> moveNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("destination_id") @Id @NonNull String destinationId)
@@ -893,7 +892,7 @@ public class NodeApi {
 
     TreeDeletion deletion;
     try {
-      deletion = lockRetry.inNewTransaction(() -> deleteLockedTree(candidateIds, me));
+      deletion = QuarkusTransaction.requiringNew().call(() -> deleteLockedTree(candidateIds, me));
     } catch (RuntimeException e) {
       logger.error("DB error during deleteNodes, rolling back: {}", e.getMessage());
       throw deleteNodesFailure(nodeIds, candidateIds);
@@ -1020,7 +1019,8 @@ public class NodeApi {
       Optional<NodeModel> published;
       try {
         published =
-            lockRetry.inNewTransaction(() -> publishCopy(plan, blobs, destinationId, ownerId, me));
+            QuarkusTransaction.requiringNew()
+                .call(() -> publishCopy(plan, blobs, destinationId, ownerId, me));
       } catch (RuntimeException e) {
         if (copiedTopNodeIsAbsent(plan.copyId())) {
           discardBlobs(blobs.keySet(), ownerId);
@@ -1061,31 +1061,33 @@ public class NodeApi {
     DeletedVersions deleted;
     try {
       deleted =
-          lockRetry.inNewTransaction(
-              () -> {
-                nodeLocks.lock(List.of(LockKey.node(nodeId)));
-                Optional<Node> node = nodeRepository.getNode(nodeId);
-                if (node.isEmpty()) {
-                  return DeletedVersions.NODE_MISSING;
-                }
-                List<FileVersion> toDelete =
-                    (versions != null
-                            ? fileVersionRepository.getFileVersions(nodeId, versions)
-                            : fileVersionRepository.getFileVersions(
-                                nodeId, List.of(FileVersionSort.VERSION_DESC)))
-                        .stream()
-                            .filter(fv -> !fv.isKeptForever())
-                            .filter(fv -> !node.get().getCurrentVersion().equals(fv.getVersion()))
-                            .toList();
-                String owner = node.get().getOwnerId();
-                if (!toDelete.isEmpty()) {
-                  List<Integer> toDeleteNumbers =
-                      toDelete.stream().map(FileVersion::getVersion).toList();
-                  tombstoneRepository.createTombstonesBulk(toDelete, owner);
-                  fileVersionRepository.deleteFileVersions(nodeId, toDeleteNumbers);
-                }
-                return new DeletedVersions(toDelete, owner);
-              });
+          QuarkusTransaction.requiringNew()
+              .call(
+                  () -> {
+                    nodeLocks.lock(List.of(LockKey.node(nodeId)));
+                    Optional<Node> node = nodeRepository.getNode(nodeId);
+                    if (node.isEmpty()) {
+                      return DeletedVersions.NODE_MISSING;
+                    }
+                    List<FileVersion> toDelete =
+                        (versions != null
+                                ? fileVersionRepository.getFileVersions(nodeId, versions)
+                                : fileVersionRepository.getFileVersions(
+                                    nodeId, List.of(FileVersionSort.VERSION_DESC)))
+                            .stream()
+                                .filter(fv -> !fv.isKeptForever())
+                                .filter(
+                                    fv -> !node.get().getCurrentVersion().equals(fv.getVersion()))
+                                .toList();
+                    String owner = node.get().getOwnerId();
+                    if (!toDelete.isEmpty()) {
+                      List<Integer> toDeleteNumbers =
+                          toDelete.stream().map(FileVersion::getVersion).toList();
+                      tombstoneRepository.createTombstonesBulk(toDelete, owner);
+                      fileVersionRepository.deleteFileVersions(nodeId, toDeleteNumbers);
+                    }
+                    return new DeletedVersions(toDelete, owner);
+                  });
     } catch (RuntimeException e) {
       logger.error("DB error during deleteVersions, rolling back: {}", e.getMessage());
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
@@ -1142,7 +1144,6 @@ public class NodeApi {
   }
 
   @Mutation("keepVersions")
-  @RetryOnLockConflict
   public @NonNull List<Integer> keepVersions(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("versions") @NonNull List<@NonNull Integer> versions,
@@ -1327,7 +1328,11 @@ public class NodeApi {
 
   private TreeDeletion deleteLockedTree(Set<String> candidateIds, String me) {
     List<String> ids = List.copyOf(candidateIds);
-    requireUnmoved(lockNodesAndParents(ids, List.of()), ids);
+    try {
+      requireUnmoved(lockNodesAndParents(ids, List.of()), ids);
+    } catch (FilesGraphQLException e) {
+      throw new IllegalStateException(e);
+    }
 
     List<Node> roots =
         nodeRepository

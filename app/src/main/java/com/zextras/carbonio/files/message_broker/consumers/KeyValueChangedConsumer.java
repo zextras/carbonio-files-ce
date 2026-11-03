@@ -7,7 +7,6 @@ package com.zextras.carbonio.files.message_broker.consumers;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.locks.LockKey;
-import com.zextras.carbonio.files.dal.locks.LockRetry;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
@@ -21,6 +20,7 @@ import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
 import com.zextras.filestore.model.IdentifierType;
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
@@ -62,7 +62,6 @@ public class KeyValueChangedConsumer extends BaseConsumer {
   private final NodeRepository nodeRepository;
   private final TombstoneRepository tombstoneRepository;
   private final NodeLocks nodeLocks;
-  private final LockRetry lockRetry;
   private final Filestore fileStore;
 
   private record Trimmed(String ownerId, List<FileVersion> versions) {}
@@ -73,13 +72,11 @@ public class KeyValueChangedConsumer extends BaseConsumer {
       NodeRepository nodeRepository,
       TombstoneRepository tombstoneRepository,
       NodeLocks nodeLocks,
-      LockRetry lockRetry,
       Filestore fileStore) {
     this.fileVersionRepository = fileVersionRepository;
     this.nodeRepository = nodeRepository;
     this.tombstoneRepository = tombstoneRepository;
     this.nodeLocks = nodeLocks;
-    this.lockRetry = lockRetry;
     this.fileStore = fileStore;
   }
 
@@ -116,8 +113,13 @@ public class KeyValueChangedConsumer extends BaseConsumer {
             .keySet();
 
     for (String nodeId : candidateNodeIds) {
-      Trimmed trimmed = lockRetry.inNewTransaction(() -> trimLocked(nodeId, newMaxVersionNumber));
-      deleteBlobs(nodeId, trimmed);
+      try {
+        Trimmed trimmed =
+            QuarkusTransaction.requiringNew().call(() -> trimLocked(nodeId, newMaxVersionNumber));
+        deleteBlobs(nodeId, trimmed);
+      } catch (Exception e) {
+        logger.warn("Version trim of node {} failed, skipping: {}", nodeId, e.getMessage());
+      }
     }
   }
 

@@ -11,7 +11,6 @@ import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.locks.LockConflicts;
 import com.zextras.carbonio.files.dal.locks.LockKey;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.locks.NodeLocks.NodePlace;
@@ -219,7 +218,15 @@ class NodeLocksDalTest {
                 () ->
                     QuarkusTransaction.requiringNew()
                         .run(() -> nodeLocks.lock(List.of(LockKey.node(a)))))
-            .satisfies(e -> assertThat(LockConflicts.isRetryable(e)).isTrue());
+            .satisfies(
+                e -> {
+                  Throwable cause = e;
+                  while (cause != null && !(cause instanceof SQLException)) {
+                    cause = cause.getCause();
+                  }
+                  assertThat(cause).isNotNull();
+                  assertThat(((SQLException) cause).getSQLState()).isEqualTo(LOCK_NOT_AVAILABLE);
+                });
         long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
         assertThat(elapsedMs).isBetween(4500L, 15000L);
       } finally {
