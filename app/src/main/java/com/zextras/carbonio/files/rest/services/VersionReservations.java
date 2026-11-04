@@ -100,14 +100,7 @@ public class VersionReservations {
    */
   public long confirm(Reservation reservation) {
     String nodeId = reservation.nodeId();
-    if (!reservationRepository.consume(nodeId, reservation.version())) {
-      throw new IllegalStateException(
-          "Reservation of version "
-              + reservation.version()
-              + " of node "
-              + nodeId
-              + " is no longer pending");
-    }
+    confirmNew(reservation);
     nodeRepository
         .reserveTimestamp(nodeId)
         .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
@@ -115,5 +108,21 @@ public class VersionReservations {
         .latestDateBelow(nodeId, reservation.version())
         .map(latest -> Math.max(reservation.reservedAt(), latest + 1))
         .orElse(reservation.reservedAt());
+  }
+
+  /**
+   * Consumes a reservation of {@link #reserveNew} inside the transaction that creates its node.
+   *
+   * @throws IllegalStateException when the purge already claimed it
+   */
+  public void confirmNew(Reservation reservation) {
+    if (!reservationRepository.consume(reservation.nodeId(), reservation.version())) {
+      throw new IllegalStateException(
+          "Reservation of version "
+              + reservation.version()
+              + " of node "
+              + reservation.nodeId()
+              + " is no longer pending");
+    }
   }
 }

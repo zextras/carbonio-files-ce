@@ -224,6 +224,23 @@ public abstract class AbstractFilesIT {
     }
   }
 
+  /** Node ids of PENDING reservations whose node does not exist (a write not published yet). */
+  protected static Set<String> pendingReservationsWithoutNode() throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT r.node_id FROM version_reservation r WHERE r.state = 'PENDING'"
+                    + " AND NOT EXISTS (SELECT 1 FROM node n WHERE n.node_id = r.node_id)")) {
+      try (ResultSet resultSet = statement.executeQuery()) {
+        Set<String> nodeIds = new LinkedHashSet<>();
+        while (resultSet.next()) {
+          nodeIds.add(resultSet.getString(1).trim());
+        }
+        return nodeIds;
+      }
+    }
+  }
+
   /** Files' own connections left idle inside an open transaction (none may wait on I/O). */
   protected static int filesConnectionsIdleInTransaction() throws SQLException {
     try (Connection connection = jdbcConnection();

@@ -34,9 +34,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Uploads whose body is still streaming while the server works: a client that disconnects mid-body
- * (legacy deleted the placeholder node), a placeholder renamed mid-body, and upload-versions whose
- * version number is reserved before the body is read (no transaction or lock while it streams).
+ * Uploads whose body is still streaming while the server works: a client that disconnects mid-body,
+ * an upload whose node appears only once its blob is stored, and upload-versions whose version
+ * number is reserved before the body is read (no transaction or lock while it streams).
  */
 class StreamedUploadApiIT extends AbstractFilesIT {
 
@@ -50,7 +50,7 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTheClientDisconnectsMidBodyThenThePlaceholderNodeIsRemoved() throws Exception {
+  void givenTheClientDisconnectsMidBodyThenNoNodeAndNoPendingReservationAreLeft() throws Exception {
     String folderId = seedFolder("streamed-upload", LOCAL_ROOT, REQUESTER_COOKIE);
 
     try (Socket socket = new Socket("localhost", RestAssured.port)) {
@@ -62,37 +62,30 @@ class StreamedUploadApiIT extends AbstractFilesIT {
         out.write(new byte[CHUNK]);
       }
       out.flush();
-      eventually("placeholder created", () -> children(folderId) == 1);
+      eventually("upload reserved", () -> pendingReservationsWithoutNode().size() == 1);
+      Assertions.assertThat(children(folderId)).isZero();
     }
 
-    eventually("placeholder removed", () -> children(folderId) == 0);
+    eventually("reservation discarded", () -> pendingReservationsWithoutNode().isEmpty());
+    Assertions.assertThat(children(folderId)).isZero();
   }
 
   @Test
-  void givenThePlaceholderIsRenamedWhileTheBodyStreamsThenTheUploadKeepsTheNewName()
-      throws Exception {
-    String folderId = seedFolder("streamed-upload-rename", LOCAL_ROOT, REQUESTER_COOKIE);
+  void givenAnUploadStreamingThenNoNodeIsListedUntilItEnds() throws Exception {
+    String folderId = seedFolder("streamed-upload-listing", LOCAL_ROOT, REQUESTER_COOKIE);
 
-    String renamed;
     String statusLine;
     try (Socket socket = new Socket("localhost", RestAssured.port)) {
       socket.setSoTimeout(30_000);
       OutputStream out = socket.getOutputStream();
       out.write(
-          head("/upload", "ParentId: " + folderId, "placeholder.bin", 2 * CHUNK)
+          head("/upload", "ParentId: " + folderId, "streamed.bin", 2 * CHUNK)
               .getBytes(StandardCharsets.UTF_8));
       out.write(new byte[CHUNK]);
       out.flush();
-      eventually("placeholder created", () -> children(folderId) == 1);
-      graphql(
-          GraphqlCommandBuilder.aMutationBuilder("updateNode")
-              .withString("node_id", onlyChild(folderId, "node_id"))
-              .withString("name", "renamed")
-              .withWantedResultFormat("{ id }")
-              .build(),
-          REQUESTER_COOKIE);
-      renamed = onlyChild(folderId, "name");
-      Assertions.assertThat(renamed).isNotEqualTo("placeholder.bin");
+      eventually("upload reserved", () -> pendingReservationsWithoutNode().size() == 1);
+      Assertions.assertThat(children(folderId)).isZero();
+      Assertions.assertThat(childIds(folderId, REQUESTER_COOKIE)).isEmpty();
 
       out.write(new byte[CHUNK]);
       out.flush();
@@ -102,7 +95,9 @@ class StreamedUploadApiIT extends AbstractFilesIT {
     }
 
     Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
-    Assertions.assertThat(onlyChild(folderId, "name")).isEqualTo(renamed);
+    Assertions.assertThat(onlyChild(folderId, "name")).isEqualTo("streamed.bin");
+    Assertions.assertThat(childIds(folderId, REQUESTER_COOKIE)).hasSize(1);
+    Assertions.assertThat(pendingReservationsWithoutNode()).isEmpty();
   }
 
   @Test
