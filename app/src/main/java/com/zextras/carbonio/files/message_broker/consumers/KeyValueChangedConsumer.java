@@ -125,6 +125,9 @@ public class KeyValueChangedConsumer extends BaseConsumer {
               List<FileVersion> versions =
                   fileVersionRepository.getFileVersions(
                       nodeId, List.of(FileVersionSort.VERSION_ASC));
+              if (versions.isEmpty()) {
+                return List.<BlobKey>of();
+              }
               int remaining = versions.size() - newMaxVersionNumber;
               FileVersion currentVersion = versions.get(versions.size() - 1);
               List<BlobKey> removedKeys = new ArrayList<>();

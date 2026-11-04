@@ -1310,15 +1310,13 @@ public class NodeApi {
             : destinationFolder.getOwnerId();
 
     String newId = UUID.randomUUID().toString();
+    FilesIdentifier source =
+        FilesIdentifier.of(
+            sourceNode.getId(), sourceNode.getCurrentVersion(), sourceNode.getOwnerId());
+    FilesIdentifier destination = FilesIdentifier.of(newId, 1, ownerId);
     FileVersion sourceCurrentVersion;
-    FilesIdentifier source;
-    FilesIdentifier destination;
     Reservation reservation;
     try {
-      source =
-          FilesIdentifier.of(
-              sourceNode.getId(), sourceNode.getCurrentVersion(), sourceNode.getOwnerId());
-      destination = FilesIdentifier.of(newId, 1, ownerId);
       sourceCurrentVersion =
           fileVersionRepository
               .getFileVersion(sourceNode.getId(), sourceNode.getCurrentVersion())

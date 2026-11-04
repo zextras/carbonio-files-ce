@@ -133,6 +133,18 @@ class KeyValueChangedHandlerTest {
   }
 
   @Test
+  void aNodeWhoseVersionsVanishedMeanwhileIsSkipped() {
+    givenNodeWithVersions(List.of(version(1, false), version(2, false)));
+    when(fileVersionRepository.getFileVersions("node-1", List.of(FileVersionSort.VERSION_ASC)))
+        .thenReturn(List.of());
+
+    consumer.doHandle(new KeyValueChanged("carbonio-files/max-number-of-versions", "1"));
+
+    verify(fileVersionRepository, never()).removeVersionNotKeptForever(any(), anyInt());
+    verify(blobLifecycle).deleteAndClear("owner-1", List.of());
+  }
+
+  @Test
   void givenKvChangedEventNotHandledNoOperationShouldBePerformed() {
     // Given
     consumer.doHandle(new KeyValueChanged("fake", "fake"));
