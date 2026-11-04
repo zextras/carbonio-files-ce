@@ -816,6 +816,12 @@ public class BlobService {
   private void bulkDeleteTrimmedBlobs(String nodeId, String ownerId, List<FileVersion> trimmed) {
     blobLifecycle.deleteAndClear(
         ownerId, trimmed.stream().map(fv -> new BlobKey(fv.getNodeId(), fv.getVersion())).toList());
+    trimmed.forEach(
+        fv ->
+            logger.info(
+                "File version limit for node {} has been reached, deleted version {}",
+                fv.getNodeId(),
+                fv.getVersion()));
   }
 
   private static void logUploaded(String nodeId, int version, UploadResponse uploadResponse) {
