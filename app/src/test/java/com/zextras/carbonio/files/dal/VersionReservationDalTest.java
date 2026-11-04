@@ -239,7 +239,7 @@ class VersionReservationDalTest {
   }
 
   @Test
-  void aFailedPurgeAttemptIsCountedOnTheClaimedReservation() {
+  void aClaimedReservationCanBeRemoved() {
     String nodeId = fileWithCurrentVersion(1);
     QuarkusTransaction.requiringNew()
         .run(() -> reservationRepository.reserve(nodeId, 2, "owner", hoursAgo(2)));
@@ -250,13 +250,6 @@ class VersionReservationDalTest {
             .findFirst()
             .orElseThrow();
 
-    reservationRepository.recordFailedAttempt(claimed);
-    reservationRepository.recordFailedAttempt(claimed);
-
-    assertThat(reservationRepository.getPurging())
-        .filteredOn(r -> r.getNodeId().equals(nodeId))
-        .extracting(VersionReservation::getAttempts)
-        .containsExactly(2);
     reservationRepository.remove(claimed);
     assertThat(reservationRepository.getPurging()).noneMatch(r -> r.getNodeId().equals(nodeId));
   }

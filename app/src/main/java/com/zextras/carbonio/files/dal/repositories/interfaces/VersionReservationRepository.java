@@ -33,6 +33,4 @@ public interface VersionReservationRepository {
   List<VersionReservation> getPurging();
 
   void remove(VersionReservation reservation);
-
-  void recordFailedAttempt(VersionReservation reservation);
 }

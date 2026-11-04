@@ -15,6 +15,9 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.OverwriteLeaseRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
+import com.zextras.carbonio.files.rest.services.BlobKey;
+import com.zextras.carbonio.files.rest.services.BlobLifecycle;
+import com.zextras.carbonio.files.rest.services.Transactions;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
@@ -26,6 +29,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -62,7 +66,6 @@ public class PurgeService {
   private static final Logger logger = LoggerFactory.getLogger(PurgeService.class);
 
   static final int MAX_TOMBSTONE_RETRIES = 3;
-  static final int MAX_RESERVATION_PURGE_ATTEMPTS = 3;
 
   @Inject NodeRepository nodeRepository;
   @Inject FileVersionRepository fileVersionRepository;
@@ -70,6 +73,8 @@ public class PurgeService {
   @Inject VersionReservationRepository versionReservationRepository;
   @Inject OverwriteLeaseRepository overwriteLeaseRepository;
   @Inject Filestore fileStore;
+  @Inject BlobLifecycle blobLifecycle;
+  @Inject Transactions transactions;
 
   @ConfigProperty(name = "carbonio.files.reservation-purge.expiry", defaultValue = "24h")
   Duration reservationExpiry;
@@ -186,44 +191,23 @@ public class PurgeService {
       String ownerId = entry.getKey();
       List<Tombstone> ownerTombstones = entry.getValue();
 
-      List<BulkDeleteRequestItem> requests =
-          ownerTombstones.stream()
-              .map(t -> BulkDeleteRequestItem.filesItem(t.getNodeId(), t.getVersion()))
-              .collect(Collectors.toList());
-
-      List<BulkDeleteResponseItem> failedItems;
-      try {
-        failedItems = fileStore.bulkDelete(IdentifierType.files, ownerId, requests);
-      } catch (Exception e) {
-        // ANY exception (incl. NullPointerException) = outage/connection failure.
-        // NOT a per-blob failure: keep all tombstones, do NOT increment attempts.
+      Optional<Set<BlobKey>> failedKeys =
+          blobLifecycle.delete(
+              ownerId,
+              ownerTombstones.stream()
+                  .map(t -> new BlobKey(t.getNodeId(), t.getVersion()))
+                  .toList());
+      if (failedKeys.isEmpty()) {
         logger.warn(
-            "purgeTombstones: bulk delete failed for owner {}: {}. Tombstones kept for next cycle.",
-            ownerId,
-            e.getMessage());
-        continue;
-      }
-
-      if (failedItems == null) {
-        // null return is NOT a success signal (happens on connection failure) -> keep all
-        // tombstones
-        logger.warn(
-            "purgeTombstones: bulkDelete returned null for owner {} (treated as failure)."
-                + " Tombstones kept for next cycle.",
+            "purgeTombstones: unknown outcome for owner {}. Tombstones kept for next cycle.",
             ownerId);
         continue;
       }
 
-      // non-null list: empty = all deleted; partial = listed ids failed.
-      Set<String> failedNodeIds =
-          failedItems.stream().map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
-
-      // Remove confirmed-deleted tombstones; apply retry-cap to failed ones.
       for (Tombstone t : ownerTombstones) {
-        if (!failedNodeIds.contains(t.getNodeId())) {
+        if (!failedKeys.get().contains(new BlobKey(t.getNodeId(), t.getVersion()))) {
           tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
         } else {
-          // Genuine per-blob PowerStore rejection — increment attempts toward retry cap.
           if (t.getAttempts() + 1 >= MAX_TOMBSTONE_RETRIES) {
             logger.warn(
                 "purgeTombstones: giving up on blob nodeId={} version={} after {} attempts; "
@@ -241,86 +225,33 @@ public class PurgeService {
   }
 
   /**
-   * Deletes the blobs of the version reservations never confirmed within {@link #reservationExpiry}
-   * of the database clock (their save failed: no revision references them, which is checked again),
-   * then the reservations. Claiming them first (PENDING → PURGING) makes a late confirmation fail
-   * instead of creating a version whose blob is being deleted. A whole-call failure is an outage
-   * and does not count; a reservation reported as not deleted {@link
-   * #MAX_RESERVATION_PURGE_ATTEMPTS} times (never written, or a persistent storage error) is
-   * dropped, leaving at most an orphan blob.
+   * Turns the version reservations never confirmed within {@link #reservationExpiry} of the
+   * database clock (their save failed) into tombstones, which {@link #purgeTombstones} deletes from
+   * the store. Claiming them first (PENDING → PURGING) makes a late confirmation fail instead of
+   * creating a version whose blob is being deleted. A reservation whose version exists is only
+   * removed: its blob is live.
    */
   void purgeExpiredReservations() {
     versionReservationRepository.claimExpired(reservationExpiry);
 
-    List<VersionReservation> purging = new ArrayList<>();
-    for (VersionReservation reservation : versionReservationRepository.getPurging()) {
-      if (fileVersionRepository
-          .getFileVersion(reservation.getNodeId(), reservation.getVersion())
-          .isPresent()) {
-        logger.warn(
-            "purgeExpiredReservations: version {} of node {} exists, its blob is kept",
-            reservation.getVersion(),
-            reservation.getNodeId());
-        versionReservationRepository.remove(reservation);
-      } else {
-        purging.add(reservation);
-      }
-    }
-
-    Map<String, List<VersionReservation>> byOwner =
-        purging.stream().collect(Collectors.groupingBy(VersionReservation::getOwnerId));
-
-    byOwner.forEach(this::purgeReservationsOf);
-  }
-
-  private void purgeReservationsOf(String ownerId, List<VersionReservation> reservations) {
-    List<BulkDeleteResponseItem> failedItems;
-    try {
-      failedItems =
-          fileStore.bulkDelete(
-              IdentifierType.files,
-              ownerId,
-              reservations.stream()
-                  .map(r -> BulkDeleteRequestItem.filesItem(r.getNodeId(), r.getVersion()))
-                  .toList());
-    } catch (Exception e) {
-      logger.warn(
-          "purgeExpiredReservations: bulk delete failed for owner {}: {}. Kept for the next run.",
-          ownerId,
-          e.getMessage());
-      return;
-    }
-    if (failedItems == null) {
-      logger.warn(
-          "purgeExpiredReservations: bulk delete returned null for owner {}. Kept for the next"
-              + " run.",
-          ownerId);
-      return;
-    }
-    reservations.forEach(reservation -> settle(reservation, failedItems));
-  }
-
-  private void settle(VersionReservation reservation, List<BulkDeleteResponseItem> failedItems) {
-    boolean failed =
-        failedItems.stream()
-            .anyMatch(
-                item ->
-                    reservation.getNodeId().equals(item.getNode())
-                        && item.getVersion()
-                            .map(version -> version == reservation.getVersion())
-                            .orElse(true));
-    if (!failed) {
-      versionReservationRepository.remove(reservation);
-    } else if (reservation.getAttempts() + 1 >= MAX_RESERVATION_PURGE_ATTEMPTS) {
-      logger.warn(
-          "purgeExpiredReservations: giving up on blob nodeId={} version={} after {} attempts",
-          reservation.getNodeId(),
-          reservation.getVersion(),
-          reservation.getAttempts() + 1);
-      versionReservationRepository.remove(reservation);
-    } else {
-      versionReservationRepository.recordFailedAttempt(reservation);
-    }
+    transactions.inNewTransaction(
+        () -> {
+          for (VersionReservation reservation : versionReservationRepository.getPurging()) {
+            if (fileVersionRepository
+                .getFileVersion(reservation.getNodeId(), reservation.getVersion())
+                .isPresent()) {
+              logger.warn(
+                  "purgeExpiredReservations: version {} of node {} exists, its blob is kept",
+                  reservation.getVersion(),
+                  reservation.getNodeId());
+            } else {
+              tombstoneRepository.createNewTombstone(
+                  reservation.getNodeId(), reservation.getOwnerId(), reservation.getVersion());
+            }
+            versionReservationRepository.remove(reservation);
+          }
+          return null;
+        });
   }
 
   @Scheduled(
