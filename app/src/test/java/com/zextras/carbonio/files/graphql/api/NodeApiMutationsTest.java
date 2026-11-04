@@ -66,6 +66,7 @@ class NodeApiMutationsTest {
 
   private static final String REQUESTER_ID = "requester-user-id";
   private static final String CLONING_USER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  private static final String NODE_OWNER_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
   private static final String PARENT_ID = "00000000-0000-0000-0000-000000000000";
   private static final String NODE_ID_1 = "00000000-0000-0000-0000-000000000001";
   private static final String NODE_ID_2 = "00000000-0000-0000-0000-000000000002";
@@ -198,6 +199,7 @@ class NodeApiMutationsTest {
 
   private void givenACloneVersionWhoseStorageCopyFails() throws Exception {
     Node node = mockFileNode(NODE_ID_1, PARENT_ID);
+    when(node.getOwnerId()).thenReturn(NODE_OWNER_ID);
     when(nodeApi.requester.getId()).thenReturn(new UserId(CLONING_USER_ID));
     when(permissionsChecker.getPermissions(NODE_ID_1, CLONING_USER_ID)).thenReturn(aclWith(true));
     when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node));
@@ -206,24 +208,42 @@ class NodeApiMutationsTest {
         .thenReturn(List.of());
     when(fileVersionRepository.getFileVersion(NODE_ID_1, 1))
         .thenReturn(Optional.of(mock(FileVersion.class)));
-    when(versionReservations.reserve(NODE_ID_1, CLONING_USER_ID))
-        .thenReturn(Optional.of(new Reservation(NODE_ID_1, 7, 5000L, CLONING_USER_ID)));
+    when(versionReservations.reserve(NODE_ID_1, NODE_OWNER_ID))
+        .thenReturn(Optional.of(new Reservation(NODE_ID_1, 7, 5000L, NODE_OWNER_ID)));
     when(fileStore.copy(any(), any(), anyBoolean())).thenThrow(new RuntimeException("boom"));
   }
 
   @Test
-  void cloneVersionCopiesTheSourceVersionToTheReservedVersion() throws Exception {
+  void givenACloneByAShareeThenTheVersionIsReservedAndCopiedUnderTheNodeOwner() throws Exception {
     givenACloneVersionWhoseStorageCopyFails();
     when(copyFailureClassifier.classify(any())).thenReturn(ErrorCodes.OVER_QUOTA_REACHED);
 
     assertThatThrownBy(() -> nodeApi.cloneVersion(NODE_ID_1, 1))
         .isInstanceOf(FilesGraphQLException.class);
 
+    verify(versionReservations).reserve(NODE_ID_1, NODE_OWNER_ID);
     verify(fileStore)
         .copy(
-            FilesIdentifier.of(NODE_ID_1, 1, CLONING_USER_ID),
-            FilesIdentifier.of(NODE_ID_1, 7, CLONING_USER_ID),
+            FilesIdentifier.of(NODE_ID_1, 1, NODE_OWNER_ID),
+            FilesIdentifier.of(NODE_ID_1, 7, NODE_OWNER_ID),
             false);
+    verify(blobLifecycle).discard(new Reservation(NODE_ID_1, 7, 5000L, NODE_OWNER_ID));
+  }
+
+  @Test
+  void givenTheClonedBlobIsNotStoredThenTheCloneFailsAsACopyError() throws Exception {
+    givenACloneVersionWhoseStorageCopyFails();
+    doReturn(mock(UploadResponse.class)).when(fileStore).copy(any(), any(), anyBoolean());
+    when(blobLifecycle.exists(NODE_ID_1, 7, NODE_OWNER_ID)).thenReturn(false);
+    when(copyFailureClassifier.classify(any())).thenReturn(ErrorCodes.NODE_COPY_ERROR);
+    when(gqlContext.getPath()).thenReturn("/cloneVersion");
+
+    assertThatThrownBy(() -> nodeApi.cloneVersion(NODE_ID_1, 1))
+        .isInstanceOf(FilesGraphQLException.class)
+        .hasMessageContaining("Copy error with nodeId: " + NODE_ID_1 + " and version 1");
+    verify(blobLifecycle).discard(new Reservation(NODE_ID_1, 7, 5000L, NODE_OWNER_ID));
+    verify(fileVersionRepository, never())
+        .createFileVersionAt(any(), any(), anyInt(), any(), anyLong(), any(), anyLong());
   }
 
   @Test
@@ -262,6 +282,7 @@ class NodeApiMutationsTest {
   void cloneVersionFailureAfterTheBlobCopyIsNotReportedAsACopyError() throws Exception {
     givenACloneVersionWhoseStorageCopyFails();
     doReturn(mock(UploadResponse.class)).when(fileStore).copy(any(), any(), anyBoolean());
+    when(blobLifecycle.exists(NODE_ID_1, 7, NODE_OWNER_ID)).thenReturn(true);
     when(fileVersionRepository.createFileVersionAt(
             any(), any(), anyInt(), any(), anyLong(), any(), anyLong()))
         .thenThrow(new IllegalStateException("db down"));
@@ -272,6 +293,7 @@ class NodeApiMutationsTest {
           .hasMessage("db down");
     }
     verify(copyFailureClassifier, never()).classify(any());
+    verify(blobLifecycle).discard(new Reservation(NODE_ID_1, 7, 5000L, NODE_OWNER_ID));
   }
 
   // ─── copyNodes ────────────────────────────────────────────────────────────────

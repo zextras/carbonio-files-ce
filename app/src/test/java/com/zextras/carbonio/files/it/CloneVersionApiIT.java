@@ -154,9 +154,8 @@ class CloneVersionApiIT extends AbstractFilesIT {
             TestUtils.jsonResponseToValue(response.getBody().asString(), "cloneVersion"))
         .isEmpty();
 
-    // no new version row was created (createNewFileVersion only runs inside Try#onSuccess, which
-    // never fires on a copy failure) — unlike copyFile's Try#onFailure, cloneVersion's failure
-    // path does not need to roll anything back because nothing was ever written
+    // no new version row was created (the version is created only after a successful copy) and
+    // the reserved number is discarded, not left pending
     Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2);
   }
 
@@ -175,6 +174,47 @@ class CloneVersionApiIT extends AbstractFilesIT {
         .containsEntry("version", 3)
         .containsEntry("cloned_from_version", 1);
     Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 3);
-    Assertions.assertThat(pendingReservations(nodeId)).containsExactly(2);
+    Assertions.assertThat(pendingReservations(nodeId)).isEmpty();
+  }
+
+  private static void assertCopyErrorShape(Response response, String nodeId) {
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
+        .containsExactly(
+            "Exception while fetching data (/cloneVersion) : Copy error with nodeId: "
+                + nodeId
+                + " and version 1");
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly((String) null);
+    Assertions.assertThat(
+            TestUtils.jsonResponseToValue(response.getBody().asString(), "cloneVersion"))
+        .isEmpty();
+  }
+
+  @Test
+  void givenTheCopyAnswers200WithoutStoringThenTheCloneFailsAndNoVersionIsCreated()
+      throws SQLException {
+    String nodeId =
+        seedFile("file.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    FilesStackTestResource.getStoragesService().setCopySkipsStore(true);
+
+    Response response = cloneVersion(nodeId, 1);
+
+    assertCopyErrorShape(response, nodeId);
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
+    Assertions.assertThat(pendingReservations(nodeId)).isEmpty();
+  }
+
+  @Test
+  void givenTheCopyFailsThenNoPendingReservationIsLeft() throws SQLException {
+    String nodeId =
+        seedFile("file.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
+    FilesStackTestResource.getStoragesService().setCopyFails(true);
+
+    Response response = cloneVersion(nodeId, 1);
+
+    assertCopyErrorShape(response, nodeId);
+    Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
+    Assertions.assertThat(pendingReservations(nodeId)).isEmpty();
   }
 }

@@ -1094,7 +1094,11 @@ public class NodeApi {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
-    nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
+    String ownerId =
+        nodeRepository
+            .getNode(nodeId)
+            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId))
+            .getOwnerId();
 
     int maxNumberOfVersions = getMaxNumberOfVersions();
     if (fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)).size()
@@ -1111,7 +1115,7 @@ public class NodeApi {
 
     Reservation reservation =
         versionReservations
-            .reserve(nodeId, me)
+            .reserve(nodeId, ownerId)
             .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
     int newVersion = reservation.version();
 
@@ -1119,42 +1123,53 @@ public class NodeApi {
         Try.of(
             () ->
                 fileStore.copy(
-                    FilesIdentifier.of(nodeId, version, me),
-                    FilesIdentifier.of(nodeId, newVersion, me),
+                    FilesIdentifier.of(nodeId, version, ownerId),
+                    FilesIdentifier.of(nodeId, newVersion, ownerId),
                     false));
     if (copyAttempt.isFailure()) {
-      String error =
-          MessageFormat.format("Copy error with nodeId: {0} and version {1}", nodeId, version);
-      logger.error(error);
-      ErrorCodes code = copyFailureClassifier.classify(copyAttempt.getCause());
-      if (code == ErrorCodes.NODE_COPY_ERROR) {
-        throw FilesGraphQLErrors.dataFetching(gqlContext.getPath(), error);
-      }
-      throw FilesGraphQLErrors.cloneCopyError(code, nodeId, version);
+      blobLifecycle.discard(reservation);
+      throw cloneCopyFailure(nodeId, version, copyAttempt.getCause());
+    }
+    if (!blobLifecycle.exists(nodeId, newVersion, ownerId)) {
+      blobLifecycle.discard(reservation);
+      throw cloneCopyFailure(
+          nodeId,
+          version,
+          new DependencyException(
+              "Clone verification failed: version "
+                  + newVersion
+                  + " of node "
+                  + nodeId
+                  + " is not accessible"));
     }
     var copiedBlobResponse = copyAttempt.get();
 
-    QuarkusTransaction.requiringNew()
-        .run(
-            () -> {
-              long versionDate = versionReservations.confirm(reservation);
-              fileVersionRepository
-                  .createFileVersionAt(
-                      nodeId,
-                      me,
-                      newVersion,
-                      fileVersion.getMimeType(),
-                      copiedBlobResponse.getSize(),
-                      copiedBlobResponse.getDigest(),
-                      versionDate)
-                  .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+    try {
+      QuarkusTransaction.requiringNew()
+          .run(
+              () -> {
+                long versionDate = versionReservations.confirm(reservation);
+                fileVersionRepository
+                    .createFileVersionAt(
+                        nodeId,
+                        me,
+                        newVersion,
+                        fileVersion.getMimeType(),
+                        copiedBlobResponse.getSize(),
+                        copiedBlobResponse.getDigest(),
+                        versionDate)
+                    .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
 
-              nodeRepository.moveCurrentVersion(nodeId, newVersion, versionDate);
+                nodeRepository.moveCurrentVersion(nodeId, newVersion, versionDate);
 
-              FileVersion newFv = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
-              newFv.setClonedFromVersion(version);
-              fileVersionRepository.updateFileVersion(newFv);
-            });
+                FileVersion newFv = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
+                newFv.setClonedFromVersion(version);
+                fileVersionRepository.updateFileVersion(newFv);
+              });
+    } catch (RuntimeException e) {
+      blobLifecycle.discard(reservation);
+      throw e;
+    }
 
     logger.debug(
         MessageFormat.format(
@@ -1165,6 +1180,17 @@ public class NodeApi {
   }
 
   // ─── Private helpers (ported from NodeDataFetcher) ────────────────────────────
+
+  private FilesGraphQLException cloneCopyFailure(String nodeId, int version, Throwable cause) {
+    String error =
+        MessageFormat.format("Copy error with nodeId: {0} and version {1}", nodeId, version);
+    logger.error(error);
+    ErrorCodes code = copyFailureClassifier.classify(cause);
+    if (code == ErrorCodes.NODE_COPY_ERROR) {
+      return FilesGraphQLErrors.dataFetching(gqlContext.getPath(), error);
+    }
+    return FilesGraphQLErrors.cloneCopyError(code, nodeId, version);
+  }
 
   private int getMaxNumberOfVersions() {
     return filesConfig.getMaxNumberOfVersions();
