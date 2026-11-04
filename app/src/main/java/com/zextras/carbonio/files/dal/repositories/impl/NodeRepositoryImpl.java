@@ -329,17 +329,6 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Override
   @Transactional
-  public boolean deleteNode(String nodeId) {
-    Node node = entityManager.find(Node.class, normalizeId(nodeId));
-    if (node == null) {
-      return false;
-    }
-    entityManager.remove(node);
-    return true;
-  }
-
-  @Override
-  @Transactional
   public int deleteNodes(List<String> nodesIds) {
     if (nodesIds.isEmpty()) {
       return 0;

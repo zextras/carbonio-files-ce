@@ -241,6 +241,41 @@ public abstract class AbstractFilesIT {
     }
   }
 
+  /** The PENDING reservations without a node that are not in {@code snapshot}. */
+  protected static Set<String> pendingReservationsWithoutNodeSince(Set<String> snapshot)
+      throws SQLException {
+    Set<String> added = pendingReservationsWithoutNode();
+    added.removeAll(snapshot);
+    return added;
+  }
+
+  /** Runs {@code work} while every insert into {@code table} matching {@code when} fails. */
+  protected static <T> T withFailingInserts(String table, String when, Callable<T> work)
+      throws Exception {
+    try (Connection connection = jdbcConnection();
+        Statement statement = connection.createStatement()) {
+      statement.execute(
+          "CREATE OR REPLACE FUNCTION fail_insert() RETURNS trigger LANGUAGE plpgsql AS"
+              + " $$ BEGIN RAISE EXCEPTION 'injected insert failure'; END $$");
+      statement.execute(
+          "CREATE TRIGGER fail_insert BEFORE INSERT ON "
+              + table
+              + " FOR EACH ROW WHEN ("
+              + when
+              + ") EXECUTE FUNCTION fail_insert()");
+      try {
+        return work.call();
+      } finally {
+        statement.execute("DROP TRIGGER fail_insert ON " + table);
+        statement.execute("DROP FUNCTION fail_insert()");
+      }
+    }
+  }
+
+  protected static <T> T withFailingRevisionInserts(Callable<T> work) throws Exception {
+    return withFailingInserts("revision", "true", work);
+  }
+
   /** Files' own connections left idle inside an open transaction (none may wait on I/O). */
   protected static int filesConnectionsIdleInTransaction() throws SQLException {
     try (Connection connection = jdbcConnection();

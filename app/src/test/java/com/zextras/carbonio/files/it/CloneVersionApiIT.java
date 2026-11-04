@@ -157,6 +157,7 @@ class CloneVersionApiIT extends AbstractFilesIT {
     // no new version row was created (the version is created only after a successful copy) and
     // the reserved number is discarded, not left pending
     Assertions.assertThat(versionRows(nodeId)).containsExactly(1, 2);
+    Assertions.assertThat(pendingReservations(nodeId)).isEmpty();
   }
 
   @Test

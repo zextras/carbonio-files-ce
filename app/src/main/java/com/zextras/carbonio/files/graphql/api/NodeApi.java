@@ -27,7 +27,6 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
-import com.zextras.carbonio.files.exceptions.DependencyException;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLErrors;
@@ -50,13 +49,11 @@ import com.zextras.carbonio.files.rest.services.BlobLifecycle;
 import com.zextras.carbonio.files.rest.services.VersionReservations;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
-import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.FilesIdentifier;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.security.Authenticated;
 import io.smallrye.graphql.api.Context;
 import io.smallrye.graphql.api.Nullable;
-import io.vavr.control.Try;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
@@ -112,7 +109,6 @@ public class NodeApi {
   @Inject @AuthenticatedUser UserMyself requester;
   @Inject TombstoneRepository tombstoneRepository;
   @Inject NotificationRepository notificationRepository;
-  @Inject Filestore fileStore;
   @Inject ShareCascadeHelper shareCascade;
   @Inject NodeCreationHelper nodeCreationHelper;
   @Inject VersionReservations versionReservations;
@@ -917,6 +913,7 @@ public class NodeApi {
 
     List<NodeModel> copiedNodesResult = new ArrayList<>();
     List<CopyFailure> copyErrors = new ArrayList<>();
+    List<CopyFailure> nestedCopyErrors = new ArrayList<>();
 
     List<Node> nodesInCopyOrder =
         Stream.concat(
@@ -929,9 +926,16 @@ public class NodeApi {
     nodesInCopyOrder.forEach(
         node -> {
           if (node.getNodeType() == com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER) {
-            Node copiedFolder = copyFolder(node, destinationFolder, me, true);
+            Node copiedFolder;
+            try {
+              copiedFolder = copyFolder(node, destinationFolder, me, true);
+            } catch (RuntimeException e) {
+              logger.error("Unable to copy folder {}: {}", node.getId(), e.getMessage(), e);
+              copyErrors.add(new CopyFailure(node, e));
+              return;
+            }
             copiedNodesResult.add(NodeModelFactory.from(copiedFolder, null, me));
-            copyFolderCascade(node.getId(), copiedFolder, me, copyErrors);
+            copyFolderCascade(node.getId(), copiedFolder, me, nestedCopyErrors);
 
             List<String> usersToNotify = createIndirectShare(destinationId, copiedFolder);
             usersToNotify.remove(me);
@@ -967,6 +971,8 @@ public class NodeApi {
             }
           }
         });
+
+    copyErrors.addAll(nestedCopyErrors);
 
     List<Node> nodesWithoutPermission =
         nodes.stream().filter(node -> !nodesToCopy.contains(node)).collect(Collectors.toList());
@@ -1120,27 +1126,12 @@ public class NodeApi {
     int newVersion = reservation.version();
 
     var copyAttempt =
-        Try.of(
-            () ->
-                fileStore.copy(
-                    FilesIdentifier.of(nodeId, version, ownerId),
-                    FilesIdentifier.of(nodeId, newVersion, ownerId),
-                    false));
+        blobLifecycle.copyVerified(
+            FilesIdentifier.of(nodeId, version, ownerId),
+            FilesIdentifier.of(nodeId, newVersion, ownerId));
     if (copyAttempt.isFailure()) {
       blobLifecycle.discard(reservation);
       throw cloneCopyFailure(nodeId, version, copyAttempt.getCause());
-    }
-    if (!blobLifecycle.exists(nodeId, newVersion, ownerId)) {
-      blobLifecycle.discard(reservation);
-      throw cloneCopyFailure(
-          nodeId,
-          version,
-          new DependencyException(
-              "Clone verification failed: version "
-                  + newVersion
-                  + " of node "
-                  + nodeId
-                  + " is not accessible"));
     }
     var copiedBlobResponse = copyAttempt.get();
 
@@ -1318,49 +1309,40 @@ public class NodeApi {
             ? requesterId
             : destinationFolder.getOwnerId();
 
-    Optional<FileVersion> sourceCurrentVersion =
-        fileVersionRepository.getFileVersion(sourceNode.getId(), sourceNode.getCurrentVersion());
-    if (sourceCurrentVersion.isEmpty()) {
-      return new CopyOutcome(
-          Optional.empty(),
-          new NoSuchElementException(
-              "Version "
-                  + sourceNode.getCurrentVersion()
-                  + " of node "
-                  + sourceNode.getId()
-                  + " not found"));
+    String newId = UUID.randomUUID().toString();
+    FileVersion sourceCurrentVersion;
+    FilesIdentifier source;
+    FilesIdentifier destination;
+    Reservation reservation;
+    try {
+      source =
+          FilesIdentifier.of(
+              sourceNode.getId(), sourceNode.getCurrentVersion(), sourceNode.getOwnerId());
+      destination = FilesIdentifier.of(newId, 1, ownerId);
+      sourceCurrentVersion =
+          fileVersionRepository
+              .getFileVersion(sourceNode.getId(), sourceNode.getCurrentVersion())
+              .orElseThrow(
+                  () ->
+                      new NoSuchElementException(
+                          "Version "
+                              + sourceNode.getCurrentVersion()
+                              + " of node "
+                              + sourceNode.getId()
+                              + " not found"));
+      reservation = versionReservations.reserveNew(newId, 1, ownerId);
+    } catch (RuntimeException e) {
+      logger.error("Unable to copy node {}: {}", sourceNode.getId(), e.getMessage(), e);
+      return new CopyOutcome(Optional.empty(), e);
     }
 
-    String newId = UUID.randomUUID().toString();
-    Reservation reservation = versionReservations.reserveNew(newId, 1, ownerId);
-
-    var copyAttempt =
-        Try.of(
-            () ->
-                fileStore.copy(
-                    FilesIdentifier.of(
-                        sourceNode.getId(),
-                        sourceNode.getCurrentVersion(),
-                        sourceNode.getOwnerId()),
-                    FilesIdentifier.of(newId, 1, ownerId),
-                    false));
+    var copyAttempt = blobLifecycle.copyVerified(source, destination);
     if (copyAttempt.isFailure()) {
       logger.error(
           MessageFormat.format(
               "Unable to copy node {0}. {1}", sourceNode.getId(), copyAttempt.getCause()));
       blobLifecycle.discard(reservation);
       return new CopyOutcome(Optional.empty(), copyAttempt.getCause());
-    }
-    if (!blobLifecycle.exists(newId, 1, ownerId)) {
-      logger.error(
-          "Unable to copy node {}: the copied blob of node {} is not accessible",
-          sourceNode.getId(),
-          newId);
-      blobLifecycle.discard(reservation);
-      return new CopyOutcome(
-          Optional.empty(),
-          new DependencyException(
-              "Copy verification failed: blob not accessible for node " + newId));
     }
     var response = copyAttempt.get();
 
@@ -1391,14 +1373,19 @@ public class NodeApi {
                 newId,
                 requesterId,
                 1,
-                sourceCurrentVersion.get().getMimeType(),
+                sourceCurrentVersion.getMimeType(),
                 response.getSize(),
                 response.getDigest(),
                 false);
             return null;
           });
     } catch (RuntimeException e) {
-      logger.error("Unable to publish the copy {} of node {}: {}", newId, sourceNode.getId(), e);
+      logger.error(
+          "Unable to publish the copy {} of node {}: {}",
+          newId,
+          sourceNode.getId(),
+          e.getMessage(),
+          e);
       blobLifecycle.discard(reservation);
       return new CopyOutcome(Optional.empty(), e);
     }
@@ -1475,7 +1462,14 @@ public class NodeApi {
 
     foldersToCopy.forEach(
         folder -> {
-          Node copiedFolder = copyFolder(folder, destinationFolder, requesterId, false);
+          Node copiedFolder;
+          try {
+            copiedFolder = copyFolder(folder, destinationFolder, requesterId, false);
+          } catch (RuntimeException e) {
+            logger.error("Unable to copy folder {}: {}", folder.getId(), e.getMessage(), e);
+            failures.add(new CopyFailure(folder, e));
+            return;
+          }
           copyFolderCascade(folder.getId(), copiedFolder, requesterId, failures);
         });
   }

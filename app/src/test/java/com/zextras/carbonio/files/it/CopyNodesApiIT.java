@@ -14,9 +14,9 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -364,22 +364,9 @@ class CopyNodesApiIT extends AbstractFilesIT {
             "src-p4.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String destFolderId = seedFolder("dest-p4", LOCAL_ROOT, REQUESTER_COOKIE);
 
-    Response response;
-    try (Connection connection = jdbcConnection();
-        Statement statement = connection.createStatement()) {
-      statement.execute(
-          "CREATE OR REPLACE FUNCTION fail_revision_insert() RETURNS trigger LANGUAGE plpgsql AS"
-              + " $$ BEGIN RAISE EXCEPTION 'injected revision insert failure'; END $$");
-      statement.execute(
-          "CREATE TRIGGER fail_revision_insert BEFORE INSERT ON revision FOR EACH ROW EXECUTE"
-              + " FUNCTION fail_revision_insert()");
-      try {
-        response = copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE);
-      } finally {
-        statement.execute("DROP TRIGGER fail_revision_insert ON revision");
-        statement.execute("DROP FUNCTION fail_revision_insert()");
-      }
-    }
+    Response response =
+        withFailingRevisionInserts(
+            () -> copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE));
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
@@ -447,24 +434,6 @@ class CopyNodesApiIT extends AbstractFilesIT {
     return response.jsonPath().getList("errors.extensions.nodeId", String.class);
   }
 
-  private static void withFailingRevisionInserts(Runnable work) throws Exception {
-    try (Connection connection = jdbcConnection();
-        Statement statement = connection.createStatement()) {
-      statement.execute(
-          "CREATE OR REPLACE FUNCTION fail_revision_insert() RETURNS trigger LANGUAGE plpgsql AS"
-              + " $$ BEGIN RAISE EXCEPTION 'injected revision insert failure'; END $$");
-      statement.execute(
-          "CREATE TRIGGER fail_revision_insert BEFORE INSERT ON revision FOR EACH ROW EXECUTE"
-              + " FUNCTION fail_revision_insert()");
-      try {
-        work.run();
-      } finally {
-        statement.execute("DROP TRIGGER fail_revision_insert ON revision");
-        statement.execute("DROP FUNCTION fail_revision_insert()");
-      }
-    }
-  }
-
   @Test
   void givenTheCopyAnswers200WithoutStoringThenTheFileIsReportedAndNotPublished() throws Exception {
     String folderId = seedFolder("emptyFolder", LOCAL_ROOT, REQUESTER_COOKIE);
@@ -476,6 +445,7 @@ class CopyNodesApiIT extends AbstractFilesIT {
             REQUESTER_COOKIE);
     String destFolderId = seedFolder("dest-unstored", LOCAL_ROOT, REQUESTER_COOKIE);
     FilesStackTestResource.getStoragesService().setCopySkipsStore(true);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
 
     Response response = copyNodes(new String[] {folderId, fileId}, destFolderId, REQUESTER_COOKIE);
 
@@ -487,7 +457,7 @@ class CopyNodesApiIT extends AbstractFilesIT {
     Assertions.assertThat(childrenOf(destFolderId, REQUESTER_COOKIE))
         .extracting(node -> node.get("name"))
         .containsExactly("emptyFolder");
-    Assertions.assertThat(pendingReservationsWithoutNode()).isEmpty();
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
   }
 
   @Test
@@ -502,6 +472,7 @@ class CopyNodesApiIT extends AbstractFilesIT {
     seedFile("d.txt", subFolderId, content, REQUESTER_COOKIE);
     String destFolderId = seedFolder("dest-partial", LOCAL_ROOT, REQUESTER_COOKIE);
     FilesStackTestResource.getStoragesService().failCopyFor(failingId);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
 
     Response response = copyNodes(new String[] {srcFolderId}, destFolderId, REQUESTER_COOKIE);
 
@@ -524,7 +495,7 @@ class CopyNodesApiIT extends AbstractFilesIT {
     Assertions.assertThat(childrenOf(copiedSubId, REQUESTER_COOKIE))
         .extracting(node -> node.get("name"))
         .containsExactly("d");
-    Assertions.assertThat(pendingReservationsWithoutNode()).isEmpty();
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
   }
 
   @Test
@@ -532,26 +503,24 @@ class CopyNodesApiIT extends AbstractFilesIT {
       throws Exception {
     byte[] content = "content".getBytes(StandardCharsets.UTF_8);
     String srcFolderId = seedFolder("txFails", LOCAL_ROOT, REQUESTER_COOKIE);
-    String nestedId = seedFile("x.txt", srcFolderId, content, REQUESTER_COOKIE);
+    seedFile("x.txt", srcFolderId, content, REQUESTER_COOKIE);
     String subFolderId = seedFolder("sub", srcFolderId, REQUESTER_COOKIE);
-    String deepId = seedFile("y.txt", subFolderId, content, REQUESTER_COOKIE);
+    seedFile("y.txt", subFolderId, content, REQUESTER_COOKIE);
     String topFileId = seedFile("z.txt", LOCAL_ROOT, content, REQUESTER_COOKIE);
     String destFolderId = seedFolder("dest-txFails", LOCAL_ROOT, REQUESTER_COOKIE);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
 
-    Response[] response = new Response[1];
-    withFailingRevisionInserts(
-        () ->
-            response[0] =
-                copyNodes(new String[] {srcFolderId, topFileId}, destFolderId, REQUESTER_COOKIE));
+    Response response =
+        withFailingRevisionInserts(
+            () -> copyNodes(new String[] {srcFolderId, topFileId}, destFolderId, REQUESTER_COOKIE));
 
-    Assertions.assertThat(response[0].getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(copyErrorNodeIds(response[0]))
-        .hasSize(1)
-        .isSubsetOf(nestedId, deepId, topFileId);
-    Assertions.assertThat(copiedNodes(response[0]))
+    // top-level failures are reported before the nested ones
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(copyErrorNodeIds(response)).containsExactly(topFileId);
+    Assertions.assertThat(copiedNodes(response))
         .extracting(node -> node.get("name"))
         .containsExactly("txFails");
-    String copiedFolderId = (String) copiedNodes(response[0]).get(0).get("id");
+    String copiedFolderId = (String) copiedNodes(response).get(0).get("id");
     List<Map<String, Object>> children = childrenOf(copiedFolderId, REQUESTER_COOKIE);
     Assertions.assertThat(children).extracting(node -> node.get("name")).containsExactly("sub");
     Assertions.assertThat(childrenOf((String) children.get(0).get("id"), REQUESTER_COOKIE))
@@ -559,6 +528,71 @@ class CopyNodesApiIT extends AbstractFilesIT {
     Assertions.assertThat(childrenOf(destFolderId, REQUESTER_COOKIE))
         .extracting(node -> node.get("name"))
         .containsExactly("txFails");
-    Assertions.assertThat(pendingReservationsWithoutNode()).isEmpty();
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
+  }
+
+  @Test
+  void givenANestedFolderCannotBeCreatedThenItIsReportedAndItsSiblingsAreCopied() throws Exception {
+    byte[] content = "content".getBytes(StandardCharsets.UTF_8);
+    String srcFolderId = seedFolder("withBrokenSub", LOCAL_ROOT, REQUESTER_COOKIE);
+    seedFile("a.txt", srcFolderId, content, REQUESTER_COOKIE);
+    String brokenId = seedFolder("unwritable", srcFolderId, REQUESTER_COOKIE);
+    seedFile("b.txt", brokenId, content, REQUESTER_COOKIE);
+    String okId = seedFolder("ok", srcFolderId, REQUESTER_COOKIE);
+    seedFile("c.txt", okId, content, REQUESTER_COOKIE);
+    String destFolderId = seedFolder("dest-brokenSub", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    Response response =
+        withFailingInserts(
+            "node",
+            "NEW.name = 'unwritable'",
+            () -> copyNodes(new String[] {srcFolderId}, destFolderId, REQUESTER_COOKIE));
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(copyErrorNodeIds(response)).containsExactly(brokenId);
+    List<Map<String, Object>> copied = copiedNodes(response);
+    Assertions.assertThat(copied)
+        .extracting(node -> node.get("name"))
+        .containsExactly("withBrokenSub");
+    List<Map<String, Object>> children =
+        childrenOf((String) copied.get(0).get("id"), REQUESTER_COOKIE);
+    Assertions.assertThat(children)
+        .extracting(node -> node.get("name"))
+        .containsExactlyInAnyOrder("a", "ok");
+    String copiedOkId =
+        (String)
+            children.stream()
+                .filter(node -> "ok".equals(node.get("name")))
+                .findFirst()
+                .orElseThrow()
+                .get("id");
+    Assertions.assertThat(childrenOf(copiedOkId, REQUESTER_COOKIE))
+        .extracting(node -> node.get("name"))
+        .containsExactly("c");
+  }
+
+  @Test
+  void givenATopLevelFolderCannotBeCreatedThenItIsReportedAndTheOtherNodesAreCopied()
+      throws Exception {
+    byte[] content = "content".getBytes(StandardCharsets.UTF_8);
+    String brokenId = seedFolder("unwritable", LOCAL_ROOT, REQUESTER_COOKIE);
+    seedFile("b.txt", brokenId, content, REQUESTER_COOKIE);
+    String fileId = seedFile("top.txt", LOCAL_ROOT, content, REQUESTER_COOKIE);
+    String destFolderId = seedFolder("dest-brokenTop", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    Response response =
+        withFailingInserts(
+            "node",
+            "NEW.name = 'unwritable'",
+            () -> copyNodes(new String[] {brokenId, fileId}, destFolderId, REQUESTER_COOKIE));
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(copyErrorNodeIds(response)).containsExactly(brokenId);
+    Assertions.assertThat(copiedNodes(response))
+        .extracting(node -> node.get("name"))
+        .containsExactly("top");
+    Assertions.assertThat(childrenOf(destFolderId, REQUESTER_COOKIE))
+        .extracting(node -> node.get("name"))
+        .containsExactly("top");
   }
 }

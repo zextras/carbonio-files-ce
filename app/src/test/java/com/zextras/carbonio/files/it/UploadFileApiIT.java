@@ -13,10 +13,9 @@ import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
-import java.sql.Connection;
-import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -231,6 +230,7 @@ class UploadFileApiIT extends AbstractFilesIT {
     // Given
     FilesStackTestResource.getStoragesService().setUploadFails(true);
     List<String> childrenBefore = childNodeIds(LOCAL_ROOT);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
 
     // When
     Response response =
@@ -246,7 +246,7 @@ class UploadFileApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(500);
     Assertions.assertThat(response.getBody().asString()).isEqualTo("500 Internal Server Error");
     Assertions.assertThat(childNodeIds(LOCAL_ROOT)).isEqualTo(childrenBefore);
-    Assertions.assertThat(pendingReservationsWithoutNode()).isEmpty();
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
   }
 
   @Test
@@ -254,6 +254,7 @@ class UploadFileApiIT extends AbstractFilesIT {
     // Given
     FilesStackTestResource.getStoragesService().setUploadSkipsStore(true);
     List<String> childrenBefore = childNodeIds(LOCAL_ROOT);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
 
     // When
     Response response =
@@ -268,39 +269,28 @@ class UploadFileApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(500);
     Assertions.assertThat(response.getBody().asString()).isEqualTo("500 Internal Server Error");
     Assertions.assertThat(childNodeIds(LOCAL_ROOT)).isEqualTo(childrenBefore);
-    Assertions.assertThat(pendingReservationsWithoutNode()).isEmpty();
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
   }
 
   @Test
   void givenTheFinalTransactionFailsThenNoNodeAndNoPendingReservation() throws Exception {
     String folderId = seedFolder("final-tx-fails", LOCAL_ROOT, REQUESTER_COOKIE);
 
-    Response response;
-    try (Connection connection = jdbcConnection();
-        Statement statement = connection.createStatement()) {
-      statement.execute(
-          "CREATE OR REPLACE FUNCTION fail_revision_insert() RETURNS trigger LANGUAGE plpgsql AS"
-              + " $$ BEGIN RAISE EXCEPTION 'injected revision insert failure'; END $$");
-      statement.execute(
-          "CREATE TRIGGER fail_revision_insert BEFORE INSERT ON revision FOR EACH ROW EXECUTE"
-              + " FUNCTION fail_revision_insert()");
-      try {
-        response =
-            upload(
-                folderId,
-                null,
-                "content".getBytes(StandardCharsets.UTF_8),
-                "txfails.txt",
-                REQUESTER_COOKIE);
-      } finally {
-        statement.execute("DROP TRIGGER fail_revision_insert ON revision");
-        statement.execute("DROP FUNCTION fail_revision_insert()");
-      }
-    }
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
+
+    Response response =
+        withFailingRevisionInserts(
+            () ->
+                upload(
+                    folderId,
+                    null,
+                    "content".getBytes(StandardCharsets.UTF_8),
+                    "txfails.txt",
+                    REQUESTER_COOKIE));
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(500);
     Assertions.assertThat(childNodeIds(folderId)).isEmpty();
-    Assertions.assertThat(pendingReservationsWithoutNode()).isEmpty();
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
   }
 
   @Test

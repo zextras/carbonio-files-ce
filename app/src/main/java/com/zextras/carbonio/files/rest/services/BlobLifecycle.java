@@ -7,14 +7,19 @@ package com.zextras.carbonio.files.rest.services;
 import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
+import com.zextras.carbonio.files.exceptions.DependencyException;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.filestore.api.Filestore;
+import com.zextras.filestore.api.UploadResponse;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
 import com.zextras.filestore.model.FilesIdentifier;
 import com.zextras.filestore.model.IdentifierType;
+import io.vavr.control.Try;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
@@ -94,6 +99,31 @@ public class BlobLifecycle {
     } catch (RuntimeException e) {
       logger.warn("Unable to clear the tombstones of owner {}: {}", ownerId, e.getMessage());
     }
+  }
+
+  /** Tombstones the keys inside the caller's transaction; their blobs are deleted after it. */
+  @Transactional(TxType.MANDATORY)
+  public void tombstone(String ownerId, Collection<BlobKey> keys) {
+    keys.forEach(k -> tombstoneRepository.createNewTombstone(k.nodeId(), ownerId, k.version()));
+  }
+
+  /**
+   * Copies without overriding, then checks that the destination can be read back: a copy can answer
+   * success without storing anything.
+   */
+  public Try<UploadResponse> copyVerified(FilesIdentifier source, FilesIdentifier destination) {
+    return Try.of(() -> fileStore.copy(source, destination, false))
+        .flatMap(
+            response ->
+                exists(destination.getNode(), destination.getVersion(), destination.getAccountId())
+                    ? Try.success(response)
+                    : Try.failure(
+                        new DependencyException(
+                            "Copy verification failed: version "
+                                + destination.getVersion()
+                                + " of node "
+                                + destination.getNode()
+                                + " is not accessible")));
   }
 
   /**

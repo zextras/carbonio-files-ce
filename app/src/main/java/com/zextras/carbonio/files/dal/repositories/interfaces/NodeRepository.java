@@ -189,18 +189,6 @@ public interface NodeRepository {
       String ancestorIds,
       Long size);
 
-  /**
-   * Deletes a {@link Node} from the database.
-   *
-   * <p>if the {@link Node} does not exist, then the method does nothing and returns <code>false
-   * </code>.
-   *
-   * @param nodeId is a {@link String} representing the id of the node to delete
-   * @return <code>true</code> if the {@link Node} exists in the database, and if the deletion is
-   *     performed correctly, <code>false</code> otherwise.
-   */
-  boolean deleteNode(String nodeId);
-
   int deleteNodes(List<String> nodesIds);
 
   /**

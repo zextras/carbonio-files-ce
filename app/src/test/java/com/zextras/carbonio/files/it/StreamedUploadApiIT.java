@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -52,6 +53,7 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   @Test
   void givenTheClientDisconnectsMidBodyThenNoNodeAndNoPendingReservationAreLeft() throws Exception {
     String folderId = seedFolder("streamed-upload", LOCAL_ROOT, REQUESTER_COOKIE);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
 
     try (Socket socket = new Socket("localhost", RestAssured.port)) {
       OutputStream out = socket.getOutputStream();
@@ -62,17 +64,21 @@ class StreamedUploadApiIT extends AbstractFilesIT {
         out.write(new byte[CHUNK]);
       }
       out.flush();
-      eventually("upload reserved", () -> pendingReservationsWithoutNode().size() == 1);
+      eventually(
+          "upload reserved", () -> pendingReservationsWithoutNodeSince(pendingBefore).size() == 1);
       Assertions.assertThat(children(folderId)).isZero();
     }
 
-    eventually("reservation discarded", () -> pendingReservationsWithoutNode().isEmpty());
+    eventually(
+        "reservation discarded",
+        () -> pendingReservationsWithoutNodeSince(pendingBefore).isEmpty());
     Assertions.assertThat(children(folderId)).isZero();
   }
 
   @Test
   void givenAnUploadStreamingThenNoNodeIsListedUntilItEnds() throws Exception {
     String folderId = seedFolder("streamed-upload-listing", LOCAL_ROOT, REQUESTER_COOKIE);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
 
     String statusLine;
     try (Socket socket = new Socket("localhost", RestAssured.port)) {
@@ -83,7 +89,8 @@ class StreamedUploadApiIT extends AbstractFilesIT {
               .getBytes(StandardCharsets.UTF_8));
       out.write(new byte[CHUNK]);
       out.flush();
-      eventually("upload reserved", () -> pendingReservationsWithoutNode().size() == 1);
+      eventually(
+          "upload reserved", () -> pendingReservationsWithoutNodeSince(pendingBefore).size() == 1);
       Assertions.assertThat(children(folderId)).isZero();
       Assertions.assertThat(childIds(folderId, REQUESTER_COOKIE)).isEmpty();
 
@@ -97,7 +104,7 @@ class StreamedUploadApiIT extends AbstractFilesIT {
     Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
     Assertions.assertThat(onlyChild(folderId, "name")).isEqualTo("streamed.bin");
     Assertions.assertThat(childIds(folderId, REQUESTER_COOKIE)).hasSize(1);
-    Assertions.assertThat(pendingReservationsWithoutNode()).isEmpty();
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
   }
 
   @Test

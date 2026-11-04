@@ -19,10 +19,17 @@ import static org.mockito.Mockito.when;
 import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
+import com.zextras.carbonio.files.exceptions.DependencyException;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.filestore.api.Filestore;
+import com.zextras.filestore.api.UploadResponse;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
+import com.zextras.filestore.model.FilesIdentifier;
 import com.zextras.filestore.model.IdentifierType;
+import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
+import java.io.InputStream;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -167,5 +174,55 @@ class BlobLifecycleTest {
             blobLifecycle.exists(
                 "11111111-1111-1111-1111-111111111111", 1, "22222222-2222-2222-2222-222222222222"))
         .isFalse();
+  }
+
+  @Test
+  void tombstonesEveryKeyForTheOwnerInsideTheCallersTransaction() throws Exception {
+    blobLifecycle.tombstone("owner", List.of(new BlobKey("n1", 1), new BlobKey("n2", 3)));
+
+    verify(tombstones).createNewTombstone("n1", "owner", 1);
+    verify(tombstones).createNewTombstone("n2", "owner", 3);
+    verifyNoMoreInteractions(tombstones);
+    verify(transactions, never()).inNewTransaction(any());
+    assertThat(
+            BlobLifecycle.class
+                .getMethod("tombstone", String.class, Collection.class)
+                .getAnnotation(Transactional.class)
+                .value())
+        .isEqualTo(TxType.MANDATORY);
+  }
+
+  private static final FilesIdentifier SOURCE =
+      FilesIdentifier.of(
+          "00000000-0000-0000-0000-000000000001", 1, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+  private static final FilesIdentifier DESTINATION =
+      FilesIdentifier.of(
+          "00000000-0000-0000-0000-000000000002", 1, "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+
+  @Test
+  void aVerifiedCopyReturnsTheCopyResponse() throws Exception {
+    UploadResponse response = mock(UploadResponse.class);
+    when(fileStore.copy(SOURCE, DESTINATION, false)).thenReturn(response);
+    when(fileStore.download(DESTINATION)).thenReturn(InputStream.nullInputStream());
+
+    assertThat(blobLifecycle.copyVerified(SOURCE, DESTINATION).get()).isSameAs(response);
+  }
+
+  @Test
+  void aCopyThatStoredNothingFailsWithADependencyException() throws Exception {
+    when(fileStore.copy(SOURCE, DESTINATION, false)).thenReturn(mock(UploadResponse.class));
+    when(fileStore.download(DESTINATION)).thenThrow(new RuntimeException("404"));
+
+    assertThat(blobLifecycle.copyVerified(SOURCE, DESTINATION).getCause())
+        .isInstanceOf(DependencyException.class);
+  }
+
+  @Test
+  void aFailedCopyFailsWithItsCauseAndIsNotVerified() throws Exception {
+    RuntimeException cause = new RuntimeException("500");
+    when(fileStore.copy(SOURCE, DESTINATION, false)).thenThrow(cause);
+
+    assertThat(blobLifecycle.copyVerified(SOURCE, DESTINATION).getCause()).isSameAs(cause);
+    verify(fileStore, never()).download(any());
   }
 }
