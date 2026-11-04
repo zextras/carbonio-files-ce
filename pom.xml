@@ -88,19 +88,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <!-- Publish target for `mvn deploy` (the dt3 "Maven Publish" stage deploys the root pom with -N,
        and the app module inherits this; the sdk module gets its own from carbonio-quarkus-extensions-
-       sdk-parent). Matches carbonio-user-management: the `zextras-java-sdk` id resolves to the
+       sdk-parent). Matches carbonio-user-management: the `nexus-prod` id resolves to the
        credentials in the dt3-provided settings.xml. -->
   <distributionManagement>
-    <snapshotRepository>
-      <id>zextras-java-sdk</id>
-      <name>Zextras private repository</name>
-      <url>https://zextras.jfrog.io/artifactory/maven-snapshot</url>
-    </snapshotRepository>
     <repository>
-      <id>zextras-java-sdk</id>
-      <name>Zextras private repository</name>
-      <url>https://zextras.jfrog.io/artifactory/public-maven-repo</url>
+      <id>nexus-prod</id>
+      <url>https://repo.zextras.tools/repository/public-maven-repo/</url>
     </repository>
+    <snapshotRepository>
+      <id>nexus-prod</id>
+      <url>https://repo.zextras.tools/repository/maven-snapshots/</url>
+    </snapshotRepository>
   </distributionManagement>
 
   <build>
@@ -166,9 +164,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <repositories>
     <repository>
-      <id>zextras-java-sdk</id>
-      <name>Zextras public maven repo</name>
-      <url>https://zextras.jfrog.io/artifactory/java-sdk</url>
+      <id>zextras-nexus</id>
+      <url>https://repo.zextras.tools/repository/java-sdk/</url>
+      <releases><enabled>true</enabled></releases>
+      <snapshots><enabled>true</enabled></snapshots>
     </repository>
   </repositories>
 </project>

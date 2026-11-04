@@ -1,5 +1,5 @@
 {
-  "branches": ["main"],
+  "branches": [{ "name": "release/v2.1.x", "range": "2.1.x" }, "main"],
   "repositoryUrl": "https://github.com/zextras/carbonio-files-ce",
   "tagFormat": "v${version}",
   "plugins": [
