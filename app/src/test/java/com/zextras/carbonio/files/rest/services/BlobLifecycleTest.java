@@ -148,4 +148,24 @@ class BlobLifecycleTest {
 
     verifyNoMoreInteractions(fileStore);
   }
+
+  @Test
+  void existsIsTrueWhenTheStoreStreamsTheBlob() throws Exception {
+    when(fileStore.download(any())).thenReturn(new java.io.ByteArrayInputStream(new byte[] {1}));
+
+    assertThat(
+            blobLifecycle.exists(
+                "11111111-1111-1111-1111-111111111111", 1, "22222222-2222-2222-2222-222222222222"))
+        .isTrue();
+  }
+
+  @Test
+  void existsIsFalseWhenTheStoreThrows() throws Exception {
+    when(fileStore.download(any())).thenThrow(new RuntimeException("404"));
+
+    assertThat(
+            blobLifecycle.exists(
+                "11111111-1111-1111-1111-111111111111", 1, "22222222-2222-2222-2222-222222222222"))
+        .isFalse();
+  }
 }

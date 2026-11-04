@@ -11,9 +11,11 @@ import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
+import com.zextras.filestore.model.FilesIdentifier;
 import com.zextras.filestore.model.IdentifierType;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -133,6 +135,17 @@ public class BlobLifecycle {
             (owner, rs) ->
                 deleteAndClear(
                     owner, rs.stream().map(r -> new BlobKey(r.nodeId(), r.version())).toList()));
+  }
+
+  // It seems that manual checking is sometimes necessary
+  public boolean exists(String nodeId, int version, String ownerId) {
+    try {
+      InputStream blobStream = fileStore.download(FilesIdentifier.of(nodeId, version, ownerId));
+      blobStream.close();
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
   }
 
   static boolean matches(BulkDeleteResponseItem item, BlobKey key) {

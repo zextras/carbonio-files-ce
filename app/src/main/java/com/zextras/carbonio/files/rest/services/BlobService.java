@@ -430,7 +430,7 @@ public class BlobService {
           uploadResponse.getSize(),
           uploadResponse.getDigest());
 
-      if (!verifyBlobExists(nodeId, 1, nodeOwner)) {
+      if (!blobLifecycle.exists(nodeId, 1, nodeOwner)) {
         nodeRepository.deleteNode(nodeId);
         throw new DependencyException(
             String.format("Upload verification failed: blob not accessible for node %s", nodeId));
@@ -763,7 +763,7 @@ public class BlobService {
           exception);
     }
 
-    if (!verifyBlobExists(nodeId, version, ownerId)) {
+    if (!blobLifecycle.exists(nodeId, version, ownerId)) {
       throw new DependencyException(
           String.format(
               "Upload verification failed: blob not accessible for node %s version %d",
@@ -1003,17 +1003,6 @@ public class BlobService {
   public InputStream openZipEntryStream(ZipItem item) throws Exception {
     return fileStore.download(
         FilesIdentifier.of(item.getNodeId(), item.getVersion(), item.getOwnerId()));
-  }
-
-  // It seems that manual checking is sometimes necessary
-  private boolean verifyBlobExists(String nodeId, int version, String nodeOwner) {
-    try {
-      InputStream blobStream = fileStore.download(FilesIdentifier.of(nodeId, version, nodeOwner));
-      blobStream.close();
-      return true;
-    } catch (Exception e) {
-      return false;
-    }
   }
 
   /** Lightweight, fully-resolved plan of a ZIP multi-download (no blob bytes buffered). */
