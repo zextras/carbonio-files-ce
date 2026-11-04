@@ -5,15 +5,23 @@
 package com.zextras.carbonio.files.message_broker.consumers;
 
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
+import com.zextras.carbonio.files.dal.dao.ebean.Node;
+import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.files.rest.services.BlobKey;
+import com.zextras.carbonio.files.rest.services.BlobLifecycle;
 import com.zextras.carbonio.message_broker.config.EventConfig;
 import com.zextras.carbonio.message_broker.consumer.BaseConsumer;
 import com.zextras.carbonio.message_broker.events.generic.BaseEvent;
 import com.zextras.carbonio.message_broker.events.services.service_discover.KeyValueChanged;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,14 +39,13 @@ import org.slf4j.LoggerFactory;
  * changes still prune {@link FileVersion}s live, as opposed to the other KV consumers that a
  * config-migration batch job could otherwise absorb).
  *
- * <p>Transaction model (legacy parity): {@code doHandle} does NOT wrap the whole prune in one
- * transaction. Each repository call it makes ({@code getFileVersionsRelatedTo...}, {@code
- * deleteFileVersion}) is transactional on its own via the injected repository CDI proxy, so a DB
- * connection is acquired and released per operation and none is held for the whole (potentially
- * large) trim. The RabbitMQ delivery stays unacked until {@code doHandle} returns — that ack is
- * {@link BaseConsumer}'s responsibility and is inherent (it must reflect whether processing
- * succeeded); only the DB-connection hold was shortened. The trim is idempotent, so a mid-run
- * failure is safely retried on redelivery.
+ * <p>Transaction model: {@code doHandle} does NOT wrap the whole prune in one transaction. Each
+ * node is trimmed in its own transaction (version rows and tombstones together) and its blobs are
+ * deleted after the commit, so a DB connection is never held for the whole (potentially large) trim
+ * nor across the storage calls. The RabbitMQ delivery stays unacked until {@code doHandle} returns
+ * — that ack is {@link BaseConsumer}'s responsibility and is inherent (it must reflect whether
+ * processing succeeded); only the DB-connection hold was shortened. The trim is idempotent, so a
+ * mid-run failure is safely retried on redelivery.
  */
 @ApplicationScoped
 public class KeyValueChangedConsumer extends BaseConsumer {
@@ -46,10 +53,23 @@ public class KeyValueChangedConsumer extends BaseConsumer {
   private static final Logger logger = LoggerFactory.getLogger(KeyValueChangedConsumer.class);
 
   private final FileVersionRepository fileVersionRepository;
+  private final NodeRepository nodeRepository;
+  private final TombstoneRepository tombstoneRepository;
+  private final Transactions transactions;
+  private final BlobLifecycle blobLifecycle;
 
   @Inject
-  public KeyValueChangedConsumer(FileVersionRepository fileVersionRepository) {
+  public KeyValueChangedConsumer(
+      FileVersionRepository fileVersionRepository,
+      NodeRepository nodeRepository,
+      TombstoneRepository tombstoneRepository,
+      Transactions transactions,
+      BlobLifecycle blobLifecycle) {
     this.fileVersionRepository = fileVersionRepository;
+    this.nodeRepository = nodeRepository;
+    this.tombstoneRepository = tombstoneRepository;
+    this.transactions = transactions;
+    this.blobLifecycle = blobLifecycle;
   }
 
   @Override
@@ -91,23 +111,45 @@ public class KeyValueChangedConsumer extends BaseConsumer {
   private void trimFileVersions(List<FileVersion> fileVersions, Integer newMaxVersionNumber) {
     int toDelete = fileVersions.size() - newMaxVersionNumber;
     FileVersion currentVersion = fileVersions.get(fileVersions.size() - 1);
+    String nodeId = currentVersion.getNodeId();
 
-    for (FileVersion fileVersion : fileVersions) {
-      if (toDelete == 0) return; // break early if there are no more fileversions to delete
-
-      // Delete only if not keep forever and if not current version
-      if (!fileVersion.isKeptForever() && !fileVersion.equals(currentVersion)) {
-        logger.info("Removing version {}", fileVersion.getVersion());
-        fileVersionRepository.deleteFileVersion(fileVersion);
-        toDelete--;
-      }
+    Optional<Node> node = nodeRepository.getNode(nodeId);
+    if (node.isEmpty()) {
+      logger.warn("Node {} no longer exists, its versions are not trimmed", nodeId);
+      return;
     }
+    String ownerId = node.get().getOwnerId();
 
-    if (toDelete > 0) {
-      logger.warn(
-          "Can't remove enough versions to match the new max version number as some are either"
-              + " marked as keepForever or deleting the current version is required to match the"
-              + " new max version number and we can't do that");
-    }
+    List<BlobKey> removed =
+        transactions.inNewTransaction(
+            () -> {
+              List<BlobKey> removedKeys = new ArrayList<>();
+              int remaining = toDelete;
+              for (FileVersion fileVersion : fileVersions) {
+                if (remaining == 0)
+                  break; // break early if there are no more fileversions to delete
+
+                // Delete only if not keep forever and if not current version
+                if (!fileVersion.isKeptForever() && !fileVersion.equals(currentVersion)) {
+                  logger.info("Removing version {}", fileVersion.getVersion());
+                  if (fileVersionRepository.removeVersionNotKeptForever(
+                      nodeId, fileVersion.getVersion())) {
+                    tombstoneRepository.createNewTombstone(
+                        nodeId, ownerId, fileVersion.getVersion());
+                    removedKeys.add(new BlobKey(nodeId, fileVersion.getVersion()));
+                  }
+                  remaining--;
+                }
+              }
+              if (remaining > 0) {
+                logger.warn(
+                    "Can't remove enough versions to match the new max version number as some are"
+                        + " either marked as keepForever or deleting the current version is"
+                        + " required to match the new max version number and we can't do that");
+              }
+              return removedKeys;
+            });
+
+    blobLifecycle.deleteAndClear(ownerId, removed);
   }
 }
