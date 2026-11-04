@@ -1,3 +1,9 @@
+## [2.1.8](https://github.com/zextras/carbonio-files-ce/compare/v2.1.7...v2.1.8) (2026-11-04)
+
+### Bug Fixes
+
+* [CO-4670] baseline Flyway at the db_info version when the history table is missing ([#351](https://github.com/zextras/carbonio-files-ce/issues/351)) ([41263a7](https://github.com/zextras/carbonio-files-ce/commit/41263a7a0937dacde13cd6d9b1c1c9c79049ee6e))
+
 ## [2.1.7](https://github.com/zextras/carbonio-files-ce/compare/v2.1.6...v2.1.7) (2026-10-02)
 
 ## [2.1.6](https://github.com/zextras/carbonio-files-ce/compare/v2.1.5...v2.1.6) (2026-09-28)
