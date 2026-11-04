@@ -12,6 +12,7 @@ import static org.mockito.Mockito.*;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
@@ -68,6 +69,8 @@ class KeyValueChangedHandlerTest {
     when(nodeRepository.getNode("node-1")).thenReturn(Optional.of(node));
     when(fileVersionRepository.getFileVersionsRelatedToNodesHavingVersionsGreaterThan(anyInt()))
         .thenReturn(Map.of("node-1", versions));
+    when(fileVersionRepository.getFileVersions("node-1", List.of(FileVersionSort.VERSION_ASC)))
+        .thenReturn(versions);
     when(fileVersionRepository.removeVersionNotKeptForever(eq("node-1"), anyInt()))
         .thenReturn(true);
   }

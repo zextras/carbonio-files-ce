@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.message_broker.consumers;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
+import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
@@ -109,9 +110,7 @@ public class KeyValueChangedConsumer extends BaseConsumer {
   }
 
   private void trimFileVersions(List<FileVersion> fileVersions, Integer newMaxVersionNumber) {
-    int toDelete = fileVersions.size() - newMaxVersionNumber;
-    FileVersion currentVersion = fileVersions.get(fileVersions.size() - 1);
-    String nodeId = currentVersion.getNodeId();
+    String nodeId = fileVersions.get(0).getNodeId();
 
     Optional<Node> node = nodeRepository.getNode(nodeId);
     if (node.isEmpty()) {
@@ -123,10 +122,14 @@ public class KeyValueChangedConsumer extends BaseConsumer {
     List<BlobKey> removed =
         transactions.inNewTransaction(
             () -> {
+              List<FileVersion> versions =
+                  fileVersionRepository.getFileVersions(
+                      nodeId, List.of(FileVersionSort.VERSION_ASC));
+              int remaining = versions.size() - newMaxVersionNumber;
+              FileVersion currentVersion = versions.get(versions.size() - 1);
               List<BlobKey> removedKeys = new ArrayList<>();
-              int remaining = toDelete;
-              for (FileVersion fileVersion : fileVersions) {
-                if (remaining == 0)
+              for (FileVersion fileVersion : versions) {
+                if (remaining <= 0)
                   break; // break early if there are no more fileversions to delete
 
                 // Delete only if not keep forever and if not current version

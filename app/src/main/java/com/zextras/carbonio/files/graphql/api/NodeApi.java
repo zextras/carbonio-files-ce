@@ -802,7 +802,10 @@ public class NodeApi {
     Set<String> requestedNodeIds =
         requestedNodes.stream().map(Node::getId).collect(Collectors.toSet());
 
-    List<Node> allNodes = collectAllDescendants(requestedNodes);
+    List<Node> allNodes =
+        requestedNodes.stream()
+            .flatMap(root -> nodeRepository.getSubtree(root).stream())
+            .collect(Collectors.toList());
 
     List<Node> fileNodes =
         allNodes.stream()
@@ -1226,25 +1229,6 @@ public class NodeApi {
         .filter(parent -> !parent.getAncestorsList().contains(RootId.TRASH_ROOT));
   }
 
-  private List<Node> collectAllDescendants(List<Node> rootNodes) {
-    List<Node> result = new ArrayList<>(rootNodes);
-    for (Node node : rootNodes) {
-      if (node.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER)) {
-        List<String> childrenIds =
-            nodeRepository.getChildrenIds(node.getId(), Optional.empty(), Optional.empty(), true);
-        if (!childrenIds.isEmpty()) {
-          List<Node> children =
-              nodeRepository
-                  .getNodes(childrenIds, Optional.empty())
-                  .filter(Objects::nonNull)
-                  .collect(Collectors.toList());
-          result.addAll(collectAllDescendants(children));
-        }
-      }
-    }
-    return result;
-  }
-
   private void cascadeDeleteNodeHelper(String nodeId) {
     List<String> childrenIds =
         nodeRepository.getChildrenIds(nodeId, Optional.empty(), Optional.empty(), true);
@@ -1263,11 +1247,8 @@ public class NodeApi {
   }
 
   private void deleteNodesFromDb(List<Node> nodes) {
-    List<String> ids = nodes.stream().map(Node::getId).collect(Collectors.toList());
-    if (!ids.isEmpty()) {
-      shareRepository.deleteSharesBulk(ids);
-      nodeRepository.deleteNodes(ids);
-    }
+    nodeRepository.deleteNodesAndShares(
+        nodes.stream().map(Node::getId).collect(Collectors.toList()));
   }
 
   private static FilesGraphQLException pathNodeNotFound(String nodeId) {

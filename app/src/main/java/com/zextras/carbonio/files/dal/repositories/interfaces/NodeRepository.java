@@ -265,6 +265,12 @@ public interface NodeRepository {
    */
   Node updateNode(Node node);
 
+  /** The root followed by all its descendants, top-down, trashed or not. */
+  List<Node> getSubtree(Node root);
+
+  /** Deletes the shares of the nodes and then the nodes, in the caller's transaction. */
+  void deleteNodesAndShares(List<String> nodeIds);
+
   /**
    * Returns the nodes directly under the trash root that were trashed before the given timestamp.
    *

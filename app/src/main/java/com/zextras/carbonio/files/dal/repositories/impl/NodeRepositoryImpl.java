@@ -20,6 +20,7 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SortOrder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -38,6 +39,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -90,6 +92,7 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Inject EntityManager entityManager;
   @Inject CollationRepository collationRepository;
+  @Inject ShareRepository shareRepository;
   @Inject FilesConfig filesConfig;
 
   // ---------------------------------------------------------------------------------------------
@@ -460,6 +463,31 @@ public class NodeRepositoryImpl implements NodeRepository {
     TrashedNode trashedNode = entityManager.find(TrashedNode.class, normalizeId(nodeId));
     if (trashedNode != null) {
       entityManager.remove(trashedNode);
+    }
+  }
+
+  @Override
+  @Transactional
+  public List<Node> getSubtree(Node root) {
+    List<Node> result = new ArrayList<>(List.of(root));
+    if (root.getNodeType().equals(NodeType.FOLDER)) {
+      List<String> childrenIds =
+          getChildrenIds(root.getId(), Optional.empty(), Optional.empty(), true);
+      if (!childrenIds.isEmpty()) {
+        getNodes(childrenIds, Optional.empty())
+            .filter(Objects::nonNull)
+            .forEach(child -> result.addAll(getSubtree(child)));
+      }
+    }
+    return result;
+  }
+
+  @Override
+  @Transactional
+  public void deleteNodesAndShares(List<String> nodeIds) {
+    if (!nodeIds.isEmpty()) {
+      shareRepository.deleteSharesBulk(nodeIds);
+      deleteNodes(nodeIds);
     }
   }
 

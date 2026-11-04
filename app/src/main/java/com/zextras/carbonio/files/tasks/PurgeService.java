@@ -15,7 +15,6 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVers
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.OverwriteLeaseRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
 import com.zextras.carbonio.files.rest.services.BlobKey;
@@ -28,7 +27,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -72,7 +70,6 @@ public class PurgeService {
   @Inject TombstoneRepository tombstoneRepository;
   @Inject VersionReservationRepository versionReservationRepository;
   @Inject OverwriteLeaseRepository overwriteLeaseRepository;
-  @Inject ShareRepository shareRepository;
   @Inject BlobLifecycle blobLifecycle;
   @Inject Transactions transactions;
 
@@ -92,49 +89,33 @@ public class PurgeService {
   }
 
   private void purgeTrashedTree(Node top) {
-    List<Node> tree = collectTree(top);
-    Map<String, List<FileVersion>> versionsByOwner = new HashMap<>();
-    tree.stream()
-        .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
-        .forEach(
-            node ->
-                versionsByOwner
-                    .computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
-                    .addAll(
-                        fileVersionRepository.getFileVersions(
-                            node.getId(), List.of(FileVersionSort.VERSION_ASC))));
-    List<String> ids = tree.stream().map(Node::getId).toList();
-
-    transactions.inNewTransaction(
-        () -> {
-          versionsByOwner.forEach(
-              (ownerId, versions) -> tombstoneRepository.createTombstonesBulk(versions, ownerId));
-          shareRepository.deleteSharesBulk(ids);
-          nodeRepository.deleteNodes(ids);
-          return null;
-        });
-    logger.info("Purged {} trashed nodes from database", ids.size());
+    Map<String, List<FileVersion>> versionsByOwner =
+        transactions.inNewTransaction(
+            () -> {
+              List<Node> tree = nodeRepository.getSubtree(top);
+              Map<String, List<FileVersion>> byOwner = new HashMap<>();
+              tree.stream()
+                  .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
+                  .forEach(
+                      node ->
+                          byOwner
+                              .computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
+                              .addAll(
+                                  fileVersionRepository.getFileVersions(
+                                      node.getId(), List.of(FileVersionSort.VERSION_ASC))));
+              byOwner.forEach(
+                  (ownerId, versions) ->
+                      tombstoneRepository.createTombstonesBulk(versions, ownerId));
+              nodeRepository.deleteNodesAndShares(tree.stream().map(Node::getId).toList());
+              logger.info("Purged {} trashed nodes from database", tree.size());
+              return byOwner;
+            });
 
     versionsByOwner.forEach(
         (ownerId, versions) ->
             blobLifecycle.deleteAndClear(
                 ownerId,
                 versions.stream().map(v -> new BlobKey(v.getNodeId(), v.getVersion())).toList()));
-  }
-
-  private List<Node> collectTree(Node root) {
-    List<Node> result = new ArrayList<>(List.of(root));
-    if (root.getNodeType().equals(NodeType.FOLDER)) {
-      List<String> childrenIds =
-          nodeRepository.getChildrenIds(root.getId(), Optional.empty(), Optional.empty(), true);
-      if (!childrenIds.isEmpty()) {
-        nodeRepository
-            .getNodes(childrenIds, Optional.empty())
-            .filter(Objects::nonNull)
-            .forEach(child -> result.addAll(collectTree(child)));
-      }
-    }
-    return result;
   }
 
   void purgeTombstones() {

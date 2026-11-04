@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -28,7 +29,6 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVers
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.OverwriteLeaseRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
 import com.zextras.carbonio.files.rest.services.BlobLifecycle;
@@ -67,7 +67,6 @@ class PurgeServiceTest {
   private VersionReservationRepository versionReservationRepository;
   private OverwriteLeaseRepository overwriteLeaseRepository;
   private Filestore filestore;
-  private ShareRepository shareRepository;
   private Transactions transactions;
   private PurgeService purgeService;
 
@@ -115,8 +114,6 @@ class PurgeServiceTest {
     purgeService.versionReservationRepository = versionReservationRepository;
     purgeService.overwriteLeaseRepository = overwriteLeaseRepository;
     purgeService.reservationExpiry = Duration.ofHours(24);
-    shareRepository = mock(ShareRepository.class);
-    purgeService.shareRepository = shareRepository;
     transactions = mock(Transactions.class);
     try {
       when(transactions.inNewTransaction(any()))
@@ -151,14 +148,7 @@ class PurgeServiceTest {
     aVersions = List.of(version("file-a", "owner-1", 1), version("file-a", "owner-1", 2));
     bVersions = List.of(version("file-b", "owner-2", 1));
     when(nodeRepository.getTrashedTopNodes(anyLong())).thenReturn(List.of(folderF));
-    when(nodeRepository.getChildrenIds("folder-f", Optional.empty(), Optional.empty(), true))
-        .thenReturn(List.of("file-a", "sub-s"));
-    when(nodeRepository.getChildrenIds("sub-s", Optional.empty(), Optional.empty(), true))
-        .thenReturn(List.of("file-b"));
-    when(nodeRepository.getNodes(List.of("file-a", "sub-s"), Optional.empty()))
-        .thenAnswer(i -> java.util.stream.Stream.of(fileA, subS));
-    when(nodeRepository.getNodes(List.of("file-b"), Optional.empty()))
-        .thenAnswer(i -> java.util.stream.Stream.of(fileB));
+    when(nodeRepository.getSubtree(folderF)).thenReturn(List.of(folderF, fileA, subS, fileB));
     when(fileVersionRepository.getFileVersions("file-a", List.of(FileVersionSort.VERSION_ASC)))
         .thenReturn(aVersions);
     when(fileVersionRepository.getFileVersions("file-b", List.of(FileVersionSort.VERSION_ASC)))
@@ -176,10 +166,11 @@ class PurgeServiceTest {
     order.verify(transactions).inNewTransaction(any());
     order.verify(tombstoneRepository).createTombstonesBulk(aVersions, "owner-1");
     order.verify(tombstoneRepository).createTombstonesBulk(bVersions, "owner-2");
-    order.verify(nodeRepository).deleteNodes(List.of("folder-f", "file-a", "sub-s", "file-b"));
+    order
+        .verify(nodeRepository)
+        .deleteNodesAndShares(List.of("folder-f", "file-a", "sub-s", "file-b"));
     order.verify(filestore).bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList());
     order.verify(filestore).bulkDelete(eq(IdentifierType.files), eq("owner-2"), anyList());
-    verify(shareRepository).deleteSharesBulk(List.of("folder-f", "file-a", "sub-s", "file-b"));
     verify(tombstoneRepository).deleteTombstonesByNodeAndVersion("file-a", 1);
     verify(tombstoneRepository).deleteTombstonesByNodeAndVersion("file-a", 2);
     verify(tombstoneRepository).deleteTombstonesByNodeAndVersion("file-b", 1);
@@ -193,15 +184,17 @@ class PurgeServiceTest {
 
     ArgumentCaptor<Long> ts = ArgumentCaptor.forClass(Long.class);
     verify(nodeRepository).getTrashedTopNodes(ts.capture());
-    assertThat(ts.getValue()).isLessThan(System.currentTimeMillis() - 29L * 86400 * 1000);
-    verify(nodeRepository, never()).deleteNodes(any());
+    assertThat(ts.getValue())
+        .isLessThan(System.currentTimeMillis() - 29L * 86400 * 1000)
+        .isGreaterThan(System.currentTimeMillis() - 31L * 86400 * 1000);
+    verify(nodeRepository, never()).deleteNodesAndShares(any());
     verifyNoInteractions(filestore);
   }
 
   @Test
   void purgeTrashedNodesDoesNotDeleteAnyBlobWhenTheDatabaseTransactionFails() throws Exception {
     givenTrashedTree();
-    when(nodeRepository.deleteNodes(any())).thenThrow(new RuntimeException("db down"));
+    doThrow(new RuntimeException("db down")).when(nodeRepository).deleteNodesAndShares(any());
 
     purgeService.purgeTrashedNodes(30);
 
@@ -216,13 +209,15 @@ class PurgeServiceTest {
     List<FileVersion> cVersions = List.of(version("file-c", "owner-3", 1));
     when(fileVersionRepository.getFileVersions("file-c", List.of(FileVersionSort.VERSION_ASC)))
         .thenReturn(cVersions);
-    when(nodeRepository.deleteNodes(List.of("folder-f", "file-a", "sub-s", "file-b")))
-        .thenThrow(new RuntimeException("db down"));
+    when(nodeRepository.getSubtree(other)).thenReturn(List.of(other));
+    doThrow(new RuntimeException("db down"))
+        .when(nodeRepository)
+        .deleteNodesAndShares(List.of("folder-f", "file-a", "sub-s", "file-b"));
     when(filestore.bulkDelete(any(), any(), anyList())).thenReturn(List.of());
 
     purgeService.purgeTrashedNodes(30);
 
-    verify(nodeRepository).deleteNodes(List.of("file-c"));
+    verify(nodeRepository).deleteNodesAndShares(List.of("file-c"));
     verify(filestore).bulkDelete(eq(IdentifierType.files), eq("owner-3"), anyList());
     verify(filestore, never()).bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList());
   }
@@ -254,7 +249,7 @@ class PurgeServiceTest {
 
     purgeService.purgeTrashedNodes(30);
 
-    verify(nodeRepository).deleteNodes(any());
+    verify(nodeRepository).deleteNodesAndShares(any());
     verify(tombstoneRepository, never()).deleteTombstonesByNodeAndVersion(any(), any());
     verify(tombstoneRepository, never()).updateTombstone(any());
   }
@@ -267,7 +262,7 @@ class PurgeServiceTest {
 
     purgeService.purgeTrashedNodes(30);
 
-    verify(nodeRepository).deleteNodes(List.of("folder-f", "file-a", "sub-s", "file-b"));
+    verify(nodeRepository).deleteNodesAndShares(List.of("folder-f", "file-a", "sub-s", "file-b"));
   }
 
   @Test
@@ -277,7 +272,7 @@ class PurgeServiceTest {
     purgeService.purgeTrashedNodes(30);
 
     verifyNoMoreInteractions(filestore);
-    verify(nodeRepository, never()).deleteNodes(any());
+    verify(nodeRepository, never()).deleteNodesAndShares(any());
   }
 
   // ------------------------------------------------------------------------------ purgeTombstones
