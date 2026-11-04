@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -17,18 +18,21 @@ import static org.mockito.Mockito.when;
 
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
+import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
 import com.zextras.filestore.model.IdentifierType;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.InOrder;
 
 class BlobLifecycleTest {
 
@@ -49,7 +53,10 @@ class BlobLifecycleTest {
     fileStore = mock(Filestore.class);
     tombstones = mock(TombstoneRepository.class);
     reservations = mock(VersionReservationRepository.class);
-    blobLifecycle = new BlobLifecycle(fileStore, tombstones, reservations);
+    Transactions transactions = mock(Transactions.class);
+    when(transactions.inNewTransaction(any()))
+        .thenAnswer(invocation -> invocation.<Callable<?>>getArgument(0).call());
+    blobLifecycle = new BlobLifecycle(fileStore, tombstones, reservations, transactions);
   }
 
   @Test
@@ -103,5 +110,39 @@ class BlobLifecycleTest {
     blobLifecycle.deleteAndClear("owner", keys);
 
     verifyNoMoreInteractions(tombstones);
+  }
+
+  @Test
+  void discardTombstonesTheConsumedReservationThenDeletesItsBlob() throws Exception {
+    when(reservations.consume("n1", 2)).thenReturn(true);
+    when(fileStore.bulkDelete(eq(IdentifierType.files), eq("owner"), anyList()))
+        .thenReturn(List.of());
+
+    blobLifecycle.discard(new Reservation("n1", 2, 1L, "owner"));
+
+    InOrder order = inOrder(reservations, tombstones, fileStore);
+    order.verify(reservations).consume("n1", 2);
+    order.verify(tombstones).createNewTombstone("n1", "owner", 2);
+    order.verify(fileStore).bulkDelete(eq(IdentifierType.files), eq("owner"), anyList());
+    order.verify(tombstones).deleteTombstonesByNodeAndVersion("n1", 2);
+  }
+
+  @Test
+  void discardLeavesAReservationTheCleanupAlreadyClaimedToThePurge() {
+    when(reservations.consume("n1", 2)).thenReturn(false);
+
+    blobLifecycle.discard(new Reservation("n1", 2, 1L, "owner"));
+
+    verifyNoMoreInteractions(tombstones, fileStore);
+  }
+
+  @Test
+  void discardDoesNotThrowAndDeletesNothingWhenTheTombstoneCannotBeWritten() {
+    when(reservations.consume("n1", 2)).thenReturn(true);
+    when(tombstones.createNewTombstone("n1", "owner", 2)).thenThrow(new RuntimeException("db"));
+
+    blobLifecycle.discard(new Reservation("n1", 2, 1L, "owner"));
+
+    verifyNoMoreInteractions(fileStore);
   }
 }

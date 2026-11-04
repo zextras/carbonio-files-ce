@@ -15,6 +15,11 @@ public interface VersionReservationRepository {
   void reserve(String nodeId, int version, String ownerId, long reservedAt);
 
   /**
+   * Records a PENDING reservation for a key whose node row may not exist; joins the transaction.
+   */
+  void reserveNew(String nodeId, int version, String ownerId, long reservedAt);
+
+  /**
    * Removes a PENDING reservation; joins the caller's transaction, which must also create the
    * version.
    *

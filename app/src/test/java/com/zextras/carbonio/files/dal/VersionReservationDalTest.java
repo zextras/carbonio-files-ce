@@ -5,15 +5,18 @@
 package com.zextras.carbonio.files.dal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.VersionReservation;
+import com.zextras.carbonio.files.dal.dao.ebean.VersionReservationState;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository.VersionSlot;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
+import com.zextras.carbonio.files.rest.services.VersionReservations;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -39,6 +42,7 @@ class VersionReservationDalTest {
   @Inject NodeRepository nodeRepository;
   @Inject VersionReservationRepository reservationRepository;
   @Inject FileVersionRepository fileVersionRepository;
+  @Inject VersionReservations versionReservations;
   @Inject EntityManager entityManager;
 
   private final List<String> nodes = new ArrayList<>();
@@ -255,6 +259,44 @@ class VersionReservationDalTest {
         .containsExactly(2);
     reservationRepository.remove(claimed);
     assertThat(reservationRepository.getPurging()).noneMatch(r -> r.getNodeId().equals(nodeId));
+  }
+
+  @Test
+  void aNewKeyIsReservedWithTheDatabaseClockWithoutAnyNodeRow() {
+    String nodeId = UUID.randomUUID().toString();
+    nodes.add(nodeId);
+    long before = System.currentTimeMillis();
+
+    VersionReservations.Reservation reservation =
+        versionReservations.reserveNew(nodeId, 1, "owner");
+
+    assertThat(reservation.reservedAt())
+        .isBetween(before - 5_000, System.currentTimeMillis() + 5_000);
+    assertThat(
+            QuarkusTransaction.requiringNew()
+                .call(
+                    () ->
+                        entityManager
+                            .createQuery(
+                                "select r.mReservedAt, r.mState from VersionReservation r where"
+                                    + " r.mComposedId.mNodeId = :id",
+                                Object[].class)
+                            .setParameter("id", nodeId)
+                            .getSingleResult()))
+        .containsExactly(reservation.reservedAt(), VersionReservationState.PENDING);
+    assertThat(
+            QuarkusTransaction.requiringNew().call(() -> reservationRepository.consume(nodeId, 1)))
+        .isTrue();
+  }
+
+  @Test
+  void aNewKeyCanBeReservedOnlyOnce() {
+    String nodeId = UUID.randomUUID().toString();
+    nodes.add(nodeId);
+    versionReservations.reserveNew(nodeId, 1, "owner");
+
+    assertThatThrownBy(() -> versionReservations.reserveNew(nodeId, 1, "owner"))
+        .isInstanceOf(RuntimeException.class);
   }
 
   @Test

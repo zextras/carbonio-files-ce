@@ -4,12 +4,14 @@
 
 package com.zextras.carbonio.files.rest.services;
 
+import com.zextras.carbonio.files.dal.repositories.impl.DatabaseClockReader;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
@@ -30,15 +32,18 @@ public class VersionReservations {
   private final NodeRepository nodeRepository;
   private final FileVersionRepository fileVersionRepository;
   private final VersionReservationRepository reservationRepository;
+  private final DatabaseClockReader clock;
 
   @Inject
   public VersionReservations(
       NodeRepository nodeRepository,
       FileVersionRepository fileVersionRepository,
-      VersionReservationRepository reservationRepository) {
+      VersionReservationRepository reservationRepository,
+      DatabaseClockReader clock) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
     this.reservationRepository = reservationRepository;
+    this.clock = clock;
   }
 
   /**
@@ -57,6 +62,27 @@ public class VersionReservations {
                           return new Reservation(
                               nodeId, slot.version(), slot.reservedAt(), blobOwnerId);
                         }));
+  }
+
+  /** A key for a node that does not exist yet (new upload, copy, transfer); no node row is read. */
+  public Reservation reserveNew(String nodeId, int version, String blobOwnerId) {
+    return reserveNew(List.of(new BlobKey(nodeId, version)), blobOwnerId).get(0);
+  }
+
+  public List<Reservation> reserveNew(List<BlobKey> keys, String blobOwnerId) {
+    return QuarkusTransaction.requiringNew()
+        .call(
+            () -> {
+              long now = clock.nowMillis();
+              return keys.stream()
+                  .map(
+                      key -> {
+                        reservationRepository.reserveNew(
+                            key.nodeId(), key.version(), blobOwnerId, now);
+                        return new Reservation(key.nodeId(), key.version(), now, blobOwnerId);
+                      })
+                  .toList();
+            });
   }
 
   /**

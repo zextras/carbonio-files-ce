@@ -6,6 +6,7 @@ package com.zextras.carbonio.files.rest.services;
 
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
+import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
@@ -29,15 +30,18 @@ public class BlobLifecycle {
   private final Filestore fileStore;
   private final TombstoneRepository tombstoneRepository;
   private final VersionReservationRepository reservationRepository;
+  private final Transactions transactions;
 
   @Inject
   public BlobLifecycle(
       Filestore fileStore,
       TombstoneRepository tombstoneRepository,
-      VersionReservationRepository reservationRepository) {
+      VersionReservationRepository reservationRepository,
+      Transactions transactions) {
     this.fileStore = fileStore;
     this.tombstoneRepository = tombstoneRepository;
     this.reservationRepository = reservationRepository;
+    this.transactions = transactions;
   }
 
   /**
@@ -86,6 +90,46 @@ public class BlobLifecycle {
     } catch (RuntimeException e) {
       logger.warn("Unable to clear the tombstones of owner {}: {}", ownerId, e.getMessage());
     }
+  }
+
+  /**
+   * The blob of this reservation will never be published: tombstone it and try to delete it now.
+   */
+  public void discard(Reservation reservation) {
+    discard(List.of(reservation));
+  }
+
+  /** Never throws; a reservation the purge claimed first is left to the purge. */
+  public void discard(List<Reservation> reservations) {
+    List<Reservation> mine;
+    try {
+      mine =
+          transactions.inNewTransaction(
+              () ->
+                  reservations.stream()
+                      .filter(
+                          r -> {
+                            if (!reservationRepository.consume(r.nodeId(), r.version())) {
+                              return false;
+                            }
+                            tombstoneRepository.createNewTombstone(
+                                r.nodeId(), r.blobOwnerId(), r.version());
+                            return true;
+                          })
+                      .toList());
+    } catch (RuntimeException e) {
+      logger.warn(
+          "Unable to tombstone {} reservations: {}. The purge will reclaim them.",
+          reservations.size(),
+          e.getMessage());
+      return;
+    }
+    mine.stream()
+        .collect(Collectors.groupingBy(Reservation::blobOwnerId))
+        .forEach(
+            (owner, rs) ->
+                deleteAndClear(
+                    owner, rs.stream().map(r -> new BlobKey(r.nodeId(), r.version())).toList()));
   }
 
   static boolean matches(BulkDeleteResponseItem item, BlobKey key) {
