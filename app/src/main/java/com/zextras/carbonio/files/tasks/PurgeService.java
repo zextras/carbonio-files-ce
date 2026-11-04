@@ -204,10 +204,12 @@ public class PurgeService {
         continue;
       }
 
+      // Remove confirmed-deleted tombstones; apply retry-cap to failed ones.
       for (Tombstone t : ownerTombstones) {
         if (!failedKeys.get().contains(new BlobKey(t.getNodeId(), t.getVersion()))) {
           tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
         } else {
+          // Genuine per-blob PowerStore rejection — increment attempts toward retry cap.
           if (t.getAttempts() + 1 >= MAX_TOMBSTONE_RETRIES) {
             logger.warn(
                 "purgeTombstones: giving up on blob nodeId={} version={} after {} attempts; "

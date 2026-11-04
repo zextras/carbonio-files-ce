@@ -62,6 +62,8 @@ public class BlobLifecycle {
                   .map(k -> BulkDeleteRequestItem.filesItem(k.nodeId(), k.version()))
                   .toList());
     } catch (Exception e) {
+      // Any exception (incl. NPE from a malformed body) or a null answer: outcome unknown, not a
+      // per-blob failure.
       logger.warn("Bulk delete for owner {} failed: {}. Outcome unknown.", ownerId, e.getMessage());
       return Optional.empty();
     }
