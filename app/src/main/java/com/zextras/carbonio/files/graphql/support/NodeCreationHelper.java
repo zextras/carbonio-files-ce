@@ -19,11 +19,9 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.files.rest.services.BlobKey;
+import com.zextras.carbonio.files.rest.services.BlobLifecycle;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
-import com.zextras.filestore.api.Filestore;
-import com.zextras.filestore.model.BulkDeleteRequestItem;
-import com.zextras.filestore.model.BulkDeleteResponseItem;
-import com.zextras.filestore.model.IdentifierType;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -34,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -58,7 +55,7 @@ public class NodeCreationHelper {
   private final FilesConfig filesConfig;
   private final FileVersionRepository fileVersionRepository;
   private final TombstoneRepository tombstoneRepository;
-  private final Filestore fileStore;
+  private final BlobLifecycle blobLifecycle;
   private final PermissionsChecker permissionsChecker;
   private final ShareCascadeHelper shareCascade;
 
@@ -70,7 +67,7 @@ public class NodeCreationHelper {
       FilesConfig filesConfig,
       FileVersionRepository fileVersionRepository,
       TombstoneRepository tombstoneRepository,
-      Filestore fileStore,
+      BlobLifecycle blobLifecycle,
       PermissionsChecker permissionsChecker,
       ShareCascadeHelper shareCascade) {
     this.nodeRepository = nodeRepository;
@@ -79,7 +76,7 @@ public class NodeCreationHelper {
     this.filesConfig = filesConfig;
     this.fileVersionRepository = fileVersionRepository;
     this.tombstoneRepository = tombstoneRepository;
-    this.fileStore = fileStore;
+    this.blobLifecycle = blobLifecycle;
     this.permissionsChecker = permissionsChecker;
     this.shareCascade = shareCascade;
   }
@@ -191,38 +188,12 @@ public class NodeCreationHelper {
             });
 
     fileVersionsByOwner.forEach(
-        (ownerId, versions) -> {
-          List<BulkDeleteRequestItem> deleteRequests =
-              versions.stream()
-                  .map(fv -> BulkDeleteRequestItem.filesItem(fv.getNodeId(), fv.getVersion()))
-                  .collect(Collectors.toList());
-          if (deleteRequests.isEmpty()) return;
-          List<BulkDeleteResponseItem> failedItems;
-          try {
-            failedItems = fileStore.bulkDelete(IdentifierType.files, ownerId, deleteRequests);
-          } catch (Exception e) {
-            logger.warn(
-                "Bulk delete failed for owner {}: {}. Tombstones remain for retry.",
+        (ownerId, versions) ->
+            blobLifecycle.deleteAndClear(
                 ownerId,
-                e.getMessage());
-            return;
-          }
-          if (failedItems == null) {
-            logger.warn(
-                "Bulk delete returned null for owner {} (treated as failure). Tombstones remain for"
-                    + " retry.",
-                ownerId);
-            return;
-          }
-          Set<String> failedNodeIds =
-              failedItems.stream().map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
-          versions.stream()
-              .filter(fv -> !failedNodeIds.contains(fv.getNodeId()))
-              .forEach(
-                  fv ->
-                      tombstoneRepository.deleteTombstonesByNodeAndVersion(
-                          fv.getNodeId(), fv.getVersion()));
-        });
+                versions.stream()
+                    .map(fv -> new BlobKey(fv.getNodeId(), fv.getVersion()))
+                    .toList()));
   }
 
   private List<String> createIndirectShare(String sharedParentId, Node nodeToShare) {

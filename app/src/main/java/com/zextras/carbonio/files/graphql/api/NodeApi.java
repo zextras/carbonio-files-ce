@@ -43,6 +43,8 @@ import com.zextras.carbonio.files.graphql.spi.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.support.NodeCreationHelper;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import com.zextras.carbonio.files.rest.services.BlobKey;
+import com.zextras.carbonio.files.rest.services.BlobLifecycle;
 import com.zextras.carbonio.files.rest.services.VersionReservations;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
@@ -115,6 +117,7 @@ public class NodeApi {
   @Inject ShareCascadeHelper shareCascade;
   @Inject NodeCreationHelper nodeCreationHelper;
   @Inject VersionReservations versionReservations;
+  @Inject BlobLifecycle blobLifecycle;
 
   // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -842,37 +845,12 @@ public class NodeApi {
     }
 
     fileVersionsByOwner.forEach(
-        (ownerId, versions) -> {
-          List<BulkDeleteRequestItem> deleteRequests =
-              versions.stream()
-                  .map(fv -> BulkDeleteRequestItem.filesItem(fv.getNodeId(), fv.getVersion()))
-                  .collect(Collectors.toList());
-          if (deleteRequests.isEmpty()) return;
-          List<BulkDeleteResponseItem> failedItems;
-          try {
-            failedItems = fileStore.bulkDelete(IdentifierType.files, ownerId, deleteRequests);
-          } catch (Exception ex) {
-            logger.warn(
-                "Bulk delete failed for owner {}: {}. Tombstones remain for retry.",
+        (ownerId, versions) ->
+            blobLifecycle.deleteAndClear(
                 ownerId,
-                ex.getMessage());
-            return;
-          }
-          if (failedItems == null) {
-            logger.warn(
-                "Bulk delete returned null for owner {} (treated as failure). Tombstones remain.",
-                ownerId);
-            return;
-          }
-          Set<String> failedNodeIds =
-              failedItems.stream().map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
-          versions.stream()
-              .filter(fv -> !failedNodeIds.contains(fv.getNodeId()))
-              .forEach(
-                  fv ->
-                      tombstoneRepository.deleteTombstonesByNodeAndVersion(
-                          fv.getNodeId(), fv.getVersion()));
-        });
+                versions.stream()
+                    .map(fv -> new BlobKey(fv.getNodeId(), fv.getVersion()))
+                    .toList()));
 
     List<String> successIds = new ArrayList<>(requestedNodeIds);
     List<String> errorIds = nodeIds.stream().filter(id -> !requestedNodeIds.contains(id)).toList();
@@ -1040,35 +1018,11 @@ public class NodeApi {
         throw FilesGraphQLErrors.nodeWriteError(nodeId);
       }
 
-      List<BulkDeleteRequestItem> deleteRequests =
+      blobLifecycle.deleteAndClear(
+          ownerId,
           fileVersionsToDelete.stream()
-              .map(fv -> BulkDeleteRequestItem.filesItem(nodeId, fv.getVersion()))
-              .collect(Collectors.toList());
-      List<BulkDeleteResponseItem> failedItems;
-      try {
-        failedItems = fileStore.bulkDelete(IdentifierType.files, ownerId, deleteRequests);
-      } catch (Exception e) {
-        logger.warn(
-            "Bulk delete failed for node {}: {}. Tombstones remain.", nodeId, e.getMessage());
-        failedItems = null;
-      }
-      if (failedItems == null) {
-        logger.warn("Bulk delete returned null for node {} (treated as failure).", nodeId);
-      } else {
-        Set<Integer> failedVersionSet =
-            failedItems.stream()
-                .filter(item -> nodeId.equals(item.getNode()))
-                .map(BulkDeleteResponseItem::getVersion)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(Collectors.toSet());
-        fileVersionsToDelete.stream()
-            .filter(fv -> !failedVersionSet.contains(fv.getVersion()))
-            .forEach(
-                fv ->
-                    tombstoneRepository.deleteTombstonesByNodeAndVersion(
-                        fv.getNodeId(), fv.getVersion()));
-      }
+              .map(fv -> new BlobKey(fv.getNodeId(), fv.getVersion()))
+              .toList());
     }
 
     if (versions != null) {

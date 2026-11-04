@@ -39,10 +39,7 @@ import com.zextras.carbonio.files.utilities.MimeTypeUtils;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.UploadResponse;
-import com.zextras.filestore.model.BulkDeleteRequestItem;
-import com.zextras.filestore.model.BulkDeleteResponseItem;
 import com.zextras.filestore.model.FilesIdentifier;
-import com.zextras.filestore.model.IdentifierType;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.vavr.control.Try;
@@ -119,6 +116,7 @@ public class BlobService {
   private final VersionReservations versionReservations;
   private final TombstoneRepository tombstoneRepository;
   private final OverwriteLeases overwriteLeases;
+  private final BlobLifecycle blobLifecycle;
 
   @Inject
   public BlobService(
@@ -136,7 +134,8 @@ public class BlobService {
       @Any Instance<UploadCompletionListener> uploadCompletionListeners,
       VersionReservations versionReservations,
       TombstoneRepository tombstoneRepository,
-      OverwriteLeases overwriteLeases) {
+      OverwriteLeases overwriteLeases,
+      BlobLifecycle blobLifecycle) {
     this.nodeRepository = nodeRepository;
     this.notificationRepository = notificationRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -152,6 +151,7 @@ public class BlobService {
     this.versionReservations = versionReservations;
     this.tombstoneRepository = tombstoneRepository;
     this.overwriteLeases = overwriteLeases;
+    this.blobLifecycle = blobLifecycle;
   }
 
   public Optional<List<Node>> checkDownloadMultiple(List<String> nodeIds, UserMyself requester) {
@@ -814,44 +814,8 @@ public class BlobService {
   }
 
   private void bulkDeleteTrimmedBlobs(String nodeId, String ownerId, List<FileVersion> trimmed) {
-    List<BulkDeleteResponseItem> failedItems;
-    try {
-      failedItems =
-          fileStore.bulkDelete(
-              IdentifierType.files,
-              ownerId,
-              trimmed.stream()
-                  .map(fv -> BulkDeleteRequestItem.filesItem(fv.getNodeId(), fv.getVersion()))
-                  .toList());
-    } catch (Exception e) {
-      logger.warn(
-          "Bulk delete of the trimmed versions of node {} failed: {}. Tombstones remain.",
-          nodeId,
-          e.getMessage());
-      return;
-    }
-    if (failedItems == null) {
-      logger.warn(
-          "Bulk delete of the trimmed versions of node {} returned null. Tombstones remain.",
-          nodeId);
-      return;
-    }
-    trimmed.stream()
-        .filter(
-            fv ->
-                failedItems.stream()
-                    .noneMatch(
-                        item ->
-                            fv.getNodeId().equals(item.getNode())
-                                && item.getVersion().map(v -> v == fv.getVersion()).orElse(true)))
-        .forEach(
-            fv -> {
-              tombstoneRepository.deleteTombstonesByNodeAndVersion(fv.getNodeId(), fv.getVersion());
-              logger.info(
-                  "File version limit for node {} has been reached, deleted version {}",
-                  fv.getNodeId(),
-                  fv.getVersion());
-            });
+    blobLifecycle.deleteAndClear(
+        ownerId, trimmed.stream().map(fv -> new BlobKey(fv.getNodeId(), fv.getVersion())).toList());
   }
 
   private static void logUploaded(String nodeId, int version, UploadResponse uploadResponse) {

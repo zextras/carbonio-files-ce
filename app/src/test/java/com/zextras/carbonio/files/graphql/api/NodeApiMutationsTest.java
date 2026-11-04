@@ -38,6 +38,7 @@ import com.zextras.carbonio.files.graphql.spi.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.support.NodeCreationHelper;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import com.zextras.carbonio.files.rest.services.BlobLifecycle;
 import com.zextras.carbonio.files.rest.services.VersionReservations;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
@@ -105,7 +106,7 @@ class NodeApiMutationsTest {
             filesConfig,
             fileVersionRepository,
             tombstoneRepository,
-            fileStore,
+            mock(BlobLifecycle.class),
             permissionsChecker,
             shareCascade);
 
@@ -117,6 +118,7 @@ class NodeApiMutationsTest {
     nodeApi.notificationRepository = notificationRepository;
     nodeApi.tombstoneRepository = tombstoneRepository;
     nodeApi.fileStore = fileStore;
+    nodeApi.blobLifecycle = mock(BlobLifecycle.class);
     nodeApi.shareCascade = shareCascade;
     nodeApi.filesConfig = filesConfig;
     nodeApi.nodeCreationHelper = nodeCreationHelper;

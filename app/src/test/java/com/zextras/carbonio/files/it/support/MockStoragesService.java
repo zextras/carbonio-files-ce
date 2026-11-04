@@ -105,6 +105,11 @@ public class MockStoragesService {
   private final java.util.Set<String> failingBulkDeleteNodeIds = ConcurrentHashMap.newKeySet();
 
   /**
+   * {@code node/version} keys reported as FAILED by the next bulk-delete(s); their blob is kept.
+   */
+  private final java.util.Set<String> failingBulkDeleteKeys = ConcurrentHashMap.newKeySet();
+
+  /**
    * Every download key attempted (success or failure), so {@link #verifyDownloaded} can assert on
    * it.
    */
@@ -199,8 +204,13 @@ public class MockStoragesService {
     failingBulkDeleteNodeIds.addAll(List.of(nodeIds));
   }
 
+  public void failBulkDeleteForVersion(String nodeId, int version) {
+    failingBulkDeleteKeys.add(key(nodeId, version));
+  }
+
   public void resetBulkDeleteFailures() {
     failingBulkDeleteNodeIds.clear();
+    failingBulkDeleteKeys.clear();
   }
 
   public void setBulkDeleteAlwaysThrows(boolean value) {
@@ -381,7 +391,8 @@ public class MockStoragesService {
     for (Map.Entry<String, Integer> item : items) {
       String node = item.getKey();
       Integer version = item.getValue();
-      if (failingBulkDeleteNodeIds.contains(node)) {
+      if (failingBulkDeleteNodeIds.contains(node)
+          || failingBulkDeleteKeys.contains(key(node, version))) {
         failed.add(item);
       } else if (version != null) {
         String key = key(node, version);
