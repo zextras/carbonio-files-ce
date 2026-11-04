@@ -266,11 +266,11 @@ public interface NodeRepository {
   Node updateNode(Node node);
 
   /**
-   * Returns all Nodes trashed.
+   * Returns the nodes directly under the trash root that were trashed before the given timestamp.
    *
-   * @return the list of all Nodes trashed.
+   * @return the top trashed nodes, whose subtrees are purged together with them.
    */
-  List<Node> getAllTrashedNodes(Long retentionTimestamp);
+  List<Node> getTrashedTopNodes(long retentionTimestamp);
 
   /**
    * Returns a {@link List} containing all the root folders.

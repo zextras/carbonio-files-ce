@@ -465,12 +465,11 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Override
   @Transactional
-  public List<Node> getAllTrashedNodes(Long retentionTimestamp) {
+  public List<Node> getTrashedTopNodes(long retentionTimestamp) {
     return entityManager
         .createQuery(
-            "select n from Node n where n.mAncestorIds like :trash and n.mUpdatedAt < :ts",
-            Node.class)
-        .setParameter("trash", "%" + RootId.TRASH_ROOT + "%")
+            "select n from Node n where n.mParentId = :trash and n.mUpdatedAt < :ts", Node.class)
+        .setParameter("trash", normalizeId(RootId.TRASH_ROOT))
         .setParameter("ts", retentionTimestamp)
         .getResultList();
   }
