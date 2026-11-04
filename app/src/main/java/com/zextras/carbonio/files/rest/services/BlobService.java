@@ -615,7 +615,7 @@ public class BlobService {
                   return trimOldestVersion(nodeId, ownerId, version, maxNumberOfVersions);
                 });
 
-    deleteTrimmedBlobs(nodeId, ownerId, trimmedVersions);
+    deleteTrimmedBlobs(ownerId, trimmedVersions);
     logUploaded(nodeId, version, uploadResponse);
     return version;
   }
@@ -799,27 +799,16 @@ public class BlobService {
   }
 
   /** Runs after the commit: never fails the save, a tombstone left behind waits for the purge. */
-  private void deleteTrimmedBlobs(String nodeId, String ownerId, List<FileVersion> trimmed) {
+  private void deleteTrimmedBlobs(String ownerId, List<FileVersion> trimmed) {
     if (trimmed.isEmpty()) {
       return;
     }
-    try {
-      bulkDeleteTrimmedBlobs(nodeId, ownerId, trimmed);
-    } catch (RuntimeException e) {
-      logger.warn(
-          "Cleanup of the trimmed versions of node {} failed: {}. Tombstones remain.",
-          nodeId,
-          e.getMessage());
-    }
-  }
-
-  private void bulkDeleteTrimmedBlobs(String nodeId, String ownerId, List<FileVersion> trimmed) {
     blobLifecycle.deleteAndClear(
         ownerId, trimmed.stream().map(fv -> new BlobKey(fv.getNodeId(), fv.getVersion())).toList());
     trimmed.forEach(
         fv ->
             logger.info(
-                "File version limit for node {} has been reached, deleted version {}",
+                "File version limit for node {} has been reached, trimmed version {}",
                 fv.getNodeId(),
                 fv.getVersion()));
   }

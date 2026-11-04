@@ -16,6 +16,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
@@ -39,6 +40,7 @@ class BlobLifecycleTest {
   private Filestore fileStore;
   private TombstoneRepository tombstones;
   private VersionReservationRepository reservations;
+  private Transactions transactions;
   private BlobLifecycle blobLifecycle;
 
   private static BulkDeleteResponseItem failed(String nodeId, Integer version) {
@@ -53,7 +55,7 @@ class BlobLifecycleTest {
     fileStore = mock(Filestore.class);
     tombstones = mock(TombstoneRepository.class);
     reservations = mock(VersionReservationRepository.class);
-    Transactions transactions = mock(Transactions.class);
+    transactions = mock(Transactions.class);
     when(transactions.inNewTransaction(any()))
         .thenAnswer(invocation -> invocation.<Callable<?>>getArgument(0).call());
     blobLifecycle = new BlobLifecycle(fileStore, tombstones, reservations, transactions);
@@ -120,7 +122,8 @@ class BlobLifecycleTest {
 
     blobLifecycle.discard(new Reservation("n1", 2, 1L, "owner"));
 
-    InOrder order = inOrder(reservations, tombstones, fileStore);
+    InOrder order = inOrder(transactions, reservations, tombstones, fileStore);
+    order.verify(transactions).inNewTransaction(any());
     order.verify(reservations).consume("n1", 2);
     order.verify(tombstones).createNewTombstone("n1", "owner", 2);
     order.verify(fileStore).bulkDelete(eq(IdentifierType.files), eq("owner"), anyList());

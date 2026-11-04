@@ -13,6 +13,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Panache implementation of {@link TombstoneRepository}. Replaces the old Ebean-based {@code
@@ -21,6 +23,8 @@ import java.util.Optional;
 @ApplicationScoped
 public class TombstoneRepositoryImpl
     implements TombstoneRepository, PanacheRepositoryBase<Tombstone, TombstonePK> {
+
+  private static final Logger logger = LoggerFactory.getLogger(TombstoneRepositoryImpl.class);
 
   @Override
   @Transactional
@@ -32,7 +36,16 @@ public class TombstoneRepositoryImpl
   @Transactional
   public Optional<Tombstone> createNewTombstone(String nodeId, String ownerId, Integer version) {
     TombstonePK id = new TombstonePK(nodeId, version);
-    if (findByIdOptional(id).isPresent()) {
+    Optional<Tombstone> existing = findByIdOptional(id);
+    if (existing.isPresent()) {
+      if (!ownerId.equals(existing.get().getOwnerId())) {
+        logger.warn(
+            "Tombstone of node {} version {} already exists for owner {}, ignoring owner {}",
+            nodeId,
+            version,
+            existing.get().getOwnerId(),
+            ownerId);
+      }
       return Optional.empty();
     }
 

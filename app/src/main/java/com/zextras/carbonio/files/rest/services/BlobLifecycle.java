@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.rest.services;
 
+import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
@@ -21,7 +22,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The one path that deletes blobs from the external store and clears their tombstones. */
+/** The path request flows and the purge use to delete blobs (the trash purge joins later). */
 @ApplicationScoped
 public class BlobLifecycle {
 
@@ -62,7 +63,7 @@ public class BlobLifecycle {
                   .map(k -> BulkDeleteRequestItem.filesItem(k.nodeId(), k.version()))
                   .toList());
     } catch (Exception e) {
-      // Any exception (incl. NPE from a malformed body) or a null answer: outcome unknown, not a
+      // NPE = malformed body: unknown outcome, not a per-blob failure.
       // per-blob failure.
       logger.warn("Bulk delete for owner {} failed: {}. Outcome unknown.", ownerId, e.getMessage());
       return Optional.empty();

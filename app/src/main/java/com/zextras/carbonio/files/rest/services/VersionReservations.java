@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.rest.services;
 
 import com.zextras.carbonio.files.dal.repositories.impl.DatabaseClockReader;
+import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
@@ -33,17 +34,20 @@ public class VersionReservations {
   private final FileVersionRepository fileVersionRepository;
   private final VersionReservationRepository reservationRepository;
   private final DatabaseClockReader clock;
+  private final Transactions transactions;
 
   @Inject
   public VersionReservations(
       NodeRepository nodeRepository,
       FileVersionRepository fileVersionRepository,
       VersionReservationRepository reservationRepository,
-      DatabaseClockReader clock) {
+      DatabaseClockReader clock,
+      Transactions transactions) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
     this.reservationRepository = reservationRepository;
     this.clock = clock;
+    this.transactions = transactions;
   }
 
   /**
@@ -70,19 +74,17 @@ public class VersionReservations {
   }
 
   public List<Reservation> reserveNew(List<BlobKey> keys, String blobOwnerId) {
-    return QuarkusTransaction.requiringNew()
-        .call(
-            () -> {
-              long now = clock.nowMillis();
-              return keys.stream()
-                  .map(
-                      key -> {
-                        reservationRepository.reserveNew(
-                            key.nodeId(), key.version(), blobOwnerId, now);
-                        return new Reservation(key.nodeId(), key.version(), now, blobOwnerId);
-                      })
-                  .toList();
-            });
+    return transactions.inNewTransaction(
+        () -> {
+          long now = clock.nowMillis();
+          return keys.stream()
+              .map(
+                  key -> {
+                    reservationRepository.reserve(key.nodeId(), key.version(), blobOwnerId, now);
+                    return new Reservation(key.nodeId(), key.version(), now, blobOwnerId);
+                  })
+              .toList();
+        });
   }
 
   /**

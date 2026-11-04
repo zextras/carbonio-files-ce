@@ -30,14 +30,6 @@ public class VersionReservationRepositoryImpl
 
   @Override
   @Transactional(TxType.MANDATORY)
-  public void reserveNew(String nodeId, int version, String ownerId, long reservedAt) {
-    persist(
-        new VersionReservation(
-            nodeId, version, ownerId, reservedAt, VersionReservationState.PENDING));
-  }
-
-  @Override
-  @Transactional(TxType.MANDATORY)
   public boolean consume(String nodeId, int version) {
     return delete(
             "mComposedId.mNodeId = ?1 and mComposedId.mVersion = ?2 and mState = ?3",
