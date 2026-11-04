@@ -669,6 +669,8 @@ public class BlobService {
               version,
               ownerId,
               () ->
+                  // storages-ce unlinks before writing: a failed overwrite can leave this version
+                  // partial (Powerstore keeps the old bytes).
                   fileStore.uploadPut(
                       FilesIdentifier.of(nodeId, version, ownerId), blobStream, blobLength));
 
@@ -698,17 +700,24 @@ public class BlobService {
                         fileVersionRepository.existsAbove(nodeId, version)
                             ? replaced.getUpdatedAt()
                             : lease.date();
+                    boolean keptForever = replaced.isKeptForever();
+                    Optional<Integer> clonedFrom = replaced.getClonedFromVersion();
                     fileVersionRepository.deleteFileVersion(replaced);
-                    fileVersionRepository
-                        .createFileVersionAt(
-                            nodeId,
-                            requesterId,
-                            version,
-                            mediaType.toString(),
-                            uploadResponse.getSize(),
-                            uploadResponse.getDigest(),
-                            versionDate)
-                        .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
+                    FileVersion rewrittenVersion =
+                        fileVersionRepository
+                            .createFileVersionAt(
+                                nodeId,
+                                requesterId,
+                                version,
+                                mediaType.toString(),
+                                uploadResponse.getSize(),
+                                uploadResponse.getDigest(),
+                                versionDate)
+                            .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
+                    fileVersionRepository.updateFileVersion(
+                        rewrittenVersion
+                            .keepForever(keptForever)
+                            .setClonedFromVersion(clonedFrom.orElse(null)));
                     nodeRepository.moveCurrentVersion(
                         nodeId, version, versionDate, uploadResponse.getSize(), requesterId);
                     return true;

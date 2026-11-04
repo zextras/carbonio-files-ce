@@ -439,6 +439,57 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenAKeptForeverVersionWhenOverwrittenThenItStaysKeptForever() throws Exception {
+    String nodeId = seedFile("kept-overwrite.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+    graphql(
+        GraphqlCommandBuilder.aMutationBuilder("keepVersions")
+            .withString("node_id", nodeId)
+            .withListOfIntegers("versions", new int[] {1})
+            .withBoolean("keep_forever", true)
+            .withWantedResultFormat("")
+            .build(),
+        REQUESTER_COOKIE);
+    Assertions.assertThat(revisionColumn(nodeId, 1, "keep_forever")).isEqualTo("true");
+
+    Response overwritten =
+        uploadVersion(
+            nodeId,
+            "other".getBytes(StandardCharsets.UTF_8),
+            "kept-overwrite.txt",
+            true,
+            REQUESTER_COOKIE);
+
+    Assertions.assertThat(overwritten.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(versionContent(nodeId, 1))
+        .isEqualTo("other".getBytes(StandardCharsets.UTF_8));
+    Assertions.assertThat(revisionColumn(nodeId, 1, "keep_forever")).isEqualTo("true");
+  }
+
+  @Test
+  void givenAClonedVersionWhenOverwrittenThenItKeepsItsClonedFromVersion() throws Exception {
+    String nodeId = seedFile("cloned-overwrite.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+    graphql(
+        GraphqlCommandBuilder.aMutationBuilder("cloneVersion")
+            .withString("node_id", nodeId)
+            .withInteger("version", 1)
+            .withWantedResultFormat("{ version }")
+            .build(),
+        REQUESTER_COOKIE);
+    Assertions.assertThat(revisionColumn(nodeId, 2, "cloned_from_version")).isEqualTo("1");
+
+    Response overwritten =
+        uploadVersion(
+            nodeId,
+            "other".getBytes(StandardCharsets.UTF_8),
+            "cloned-overwrite.txt",
+            true,
+            REQUESTER_COOKIE);
+
+    Assertions.assertThat(overwritten.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(revisionColumn(nodeId, 2, "cloned_from_version")).isEqualTo("1");
+  }
+
+  @Test
   void givenAnOverwriteBetweenTwoSavesConfirmingInReverseThenTheDatesFollowTheNumbers()
       throws Exception {
     String nodeId = seedFile("reverse-dates.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
@@ -743,6 +794,21 @@ class StreamedUploadApiIT extends AbstractFilesIT {
                     + " WHERE node_id = ?")) {
       transfer.setString(1, nodeId);
       Assertions.assertThat(transfer.executeUpdate()).isEqualTo(1);
+    }
+  }
+
+  private static String revisionColumn(String nodeId, int version, String column)
+      throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT " + column + " FROM revision WHERE node_id = ? AND version = ?")) {
+      statement.setString(1, nodeId);
+      statement.setInt(2, version);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        Assertions.assertThat(resultSet.next()).isTrue();
+        return String.valueOf(resultSet.getObject(1));
+      }
     }
   }
 
