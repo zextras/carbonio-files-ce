@@ -19,17 +19,12 @@ import static org.mockito.Mockito.when;
 import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
-import com.zextras.carbonio.files.exceptions.DependencyException;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.UploadResponse;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
 import com.zextras.filestore.model.FilesIdentifier;
 import com.zextras.filestore.model.IdentifierType;
-import jakarta.transaction.Transactional;
-import jakarta.transaction.Transactional.TxType;
-import java.io.InputStream;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -176,22 +171,6 @@ class BlobLifecycleTest {
         .isFalse();
   }
 
-  @Test
-  void tombstonesEveryKeyForTheOwnerInsideTheCallersTransaction() throws Exception {
-    blobLifecycle.tombstone("owner", List.of(new BlobKey("n1", 1), new BlobKey("n2", 3)));
-
-    verify(tombstones).createNewTombstone("n1", "owner", 1);
-    verify(tombstones).createNewTombstone("n2", "owner", 3);
-    verifyNoMoreInteractions(tombstones);
-    verify(transactions, never()).inNewTransaction(any());
-    assertThat(
-            BlobLifecycle.class
-                .getMethod("tombstone", String.class, Collection.class)
-                .getAnnotation(Transactional.class)
-                .value())
-        .isEqualTo(TxType.MANDATORY);
-  }
-
   private static final FilesIdentifier SOURCE =
       FilesIdentifier.of(
           "00000000-0000-0000-0000-000000000001", 1, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
@@ -200,29 +179,35 @@ class BlobLifecycleTest {
           "00000000-0000-0000-0000-000000000002", 1, "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 
   @Test
-  void aVerifiedCopyReturnsTheCopyResponse() throws Exception {
+  void aCopyDoesNotOverrideAndReturnsTheCopyResponse() throws Exception {
     UploadResponse response = mock(UploadResponse.class);
     when(fileStore.copy(SOURCE, DESTINATION, false)).thenReturn(response);
-    when(fileStore.download(DESTINATION)).thenReturn(InputStream.nullInputStream());
 
-    assertThat(blobLifecycle.copyVerified(SOURCE, DESTINATION).get()).isSameAs(response);
+    assertThat(blobLifecycle.copy(SOURCE, DESTINATION).get()).isSameAs(response);
+    verify(fileStore, never()).download(any());
   }
 
   @Test
-  void aCopyThatStoredNothingFailsWithADependencyException() throws Exception {
-    when(fileStore.copy(SOURCE, DESTINATION, false)).thenReturn(mock(UploadResponse.class));
-    when(fileStore.download(DESTINATION)).thenThrow(new RuntimeException("404"));
-
-    assertThat(blobLifecycle.copyVerified(SOURCE, DESTINATION).getCause())
-        .isInstanceOf(DependencyException.class);
-  }
-
-  @Test
-  void aFailedCopyFailsWithItsCauseAndIsNotVerified() throws Exception {
+  void aFailedCopyFailsWithItsCause() throws Exception {
     RuntimeException cause = new RuntimeException("500");
     when(fileStore.copy(SOURCE, DESTINATION, false)).thenThrow(cause);
 
-    assertThat(blobLifecycle.copyVerified(SOURCE, DESTINATION).getCause()).isSameAs(cause);
-    verify(fileStore, never()).download(any());
+    assertThat(blobLifecycle.copy(SOURCE, DESTINATION).getCause()).isSameAs(cause);
+  }
+
+  @Test
+  void aFailureReportedForTheNodeWithoutVersionKeepsEveryVersionOfThatNode() throws Exception {
+    List<BulkDeleteResponseItem> failed = List.of(failed("n1", null), failed("n2", 2));
+    when(fileStore.bulkDelete(eq(IdentifierType.files), eq("owner"), anyList())).thenReturn(failed);
+
+    assertThat(
+            blobLifecycle.delete(
+                "owner",
+                List.of(
+                    new BlobKey("n1", 1),
+                    new BlobKey("n1", 5),
+                    new BlobKey("n2", 1),
+                    new BlobKey("n2", 2))))
+        .contains(Set.of(new BlobKey("n1", 1), new BlobKey("n1", 5), new BlobKey("n2", 2)));
   }
 }

@@ -59,8 +59,7 @@ import java.util.regex.Pattern;
  *   <li>{@code PUT
  *       /copy?sourceNode=&sourceVersion=&destinationNode=&destinationVersion=&type=&override=} →
  *       duplicates the source blob to the destination key, 200 + the same upload-response JSON;
- *       {@link #setCopyFails} → 500 ({@link #failCopyFor} for given source nodes only); {@link
- *       #setCopySkipsStore} → 200 but nothing is stored.
+ *       {@link #setCopyFails} → 500 ({@link #failCopyFor} for given source nodes only).
  *   <li>{@code POST /bulk-delete?type=} (body {@code {"ids":[{"node":…,"version":…}]}}) → removes
  *       the matching blobs and returns {@code {"ids":[…failed…]}} (an empty array is the real
  *       full-success signal, deliberately NOT an omitted field); {@link #setBulkDeleteAlwaysThrows}
@@ -120,7 +119,6 @@ public class MockStoragesService {
   private volatile boolean uploadSkipsStore = false;
   private volatile boolean downloadFails = false;
   private volatile boolean copyFails = false;
-  private volatile boolean copySkipsStore = false;
   private final java.util.Set<String> failingCopySourceNodeIds = ConcurrentHashMap.newKeySet();
   private volatile CountDownLatch copyGate;
   private final Semaphore heldCopies = new Semaphore(0);
@@ -260,11 +258,6 @@ public class MockStoragesService {
     this.copyFails = value;
   }
 
-  /** A copy answers 200 with the usual body but stores nothing at the destination. */
-  public void setCopySkipsStore(boolean value) {
-    this.copySkipsStore = value;
-  }
-
   /** Copies of these source nodes answer 500. */
   public void failCopyFor(String... sourceNodeIds) {
     failingCopySourceNodeIds.addAll(List.of(sourceNodeIds));
@@ -286,7 +279,6 @@ public class MockStoragesService {
     uploadSkipsStore = false;
     downloadFails = false;
     copyFails = false;
-    copySkipsStore = false;
     failingCopySourceNodeIds.clear();
     releaseCopies();
     heldCopies.drainPermits();
@@ -385,13 +377,8 @@ public class MockStoragesService {
     if (bytes == null) {
       bytes = fallbackBytes(sourceNode, sourceVersion);
     }
-    if (copySkipsStore) {
-      blobs.remove(destinationKey);
-      forcedMissingKeys.add(destinationKey);
-    } else {
-      blobs.put(destinationKey, bytes);
-      forcedMissingKeys.remove(destinationKey);
-    }
+    blobs.put(destinationKey, bytes);
+    forcedMissingKeys.remove(destinationKey);
     return Response.response()
         .status(200)
         .headers(jsonHeaders())

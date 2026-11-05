@@ -205,8 +205,7 @@ class NodeApiMutationsTest {
         .thenReturn(Optional.of(mock(FileVersion.class)));
     when(versionReservations.reserve(NODE_ID_1, NODE_OWNER_ID))
         .thenReturn(Optional.of(new Reservation(NODE_ID_1, 7, 5000L, NODE_OWNER_ID)));
-    when(blobLifecycle.copyVerified(any(), any()))
-        .thenReturn(Try.failure(new RuntimeException("boom")));
+    when(blobLifecycle.copy(any(), any())).thenReturn(Try.failure(new RuntimeException("boom")));
   }
 
   @Test
@@ -219,7 +218,7 @@ class NodeApiMutationsTest {
 
     verify(versionReservations).reserve(NODE_ID_1, NODE_OWNER_ID);
     verify(blobLifecycle)
-        .copyVerified(
+        .copy(
             FilesIdentifier.of(NODE_ID_1, 1, NODE_OWNER_ID),
             FilesIdentifier.of(NODE_ID_1, 7, NODE_OWNER_ID));
     verify(blobLifecycle).discard(new Reservation(NODE_ID_1, 7, 5000L, NODE_OWNER_ID));
@@ -260,8 +259,7 @@ class NodeApiMutationsTest {
   @Test
   void cloneVersionFailureAfterTheBlobCopyIsNotReportedAsACopyError() throws Exception {
     givenACloneVersionWhoseStorageCopyFails();
-    when(blobLifecycle.copyVerified(any(), any()))
-        .thenReturn(Try.success(mock(UploadResponse.class)));
+    when(blobLifecycle.copy(any(), any())).thenReturn(Try.success(mock(UploadResponse.class)));
     when(fileVersionRepository.createFileVersionAt(
             any(), any(), anyInt(), any(), anyLong(), any(), anyLong()))
         .thenThrow(new IllegalStateException("db down"));
@@ -308,15 +306,14 @@ class NodeApiMutationsTest {
     when(versionReservations.reserveNew(anyString(), eq(1), anyString()))
         .thenAnswer(
             inv -> new Reservation(inv.getArgument(0), 1, 5000L, (String) inv.getArgument(2)));
-    when(blobLifecycle.copyVerified(any(), any()))
-        .thenReturn(Try.success(mock(UploadResponse.class)));
+    when(blobLifecycle.copy(any(), any())).thenReturn(Try.success(mock(UploadResponse.class)));
 
     nodeApi.copyNodes(List.of(NODE_ID_1), destinationId);
 
     ArgumentCaptor<String> newId = ArgumentCaptor.forClass(String.class);
     verify(versionReservations).reserveNew(newId.capture(), eq(1), eq(destinationOwner));
     verify(blobLifecycle)
-        .copyVerified(
+        .copy(
             FilesIdentifier.of(NODE_ID_1, 1, sourceOwner),
             FilesIdentifier.of(newId.getValue(), 1, destinationOwner));
     verify(nodeRepository)
@@ -334,8 +331,7 @@ class NodeApiMutationsTest {
   }
 
   @Test
-  void givenAFailureBeforeTheBlobCopyThenThatFileIsReportedAndTheOthersAreCopied()
-      throws Exception {
+  void givenAFailureBeforeTheBlobCopyThenThatFileIsReportedAndTheOthersAreCopied() {
     String destinationId = "00000000-0000-0000-0000-00000000000d";
     String nodeId3 = "00000000-0000-0000-0000-000000000003";
     Node destination = mock(Node.class);
@@ -368,8 +364,7 @@ class NodeApiMutationsTest {
     when(versionReservations.reserveNew(anyString(), eq(1), anyString()))
         .thenAnswer(
             inv -> new Reservation(inv.getArgument(0), 1, 5000L, (String) inv.getArgument(2)));
-    when(blobLifecycle.copyVerified(any(), any()))
-        .thenReturn(Try.success(mock(UploadResponse.class)));
+    when(blobLifecycle.copy(any(), any())).thenReturn(Try.success(mock(UploadResponse.class)));
     when(copyFailureClassifier.classify(any())).thenReturn(ErrorCodes.NODE_COPY_ERROR);
 
     assertThatThrownBy(() -> nodeApi.copyNodes(List.of(NODE_ID_1, nodeId3), destinationId))

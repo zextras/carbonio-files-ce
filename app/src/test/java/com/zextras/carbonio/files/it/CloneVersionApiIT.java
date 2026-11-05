@@ -193,20 +193,6 @@ class CloneVersionApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTheCopyAnswers200WithoutStoringThenTheCloneFailsAndNoVersionIsCreated()
-      throws SQLException {
-    String nodeId =
-        seedFile("file.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);
-    FilesStackTestResource.getStoragesService().setCopySkipsStore(true);
-
-    Response response = cloneVersion(nodeId, 1);
-
-    assertCopyErrorShape(response, nodeId);
-    Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
-    Assertions.assertThat(pendingReservations(nodeId)).isEmpty();
-  }
-
-  @Test
   void givenTheCopyFailsThenNoPendingReservationIsLeft() throws SQLException {
     String nodeId =
         seedFile("file.txt", LOCAL_ROOT, "v1".getBytes(StandardCharsets.UTF_8), OWNER_COOKIE);

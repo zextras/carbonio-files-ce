@@ -435,32 +435,6 @@ class CopyNodesApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTheCopyAnswers200WithoutStoringThenTheFileIsReportedAndNotPublished() throws Exception {
-    String folderId = seedFolder("emptyFolder", LOCAL_ROOT, REQUESTER_COOKIE);
-    String fileId =
-        seedFile(
-            "unstored.txt",
-            LOCAL_ROOT,
-            "content".getBytes(StandardCharsets.UTF_8),
-            REQUESTER_COOKIE);
-    String destFolderId = seedFolder("dest-unstored", LOCAL_ROOT, REQUESTER_COOKIE);
-    FilesStackTestResource.getStoragesService().setCopySkipsStore(true);
-    Set<String> pendingBefore = pendingReservationsWithoutNode();
-
-    Response response = copyNodes(new String[] {folderId, fileId}, destFolderId, REQUESTER_COOKIE);
-
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(copyErrorNodeIds(response)).containsExactly(fileId);
-    Assertions.assertThat(copiedNodes(response))
-        .extracting(node -> node.get("name"))
-        .containsExactly("emptyFolder");
-    Assertions.assertThat(childrenOf(destFolderId, REQUESTER_COOKIE))
-        .extracting(node -> node.get("name"))
-        .containsExactly("emptyFolder");
-    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
-  }
-
-  @Test
   void givenOneFileInsideAFolderFailsThenTheOthersAreCopiedAndTheFailureIsReported()
       throws Exception {
     byte[] content = "content".getBytes(StandardCharsets.UTF_8);

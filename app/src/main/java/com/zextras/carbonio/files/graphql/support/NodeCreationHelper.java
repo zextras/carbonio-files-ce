@@ -189,11 +189,7 @@ public class NodeCreationHelper {
 
     fileVersionsByOwner.forEach(
         (ownerId, versions) ->
-            blobLifecycle.deleteAndClear(
-                ownerId,
-                versions.stream()
-                    .map(fv -> new BlobKey(fv.getNodeId(), fv.getVersion()))
-                    .toList()));
+            blobLifecycle.deleteAndClear(ownerId, versions.stream().map(BlobKey::of).toList()));
   }
 
   private List<String> createIndirectShare(String sharedParentId, Node nodeToShare) {

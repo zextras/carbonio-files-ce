@@ -799,9 +799,7 @@ public class NodeApi {
         requestedNodes.stream().map(Node::getId).collect(Collectors.toSet());
 
     List<Node> allNodes =
-        requestedNodes.stream()
-            .flatMap(root -> nodeRepository.getSubtree(root).stream())
-            .collect(Collectors.toList());
+        requestedNodes.stream().flatMap(root -> nodeRepository.getSubtree(root).stream()).toList();
 
     List<Node> fileNodes =
         allNodes.stream()
@@ -845,11 +843,7 @@ public class NodeApi {
 
     fileVersionsByOwner.forEach(
         (ownerId, versions) ->
-            blobLifecycle.deleteAndClear(
-                ownerId,
-                versions.stream()
-                    .map(fv -> new BlobKey(fv.getNodeId(), fv.getVersion()))
-                    .toList()));
+            blobLifecycle.deleteAndClear(ownerId, versions.stream().map(BlobKey::of).toList()));
 
     List<String> successIds = new ArrayList<>(requestedNodeIds);
     List<String> errorIds = nodeIds.stream().filter(id -> !requestedNodeIds.contains(id)).toList();
@@ -923,54 +917,16 @@ public class NodeApi {
                     .filter(n -> !targetFolderChildrenNames.contains(n.getFullName())))
             .toList();
 
-    nodesInCopyOrder.forEach(
-        node -> {
-          if (node.getNodeType() == com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER) {
-            Node copiedFolder;
-            try {
-              copiedFolder = copyFolder(node, destinationFolder, me, true);
-            } catch (RuntimeException e) {
-              logger.error("Unable to copy folder {}: {}", node.getId(), e.getMessage(), e);
-              copyErrors.add(new CopyFailure(node, e));
-              return;
-            }
-            copiedNodesResult.add(NodeModelFactory.from(copiedFolder, null, me));
-            copyFolderCascade(node.getId(), copiedFolder, me, nestedCopyErrors);
-
-            List<String> usersToNotify = createIndirectShare(destinationId, copiedFolder);
-            usersToNotify.remove(me);
-            if (!com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                    destinationFolder.getNodeType())
-                && !me.equals(destinationFolder.getOwnerId())
-                && !usersToNotify.contains(destinationFolder.getOwnerId())) {
-              usersToNotify.add(destinationFolder.getOwnerId());
-            }
-            if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled()) {
-              notificationRepository.createAddedNodeNotification(
-                  copiedFolder, destinationFolder, requester, AddedNodeType.COPY, usersToNotify);
-            }
-          } else {
-            CopyOutcome outcome = copyFile(node, destinationFolder, me, true);
-            if (outcome.node().isPresent()) {
-              Node copiedNode = outcome.node().get();
-              copiedNodesResult.add(NodeModelFactory.from(copiedNode, null, me));
-              List<String> usersToNotify = createIndirectShare(destinationId, copiedNode);
-              usersToNotify.remove(me);
-              if (!com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                      destinationFolder.getNodeType())
-                  && !me.equals(destinationFolder.getOwnerId())
-                  && !usersToNotify.contains(destinationFolder.getOwnerId())) {
-                usersToNotify.add(destinationFolder.getOwnerId());
-              }
-              if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled()) {
-                notificationRepository.createAddedNodeNotification(
-                    copiedNode, destinationFolder, requester, AddedNodeType.COPY, usersToNotify);
-              }
-            } else {
-              copyErrors.add(new CopyFailure(node, outcome.failure()));
-            }
-          }
-        });
+    for (Node node : nodesInCopyOrder) {
+      CopyOutcome outcome = copyTopNode(node, destinationFolder, me, nestedCopyErrors);
+      if (outcome.node().isEmpty()) {
+        copyErrors.add(new CopyFailure(node, outcome.failure()));
+        continue;
+      }
+      Node copied = outcome.node().get();
+      copiedNodesResult.add(NodeModelFactory.from(copied, null, me));
+      shareAndNotifyCopy(copied, destinationId, destinationFolder, me);
+    }
 
     copyErrors.addAll(nestedCopyErrors);
 
@@ -1028,10 +984,7 @@ public class NodeApi {
       }
 
       blobLifecycle.deleteAndClear(
-          ownerId,
-          fileVersionsToDelete.stream()
-              .map(fv -> new BlobKey(fv.getNodeId(), fv.getVersion()))
-              .toList());
+          ownerId, fileVersionsToDelete.stream().map(BlobKey::of).toList());
     }
 
     if (versions != null) {
@@ -1126,7 +1079,7 @@ public class NodeApi {
     int newVersion = reservation.version();
 
     var copyAttempt =
-        blobLifecycle.copyVerified(
+        blobLifecycle.copy(
             FilesIdentifier.of(nodeId, version, ownerId),
             FilesIdentifier.of(nodeId, newVersion, ownerId));
     if (copyAttempt.isFailure()) {
@@ -1264,8 +1217,11 @@ public class NodeApi {
   }
 
   private void deleteNodesFromDb(List<Node> nodes) {
-    nodeRepository.deleteNodesAndShares(
-        nodes.stream().map(Node::getId).collect(Collectors.toList()));
+    List<String> ids = nodes.stream().map(Node::getId).toList();
+    if (!ids.isEmpty()) {
+      shareRepository.deleteSharesBulk(ids);
+      nodeRepository.deleteNodes(ids);
+    }
   }
 
   private static FilesGraphQLException pathNodeNotFound(String nodeId) {
@@ -1298,6 +1254,39 @@ public class NodeApi {
         .map(FilesGraphQLErrors::nodeNotFound)
         .orElseGet(() -> FilesGraphQLErrors.nodeWriteError(deletableIds.iterator().next()))
         .withPartialResults(List.of());
+  }
+
+  /** Copies a requested node: a file, or a folder with everything under it. */
+  private CopyOutcome copyTopNode(
+      Node node, Node destinationFolder, String me, List<CopyFailure> nestedCopyErrors) {
+    if (node.getNodeType() != com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER) {
+      return copyFile(node, destinationFolder, me, true);
+    }
+    Node copiedFolder;
+    try {
+      copiedFolder = copyFolder(node, destinationFolder, me, true);
+    } catch (RuntimeException e) {
+      logger.error("Unable to copy folder {}", node.getId(), e);
+      return new CopyOutcome(Optional.empty(), e);
+    }
+    copyFolderCascade(node.getId(), copiedFolder, me, nestedCopyErrors);
+    return new CopyOutcome(Optional.of(copiedFolder), null);
+  }
+
+  private void shareAndNotifyCopy(
+      Node copied, String destinationId, Node destinationFolder, String me) {
+    List<String> usersToNotify = createIndirectShare(destinationId, copied);
+    usersToNotify.remove(me);
+    if (!com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
+            destinationFolder.getNodeType())
+        && !me.equals(destinationFolder.getOwnerId())
+        && !usersToNotify.contains(destinationFolder.getOwnerId())) {
+      usersToNotify.add(destinationFolder.getOwnerId());
+    }
+    if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled()) {
+      notificationRepository.createAddedNodeNotification(
+          copied, destinationFolder, requester, AddedNodeType.COPY, usersToNotify);
+    }
   }
 
   private CopyOutcome copyFile(
@@ -1334,11 +1323,9 @@ public class NodeApi {
       return new CopyOutcome(Optional.empty(), e);
     }
 
-    var copyAttempt = blobLifecycle.copyVerified(source, destination);
+    var copyAttempt = blobLifecycle.copy(source, destination);
     if (copyAttempt.isFailure()) {
-      logger.error(
-          MessageFormat.format(
-              "Unable to copy node {0}. {1}", sourceNode.getId(), copyAttempt.getCause()));
+      logger.error("Unable to copy node {}", sourceNode.getId(), copyAttempt.getCause());
       blobLifecycle.discard(reservation);
       return new CopyOutcome(Optional.empty(), copyAttempt.getCause());
     }

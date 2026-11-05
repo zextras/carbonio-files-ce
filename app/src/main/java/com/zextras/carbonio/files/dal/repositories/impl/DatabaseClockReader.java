@@ -12,7 +12,12 @@ import jakarta.persistence.EntityManager;
 @ApplicationScoped
 public class DatabaseClockReader {
 
-  @Inject EntityManager entityManager;
+  private final EntityManager entityManager;
+
+  @Inject
+  public DatabaseClockReader(EntityManager entityManager) {
+    this.entityManager = entityManager;
+  }
 
   public long nowMillis() {
     return entityManager

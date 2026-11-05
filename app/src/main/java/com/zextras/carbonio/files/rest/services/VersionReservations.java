@@ -12,7 +12,6 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservation
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
@@ -70,20 +69,11 @@ public class VersionReservations {
 
   /** A key for a node that does not exist yet (new upload, copy, transfer); no node row is read. */
   public Reservation reserveNew(String nodeId, int version, String blobOwnerId) {
-    return reserveNew(List.of(new BlobKey(nodeId, version)), blobOwnerId).get(0);
-  }
-
-  public List<Reservation> reserveNew(List<BlobKey> keys, String blobOwnerId) {
     return transactions.inNewTransaction(
         () -> {
           long now = clock.nowMillis();
-          return keys.stream()
-              .map(
-                  key -> {
-                    reservationRepository.reserve(key.nodeId(), key.version(), blobOwnerId, now);
-                    return new Reservation(key.nodeId(), key.version(), now, blobOwnerId);
-                  })
-              .toList();
+          reservationRepository.reserve(nodeId, version, blobOwnerId, now);
+          return new Reservation(nodeId, version, now, blobOwnerId);
         });
   }
 

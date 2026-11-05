@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.tasks;
 
 import com.zextras.carbonio.files.Constants.Config;
+import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
@@ -41,14 +42,11 @@ import org.slf4j.LoggerFactory;
  *
  * <p><b>No DB transaction ever wraps the {@code fileStore.bulkDelete} storages round-trips.</b>
  * {@link #purgeTrashedNodes}, {@link #purgeTombstones} and {@link #scheduledRun} are deliberately
- * NOT {@code @Transactional}: they orchestrate, interleaving short DB operations with the blocking
- * storages calls. Each DB read/write is transactional at the repository layer (e.g. {@code
- * getTrashedTopNodes}/{@code getFileVersions}/{@code getTombstones} and {@code deleteNodes}/{@code
- * deleteTombstonesByNodeAndVersion}/{@code updateTombstone}), so a connection is acquired and
- * released per operation and NONE is held (idle-in-transaction) across a bulkDelete. This restores
- * the legacy Ebean transaction-per-query behaviour: the tradeoff is that a mid-run crash leaves a
- * partially-purged state, which the next cycle finishes (the deletes are idempotent and the
- * tombstone retry scheme self-heals).
+ * NOT {@code @Transactional}: they orchestrate, interleaving short DB transactions with the
+ * blocking storages calls. Each trashed tree is removed in one transaction that also writes the
+ * tombstones of its blobs; the blobs of the whole run are deleted after those commits, one bulk
+ * delete per owner. A crash or a failed delete leaves tombstones, which {@link #purgeTombstones}
+ * retries.
  *
  * <p>{@link #scheduledRun} uses {@code concurrentExecution = SKIP} so a purge that outlives the
  * interval is never overlapped by the next tick (the legacy single-thread {@code
@@ -79,43 +77,53 @@ public class PurgeService {
   void purgeTrashedNodes(long retentionDays) {
     long retentionTimestamp = System.currentTimeMillis() - (retentionDays * 86400 * 1000);
 
+    Map<String, List<BlobKey>> keysByOwner = new HashMap<>();
     for (Node top : nodeRepository.getTrashedTopNodes(retentionTimestamp)) {
       try {
-        purgeTrashedTree(top);
+        transactions
+            .inNewTransaction(() -> purgeTrashedTree(top.getId(), retentionTimestamp))
+            .forEach(
+                (ownerId, keys) ->
+                    keysByOwner.computeIfAbsent(ownerId, k -> new ArrayList<>()).addAll(keys));
       } catch (RuntimeException e) {
         logger.warn("Unable to purge trashed node {}: {}", top.getId(), e.getMessage());
       }
     }
+    keysByOwner.forEach(blobLifecycle::deleteAndClear);
   }
 
-  private void purgeTrashedTree(Node top) {
-    Map<String, List<FileVersion>> versionsByOwner =
-        transactions.inNewTransaction(
-            () -> {
-              List<Node> tree = nodeRepository.getSubtree(top);
-              Map<String, List<FileVersion>> byOwner = new HashMap<>();
-              tree.stream()
-                  .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
-                  .forEach(
-                      node ->
-                          byOwner
-                              .computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
-                              .addAll(
-                                  fileVersionRepository.getFileVersions(
-                                      node.getId(), List.of(FileVersionSort.VERSION_ASC))));
-              byOwner.forEach(
-                  (ownerId, versions) ->
-                      tombstoneRepository.createTombstonesBulk(versions, ownerId));
-              nodeRepository.deleteNodesAndShares(tree.stream().map(Node::getId).toList());
-              logger.info("Purged {} trashed nodes from database", tree.size());
-              return byOwner;
+  /**
+   * Deletes the rows of a trashed tree and tombstones its blobs, unless the tree was restored or
+   * trashed again since the run started.
+   *
+   * @return the tombstoned blob keys by owner
+   */
+  private Map<String, List<BlobKey>> purgeTrashedTree(String topId, long retentionTimestamp) {
+    Optional<Node> top =
+        nodeRepository
+            .getNode(topId)
+            .filter(node -> node.getParentId().filter(RootId.TRASH_ROOT::equals).isPresent())
+            .filter(node -> node.getUpdatedAt() < retentionTimestamp);
+    if (top.isEmpty()) {
+      return Map.of();
+    }
+    List<Node> tree = nodeRepository.getSubtree(top.get());
+    Map<String, List<BlobKey>> keysByOwner = new HashMap<>();
+    tree.stream()
+        .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
+        .forEach(
+            node -> {
+              List<FileVersion> versions =
+                  fileVersionRepository.getFileVersions(
+                      node.getId(), List.of(FileVersionSort.VERSION_ASC));
+              tombstoneRepository.createTombstonesBulk(versions, node.getOwnerId());
+              keysByOwner
+                  .computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
+                  .addAll(versions.stream().map(BlobKey::of).toList());
             });
-
-    versionsByOwner.forEach(
-        (ownerId, versions) ->
-            blobLifecycle.deleteAndClear(
-                ownerId,
-                versions.stream().map(v -> new BlobKey(v.getNodeId(), v.getVersion())).toList()));
+    nodeRepository.deleteNodes(tree.stream().map(Node::getId).toList());
+    logger.info("Purged {} trashed nodes from database", tree.size());
+    return keysByOwner;
   }
 
   void purgeTombstones() {

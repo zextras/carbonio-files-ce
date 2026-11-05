@@ -20,7 +20,6 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SortOrder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -92,7 +91,6 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Inject EntityManager entityManager;
   @Inject CollationRepository collationRepository;
-  @Inject ShareRepository shareRepository;
   @Inject FilesConfig filesConfig;
 
   // ---------------------------------------------------------------------------------------------
@@ -469,15 +467,6 @@ public class NodeRepositoryImpl implements NodeRepository {
       }
     }
     return result;
-  }
-
-  @Override
-  @Transactional
-  public void deleteNodesAndShares(List<String> nodeIds) {
-    if (!nodeIds.isEmpty()) {
-      shareRepository.deleteSharesBulk(nodeIds);
-      deleteNodes(nodeIds);
-    }
   }
 
   @Override

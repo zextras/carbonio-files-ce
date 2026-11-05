@@ -17,8 +17,6 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionReposit
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.message_broker.consumers.KeyValueChangedConsumer;
-import com.zextras.carbonio.files.rest.services.BlobKey;
-import com.zextras.carbonio.files.rest.services.BlobLifecycle;
 import com.zextras.carbonio.message_broker.events.services.service_discover.KeyValueChanged;
 import java.util.List;
 import java.util.Map;
@@ -34,25 +32,19 @@ class KeyValueChangedHandlerTest {
   private NodeRepository nodeRepository;
   private TombstoneRepository tombstoneRepository;
   private Transactions transactions;
-  private BlobLifecycle blobLifecycle;
   private KeyValueChangedConsumer consumer;
 
   @BeforeEach
-  void setUp() throws Exception {
+  void setUp() {
     fileVersionRepository = mock(FileVersionRepository.class);
     nodeRepository = mock(NodeRepository.class);
     tombstoneRepository = mock(TombstoneRepository.class);
     transactions = mock(Transactions.class);
-    blobLifecycle = mock(BlobLifecycle.class);
     when(transactions.inNewTransaction(any()))
         .thenAnswer(invocation -> invocation.<Callable<?>>getArgument(0).call());
     consumer =
         new KeyValueChangedConsumer(
-            fileVersionRepository,
-            nodeRepository,
-            tombstoneRepository,
-            transactions,
-            blobLifecycle);
+            fileVersionRepository, nodeRepository, tombstoneRepository, transactions);
   }
 
   private static FileVersion version(int number, boolean keptForever) {
@@ -88,11 +80,11 @@ class KeyValueChangedHandlerTest {
 
     verify(fileVersionRepository).removeVersionNotKeptForever("node-1", 2);
     verify(fileVersionRepository, times(1)).removeVersionNotKeptForever(eq("node-1"), anyInt());
-    verify(blobLifecycle).deleteAndClear("owner-1", List.of(new BlobKey("node-1", 2)));
+    verify(tombstoneRepository).createNewTombstone("node-1", "owner-1", 2);
   }
 
   @Test
-  void givenMaxVersionNumberEventTheTrimmedVersionsAreTombstonedInOneTransactionBeforeTheBlobsGo() {
+  void givenMaxVersionNumberEventTheTrimmedVersionsAreTombstonedInOneTransaction() {
     givenNodeWithVersions(
         List.of(
             version(1, false),
@@ -103,8 +95,7 @@ class KeyValueChangedHandlerTest {
 
     consumer.doHandle(new KeyValueChanged("carbonio-files/max-number-of-versions", "2"));
 
-    InOrder order =
-        inOrder(transactions, fileVersionRepository, tombstoneRepository, blobLifecycle);
+    InOrder order = inOrder(transactions, fileVersionRepository, tombstoneRepository);
     order.verify(transactions).inNewTransaction(any());
     order.verify(fileVersionRepository).removeVersionNotKeptForever("node-1", 1);
     order.verify(tombstoneRepository).createNewTombstone("node-1", "owner-1", 1);
@@ -112,11 +103,6 @@ class KeyValueChangedHandlerTest {
     order.verify(tombstoneRepository).createNewTombstone("node-1", "owner-1", 3);
     order.verify(fileVersionRepository).removeVersionNotKeptForever("node-1", 4);
     order.verify(tombstoneRepository).createNewTombstone("node-1", "owner-1", 4);
-    order
-        .verify(blobLifecycle)
-        .deleteAndClear(
-            "owner-1",
-            List.of(new BlobKey("node-1", 1), new BlobKey("node-1", 3), new BlobKey("node-1", 4)));
     verify(fileVersionRepository, never()).removeVersionNotKeptForever("node-1", 2);
     verify(fileVersionRepository, never()).removeVersionNotKeptForever("node-1", 5);
     verify(transactions, times(1)).inNewTransaction(any());
@@ -141,7 +127,7 @@ class KeyValueChangedHandlerTest {
     consumer.doHandle(new KeyValueChanged("carbonio-files/max-number-of-versions", "1"));
 
     verify(fileVersionRepository, never()).removeVersionNotKeptForever(any(), anyInt());
-    verify(blobLifecycle).deleteAndClear("owner-1", List.of());
+    verify(tombstoneRepository, never()).createNewTombstone(any(), any(), any());
   }
 
   @Test
