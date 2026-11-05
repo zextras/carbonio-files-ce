@@ -12,6 +12,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkR
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.graphql.datafetchers.ShareDataFetcher;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import io.vavr.control.Try;
 import java.text.MessageFormat;
 import java.util.NoSuchElementException;
@@ -48,9 +49,13 @@ public class CollaborationLinkService {
         nodeRepository
           .getNode(collaborationLink.getNodeId())
           .map(node -> {
+            if (NodeRules.isRoot(node)) {
+              return Try.<Node>failure(new NoSuchElementException(
+                MessageFormat.format("Node {0} cannot be shared", node.getId())));
+            }
             // If the owner itself has clicked on a collaboration link, the system does nothing.
             // However, the system return the success because the collaboration link and the node exist
-            if (!node.getOwnerId().equals(requesterId)) {
+            if (!requesterId.equals(node.getOwnerId())) {
               Optional<Share> optShare = shareRepository.getShare(
                 collaborationLink.getNodeId(),
                 requesterId
