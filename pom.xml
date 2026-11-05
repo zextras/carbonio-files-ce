@@ -39,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <caffeine.version>3.2.0</caffeine.version>
     <carbonio-message-broker-sdk.version>1.0.1</carbonio-message-broker-sdk.version>
     <carbonio-storages-common.version>0.0.15-SNAPSHOT</carbonio-storages-common.version>
-    <carbonio-storages-ce.version>0.0.15-SNAPSHOT</carbonio-storages-ce.version>
+    <carbonio-storages-ce.version>0.0.16</carbonio-storages-ce.version>
     <carbonio-user-management-sdk.version>1.0.2</carbonio-user-management-sdk.version>
     <carbonio-preview-sdk.version>2.0.1</carbonio-preview-sdk.version>
     <commons-lang3.version>3.18.0</commons-lang3.version>
@@ -108,6 +108,21 @@ SPDX-License-Identifier: AGPL-3.0-only
   </profiles>
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>com.squareup.retrofit2</groupId>
+        <artifactId>retrofit</artifactId>
+        <version>2.9.0</version>
+      </dependency>
+      <dependency>
+        <groupId>com.squareup.retrofit2</groupId>
+        <artifactId>converter-gson</artifactId>
+        <version>2.9.0</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.code.gson</groupId>
+        <artifactId>gson</artifactId>
+        <version>2.8.5</version>
+      </dependency>
       <!-- Guice dependencies -->
       <dependency>
         <groupId>com.google.inject</groupId>
@@ -338,4 +353,15 @@ SPDX-License-Identifier: AGPL-3.0-only
       <url>https://zextras.jfrog.io/artifactory/java-sdk</url>
     </repository>
   </repositories>
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.sonarsource.scanner.maven</groupId>
+          <artifactId>sonar-maven-plugin</artifactId>
+          <version>5.5.0.6356</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
 </project>
