@@ -18,7 +18,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.impl.InvalidPageTokenException;
-import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.RemovedNodeType;
@@ -113,7 +112,6 @@ public class NodeApi {
   @Inject NodeCreationHelper nodeCreationHelper;
   @Inject VersionReservations versionReservations;
   @Inject BlobLifecycle blobLifecycle;
-  @Inject Transactions transactions;
 
   // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -919,13 +917,14 @@ public class NodeApi {
 
     for (Node node : nodesInCopyOrder) {
       CopyOutcome outcome = copyTopNode(node, destinationFolder, me, nestedCopyErrors);
-      if (outcome.node().isEmpty()) {
-        copyErrors.add(new CopyFailure(node, outcome.failure()));
-        continue;
-      }
-      Node copied = outcome.node().get();
-      copiedNodesResult.add(NodeModelFactory.from(copied, null, me));
-      shareAndNotifyCopy(copied, destinationId, destinationFolder, me);
+      outcome
+          .node()
+          .ifPresentOrElse(
+              copied -> {
+                copiedNodesResult.add(NodeModelFactory.from(copied, null, me));
+                shareAndNotifyCopy(copied, destinationId, destinationFolder, me);
+              },
+              () -> copyErrors.add(new CopyFailure(node, outcome.failure())));
     }
 
     copyErrors.addAll(nestedCopyErrors);
@@ -1332,38 +1331,38 @@ public class NodeApi {
     var response = copyAttempt.get();
 
     try {
-      transactions.inNewTransaction(
-          () -> {
-            versionReservations.confirmNew(reservation);
-            nodeRepository.createNewNode(
-                newId,
-                requesterId,
-                ownerId,
-                destinationFolder.getId(),
-                dedupName
-                    ? searchAlternativeName(
-                        nodeRepository,
-                        sourceNode.getFullName(),
-                        destinationFolder.getId(),
-                        sourceNode.getOwnerId())
-                    : sourceNode.getFullName(),
-                sourceNode.getDescription().orElse(""),
-                sourceNode.getNodeType(),
-                com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                        destinationFolder.getNodeType())
-                    ? destinationFolder.getId()
-                    : destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
-                sourceNode.getSize());
-            fileVersionRepository.createNewFileVersion(
-                newId,
-                requesterId,
-                1,
-                sourceCurrentVersion.getMimeType(),
-                response.getSize(),
-                response.getDigest(),
-                false);
-            return null;
-          });
+      QuarkusTransaction.requiringNew()
+          .run(
+              () -> {
+                versionReservations.confirmNew(reservation);
+                nodeRepository.createNewNode(
+                    newId,
+                    requesterId,
+                    ownerId,
+                    destinationFolder.getId(),
+                    dedupName
+                        ? searchAlternativeName(
+                            nodeRepository,
+                            sourceNode.getFullName(),
+                            destinationFolder.getId(),
+                            sourceNode.getOwnerId())
+                        : sourceNode.getFullName(),
+                    sourceNode.getDescription().orElse(""),
+                    sourceNode.getNodeType(),
+                    com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
+                            destinationFolder.getNodeType())
+                        ? destinationFolder.getId()
+                        : destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
+                    sourceNode.getSize());
+                fileVersionRepository.createNewFileVersion(
+                    newId,
+                    requesterId,
+                    1,
+                    sourceCurrentVersion.getMimeType(),
+                    response.getSize(),
+                    response.getDigest(),
+                    false);
+              });
     } catch (RuntimeException e) {
       logger.error(
           "Unable to publish the copy {} of node {}: {}",

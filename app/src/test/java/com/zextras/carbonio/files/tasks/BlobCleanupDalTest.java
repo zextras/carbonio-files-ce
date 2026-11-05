@@ -71,13 +71,12 @@ class BlobCleanupDalTest {
     return QuarkusTransaction.requiringNew()
         .call(
             () ->
-                ((Number)
-                        entityManager
-                            .createNativeQuery(
-                                "SELECT count(*) FROM " + table + " WHERE node_id = :id")
-                            .setParameter("id", nodeId)
-                            .getSingleResult())
-                    .longValue());
+                (Number)
+                    entityManager
+                        .createNativeQuery("SELECT count(*) FROM " + table + " WHERE node_id = :id")
+                        .setParameter("id", nodeId)
+                        .getSingleResult())
+        .longValue();
   }
 
   /** folder (trashed top, shared, flagged) → file a (v1, v2) and sub → file b (v1). */

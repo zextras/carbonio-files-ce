@@ -26,7 +26,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -52,7 +51,6 @@ import io.vavr.control.Try;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Callable;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -81,7 +79,6 @@ class NodeApiMutationsTest {
   private CopyFailureClassifier copyFailureClassifier;
   private VersionReservations versionReservations;
   private BlobLifecycle blobLifecycle;
-  private Transactions transactions;
   private Context gqlContext;
   private NodeApi nodeApi;
 
@@ -98,9 +95,6 @@ class NodeApiMutationsTest {
     copyFailureClassifier = mock(CopyFailureClassifier.class);
     versionReservations = mock(VersionReservations.class);
     blobLifecycle = mock(BlobLifecycle.class);
-    transactions = mock(Transactions.class);
-    when(transactions.inNewTransaction(any()))
-        .thenAnswer(inv -> ((Callable<?>) inv.getArgument(0)).call());
     gqlContext = mock(Context.class);
 
     UserMyself requester = mock(UserMyself.class);
@@ -127,7 +121,6 @@ class NodeApiMutationsTest {
     nodeApi.notificationRepository = notificationRepository;
     nodeApi.tombstoneRepository = tombstoneRepository;
     nodeApi.blobLifecycle = blobLifecycle;
-    nodeApi.transactions = transactions;
     nodeApi.shareCascade = shareCascade;
     nodeApi.filesConfig = filesConfig;
     nodeApi.nodeCreationHelper = nodeCreationHelper;
@@ -308,7 +301,9 @@ class NodeApiMutationsTest {
             inv -> new Reservation(inv.getArgument(0), 1, 5000L, (String) inv.getArgument(2)));
     when(blobLifecycle.copy(any(), any())).thenReturn(Try.success(mock(UploadResponse.class)));
 
-    nodeApi.copyNodes(List.of(NODE_ID_1), destinationId);
+    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
+      nodeApi.copyNodes(List.of(NODE_ID_1), destinationId);
+    }
 
     ArgumentCaptor<String> newId = ArgumentCaptor.forClass(String.class);
     verify(versionReservations).reserveNew(newId.capture(), eq(1), eq(destinationOwner));
@@ -367,13 +362,15 @@ class NodeApiMutationsTest {
     when(blobLifecycle.copy(any(), any())).thenReturn(Try.success(mock(UploadResponse.class)));
     when(copyFailureClassifier.classify(any())).thenReturn(ErrorCodes.NODE_COPY_ERROR);
 
-    assertThatThrownBy(() -> nodeApi.copyNodes(List.of(NODE_ID_1, nodeId3), destinationId))
-        .isInstanceOfSatisfying(
-            FilesGraphQLException.class,
-            ex -> {
-              assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.NODE_COPY_ERROR);
-              assertThat(ex.getMessage()).contains("copying the node " + NODE_ID_1);
-            });
+    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
+      assertThatThrownBy(() -> nodeApi.copyNodes(List.of(NODE_ID_1, nodeId3), destinationId))
+          .isInstanceOfSatisfying(
+              FilesGraphQLException.class,
+              ex -> {
+                assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.NODE_COPY_ERROR);
+                assertThat(ex.getMessage()).contains("copying the node " + NODE_ID_1);
+              });
+    }
     verify(versionReservations).reserveNew(anyString(), eq(1), eq(NODE_OWNER_ID));
     verify(nodeRepository)
         .createNewNode(any(), any(), any(), any(), any(), any(), any(), any(), any());
