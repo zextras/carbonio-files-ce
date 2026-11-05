@@ -365,7 +365,7 @@ public class ShareDataFetcher {
         Optional<Share> optShare = shareRepository.getShare(sharedNodeId, targetUserId);
         if (optShare.isPresent()
           && optNewPermissions
-          .filter(p -> !requesterPermissions.has(p) && !optShare.get().getPermissions().has(p))
+          .filter(p -> !assignablePermissions(requesterPermissions, optShare.get()).has(p))
           .isEmpty()) {
           Share share = optShare.get();
           optNewPermissions.ifPresent(permissions -> {
@@ -498,5 +498,9 @@ public class ShareDataFetcher {
         cascadeDeleteShare(folderNode.getId(), userId)
       );
     }
+  }
+
+  private static ACL assignablePermissions(ACL requesterPermissions, Share share) {
+    return ACL.decode((short) (requesterPermissions.encode() | share.getPermissions().encode()));
   }
 }
