@@ -35,6 +35,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.*;
 import com.zextras.carbonio.files.graphql.GraphQLProvider;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.graphql.types.Permissions;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.carbonio.usermanagement.entities.UserMyself;
 import com.zextras.filestore.api.Filestore;
@@ -561,9 +562,7 @@ public class NodeDataFetcher {
         ) {
           return nodeRepository
             .getNode(parentId)
-            .filter(parent -> NodeType.FOLDER.equals(parent.getNodeType())
-              || NodeType.ROOT.equals(parent.getNodeType())
-            )
+            .filter(NodeRules::acceptsChildren)
             .map(parent -> {
               String ownerId = (
                 NodeType.ROOT.equals(parent.getNodeType())
@@ -713,7 +712,8 @@ public class NodeDataFetcher {
       String nodeId = environment.getArgument(Constants.GraphQL.InputParameters.UpdateNode.NODE_ID);
 
       if (permissionsChecker.getPermissions(nodeId, requesterId)
-        .has(SharePermission.READ_AND_WRITE)) {
+        .has(SharePermission.READ_AND_WRITE)
+        && !NodeRules.isRootId(nodeId)) {
         Node nodeToUpdate = nodeRepository.getNode(nodeId)
           .get();
         String parentFolderId = nodeToUpdate.getParentId()
@@ -937,8 +937,7 @@ public class NodeDataFetcher {
 
               node.setAncestorIds(newAncestors);
 
-              shareRepository
-                .getShares(parentId, Collections.emptyList())
+              NodeRules.inheritableShares(shareRepository, parentId)
                 .forEach(share -> {
                   shareRepository.upsertShare(
                     node.getId(),
@@ -1298,13 +1297,8 @@ public class NodeDataFetcher {
         .has(SharePermission.READ_AND_WRITE)) {
 
         Optional<Node> optDestinationFolder = nodeRepository.getNode(destinationFolderId);
-        if (optDestinationFolder.isPresent() &&
-          (optDestinationFolder.get()
-            .getNodeType()
-            .equals(NodeType.FOLDER)
-            || optDestinationFolder.get()
-            .getNodeType()
-            .equals(NodeType.ROOT))
+        if (optDestinationFolder.isPresent()
+          && NodeRules.acceptsChildren(optDestinationFolder.get())
         ) {
 
           List<String> rootIds = nodeRepository.getRootsList()
@@ -1387,8 +1381,7 @@ public class NodeDataFetcher {
                   });
                 // Add new inherited shares from destination node
                 List<String> usersToNotifyAddNode = new ArrayList<>();
-                shareRepository
-                  .getShares(destinationFolderId, Collections.emptyList())
+                NodeRules.inheritableShares(shareRepository, destinationFolderId)
                   .forEach(share -> {
                     Optional<Share> sourceShare = shareRepository.getShare(nodeId,
                       share.getTargetUserId());
@@ -1737,7 +1730,7 @@ public class NodeDataFetcher {
     Node nodeToShare
   ) {
     List<String> targetUserIds = new ArrayList<>();
-    shareRepository.getShares(sharedParentId, Collections.emptyList())
+    NodeRules.inheritableShares(shareRepository, sharedParentId)
       .forEach(share -> {
         targetUserIds.add(share.getTargetUserId());
         shareRepository.upsertShare(
@@ -1790,13 +1783,8 @@ public class NodeDataFetcher {
 
         Optional<Node> optDestinationFolder = nodeRepository.getNode(destinationFolderId);
 
-        if (optDestinationFolder.isPresent() &&
-          (optDestinationFolder.get()
-            .getNodeType()
-            .equals(NodeType.FOLDER)
-            || optDestinationFolder.get()
-            .getNodeType()
-            .equals(NodeType.ROOT))
+        if (optDestinationFolder.isPresent()
+          && NodeRules.acceptsChildren(optDestinationFolder.get())
         ) {
 
           List<DataFetcherResult<Map<String, Object>>> copiedNodesResult = new ArrayList<>();
@@ -1832,6 +1820,7 @@ public class NodeDataFetcher {
                   )
                 )
             )
+            .filter(node -> !NodeRules.isRoot(node))
             .filter(node -> permissionsChecker.getPermissions(node.getId(), requesterId)
               .canRead())
             .collect(Collectors.toList());
