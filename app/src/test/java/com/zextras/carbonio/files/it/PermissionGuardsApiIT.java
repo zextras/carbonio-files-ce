@@ -348,6 +348,20 @@ class PermissionGuardsApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void updateSharesAddingTheRequesterShareRightToAnEditorSucceeds() throws SQLException {
+    String file = seedFile("x.txt", LOCAL_ROOT, CONTENT, A_COOKIE);
+    seedShare(file, B_ID, SharePermission.READ_AND_SHARE, A_COOKIE);
+    seedShare(file, C_ID, SharePermission.READ_AND_WRITE, A_COOKIE);
+
+    Response response =
+        updateShares(file, List.of(C_ID), SharePermission.READ_WRITE_AND_SHARE, B_COOKIE);
+
+    assertNoErrors(response);
+    Assertions.assertThat(shareRow(file, C_ID))
+        .contains(new ShareRow(SharePermission.READ_WRITE_AND_SHARE.encode(), true));
+  }
+
+  @Test
   void createCollaborationLinkWithoutShareRightIsRejected() throws SQLException {
     String file = seedFile("x.txt", LOCAL_ROOT, CONTENT, A_COOKIE);
     seedShare(file, B_ID, SharePermission.READ_AND_WRITE, A_COOKIE);
