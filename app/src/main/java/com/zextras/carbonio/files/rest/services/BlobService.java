@@ -379,141 +379,191 @@ public class BlobService {
       String folderId,
       String filename,
       String description) {
-    if (permissionsChecker
+    if (!permissionsChecker
         .getPermissions(folderId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {
-      Node destinationFolder = nodeRepository.getNode(folderId).get();
-      String nodeId = UUID.randomUUID().toString();
-      String nodeOwner =
-          folderId.equals(RootId.LOCAL_ROOT) ? requesterId : destinationFolder.getOwnerId();
+      logger.warn(
+          "User {} does not have the necessary permission to upload the node {} on the folder {}",
+          requesterId,
+          filename,
+          folderId);
+      return Optional.empty();
+    }
+    Node destinationFolder = nodeRepository.getNode(folderId).get();
+    String nodeOwner =
+        folderId.equals(RootId.LOCAL_ROOT) ? requesterId : destinationFolder.getOwnerId();
 
-      // P9 CE seam: quota check before the blob is stored (no-op in CE).
-      quotaChecker.ensureNotOverQuota(nodeOwner, blobLength);
+    // P9 CE seam: quota check before the blob is stored (no-op in CE).
+    quotaChecker.ensureNotOverQuota(nodeOwner, blobLength);
 
-      MediaType mediaType =
-          mimeTypeUtils.detectMimeTypeFromFilename(filename, MediaType.OCTET_STREAM.toString());
+    Reservation reservation =
+        versionReservations.reserveNew(UUID.randomUUID().toString(), 1, nodeOwner);
+    UploadResponse uploadResponse = storeNewBlob(reservation, blobStream, blobLength);
 
-      NodeType nodeType = NodeType.getNodeType(mediaType);
-
-      Reservation reservation = versionReservations.reserveNew(nodeId, 1, nodeOwner);
-
-      UploadResponse uploadResponse =
-          Try.of(
+    Optional<PublishedUpload> published;
+    try {
+      published =
+          QuarkusTransaction.requiringNew()
+              .call(
                   () ->
-                      fileStore.uploadPost(
-                          FilesIdentifier.of(nodeId, 1, nodeOwner), blobStream, blobLength))
-              .getOrElseThrow(
-                  failure -> {
-                    blobLifecycle.discard(reservation);
-                    throw new DependencyException(
-                        String.format(
-                            "Storages failed: unable to upload node with id %s and version 1",
-                            nodeId),
-                        failure);
-                  });
-
-      logger.info(
-          "Uploaded file to storages successfully: nodeId {}, version 1, size: {}, digest: {}",
-          nodeId,
-          uploadResponse.getSize(),
-          uploadResponse.getDigest());
-
-      if (!blobLifecycle.exists(nodeId, 1, nodeOwner)) {
-        blobLifecycle.discard(reservation);
-        throw new DependencyException(
-            String.format("Upload verification failed: blob not accessible for node %s", nodeId));
-      }
-
-      Node uploadedNode;
-      try {
-        uploadedNode =
-            QuarkusTransaction.requiringNew()
-                .call(
-                    () -> {
-                      versionReservations.confirmNew(reservation);
-                      String nodeName =
-                          searchAlternativeName(
-                              nodeRepository, filename.trim(), folderId, nodeOwner);
-                      Node createdNode =
-                          nodeRepository.createNewNode(
-                              nodeId,
-                              requesterId,
-                              nodeOwner,
-                              folderId,
-                              nodeName,
-                              description,
-                              nodeType,
-                              NodeType.ROOT.equals(destinationFolder.getNodeType())
-                                  ? folderId
-                                  : destinationFolder.getAncestorIds() + "," + folderId,
-                              uploadResponse.getSize());
-                      fileVersionRepository.createNewFileVersion(
-                          nodeId,
+                      publishUpload(
+                          reservation,
                           requesterId,
-                          1,
-                          mediaType.toString(),
-                          uploadResponse.getSize(),
-                          uploadResponse.getDigest(),
-                          false);
-
-                      List<String> usersToNotify = new ArrayList<>();
-
-                      shareRepository
-                          .getShares(folderId, Collections.emptyList())
-                          .forEach(
-                              share -> {
-                                if (!share.getTargetUserId().equals(requesterId)) {
-                                  usersToNotify.add(share.getTargetUserId());
-                                }
-                                shareRepository.upsertShare(
-                                    nodeId,
-                                    share.getTargetUserId(),
-                                    share.getPermissions(),
-                                    false,
-                                    false,
-                                    share.getExpiredAt());
-                              });
-
-                      if (!destinationFolder.getNodeType().equals(NodeType.ROOT)
-                          && !requesterId.equals(destinationFolder.getOwnerId())
-                          && !usersToNotify.contains(requesterId)) {
-                        usersToNotify.add(destinationFolder.getOwnerId());
-                      }
-
-                      if (!usersToNotify.isEmpty()
-                          && filesConfig.areNotificationsEnabled()
-                          && requesterEntity.isPresent())
-                        notificationRepository.createAddedNodeNotification(
-                            createdNode,
-                            destinationFolder,
-                            requesterEntity.get(),
-                            AddedNodeType.UPLOAD,
-                            usersToNotify);
-                      return createdNode;
-                    });
-      } catch (RuntimeException e) {
-        blobLifecycle.discard(reservation);
-        throw e;
-      }
-
-      countUpload("/upload");
-
-      // P9 CE seam: notify listeners after a successful service-account upload (no user requester
-      // entity). CE registers none, so this is a no-op fan-out.
-      if (requesterEntity.isEmpty()) {
-        uploadCompletionListeners.forEach(
-            listener -> listener.onUploadCompleted(uploadedNode, destinationFolder, requesterId));
-      }
-
-      return Optional.of(nodeId);
+                          requesterEntity,
+                          folderId,
+                          filename,
+                          description,
+                          uploadResponse));
+    } catch (RuntimeException e) {
+      blobLifecycle.discard(reservation);
+      throw e;
+    }
+    if (published.isEmpty()) {
+      logger.warn("Folder {} was deleted while {} was being uploaded", folderId, filename);
+      blobLifecycle.discard(reservation);
+      return Optional.empty();
     }
 
-    logger.warn(
-        "User {} does not have the necessary permission to upload the node {} on the folder {}",
+    countUpload("/upload");
+
+    // P9 CE seam: notify listeners after a successful service-account upload (no user requester
+    // entity). CE registers none, so this is a no-op fan-out.
+    if (requesterEntity.isEmpty()) {
+      uploadCompletionListeners.forEach(
+          listener ->
+              listener.onUploadCompleted(
+                  published.get().node(), published.get().folder(), requesterId));
+    }
+
+    return Optional.of(reservation.nodeId());
+  }
+
+  private record PublishedUpload(Node node, Node folder) {}
+
+  /** Stores and verifies the blob of a new node; the reservation is discarded on failure. */
+  private UploadResponse storeNewBlob(
+      Reservation reservation, InputStream blobStream, long blobLength) {
+    String nodeId = reservation.nodeId();
+    UploadResponse uploadResponse =
+        Try.of(
+                () ->
+                    fileStore.uploadPost(
+                        FilesIdentifier.of(nodeId, 1, reservation.blobOwnerId()),
+                        blobStream,
+                        blobLength))
+            .getOrElseThrow(
+                failure -> {
+                  blobLifecycle.discard(reservation);
+                  return new DependencyException(
+                      String.format(
+                          "Storages failed: unable to upload node with id %s and version 1",
+                          nodeId),
+                      failure);
+                });
+
+    logger.info(
+        "Uploaded file to storages successfully: nodeId {}, version 1, size: {}, digest: {}",
+        nodeId,
+        uploadResponse.getSize(),
+        uploadResponse.getDigest());
+
+    if (!blobLifecycle.exists(nodeId, 1, reservation.blobOwnerId())) {
+      blobLifecycle.discard(reservation);
+      throw new DependencyException(
+          String.format("Upload verification failed: blob not accessible for node %s", nodeId));
+    }
+    return uploadResponse;
+  }
+
+  /**
+   * Creates the node of a stored blob. The folder is read again here: it may have been moved,
+   * trashed or deleted while the blob was uploaded.
+   *
+   * @return empty when the folder no longer exists
+   */
+  private Optional<PublishedUpload> publishUpload(
+      Reservation reservation,
+      String requesterId,
+      Optional<UserMyself> requesterEntity,
+      String folderId,
+      String filename,
+      String description,
+      UploadResponse uploadResponse) {
+    Optional<Node> folder = nodeRepository.getNode(folderId);
+    if (folder.isEmpty()) {
+      return Optional.empty();
+    }
+    Node destinationFolder = folder.get();
+    versionReservations.confirmNew(reservation);
+
+    String nodeId = reservation.nodeId();
+    String nodeOwner = reservation.blobOwnerId();
+    MediaType mediaType =
+        mimeTypeUtils.detectMimeTypeFromFilename(filename, MediaType.OCTET_STREAM.toString());
+    Node createdNode =
+        nodeRepository.createNewNode(
+            nodeId,
+            requesterId,
+            nodeOwner,
+            folderId,
+            searchAlternativeName(nodeRepository, filename.trim(), folderId, nodeOwner),
+            description,
+            NodeType.getNodeType(mediaType),
+            NodeType.ROOT.equals(destinationFolder.getNodeType())
+                ? folderId
+                : destinationFolder.getAncestorIds() + "," + folderId,
+            uploadResponse.getSize());
+    fileVersionRepository.createNewFileVersion(
+        nodeId,
         requesterId,
-        filename,
-        folderId);
-    return Optional.empty();
+        1,
+        mediaType.toString(),
+        uploadResponse.getSize(),
+        uploadResponse.getDigest(),
+        false);
+
+    List<String> usersToNotify = inheritShares(folderId, nodeId, requesterId);
+    if (!destinationFolder.getNodeType().equals(NodeType.ROOT)
+        && !requesterId.equals(destinationFolder.getOwnerId())
+        && !usersToNotify.contains(requesterId)) {
+      usersToNotify.add(destinationFolder.getOwnerId());
+    }
+    if (!usersToNotify.isEmpty()
+        && filesConfig.areNotificationsEnabled()
+        && requesterEntity.isPresent()) {
+      notificationRepository.createAddedNodeNotification(
+          createdNode,
+          destinationFolder,
+          requesterEntity.get(),
+          AddedNodeType.UPLOAD,
+          usersToNotify);
+    }
+    return Optional.of(new PublishedUpload(createdNode, destinationFolder));
+  }
+
+  /**
+   * Gives the new node the shares of its folder.
+   *
+   * @return the users to notify: the share targets except the requester
+   */
+  private List<String> inheritShares(String folderId, String nodeId, String requesterId) {
+    List<String> usersToNotify = new ArrayList<>();
+    shareRepository
+        .getShares(folderId, Collections.emptyList())
+        .forEach(
+            share -> {
+              if (!share.getTargetUserId().equals(requesterId)) {
+                usersToNotify.add(share.getTargetUserId());
+              }
+              shareRepository.upsertShare(
+                  nodeId,
+                  share.getTargetUserId(),
+                  share.getPermissions(),
+                  false,
+                  false,
+                  share.getExpiredAt());
+            });
+    return usersToNotify;
   }
 
   public Optional<Integer> uploadFileVersion(
@@ -816,8 +866,7 @@ public class BlobService {
     if (trimmed.isEmpty()) {
       return;
     }
-    blobLifecycle.deleteAndClear(
-        ownerId, trimmed.stream().map(fv -> new BlobKey(fv.getNodeId(), fv.getVersion())).toList());
+    blobLifecycle.deleteAndClear(ownerId, trimmed.stream().map(BlobKey::of).toList());
     trimmed.forEach(
         fv ->
             logger.info(

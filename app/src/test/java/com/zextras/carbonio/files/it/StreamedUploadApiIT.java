@@ -108,6 +108,68 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenTheFolderIsTrashedWhileAnUploadStreamsThenTheNewNodeIsInTheTrashedFolder()
+      throws Exception {
+    String folderId = seedFolder("streamed-upload-trashed", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    String statusLine =
+        uploadAround(folderId, "trashed.bin", () -> seedTrashed(folderId, REQUESTER_COOKIE));
+
+    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
+    Assertions.assertThat(onlyChild(folderId, "ancestor_ids")).isEqualTo("TRASH_ROOT," + folderId);
+  }
+
+  @Test
+  void givenTheFolderIsDeletedWhileAnUploadStreamsThenTheUploadIsNotFoundAndLeavesNothing()
+      throws Exception {
+    String folderId = seedFolder("streamed-upload-deleted", LOCAL_ROOT, REQUESTER_COOKIE);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
+
+    String statusLine =
+        uploadAround(
+            folderId,
+            "deleted.bin",
+            () -> {
+              seedTrashed(folderId, REQUESTER_COOKIE);
+              graphql(
+                      GraphqlCommandBuilder.aMutationBuilder("deleteNodes")
+                          .withListOfStrings("node_ids", new String[] {folderId})
+                          .withWantedResultFormat("")
+                          .build(),
+                      REQUESTER_COOKIE)
+                  .then()
+                  .statusCode(200);
+            });
+
+    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 404");
+    Assertions.assertThat(children(folderId)).isZero();
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
+  }
+
+  /** Uploads two chunks into the folder and runs {@code meanwhile} between them. */
+  private static String uploadAround(String folderId, String filename, Runnable meanwhile)
+      throws Exception {
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
+    try (Socket socket = new Socket("localhost", RestAssured.port)) {
+      socket.setSoTimeout(30_000);
+      OutputStream out = socket.getOutputStream();
+      out.write(
+          head("/upload", "ParentId: " + folderId, filename, 2 * CHUNK)
+              .getBytes(StandardCharsets.UTF_8));
+      out.write(new byte[CHUNK]);
+      out.flush();
+      eventually(
+          "upload reserved", () -> pendingReservationsWithoutNodeSince(pendingBefore).size() == 1);
+      meanwhile.run();
+      out.write(new byte[CHUNK]);
+      out.flush();
+      return new BufferedReader(
+              new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
+          .readLine();
+    }
+  }
+
+  @Test
   void givenARenameWhileAnUploadVersionStreamsThenTheRenameDoesNotWaitAndTheNewVersionIsCurrent()
       throws Exception {
     String folderId = seedFolder("streamed-upload-version-rename", LOCAL_ROOT, REQUESTER_COOKIE);
