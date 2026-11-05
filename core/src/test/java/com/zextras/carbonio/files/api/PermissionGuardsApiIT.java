@@ -446,6 +446,20 @@ class PermissionGuardsApiIT {
   }
 
   @Test
+  void updateSharesAddingTheRequesterShareRightToAnEditorSucceeds() {
+    addFile(FILE_ID, A_ID);
+    addShare(FILE_ID, B_ID, SharePermission.READ_AND_SHARE);
+    addShare(FILE_ID, C_ID, SharePermission.READ_AND_WRITE);
+
+    HttpResponse response =
+        updateShares(FILE_ID, C_ID, SharePermission.READ_WRITE_AND_SHARE, B_COOKIE);
+
+    assertNoErrors(response);
+    Assertions.assertThat(shareRow(FILE_ID, C_ID))
+        .contains(new ShareRow(SharePermission.READ_WRITE_AND_SHARE.encode(), true));
+  }
+
+  @Test
   void createCollaborationLinkWithoutShareRightIsRejected() {
     addFile(FILE_ID, A_ID);
     addShare(FILE_ID, B_ID, SharePermission.READ_AND_WRITE);
@@ -460,7 +474,8 @@ class PermissionGuardsApiIT {
             B_COOKIE);
 
     assertErrorCodes(response, "NODE_WRITE_ERROR");
-    Assertions.assertThat(count("SELECT count(*) FROM collaboration_link WHERE node_id = ?", FILE_ID))
+    Assertions.assertThat(
+            count("SELECT count(*) FROM collaboration_link WHERE node_id = ?", FILE_ID))
         .isZero();
   }
 
