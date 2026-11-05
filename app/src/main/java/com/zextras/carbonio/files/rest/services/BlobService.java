@@ -32,6 +32,7 @@ import com.zextras.carbonio.files.exceptions.MaxNumberOfFileVersionsException;
 import com.zextras.carbonio.files.exceptions.ZipGenerationException;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.utilities.MimeTypeUtils;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.UploadResponse;
@@ -215,7 +216,7 @@ public class BlobService {
 
     for (String nodeId : nodeIds) {
       Node node = nodeRepository.getNode(nodeId).orElse(null);
-      if (node == null || !accessChecker.apply(node)) {
+      if (node == null || NodeRules.isRoot(node) || !accessChecker.apply(node)) {
         logger.error("Node with id {} not found", nodeId);
         continue;
       }
@@ -364,13 +365,16 @@ public class BlobService {
       String folderId,
       String filename,
       String description) {
-    if (permissionsChecker
-        .getPermissions(folderId, requesterId)
-        .has(SharePermission.READ_AND_WRITE)) {
-      Node destinationFolder = nodeRepository.getNode(folderId).get();
+    Optional<Node> optDestinationFolder =
+        nodeRepository.getNode(folderId).filter(NodeRules::acceptsChildren);
+    if (optDestinationFolder.isPresent()
+        && permissionsChecker
+            .getPermissions(folderId, requesterId)
+            .has(SharePermission.READ_AND_WRITE)) {
+      Node destinationFolder = optDestinationFolder.get();
       String nodeId = UUID.randomUUID().toString();
       String nodeOwner =
-          folderId.equals(RootId.LOCAL_ROOT) ? requesterId : destinationFolder.getOwnerId();
+          NodeRules.isRoot(destinationFolder) ? requesterId : destinationFolder.getOwnerId();
 
       // P9 CE seam: quota check before the blob is stored (no-op in CE).
       quotaChecker.ensureNotOverQuota(nodeOwner, blobLength);
@@ -438,8 +442,7 @@ public class BlobService {
 
                 List<String> usersToNotify = new ArrayList<>();
 
-                shareRepository
-                    .getShares(folderId, Collections.emptyList())
+                NodeRules.inheritableShares(shareRepository, folderId)
                     .forEach(
                         share -> {
                           if (!share.getTargetUserId().equals(requesterId)) {

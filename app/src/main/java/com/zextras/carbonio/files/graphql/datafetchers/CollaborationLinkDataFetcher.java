@@ -19,6 +19,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
 import com.zextras.carbonio.files.graphql.SyncCompletableFuture;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import graphql.execution.DataFetcherResult;
 import graphql.execution.ResultPath;
@@ -88,9 +89,11 @@ public class CollaborationLinkDataFetcher {
               SharePermission permissions =
                   environment.getArgument(CreateCollaborationLink.PERMISSION);
 
-              if (permissionsChecker
-                  .getPermissions(nodeId, requester.getId().getUserId())
-                  .has(permissions)) {
+              ACL requesterPermissions =
+                  permissionsChecker.getPermissions(nodeId, requester.getId().getUserId());
+              if (requesterPermissions.has(SharePermission.READ_AND_SHARE)
+                  && requesterPermissions.has(permissions)
+                  && !NodeRules.isRootId(nodeId)) {
 
                 // If there is an existing collaboration link having the same permission then the
                 // system

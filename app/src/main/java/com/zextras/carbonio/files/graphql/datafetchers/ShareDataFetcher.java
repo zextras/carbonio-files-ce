@@ -17,6 +17,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationReposi
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.graphql.SyncCompletableFuture;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import graphql.GraphQLError;
 import graphql.execution.AbortExecutionException;
@@ -146,9 +147,12 @@ public class ShareDataFetcher {
                   Optional.ofNullable(
                       environment.getArgument(Constants.GraphQL.InputParameters.Share.EXPIRES_AT));
 
-              if (permissionsChecker
-                  .getPermissions(sharedNodeId, requesterId)
-                  .has(ACL.SharePermission.READ_AND_SHARE)) {
+              ACL requesterPermissions =
+                  permissionsChecker.getPermissions(sharedNodeId, requesterId);
+              if (requesterPermissions.has(ACL.SharePermission.READ_AND_SHARE)
+                  && requesterPermissions.has(permissions)
+                  && !requesterId.equals(targetUserId)
+                  && !NodeRules.isRootId(sharedNodeId)) {
                 Node sharedNode = nodeRepository.getNode(sharedNodeId).get();
                 String ownerId = sharedNode.getOwnerId();
 
@@ -220,6 +224,9 @@ public class ShareDataFetcher {
 
   public void cascadeUpsertShare(
       String nodeId, String userId, ACL permission, Optional<Long> expiredAt) {
+    if (NodeRules.isRootId(nodeId)) {
+      return;
+    }
     List<String> childrenIds =
         nodeRepository.getChildrenIds(nodeId, Optional.empty(), Optional.empty(), false);
     if (!childrenIds.isEmpty()) {
@@ -391,10 +398,11 @@ public class ShareDataFetcher {
                   Optional.ofNullable(
                       environment.getArgument(Constants.GraphQL.InputParameters.Share.EXPIRES_AT));
 
+              ACL requesterPermissions =
+                  permissionsChecker.getPermissions(sharedNodeId, requesterId);
               boolean hasPermission =
-                  permissionsChecker
-                      .getPermissions(sharedNodeId, requesterId)
-                      .has(ACL.SharePermission.READ_AND_SHARE);
+                  requesterPermissions.has(ACL.SharePermission.READ_AND_SHARE)
+                      && !NodeRules.isRootId(sharedNodeId);
 
               List<DataFetcherResult<Map<String, Object>>> successShares = new ArrayList<>();
               List<GraphQLError> errors = new ArrayList<>();
@@ -414,7 +422,14 @@ public class ShareDataFetcher {
 
                           Optional<Share> optShare =
                               shareRepository.getShare(sharedNodeId, targetUserId);
-                          if (optShare.isPresent()) {
+                          if (optShare.isPresent()
+                              && optNewPermissions
+                                  .filter(
+                                      p ->
+                                          !assignablePermissions(
+                                                  requesterPermissions, optShare.get())
+                                              .has(p))
+                                  .isEmpty()) {
                             Share share = optShare.get();
                             optNewPermissions.ifPresent(
                                 permissions -> share.setPermissions(ACL.decode(permissions)));
@@ -491,10 +506,11 @@ public class ShareDataFetcher {
                       () -> {
                         for (String targetUserId : targetUserIds) {
                           boolean hasPermission =
-                              permissionsChecker
-                                      .getPermissions(sharedNodeId, requesterId)
-                                      .has(ACL.SharePermission.READ_AND_SHARE)
-                                  || requesterId.equals(targetUserId);
+                              !NodeRules.isRootId(sharedNodeId)
+                                  && (permissionsChecker
+                                          .getPermissions(sharedNodeId, requesterId)
+                                          .has(ACL.SharePermission.READ_AND_SHARE)
+                                      || requesterId.equals(targetUserId));
 
                           if (!hasPermission) {
                             errors.add(
@@ -573,5 +589,9 @@ public class ShareDataFetcher {
 
       folderNodes.forEach(folderNode -> cascadeDeleteShare(folderNode.getId(), userId));
     }
+  }
+
+  private static ACL assignablePermissions(ACL requesterPermissions, Share share) {
+    return ACL.decode((short) (requesterPermissions.encode() | share.getPermissions().encode()));
   }
 }

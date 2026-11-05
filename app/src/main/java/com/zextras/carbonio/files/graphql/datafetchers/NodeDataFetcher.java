@@ -40,6 +40,7 @@ import com.zextras.carbonio.files.graphql.SyncCompletableFuture;
 import com.zextras.carbonio.files.graphql.errors.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.errors.GraphQLResultErrors;
 import com.zextras.carbonio.files.graphql.types.Permissions;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
@@ -442,6 +443,7 @@ public class NodeDataFetcher {
    * @return the created {@link Node} (of type {@link NodeType#FOLDER})
    * @throws NodeAccessException if the requester lacks READ_AND_WRITE on the parent
    * @throws NodeNotFoundException if the parent does not exist, or is neither a FOLDER nor a ROOT
+   *     other than the trash
    */
   public Node createFolder(String requesterId, String parentId, String name, UserMyself requester) {
     if (!permissionsChecker
@@ -453,10 +455,7 @@ public class NodeDataFetcher {
     Node parent =
         nodeRepository
             .getNode(parentId)
-            .filter(
-                p ->
-                    NodeType.FOLDER.equals(p.getNodeType())
-                        || NodeType.ROOT.equals(p.getNodeType()))
+            .filter(NodeRules::acceptsChildren)
             .orElseThrow(() -> new NodeNotFoundException(parentId));
 
     String ownerId =
@@ -658,8 +657,9 @@ public class NodeDataFetcher {
                   environment.getArgument(Constants.GraphQL.InputParameters.UpdateNode.NODE_ID);
 
               if (permissionsChecker
-                  .getPermissions(nodeId, requesterId)
-                  .has(SharePermission.READ_AND_WRITE)) {
+                      .getPermissions(nodeId, requesterId)
+                      .has(SharePermission.READ_AND_WRITE)
+                  && !NodeRules.isRootId(nodeId)) {
                 Node nodeToUpdate = nodeRepository.getNode(nodeId).get();
                 String parentFolderId = nodeToUpdate.getParentId().orElse(RootId.LOCAL_ROOT);
                 Optional<String> optName =
@@ -958,8 +958,7 @@ public class NodeDataFetcher {
                                                       + Node.ANCESTORS_SEPARATOR
                                                       + destParentId;
 
-                                          shareRepository
-                                              .getShares(destParentId, Collections.emptyList())
+                                          NodeRules.inheritableShares(shareRepository, destParentId)
                                               .forEach(
                                                   share -> {
                                                     shareRepository.upsertShare(
@@ -1363,8 +1362,7 @@ public class NodeDataFetcher {
 
                 Optional<Node> optDestinationFolder = nodeRepository.getNode(destinationFolderId);
                 if (optDestinationFolder.isPresent()
-                    && (optDestinationFolder.get().getNodeType().equals(NodeType.FOLDER)
-                        || optDestinationFolder.get().getNodeType().equals(NodeType.ROOT))) {
+                    && NodeRules.acceptsChildren(optDestinationFolder.get())) {
 
                   List<String> rootIds =
                       nodeRepository.getRootsList().stream()
@@ -1467,8 +1465,8 @@ public class NodeDataFetcher {
                                             });
                                     // Add new inherited shares from destination node
                                     List<String> usersToNotifyAddNode = new ArrayList<>();
-                                    shareRepository
-                                        .getShares(destinationFolderId, Collections.emptyList())
+                                    NodeRules.inheritableShares(
+                                            shareRepository, destinationFolderId)
                                         .forEach(
                                             share -> {
                                               Optional<Share> sourceShare =
@@ -1933,8 +1931,7 @@ public class NodeDataFetcher {
   // Returns the list of users ids that have an indirect share on node
   private List<String> createIndirectShare(String sharedParentId, Node nodeToShare) {
     List<String> targetUserIds = new ArrayList<>();
-    shareRepository
-        .getShares(sharedParentId, Collections.emptyList())
+    NodeRules.inheritableShares(shareRepository, sharedParentId)
         .forEach(
             share -> {
               targetUserIds.add(share.getTargetUserId());
@@ -1995,8 +1992,7 @@ public class NodeDataFetcher {
                 Optional<Node> optDestinationFolder = nodeRepository.getNode(destinationFolderId);
 
                 if (optDestinationFolder.isPresent()
-                    && (optDestinationFolder.get().getNodeType().equals(NodeType.FOLDER)
-                        || optDestinationFolder.get().getNodeType().equals(NodeType.ROOT))) {
+                    && NodeRules.acceptsChildren(optDestinationFolder.get())) {
 
                   List<DataFetcherResult<Map<String, Object>>> copiedNodesResult =
                       new ArrayList<>();
@@ -2034,6 +2030,7 @@ public class NodeDataFetcher {
                                                   .equals(destinationFolderId) // Can copy a folder
                                           // inside its parent
                                           )))
+                          .filter(node -> !NodeRules.isRoot(node))
                           .filter(
                               node ->
                                   permissionsChecker
