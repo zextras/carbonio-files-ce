@@ -227,7 +227,7 @@ public class ShareApi {
       Optional<Share> optShare = shareRepository.getShare(nodeId, targetId);
       if (optShare.isPresent()
           && optNewPermission
-              .filter(p -> !myPermissions.has(p) && !optShare.get().getPermissions().has(p))
+              .filter(p -> !assignablePermissions(myPermissions, optShare.get()).has(p))
               .isEmpty()) {
         Share share = optShare.get();
         optNewPermission.ifPresent(p -> share.setPermissions(ACL.decode(p)));
@@ -287,6 +287,10 @@ public class ShareApi {
       throw FilesGraphQLErrors.shareNotFound(nodeId, failed.get(0)).withPartialResults(deleted);
     }
     return deleted;
+  }
+
+  private static ACL assignablePermissions(ACL requesterPermissions, Share share) {
+    return ACL.decode((short) (requesterPermissions.encode() | share.getPermissions().encode()));
   }
 
   private boolean isRootNode(String nodeId) {
