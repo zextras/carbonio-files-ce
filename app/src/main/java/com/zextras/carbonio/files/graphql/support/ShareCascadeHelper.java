@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
@@ -31,6 +32,9 @@ public class ShareCascadeHelper {
 
   public void cascadeUpsertShare(
       String nodeId, String userId, ACL permission, Optional<Long> expiredAt) {
+    if (NodeRules.isRootId(nodeId)) {
+      return;
+    }
     List<String> childrenIds =
         nodeRepository.getChildrenIds(nodeId, Optional.empty(), Optional.empty(), false);
     if (!childrenIds.isEmpty()) {

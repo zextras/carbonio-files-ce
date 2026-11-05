@@ -23,6 +23,7 @@ import com.zextras.carbonio.files.graphql.model.ShareSort;
 import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.quarkus.security.Authenticated;
 import io.smallrye.graphql.api.Nullable;
@@ -153,13 +154,17 @@ public class ShareApi {
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).checkUserId(shareTargetId).validate();
     String me = requester.getId().getUserId();
-    if (!permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_AND_SHARE)) {
+    ACL myPermissions = permissionsChecker.getPermissions(nodeId, me);
+    if (!myPermissions.has(ACL.SharePermission.READ_AND_SHARE)
+        || !myPermissions.has(mapToAclPermission(permission))
+        || shareTargetId.equals(me)) {
       throw FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId);
     }
 
     Node sharedNode =
         nodeRepository
             .getNode(nodeId)
+            .filter(node -> !NodeRules.isRoot(node))
             .orElseThrow(() -> FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId));
     if (shareTargetId.equals(sharedNode.getOwnerId())) {
       throw FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId);
@@ -203,14 +208,15 @@ public class ShareApi {
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).checkUserIds(shareTargetIds).validate();
     String me = requester.getId().getUserId();
+    Optional<ACL.SharePermission> optNewPermission =
+        Optional.ofNullable(permission).map(ShareApi::mapToAclPermission);
+    ACL myPermissions = permissionsChecker.getPermissions(nodeId, me);
     boolean hasPermission =
-        permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_AND_SHARE);
+        myPermissions.has(ACL.SharePermission.READ_AND_SHARE) && !isRootNode(nodeId);
 
     List<ShareModel> updated = new ArrayList<>();
     List<String> failed = new ArrayList<>();
 
-    Optional<ACL.SharePermission> optNewPermission =
-        Optional.ofNullable(permission).map(ShareApi::mapToAclPermission);
     Optional<Long> optNewExpiresAt = Optional.ofNullable(expiresAt);
 
     for (String targetId : shareTargetIds) {
@@ -219,7 +225,10 @@ public class ShareApi {
         continue;
       }
       Optional<Share> optShare = shareRepository.getShare(nodeId, targetId);
-      if (optShare.isPresent()) {
+      if (optShare.isPresent()
+          && optNewPermission
+              .filter(p -> !assignablePermissions(myPermissions, optShare.get()).has(p))
+              .isEmpty()) {
         Share share = optShare.get();
         optNewPermission.ifPresent(p -> share.setPermissions(ACL.decode(p)));
         optNewExpiresAt.ifPresent(share::setExpiredAt);
@@ -245,14 +254,18 @@ public class ShareApi {
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).checkUserIds(shareTargetIds).validate();
     String me = requester.getId().getUserId();
+    boolean rootNode = isRootNode(nodeId);
 
     List<String> deleted = new ArrayList<>();
     List<String> failed = new ArrayList<>();
 
     for (String targetId : shareTargetIds) {
       boolean hasPermission =
-          permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_AND_SHARE)
-              || me.equals(targetId);
+          !rootNode
+              && (permissionsChecker
+                      .getPermissions(nodeId, me)
+                      .has(ACL.SharePermission.READ_AND_SHARE)
+                  || me.equals(targetId));
       if (!hasPermission) {
         failed.add(targetId);
         continue;
@@ -274,6 +287,14 @@ public class ShareApi {
       throw FilesGraphQLErrors.shareNotFound(nodeId, failed.get(0)).withPartialResults(deleted);
     }
     return deleted;
+  }
+
+  private static ACL assignablePermissions(ACL requesterPermissions, Share share) {
+    return ACL.decode((short) (requesterPermissions.encode() | share.getPermissions().encode()));
+  }
+
+  private boolean isRootNode(String nodeId) {
+    return nodeRepository.getNode(nodeId).map(NodeRules::isRoot).orElse(false);
   }
 
   private static ACL.SharePermission mapToAclPermission(SharePermission perm) {
