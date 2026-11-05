@@ -45,6 +45,7 @@ import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.rest.services.VersionReservations;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.model.BulkDeleteRequestItem;
@@ -394,7 +395,10 @@ public class NodeApi {
       throw FilesGraphQLErrors.nodeNotFound(nodeId);
     }
     Node nodeToUpdate =
-        nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
+        nodeRepository
+            .getNode(nodeId)
+            .filter(node -> !NodeRules.isRoot(node))
+            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
 
     String parentFolderId = nodeToUpdate.getParentId().orElse(RootId.LOCAL_ROOT);
 
@@ -579,8 +583,7 @@ public class NodeApi {
                                 + Node.ANCESTORS_SEPARATOR
                                 + destParentId;
 
-                    shareRepository
-                        .getShares(destParentId, Collections.emptyList())
+                    NodeRules.inheritableShares(shareRepository, destParentId)
                         .forEach(
                             share -> {
                               shareRepository.upsertShare(
@@ -641,11 +644,7 @@ public class NodeApi {
     Node destinationFolder =
         nodeRepository
             .getNode(destinationId)
-            .filter(
-                p ->
-                    com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER.equals(p.getNodeType())
-                        || com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                            p.getNodeType()))
+            .filter(NodeRules::acceptsChildren)
             .orElseThrow(() -> FilesGraphQLErrors.nodeWriteError(destinationId));
 
     List<String> rootIds =
@@ -712,8 +711,7 @@ public class NodeApi {
                     });
 
             List<String> usersToNotifyAdd = new ArrayList<>();
-            shareRepository
-                .getShares(destinationId, Collections.emptyList())
+            NodeRules.inheritableShares(shareRepository, destinationId)
                 .forEach(
                     share -> {
                       Optional<Share> sourceShare =
@@ -901,11 +899,7 @@ public class NodeApi {
     Node destinationFolder =
         nodeRepository
             .getNode(destinationId)
-            .filter(
-                p ->
-                    com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER.equals(p.getNodeType())
-                        || com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                            p.getNodeType()))
+            .filter(NodeRules::acceptsChildren)
             .orElseThrow(() -> FilesGraphQLErrors.nodeWriteError(destinationId));
 
     List<Node> nodes =
@@ -1222,8 +1216,7 @@ public class NodeApi {
 
   private List<String> createIndirectShare(String sharedParentId, Node nodeToShare) {
     List<String> targetUserIds = new ArrayList<>();
-    shareRepository
-        .getShares(sharedParentId, Collections.emptyList())
+    NodeRules.inheritableShares(shareRepository, sharedParentId)
         .forEach(
             share -> {
               targetUserIds.add(share.getTargetUserId());
