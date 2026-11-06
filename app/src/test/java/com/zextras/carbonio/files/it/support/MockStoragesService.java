@@ -59,7 +59,7 @@ import java.util.regex.Pattern;
  *   <li>{@code PUT
  *       /copy?sourceNode=&sourceVersion=&destinationNode=&destinationVersion=&type=&override=} →
  *       duplicates the source blob to the destination key, 200 + the same upload-response JSON;
- *       {@link #setCopyFails} → 500.
+ *       {@link #setCopyFails} → 500 ({@link #failCopyFor} for given source nodes only).
  *   <li>{@code POST /bulk-delete?type=} (body {@code {"ids":[{"node":…,"version":…}]}}) → removes
  *       the matching blobs and returns {@code {"ids":[…failed…]}} (an empty array is the real
  *       full-success signal, deliberately NOT an omitted field); {@link #setBulkDeleteAlwaysThrows}
@@ -105,6 +105,11 @@ public class MockStoragesService {
   private final java.util.Set<String> failingBulkDeleteNodeIds = ConcurrentHashMap.newKeySet();
 
   /**
+   * {@code node/version} keys reported as FAILED by the next bulk-delete(s); their blob is kept.
+   */
+  private final java.util.Set<String> failingBulkDeleteKeys = ConcurrentHashMap.newKeySet();
+
+  /**
    * Every download key attempted (success or failure), so {@link #verifyDownloaded} can assert on
    * it.
    */
@@ -114,6 +119,7 @@ public class MockStoragesService {
   private volatile boolean uploadSkipsStore = false;
   private volatile boolean downloadFails = false;
   private volatile boolean copyFails = false;
+  private final java.util.Set<String> failingCopySourceNodeIds = ConcurrentHashMap.newKeySet();
   private volatile CountDownLatch copyGate;
   private final Semaphore heldCopies = new Semaphore(0);
   private volatile boolean bulkDeleteAlwaysThrows = false;
@@ -199,8 +205,13 @@ public class MockStoragesService {
     failingBulkDeleteNodeIds.addAll(List.of(nodeIds));
   }
 
+  public void failBulkDeleteForVersion(String nodeId, int version) {
+    failingBulkDeleteKeys.add(key(nodeId, version));
+  }
+
   public void resetBulkDeleteFailures() {
     failingBulkDeleteNodeIds.clear();
+    failingBulkDeleteKeys.clear();
   }
 
   public void setBulkDeleteAlwaysThrows(boolean value) {
@@ -247,6 +258,11 @@ public class MockStoragesService {
     this.copyFails = value;
   }
 
+  /** Copies of these source nodes answer 500. */
+  public void failCopyFor(String... sourceNodeIds) {
+    failingCopySourceNodeIds.addAll(List.of(sourceNodeIds));
+  }
+
   /** Drives {@code GET /health/live}: {@code true} → 200 (OK), {@code false} → 502 (ERROR). */
   public void setLive(boolean live) {
     this.unreachable = !live;
@@ -263,6 +279,7 @@ public class MockStoragesService {
     uploadSkipsStore = false;
     downloadFails = false;
     copyFails = false;
+    failingCopySourceNodeIds.clear();
     releaseCopies();
     heldCopies.drainPermits();
     unreachable = false;
@@ -344,6 +361,9 @@ public class MockStoragesService {
       return Response.response().status(500).build();
     }
     String sourceNode = queryParam(request, "sourceNode");
+    if (failingCopySourceNodeIds.contains(sourceNode)) {
+      return Response.response().status(500).build();
+    }
     Integer sourceVersion = queryParamInt(request, "sourceVersion");
     String destinationNode = queryParam(request, "destinationNode");
     Integer destinationVersion = queryParamInt(request, "destinationVersion");
@@ -381,7 +401,8 @@ public class MockStoragesService {
     for (Map.Entry<String, Integer> item : items) {
       String node = item.getKey();
       Integer version = item.getValue();
-      if (failingBulkDeleteNodeIds.contains(node)) {
+      if (failingBulkDeleteNodeIds.contains(node)
+          || failingBulkDeleteKeys.contains(key(node, version))) {
         failed.add(item);
       } else if (version != null) {
         String key = key(node, version);

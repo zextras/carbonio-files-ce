@@ -7,11 +7,11 @@ package com.zextras.carbonio.files.graphql.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -38,20 +38,23 @@ import com.zextras.carbonio.files.graphql.spi.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.support.NodeCreationHelper;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import com.zextras.carbonio.files.rest.services.BlobLifecycle;
 import com.zextras.carbonio.files.rest.services.VersionReservations;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
-import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.UploadResponse;
 import com.zextras.filestore.model.FilesIdentifier;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.narayana.jta.TransactionRunnerOptions;
 import io.smallrye.graphql.api.Context;
+import io.vavr.control.Try;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
@@ -59,6 +62,7 @@ class NodeApiMutationsTest {
 
   private static final String REQUESTER_ID = "requester-user-id";
   private static final String CLONING_USER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  private static final String NODE_OWNER_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
   private static final String PARENT_ID = "00000000-0000-0000-0000-000000000000";
   private static final String NODE_ID_1 = "00000000-0000-0000-0000-000000000001";
   private static final String NODE_ID_2 = "00000000-0000-0000-0000-000000000002";
@@ -69,14 +73,15 @@ class NodeApiMutationsTest {
   private ShareRepository shareRepository;
   private NotificationRepository notificationRepository;
   private TombstoneRepository tombstoneRepository;
-  private Filestore fileStore;
   private ShareCascadeHelper shareCascade;
   private NodeCreationHelper nodeCreationHelper;
   private FilesConfig filesConfig;
   private CopyFailureClassifier copyFailureClassifier;
   private VersionReservations versionReservations;
+  private BlobLifecycle blobLifecycle;
   private Context gqlContext;
   private NodeApi nodeApi;
+  private UserMyself requester;
 
   @BeforeEach
   void setUp() {
@@ -86,14 +91,14 @@ class NodeApiMutationsTest {
     shareRepository = mock(ShareRepository.class);
     notificationRepository = mock(NotificationRepository.class);
     tombstoneRepository = mock(TombstoneRepository.class);
-    fileStore = mock(Filestore.class);
     shareCascade = mock(ShareCascadeHelper.class);
     filesConfig = mock(FilesConfig.class);
     copyFailureClassifier = mock(CopyFailureClassifier.class);
     versionReservations = mock(VersionReservations.class);
+    blobLifecycle = mock(BlobLifecycle.class);
     gqlContext = mock(Context.class);
 
-    UserMyself requester = mock(UserMyself.class);
+    requester = mock(UserMyself.class);
     UserId userId = new UserId(REQUESTER_ID);
     when(requester.getId()).thenReturn(userId);
 
@@ -105,26 +110,27 @@ class NodeApiMutationsTest {
             filesConfig,
             fileVersionRepository,
             tombstoneRepository,
-            fileStore,
+            mock(BlobLifecycle.class),
             permissionsChecker,
             shareCascade);
 
-    nodeApi = new NodeApi();
-    nodeApi.nodeRepository = nodeRepository;
-    nodeApi.fileVersionRepository = fileVersionRepository;
-    nodeApi.permissionsChecker = permissionsChecker;
-    nodeApi.shareRepository = shareRepository;
-    nodeApi.notificationRepository = notificationRepository;
-    nodeApi.tombstoneRepository = tombstoneRepository;
-    nodeApi.fileStore = fileStore;
-    nodeApi.shareCascade = shareCascade;
-    nodeApi.filesConfig = filesConfig;
-    nodeApi.nodeCreationHelper = nodeCreationHelper;
-    nodeApi.validator = new GraphQLInputValidator();
-    nodeApi.requester = requester;
-    nodeApi.copyFailureClassifier = copyFailureClassifier;
-    nodeApi.versionReservations = versionReservations;
-    nodeApi.gqlContext = gqlContext;
+    nodeApi =
+        new NodeApi(
+            nodeRepository,
+            fileVersionRepository,
+            permissionsChecker,
+            shareRepository,
+            filesConfig,
+            copyFailureClassifier,
+            new GraphQLInputValidator(),
+            gqlContext,
+            requester,
+            tombstoneRepository,
+            notificationRepository,
+            shareCascade,
+            nodeCreationHelper,
+            versionReservations,
+            blobLifecycle);
   }
 
   private Node mockFileNode(String id, String parentId) {
@@ -183,7 +189,8 @@ class NodeApiMutationsTest {
 
   private void givenACloneVersionWhoseStorageCopyFails() throws Exception {
     Node node = mockFileNode(NODE_ID_1, PARENT_ID);
-    when(nodeApi.requester.getId()).thenReturn(new UserId(CLONING_USER_ID));
+    when(node.getOwnerId()).thenReturn(NODE_OWNER_ID);
+    when(requester.getId()).thenReturn(new UserId(CLONING_USER_ID));
     when(permissionsChecker.getPermissions(NODE_ID_1, CLONING_USER_ID)).thenReturn(aclWith(true));
     when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node));
     when(filesConfig.getMaxNumberOfVersions()).thenReturn(10);
@@ -191,24 +198,25 @@ class NodeApiMutationsTest {
         .thenReturn(List.of());
     when(fileVersionRepository.getFileVersion(NODE_ID_1, 1))
         .thenReturn(Optional.of(mock(FileVersion.class)));
-    when(versionReservations.reserve(NODE_ID_1, CLONING_USER_ID))
-        .thenReturn(Optional.of(new Reservation(NODE_ID_1, 7, 5000L, CLONING_USER_ID)));
-    when(fileStore.copy(any(), any(), anyBoolean())).thenThrow(new RuntimeException("boom"));
+    when(versionReservations.reserve(NODE_ID_1, NODE_OWNER_ID))
+        .thenReturn(Optional.of(new Reservation(NODE_ID_1, 7, 5000L, NODE_OWNER_ID)));
+    when(blobLifecycle.copy(any(), any())).thenReturn(Try.failure(new RuntimeException("boom")));
   }
 
   @Test
-  void cloneVersionCopiesTheSourceVersionToTheReservedVersion() throws Exception {
+  void givenACloneByAShareeThenTheVersionIsReservedAndCopiedUnderTheNodeOwner() throws Exception {
     givenACloneVersionWhoseStorageCopyFails();
     when(copyFailureClassifier.classify(any())).thenReturn(ErrorCodes.OVER_QUOTA_REACHED);
 
     assertThatThrownBy(() -> nodeApi.cloneVersion(NODE_ID_1, 1))
         .isInstanceOf(FilesGraphQLException.class);
 
-    verify(fileStore)
+    verify(versionReservations).reserve(NODE_ID_1, NODE_OWNER_ID);
+    verify(blobLifecycle)
         .copy(
-            FilesIdentifier.of(NODE_ID_1, 1, CLONING_USER_ID),
-            FilesIdentifier.of(NODE_ID_1, 7, CLONING_USER_ID),
-            false);
+            FilesIdentifier.of(NODE_ID_1, 1, NODE_OWNER_ID),
+            FilesIdentifier.of(NODE_ID_1, 7, NODE_OWNER_ID));
+    verify(blobLifecycle).abandon(new Reservation(NODE_ID_1, 7, 5000L, NODE_OWNER_ID));
   }
 
   @Test
@@ -246,7 +254,7 @@ class NodeApiMutationsTest {
   @Test
   void cloneVersionFailureAfterTheBlobCopyIsNotReportedAsACopyError() throws Exception {
     givenACloneVersionWhoseStorageCopyFails();
-    doReturn(mock(UploadResponse.class)).when(fileStore).copy(any(), any(), anyBoolean());
+    when(blobLifecycle.copy(any(), any())).thenReturn(Try.success(mock(UploadResponse.class)));
     when(fileVersionRepository.createFileVersionAt(
             any(), any(), anyInt(), any(), anyLong(), any(), anyLong()))
         .thenThrow(new IllegalStateException("db down"));
@@ -257,6 +265,118 @@ class NodeApiMutationsTest {
           .hasMessage("db down");
     }
     verify(copyFailureClassifier, never()).classify(any());
+    verify(blobLifecycle).discard(new Reservation(NODE_ID_1, 7, 5000L, NODE_OWNER_ID));
+  }
+
+  // ─── copyNodes ────────────────────────────────────────────────────────────────
+
+  @Test
+  void givenACopyIntoAFolderOfAnotherUserThenTheBlobIsCopiedAndReservedUnderTheFolderOwner()
+      throws Exception {
+    String destinationId = "00000000-0000-0000-0000-00000000000d";
+    String destinationOwner = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+    String sourceOwner = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee";
+    Node destination = mock(Node.class);
+    when(destination.getId()).thenReturn(destinationId);
+    when(destination.getNodeType()).thenReturn(NodeType.FOLDER);
+    when(destination.getOwnerId()).thenReturn(destinationOwner);
+    when(destination.getAncestorsList()).thenReturn(List.of("LOCAL_ROOT"));
+    when(destination.getAncestorIds()).thenReturn("LOCAL_ROOT");
+    Node source = mockFileNode(NODE_ID_1, PARENT_ID);
+    when(source.getOwnerId()).thenReturn(sourceOwner);
+    FileVersion sourceVersion = source.getFileVersions().get(0);
+    Node copied = mockFileNode(NODE_ID_2, destinationId);
+
+    when(permissionsChecker.getPermissions(destinationId, REQUESTER_ID)).thenReturn(aclWith(true));
+    when(permissionsChecker.getPermissions(NODE_ID_1, REQUESTER_ID)).thenReturn(aclWith(true));
+    when(nodeRepository.getNode(anyString())).thenReturn(Optional.of(copied));
+    when(nodeRepository.getNode(destinationId)).thenReturn(Optional.of(destination));
+    when(nodeRepository.getNodes(any(), any()))
+        .thenAnswer(
+            inv ->
+                ((List<?>) inv.getArgument(0)).contains(NODE_ID_1)
+                    ? Stream.of(source)
+                    : Stream.empty());
+    when(fileVersionRepository.getFileVersion(NODE_ID_1, 1)).thenReturn(Optional.of(sourceVersion));
+    when(versionReservations.reserveNew(anyString(), eq(1), anyString()))
+        .thenAnswer(
+            inv -> new Reservation(inv.getArgument(0), 1, 5000L, (String) inv.getArgument(2)));
+    when(blobLifecycle.copy(any(), any())).thenReturn(Try.success(mock(UploadResponse.class)));
+
+    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
+      nodeApi.copyNodes(List.of(NODE_ID_1), destinationId);
+    }
+
+    ArgumentCaptor<String> newId = ArgumentCaptor.forClass(String.class);
+    verify(versionReservations).reserveNew(newId.capture(), eq(1), eq(destinationOwner));
+    verify(blobLifecycle)
+        .copy(
+            FilesIdentifier.of(NODE_ID_1, 1, sourceOwner),
+            FilesIdentifier.of(newId.getValue(), 1, destinationOwner));
+    verify(nodeRepository)
+        .createNewNode(
+            eq(newId.getValue()),
+            eq(REQUESTER_ID),
+            eq(destinationOwner),
+            eq(destinationId),
+            any(),
+            any(),
+            any(),
+            any(),
+            any());
+    verify(blobLifecycle, never()).discard(any(Reservation.class));
+  }
+
+  @Test
+  void givenAFailureBeforeTheBlobCopyThenThatFileIsReportedAndTheOthersAreCopied() {
+    String destinationId = "00000000-0000-0000-0000-00000000000d";
+    String nodeId3 = "00000000-0000-0000-0000-000000000003";
+    Node destination = mock(Node.class);
+    when(destination.getId()).thenReturn(destinationId);
+    when(destination.getNodeType()).thenReturn(NodeType.FOLDER);
+    when(destination.getOwnerId()).thenReturn(NODE_OWNER_ID);
+    when(destination.getAncestorsList()).thenReturn(List.of("LOCAL_ROOT"));
+    when(destination.getAncestorIds()).thenReturn("LOCAL_ROOT");
+    Node failing = mockFileNode(NODE_ID_1, PARENT_ID);
+    when(failing.getOwnerId()).thenReturn(NODE_OWNER_ID);
+    Node working = mockFileNode(nodeId3, PARENT_ID);
+    when(working.getOwnerId()).thenReturn(NODE_OWNER_ID);
+    when(working.getFullName()).thenReturn("other.txt");
+
+    when(permissionsChecker.getPermissions(anyString(), eq(REQUESTER_ID)))
+        .thenReturn(aclWith(true));
+    Node copied = mockFileNode(NODE_ID_2, destinationId);
+    when(nodeRepository.getNode(anyString())).thenReturn(Optional.of(copied));
+    when(nodeRepository.getNode(destinationId)).thenReturn(Optional.of(destination));
+    when(nodeRepository.getNodes(any(), any()))
+        .thenAnswer(
+            inv ->
+                ((List<?>) inv.getArgument(0)).contains(NODE_ID_1)
+                    ? Stream.of(failing, working)
+                    : Stream.empty());
+    when(fileVersionRepository.getFileVersion(NODE_ID_1, 1))
+        .thenThrow(new IllegalStateException("db down"));
+    FileVersion workingVersion = working.getFileVersions().get(0);
+    when(fileVersionRepository.getFileVersion(nodeId3, 1)).thenReturn(Optional.of(workingVersion));
+    when(versionReservations.reserveNew(anyString(), eq(1), anyString()))
+        .thenAnswer(
+            inv -> new Reservation(inv.getArgument(0), 1, 5000L, (String) inv.getArgument(2)));
+    when(blobLifecycle.copy(any(), any())).thenReturn(Try.success(mock(UploadResponse.class)));
+    when(copyFailureClassifier.classify(any())).thenReturn(ErrorCodes.NODE_COPY_ERROR);
+
+    try (MockedStatic<QuarkusTransaction> ignored = inlineTransactions()) {
+      assertThatThrownBy(() -> nodeApi.copyNodes(List.of(NODE_ID_1, nodeId3), destinationId))
+          .isInstanceOfSatisfying(
+              FilesGraphQLException.class,
+              ex -> {
+                assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.NODE_COPY_ERROR);
+                assertThat(ex.getMessage()).contains("copying the node " + NODE_ID_1);
+              });
+    }
+    verify(versionReservations).reserveNew(anyString(), eq(1), eq(NODE_OWNER_ID));
+    verify(nodeRepository)
+        .createNewNode(any(), any(), any(), any(), any(), any(), any(), any(), any());
+    verify(blobLifecycle, never()).discard(any(Reservation.class));
   }
 
   @Test

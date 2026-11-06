@@ -9,14 +9,18 @@ import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
+import com.zextras.carbonio.files.it.support.MockStoragesService;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -39,8 +43,9 @@ import org.junit.jupiter.api.Test;
  *   <li>A source {@code FOLDER} is excluded from the copy when the destination is nested somewhere
  *       under it — UNLESS the source's own current parent IS the destination (the explicit "copy a
  *       folder into its own parent" exception).
- *   <li>A filestore-copy failure deletes the just-created node row and reports {@code
- *       nodeCopyError(sourceId, sourceVersion, path)} using the SOURCE node's id/version.
+ *   <li>A file node is created only after its blob is copied and verified; a failed file (also one
+ *       nested in a copied folder) reports {@code nodeCopyError(sourceId, sourceVersion, path)}
+ *       using the SOURCE node's id/version, with the copied nodes as partial results.
  *   <li>Both single-element-error shapes leave the {@code copyNodes} GraphQL list value {@code
  *       null} (schema declares {@code copyNodes: [Node!]}), so the top-level {@code errors} array
  *       carries TWO messages for a single blocked node (the app's own error PLUS graphql-java's
@@ -345,8 +350,7 @@ class CopyNodesApiIT extends AbstractFilesIT {
     // When
     Response response = copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE);
 
-    // Then — copyFile's Try#onFailure deletes the just-created node row and reports the error
-    // using the SOURCE node's id/version.
+    // Then — no node is created for a failed copy; the error uses the SOURCE node's id/version.
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
     Assertions.assertThat(errorCodes).containsExactly("NODE_COPY_ERROR");
@@ -364,22 +368,9 @@ class CopyNodesApiIT extends AbstractFilesIT {
             "src-p4.txt", LOCAL_ROOT, "content".getBytes(StandardCharsets.UTF_8), REQUESTER_COOKIE);
     String destFolderId = seedFolder("dest-p4", LOCAL_ROOT, REQUESTER_COOKIE);
 
-    Response response;
-    try (Connection connection = jdbcConnection();
-        Statement statement = connection.createStatement()) {
-      statement.execute(
-          "CREATE OR REPLACE FUNCTION fail_revision_insert() RETURNS trigger LANGUAGE plpgsql AS"
-              + " $$ BEGIN RAISE EXCEPTION 'injected revision insert failure'; END $$");
-      statement.execute(
-          "CREATE TRIGGER fail_revision_insert BEFORE INSERT ON revision FOR EACH ROW EXECUTE"
-              + " FUNCTION fail_revision_insert()");
-      try {
-        response = copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE);
-      } finally {
-        statement.execute("DROP TRIGGER fail_revision_insert ON revision");
-        statement.execute("DROP FUNCTION fail_revision_insert()");
-      }
-    }
+    Response response =
+        withFailingRevisionInserts(
+            () -> copyNodes(new String[] {sourceId}, destFolderId, REQUESTER_COOKIE));
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
@@ -439,5 +430,233 @@ class CopyNodesApiIT extends AbstractFilesIT {
             .toList();
     Assertions.assertThat(addedNodeNotifications).hasSize(1);
     Assertions.assertThat(addedNodeNotifications.get(0)).containsEntry("added_node_type", "COPY");
+  }
+
+  private static List<String> copyErrorNodeIds(Response response) {
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsOnly("NODE_COPY_ERROR");
+    return response.jsonPath().getList("errors.extensions.nodeId", String.class);
+  }
+
+  @Test
+  void givenOneFileInsideAFolderFailsThenTheOthersAreCopiedAndTheFailureIsReported()
+      throws Exception {
+    byte[] content = "content".getBytes(StandardCharsets.UTF_8);
+    String srcFolderId = seedFolder("partial", LOCAL_ROOT, REQUESTER_COOKIE);
+    seedFile("a.txt", srcFolderId, content, REQUESTER_COOKIE);
+    String failingId = seedFile("b.txt", srcFolderId, content, REQUESTER_COOKIE);
+    seedFile("c.txt", srcFolderId, content, REQUESTER_COOKIE);
+    String subFolderId = seedFolder("sub", srcFolderId, REQUESTER_COOKIE);
+    seedFile("d.txt", subFolderId, content, REQUESTER_COOKIE);
+    String destFolderId = seedFolder("dest-partial", LOCAL_ROOT, REQUESTER_COOKIE);
+    FilesStackTestResource.getStoragesService().failCopyFor(failingId);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
+
+    Response response = copyNodes(new String[] {srcFolderId}, destFolderId, REQUESTER_COOKIE);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(copyErrorNodeIds(response)).containsExactly(failingId);
+    List<Map<String, Object>> copied = copiedNodes(response);
+    Assertions.assertThat(copied).extracting(node -> node.get("name")).containsExactly("partial");
+    String copiedFolderId = (String) copied.get(0).get("id");
+    List<Map<String, Object>> children = childrenOf(copiedFolderId, REQUESTER_COOKIE);
+    Assertions.assertThat(children)
+        .extracting(node -> node.get("name"))
+        .containsExactlyInAnyOrder("a", "c", "sub");
+    String copiedSubId =
+        (String)
+            children.stream()
+                .filter(node -> "sub".equals(node.get("name")))
+                .findFirst()
+                .orElseThrow()
+                .get("id");
+    Assertions.assertThat(childrenOf(copiedSubId, REQUESTER_COOKIE))
+        .extracting(node -> node.get("name"))
+        .containsExactly("d");
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
+  }
+
+  @Test
+  void givenThePublishTransactionFailsThenFilesAreReportedAndNothingIsLeftPending()
+      throws Exception {
+    byte[] content = "content".getBytes(StandardCharsets.UTF_8);
+    String srcFolderId = seedFolder("txFails", LOCAL_ROOT, REQUESTER_COOKIE);
+    seedFile("x.txt", srcFolderId, content, REQUESTER_COOKIE);
+    String subFolderId = seedFolder("sub", srcFolderId, REQUESTER_COOKIE);
+    seedFile("y.txt", subFolderId, content, REQUESTER_COOKIE);
+    String topFileId = seedFile("z.txt", LOCAL_ROOT, content, REQUESTER_COOKIE);
+    String destFolderId = seedFolder("dest-txFails", LOCAL_ROOT, REQUESTER_COOKIE);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
+
+    Response response =
+        withFailingRevisionInserts(
+            () -> copyNodes(new String[] {srcFolderId, topFileId}, destFolderId, REQUESTER_COOKIE));
+
+    // top-level failures are reported before the nested ones
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(copyErrorNodeIds(response)).containsExactly(topFileId);
+    Assertions.assertThat(copiedNodes(response))
+        .extracting(node -> node.get("name"))
+        .containsExactly("txFails");
+    String copiedFolderId = (String) copiedNodes(response).get(0).get("id");
+    List<Map<String, Object>> children = childrenOf(copiedFolderId, REQUESTER_COOKIE);
+    Assertions.assertThat(children).extracting(node -> node.get("name")).containsExactly("sub");
+    Assertions.assertThat(childrenOf((String) children.get(0).get("id"), REQUESTER_COOKIE))
+        .isEmpty();
+    Assertions.assertThat(childrenOf(destFolderId, REQUESTER_COOKIE))
+        .extracting(node -> node.get("name"))
+        .containsExactly("txFails");
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
+  }
+
+  @Test
+  void givenANestedFolderCannotBeCreatedThenItIsReportedAndItsSiblingsAreCopied() throws Exception {
+    byte[] content = "content".getBytes(StandardCharsets.UTF_8);
+    String srcFolderId = seedFolder("withBrokenSub", LOCAL_ROOT, REQUESTER_COOKIE);
+    seedFile("a.txt", srcFolderId, content, REQUESTER_COOKIE);
+    String brokenId = seedFolder("unwritable", srcFolderId, REQUESTER_COOKIE);
+    seedFile("b.txt", brokenId, content, REQUESTER_COOKIE);
+    String okId = seedFolder("ok", srcFolderId, REQUESTER_COOKIE);
+    seedFile("c.txt", okId, content, REQUESTER_COOKIE);
+    String destFolderId = seedFolder("dest-brokenSub", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    Response response =
+        withFailingInserts(
+            "node",
+            "NEW.name = 'unwritable'",
+            () -> copyNodes(new String[] {srcFolderId}, destFolderId, REQUESTER_COOKIE));
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(copyErrorNodeIds(response)).containsExactly(brokenId);
+    List<Map<String, Object>> copied = copiedNodes(response);
+    Assertions.assertThat(copied)
+        .extracting(node -> node.get("name"))
+        .containsExactly("withBrokenSub");
+    List<Map<String, Object>> children =
+        childrenOf((String) copied.get(0).get("id"), REQUESTER_COOKIE);
+    Assertions.assertThat(children)
+        .extracting(node -> node.get("name"))
+        .containsExactlyInAnyOrder("a", "ok");
+    String copiedOkId =
+        (String)
+            children.stream()
+                .filter(node -> "ok".equals(node.get("name")))
+                .findFirst()
+                .orElseThrow()
+                .get("id");
+    Assertions.assertThat(childrenOf(copiedOkId, REQUESTER_COOKIE))
+        .extracting(node -> node.get("name"))
+        .containsExactly("c");
+  }
+
+  @Test
+  void givenATopLevelFolderCannotBeCreatedThenItIsReportedAndTheOtherNodesAreCopied()
+      throws Exception {
+    byte[] content = "content".getBytes(StandardCharsets.UTF_8);
+    String brokenId = seedFolder("unwritable", LOCAL_ROOT, REQUESTER_COOKIE);
+    seedFile("b.txt", brokenId, content, REQUESTER_COOKIE);
+    String fileId = seedFile("top.txt", LOCAL_ROOT, content, REQUESTER_COOKIE);
+    String destFolderId = seedFolder("dest-brokenTop", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    Response response =
+        withFailingInserts(
+            "node",
+            "NEW.name = 'unwritable'",
+            () -> copyNodes(new String[] {brokenId, fileId}, destFolderId, REQUESTER_COOKIE));
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(copyErrorNodeIds(response)).containsExactly(brokenId);
+    Assertions.assertThat(copiedNodes(response))
+        .extracting(node -> node.get("name"))
+        .containsExactly("top");
+    Assertions.assertThat(childrenOf(destFolderId, REQUESTER_COOKIE))
+        .extracting(node -> node.get("name"))
+        .containsExactly("top");
+  }
+
+  @Test
+  void givenTheDestinationIsTrashedWhileTheBlobIsCopiedThenTheCopyIsInTheTrashedFolder()
+      throws Exception {
+    String sourceId =
+        seedFile(
+            "trashed-dest.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+    String destFolderId = seedFolder("copy-dest-trashed", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    Response response =
+        copyWhileHeld(sourceId, destFolderId, () -> seedTrashed(destFolderId, REQUESTER_COOKIE));
+
+    Assertions.assertThat(copiedNodes(response)).hasSize(1);
+    Assertions.assertThat(childAncestors(destFolderId))
+        .containsExactly("TRASH_ROOT," + destFolderId);
+  }
+
+  @Test
+  void givenTheDestinationIsDeletedWhileTheBlobIsCopiedThenNoNodeIsLeftUnderIt() throws Exception {
+    String sourceId =
+        seedFile(
+            "deleted-dest.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+    String destFolderId = seedFolder("copy-dest-deleted", LOCAL_ROOT, REQUESTER_COOKIE);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
+
+    Response response =
+        copyWhileHeld(
+            sourceId,
+            destFolderId,
+            () -> {
+              seedTrashed(destFolderId, REQUESTER_COOKIE);
+              graphql(
+                      GraphqlCommandBuilder.aMutationBuilder("deleteNodes")
+                          .withListOfStrings("node_ids", new String[] {destFolderId})
+                          .withWantedResultFormat("")
+                          .build(),
+                      REQUESTER_COOKIE)
+                  .then()
+                  .statusCode(200);
+            });
+
+    Assertions.assertThat(copiedNodes(response)).isEmpty();
+    Assertions.assertThat(response.getBody().asString())
+        .contains("There was a problem while copying the node " + sourceId);
+    Assertions.assertThat(childAncestors(destFolderId)).isEmpty();
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
+  }
+
+  /** Copies the node and runs {@code meanwhile} while its blob copy is held at the storages. */
+  private Response copyWhileHeld(String sourceId, String destinationId, Runnable meanwhile)
+      throws Exception {
+    MockStoragesService storages = FilesStackTestResource.getStoragesService();
+    storages.holdCopies();
+    try {
+      CompletableFuture<Response> copy =
+          CompletableFuture.supplyAsync(
+              () -> copyNodes(new String[] {sourceId}, destinationId, REQUESTER_COOKIE));
+      storages.awaitHeldCopy();
+      meanwhile.run();
+      storages.releaseCopies();
+      return copy.get(30, TimeUnit.SECONDS);
+    } finally {
+      storages.releaseCopies();
+    }
+  }
+
+  private static List<String> childAncestors(String folderId) throws Exception {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("SELECT ancestor_ids FROM node WHERE folder_id = ?")) {
+      statement.setString(1, folderId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<String> ancestors = new ArrayList<>();
+        while (resultSet.next()) {
+          ancestors.add(resultSet.getString(1).trim());
+        }
+        return ancestors;
+      }
+    }
   }
 }

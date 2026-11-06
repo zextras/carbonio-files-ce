@@ -234,4 +234,58 @@ class NodeQueryDalTest {
         .extracting(Node::getId)
         .containsExactly(literalPercent);
   }
+
+  private Node persistAt(
+      String id, NodeType type, String parent, String ancestors, long updatedAt) {
+    String owner = "owner";
+    Node node =
+        new Node(
+            id, owner, owner, parent, updatedAt, updatedAt, "n-" + id, "d", type, ancestors, 0L);
+    entityManager.persist(node);
+    return node;
+  }
+
+  @Test
+  @TestTransaction
+  void getTrashedTopNodesReturnsOldTopsOnlyAndNeverTheirChildren() {
+    long old = System.currentTimeMillis() - 40L * 86400 * 1000;
+    long retention = System.currentTimeMillis() - 30L * 86400 * 1000;
+    String oldTop = id();
+    String recentChild = id();
+    String recentTop = id();
+    String strayDescendant = id();
+    persistAt(oldTop, NodeType.FOLDER, "TRASH_ROOT", "TRASH_ROOT", old);
+    persistAt(
+        recentChild, NodeType.TEXT, oldTop, "TRASH_ROOT," + oldTop, System.currentTimeMillis());
+    persistAt(recentTop, NodeType.FOLDER, "TRASH_ROOT", "TRASH_ROOT", System.currentTimeMillis());
+    persistAt(strayDescendant, NodeType.TEXT, oldTop, "TRASH_ROOT," + oldTop, old);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(nodeRepository.getTrashedTopNodes(retention))
+        .extracting(Node::getId)
+        .contains(oldTop)
+        .doesNotContain(recentChild, recentTop, strayDescendant);
+  }
+
+  @Test
+  @TestTransaction
+  void getSubtreeReturnsTheRootAndAllItsDescendantsTopDown() {
+    long now = System.currentTimeMillis();
+    String root = id();
+    String sub = id();
+    String file = id();
+    String deepFile = id();
+    Node rootNode = persistAt(root, NodeType.FOLDER, "TRASH_ROOT", "TRASH_ROOT", now);
+    persistAt(sub, NodeType.FOLDER, root, "TRASH_ROOT," + root, now);
+    persistAt(file, NodeType.TEXT, root, "TRASH_ROOT," + root, now);
+    persistAt(deepFile, NodeType.TEXT, sub, "TRASH_ROOT," + root + "," + sub, now);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(nodeRepository.getSubtree(rootNode))
+        .extracting(Node::getId)
+        .containsExactlyInAnyOrder(root, sub, file, deepFile)
+        .startsWith(root);
+  }
 }

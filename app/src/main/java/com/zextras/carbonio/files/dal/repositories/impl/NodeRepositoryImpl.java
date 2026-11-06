@@ -38,6 +38,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -326,17 +327,6 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Override
   @Transactional
-  public boolean deleteNode(String nodeId) {
-    Node node = entityManager.find(Node.class, normalizeId(nodeId));
-    if (node == null) {
-      return false;
-    }
-    entityManager.remove(node);
-    return true;
-  }
-
-  @Override
-  @Transactional
   public int deleteNodes(List<String> nodesIds) {
     if (nodesIds.isEmpty()) {
       return 0;
@@ -465,12 +455,27 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Override
   @Transactional
-  public List<Node> getAllTrashedNodes(Long retentionTimestamp) {
+  public List<Node> getSubtree(Node root) {
+    List<Node> result = new ArrayList<>(List.of(root));
+    if (root.getNodeType().equals(NodeType.FOLDER)) {
+      List<String> childrenIds =
+          getChildrenIds(root.getId(), Optional.empty(), Optional.empty(), true);
+      if (!childrenIds.isEmpty()) {
+        getNodes(childrenIds, Optional.empty())
+            .filter(Objects::nonNull)
+            .forEach(child -> result.addAll(getSubtree(child)));
+      }
+    }
+    return result;
+  }
+
+  @Override
+  @Transactional
+  public List<Node> getTrashedTopNodes(long retentionTimestamp) {
     return entityManager
         .createQuery(
-            "select n from Node n where n.mAncestorIds like :trash and n.mUpdatedAt < :ts",
-            Node.class)
-        .setParameter("trash", "%" + RootId.TRASH_ROOT + "%")
+            "select n from Node n where n.mParentId = :trash and n.mUpdatedAt < :ts", Node.class)
+        .setParameter("trash", normalizeId(RootId.TRASH_ROOT))
         .setParameter("ts", retentionTimestamp)
         .getResultList();
   }

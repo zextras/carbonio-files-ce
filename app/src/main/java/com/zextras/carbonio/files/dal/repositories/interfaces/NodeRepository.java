@@ -189,18 +189,6 @@ public interface NodeRepository {
       String ancestorIds,
       Long size);
 
-  /**
-   * Deletes a {@link Node} from the database.
-   *
-   * <p>if the {@link Node} does not exist, then the method does nothing and returns <code>false
-   * </code>.
-   *
-   * @param nodeId is a {@link String} representing the id of the node to delete
-   * @return <code>true</code> if the {@link Node} exists in the database, and if the deletion is
-   *     performed correctly, <code>false</code> otherwise.
-   */
-  boolean deleteNode(String nodeId);
-
   int deleteNodes(List<String> nodesIds);
 
   /**
@@ -265,12 +253,15 @@ public interface NodeRepository {
    */
   Node updateNode(Node node);
 
+  /** The root followed by all its descendants, top-down, trashed or not. */
+  List<Node> getSubtree(Node root);
+
   /**
-   * Returns all Nodes trashed.
+   * Returns the nodes directly under the trash root that were trashed before the given timestamp.
    *
-   * @return the list of all Nodes trashed.
+   * @return the top trashed nodes, whose subtrees are purged together with them.
    */
-  List<Node> getAllTrashedNodes(Long retentionTimestamp);
+  List<Node> getTrashedTopNodes(long retentionTimestamp);
 
   /**
    * Returns a {@link List} containing all the root folders.

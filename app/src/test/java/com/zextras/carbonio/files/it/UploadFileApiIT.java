@@ -15,6 +15,7 @@ import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -225,10 +226,11 @@ class UploadFileApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenStoragesUploadFailsUploadShouldReturn500AndCreateNoOrphanNode() {
+  void givenStorageRejectsTheUploadThenNoNodeAndNoPendingReservation() throws Exception {
     // Given
     FilesStackTestResource.getStoragesService().setUploadFails(true);
     List<String> childrenBefore = childNodeIds(LOCAL_ROOT);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
 
     // When
     Response response =
@@ -240,18 +242,19 @@ class UploadFileApiIT extends AbstractFilesIT {
             REQUESTER_COOKIE);
 
     // Then — DependencyException falls into ExceptionsHandler's generic else-branch -> 500;
-    // the node row created before the storages call is deleted (BlobService#uploadFile's
-    // Try#getOrElseThrow rollback).
+    // the node is created only after the blob is stored, so none exists.
     Assertions.assertThat(response.getStatusCode()).isEqualTo(500);
     Assertions.assertThat(response.getBody().asString()).isEqualTo("500 Internal Server Error");
     Assertions.assertThat(childNodeIds(LOCAL_ROOT)).isEqualTo(childrenBefore);
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
   }
 
   @Test
-  void givenStoragesVerifyExistsFailsUploadShouldReturn500AndCreateNoOrphanNode() {
+  void givenVerificationFailsThenNoNode() throws Exception {
     // Given
     FilesStackTestResource.getStoragesService().setUploadSkipsStore(true);
     List<String> childrenBefore = childNodeIds(LOCAL_ROOT);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
 
     // When
     Response response =
@@ -266,6 +269,28 @@ class UploadFileApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(500);
     Assertions.assertThat(response.getBody().asString()).isEqualTo("500 Internal Server Error");
     Assertions.assertThat(childNodeIds(LOCAL_ROOT)).isEqualTo(childrenBefore);
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
+  }
+
+  @Test
+  void givenTheFinalTransactionFailsThenNoNodeAndNoPendingReservation() throws Exception {
+    String folderId = seedFolder("final-tx-fails", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
+
+    Response response =
+        withFailingRevisionInserts(
+            () ->
+                upload(
+                    folderId,
+                    null,
+                    "content".getBytes(StandardCharsets.UTF_8),
+                    "txfails.txt",
+                    REQUESTER_COOKIE));
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(500);
+    Assertions.assertThat(childNodeIds(folderId)).isEmpty();
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
   }
 
   @Test
