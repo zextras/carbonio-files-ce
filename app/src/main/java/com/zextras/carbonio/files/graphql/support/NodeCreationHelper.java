@@ -21,12 +21,12 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.rest.services.BlobKey;
 import com.zextras.carbonio.files.rest.services.BlobLifecycle;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,14 +82,15 @@ public class NodeCreationHelper {
   }
 
   /**
-   * Enforces READ_AND_WRITE on the parent, requires the parent to be a {@link NodeType#FOLDER} or
-   * {@link NodeType#ROOT}, computes the new folder's owner, de-duplicates the requested name
-   * against existing siblings, creates the folder, propagates inherited shares onto it, and fires
-   * the added-node notification (gated on {@link FilesConfig#areNotificationsEnabled()}).
+   * Enforces READ_AND_WRITE on the parent, requires the parent to be a {@link NodeType#FOLDER} or a
+   * {@link NodeType#ROOT} other than the trash, computes the new folder's owner, de-duplicates the
+   * requested name against existing siblings, creates the folder, propagates inherited shares onto
+   * it, and fires the added-node notification (gated on {@link
+   * FilesConfig#areNotificationsEnabled()}).
    *
    * @throws NodeAccessException if the requester lacks READ_AND_WRITE on the parent (checked first,
    *     so a missing parent, which grants no permission, ends here too)
-   * @throws NodeNotFoundException if the parent is neither a FOLDER nor a ROOT
+   * @throws NodeNotFoundException if the parent is neither a FOLDER nor a ROOT other than the trash
    */
   public Node createFolder(String requesterId, String parentId, String name, UserMyself requester) {
     if (!permissionsChecker
@@ -101,10 +102,7 @@ public class NodeCreationHelper {
     Node parent =
         nodeRepository
             .getNode(parentId)
-            .filter(
-                p ->
-                    NodeType.FOLDER.equals(p.getNodeType())
-                        || NodeType.ROOT.equals(p.getNodeType()))
+            .filter(NodeRules::acceptsChildren)
             .orElseThrow(() -> new NodeNotFoundException(parentId));
 
     String ownerId =
@@ -194,8 +192,7 @@ public class NodeCreationHelper {
 
   private List<String> createIndirectShare(String sharedParentId, Node nodeToShare) {
     List<String> targetUserIds = new ArrayList<>();
-    shareRepository
-        .getShares(sharedParentId, Collections.emptyList())
+    NodeRules.inheritableShares(shareRepository, sharedParentId)
         .forEach(
             share -> {
               targetUserIds.add(share.getTargetUserId());

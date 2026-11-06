@@ -36,6 +36,7 @@ import com.zextras.carbonio.files.rest.services.OverwriteLeases.Lease;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.utilities.MimeTypeUtils;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.UploadResponse;
@@ -50,7 +51,6 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -230,7 +230,7 @@ public class BlobService {
 
     for (String nodeId : nodeIds) {
       Node node = nodeRepository.getNode(nodeId).orElse(null);
-      if (node == null || !accessChecker.apply(node)) {
+      if (node == null || NodeRules.isRoot(node) || !accessChecker.apply(node)) {
         logger.error("Node with id {} not found", nodeId);
         continue;
       }
@@ -379,9 +379,12 @@ public class BlobService {
       String folderId,
       String filename,
       String description) {
-    if (!permissionsChecker
-        .getPermissions(folderId, requesterId)
-        .has(SharePermission.READ_AND_WRITE)) {
+    Optional<Node> optDestinationFolder =
+        nodeRepository.getNode(folderId).filter(NodeRules::acceptsChildren);
+    if (optDestinationFolder.isEmpty()
+        || !permissionsChecker
+            .getPermissions(folderId, requesterId)
+            .has(SharePermission.READ_AND_WRITE)) {
       logger.warn(
           "User {} does not have the necessary permission to upload the node {} on the folder {}",
           requesterId,
@@ -389,9 +392,9 @@ public class BlobService {
           folderId);
       return Optional.empty();
     }
-    Node destinationFolder = nodeRepository.getNode(folderId).get();
+    Node destinationFolder = optDestinationFolder.get();
     String nodeOwner =
-        folderId.equals(RootId.LOCAL_ROOT) ? requesterId : destinationFolder.getOwnerId();
+        NodeRules.isRoot(destinationFolder) ? requesterId : destinationFolder.getOwnerId();
 
     // P9 CE seam: quota check before the blob is stored (no-op in CE).
     quotaChecker.ensureNotOverQuota(nodeOwner, blobLength);
@@ -489,7 +492,7 @@ public class BlobService {
       String filename,
       String description,
       UploadResponse uploadResponse) {
-    Optional<Node> folder = nodeRepository.getNode(folderId);
+    Optional<Node> folder = nodeRepository.getNode(folderId).filter(NodeRules::acceptsChildren);
     if (folder.isEmpty()) {
       return Optional.empty();
     }
@@ -548,8 +551,7 @@ public class BlobService {
    */
   private List<String> inheritShares(String folderId, String nodeId, String requesterId) {
     List<String> usersToNotify = new ArrayList<>();
-    shareRepository
-        .getShares(folderId, Collections.emptyList())
+    NodeRules.inheritableShares(shareRepository, folderId)
         .forEach(
             share -> {
               if (!share.getTargetUserId().equals(requesterId)) {

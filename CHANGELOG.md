@@ -1,3 +1,9 @@
+## [3.0.8](https://github.com/zextras/carbonio-files-ce/compare/v3.0.7...v3.0.8) (2026-11-05)
+
+### Bug Fixes
+
+* [CO-4666] harden node permission checks ([#353](https://github.com/zextras/carbonio-files-ce/issues/353)) ([2110de8](https://github.com/zextras/carbonio-files-ce/commit/2110de81797438d028ae1aad8bdea72a5ee7093c))
+
 ## [3.0.7](https://github.com/zextras/carbonio-files-ce/compare/v3.0.6...v3.0.7) (2026-10-30)
 
 ### Bug Fixes
