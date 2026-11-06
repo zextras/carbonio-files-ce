@@ -11,6 +11,8 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -26,7 +28,7 @@ import org.junit.jupiter.api.Test;
 class FlywayBootstrapIT extends AbstractFilesIT {
 
   @Test
-  void flywayShouldMigrateSchemaUpToV13() throws Exception {
+  void flywayShouldMigrateSchemaUpToV14() throws Exception {
     try (Connection connection = jdbcConnection();
         PreparedStatement statement =
             connection.prepareStatement(
@@ -34,8 +36,33 @@ class FlywayBootstrapIT extends AbstractFilesIT {
                     + " ORDER BY installed_rank DESC LIMIT 1");
         ResultSet resultSet = statement.executeQuery()) {
       assertThat(resultSet.next()).as("at least one successful migration recorded").isTrue();
-      assertThat(resultSet.getString(1)).isEqualTo("13");
+      assertThat(resultSet.getString(1)).isEqualTo("14");
     }
+  }
+
+  @Test
+  void everyForeignKeyToNodeCascadesOnUpdateAndDelete() throws Exception {
+    List<String> foreignKeys = new ArrayList<>();
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT c.conrelid::regclass::text || ' ' || c.confupdtype::text"
+                    + " || c.confdeltype::text FROM pg_constraint c"
+                    + " WHERE c.contype = 'f' AND c.confrelid = 'node'::regclass");
+        ResultSet resultSet = statement.executeQuery()) {
+      while (resultSet.next()) {
+        foreignKeys.add(resultSet.getString(1));
+      }
+    }
+    assertThat(foreignKeys)
+        .containsExactlyInAnyOrder(
+            "activity cc",
+            "collaboration_link cc",
+            "custom cc",
+            "link cc",
+            "revision cc",
+            "share cc",
+            "trashed cc");
   }
 
   @Test
