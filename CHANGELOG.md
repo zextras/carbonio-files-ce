@@ -1,3 +1,9 @@
+## [3.0.9](https://github.com/zextras/carbonio-files-ce/compare/v3.0.8...v3.0.9) (2026-11-06)
+
+### Bug Fixes
+
+* one reservation/tombstone cycle for every blob operation ([#352](https://github.com/zextras/carbonio-files-ce/issues/352)) ([c2971ae](https://github.com/zextras/carbonio-files-ce/commit/c2971ae01980626684c88f58ecfa2ad0736bcf19))
+
 ## [3.0.8](https://github.com/zextras/carbonio-files-ce/compare/v3.0.7...v3.0.8) (2026-11-05)
 
 ### Bug Fixes
