@@ -81,6 +81,7 @@ class NodeApiMutationsTest {
   private BlobLifecycle blobLifecycle;
   private Context gqlContext;
   private NodeApi nodeApi;
+  private UserMyself requester;
 
   @BeforeEach
   void setUp() {
@@ -97,7 +98,7 @@ class NodeApiMutationsTest {
     blobLifecycle = mock(BlobLifecycle.class);
     gqlContext = mock(Context.class);
 
-    UserMyself requester = mock(UserMyself.class);
+    requester = mock(UserMyself.class);
     UserId userId = new UserId(REQUESTER_ID);
     when(requester.getId()).thenReturn(userId);
 
@@ -113,22 +114,23 @@ class NodeApiMutationsTest {
             permissionsChecker,
             shareCascade);
 
-    nodeApi = new NodeApi();
-    nodeApi.nodeRepository = nodeRepository;
-    nodeApi.fileVersionRepository = fileVersionRepository;
-    nodeApi.permissionsChecker = permissionsChecker;
-    nodeApi.shareRepository = shareRepository;
-    nodeApi.notificationRepository = notificationRepository;
-    nodeApi.tombstoneRepository = tombstoneRepository;
-    nodeApi.blobLifecycle = blobLifecycle;
-    nodeApi.shareCascade = shareCascade;
-    nodeApi.filesConfig = filesConfig;
-    nodeApi.nodeCreationHelper = nodeCreationHelper;
-    nodeApi.validator = new GraphQLInputValidator();
-    nodeApi.requester = requester;
-    nodeApi.copyFailureClassifier = copyFailureClassifier;
-    nodeApi.versionReservations = versionReservations;
-    nodeApi.gqlContext = gqlContext;
+    nodeApi =
+        new NodeApi(
+            nodeRepository,
+            fileVersionRepository,
+            permissionsChecker,
+            shareRepository,
+            filesConfig,
+            copyFailureClassifier,
+            new GraphQLInputValidator(),
+            gqlContext,
+            requester,
+            tombstoneRepository,
+            notificationRepository,
+            shareCascade,
+            nodeCreationHelper,
+            versionReservations,
+            blobLifecycle);
   }
 
   private Node mockFileNode(String id, String parentId) {
@@ -188,7 +190,7 @@ class NodeApiMutationsTest {
   private void givenACloneVersionWhoseStorageCopyFails() throws Exception {
     Node node = mockFileNode(NODE_ID_1, PARENT_ID);
     when(node.getOwnerId()).thenReturn(NODE_OWNER_ID);
-    when(nodeApi.requester.getId()).thenReturn(new UserId(CLONING_USER_ID));
+    when(requester.getId()).thenReturn(new UserId(CLONING_USER_ID));
     when(permissionsChecker.getPermissions(NODE_ID_1, CLONING_USER_ID)).thenReturn(aclWith(true));
     when(nodeRepository.getNode(NODE_ID_1)).thenReturn(Optional.of(node));
     when(filesConfig.getMaxNumberOfVersions()).thenReturn(10);
@@ -214,7 +216,7 @@ class NodeApiMutationsTest {
         .copy(
             FilesIdentifier.of(NODE_ID_1, 1, NODE_OWNER_ID),
             FilesIdentifier.of(NODE_ID_1, 7, NODE_OWNER_ID));
-    verify(blobLifecycle).discard(new Reservation(NODE_ID_1, 7, 5000L, NODE_OWNER_ID));
+    verify(blobLifecycle).abandon(new Reservation(NODE_ID_1, 7, 5000L, NODE_OWNER_ID));
   }
 
   @Test

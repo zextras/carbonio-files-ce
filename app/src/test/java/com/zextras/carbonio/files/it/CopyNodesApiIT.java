@@ -9,14 +9,18 @@ import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
+import com.zextras.carbonio.files.it.support.MockStoragesService;
 import io.restassured.response.Response;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -568,5 +572,91 @@ class CopyNodesApiIT extends AbstractFilesIT {
     Assertions.assertThat(childrenOf(destFolderId, REQUESTER_COOKIE))
         .extracting(node -> node.get("name"))
         .containsExactly("top");
+  }
+
+  @Test
+  void givenTheDestinationIsTrashedWhileTheBlobIsCopiedThenTheCopyIsInTheTrashedFolder()
+      throws Exception {
+    String sourceId =
+        seedFile(
+            "trashed-dest.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+    String destFolderId = seedFolder("copy-dest-trashed", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    Response response =
+        copyWhileHeld(sourceId, destFolderId, () -> seedTrashed(destFolderId, REQUESTER_COOKIE));
+
+    Assertions.assertThat(copiedNodes(response)).hasSize(1);
+    Assertions.assertThat(childAncestors(destFolderId))
+        .containsExactly("TRASH_ROOT," + destFolderId);
+  }
+
+  @Test
+  void givenTheDestinationIsDeletedWhileTheBlobIsCopiedThenNoNodeIsLeftUnderIt() throws Exception {
+    String sourceId =
+        seedFile(
+            "deleted-dest.txt",
+            LOCAL_ROOT,
+            "content".getBytes(StandardCharsets.UTF_8),
+            REQUESTER_COOKIE);
+    String destFolderId = seedFolder("copy-dest-deleted", LOCAL_ROOT, REQUESTER_COOKIE);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
+
+    Response response =
+        copyWhileHeld(
+            sourceId,
+            destFolderId,
+            () -> {
+              seedTrashed(destFolderId, REQUESTER_COOKIE);
+              graphql(
+                      GraphqlCommandBuilder.aMutationBuilder("deleteNodes")
+                          .withListOfStrings("node_ids", new String[] {destFolderId})
+                          .withWantedResultFormat("")
+                          .build(),
+                      REQUESTER_COOKIE)
+                  .then()
+                  .statusCode(200);
+            });
+
+    Assertions.assertThat(copiedNodes(response)).isEmpty();
+    Assertions.assertThat(response.getBody().asString())
+        .contains("There was a problem while copying the node " + sourceId);
+    Assertions.assertThat(childAncestors(destFolderId)).isEmpty();
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
+  }
+
+  /** Copies the node and runs {@code meanwhile} while its blob copy is held at the storages. */
+  private Response copyWhileHeld(String sourceId, String destinationId, Runnable meanwhile)
+      throws Exception {
+    MockStoragesService storages = FilesStackTestResource.getStoragesService();
+    storages.holdCopies();
+    try {
+      CompletableFuture<Response> copy =
+          CompletableFuture.supplyAsync(
+              () -> copyNodes(new String[] {sourceId}, destinationId, REQUESTER_COOKIE));
+      storages.awaitHeldCopy();
+      meanwhile.run();
+      storages.releaseCopies();
+      return copy.get(30, TimeUnit.SECONDS);
+    } finally {
+      storages.releaseCopies();
+    }
+  }
+
+  private static List<String> childAncestors(String folderId) throws Exception {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("SELECT ancestor_ids FROM node WHERE folder_id = ?")) {
+      statement.setString(1, folderId);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        List<String> ancestors = new ArrayList<>();
+        while (resultSet.next()) {
+          ancestors.add(resultSet.getString(1).trim());
+        }
+        return ancestors;
+      }
+    }
   }
 }

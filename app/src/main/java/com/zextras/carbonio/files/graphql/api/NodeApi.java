@@ -98,21 +98,55 @@ public class NodeApi {
 
   private static final Logger logger = LoggerFactory.getLogger(NodeApi.class);
 
-  @Inject NodeRepository nodeRepository;
-  @Inject FileVersionRepository fileVersionRepository;
-  @Inject PermissionsChecker permissionsChecker;
-  @Inject ShareRepository shareRepository;
-  @Inject FilesConfig filesConfig;
-  @Inject CopyFailureClassifier copyFailureClassifier;
-  @Inject GraphQLInputValidator validator;
-  @Inject Context gqlContext;
-  @Inject @AuthenticatedUser UserMyself requester;
-  @Inject TombstoneRepository tombstoneRepository;
-  @Inject NotificationRepository notificationRepository;
-  @Inject ShareCascadeHelper shareCascade;
-  @Inject NodeCreationHelper nodeCreationHelper;
-  @Inject VersionReservations versionReservations;
-  @Inject BlobLifecycle blobLifecycle;
+  private final NodeRepository nodeRepository;
+  private final FileVersionRepository fileVersionRepository;
+  private final PermissionsChecker permissionsChecker;
+  private final ShareRepository shareRepository;
+  private final FilesConfig filesConfig;
+  private final CopyFailureClassifier copyFailureClassifier;
+  private final GraphQLInputValidator validator;
+  private final Context gqlContext;
+  private final UserMyself requester;
+  private final TombstoneRepository tombstoneRepository;
+  private final NotificationRepository notificationRepository;
+  private final ShareCascadeHelper shareCascade;
+  private final NodeCreationHelper nodeCreationHelper;
+  private final VersionReservations versionReservations;
+  private final BlobLifecycle blobLifecycle;
+
+  @Inject
+  public NodeApi(
+      NodeRepository nodeRepository,
+      FileVersionRepository fileVersionRepository,
+      PermissionsChecker permissionsChecker,
+      ShareRepository shareRepository,
+      FilesConfig filesConfig,
+      CopyFailureClassifier copyFailureClassifier,
+      GraphQLInputValidator validator,
+      Context gqlContext,
+      @AuthenticatedUser UserMyself requester,
+      TombstoneRepository tombstoneRepository,
+      NotificationRepository notificationRepository,
+      ShareCascadeHelper shareCascade,
+      NodeCreationHelper nodeCreationHelper,
+      VersionReservations versionReservations,
+      BlobLifecycle blobLifecycle) {
+    this.nodeRepository = nodeRepository;
+    this.fileVersionRepository = fileVersionRepository;
+    this.permissionsChecker = permissionsChecker;
+    this.shareRepository = shareRepository;
+    this.filesConfig = filesConfig;
+    this.copyFailureClassifier = copyFailureClassifier;
+    this.validator = validator;
+    this.gqlContext = gqlContext;
+    this.requester = requester;
+    this.tombstoneRepository = tombstoneRepository;
+    this.notificationRepository = notificationRepository;
+    this.shareCascade = shareCascade;
+    this.nodeCreationHelper = nodeCreationHelper;
+    this.versionReservations = versionReservations;
+    this.blobLifecycle = blobLifecycle;
+  }
 
   // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -1076,7 +1110,7 @@ public class NodeApi {
             FilesIdentifier.of(nodeId, version, ownerId),
             FilesIdentifier.of(nodeId, newVersion, ownerId));
     if (copyAttempt.isFailure()) {
-      blobLifecycle.discard(reservation);
+      blobLifecycle.abandon(reservation);
       throw cloneCopyFailure(nodeId, version, copyAttempt.getCause());
     }
     var copiedBlobResponse = copyAttempt.get();
@@ -1318,7 +1352,7 @@ public class NodeApi {
     var copyAttempt = blobLifecycle.copy(source, destination);
     if (copyAttempt.isFailure()) {
       logger.error("Unable to copy node {}", sourceNode.getId(), copyAttempt.getCause());
-      blobLifecycle.discard(reservation);
+      blobLifecycle.abandon(reservation);
       return new CopyOutcome(Optional.empty(), copyAttempt.getCause());
     }
     var response = copyAttempt.get();
@@ -1327,25 +1361,33 @@ public class NodeApi {
       QuarkusTransaction.requiringNew()
           .run(
               () -> {
+                Node parent =
+                    nodeRepository
+                        .getNode(destinationFolder.getId())
+                        .filter(NodeRules::acceptsChildren)
+                        .orElseThrow(
+                            () ->
+                                new NoSuchElementException(
+                                    "Destination " + destinationFolder.getId() + " not found"));
                 versionReservations.confirmNew(reservation);
                 nodeRepository.createNewNode(
                     newId,
                     requesterId,
                     ownerId,
-                    destinationFolder.getId(),
+                    parent.getId(),
                     dedupName
                         ? searchAlternativeName(
                             nodeRepository,
                             sourceNode.getFullName(),
-                            destinationFolder.getId(),
+                            parent.getId(),
                             sourceNode.getOwnerId())
                         : sourceNode.getFullName(),
                     sourceNode.getDescription().orElse(""),
                     sourceNode.getNodeType(),
                     com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                            destinationFolder.getNodeType())
-                        ? destinationFolder.getId()
-                        : destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
+                            parent.getNodeType())
+                        ? parent.getId()
+                        : parent.getAncestorIds() + "," + parent.getId(),
                     sourceNode.getSize());
                 fileVersionRepository.createNewFileVersion(
                     newId,

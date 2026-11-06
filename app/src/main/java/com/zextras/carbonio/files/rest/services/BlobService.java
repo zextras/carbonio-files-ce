@@ -443,7 +443,7 @@ public class BlobService {
 
   private record PublishedUpload(Node node, Node folder) {}
 
-  /** Stores and verifies the blob of a new node; the reservation is discarded on failure. */
+  /** Stores and verifies the blob of a new node; the reservation is abandoned on failure. */
   private UploadResponse storeNewBlob(
       Reservation reservation, InputStream blobStream, long blobLength) {
     String nodeId = reservation.nodeId();
@@ -456,7 +456,7 @@ public class BlobService {
                         blobLength))
             .getOrElseThrow(
                 failure -> {
-                  blobLifecycle.discard(reservation);
+                  blobLifecycle.abandon(reservation);
                   return new DependencyException(
                       String.format(
                           "Storages failed: unable to upload node with id %s and version 1",
@@ -471,7 +471,7 @@ public class BlobService {
         uploadResponse.getDigest());
 
     if (!blobLifecycle.exists(nodeId, 1, reservation.blobOwnerId())) {
-      blobLifecycle.discard(reservation);
+      blobLifecycle.abandon(reservation);
       throw new DependencyException(
           String.format("Upload verification failed: blob not accessible for node %s", nodeId));
     }

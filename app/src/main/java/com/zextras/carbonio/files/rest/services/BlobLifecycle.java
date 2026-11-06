@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.rest.services;
 
+import com.google.common.collect.Lists;
 import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
@@ -33,6 +34,8 @@ import org.slf4j.LoggerFactory;
 public class BlobLifecycle {
 
   private static final Logger logger = LoggerFactory.getLogger(BlobLifecycle.class);
+
+  public static final int DELETE_BATCH_SIZE = 500;
 
   private final Filestore fileStore;
   private final TombstoneRepository tombstoneRepository;
@@ -93,18 +96,20 @@ public class BlobLifecycle {
 
   /** Runs after the commit that wrote the tombstones; never throws. */
   public void deleteAndClear(String ownerId, Collection<BlobKey> keys) {
-    try {
-      delete(ownerId, keys)
-          .ifPresent(
-              failed ->
-                  keys.stream()
-                      .filter(k -> !failed.contains(k))
-                      .forEach(
-                          k ->
-                              tombstoneRepository.deleteTombstonesByNodeAndVersion(
-                                  k.nodeId(), k.version())));
-    } catch (RuntimeException e) {
-      logger.warn("Unable to clear the tombstones of owner {}: {}", ownerId, e.getMessage());
+    for (List<BlobKey> batch : Lists.partition(List.copyOf(keys), DELETE_BATCH_SIZE)) {
+      try {
+        delete(ownerId, batch)
+            .ifPresent(
+                failed ->
+                    batch.stream()
+                        .filter(k -> !failed.contains(k))
+                        .forEach(
+                            k ->
+                                tombstoneRepository.deleteTombstonesByNodeAndVersion(
+                                    k.nodeId(), k.version())));
+      } catch (RuntimeException e) {
+        logger.warn("Unable to clear the tombstones of owner {}: {}", ownerId, e.getMessage());
+      }
     }
   }
 
@@ -122,22 +127,36 @@ public class BlobLifecycle {
 
   /** Never throws; a reservation the purge claimed first is left to the purge. */
   public void discard(List<Reservation> reservations) {
-    List<Reservation> mine;
-    try {
-      mine = transactions.inNewTransaction(() -> tombstoneUnpublished(reservations));
-    } catch (RuntimeException e) {
-      logger.warn(
-          "Unable to tombstone {} reservations: {}. The purge will reclaim them.",
-          reservations.size(),
-          e.getMessage());
-      return;
-    }
-    mine.stream()
+    tombstone(reservations).stream()
         .collect(Collectors.groupingBy(Reservation::blobOwnerId))
         .forEach(
             (owner, rs) ->
                 deleteAndClear(
                     owner, rs.stream().map(r -> new BlobKey(r.nodeId(), r.version())).toList()));
+  }
+
+  /**
+   * The write of this reservation failed, so there is nothing worth deleting now: the purge deletes
+   * whatever the store kept. Never throws.
+   */
+  public void abandon(Reservation reservation) {
+    abandon(List.of(reservation));
+  }
+
+  public void abandon(List<Reservation> reservations) {
+    tombstone(reservations);
+  }
+
+  private List<Reservation> tombstone(List<Reservation> reservations) {
+    try {
+      return transactions.inNewTransaction(() -> tombstoneUnpublished(reservations));
+    } catch (RuntimeException e) {
+      logger.warn(
+          "Unable to tombstone {} reservations: {}. The purge will reclaim them.",
+          reservations.size(),
+          e.getMessage());
+      return List.of();
+    }
   }
 
   private List<Reservation> tombstoneUnpublished(List<Reservation> reservations) {

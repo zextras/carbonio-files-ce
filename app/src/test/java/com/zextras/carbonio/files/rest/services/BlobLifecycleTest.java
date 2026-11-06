@@ -12,7 +12,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
@@ -22,6 +24,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservation
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.filestore.api.Filestore;
 import com.zextras.filestore.api.UploadResponse;
+import com.zextras.filestore.model.BulkDeleteRequestItem;
 import com.zextras.filestore.model.BulkDeleteResponseItem;
 import com.zextras.filestore.model.FilesIdentifier;
 import com.zextras.filestore.model.IdentifierType;
@@ -29,12 +32,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
 class BlobLifecycleTest {
@@ -149,6 +154,62 @@ class BlobLifecycleTest {
     blobLifecycle.discard(new Reservation("n1", 2, 1L, "owner"));
 
     verifyNoMoreInteractions(fileStore);
+  }
+
+  @Test
+  void abandonTombstonesTheConsumedReservationAndLeavesTheDeleteToThePurge() {
+    when(reservations.consume("n1", 2)).thenReturn(true);
+
+    blobLifecycle.abandon(new Reservation("n1", 2, 1L, "owner"));
+
+    verify(tombstones).createNewTombstone("n1", "owner", 2);
+    verifyNoInteractions(fileStore);
+    verify(tombstones, never()).deleteTombstonesByNodeAndVersion(anyString(), any());
+  }
+
+  @Test
+  void abandonDoesNotThrowWhenTheTombstoneCannotBeWritten() {
+    when(reservations.consume("n1", 2)).thenThrow(new RuntimeException("db"));
+
+    blobLifecycle.abandon(new Reservation("n1", 2, 1L, "owner"));
+
+    verifyNoInteractions(fileStore);
+  }
+
+  @Test
+  void deleteAndClearSendsAtMostOneBatchOfKeysPerCall() throws Exception {
+    when(fileStore.bulkDelete(eq(IdentifierType.files), eq("owner"), anyList()))
+        .thenReturn(List.of());
+    List<BlobKey> keys =
+        IntStream.rangeClosed(1, BlobLifecycle.DELETE_BATCH_SIZE + 1)
+            .mapToObj(v -> new BlobKey("n1", v))
+            .toList();
+
+    blobLifecycle.deleteAndClear("owner", keys);
+
+    ArgumentCaptor<List<BulkDeleteRequestItem>> batches = ArgumentCaptor.captor();
+    verify(fileStore, times(2))
+        .bulkDelete(eq(IdentifierType.files), eq("owner"), batches.capture());
+    assertThat(batches.getAllValues())
+        .extracting(List::size)
+        .containsExactly(BlobLifecycle.DELETE_BATCH_SIZE, 1);
+    verify(tombstones, times(keys.size())).deleteTombstonesByNodeAndVersion(eq("n1"), any());
+  }
+
+  @Test
+  void anUnknownAnswerForOneBatchStillClearsTheOtherBatches() throws Exception {
+    when(fileStore.bulkDelete(eq(IdentifierType.files), eq("owner"), anyList()))
+        .thenThrow(new RuntimeException("down"))
+        .thenReturn(List.of());
+    List<BlobKey> keys =
+        IntStream.rangeClosed(1, BlobLifecycle.DELETE_BATCH_SIZE + 1)
+            .mapToObj(v -> new BlobKey("n1", v))
+            .toList();
+
+    blobLifecycle.deleteAndClear("owner", keys);
+
+    verify(tombstones, times(1)).deleteTombstonesByNodeAndVersion(eq("n1"), any());
+    verify(tombstones).deleteTombstonesByNodeAndVersion("n1", BlobLifecycle.DELETE_BATCH_SIZE + 1);
   }
 
   @Test

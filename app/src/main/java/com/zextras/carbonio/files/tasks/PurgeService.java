@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.tasks;
 
+import com.google.common.collect.Lists;
 import com.zextras.carbonio.files.Constants.Config;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
@@ -62,17 +63,37 @@ public class PurgeService {
   private static final Logger logger = LoggerFactory.getLogger(PurgeService.class);
 
   static final int MAX_TOMBSTONE_RETRIES = 3;
+  static final int PURGE_BATCH_SIZE = 500;
 
-  @Inject NodeRepository nodeRepository;
-  @Inject FileVersionRepository fileVersionRepository;
-  @Inject TombstoneRepository tombstoneRepository;
-  @Inject VersionReservationRepository versionReservationRepository;
-  @Inject OverwriteLeaseRepository overwriteLeaseRepository;
-  @Inject BlobLifecycle blobLifecycle;
-  @Inject Transactions transactions;
+  private final NodeRepository nodeRepository;
+  private final FileVersionRepository fileVersionRepository;
+  private final TombstoneRepository tombstoneRepository;
+  private final VersionReservationRepository versionReservationRepository;
+  private final OverwriteLeaseRepository overwriteLeaseRepository;
+  private final BlobLifecycle blobLifecycle;
+  private final Transactions transactions;
+  private final Duration reservationExpiry;
 
-  @ConfigProperty(name = "carbonio.files.reservation-purge.expiry", defaultValue = "24h")
-  Duration reservationExpiry;
+  @Inject
+  public PurgeService(
+      NodeRepository nodeRepository,
+      FileVersionRepository fileVersionRepository,
+      TombstoneRepository tombstoneRepository,
+      VersionReservationRepository versionReservationRepository,
+      OverwriteLeaseRepository overwriteLeaseRepository,
+      BlobLifecycle blobLifecycle,
+      Transactions transactions,
+      @ConfigProperty(name = "carbonio.files.reservation-purge.expiry", defaultValue = "24h")
+          Duration reservationExpiry) {
+    this.nodeRepository = nodeRepository;
+    this.fileVersionRepository = fileVersionRepository;
+    this.tombstoneRepository = tombstoneRepository;
+    this.versionReservationRepository = versionReservationRepository;
+    this.overwriteLeaseRepository = overwriteLeaseRepository;
+    this.blobLifecycle = blobLifecycle;
+    this.transactions = transactions;
+    this.reservationExpiry = reservationExpiry;
+  }
 
   void purgeTrashedNodes(long retentionDays) {
     long retentionTimestamp = System.currentTimeMillis() - (retentionDays * 86400 * 1000);
@@ -80,11 +101,24 @@ public class PurgeService {
     Map<String, List<BlobKey>> keysByOwner = new HashMap<>();
     for (Node top : nodeRepository.getTrashedTopNodes(retentionTimestamp)) {
       try {
-        transactions
-            .inNewTransaction(() -> purgeTrashedTree(top.getId(), retentionTimestamp))
-            .forEach(
-                (ownerId, keys) ->
-                    keysByOwner.computeIfAbsent(ownerId, k -> new ArrayList<>()).addAll(keys));
+        Optional<Node> expiredTop = expiredTrashedTop(top.getId(), retentionTimestamp);
+        if (expiredTop.isEmpty()) {
+          continue;
+        }
+        List<String> fileIds =
+            nodeRepository.getSubtree(expiredTop.get()).stream()
+                .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
+                .map(Node::getId)
+                .toList();
+        for (List<String> batch : Lists.partition(fileIds, PURGE_BATCH_SIZE)) {
+          collect(
+              keysByOwner,
+              transactions.inNewTransaction(
+                  () -> purgeTrashedFiles(top.getId(), retentionTimestamp, batch)));
+        }
+        collect(
+            keysByOwner,
+            transactions.inNewTransaction(() -> purgeTrashedTree(top.getId(), retentionTimestamp)));
       } catch (RuntimeException e) {
         logger.warn("Unable to purge trashed node {}: {}", top.getId(), e.getMessage());
       }
@@ -99,17 +133,40 @@ public class PurgeService {
    * @return the tombstoned blob keys by owner
    */
   private Map<String, List<BlobKey>> purgeTrashedTree(String topId, long retentionTimestamp) {
-    Optional<Node> top =
-        nodeRepository
-            .getNode(topId)
-            .filter(node -> node.getParentId().filter(RootId.TRASH_ROOT::equals).isPresent())
-            .filter(node -> node.getUpdatedAt() < retentionTimestamp);
+    Optional<Node> top = expiredTrashedTop(topId, retentionTimestamp);
     if (top.isEmpty()) {
       return Map.of();
     }
     List<Node> tree = nodeRepository.getSubtree(top.get());
+    Map<String, List<BlobKey>> keysByOwner = tombstoneFiles(tree);
+    nodeRepository.deleteNodes(tree.stream().map(Node::getId).toList());
+    logger.info("Purged {} trashed nodes from database", tree.size());
+    return keysByOwner;
+  }
+
+  /** Purges a batch of files of a trashed tree, so that a large tree never needs one long tx. */
+  private Map<String, List<BlobKey>> purgeTrashedFiles(
+      String topId, long retentionTimestamp, List<String> fileIds) {
+    if (expiredTrashedTop(topId, retentionTimestamp).isEmpty()) {
+      return Map.of();
+    }
+    List<Node> files =
+        fileIds.stream().map(nodeRepository::getNode).flatMap(Optional::stream).toList();
+    Map<String, List<BlobKey>> keysByOwner = tombstoneFiles(files);
+    nodeRepository.deleteNodes(files.stream().map(Node::getId).toList());
+    return keysByOwner;
+  }
+
+  private Optional<Node> expiredTrashedTop(String topId, long retentionTimestamp) {
+    return nodeRepository
+        .getNode(topId)
+        .filter(node -> node.getParentId().filter(RootId.TRASH_ROOT::equals).isPresent())
+        .filter(node -> node.getUpdatedAt() < retentionTimestamp);
+  }
+
+  private Map<String, List<BlobKey>> tombstoneFiles(List<Node> nodes) {
     Map<String, List<BlobKey>> keysByOwner = new HashMap<>();
-    tree.stream()
+    nodes.stream()
         .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
         .forEach(
             node -> {
@@ -121,9 +178,14 @@ public class PurgeService {
                   .computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
                   .addAll(versions.stream().map(BlobKey::of).toList());
             });
-    nodeRepository.deleteNodes(tree.stream().map(Node::getId).toList());
-    logger.info("Purged {} trashed nodes from database", tree.size());
     return keysByOwner;
+  }
+
+  private static void collect(
+      Map<String, List<BlobKey>> keysByOwner, Map<String, List<BlobKey>> purged) {
+    purged.forEach(
+        (ownerId, keys) ->
+            keysByOwner.computeIfAbsent(ownerId, k -> new ArrayList<>()).addAll(keys));
   }
 
   void purgeTombstones() {
@@ -136,41 +198,39 @@ public class PurgeService {
     Map<String, List<Tombstone>> byOwner =
         tombstones.stream().collect(Collectors.groupingBy(Tombstone::getOwnerId));
 
-    for (Map.Entry<String, List<Tombstone>> entry : byOwner.entrySet()) {
-      String ownerId = entry.getKey();
-      List<Tombstone> ownerTombstones = entry.getValue();
+    byOwner.forEach(
+        (ownerId, ownerTombstones) ->
+            Lists.partition(ownerTombstones, BlobLifecycle.DELETE_BATCH_SIZE)
+                .forEach(batch -> purgeTombstoneBatch(ownerId, batch)));
+  }
 
-      Optional<Set<BlobKey>> failedKeys =
-          blobLifecycle.delete(
-              ownerId,
-              ownerTombstones.stream()
-                  .map(t -> new BlobKey(t.getNodeId(), t.getVersion()))
-                  .toList());
-      if (failedKeys.isEmpty()) {
+  private void purgeTombstoneBatch(String ownerId, List<Tombstone> ownerTombstones) {
+    Optional<Set<BlobKey>> failedKeys =
+        blobLifecycle.delete(
+            ownerId,
+            ownerTombstones.stream().map(t -> new BlobKey(t.getNodeId(), t.getVersion())).toList());
+    if (failedKeys.isEmpty()) {
+      logger.warn(
+          "purgeTombstones: unknown outcome for owner {}. Tombstones kept for next cycle.",
+          ownerId);
+      return;
+    }
+
+    // Remove confirmed-deleted tombstones; apply retry-cap to failed ones.
+    for (Tombstone t : ownerTombstones) {
+      if (!failedKeys.get().contains(new BlobKey(t.getNodeId(), t.getVersion()))) {
+        tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
+      } else if (t.getAttempts() + 1 >= MAX_TOMBSTONE_RETRIES) {
+        // Genuine per-blob PowerStore rejection — increment attempts toward retry cap.
         logger.warn(
-            "purgeTombstones: unknown outcome for owner {}. Tombstones kept for next cycle.",
-            ownerId);
-        continue;
-      }
-
-      // Remove confirmed-deleted tombstones; apply retry-cap to failed ones.
-      for (Tombstone t : ownerTombstones) {
-        if (!failedKeys.get().contains(new BlobKey(t.getNodeId(), t.getVersion()))) {
-          tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
-        } else {
-          // Genuine per-blob PowerStore rejection — increment attempts toward retry cap.
-          if (t.getAttempts() + 1 >= MAX_TOMBSTONE_RETRIES) {
-            logger.warn(
-                "purgeTombstones: giving up on blob nodeId={} version={} after {} attempts; "
-                    + "accepting orphan and removing tombstone.",
-                t.getNodeId(),
-                t.getVersion(),
-                t.getAttempts() + 1);
-            tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
-          } else {
-            tombstoneRepository.updateTombstone(t.setAttempts(t.getAttempts() + 1));
-          }
-        }
+            "purgeTombstones: giving up on blob nodeId={} version={} after {} attempts; "
+                + "accepting orphan and removing tombstone.",
+            t.getNodeId(),
+            t.getVersion(),
+            t.getAttempts() + 1);
+        tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
+      } else {
+        tombstoneRepository.updateTombstone(t.setAttempts(t.getAttempts() + 1));
       }
     }
   }
