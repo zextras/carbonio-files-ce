@@ -63,6 +63,7 @@ class NodeApiTest {
             null,
             null,
             null,
+            null,
             null);
   }
 

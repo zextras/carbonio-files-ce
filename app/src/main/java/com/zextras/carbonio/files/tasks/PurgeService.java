@@ -21,6 +21,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepositor
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
 import com.zextras.carbonio.files.rest.services.BlobKey;
 import com.zextras.carbonio.files.rest.services.BlobLifecycle;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -96,7 +97,8 @@ public class PurgeService {
   }
 
   void purgeTrashedNodes(long retentionDays) {
-    long retentionTimestamp = System.currentTimeMillis() - (retentionDays * 86400 * 1000);
+    long retentionTimestamp =
+        NodeRules.trashRetentionCutoff(System.currentTimeMillis(), retentionDays);
 
     Map<String, List<BlobKey>> keysByOwner = new HashMap<>();
     for (Node top : nodeRepository.getTrashedTopNodes(retentionTimestamp)) {
@@ -161,7 +163,7 @@ public class PurgeService {
     return nodeRepository
         .getNode(topId)
         .filter(node -> node.getParentId().filter(RootId.TRASH_ROOT::equals).isPresent())
-        .filter(node -> node.getUpdatedAt() < retentionTimestamp);
+        .filter(node -> NodeRules.isPastTrashRetention(node.getUpdatedAt(), retentionTimestamp));
   }
 
   private Map<String, List<BlobKey>> tombstoneFiles(List<Node> nodes) {

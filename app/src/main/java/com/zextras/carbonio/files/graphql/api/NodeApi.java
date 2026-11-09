@@ -17,6 +17,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.InvalidPageTokenException;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
@@ -113,6 +114,7 @@ public class NodeApi {
   private final NodeCreationHelper nodeCreationHelper;
   private final VersionReservations versionReservations;
   private final BlobLifecycle blobLifecycle;
+  private final NodeLocks nodeLocks;
 
   @Inject
   public NodeApi(
@@ -130,7 +132,8 @@ public class NodeApi {
       ShareCascadeHelper shareCascade,
       NodeCreationHelper nodeCreationHelper,
       VersionReservations versionReservations,
-      BlobLifecycle blobLifecycle) {
+      BlobLifecycle blobLifecycle,
+      NodeLocks nodeLocks) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
     this.permissionsChecker = permissionsChecker;
@@ -146,6 +149,7 @@ public class NodeApi {
     this.nodeCreationHelper = nodeCreationHelper;
     this.versionReservations = versionReservations;
     this.blobLifecycle = blobLifecycle;
+    this.nodeLocks = nodeLocks;
   }
 
   // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -492,6 +496,7 @@ public class NodeApi {
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
     String me = requester.getId().getUserId();
+    nodeLocks.lockForChange(nodeIds);
 
     List<String> trashableNodes =
         nodeIds.stream()
@@ -568,6 +573,20 @@ public class NodeApi {
     validator.checkNodeIds(nodeIds).validate();
     String me = requester.getId().getUserId();
 
+    Map<String, String> parentBeforeLock = new HashMap<>();
+    nodeIds.forEach(
+        id ->
+            nodeRepository
+                .getTrashedNode(id)
+                .ifPresent(t -> parentBeforeLock.put(id, t.getParentId().trim())));
+    List<String> lockIds = new ArrayList<>(nodeIds);
+    lockIds.addAll(parentBeforeLock.values());
+    nodeLocks.lockForChange(lockIds);
+
+    long retentionCutoff =
+        NodeRules.trashRetentionCutoff(
+            System.currentTimeMillis(),
+            Constants.Config.PurgeService.RETENTION_TRASHED_ITEMS_IN_DAYS);
     List<String> restorableNodeIds =
         nodeIds.stream()
             .filter(
@@ -575,14 +594,21 @@ public class NodeApi {
                   Optional<Node> rNode = nodeRepository.getNode(nodeId);
                   return rNode.isPresent()
                       && rNode.get().getNodeType()
-                          != com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT;
+                          != com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT
+                      && !NodeRules.isPastTrashRetention(
+                          rNode.get().getUpdatedAt(), retentionCutoff);
                 })
             .filter(
                 nodeId ->
                     permissionsChecker
                         .getPermissions(nodeId, me)
                         .has(SharePermission.READ_AND_WRITE))
-            .filter(nodeId -> nodeRepository.getTrashedNode(nodeId).isPresent())
+            .filter(
+                nodeId ->
+                    nodeRepository
+                        .getTrashedNode(nodeId)
+                        .map(t -> t.getParentId().trim().equals(parentBeforeLock.get(nodeId)))
+                        .orElse(false))
             .collect(Collectors.toList());
 
     List<NodeModel> results =
@@ -668,6 +694,10 @@ public class NodeApi {
     validator.checkNodeIds(nodeIds).checkNodeId(destinationId).validate();
     String me = requester.getId().getUserId();
 
+    List<String> lockIds = new ArrayList<>(nodeIds);
+    lockIds.add(destinationId);
+    nodeLocks.lockForChange(lockIds);
+
     if (!permissionsChecker.getPermissions(destinationId, me).has(SharePermission.READ_AND_WRITE)) {
       throw FilesGraphQLErrors.nodeWriteError(destinationId);
     }
@@ -677,6 +707,9 @@ public class NodeApi {
             .getNode(destinationId)
             .filter(NodeRules::acceptsChildren)
             .orElseThrow(() -> FilesGraphQLErrors.nodeWriteError(destinationId));
+    if (destinationFolder.getAncestorsList().contains(RootId.TRASH_ROOT)) {
+      throw FilesGraphQLErrors.nodeWriteError(destinationId);
+    }
 
     List<String> rootIds =
         nodeRepository.getRootsList().stream().map(Node::getId).collect(Collectors.toList());
@@ -690,6 +723,12 @@ public class NodeApi {
                         .has(SharePermission.READ_AND_WRITE))
             .filter(nodeId -> !rootIds.contains(nodeId))
             .filter(nodeId -> !destinationId.equals(nodeId))
+            .filter(
+                nodeId ->
+                    nodeRepository
+                        .getNode(nodeId)
+                        .map(n -> !n.getAncestorsList().contains(RootId.TRASH_ROOT))
+                        .orElse(false))
             .toList();
     List<String> nodeIdsToMove = excludeAncestorsOf(destinationFolder, movableIds);
 

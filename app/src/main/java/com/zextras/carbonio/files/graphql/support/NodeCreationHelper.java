@@ -12,6 +12,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
@@ -27,6 +28,7 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +60,7 @@ public class NodeCreationHelper {
   private final BlobLifecycle blobLifecycle;
   private final PermissionsChecker permissionsChecker;
   private final ShareCascadeHelper shareCascade;
+  private final NodeLocks nodeLocks;
 
   @Inject
   public NodeCreationHelper(
@@ -69,7 +72,8 @@ public class NodeCreationHelper {
       TombstoneRepository tombstoneRepository,
       BlobLifecycle blobLifecycle,
       PermissionsChecker permissionsChecker,
-      ShareCascadeHelper shareCascade) {
+      ShareCascadeHelper shareCascade,
+      NodeLocks nodeLocks) {
     this.nodeRepository = nodeRepository;
     this.shareRepository = shareRepository;
     this.notificationRepository = notificationRepository;
@@ -79,6 +83,7 @@ public class NodeCreationHelper {
     this.blobLifecycle = blobLifecycle;
     this.permissionsChecker = permissionsChecker;
     this.shareCascade = shareCascade;
+    this.nodeLocks = nodeLocks;
   }
 
   /**
@@ -93,6 +98,7 @@ public class NodeCreationHelper {
    * @throws NodeNotFoundException if the parent is neither a FOLDER nor a ROOT other than the trash
    */
   public Node createFolder(String requesterId, String parentId, String name, UserMyself requester) {
+    nodeLocks.lockForChange(Collections.singletonList(parentId));
     if (!permissionsChecker
         .getPermissions(parentId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {

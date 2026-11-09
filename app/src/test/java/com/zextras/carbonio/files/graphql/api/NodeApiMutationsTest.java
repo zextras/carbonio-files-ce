@@ -26,6 +26,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -102,6 +103,7 @@ class NodeApiMutationsTest {
     UserId userId = new UserId(REQUESTER_ID);
     when(requester.getId()).thenReturn(userId);
 
+    NodeLocks nodeLocks = mock(NodeLocks.class);
     nodeCreationHelper =
         new NodeCreationHelper(
             nodeRepository,
@@ -112,7 +114,8 @@ class NodeApiMutationsTest {
             tombstoneRepository,
             mock(BlobLifecycle.class),
             permissionsChecker,
-            shareCascade);
+            shareCascade,
+            nodeLocks);
 
     nodeApi =
         new NodeApi(
@@ -130,7 +133,8 @@ class NodeApiMutationsTest {
             shareCascade,
             nodeCreationHelper,
             versionReservations,
-            blobLifecycle);
+            blobLifecycle,
+            nodeLocks);
   }
 
   private Node mockFileNode(String id, String parentId) {

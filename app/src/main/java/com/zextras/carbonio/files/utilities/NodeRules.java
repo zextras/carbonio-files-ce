@@ -26,6 +26,14 @@ public final class NodeRules {
     return RootId.LOCAL_ROOT.equals(id) || RootId.TRASH_ROOT.equals(id);
   }
 
+  public static long trashRetentionCutoff(long now, long retentionDays) {
+    return now - (retentionDays * 86400 * 1000);
+  }
+
+  public static boolean isPastTrashRetention(long updatedAt, long retentionCutoff) {
+    return updatedAt < retentionCutoff;
+  }
+
   public static boolean acceptsChildren(Node node) {
     return NodeType.FOLDER.equals(node.getNodeType())
         || (isRoot(node) && !RootId.TRASH_ROOT.equals(node.getId()));
