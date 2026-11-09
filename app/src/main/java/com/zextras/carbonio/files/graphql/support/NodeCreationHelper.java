@@ -14,7 +14,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
@@ -28,7 +27,6 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -103,7 +101,7 @@ public class NodeCreationHelper {
         .has(SharePermission.READ_AND_WRITE)) {
       throw new NodeAccessException(parentId);
     }
-    nodeLocks.lockForChange(Collections.singletonList(parentId));
+    nodeLocks.lock(List.of(), List.of(parentId));
     if (!permissionsChecker
         .getPermissions(parentId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {
@@ -163,38 +161,44 @@ public class NodeCreationHelper {
    * @throws RuntimeException if the DB transaction fails (caller must treat as a rollback)
    */
   public void deleteAllNodesAndBlobsForUser(String userId) {
-    List<Node> allNodes =
-        nodeRepository.findNodesByOwner(userId).stream()
-            .filter(Objects::nonNull)
-            .filter(node -> !node.getNodeType().equals(NodeType.ROOT))
-            .toList();
+    Map<String, List<FileVersion>> fileVersionsByOwner =
+        QuarkusTransaction.requiringNew()
+            .call(
+                () -> {
+                  List<Node> allNodes =
+                      nodeRepository.findNodesByOwner(userId).stream()
+                          .filter(Objects::nonNull)
+                          .filter(node -> !node.getNodeType().equals(NodeType.ROOT))
+                          .toList();
 
-    List<Node> fileNodes =
-        allNodes.stream().filter(node -> !node.getNodeType().equals(NodeType.FOLDER)).toList();
+                  Map<String, String> ownerOfFile = new HashMap<>();
+                  allNodes.stream()
+                      .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
+                      .forEach(node -> ownerOfFile.put(node.getId(), node.getOwnerId()));
 
-    Map<String, List<FileVersion>> fileVersionsByOwner = new HashMap<>();
-    fileNodes.forEach(
-        node -> {
-          List<FileVersion> versions =
-              fileVersionRepository.getFileVersions(
-                  node.getId(), List.of(FileVersionSort.VERSION_ASC));
-          fileVersionsByOwner
-              .computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
-              .addAll(versions);
-        });
+                  Map<String, List<FileVersion>> versionsByOwner = new HashMap<>();
+                  if (!ownerOfFile.isEmpty()) {
+                    fileVersionRepository
+                        .getFileVersionsOf(ownerOfFile.keySet())
+                        .forEach(
+                            version ->
+                                versionsByOwner
+                                    .computeIfAbsent(
+                                        ownerOfFile.get(version.getNodeId()),
+                                        k -> new ArrayList<>())
+                                    .add(version));
+                  }
 
-    QuarkusTransaction.requiringNew()
-        .run(
-            () -> {
-              fileVersionsByOwner.forEach(
-                  (ownerId, versions) ->
-                      tombstoneRepository.createTombstonesBulk(versions, ownerId));
-              deleteNodes(allNodes);
-              allNodes.stream()
-                  .filter(node -> node.getNodeType().equals(NodeType.FOLDER))
-                  .map(Node::getId)
-                  .forEach(this::cascadeDeleteNode);
-            });
+                  versionsByOwner.forEach(
+                      (ownerId, versions) ->
+                          tombstoneRepository.createTombstonesBulk(versions, ownerId));
+                  deleteNodes(allNodes);
+                  allNodes.stream()
+                      .filter(node -> node.getNodeType().equals(NodeType.FOLDER))
+                      .map(Node::getId)
+                      .forEach(this::cascadeDeleteNode);
+                  return versionsByOwner;
+                });
 
     fileVersionsByOwner.forEach(
         (ownerId, versions) ->

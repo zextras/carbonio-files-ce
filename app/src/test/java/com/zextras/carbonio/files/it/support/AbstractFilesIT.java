@@ -136,21 +136,29 @@ public abstract class AbstractFilesIT {
     return DriverManager.getConnection(FilesStackTestResource.POSTGRES_JDBC_URL, "test", "test");
   }
 
+  protected static final long NODE_LOCK_WAIT_MILLIS =
+      FilesStackTestResource.NODE_LOCK_WAIT.toMillis();
+
   /** Opens a transaction that holds the node row; commit or roll it back to release it. */
   protected static Connection holdNode(String nodeId, String mode) throws SQLException {
     Connection holder = jdbcConnection();
     try {
       holder.setAutoCommit(false);
-      try (PreparedStatement statement =
-          holder.prepareStatement("SELECT 1 FROM node WHERE node_id = ? " + mode)) {
-        statement.setString(1, nodeId);
-        statement.executeQuery().close();
-      }
+      holdAlso(holder, nodeId, mode);
     } catch (SQLException | RuntimeException e) {
       holder.close();
       throw e;
     }
     return holder;
+  }
+
+  protected static void holdAlso(Connection holder, String nodeId, String mode)
+      throws SQLException {
+    try (PreparedStatement statement =
+        holder.prepareStatement("SELECT 1 FROM node WHERE node_id = ? " + mode)) {
+      statement.setString(1, nodeId);
+      statement.executeQuery().close();
+    }
   }
 
   protected static int backendPid(Connection connection) throws SQLException {

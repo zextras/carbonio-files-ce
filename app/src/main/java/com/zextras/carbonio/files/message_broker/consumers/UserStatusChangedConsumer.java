@@ -16,17 +16,7 @@ import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Hides or shows every node of a user according to the status carried by the event: nodes are
- * hidden only when the user is closed, and the flag is written as an absolute value, so handling
- * the same event twice leaves the same result.
- *
- * <p>The write runs in its own transaction opened inside {@code doHandle} through {@link
- * Transactions}: this consumer runs on the message-broker SDK's delivery thread, and {@code
- * doHandle} is invoked on {@code this}, so a {@code @Transactional} annotation on it would be
- * ignored. {@link BaseConsumer#handleDelivery} acks only after {@code doHandle} returns, hence the
- * commit always precedes the ack.
- */
+/** Hides every node of a closed user and shows them again otherwise, idempotently. */
 @ApplicationScoped
 public class UserStatusChangedConsumer extends BaseConsumer {
 

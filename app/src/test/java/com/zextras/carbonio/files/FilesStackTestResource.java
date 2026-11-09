@@ -24,6 +24,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -84,6 +85,8 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
    * values.
    */
   public static volatile String POSTGRES_JDBC_URL;
+
+  public static final Duration NODE_LOCK_WAIT = Duration.ofSeconds(2);
 
   private static volatile boolean started = false;
   private static Map<String, String> cachedConfig;
@@ -234,7 +237,8 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
             // disappearing out from under an assertion mid-test). Disable the scheduler outright
             // via
             // the same config channel.
-            Map.entry("quarkus.scheduler.enabled", "false"));
+            Map.entry("quarkus.scheduler.enabled", "false"),
+            Map.entry("carbonio.files.node-locks.wait", NODE_LOCK_WAIT.toMillis() + "ms"));
 
     started = true;
     return cachedConfig;

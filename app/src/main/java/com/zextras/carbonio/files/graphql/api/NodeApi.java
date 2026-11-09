@@ -17,6 +17,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
+import com.zextras.carbonio.files.dal.locks.NodeLockTimeoutException;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.InvalidPageTokenException;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
@@ -496,7 +497,10 @@ public class NodeApi {
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
     String me = requester.getId().getUserId();
-    Set<String> lockedIds = Set.copyOf(writableByMe(nodeIds, me));
+    Set<String> lockedIds =
+        writableByMe(nodeIds, me).stream()
+            .filter(id -> !insideTrash(id))
+            .collect(Collectors.toUnmodifiableSet());
     nodeLocks.lockForChange(lockedIds);
 
     List<String> trashableNodes =
@@ -583,9 +587,7 @@ public class NodeApi {
             nodeRepository
                 .getTrashedNode(id)
                 .ifPresent(t -> parentBeforeLock.put(id, t.getParentId().trim())));
-    List<String> lockIds = new ArrayList<>(writableIds);
-    lockIds.addAll(parentBeforeLock.values());
-    nodeLocks.lockForChange(lockIds);
+    nodeLocks.lock(parentBeforeLock.keySet(), parentBeforeLock.values());
 
     long retentionCutoff =
         NodeRules.trashRetentionCutoff(
@@ -700,16 +702,12 @@ public class NodeApi {
 
     List<String> movable = writableByMe(nodeIds, me);
     boolean destinationWritable = !writableByMe(List.of(destinationId), me).isEmpty();
-    List<String> lockIds = new ArrayList<>(movable);
-    if (destinationWritable) {
-      lockIds.add(destinationId);
+    if (!destinationWritable) {
+      throw FilesGraphQLErrors.nodeWriteError(destinationId);
     }
-    nodeLocks.lockForChange(lockIds);
+    nodeLocks.lock(movable, List.of(destinationId));
 
-    if (!destinationWritable
-        || !permissionsChecker
-            .getPermissions(destinationId, me)
-            .has(SharePermission.READ_AND_WRITE)) {
+    if (!permissionsChecker.getPermissions(destinationId, me).has(SharePermission.READ_AND_WRITE)) {
       throw FilesGraphQLErrors.nodeWriteError(destinationId);
     }
 
@@ -861,79 +859,13 @@ public class NodeApi {
     validator.checkNodeIds(nodeIds).validate();
     String me = requester.getId().getUserId();
 
-    record Deletion(Set<String> deletedIds, Map<String, List<FileVersion>> versionsByOwner) {}
-
     Deletion deletion;
     try {
       deletion =
-          QuarkusTransaction.requiringNew()
-              .call(
-                  () -> {
-                    Set<String> lockedIds = Set.copyOf(writableByMe(nodeIds, me));
-                    nodeLocks.lockForChange(lockedIds);
-
-                    List<Node> requestedNodes =
-                        nodeRepository
-                            .getNodes(nodeIds, Optional.empty())
-                            .filter(Objects::nonNull)
-                            .filter(
-                                node ->
-                                    !node.getNodeType()
-                                        .equals(
-                                            com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT))
-                            .filter(node -> lockedIds.contains(node.getId()))
-                            .filter(
-                                node ->
-                                    permissionsChecker
-                                        .getPermissions(node.getId(), me)
-                                        .has(SharePermission.READ_AND_WRITE))
-                            .collect(Collectors.toList());
-
-                    Set<String> deletableIds =
-                        requestedNodes.stream().map(Node::getId).collect(Collectors.toSet());
-
-                    List<Node> allNodes =
-                        requestedNodes.stream()
-                            .flatMap(root -> nodeRepository.getSubtree(root).stream())
-                            .toList();
-
-                    Map<String, String> ownerOf = new HashMap<>();
-                    allNodes.forEach(node -> ownerOf.putIfAbsent(node.getId(), node.getOwnerId()));
-                    List<String> fileIds =
-                        allNodes.stream()
-                            .filter(
-                                node ->
-                                    !node.getNodeType()
-                                        .equals(
-                                            com.zextras.carbonio.files.dal.dao.ebean.NodeType
-                                                .FOLDER))
-                            .map(Node::getId)
-                            .toList();
-
-                    Map<String, List<FileVersion>> versionsByOwner = new HashMap<>();
-                    fileVersionRepository
-                        .getFileVersionsOf(fileIds)
-                        .forEach(
-                            fv ->
-                                versionsByOwner
-                                    .computeIfAbsent(
-                                        ownerOf.get(fv.getNodeId()), k -> new ArrayList<>())
-                                    .add(fv));
-                    versionsByOwner.forEach(
-                        (ownerId, versions) ->
-                            tombstoneRepository.createTombstonesBulk(versions, ownerId));
-
-                    deleteNodesFromDb(allNodes);
-                    allNodes.stream()
-                        .filter(
-                            node ->
-                                node.getNodeType()
-                                    .equals(
-                                        com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
-                        .map(Node::getId)
-                        .forEach(this::cascadeDeleteNodeHelper);
-                    return new Deletion(deletableIds, versionsByOwner);
-                  });
+          QuarkusTransaction.requiringNew().call(() -> deleteNodesInTransaction(nodeIds, me));
+    } catch (NodeLockTimeoutException e) {
+      logger.warn("Node locks not acquired during deleteNodes: {}", e.getMessage());
+      throw deleteNodesFailure(nodeIds);
     } catch (RuntimeException e) {
       logger.error("DB error during deleteNodes, rolling back", e);
       throw deleteNodesFailure(nodeIds);
@@ -953,6 +885,65 @@ public class NodeApi {
       throw FilesGraphQLErrors.nodeNotFound(errorIds.get(0)).withPartialResults(successIds);
     }
     return successIds;
+  }
+
+  private record Deletion(Set<String> deletedIds, Map<String, List<FileVersion>> versionsByOwner) {}
+
+  private Deletion deleteNodesInTransaction(List<String> nodeIds, String me) {
+    Set<String> lockedIds = Set.copyOf(writableByMe(nodeIds, me));
+    nodeLocks.lockForChange(lockedIds);
+
+    List<Node> requestedNodes =
+        nodeRepository
+            .getNodes(nodeIds, Optional.empty())
+            .filter(Objects::nonNull)
+            .filter(
+                node ->
+                    !node.getNodeType()
+                        .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT))
+            .filter(node -> lockedIds.contains(node.getId()))
+            .filter(
+                node ->
+                    permissionsChecker
+                        .getPermissions(node.getId(), me)
+                        .has(SharePermission.READ_AND_WRITE))
+            .collect(Collectors.toList());
+
+    Set<String> deletableIds = requestedNodes.stream().map(Node::getId).collect(Collectors.toSet());
+
+    List<Node> allNodes =
+        requestedNodes.stream().flatMap(root -> nodeRepository.getSubtree(root).stream()).toList();
+
+    Map<String, String> ownerOf = new HashMap<>();
+    allNodes.forEach(node -> ownerOf.putIfAbsent(node.getId(), node.getOwnerId()));
+    List<String> fileIds =
+        allNodes.stream()
+            .filter(
+                node ->
+                    !node.getNodeType()
+                        .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
+            .map(Node::getId)
+            .toList();
+
+    Map<String, List<FileVersion>> versionsByOwner = new HashMap<>();
+    fileVersionRepository
+        .getFileVersionsOf(fileIds)
+        .forEach(
+            fv ->
+                versionsByOwner
+                    .computeIfAbsent(ownerOf.get(fv.getNodeId()), k -> new ArrayList<>())
+                    .add(fv));
+    versionsByOwner.forEach(
+        (ownerId, versions) -> tombstoneRepository.createTombstonesBulk(versions, ownerId));
+
+    deleteNodesFromDb(allNodes);
+    allNodes.stream()
+        .filter(
+            node ->
+                node.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
+        .map(Node::getId)
+        .forEach(this::cascadeDeleteNodeHelper);
+    return new Deletion(deletableIds, versionsByOwner);
   }
 
   // TODO: synchronous, kept alive by the GraphQLExecutionRoute heartbeat (an inactivity-timeout
@@ -1053,6 +1044,9 @@ public class NodeApi {
       outcome =
           QuarkusTransaction.requiringNew()
               .call(() -> deleteVersionsInTransaction(nodeId, me, versions));
+    } catch (NodeLockTimeoutException e) {
+      logger.warn("Node locks not acquired during deleteVersions: {}", e.getMessage());
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
     } catch (RuntimeException e) {
       logger.error("DB error during deleteVersions, rolling back: {}", e.getMessage());
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
@@ -1060,9 +1054,6 @@ public class NodeApi {
 
     if (outcome.result() == DeleteVersionsResult.NOT_WRITABLE) {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
-    }
-    if (outcome.result() == DeleteVersionsResult.NODE_MISSING) {
-      throw FilesGraphQLErrors.nodeNotFound(nodeId);
     }
 
     List<FileVersion> fileVersionsToDelete = outcome.deleted();
@@ -1087,8 +1078,7 @@ public class NodeApi {
 
   private enum DeleteVersionsResult {
     DELETED,
-    NOT_WRITABLE,
-    NODE_MISSING
+    NOT_WRITABLE
   }
 
   private record DeleteVersionsOutcome(
@@ -1104,11 +1094,7 @@ public class NodeApi {
         || !permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
       return new DeleteVersionsOutcome(DeleteVersionsResult.NOT_WRITABLE, null, List.of());
     }
-    Optional<Node> found = nodeRepository.getNode(nodeId);
-    if (found.isEmpty()) {
-      return new DeleteVersionsOutcome(DeleteVersionsResult.NODE_MISSING, null, List.of());
-    }
-    Node node = found.get();
+    Node node = nodeRepository.getNode(nodeId).orElseThrow();
     List<FileVersion> toDelete =
         (versions != null
                 ? fileVersionRepository.getFileVersions(nodeId, versions)
@@ -1329,6 +1315,13 @@ public class NodeApi {
         .filter(parent -> !parent.getAncestorsList().contains(RootId.TRASH_ROOT));
   }
 
+  private boolean insideTrash(String nodeId) {
+    return nodeRepository
+        .getNode(nodeId)
+        .map(n -> n.getAncestorsList().contains(RootId.TRASH_ROOT))
+        .orElse(false);
+  }
+
   private List<String> writableByMe(List<String> nodeIds, String me) {
     List<String> ids = nodeIds.stream().filter(Objects::nonNull).map(String::trim).toList();
     Map<String, ACL> permissions = permissionsChecker.getPermissions(ids, me);
@@ -1410,7 +1403,7 @@ public class NodeApi {
     List<String> usersToNotify =
         new ArrayList<>(
             shareRepository.getShares(copied.getId(), Collections.emptyList()).stream()
-                .map(com.zextras.carbonio.files.dal.dao.ebean.Share::getTargetUserId)
+                .map(Share::getTargetUserId)
                 .toList());
     usersToNotify.remove(me);
     if (!com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
@@ -1471,7 +1464,7 @@ public class NodeApi {
       QuarkusTransaction.requiringNew()
           .run(
               () -> {
-                nodeLocks.lockForChange(List.of(destinationFolder.getId()));
+                nodeLocks.lock(List.of(), List.of(destinationFolder.getId()));
                 Node parent =
                     nodeRepository
                         .getNode(destinationFolder.getId())
@@ -1530,7 +1523,7 @@ public class NodeApi {
     return QuarkusTransaction.requiringNew()
         .call(
             () -> {
-              nodeLocks.lockForChange(List.of(destinationFolder.getId()));
+              nodeLocks.lock(List.of(), List.of(destinationFolder.getId()));
               Node parent =
                   nodeRepository
                       .getNode(destinationFolder.getId())

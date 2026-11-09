@@ -25,7 +25,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -133,6 +138,25 @@ class PurgeLocksDalTest {
   void purgeRechecksTheTopUnderTheLock() throws Exception {
     String top = givenAnExpiredTrashedFolder();
     String file = givenAFileUnder(top);
+    List<String> warnings = new CopyOnWriteArrayList<>();
+    Handler capture =
+        new Handler() {
+          @Override
+          public void publish(LogRecord record) {
+            if (record.getLevel().intValue() >= Level.WARNING.intValue()) {
+              warnings.add(
+                  record.getMessage() + " " + java.util.Arrays.toString(record.getParameters()));
+            }
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() {}
+        };
+    Logger purgeLogger = Logger.getLogger(PurgeService.class.getName());
+    purgeLogger.addHandler(capture);
 
     CompletableFuture<Void> purge;
     try (Connection holder = LockProbe.holder()) {
@@ -147,8 +171,13 @@ class PurgeLocksDalTest {
       }
       holder.commit();
     }
-    purge.get(60, TimeUnit.SECONDS);
+    try {
+      purge.get(60, TimeUnit.SECONDS);
+    } finally {
+      purgeLogger.removeHandler(capture);
+    }
 
+    assertThat(warnings).noneMatch(w -> w.contains("Unable to purge"));
     assertThat(nodeRows(top)).isEqualTo(1);
     assertThat(nodeRows(file)).isEqualTo(1);
   }

@@ -139,7 +139,8 @@ class VersionLocksApiIT extends AbstractFilesIT {
 
     Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(deleteResponse.getBody().asString()))
         .containsExactly("NODE_WRITE_ERROR");
-    Assertions.assertThat(elapsedMillis).isBetween(5_000L, 15_000L);
+    Assertions.assertThat(elapsedMillis)
+        .isBetween(NODE_LOCK_WAIT_MILLIS, NODE_LOCK_WAIT_MILLIS + 2_500L);
     Assertions.assertThat(download(file, COOKIE).statusCode()).isEqualTo(200);
   }
 
@@ -326,7 +327,8 @@ class VersionLocksApiIT extends AbstractFilesIT {
         CompletableFuture<Response> overwrite =
             async(() -> uploadVersion(file, second, "o.txt", true, COOKIE));
         awaitBlockedBy(revisionHolder, 1);
-        Assertions.assertThatThrownBy(() -> overwrite.get(6, TimeUnit.SECONDS))
+        Assertions.assertThatThrownBy(
+                () -> overwrite.get(NODE_LOCK_WAIT_MILLIS + 1_000L, TimeUnit.MILLISECONDS))
             .isInstanceOf(TimeoutException.class);
         awaitBlockedBy(revisionHolder, 1);
         revisionHolder.rollback();
@@ -360,7 +362,8 @@ class VersionLocksApiIT extends AbstractFilesIT {
     }
 
     Assertions.assertThat(uploadResponse.statusCode()).isEqualTo(500);
-    Assertions.assertThat(elapsedMillis).isBetween(5_000L, 15_000L);
+    Assertions.assertThat(elapsedMillis)
+        .isBetween(NODE_LOCK_WAIT_MILLIS, NODE_LOCK_WAIT_MILLIS + 2_500L);
     Assertions.assertThat(download(file, 2, COOKIE).statusCode()).isEqualTo(404);
     Assertions.assertThat(download(file, 1, COOKIE).statusCode()).isEqualTo(200);
     Assertions.assertThat(storages.has(file, 2)).isFalse();

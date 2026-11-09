@@ -27,62 +27,90 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.hibernate.Session;
 
 @ApplicationScoped
 public class NodeLocks {
-
-  static final Duration WAIT_BUDGET = Duration.ofSeconds(5);
 
   private static final String IDLE_IN_TRANSACTION_TIMEOUT = "60s";
   private static final Set<String> ROOTS = Set.of(RootId.LOCAL_ROOT, RootId.TRASH_ROOT);
   private static final Set<String> LOCK_WAIT_FAILURES = Set.of("55P03", "57014", "40P01");
   private static final String DEADLOCK = "40P01";
   private static final String SAVEPOINT = "files_node_locks";
+  private static final String CHILDREN_KEY_PREFIX = "files-children:";
   private static final String DEPTH =
       "length(coalesce(ancestor_ids, '')) - length(replace(coalesce(ancestor_ids, ''), ',', ''))";
 
   private record Row(String id, int depth, boolean exclusive) {}
 
   private final EntityManager entityManager;
+  private final Duration waitBudget;
 
   @Inject
-  public NodeLocks(EntityManager entityManager) {
+  public NodeLocks(
+      EntityManager entityManager,
+      @ConfigProperty(name = "carbonio.files.node-locks.wait", defaultValue = "5s")
+          Duration waitBudget) {
     this.entityManager = entityManager;
+    this.waitBudget = waitBudget;
   }
 
   /**
-   * First statement of a write transaction: the given rows FOR NO KEY UPDATE, their ancestors FOR
+   * First statement of a write transaction: the changed rows FOR NO KEY UPDATE, their ancestors FOR
    * SHARE. Entities loaded before are detached; read everything again afterwards.
    */
   @Transactional(TxType.MANDATORY)
   public Set<String> lockForChange(Collection<String> nodeIds) {
-    return lockForChange(nodeIds, WAIT_BUDGET);
+    return lock(nodeIds, List.of(), waitBudget);
   }
 
   @Transactional(TxType.MANDATORY)
   Set<String> lockForChange(Collection<String> nodeIds, Duration budget) {
+    return lock(nodeIds, List.of(), budget);
+  }
+
+  /**
+   * Like {@link #lockForChange}, plus parents receiving a child: FOR SHARE and an advisory lock.
+   */
+  @Transactional(TxType.MANDATORY)
+  public Set<String> lock(Collection<String> changedIds, Collection<String> parentIds) {
+    return lock(changedIds, parentIds, waitBudget);
+  }
+
+  @Transactional(TxType.MANDATORY)
+  Set<String> lock(Collection<String> changedIds, Collection<String> parentIds, Duration budget) {
     Session session = entityManager.unwrap(Session.class);
     if (session.isDirty()) {
       throw new IllegalStateException("Node locks must be taken before any write");
     }
-    Set<String> anchors = new LinkedHashSet<>();
-    nodeIds.stream()
-        .filter(Objects::nonNull)
-        .map(String::trim)
-        .filter(id -> !id.isEmpty() && id.length() <= 36 && !ROOTS.contains(id))
-        .forEach(anchors::add);
-    if (anchors.isEmpty()) {
+    Set<String> anchors = sanitize(changedIds);
+    Set<String> parents = sanitize(parentIds);
+    if (anchors.isEmpty() && parents.isEmpty()) {
       return Set.of();
     }
     Set<String> locked =
-        session.doReturningWork(connection -> acquire(connection, anchors, budget));
+        session.doReturningWork(connection -> acquire(connection, anchors, parents, budget));
     entityManager.clear();
     return locked;
   }
 
-  private Set<String> acquire(Connection connection, Set<String> anchors, Duration budget)
+  private static Set<String> sanitize(Collection<String> ids) {
+    Set<String> result = new LinkedHashSet<>();
+    ids.stream()
+        .filter(Objects::nonNull)
+        .map(String::trim)
+        .filter(id -> !id.isEmpty() && id.length() <= 36 && !ROOTS.contains(id))
+        .forEach(result::add);
+    return result;
+  }
+
+  private Set<String> acquire(
+      Connection connection, Set<String> anchors, Set<String> parents, Duration budget)
       throws SQLException {
+    Set<String> requested = new LinkedHashSet<>(anchors);
+    requested.addAll(parents);
     if (!queryBoolean(connection, "SELECT pg_current_xact_id_if_assigned() IS NULL")) {
       throw new IllegalStateException("Node locks must be taken before any write");
     }
@@ -92,22 +120,27 @@ public class NodeLocks {
     execute(connection, "SAVEPOINT " + SAVEPOINT);
     while (true) {
       try {
-        List<Row> plan = plan(connection, anchors);
+        List<Row> plan = plan(connection, anchors, parents);
         Set<String> locked = new HashSet<>();
         for (List<Row> run : runs(plan)) {
           long remaining = remainingMillis(deadline);
           if (remaining <= 0) {
-            execute(connection, "ROLLBACK TO SAVEPOINT " + SAVEPOINT);
-            throw new NodeLockTimeoutException(anchors, budget);
+            giveUp(connection, requested, budget);
           }
-          setLocal(connection, "lock_timeout", remaining + "ms");
-          setLocal(connection, "statement_timeout", remaining + "ms");
-          locked.addAll(lock(connection, run));
+          setTimeouts(connection, remaining + "ms", remaining + "ms");
+          locked.addAll(lockRun(connection, run));
         }
-        setLocal(connection, "lock_timeout", lockTimeout);
-        setLocal(connection, "statement_timeout", statementTimeout);
+        if (!parents.isEmpty()) {
+          long remaining = remainingMillis(deadline);
+          if (remaining <= 0) {
+            giveUp(connection, requested, budget);
+          }
+          setTimeouts(connection, remaining + "ms", remaining + "ms");
+          lockChildren(connection, parents);
+        }
+        setTimeouts(connection, lockTimeout, statementTimeout);
         Set<String> required = new HashSet<>();
-        plan(connection, anchors).forEach(row -> required.add(row.id()));
+        plan(connection, anchors, parents).forEach(row -> required.add(row.id()));
         if (locked.containsAll(required)) {
           setLocal(connection, "idle_in_transaction_session_timeout", IDLE_IN_TRANSACTION_TIMEOUT);
           execute(connection, "RELEASE SAVEPOINT " + SAVEPOINT);
@@ -120,27 +153,37 @@ public class NodeLocks {
         }
         execute(connection, "ROLLBACK TO SAVEPOINT " + SAVEPOINT);
         if (!DEADLOCK.equals(e.getSQLState())) {
-          throw new NodeLockTimeoutException(anchors, budget, e);
+          throw new NodeLockTimeoutException(requested, budget, e);
         }
       }
       if (remainingMillis(deadline) <= 0) {
-        throw new NodeLockTimeoutException(anchors, budget);
+        throw new NodeLockTimeoutException(requested, budget);
       }
     }
   }
 
-  private List<Row> plan(Connection connection, Set<String> anchors) throws SQLException {
+  private List<Row> plan(Connection connection, Set<String> anchors, Set<String> parents)
+      throws SQLException {
     Map<String, String> anchorChains = chains(connection, anchors);
+    Set<String> sharedParents = new LinkedHashSet<>(parents);
+    sharedParents.removeAll(anchors);
+    Map<String, String> parentChains = chains(connection, sharedParents);
     Set<String> ancestors = new LinkedHashSet<>();
-    anchorChains.values().stream()
+    Stream.concat(anchorChains.values().stream(), parentChains.values().stream())
         .filter(Objects::nonNull)
         .flatMap(chain -> Arrays.stream(chain.split(",")))
         .map(String::trim)
-        .filter(id -> !id.isEmpty() && !ROOTS.contains(id) && !anchors.contains(id))
+        .filter(
+            id ->
+                !id.isEmpty()
+                    && !ROOTS.contains(id)
+                    && !anchors.contains(id)
+                    && !sharedParents.contains(id))
         .forEach(ancestors::add);
     Map<String, String> ancestorChains = chains(connection, ancestors);
     List<Row> rows = new ArrayList<>();
     anchorChains.forEach((id, chain) -> rows.add(new Row(id, depth(chain), true)));
+    parentChains.forEach((id, chain) -> rows.add(new Row(id, depth(chain), false)));
     ancestorChains.forEach((id, chain) -> rows.add(new Row(id, depth(chain), false)));
     rows.sort(Comparator.comparingInt(Row::depth).thenComparing(Row::id));
     return rows;
@@ -157,7 +200,7 @@ public class NodeLocks {
     return runs;
   }
 
-  private static Set<String> lock(Connection connection, List<Row> run) throws SQLException {
+  private static Set<String> lockRun(Connection connection, List<Row> run) throws SQLException {
     String mode = run.getFirst().exclusive() ? "FOR NO KEY UPDATE" : "FOR SHARE";
     String sql =
         "SELECT trim(node_id) FROM node WHERE node_id = ANY(?::character(36)[]) ORDER BY "
@@ -174,6 +217,22 @@ public class NodeLocks {
       }
     }
     return locked;
+  }
+
+  private static void giveUp(Connection connection, Set<String> requested, Duration budget)
+      throws SQLException {
+    execute(connection, "ROLLBACK TO SAVEPOINT " + SAVEPOINT);
+    throw new NodeLockTimeoutException(requested, budget);
+  }
+
+  private static void lockChildren(Connection connection, Set<String> parents) throws SQLException {
+    try (PreparedStatement statement =
+        connection.prepareStatement("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))")) {
+      for (String parent : parents.stream().sorted().toList()) {
+        statement.setString(1, CHILDREN_KEY_PREFIX + parent);
+        statement.execute();
+      }
+    }
   }
 
   private static Map<String, String> chains(Connection connection, Set<String> ids)
@@ -211,6 +270,18 @@ public class NodeLocks {
         rows.next();
         return rows.getString(1);
       }
+    }
+  }
+
+  private static void setTimeouts(
+      Connection connection, String lockTimeout, String statementTimeout) throws SQLException {
+    try (PreparedStatement statement =
+        connection.prepareStatement(
+            "SELECT set_config('lock_timeout', ?, true), set_config('statement_timeout', ?,"
+                + " true)")) {
+      statement.setString(1, lockTimeout);
+      statement.setString(2, statementTimeout);
+      statement.execute();
     }
   }
 

@@ -412,16 +412,32 @@ class TreeLocksApiIT extends AbstractFilesIT {
     try (Connection holder = holdNode(n, "FOR NO KEY UPDATE")) {
       CompletableFuture<Response> first = async(() -> trash(n));
       awaitBlockedBy(holder, 1);
-      CompletableFuture<Response> second = async(() -> restore(n));
-      awaitBlockedBy(holder, 2);
+      restoreResponse = async(() -> restore(n)).get(30, TimeUnit.SECONDS);
       holder.commit();
       trashResponse = first.get(60, TimeUnit.SECONDS);
-      restoreResponse = second.get(60, TimeUnit.SECONDS);
     }
 
     Assertions.assertThat(errorMessages(trashResponse)).isEmpty();
     Assertions.assertThat(errorCodes(restoreResponse)).containsExactly(NODE_WRITE_ERROR);
     Assertions.assertThat(folderId(n).trim()).isEqualTo(TRASH_ROOT);
+  }
+
+  @Test
+  void createFolderIsNotBlockedByALongOperationOnASubFolder() throws Exception {
+    String parent = seedFolder("P", LOCAL_ROOT, COOKIE);
+    String sub = seedFolder("B", parent, COOKIE);
+
+    Response response;
+    try (Connection holder = holdNode(parent, "FOR SHARE")) {
+      holdAlso(holder, sub, "FOR NO KEY UPDATE");
+      response = async(() -> createFolder(parent, "child")).get(30, TimeUnit.SECONDS);
+      holder.rollback();
+    }
+
+    Assertions.assertThat(errorMessages(response)).isEmpty();
+    Assertions.assertThat(
+            count("SELECT count(*) FROM node WHERE folder_id = ? AND name = 'child'", parent))
+        .isEqualTo(1);
   }
 
   @Test
@@ -438,7 +454,8 @@ class TreeLocksApiIT extends AbstractFilesIT {
     }
 
     Assertions.assertThat(errorMessages(response)).first().isEqualTo("System error");
-    Assertions.assertThat(elapsedMillis).isBetween(5_000L, 15_000L);
+    Assertions.assertThat(elapsedMillis)
+        .isBetween(NODE_LOCK_WAIT_MILLIS, NODE_LOCK_WAIT_MILLIS + 2_500L);
     Assertions.assertThat(count("SELECT count(*) FROM node WHERE folder_id = ?", parent)).isZero();
   }
 }

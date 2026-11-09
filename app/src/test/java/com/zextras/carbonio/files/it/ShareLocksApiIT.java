@@ -285,7 +285,8 @@ class ShareLocksApiIT extends AbstractFilesIT {
     }
 
     Assertions.assertThat(errorMessages(response)).first().isEqualTo("System error");
-    Assertions.assertThat(elapsedMillis).isBetween(5_000L, 15_000L);
+    Assertions.assertThat(elapsedMillis)
+        .isBetween(NODE_LOCK_WAIT_MILLIS, NODE_LOCK_WAIT_MILLIS + 2_500L);
     Assertions.assertThat(shareRows(s, USER2_ID)).isZero();
   }
 

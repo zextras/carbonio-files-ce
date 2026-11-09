@@ -77,4 +77,24 @@ public final class LockProbe {
       }
     }
   }
+
+  static void awaitAdvisoryWaiter() throws Exception {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+    try (Connection observer = holder();
+        PreparedStatement waiting =
+            observer.prepareStatement(
+                "SELECT 1 FROM pg_locks WHERE locktype = 'advisory' AND NOT granted")) {
+      while (true) {
+        try (ResultSet rows = waiting.executeQuery()) {
+          if (rows.next()) {
+            return;
+          }
+        }
+        observer.rollback();
+        if (System.nanoTime() > deadline) {
+          throw new AssertionError("No backend waited for an advisory lock");
+        }
+      }
+    }
+  }
 }

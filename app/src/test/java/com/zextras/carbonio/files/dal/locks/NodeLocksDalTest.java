@@ -45,6 +45,7 @@ class NodeLocksDalTest {
   private static final String OWNER = "owner-locks";
   private static final String SHARE = "FOR SHARE";
   private static final String NO_KEY_UPDATE = "FOR NO KEY UPDATE";
+  private static final Duration PATIENT = Duration.ofSeconds(30);
 
   @Inject NodeLocks nodeLocks;
   @Inject NodeRepository nodeRepository;
@@ -172,7 +173,8 @@ class NodeLocksDalTest {
       CompletableFuture<Void> future =
           CompletableFuture.runAsync(
               () ->
-                  QuarkusTransaction.requiringNew().run(() -> nodeLocks.lockForChange(List.of(c))));
+                  QuarkusTransaction.requiringNew()
+                      .run(() -> nodeLocks.lockForChange(List.of(c), PATIENT)));
       LockProbe.awaitBlockedBy(holder);
       holder.commit();
       future.get(30, TimeUnit.SECONDS);
@@ -235,7 +237,7 @@ class NodeLocksDalTest {
               () ->
                   inNewTransaction(
                       () -> {
-                        nodeLocks.lockForChange(List.of(c));
+                        nodeLocks.lockForChange(List.of(c), PATIENT);
                         try {
                           assertSavepointReleased();
                         } catch (Throwable t) {
@@ -288,7 +290,7 @@ class NodeLocksDalTest {
           CompletableFuture.runAsync(
               () ->
                   QuarkusTransaction.requiringNew()
-                      .run(() -> nodeLocks.lockForChange(List.of(c, d))));
+                      .run(() -> nodeLocks.lockForChange(List.of(c, d), PATIENT)));
       try {
         LockProbe.awaitBlockedBy(holder);
         for (int i = 0; i < order.size(); i++) {
@@ -333,5 +335,105 @@ class NodeLocksDalTest {
   void doesNothingForRootsOnly() {
     inNewTransaction(
         () -> assertThat(nodeLocks.lockForChange(List.of("LOCAL_ROOT", "TRASH_ROOT"))).isEmpty());
+  }
+
+  private long advisoryLocksHeld() {
+    return ((Number)
+            entityManager
+                .createNativeQuery(
+                    "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND pid ="
+                        + " pg_backend_pid()")
+                .getSingleResult())
+        .longValue();
+  }
+
+  @Test
+  void locksAParentSharedWithItsAncestorsAndSerializesItsChildren() {
+    inNewTransaction(
+        () -> {
+          Set<String> locked = nodeLocks.lock(List.of(), List.of(c));
+
+          assertThat(locked).isEqualTo(Set.of(a, b, c));
+          assertThat(LockProbe.canLockNow(c, SHARE)).isTrue();
+          assertThat(LockProbe.canLockNow(c, NO_KEY_UPDATE)).isFalse();
+          assertThat(LockProbe.canLockNow(b, SHARE)).isTrue();
+          assertThat(LockProbe.canLockNow(b, NO_KEY_UPDATE)).isFalse();
+          assertThat(LockProbe.canLockNow(a, SHARE)).isTrue();
+          assertThat(LockProbe.canLockNow(a, NO_KEY_UPDATE)).isFalse();
+          assertThat(advisoryLocksHeld()).isEqualTo(1);
+          assertSavepointReleased();
+        });
+  }
+
+  @Test
+  void concurrentChildCreationsInTheSameParentSerialize() throws Exception {
+    CountDownLatch firstHolds = new CountDownLatch(1);
+    CountDownLatch releaseFirst = new CountDownLatch(1);
+    CompletableFuture<Void> first =
+        CompletableFuture.runAsync(
+            () ->
+                inNewTransaction(
+                    () -> {
+                      nodeLocks.lock(List.of(), List.of(b), PATIENT);
+                      firstHolds.countDown();
+                      assertThat(releaseFirst.await(30, TimeUnit.SECONDS)).isTrue();
+                    }));
+    try {
+      assertThat(firstHolds.await(30, TimeUnit.SECONDS)).isTrue();
+      CompletableFuture<Void> second =
+          CompletableFuture.runAsync(
+              () ->
+                  QuarkusTransaction.requiringNew()
+                      .run(() -> nodeLocks.lock(List.of(), List.of(b), PATIENT)));
+      try {
+        LockProbe.awaitAdvisoryWaiter();
+        assertThat(second).isNotDone();
+      } finally {
+        releaseFirst.countDown();
+      }
+      second.get(30, TimeUnit.SECONDS);
+    } finally {
+      releaseFirst.countDown();
+    }
+    first.get(30, TimeUnit.SECONDS);
+  }
+
+  @Test
+  void aParentIsNotBlockedByLongOperationsBelowIt() throws Exception {
+    try (Connection holder = LockProbe.holder()) {
+      LockProbe.hold(holder, b, SHARE);
+      LockProbe.hold(holder, c, NO_KEY_UPDATE);
+
+      Set<String> locked =
+          QuarkusTransaction.requiringNew()
+              .call(() -> nodeLocks.lock(List.of(), List.of(b), Duration.ofSeconds(3)));
+
+      assertThat(locked).isEqualTo(Set.of(a, b));
+      holder.rollback();
+    }
+  }
+
+  @Test
+  void aRootParentTakesNoLocks() {
+    inNewTransaction(
+        () -> {
+          assertThat(nodeLocks.lock(List.of(), List.of("LOCAL_ROOT"))).isEmpty();
+          assertThat(advisoryLocksHeld()).isZero();
+          assertThat(nodeLocks.lock(List.of(), List.of("LOCAL_ROOT", "TRASH_ROOT", d)))
+              .isEqualTo(Set.of(d));
+          assertThat(advisoryLocksHeld()).isEqualTo(1);
+        });
+  }
+
+  @Test
+  void anIdInBothListsEndsExclusive() {
+    inNewTransaction(
+        () -> {
+          assertThat(nodeLocks.lock(List.of(b), List.of(b))).isEqualTo(Set.of(a, b));
+
+          assertThat(LockProbe.canLockNow(b, SHARE)).isFalse();
+          assertThat(LockProbe.canLockNow(a, SHARE)).isTrue();
+          assertThat(advisoryLocksHeld()).isEqualTo(1);
+        });
   }
 }

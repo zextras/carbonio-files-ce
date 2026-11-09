@@ -174,6 +174,26 @@ class UploadCopyLocksApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void uploadIntoAFolderIsNotBlockedByALongOperationOnASubFolder() throws Exception {
+    String parent = seedFolder("P", LOCAL_ROOT, COOKIE);
+    String sub = seedFolder("B", parent, COOKIE);
+
+    Response uploadResponse;
+    try (Connection holder = holdNode(parent, "FOR SHARE")) {
+      holdAlso(holder, sub, "FOR NO KEY UPDATE");
+      uploadResponse =
+          async(() -> upload(parent, null, "x".getBytes(), "up.txt", COOKIE))
+              .get(30, TimeUnit.SECONDS);
+      holder.rollback();
+    }
+
+    Assertions.assertThat(uploadResponse.statusCode()).isEqualTo(200);
+    Assertions.assertThat(
+            count("SELECT count(*) FROM node WHERE folder_id = ? AND name = 'up.txt'", parent))
+        .isEqualTo(1);
+  }
+
+  @Test
   void uploadGivesUpAfterTheBound() throws Exception {
     String parent = seedFolder("P", LOCAL_ROOT, COOKIE);
 
@@ -192,7 +212,8 @@ class UploadCopyLocksApiIT extends AbstractFilesIT {
     }
 
     Assertions.assertThat(uploadResponse.statusCode()).isEqualTo(500);
-    Assertions.assertThat(elapsedMillis).isBetween(5_000L, 15_000L);
+    Assertions.assertThat(elapsedMillis)
+        .isBetween(NODE_LOCK_WAIT_MILLIS, NODE_LOCK_WAIT_MILLIS + 2_500L);
     Assertions.assertThat(count("SELECT count(*) FROM node WHERE folder_id = ?", parent)).isZero();
     assertNothingLeftBehind();
   }
@@ -299,7 +320,14 @@ class UploadCopyLocksApiIT extends AbstractFilesIT {
     CompletableFuture<Response> copying = async(() -> copy(destination, source, file));
     storages.awaitHeldCopy();
     Response copyResponse;
-    Connection holder = holdNode(destination, "FOR SHARE");
+    Connection holder = jdbcConnection();
+    holder.setAutoCommit(false);
+    try (PreparedStatement advisory =
+        holder.prepareStatement(
+            "SELECT pg_advisory_xact_lock(hashtextextended('files-children:' || ?, 0))")) {
+      advisory.setString(1, destination.trim());
+      advisory.execute();
+    }
     try {
       storages.releaseCopies();
       copyResponse = copying.get(30, TimeUnit.SECONDS);
@@ -319,6 +347,9 @@ class UploadCopyLocksApiIT extends AbstractFilesIT {
         scalar("SELECT node_id FROM node WHERE folder_id = ? AND name = 'S (1)'", destination);
     Assertions.assertThat(copyResponse.jsonPath().getList("data.copyNodes.id"))
         .containsExactly(copiedRoot);
+    Assertions.assertThat(
+            count("SELECT count(*) FROM node WHERE folder_id = ? AND name = 'a.txt'", copiedRoot))
+        .isEqualTo(1);
     Assertions.assertThat(
             count(
                 "SELECT count(*) FROM share WHERE node_id = ? AND target_uuid = ?",
