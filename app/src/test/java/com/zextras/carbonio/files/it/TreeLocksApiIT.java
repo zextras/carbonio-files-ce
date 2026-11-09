@@ -170,6 +170,19 @@ class TreeLocksApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void aNodeInsideTheTrashCannotBeTrashedAgain() throws Exception {
+    String folder = seedFolder("F", LOCAL_ROOT, COOKIE);
+    String child = seedFolder("child", folder, COOKIE);
+    Assertions.assertThat(errorMessages(trash(folder))).isEmpty();
+
+    Response response = trash(child);
+
+    Assertions.assertThat(errorCodes(response)).containsExactly(NODE_WRITE_ERROR);
+    Assertions.assertThat(folderId(child)).isEqualTo(folder);
+    Assertions.assertThat(ancestors(child)).startsWith(TRASH_ROOT + ",");
+  }
+
+  @Test
   void createFolderBehindATrashGetsTheTrashedAncestors() throws Exception {
     String parent = seedFolder("P", LOCAL_ROOT, COOKIE);
 

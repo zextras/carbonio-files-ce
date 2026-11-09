@@ -12,8 +12,8 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
 import com.zextras.carbonio.files.dal.dao.ebean.VersionReservation;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.OverwriteLeaseRepository;
@@ -73,6 +73,7 @@ public class PurgeService {
   private final OverwriteLeaseRepository overwriteLeaseRepository;
   private final BlobLifecycle blobLifecycle;
   private final Transactions transactions;
+  private final NodeLocks nodeLocks;
   private final Duration reservationExpiry;
 
   @Inject
@@ -84,6 +85,7 @@ public class PurgeService {
       OverwriteLeaseRepository overwriteLeaseRepository,
       BlobLifecycle blobLifecycle,
       Transactions transactions,
+      NodeLocks nodeLocks,
       @ConfigProperty(name = "carbonio.files.reservation-purge.expiry", defaultValue = "24h")
           Duration reservationExpiry) {
     this.nodeRepository = nodeRepository;
@@ -93,6 +95,7 @@ public class PurgeService {
     this.overwriteLeaseRepository = overwriteLeaseRepository;
     this.blobLifecycle = blobLifecycle;
     this.transactions = transactions;
+    this.nodeLocks = nodeLocks;
     this.reservationExpiry = reservationExpiry;
   }
 
@@ -135,6 +138,7 @@ public class PurgeService {
    * @return the tombstoned blob keys by owner
    */
   private Map<String, List<BlobKey>> purgeTrashedTree(String topId, long retentionTimestamp) {
+    nodeLocks.lockForChange(List.of(topId));
     Optional<Node> top = expiredTrashedTop(topId, retentionTimestamp);
     if (top.isEmpty()) {
       return Map.of();
@@ -149,11 +153,16 @@ public class PurgeService {
   /** Purges a batch of files of a trashed tree, so that a large tree never needs one long tx. */
   private Map<String, List<BlobKey>> purgeTrashedFiles(
       String topId, long retentionTimestamp, List<String> fileIds) {
+    nodeLocks.lockForChange(List.of(topId));
     if (expiredTrashedTop(topId, retentionTimestamp).isEmpty()) {
       return Map.of();
     }
     List<Node> files =
-        fileIds.stream().map(nodeRepository::getNode).flatMap(Optional::stream).toList();
+        fileIds.stream()
+            .map(nodeRepository::getNode)
+            .flatMap(Optional::stream)
+            .filter(node -> node.getAncestorsList().contains(topId))
+            .toList();
     Map<String, List<BlobKey>> keysByOwner = tombstoneFiles(files);
     nodeRepository.deleteNodes(files.stream().map(Node::getId).toList());
     return keysByOwner;
@@ -168,18 +177,23 @@ public class PurgeService {
 
   private Map<String, List<BlobKey>> tombstoneFiles(List<Node> nodes) {
     Map<String, List<BlobKey>> keysByOwner = new HashMap<>();
+    Map<String, String> ownerOf = new HashMap<>();
     nodes.stream()
         .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
+        .forEach(node -> ownerOf.put(node.getId(), node.getOwnerId()));
+    Map<String, List<FileVersion>> versionsByOwner = new HashMap<>();
+    fileVersionRepository
+        .getFileVersionsOf(ownerOf.keySet())
         .forEach(
-            node -> {
-              List<FileVersion> versions =
-                  fileVersionRepository.getFileVersions(
-                      node.getId(), List.of(FileVersionSort.VERSION_ASC));
-              tombstoneRepository.createTombstonesBulk(versions, node.getOwnerId());
-              keysByOwner
-                  .computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
-                  .addAll(versions.stream().map(BlobKey::of).toList());
-            });
+            version ->
+                versionsByOwner
+                    .computeIfAbsent(ownerOf.get(version.getNodeId()), k -> new ArrayList<>())
+                    .add(version));
+    versionsByOwner.forEach(
+        (ownerId, versions) -> {
+          tombstoneRepository.createTombstonesBulk(versions, ownerId);
+          keysByOwner.put(ownerId, new ArrayList<>(versions.stream().map(BlobKey::of).toList()));
+        });
     return keysByOwner;
   }
 

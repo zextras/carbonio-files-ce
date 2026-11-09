@@ -110,6 +110,9 @@ public interface FileVersionRepository {
    */
   boolean deleteFileVersion(FileVersion fileVersion);
 
+  /** Reads the versions of all the given nodes without flushing the persistence context. */
+  List<FileVersion> getFileVersionsOf(Collection<String> nodeIds);
+
   void deleteFileVersions(String nodeId, Collection<Integer> versions);
 
   /**

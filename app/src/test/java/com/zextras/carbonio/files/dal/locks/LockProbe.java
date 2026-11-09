@@ -12,18 +12,18 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.concurrent.TimeUnit;
 
-final class LockProbe {
+public final class LockProbe {
 
   private LockProbe() {}
 
-  static Connection holder() throws SQLException {
+  public static Connection holder() throws SQLException {
     Connection c =
         DriverManager.getConnection(FilesStackTestResource.POSTGRES_JDBC_URL, "test", "test");
     c.setAutoCommit(false);
     return c;
   }
 
-  static void hold(Connection c, String nodeId, String mode) throws SQLException {
+  public static void hold(Connection c, String nodeId, String mode) throws SQLException {
     try (PreparedStatement s = c.prepareStatement("SELECT 1 FROM node WHERE node_id = ? " + mode)) {
       s.setString(1, nodeId);
       s.executeQuery().close();
@@ -56,7 +56,7 @@ final class LockProbe {
     }
   }
 
-  static void awaitBlockedBy(Connection holder) throws Exception {
+  public static void awaitBlockedBy(Connection holder) throws Exception {
     int holderPid = backendPid(holder);
     long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
     try (Connection observer = holder();

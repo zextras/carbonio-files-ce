@@ -12,7 +12,9 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SortOrde
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.persistence.FlushModeType;
 import jakarta.transaction.Transactional;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,6 +29,8 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class FileVersionRepositoryImpl
     implements FileVersionRepository, PanacheRepositoryBase<FileVersion, FileVersionPK> {
+
+  private static final int ID_CHUNK_SIZE = 1000;
 
   @Override
   public Optional<FileVersion> getFileVersion(String nodeId, int version) {
@@ -112,6 +116,23 @@ public class FileVersionRepositoryImpl
         .setParameter("ids", nodeIds)
         .getResultStream()
         .collect(Collectors.toMap(FileVersion::getNodeId, fv -> fv));
+  }
+
+  @Override
+  public List<FileVersion> getFileVersionsOf(Collection<String> nodeIds) {
+    List<String> ids = List.copyOf(nodeIds);
+    List<FileVersion> versions = new ArrayList<>();
+    for (int from = 0; from < ids.size(); from += ID_CHUNK_SIZE) {
+      versions.addAll(
+          getEntityManager()
+              .createQuery(
+                  "select fv from FileVersion fv where fv.mComposedId.mNodeId in :ids",
+                  FileVersion.class)
+              .setFlushMode(FlushModeType.COMMIT)
+              .setParameter("ids", ids.subList(from, Math.min(from + ID_CHUNK_SIZE, ids.size())))
+              .getResultList());
+    }
+    return versions;
   }
 
   @Override
