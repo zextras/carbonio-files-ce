@@ -16,6 +16,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
@@ -117,6 +118,7 @@ public class BlobService {
   private final TombstoneRepository tombstoneRepository;
   private final OverwriteLeases overwriteLeases;
   private final BlobLifecycle blobLifecycle;
+  private final NodeLocks nodeLocks;
 
   @Inject
   public BlobService(
@@ -135,7 +137,8 @@ public class BlobService {
       VersionReservations versionReservations,
       TombstoneRepository tombstoneRepository,
       OverwriteLeases overwriteLeases,
-      BlobLifecycle blobLifecycle) {
+      BlobLifecycle blobLifecycle,
+      NodeLocks nodeLocks) {
     this.nodeRepository = nodeRepository;
     this.notificationRepository = notificationRepository;
     this.fileVersionRepository = fileVersionRepository;
@@ -152,6 +155,7 @@ public class BlobService {
     this.tombstoneRepository = tombstoneRepository;
     this.overwriteLeases = overwriteLeases;
     this.blobLifecycle = blobLifecycle;
+    this.nodeLocks = nodeLocks;
   }
 
   public Optional<List<Node>> checkDownloadMultiple(List<String> nodeIds, UserMyself requester) {
@@ -650,26 +654,33 @@ public class BlobService {
                 fileStore.uploadPost(
                     FilesIdentifier.of(nodeId, version, ownerId), blobStream, blobLength));
 
-    List<FileVersion> trimmedVersions =
-        QuarkusTransaction.requiringNew()
-            .call(
-                () -> {
-                  long versionDate = versionReservations.confirm(reservation);
-                  requireOwner(nodeId, ownerId);
-                  fileVersionRepository
-                      .createFileVersionAt(
-                          nodeId,
-                          requesterId,
-                          version,
-                          mediaType.toString(),
-                          uploadResponse.getSize(),
-                          uploadResponse.getDigest(),
-                          versionDate)
-                      .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
-                  nodeRepository.moveCurrentVersion(
-                      nodeId, version, versionDate, uploadResponse.getSize(), requesterId);
-                  return trimOldestVersion(nodeId, ownerId, version, maxNumberOfVersions);
-                });
+    List<FileVersion> trimmedVersions;
+    try {
+      trimmedVersions =
+          QuarkusTransaction.requiringNew()
+              .call(
+                  () -> {
+                    nodeLocks.lockForChange(List.of(nodeId));
+                    long versionDate = versionReservations.confirm(reservation);
+                    requireOwner(nodeId, ownerId);
+                    fileVersionRepository
+                        .createFileVersionAt(
+                            nodeId,
+                            requesterId,
+                            version,
+                            mediaType.toString(),
+                            uploadResponse.getSize(),
+                            uploadResponse.getDigest(),
+                            versionDate)
+                        .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
+                    nodeRepository.moveCurrentVersion(
+                        nodeId, version, versionDate, uploadResponse.getSize(), requesterId);
+                    return trimOldestVersion(nodeId, ownerId, version, maxNumberOfVersions);
+                  });
+    } catch (RuntimeException e) {
+      blobLifecycle.discard(reservation);
+      throw e;
+    }
 
     deleteTrimmedBlobs(ownerId, trimmedVersions);
     logUploaded(nodeId, version, uploadResponse);

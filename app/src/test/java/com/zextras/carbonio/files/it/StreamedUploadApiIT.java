@@ -696,7 +696,8 @@ class StreamedUploadApiIT extends AbstractFilesIT {
 
     Assertions.assertThat(statusLine).startsWith("HTTP/1.1 500");
     Assertions.assertThat(versionRows(nodeId)).containsExactly(1);
-    Assertions.assertThat(pendingReservations(nodeId)).containsExactly(2);
+    Assertions.assertThat(pendingReservations(nodeId)).isEmpty();
+    Assertions.assertThat(FilesStackTestResource.getStoragesService().has(nodeId, 2)).isFalse();
   }
 
   @Test
@@ -717,7 +718,8 @@ class StreamedUploadApiIT extends AbstractFilesIT {
 
     Assertions.assertThat(statusLine).startsWith("HTTP/1.1 404");
     Assertions.assertThat(versionRows(nodeId)).isEmpty();
-    Assertions.assertThat(pendingReservations(nodeId)).containsExactly(2);
+    Assertions.assertThat(pendingReservations(nodeId)).isEmpty();
+    Assertions.assertThat(FilesStackTestResource.getStoragesService().has(nodeId, 2)).isFalse();
   }
 
   @Test
