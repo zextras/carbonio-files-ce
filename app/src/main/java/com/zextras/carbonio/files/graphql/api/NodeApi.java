@@ -1021,7 +1021,7 @@ public class NodeApi {
           .ifPresentOrElse(
               copied -> {
                 copiedNodesResult.add(NodeModelFactory.from(copied, null, me));
-                shareAndNotifyCopy(copied, destinationId, destinationFolder, me);
+                notifyCopy(copied, destinationFolder, me);
               },
               () -> copyErrors.add(new CopyFailure(node, outcome.failure())));
     }
@@ -1281,12 +1281,10 @@ public class NodeApi {
         : max - Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION;
   }
 
-  private List<String> createIndirectShare(String sharedParentId, Node nodeToShare) {
-    List<String> targetUserIds = new ArrayList<>();
+  private void createIndirectShare(String sharedParentId, Node nodeToShare) {
     NodeRules.inheritableShares(shareRepository, sharedParentId)
         .forEach(
             share -> {
-              targetUserIds.add(share.getTargetUserId());
               shareRepository.upsertShare(
                   nodeToShare.getId(),
                   share.getTargetUserId(),
@@ -1304,7 +1302,6 @@ public class NodeApi {
                     share.getExpiredAt());
               }
             });
-    return targetUserIds;
   }
 
   private void cascadeUpdateAncestors(Node parentNode) {
@@ -1409,9 +1406,12 @@ public class NodeApi {
     return new CopyOutcome(Optional.of(copiedFolder), null);
   }
 
-  private void shareAndNotifyCopy(
-      Node copied, String destinationId, Node destinationFolder, String me) {
-    List<String> usersToNotify = createIndirectShare(destinationId, copied);
+  private void notifyCopy(Node copied, Node destinationFolder, String me) {
+    List<String> usersToNotify =
+        new ArrayList<>(
+            shareRepository.getShares(copied.getId(), Collections.emptyList()).stream()
+                .map(com.zextras.carbonio.files.dal.dao.ebean.Share::getTargetUserId)
+                .toList());
     usersToNotify.remove(me);
     if (!com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
             destinationFolder.getNodeType())
@@ -1471,6 +1471,7 @@ public class NodeApi {
       QuarkusTransaction.requiringNew()
           .run(
               () -> {
+                nodeLocks.lockForChange(List.of(destinationFolder.getId()));
                 Node parent =
                     nodeRepository
                         .getNode(destinationFolder.getId())
@@ -1480,25 +1481,26 @@ public class NodeApi {
                                 new NoSuchElementException(
                                     "Destination " + destinationFolder.getId() + " not found"));
                 versionReservations.confirmNew(reservation);
-                nodeRepository.createNewNode(
-                    newId,
-                    requesterId,
-                    ownerId,
-                    parent.getId(),
-                    dedupName
-                        ? searchAlternativeName(
-                            nodeRepository,
-                            sourceNode.getFullName(),
-                            parent.getId(),
-                            sourceNode.getOwnerId())
-                        : sourceNode.getFullName(),
-                    sourceNode.getDescription().orElse(""),
-                    sourceNode.getNodeType(),
-                    com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                            parent.getNodeType())
-                        ? parent.getId()
-                        : parent.getAncestorIds() + "," + parent.getId(),
-                    sourceNode.getSize());
+                Node created =
+                    nodeRepository.createNewNode(
+                        newId,
+                        requesterId,
+                        ownerId,
+                        parent.getId(),
+                        dedupName
+                            ? searchAlternativeName(
+                                nodeRepository,
+                                sourceNode.getFullName(),
+                                parent.getId(),
+                                sourceNode.getOwnerId())
+                            : sourceNode.getFullName(),
+                        sourceNode.getDescription().orElse(""),
+                        sourceNode.getNodeType(),
+                        com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
+                                parent.getNodeType())
+                            ? parent.getId()
+                            : parent.getAncestorIds() + "," + parent.getId(),
+                        sourceNode.getSize());
                 fileVersionRepository.createNewFileVersion(
                     newId,
                     requesterId,
@@ -1507,6 +1509,7 @@ public class NodeApi {
                     response.getSize(),
                     response.getDigest(),
                     false);
+                createIndirectShare(parent.getId(), created);
               });
     } catch (RuntimeException e) {
       logger.error(
@@ -1524,32 +1527,48 @@ public class NodeApi {
 
   private Node copyFolder(
       Node sourceFolder, Node destinationFolder, String requesterId, boolean dedupName) {
-    String ownerId =
-        (com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                    destinationFolder.getNodeType())
-                || requesterId.equals(destinationFolder.getOwnerId()))
-            ? requesterId
-            : destinationFolder.getOwnerId();
+    return QuarkusTransaction.requiringNew()
+        .call(
+            () -> {
+              nodeLocks.lockForChange(List.of(destinationFolder.getId()));
+              Node parent =
+                  nodeRepository
+                      .getNode(destinationFolder.getId())
+                      .filter(NodeRules::acceptsChildren)
+                      .orElseThrow(
+                          () ->
+                              new NoSuchElementException(
+                                  "Destination " + destinationFolder.getId() + " not found"));
+              String ownerId =
+                  (com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
+                              parent.getNodeType())
+                          || requesterId.equals(parent.getOwnerId()))
+                      ? requesterId
+                      : parent.getOwnerId();
 
-    return nodeRepository.createNewNode(
-        UUID.randomUUID().toString(),
-        requesterId,
-        ownerId,
-        destinationFolder.getId(),
-        dedupName
-            ? searchAlternativeName(
-                nodeRepository,
-                sourceFolder.getFullName(),
-                destinationFolder.getId(),
-                sourceFolder.getOwnerId())
-            : sourceFolder.getName(),
-        sourceFolder.getDescription().orElse(""),
-        com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER,
-        com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                destinationFolder.getNodeType())
-            ? destinationFolder.getId()
-            : destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
-        0L);
+              Node created =
+                  nodeRepository.createNewNode(
+                      UUID.randomUUID().toString(),
+                      requesterId,
+                      ownerId,
+                      parent.getId(),
+                      dedupName
+                          ? searchAlternativeName(
+                              nodeRepository,
+                              sourceFolder.getFullName(),
+                              parent.getId(),
+                              sourceFolder.getOwnerId())
+                          : sourceFolder.getName(),
+                      sourceFolder.getDescription().orElse(""),
+                      com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER,
+                      com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
+                              parent.getNodeType())
+                          ? parent.getId()
+                          : parent.getAncestorIds() + "," + parent.getId(),
+                      0L);
+              createIndirectShare(parent.getId(), created);
+              return created;
+            });
   }
 
   private void copyFolderCascade(

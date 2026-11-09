@@ -52,6 +52,7 @@ import io.vavr.control.Try;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -184,6 +185,9 @@ class NodeApiMutationsTest {
             })
         .when(runOptions)
         .run(any(Runnable.class));
+    doAnswer(inv -> ((Callable<?>) inv.getArgument(0)).call())
+        .when(runOptions)
+        .call(any(Callable.class));
     MockedStatic<QuarkusTransaction> txMock = Mockito.mockStatic(QuarkusTransaction.class);
     txMock.when(QuarkusTransaction::requiringNew).thenReturn(runOptions);
     return txMock;

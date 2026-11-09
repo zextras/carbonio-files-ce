@@ -496,6 +496,7 @@ public class BlobService {
       String filename,
       String description,
       UploadResponse uploadResponse) {
+    nodeLocks.lockForChange(List.of(folderId));
     Optional<Node> folder = nodeRepository.getNode(folderId).filter(NodeRules::acceptsChildren);
     if (folder.isEmpty()) {
       return Optional.empty();

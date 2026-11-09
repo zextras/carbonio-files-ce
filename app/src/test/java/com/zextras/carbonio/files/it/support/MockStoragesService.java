@@ -171,6 +171,10 @@ public class MockStoragesService {
     return blobs.containsKey(key(node, version));
   }
 
+  public int blobCount() {
+    return blobs.size();
+  }
+
   public boolean wasDownloaded(String node, int version) {
     return downloadLog.contains(key(node, version));
   }
