@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.it;
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
+import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import io.restassured.response.Response;
 import java.sql.Connection;
@@ -33,6 +34,8 @@ class TreeLocksApiIT extends AbstractFilesIT {
 
   private static final String USER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
   private static final String COOKIE = "ZM_AUTH_TOKEN=fake-token";
+  private static final String OTHER_USER_ID = "dddddddd-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  private static final String OTHER_COOKIE = "ZM_AUTH_TOKEN=other-token";
   private static final String TRASH_ROOT = "TRASH_ROOT";
   private static final String NODE_WRITE_ERROR = "NODE_WRITE_ERROR";
 
@@ -41,6 +44,7 @@ class TreeLocksApiIT extends AbstractFilesIT {
   @BeforeAll
   static void registerUsers() {
     FilesStackTestResource.getUserManagementService().registerToken("fake-token", USER_ID);
+    FilesStackTestResource.getUserManagementService().registerToken("other-token", OTHER_USER_ID);
   }
 
   @AfterAll
@@ -167,6 +171,28 @@ class TreeLocksApiIT extends AbstractFilesIT {
     Assertions.assertThat(errorMessages(deleteResponse)).isEmpty();
     Assertions.assertThat(errorCodes(createResponse)).containsExactly(NODE_WRITE_ERROR);
     Assertions.assertThat(count("SELECT count(*) FROM node WHERE folder_id = ?", parent)).isZero();
+  }
+
+  @Test
+  void trashDoesNotWriteANodeSharedWhileTheRequestWasWaiting() throws Exception {
+    String mine = seedFolder("mine", LOCAL_ROOT, COOKIE);
+    String theirs = seedFolder("theirs", LOCAL_ROOT, OTHER_COOKIE);
+
+    Response response;
+    try (Connection holderOfMine = holdNode(mine, "FOR NO KEY UPDATE")) {
+      CompletableFuture<Response> request = async(() -> trash(mine, theirs));
+      awaitBlockedBy(holderOfMine, 1);
+      seedShareRawJdbc(theirs, USER_ID, ACL.SharePermission.READ_AND_WRITE);
+      try (Connection holderOfTheirs = holdNode(theirs, "FOR SHARE")) {
+        holderOfMine.rollback();
+        response = request.get(30, TimeUnit.SECONDS);
+        holderOfTheirs.rollback();
+      }
+    }
+
+    Assertions.assertThat(errorCodes(response)).containsExactly(NODE_WRITE_ERROR);
+    Assertions.assertThat(folderId(theirs).trim()).isEqualTo(LOCAL_ROOT);
+    Assertions.assertThat(folderId(mine).trim()).isEqualTo(TRASH_ROOT);
   }
 
   @Test

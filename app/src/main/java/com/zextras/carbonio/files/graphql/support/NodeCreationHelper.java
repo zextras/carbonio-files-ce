@@ -98,11 +98,12 @@ public class NodeCreationHelper {
    * @throws NodeNotFoundException if the parent is neither a FOLDER nor a ROOT other than the trash
    */
   public Node createFolder(String requesterId, String parentId, String name, UserMyself requester) {
-    if (permissionsChecker
+    if (!permissionsChecker
         .getPermissions(parentId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {
-      nodeLocks.lockForChange(Collections.singletonList(parentId));
+      throw new NodeAccessException(parentId);
     }
+    nodeLocks.lockForChange(Collections.singletonList(parentId));
     if (!permissionsChecker
         .getPermissions(parentId, requesterId)
         .has(SharePermission.READ_AND_WRITE)) {

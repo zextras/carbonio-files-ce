@@ -496,10 +496,12 @@ public class NodeApi {
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
     String me = requester.getId().getUserId();
-    nodeLocks.lockForChange(writableByMe(nodeIds, me));
+    Set<String> lockedIds = Set.copyOf(writableByMe(nodeIds, me));
+    nodeLocks.lockForChange(lockedIds);
 
     List<String> trashableNodes =
         nodeIds.stream()
+            .filter(nodeId -> lockedIds.contains(nodeId.trim()))
             .filter(
                 nodeId -> {
                   Optional<Node> rNode = nodeRepository.getNode(nodeId);
@@ -696,11 +698,18 @@ public class NodeApi {
     validator.checkNodeIds(nodeIds).checkNodeId(destinationId).validate();
     String me = requester.getId().getUserId();
 
-    List<String> lockIds = new ArrayList<>(writableByMe(nodeIds, me));
-    lockIds.addAll(writableByMe(List.of(destinationId), me));
+    List<String> movable = writableByMe(nodeIds, me);
+    boolean destinationWritable = !writableByMe(List.of(destinationId), me).isEmpty();
+    List<String> lockIds = new ArrayList<>(movable);
+    if (destinationWritable) {
+      lockIds.add(destinationId);
+    }
     nodeLocks.lockForChange(lockIds);
 
-    if (!permissionsChecker.getPermissions(destinationId, me).has(SharePermission.READ_AND_WRITE)) {
+    if (!destinationWritable
+        || !permissionsChecker
+            .getPermissions(destinationId, me)
+            .has(SharePermission.READ_AND_WRITE)) {
       throw FilesGraphQLErrors.nodeWriteError(destinationId);
     }
 
@@ -718,6 +727,7 @@ public class NodeApi {
 
     List<String> movableIds =
         nodeIds.stream()
+            .filter(nodeId -> movable.contains(nodeId.trim()))
             .filter(
                 nodeId ->
                     permissionsChecker
@@ -859,7 +869,8 @@ public class NodeApi {
           QuarkusTransaction.requiringNew()
               .call(
                   () -> {
-                    nodeLocks.lockForChange(writableByMe(nodeIds, me));
+                    Set<String> lockedIds = Set.copyOf(writableByMe(nodeIds, me));
+                    nodeLocks.lockForChange(lockedIds);
 
                     List<Node> requestedNodes =
                         nodeRepository
@@ -870,6 +881,7 @@ public class NodeApi {
                                     !node.getNodeType()
                                         .equals(
                                             com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT))
+                            .filter(node -> lockedIds.contains(node.getId()))
                             .filter(
                                 node ->
                                     permissionsChecker
@@ -885,9 +897,8 @@ public class NodeApi {
                             .flatMap(root -> nodeRepository.getSubtree(root).stream())
                             .toList();
 
-                    Map<String, String> ownerOf =
-                        allNodes.stream()
-                            .collect(Collectors.toMap(Node::getId, Node::getOwnerId, (a, b) -> a));
+                    Map<String, String> ownerOf = new HashMap<>();
+                    allNodes.forEach(node -> ownerOf.putIfAbsent(node.getId(), node.getOwnerId()));
                     List<String> fileIds =
                         allNodes.stream()
                             .filter(
@@ -899,9 +910,15 @@ public class NodeApi {
                             .map(Node::getId)
                             .toList();
 
-                    Map<String, List<FileVersion>> versionsByOwner =
-                        fileVersionRepository.getFileVersionsOf(fileIds).stream()
-                            .collect(Collectors.groupingBy(fv -> ownerOf.get(fv.getNodeId())));
+                    Map<String, List<FileVersion>> versionsByOwner = new HashMap<>();
+                    fileVersionRepository
+                        .getFileVersionsOf(fileIds)
+                        .forEach(
+                            fv ->
+                                versionsByOwner
+                                    .computeIfAbsent(
+                                        ownerOf.get(fv.getNodeId()), k -> new ArrayList<>())
+                                    .add(fv));
                     versionsByOwner.forEach(
                         (ownerId, versions) ->
                             tombstoneRepository.createTombstonesBulk(versions, ownerId));
@@ -1280,13 +1297,10 @@ public class NodeApi {
   }
 
   private List<String> writableByMe(List<String> nodeIds, String me) {
-    return nodeIds.stream()
-        .filter(
-            id ->
-                id != null
-                    && permissionsChecker
-                        .getPermissions(id, me)
-                        .has(SharePermission.READ_AND_WRITE))
+    List<String> ids = nodeIds.stream().filter(Objects::nonNull).map(String::trim).toList();
+    Map<String, ACL> permissions = permissionsChecker.getPermissions(ids, me);
+    return ids.stream()
+        .filter(id -> permissions.get(id).has(SharePermission.READ_AND_WRITE))
         .toList();
   }
 
