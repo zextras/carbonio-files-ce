@@ -5,8 +5,10 @@
 package com.zextras.carbonio.files.rest.services;
 
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
+import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
@@ -17,6 +19,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.text.MessageFormat;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
@@ -41,24 +44,31 @@ public class CollaborationLinkService {
   private final NodeRepository nodeRepository;
   private final ShareRepository shareRepository;
   private final ShareCascadeHelper shareCascadeHelper;
+  private final NodeLocks nodeLocks;
 
   @Inject
   public CollaborationLinkService(
       CollaborationLinkRepository collaborationLinkRepository,
       NodeRepository nodeRepository,
       ShareRepository shareRepository,
-      ShareCascadeHelper shareCascadeHelper) {
+      ShareCascadeHelper shareCascadeHelper,
+      NodeLocks nodeLocks) {
     this.collaborationLinkRepository = collaborationLinkRepository;
     this.nodeRepository = nodeRepository;
     this.shareRepository = shareRepository;
     this.shareCascadeHelper = shareCascadeHelper;
+    this.nodeLocks = nodeLocks;
   }
 
   @Transactional
   public Try<Node> createShareByInvitationId(String invitationId, String requesterId) {
-    return collaborationLinkRepository
-        .getLinkByInvitationId(invitationId)
-        .map(
+    Optional<CollaborationLink> link =
+        collaborationLinkRepository.getLinkByInvitationId(invitationId);
+    if (link.isPresent()) {
+      nodeLocks.lockForChange(List.of(link.get().getNodeId()));
+      link = collaborationLinkRepository.getLinkByInvitationId(invitationId);
+    }
+    return link.map(
             collaborationLink ->
                 nodeRepository
                     .getNode(collaborationLink.getNodeId())

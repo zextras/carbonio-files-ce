@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
@@ -50,6 +51,7 @@ public class ShareApi {
   @Inject ShareRepository shareRepository;
   @Inject PermissionsChecker permissionsChecker;
   @Inject ShareCascadeHelper shareCascade;
+  @Inject NodeLocks nodeLocks;
   @Inject NotificationRepository notificationRepository;
   @Inject FilesConfig filesConfig;
   @Inject GraphQLInputValidator validator;
@@ -154,10 +156,11 @@ public class ShareApi {
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).checkUserId(shareTargetId).validate();
     String me = requester.getId().getUserId();
-    ACL myPermissions = permissionsChecker.getPermissions(nodeId, me);
-    if (!myPermissions.has(ACL.SharePermission.READ_AND_SHARE)
-        || !myPermissions.has(mapToAclPermission(permission))
-        || shareTargetId.equals(me)) {
+    boolean allowed = canCreateShare(nodeId, me, permission, shareTargetId);
+    if (allowed) {
+      nodeLocks.lockForChange(List.of(nodeId));
+    }
+    if (!allowed || !canCreateShare(nodeId, me, permission, shareTargetId)) {
       throw FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId);
     }
 
@@ -210,9 +213,13 @@ public class ShareApi {
     String me = requester.getId().getUserId();
     Optional<ACL.SharePermission> optNewPermission =
         Optional.ofNullable(permission).map(ShareApi::mapToAclPermission);
+    boolean allowed = canShare(nodeId, me);
+    if (allowed) {
+      nodeLocks.lockForChange(List.of(nodeId));
+    }
     ACL myPermissions = permissionsChecker.getPermissions(nodeId, me);
     boolean hasPermission =
-        myPermissions.has(ACL.SharePermission.READ_AND_SHARE) && !isRootNode(nodeId);
+        allowed && myPermissions.has(ACL.SharePermission.READ_AND_SHARE) && !isRootNode(nodeId);
 
     List<ShareModel> updated = new ArrayList<>();
     List<String> failed = new ArrayList<>();
@@ -255,13 +262,21 @@ public class ShareApi {
     validator.checkNodeId(nodeId).checkUserIds(shareTargetIds).validate();
     String me = requester.getId().getUserId();
     boolean rootNode = isRootNode(nodeId);
+    boolean allowed =
+        !rootNode
+            && (canShare(nodeId, me)
+                || (shareTargetIds.contains(me)
+                    && shareRepository.getShare(nodeId, me).isPresent()));
+    if (allowed) {
+      nodeLocks.lockForChange(List.of(nodeId));
+    }
 
     List<String> deleted = new ArrayList<>();
     List<String> failed = new ArrayList<>();
 
     for (String targetId : shareTargetIds) {
       boolean hasPermission =
-          !rootNode
+          allowed
               && (permissionsChecker
                       .getPermissions(nodeId, me)
                       .has(ACL.SharePermission.READ_AND_SHARE)
@@ -287,6 +302,19 @@ public class ShareApi {
       throw FilesGraphQLErrors.shareNotFound(nodeId, failed.get(0)).withPartialResults(deleted);
     }
     return deleted;
+  }
+
+  private boolean canShare(String nodeId, String me) {
+    return permissionsChecker.getPermissions(nodeId, me).has(ACL.SharePermission.READ_AND_SHARE)
+        && !isRootNode(nodeId);
+  }
+
+  private boolean canCreateShare(
+      String nodeId, String me, SharePermission permission, String shareTargetId) {
+    ACL myPermissions = permissionsChecker.getPermissions(nodeId, me);
+    return myPermissions.has(ACL.SharePermission.READ_AND_SHARE)
+        && myPermissions.has(mapToAclPermission(permission))
+        && !shareTargetId.equals(me);
   }
 
   private static ACL assignablePermissions(ACL requesterPermissions, Share share) {
