@@ -9,9 +9,8 @@ py_ver=pythonPYTHON_VER
 # shellcheck disable=SC2034 # PREFIX is a yap packaging placeholder; unused here today
 py_prefix=PREFIX
 
-# set proper modules path; the vendored pika (see PKGBUILD) comes first
-PYTHONPATH="/usr/share/carbonio/files/python:"
-PYTHONPATH+="/opt/zextras/common/lib/${py_ver}/dist-packages:"
+# set proper modules path
+PYTHONPATH="/opt/zextras/common/lib/${py_ver}/dist-packages:"
 PYTHONPATH+="/opt/zextras/common/lib/${py_ver}/site-packages:"
 PYTHONPATH+="/opt/zextras/common/lib64/${py_ver}/dist-packages:"
 PYTHONPATH+="/opt/zextras/common/lib64/${py_ver}/site-packages:"
