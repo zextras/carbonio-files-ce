@@ -2,6 +2,10 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
+# pika 1.2.1 is the last release supporting python 3.6 (EL8 system python); verified importable on
+# 3.6 through 3.13. Pure python, no runtime deps.
+_pika_ver="1.2.1"
+
 pkgname="carbonio-files-ce"
 pkgver="2.1.9"
 pkgrel="SNAPSHOT"
@@ -23,10 +27,6 @@ depends=(
   "carbonio-openjdk"
   "python3"
 )
-
-# pika 1.2.1 is the last release supporting python 3.6 (EL8 system python); verified importable on
-# 3.6 through 3.13. Pure python, no runtime deps.
-_pika_ver="1.2.1"
 
 source=(
   "511-carbonio-files.sh"
