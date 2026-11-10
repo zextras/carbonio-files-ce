@@ -15,9 +15,7 @@ url="https://www.zextras.com/"
 # python3 has the SAME package name on every target distro, so it goes in the base depends. pika
 # (the watch-bridge's RabbitMQ client) is vendored instead of depending on python3-pika: on EL8 the
 # EPEL package Recommends twisted, whose Automat dep pins python3.6dist(attrs) and then breaks
-# `dnf upgrade` against pgdg-common's py3.9 python3-attrs (CO-4708). NOTE: yap does NOT
-# honor depends__<distro> suffix arrays (only build__/package__ FUNCTIONS are per-distro), so a
-# distro-suffixed `depends__apt`/`depends__rocky_*` silently never reaches the package metadata.
+# `dnf upgrade` against pgdg-common's py3.9 python3-attrs (CO-4708).
 depends=(
   "pending-setups"
   "service-discover"
