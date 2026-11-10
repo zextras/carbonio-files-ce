@@ -27,9 +27,6 @@ depends=(
 # pika 1.2.1 is the last release supporting python 3.6 (EL8 system python); verified importable on
 # 3.6 through 3.13. Pure python, no runtime deps.
 _pika_ver="1.2.1"
-# Python version substituted for PYTHON_VER in carbonio-files-start-watches.sh; also selects the
-# python${_py_ver} PYTHONPATH dir the vendored pika is installed into.
-_py_ver="3"
 
 source=(
   "511-carbonio-files.sh"
@@ -113,10 +110,10 @@ _package_common() {
     "${pkgdir}/usr/bin/carbonio-files-handle-kv-changes.py"
 
   # Vendored pika, in a dir carbonio-files-start-watches.sh already puts on PYTHONPATH.
-  install -d "${pkgdir}/opt/zextras/common/lib/python${_py_ver}/site-packages"
-  cp -r "${srcdir}/pika-${_pika_ver}/pika" "${pkgdir}/opt/zextras/common/lib/python${_py_ver}/site-packages/pika"
+  install -d "${pkgdir}/opt/zextras/common/lib/python3/site-packages"
+  cp -r "${srcdir}/pika-${_pika_ver}/pika" "${pkgdir}/opt/zextras/common/lib/python3/site-packages/pika"
   install -Dm644 "${srcdir}/pika-${_pika_ver}/LICENSE" \
-    "${pkgdir}/opt/zextras/common/lib/python${_py_ver}/site-packages/pika/LICENSE"
+    "${pkgdir}/opt/zextras/common/lib/python3/site-packages/pika/LICENSE"
 }
 
 _package_legacy() {
@@ -141,7 +138,7 @@ build__ubuntu_focal() {
   install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 
-  sed -i "s/PYTHON_VER/${_py_ver}/g" \
+  sed -i "s/PYTHON_VER/3/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
   sed -i "s/PREFIX/common/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
@@ -151,7 +148,7 @@ build__ubuntu_jammy() {
   install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 
-  sed -i "s/PYTHON_VER/${_py_ver}/g" \
+  sed -i "s/PYTHON_VER/3/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
   sed -i "s/PREFIX/common/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
@@ -161,7 +158,7 @@ build__ubuntu_noble() {
   install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 
-  sed -i "s/PYTHON_VER/${_py_ver}/g" \
+  sed -i "s/PYTHON_VER/3/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
   sed -i "s/PREFIX/common/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
@@ -171,7 +168,7 @@ build__rocky_8() {
   install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 
-  sed -i "s/PYTHON_VER/${_py_ver}/g" \
+  sed -i "s/PYTHON_VER/3/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
   sed -i "s/PREFIX/common/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
@@ -181,7 +178,7 @@ build__rocky_9() {
   install -Dm 755 "${srcdir}/carbonio-files-start-watches.sh" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
 
-  sed -i "s/PYTHON_VER/${_py_ver}/g" \
+  sed -i "s/PYTHON_VER/3/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
   sed -i "s/PREFIX/common/g" \
     "${pkgdir}/usr/bin/carbonio-files-start-watches.sh"
