@@ -1,3 +1,9 @@
+## [3.0.10](https://github.com/zextras/carbonio-files-ce/compare/v3.0.9...v3.0.10) (2026-11-10)
+
+### Bug Fixes
+
+* [CO-4708] vendor pika instead of depending on python3-pika ([#358](https://github.com/zextras/carbonio-files-ce/issues/358)) ([aec29a7](https://github.com/zextras/carbonio-files-ce/commit/aec29a7f66c8710ac193481aeeae1ebd67d763f3))
+
 ## [3.0.9](https://github.com/zextras/carbonio-files-ce/compare/v3.0.8...v3.0.9) (2026-11-06)
 
 ### Bug Fixes
