@@ -7,7 +7,7 @@
 _pika_ver="1.2.1"
 
 pkgname="carbonio-files-ce"
-pkgver="2.1.9"
+pkgver="2.1.10"
 pkgrel="SNAPSHOT"
 pkgdesc="Carbonio Files"
 maintainer="Zextras <packages@zextras.com>"
