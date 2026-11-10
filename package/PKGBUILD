@@ -2,6 +2,10 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
+# pika 1.2.1 is the last release supporting python 3.6 (EL8 system python); verified importable on
+# 3.6 through 3.13. Pure python, no runtime deps.
+_pika_ver="1.2.1"
+
 pkgname="carbonio-files-ce"
 pkgver="3.0.9"
 pkgrel="SNAPSHOT"
@@ -12,17 +16,16 @@ license=("AGPL-3.0-only")
 section="admin"
 priority="optional"
 url="https://www.zextras.com/"
-# python3 + python3-pika (the watch-bridge's RabbitMQ client) have the SAME package name on every
-# target distro (ubuntu universe, EPEL 8/9), so they go in the base depends. NOTE: yap does NOT
-# honor depends__<distro> suffix arrays (only build__/package__ FUNCTIONS are per-distro), so a
-# distro-suffixed `depends__apt`/`depends__rocky_*` silently never reaches the package metadata.
+# python3 has the SAME package name on every target distro, so it goes in the base depends. pika
+# (the watch-bridge's RabbitMQ client) is vendored instead of depending on python3-pika: on EL8 the
+# EPEL package Recommends twisted, whose Automat dep pins python3.6dist(attrs) and then breaks
+# `dnf upgrade` against pgdg-common's py3.9 python3-attrs (CO-4708).
 depends=(
   "pending-setups"
   "service-discover"
   "service-discover-base"
   "carbonio-openjdk"
   "python3"
-  "python3-pika"
 )
 
 source=(
@@ -41,6 +44,7 @@ source=(
   "carbonio-files-watches.service"
   "carbonio-files-start-watches.sh"
   "carbonio-files-handle-kv-changes.py"
+  "https://files.pythonhosted.org/packages/source/p/pika/pika-${_pika_ver}.tar.gz"
 )
 sha256sums=(
   '96f4a551909cd061e95fe06175ff3e2f35578af77ac677023174098c8f940ed3'
@@ -58,6 +62,7 @@ sha256sums=(
   '28b19e0eadf4afc64bb097878abf666ca4594168c53d03fdb13213e33a31c967'
   'c37ab7268ee608580fb29c67f650f1b295e52214c27233aa1f7da39a8477c3cb'
   'b9f5c88b4aa9449fee9b2eed586662cfb5b88bcdeae59b1e2aa8bb7cfb017db3'
+  'e5fbf3a0a3599f4e114f6e4a7af096f9413a8f24f975c2657ba2fac3c931434f'
 )
 
 backup=(
@@ -103,6 +108,12 @@ _package_common() {
 
   install -Dm755 "${srcdir}/carbonio-files-handle-kv-changes.py" \
     "${pkgdir}/usr/bin/carbonio-files-handle-kv-changes.py"
+
+  # Vendored pika, in a dir carbonio-files-start-watches.sh already puts on PYTHONPATH.
+  install -d "${pkgdir}/opt/zextras/common/lib/python3/site-packages"
+  cp -r "${srcdir}/pika-${_pika_ver}/pika" "${pkgdir}/opt/zextras/common/lib/python3/site-packages/pika"
+  install -Dm644 "${srcdir}/pika-${_pika_ver}/LICENSE" \
+    "${pkgdir}/opt/zextras/common/lib/python3/site-packages/pika/LICENSE"
 }
 
 _package_legacy() {
@@ -118,10 +129,9 @@ _package_systemd() {
 }
 
 # Live-config bridge (matches carbonio-files Advanced): install carbonio-files-start-watches.sh and
-# substitute its python placeholders. The pika (Python RabbitMQ client) it imports at runtime is
-# provided by the system python3-pika package (see depends) instead of being vendored with pip at
-# build time -- the yap-v2 build containers ship no pip3. The handler runs under the distro's
-# default python3, which is exactly the interpreter python3-pika targets (3.6 el8, 3.9 el9, 3.10/3.12
+# substitute its python placeholders. The pika (Python RabbitMQ client) it imports at runtime is the
+# vendored copy from the pika sdist (see source/_package_common; no pip3 in the yap-v2 build
+# containers). The handler runs under the distro's default python3 (3.6 el8, 3.9 el9, 3.10/3.12
 # ubuntu). pika publishes the Consul KV changes to the message broker consumed by the app's
 # KeyValueChangedConsumer.
 build__ubuntu_focal() {
