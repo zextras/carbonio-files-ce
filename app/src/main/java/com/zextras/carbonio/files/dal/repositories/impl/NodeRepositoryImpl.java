@@ -20,6 +20,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SortOrder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
@@ -102,6 +103,7 @@ public class NodeRepositoryImpl implements NodeRepository {
   @Inject EntityManager entityManager;
   @Inject CollationRepository collationRepository;
   @Inject FilesConfig filesConfig;
+  @Inject NodeLocks nodeLocks;
 
   // ---------------------------------------------------------------------------------------------
   // Simple finders
@@ -570,6 +572,7 @@ public class NodeRepositoryImpl implements NodeRepository {
   @Override
   @Transactional
   public int setHiddenForOwner(String ownerId, boolean hidden) {
+    nodeLocks.lockOwnerRowsForHiddenChange(ownerId, hidden);
     entityManager.flush();
     int updated =
         entityManager

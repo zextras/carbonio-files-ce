@@ -150,7 +150,11 @@ public class NodeCreationHelper {
   public void deleteAllNodesAndBlobsForUser(String userId) {
     Map<String, List<BlobKey>> keysByOwner =
         QuarkusTransaction.requiringNew()
-            .call(() -> nodeRepository.deleteSubtrees(nodeRepository.getNonRootIdsByOwner(userId)));
+            .call(
+                () -> {
+                  nodeLocks.lockOwnerRowsForDeletion(userId);
+                  return nodeRepository.deleteSubtrees(nodeRepository.getNonRootIdsByOwner(userId));
+                });
 
     keysByOwner.forEach(blobLifecycle::deleteAndClear);
   }

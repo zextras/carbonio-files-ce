@@ -42,6 +42,7 @@ public class NodeLocks {
   private static final String CHILDREN_KEY_PREFIX = "files-children:";
   private static final String DEPTH =
       "length(coalesce(ancestor_ids, '')) - length(replace(coalesce(ancestor_ids, ''), ',', ''))";
+  private static final String LOCK_ORDER = DEPTH + ", node_id COLLATE \"C\"";
 
   private record Row(String id, int depth, boolean exclusive) {}
 
@@ -94,6 +95,53 @@ public class NodeLocks {
         session.doReturningWork(connection -> acquire(connection, anchors, parents, budget));
     entityManager.clear();
     return locked;
+  }
+
+  /**
+   * First statement of a transaction that deletes every non-root row of the owner. FOR UPDATE
+   * because the rows are then deleted: upgrading later could deadlock. Unbounded wait, no retry.
+   */
+  @Transactional(TxType.MANDATORY)
+  public void lockOwnerRowsForDeletion(String ownerId) {
+    lockOwnerRows(
+        ownerId,
+        "SELECT 1 FROM node WHERE owner_id = ? AND node_type <> 'ROOT' ORDER BY "
+            + LOCK_ORDER
+            + " FOR UPDATE",
+        null);
+  }
+
+  /**
+   * First statement of a transaction that flips the hidden flag of the owner's rows: locks exactly
+   * the rows whose flag differs. Unbounded wait, no retry.
+   */
+  @Transactional(TxType.MANDATORY)
+  public void lockOwnerRowsForHiddenChange(String ownerId, boolean hidden) {
+    lockOwnerRows(
+        ownerId,
+        "SELECT 1 FROM node WHERE owner_id = ? AND hidden <> ? ORDER BY "
+            + LOCK_ORDER
+            + " FOR NO KEY UPDATE",
+        hidden);
+  }
+
+  private void lockOwnerRows(String ownerId, String sql, Boolean hidden) {
+    entityManager
+        .unwrap(Session.class)
+        .doWork(
+            connection -> {
+              String lockTimeout = setting(connection, "lock_timeout");
+              String statementTimeout = setting(connection, "statement_timeout");
+              setTimeouts(connection, "0", "0");
+              try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setString(1, ownerId);
+                if (hidden != null) {
+                  statement.setBoolean(2, hidden);
+                }
+                statement.executeQuery().close();
+              }
+              setTimeouts(connection, lockTimeout, statementTimeout);
+            });
   }
 
   private static Set<String> sanitize(Collection<String> ids) {
@@ -204,8 +252,8 @@ public class NodeLocks {
     String mode = run.getFirst().exclusive() ? "FOR NO KEY UPDATE" : "FOR SHARE";
     String sql =
         "SELECT trim(node_id) FROM node WHERE node_id = ANY(?::character(36)[]) ORDER BY "
-            + DEPTH
-            + ", node_id COLLATE \"C\" "
+            + LOCK_ORDER
+            + " "
             + mode;
     Set<String> locked = new HashSet<>();
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
