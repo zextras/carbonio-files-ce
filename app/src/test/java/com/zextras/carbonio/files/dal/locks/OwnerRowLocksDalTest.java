@@ -19,6 +19,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -44,44 +45,37 @@ class OwnerRowLocksDalTest {
 
   @BeforeEach
   void createFixture() throws SQLException {
-    folder = UUID.randomUUID().toString();
-    child = UUID.randomUUID().toString();
+    String uuid = UUID.randomUUID().toString();
+    child = "0" + uuid.substring(1);
+    folder = "f" + uuid.substring(1);
     QuarkusTransaction.requiringNew()
         .run(
-            () -> {
-              nodeRepository.createNewNode(
-                  folder,
-                  OWNER,
-                  OWNER,
-                  "LOCAL_ROOT",
-                  "n-" + folder,
-                  "",
-                  NodeType.FOLDER,
-                  "LOCAL_ROOT",
-                  0L);
-              nodeRepository.createNewNode(
-                  child,
-                  OWNER,
-                  OWNER,
-                  folder,
-                  "n-" + child,
-                  "",
-                  NodeType.FOLDER,
-                  "LOCAL_ROOT," + folder,
-                  0L);
-            });
-    for (int attempt = 0; attempt < 50 && !scanOrder().equals(List.of(child, folder)); attempt++) {
-      try (Connection connection = LockProbe.holder()) {
-        connection.setAutoCommit(true);
-        try (PreparedStatement statement =
-            connection.prepareStatement(
-                "UPDATE node SET updated_timestamp = updated_timestamp + 1 WHERE node_id = ?")) {
-          statement.setString(1, folder);
-          statement.executeUpdate();
-        }
-      }
-    }
+            () ->
+                nodeRepository.createNewNode(
+                    child,
+                    OWNER,
+                    OWNER,
+                    folder,
+                    "n-" + child,
+                    "",
+                    NodeType.FOLDER,
+                    "LOCAL_ROOT," + folder,
+                    0L));
+    QuarkusTransaction.requiringNew()
+        .run(
+            () ->
+                nodeRepository.createNewNode(
+                    folder,
+                    OWNER,
+                    OWNER,
+                    "LOCAL_ROOT",
+                    "n-" + folder,
+                    "",
+                    NodeType.FOLDER,
+                    "LOCAL_ROOT",
+                    0L));
     assertThat(scanOrder()).containsExactly(child, folder);
+    assertThat(child).isLessThan(folder);
   }
 
   @AfterEach
@@ -95,13 +89,13 @@ class OwnerRowLocksDalTest {
     }
   }
 
-  private java.util.List<String> scanOrder() throws SQLException {
+  private List<String> scanOrder() throws SQLException {
     try (Connection connection = LockProbe.holder();
         PreparedStatement statement =
             connection.prepareStatement(
                 "SELECT trim(node_id) FROM node WHERE owner_id = ? ORDER BY ctid")) {
       statement.setString(1, OWNER);
-      java.util.List<String> ids = new java.util.ArrayList<>();
+      List<String> ids = new ArrayList<>();
       try (ResultSet rows = statement.executeQuery()) {
         while (rows.next()) {
           ids.add(rows.getString(1));
