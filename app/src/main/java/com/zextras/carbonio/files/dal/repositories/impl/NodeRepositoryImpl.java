@@ -320,25 +320,26 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   private static final String DELETE_SUBTREES_SQL =
       """
-      WITH RECURSIVE subtree(node_id, node_type) AS (
-          SELECT n.node_id, n.node_type
+      WITH RECURSIVE subtree(node_id, node_type, owner_id) AS (
+          SELECT n.node_id, n.node_type, n.owner_id
           FROM node n
           WHERE n.node_id = ANY(CAST(:ids AS character(36)[]))
           UNION
-          SELECT c.node_id, c.node_type
+          SELECT c.node_id, c.node_type, c.owner_id
           FROM subtree s
           CROSS JOIN LATERAL (
-              SELECT n.node_id, n.node_type
+              SELECT n.node_id, n.node_type, n.owner_id
               FROM node n
               WHERE n.folder_id = s.node_id
           ) c
           WHERE s.node_type = 'FOLDER'
       ),
       files AS (
-          SELECT n.node_id, n.owner_id, r.version
+          SELECT s.node_id, s.owner_id, r.version
           FROM subtree s
-          INNER JOIN node n ON n.node_id = s.node_id
-          INNER JOIN revision r ON r.node_id = s.node_id
+          CROSS JOIN LATERAL (
+              SELECT rv.version FROM revision rv WHERE rv.node_id = s.node_id OFFSET 0
+          ) r
           WHERE s.node_type <> 'FOLDER'
       ),
       tombstoned AS (
@@ -354,9 +355,7 @@ public class NodeRepositoryImpl implements NodeRepository {
             AND t.parent_id IN (SELECT s.node_id FROM subtree s WHERE s.node_type = 'FOLDER')
       ),
       removed AS (
-          DELETE FROM node n
-          USING subtree s
-          WHERE n.node_id = s.node_id
+          DELETE FROM node WHERE node_id = ANY(ARRAY(SELECT s.node_id FROM subtree s))
       )
       SELECT f.owner_id, RTRIM(f.node_id), f.version FROM files f
       """;
@@ -476,17 +475,17 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   @Override
-  public List<String> getNonRootIdsByOwner(String ownerId) {
+  @Transactional
+  @SuppressWarnings("unchecked")
+  public List<String> getTopMostIdsByOwner(String ownerId) {
     return entityManager
-        .createQuery(
-            "select n.mId from Node n where n.mOwnerId = :owner and n.mNodeType <> :root",
+        .createNativeQuery(
+            "SELECT RTRIM(n.node_id) FROM node n LEFT JOIN node p ON p.node_id = n.folder_id"
+                + " WHERE n.owner_id = CAST(:owner AS VARCHAR(256)) AND n.node_type <> 'ROOT'"
+                + " AND p.owner_id IS DISTINCT FROM CAST(:owner AS VARCHAR(256))",
             String.class)
         .setParameter("owner", ownerId)
-        .setParameter("root", NodeType.ROOT)
-        .getResultList()
-        .stream()
-        .map(String::trim)
-        .toList();
+        .getResultList();
   }
 
   private static final String REWRITE_DESCENDANT_ANCESTORS_SQL =

@@ -305,4 +305,40 @@ class NodeQueryDalTest {
         .containsExactly(inside);
     assertThat(nodeRepository.filterIdsUnderAncestor(top, List.of())).isEmpty();
   }
+
+  @Test
+  @TestTransaction
+  void getTopMostIdsByOwnerReturnsOnlyTheNodesWhoseParentBelongsToSomeoneElse() {
+    String user = id();
+    String other = id();
+    String top = id();
+    String child = id();
+    String deep = id();
+    String foreignFolder = id();
+    String insideForeign = id();
+    String foreignInsideMine = id();
+    String hidden = id();
+    persist(top, "top", user, NodeType.FOLDER, false, 0, "LOCAL_ROOT", "LOCAL_ROOT");
+    persist(child, "child", user, NodeType.FOLDER, false, 0, top, "LOCAL_ROOT," + top);
+    persist(deep, "deep", user, NodeType.TEXT, false, 1, child, "LOCAL_ROOT," + top + "," + child);
+    persist(foreignFolder, "foreign", other, NodeType.FOLDER, false, 0, "LOCAL_ROOT", "LOCAL_ROOT");
+    persist(
+        insideForeign,
+        "inside",
+        user,
+        NodeType.TEXT,
+        false,
+        1,
+        foreignFolder,
+        "LOCAL_ROOT," + foreignFolder);
+    persist(foreignInsideMine, "theirs", other, NodeType.TEXT, false, 1, top, "LOCAL_ROOT," + top);
+    persist(hidden, "hidden", user, NodeType.TEXT, true, 1, "TRASH_ROOT", "TRASH_ROOT");
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(nodeRepository.getTopMostIdsByOwner(user))
+        .containsExactlyInAnyOrder(top, insideForeign, hidden);
+    assertThat(nodeRepository.getTopMostIdsByOwner(other))
+        .containsExactlyInAnyOrder(foreignFolder, foreignInsideMine);
+  }
 }

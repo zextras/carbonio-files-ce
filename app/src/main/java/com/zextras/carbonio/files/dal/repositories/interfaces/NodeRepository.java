@@ -284,8 +284,11 @@ public interface NodeRepository {
   /** The ids, among the given ones, of the nodes that have the top as an ancestor. */
   List<String> filterIdsUnderAncestor(String topId, Collection<String> nodeIds);
 
-  /** The ids of the nodes owned by the user, the root folders excluded. */
-  List<String> getNonRootIdsByOwner(String ownerId);
+  /**
+   * The ids of the top-most nodes owned by the user: the non-root nodes whose parent is not owned
+   * by the user. Every other node of the user is a descendant of one of them.
+   */
+  List<String> getTopMostIdsByOwner(String ownerId);
 
   /**
    * Returns the nodes directly under the trash root that were trashed before the given timestamp.

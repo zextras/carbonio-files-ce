@@ -153,7 +153,7 @@ public class NodeCreationHelper {
             .call(
                 () -> {
                   nodeLocks.lockOwnerRowsForDeletion(userId);
-                  return nodeRepository.deleteSubtrees(nodeRepository.getNonRootIdsByOwner(userId));
+                  return nodeRepository.deleteSubtrees(nodeRepository.getTopMostIdsByOwner(userId));
                 });
 
     keysByOwner.forEach(blobLifecycle::deleteAndClear);

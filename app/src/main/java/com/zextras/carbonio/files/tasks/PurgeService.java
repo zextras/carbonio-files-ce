@@ -138,7 +138,10 @@ public class PurgeService {
       return Map.of();
     }
     Map<String, List<BlobKey>> keysByOwner = nodeRepository.deleteSubtrees(List.of(topId));
-    logger.info("Purged trashed tree {} from database", topId);
+    logger.info(
+        "Purged trashed tree {} from database: {} revisions tombstoned",
+        topId,
+        keysByOwner.values().stream().mapToInt(List::size).sum());
     return keysByOwner;
   }
 
