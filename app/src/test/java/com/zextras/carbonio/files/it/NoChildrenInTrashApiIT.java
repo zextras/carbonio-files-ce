@@ -93,8 +93,8 @@ class NoChildrenInTrashApiIT extends AbstractFilesIT {
 
   private void assertCreateFolderRefused(String destination) throws SQLException {
     Response response = createFolderMutation(destination);
-    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString()))
-        .isNotEmpty();
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("NODE_NOT_FOUND");
     Assertions.assertThat(children(destination)).isZero();
   }
 
@@ -112,11 +112,13 @@ class NoChildrenInTrashApiIT extends AbstractFilesIT {
     String folder = seedFolder("source-folder", LOCAL_ROOT, COOKIE);
 
     Assertions.assertThat(
-            TestUtils.jsonResponseToErrors(copyMutation(destination, file).getBody().asString()))
-        .isNotEmpty();
+            TestUtils.jsonResponseToErrorCodes(
+                copyMutation(destination, file).getBody().asString()))
+        .containsExactly("NODE_WRITE_ERROR");
     Assertions.assertThat(
-            TestUtils.jsonResponseToErrors(copyMutation(destination, folder).getBody().asString()))
-        .isNotEmpty();
+            TestUtils.jsonResponseToErrorCodes(
+                copyMutation(destination, folder).getBody().asString()))
+        .containsExactly("NODE_WRITE_ERROR");
     Assertions.assertThat(children(destination)).isZero();
   }
 

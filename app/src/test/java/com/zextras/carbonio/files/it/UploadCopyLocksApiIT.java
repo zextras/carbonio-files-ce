@@ -222,7 +222,9 @@ class UploadCopyLocksApiIT extends AbstractFilesIT {
       throws Exception {
     MockStoragesService storages = FilesStackTestResource.getStoragesService();
     String source = seedFolder("S", LOCAL_ROOT, COOKIE);
+    String sub = seedFolder("sub", source, COOKIE);
     seedFile("a.txt", source, "a".getBytes(), COOKIE);
+    seedFile("b.txt", sub, "b".getBytes(), COOKIE);
     String destination = seedFolder("D", LOCAL_ROOT, COOKIE);
 
     storages.holdCopies();
@@ -233,13 +235,57 @@ class UploadCopyLocksApiIT extends AbstractFilesIT {
     Response copyResponse = copying.get(60, TimeUnit.SECONDS);
 
     Assertions.assertThat(errorMessages(trashResponse)).isEmpty();
-    Assertions.assertThat(errorMessages(copyResponse)).isNotEmpty();
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(copyResponse.getBody().asString()))
+        .containsExactly("NODE_COPY_ERROR");
     String copiedRoot =
         scalar("SELECT node_id FROM node WHERE folder_id = ? AND name = 'S'", destination);
     Assertions.assertThat(copiedRoot).isNotNull();
-    Assertions.assertThat(count("SELECT count(*) FROM node WHERE folder_id = ?", copiedRoot))
+    Assertions.assertThat(
+            count(
+                "SELECT count(*) FROM node WHERE folder_id = ? OR ancestor_ids LIKE '%' || ? ||"
+                    + " '%'",
+                copiedRoot, copiedRoot))
         .isZero();
-    Assertions.assertThat(FilesStackTestResource.getStoragesService().blobCount()).isEqualTo(1);
+    Assertions.assertThat(storages.blobCount()).isEqualTo(2);
+  }
+
+  @Test
+  void folderCopyIntoADestinationTrashedWhileItWaitsOnTheLockCreatesNothing() throws Exception {
+    String source = seedFolder("S", LOCAL_ROOT, COOKIE);
+    String destination = seedFolder("D", LOCAL_ROOT, COOKIE);
+    String inside = seedFolder("E", destination, COOKIE);
+
+    Response copyResponse;
+    try (Connection holder = holdNode(destination, "FOR NO KEY UPDATE")) {
+      CompletableFuture<Response> copying = async(() -> copy(destination, source));
+      awaitBlockedBy(holder, 1);
+      try (PreparedStatement trashDestination =
+              holder.prepareStatement(
+                  "UPDATE node SET folder_id = 'TRASH_ROOT', ancestor_ids = 'TRASH_ROOT'"
+                      + " WHERE node_id = ?");
+          PreparedStatement trashInside =
+              holder.prepareStatement(
+                  "UPDATE node SET ancestor_ids = 'TRASH_ROOT,' || trim(folder_id)"
+                      + " WHERE node_id = ?");
+          PreparedStatement markTrashed =
+              holder.prepareStatement(
+                  "INSERT INTO trashed (node_id, parent_id) VALUES (?, 'LOCAL_ROOT')")) {
+        trashDestination.setString(1, destination);
+        trashDestination.executeUpdate();
+        trashInside.setString(1, inside);
+        trashInside.executeUpdate();
+        markTrashed.setString(1, destination);
+        markTrashed.executeUpdate();
+      }
+      holder.commit();
+      copyResponse = copying.get(60, TimeUnit.SECONDS);
+    }
+
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(copyResponse.getBody().asString()))
+        .containsExactly("NODE_COPY_ERROR");
+    Assertions.assertThat(count("SELECT count(*) FROM node WHERE folder_id = ?", destination))
+        .isEqualTo(1);
+    Assertions.assertThat(count("SELECT count(*) FROM node WHERE name = 'S'")).isEqualTo(1);
   }
 
   @Test
