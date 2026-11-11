@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -41,6 +42,7 @@ class AccountDeletionRetryTest {
   private NodeLocks nodeLocks;
   private BlobLifecycle blobLifecycle;
   private NodeCreationHelper helper;
+  private Transactions transactions;
   private Map<String, List<BlobKey>> keys;
 
   @BeforeEach
@@ -48,7 +50,7 @@ class AccountDeletionRetryTest {
     nodeRepository = mock(NodeRepository.class);
     nodeLocks = mock(NodeLocks.class);
     blobLifecycle = mock(BlobLifecycle.class);
-    Transactions transactions = mock(Transactions.class);
+    transactions = mock(Transactions.class);
     when(transactions.inNewTransaction(any(Duration.class), any()))
         .thenAnswer(call -> call.<Callable<?>>getArgument(1).call());
     helper =
@@ -82,6 +84,7 @@ class AccountDeletionRetryTest {
     order.verify(nodeRepository).deleteSubtrees(List.of("node-1"));
     order.verify(nodeLocks).lockOwnerRowsForDeletion(USER);
     order.verify(nodeRepository).deleteSubtrees(List.of("node-1"));
+    verify(transactions, times(2)).inNewTransaction(eq(Duration.ofSeconds(600)), any());
     verify(blobLifecycle, times(1)).deleteAndClear("owner", keys.get("owner"));
   }
 
