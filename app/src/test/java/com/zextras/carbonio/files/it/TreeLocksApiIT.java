@@ -403,23 +403,38 @@ class TreeLocksApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void restoreRacingATrashOfTheSameNodeIsRefused() throws Exception {
+  void twoConcurrentRestoresOfTheSameNodeRestoreItOnce() throws Exception {
     String p = seedFolder("P", LOCAL_ROOT, COOKIE);
     String n = seedFolder("N", p, COOKIE);
+    String child = seedFolder("child", n, COOKIE);
+    seedTrashed(n, COOKIE);
 
-    Response trashResponse;
-    Response restoreResponse;
+    Response firstResponse;
+    Response secondResponse;
     try (Connection holder = holdNode(n, "FOR NO KEY UPDATE")) {
-      CompletableFuture<Response> first = async(() -> trash(n));
-      awaitBlockedBy(holder, 1);
-      restoreResponse = async(() -> restore(n)).get(30, TimeUnit.SECONDS);
+      CompletableFuture<Response> first = async(() -> restore(n));
+      CompletableFuture<Response> second = async(() -> restore(n));
+      awaitBlockedBy(holder, 2);
       holder.commit();
-      trashResponse = first.get(60, TimeUnit.SECONDS);
+      firstResponse = first.get(60, TimeUnit.SECONDS);
+      secondResponse = second.get(60, TimeUnit.SECONDS);
     }
 
-    Assertions.assertThat(errorMessages(trashResponse)).isEmpty();
-    Assertions.assertThat(errorCodes(restoreResponse)).containsExactly(NODE_WRITE_ERROR);
-    Assertions.assertThat(folderId(n).trim()).isEqualTo(TRASH_ROOT);
+    List<Response> responses = List.of(firstResponse, secondResponse);
+    Assertions.assertThat(responses.stream().filter(r -> errorMessages(r).isEmpty()).count())
+        .isEqualTo(1);
+    Assertions.assertThat(
+            responses.stream()
+                .filter(r -> !errorMessages(r).isEmpty())
+                .map(TreeLocksApiIT::errorCodes)
+                .toList())
+        .containsExactly(List.of(NODE_WRITE_ERROR));
+    Assertions.assertThat(count("SELECT count(*) FROM trashed WHERE node_id = ?", n)).isZero();
+    Assertions.assertThat(count("SELECT count(*) FROM node WHERE node_id = ?", n)).isEqualTo(1);
+    Assertions.assertThat(folderId(n).trim()).isEqualTo(p);
+    Assertions.assertThat(ancestors(n)).isEqualTo(LOCAL_ROOT + "," + p);
+    Assertions.assertThat(folderId(child).trim()).isEqualTo(n);
+    Assertions.assertThat(ancestors(child)).isEqualTo(LOCAL_ROOT + "," + p + "," + n);
   }
 
   @Test
