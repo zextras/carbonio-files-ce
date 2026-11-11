@@ -575,7 +575,7 @@ class CopyNodesApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTheDestinationIsTrashedWhileTheBlobIsCopiedThenTheCopyIsInTheTrashedFolder()
+  void givenTheDestinationIsTrashedWhileTheBlobIsCopiedThenTheCopyIsRefusedAndLeavesNothing()
       throws Exception {
     String sourceId =
         seedFile(
@@ -584,13 +584,16 @@ class CopyNodesApiIT extends AbstractFilesIT {
             "content".getBytes(StandardCharsets.UTF_8),
             REQUESTER_COOKIE);
     String destFolderId = seedFolder("copy-dest-trashed", LOCAL_ROOT, REQUESTER_COOKIE);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
 
     Response response =
         copyWhileHeld(sourceId, destFolderId, () -> seedTrashed(destFolderId, REQUESTER_COOKIE));
 
-    Assertions.assertThat(copiedNodes(response)).hasSize(1);
-    Assertions.assertThat(childAncestors(destFolderId))
-        .containsExactly("TRASH_ROOT," + destFolderId);
+    Assertions.assertThat(copiedNodes(response)).isEmpty();
+    Assertions.assertThat(response.getBody().asString())
+        .contains("There was a problem while copying the node " + sourceId);
+    Assertions.assertThat(childAncestors(destFolderId)).isEmpty();
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
   }
 
   @Test

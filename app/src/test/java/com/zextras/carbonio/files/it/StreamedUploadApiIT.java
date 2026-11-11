@@ -108,15 +108,17 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTheFolderIsTrashedWhileAnUploadStreamsThenTheNewNodeIsInTheTrashedFolder()
+  void givenTheFolderIsTrashedWhileAnUploadStreamsThenTheUploadIsRefusedAndLeavesNothing()
       throws Exception {
     String folderId = seedFolder("streamed-upload-trashed", LOCAL_ROOT, REQUESTER_COOKIE);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
 
     String statusLine =
         uploadAround(folderId, "trashed.bin", () -> seedTrashed(folderId, REQUESTER_COOKIE));
 
-    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
-    Assertions.assertThat(onlyChild(folderId, "ancestor_ids")).isEqualTo("TRASH_ROOT," + folderId);
+    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 404");
+    Assertions.assertThat(children(folderId)).isZero();
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
   }
 
   @Test

@@ -35,6 +35,9 @@ public final class NodeRules {
   }
 
   public static boolean acceptsChildren(Node node) {
+    if (node.getAncestorsList().contains(RootId.TRASH_ROOT)) {
+      return false;
+    }
     return NodeType.FOLDER.equals(node.getNodeType())
         || (isRoot(node) && !RootId.TRASH_ROOT.equals(node.getId()));
   }

@@ -128,7 +128,7 @@ class UploadCopyLocksApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void uploadBehindATrashGetsTheTrashedAncestors() throws Exception {
+  void uploadBehindATrashIsRefusedAndDiscardsTheBlob() throws Exception {
     String parent = seedFolder("P", LOCAL_ROOT, COOKIE);
 
     Response trashResponse;
@@ -145,10 +145,9 @@ class UploadCopyLocksApiIT extends AbstractFilesIT {
     }
 
     Assertions.assertThat(errorMessages(trashResponse)).isEmpty();
-    Assertions.assertThat(uploadResponse.statusCode()).isEqualTo(200);
-    String nodeId = uploadResponse.jsonPath().getString("nodeId");
-    Assertions.assertThat(scalar("SELECT ancestor_ids FROM node WHERE node_id = ?", nodeId))
-        .startsWith("TRASH_ROOT,");
+    Assertions.assertThat(uploadResponse.statusCode()).isEqualTo(404);
+    Assertions.assertThat(count("SELECT count(*) FROM node WHERE folder_id = ?", parent)).isZero();
+    assertNothingLeftBehind();
   }
 
   @Test
@@ -219,12 +218,11 @@ class UploadCopyLocksApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void folderCopyIntoATrashedDestinationGetsTheTrashedAncestors() throws Exception {
+  void folderCopyIntoADestinationTrashedDuringTheCopyIsRefusedBelowTheTrashedFolder()
+      throws Exception {
     MockStoragesService storages = FilesStackTestResource.getStoragesService();
     String source = seedFolder("S", LOCAL_ROOT, COOKIE);
-    String sub = seedFolder("sub", source, COOKIE);
     seedFile("a.txt", source, "a".getBytes(), COOKIE);
-    seedFile("b.txt", sub, "b".getBytes(), COOKIE);
     String destination = seedFolder("D", LOCAL_ROOT, COOKIE);
 
     storages.holdCopies();
@@ -235,23 +233,13 @@ class UploadCopyLocksApiIT extends AbstractFilesIT {
     Response copyResponse = copying.get(60, TimeUnit.SECONDS);
 
     Assertions.assertThat(errorMessages(trashResponse)).isEmpty();
-    Assertions.assertThat(errorMessages(copyResponse)).isEmpty();
+    Assertions.assertThat(errorMessages(copyResponse)).isNotEmpty();
     String copiedRoot =
         scalar("SELECT node_id FROM node WHERE folder_id = ? AND name = 'S'", destination);
-    String underCopy =
-        " FROM node c JOIN node p ON p.node_id = c.folder_id WHERE (c.node_id = ? OR"
-            + " c.ancestor_ids LIKE '%' || ? || '%')";
-    Assertions.assertThat(count("SELECT count(*)" + underCopy, copiedRoot, copiedRoot))
-        .isEqualTo(4);
-    Assertions.assertThat(
-            count(
-                "SELECT count(*)"
-                    + underCopy
-                    + " AND (c.ancestor_ids NOT LIKE 'TRASH_ROOT,%' OR trim(c.ancestor_ids) <>"
-                    + " trim(p.ancestor_ids) || ',' || trim(p.node_id))",
-                copiedRoot,
-                copiedRoot))
+    Assertions.assertThat(copiedRoot).isNotNull();
+    Assertions.assertThat(count("SELECT count(*) FROM node WHERE folder_id = ?", copiedRoot))
         .isZero();
+    Assertions.assertThat(FilesStackTestResource.getStoragesService().blobCount()).isEqualTo(1);
   }
 
   @Test
