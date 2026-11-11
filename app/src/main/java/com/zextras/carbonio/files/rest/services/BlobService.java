@@ -426,7 +426,11 @@ public class BlobService {
       throw e;
     }
     if (published.isEmpty()) {
-      logger.warn("Folder {} was deleted while {} was being uploaded", folderId, filename);
+      logger.warn(
+          "Folder {} no longer accepts children (deleted or in the trash) while {} was being"
+              + " uploaded",
+          folderId,
+          filename);
       blobLifecycle.discard(reservation);
       return Optional.empty();
     }
@@ -486,7 +490,7 @@ public class BlobService {
    * Creates the node of a stored blob. The folder is read again here: it may have been moved,
    * trashed or deleted while the blob was uploaded.
    *
-   * @return empty when the folder no longer exists
+   * @return empty when the folder no longer accepts children (deleted or in the trash)
    */
   private Optional<PublishedUpload> publishUpload(
       Reservation reservation,

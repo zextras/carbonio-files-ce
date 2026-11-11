@@ -72,15 +72,16 @@ public class NodeCreationHelper {
   }
 
   /**
-   * Enforces READ_AND_WRITE on the parent, requires the parent to be a {@link NodeType#FOLDER} or a
-   * {@link NodeType#ROOT} other than the trash, computes the new folder's owner, de-duplicates the
-   * requested name against existing siblings, creates the folder, propagates inherited shares onto
-   * it, and fires the added-node notification (gated on {@link
-   * FilesConfig#areNotificationsEnabled()}).
+   * Enforces READ_AND_WRITE on the parent, requires the parent to accept children (a {@link
+   * NodeType#FOLDER} or a {@link NodeType#ROOT} other than the trash, and not inside the trash),
+   * computes the new folder's owner, de-duplicates the requested name against existing siblings,
+   * creates the folder, propagates inherited shares onto it, and fires the added-node notification
+   * (gated on {@link FilesConfig#areNotificationsEnabled()}).
    *
    * @throws NodeAccessException if the requester lacks READ_AND_WRITE on the parent (checked first,
    *     so a missing parent, which grants no permission, ends here too)
-   * @throws NodeNotFoundException if the parent is neither a FOLDER nor a ROOT other than the trash
+   * @throws NodeNotFoundException if the parent does not accept children (missing, a trash root, or
+   *     inside the trash)
    */
   public Node createFolder(String requesterId, String parentId, String name, UserMyself requester) {
     if (!permissionsChecker

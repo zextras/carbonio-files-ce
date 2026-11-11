@@ -716,9 +716,6 @@ public class NodeApi {
             .getNode(destinationId)
             .filter(NodeRules::acceptsChildren)
             .orElseThrow(() -> FilesGraphQLErrors.nodeWriteError(destinationId));
-    if (destinationFolder.getAncestorsList().contains(RootId.TRASH_ROOT)) {
-      throw FilesGraphQLErrors.nodeWriteError(destinationId);
-    }
 
     List<String> rootIds =
         nodeRepository.getRootsList().stream().map(Node::getId).collect(Collectors.toList());
@@ -1289,6 +1286,21 @@ public class NodeApi {
 
   record CopyFailure(Node node, Throwable cause) {}
 
+  private static final class CopyDestinationRefusedException extends NoSuchElementException {
+    CopyDestinationRefusedException(String destinationId) {
+      super(
+          "Destination " + destinationId + " no longer accepts children (deleted or in the trash)");
+    }
+  }
+
+  private void logCopyFailure(String description, RuntimeException e) {
+    if (e instanceof CopyIntoItselfException || e instanceof CopyDestinationRefusedException) {
+      logger.warn("{}: {}", description, e.getMessage());
+    } else {
+      logger.error(description, e);
+    }
+  }
+
   private static final class CopyIntoItselfException extends RuntimeException {
     CopyIntoItselfException(String folderId) {
       super("Folder " + folderId + " cannot be copied into itself or its descendants");
@@ -1326,7 +1338,7 @@ public class NodeApi {
     try {
       copiedFolder = copyFolder(node, destinationFolder, me, true);
     } catch (RuntimeException e) {
-      logger.error("Unable to copy folder {}", node.getId(), e);
+      logCopyFailure("Unable to copy folder " + node.getId(), e);
       return new CopyOutcome(Optional.empty(), e);
     }
     copyFolderCascade(node.getId(), copiedFolder, me, nestedCopyErrors);
@@ -1404,9 +1416,7 @@ public class NodeApi {
                         .getNode(destinationFolder.getId())
                         .filter(NodeRules::acceptsChildren)
                         .orElseThrow(
-                            () ->
-                                new NoSuchElementException(
-                                    "Destination " + destinationFolder.getId() + " not found"));
+                            () -> new CopyDestinationRefusedException(destinationFolder.getId()));
                 versionReservations.confirmNew(reservation);
                 Node created =
                     nodeRepository.createNewNode(
@@ -1439,12 +1449,7 @@ public class NodeApi {
                 createIndirectShare(parent.getId(), created);
               });
     } catch (RuntimeException e) {
-      logger.error(
-          "Unable to publish the copy {} of node {}: {}",
-          newId,
-          sourceNode.getId(),
-          e.getMessage(),
-          e);
+      logCopyFailure("Unable to publish the copy " + newId + " of node " + sourceNode.getId(), e);
       blobLifecycle.discard(reservation);
       return new CopyOutcome(Optional.empty(), e);
     }
@@ -1463,9 +1468,7 @@ public class NodeApi {
                       .getNode(destinationFolder.getId())
                       .filter(NodeRules::acceptsChildren)
                       .orElseThrow(
-                          () ->
-                              new NoSuchElementException(
-                                  "Destination " + destinationFolder.getId() + " not found"));
+                          () -> new CopyDestinationRefusedException(destinationFolder.getId()));
               if (parent.getId().equals(sourceFolder.getId())
                   || parent.getAncestorsList().contains(sourceFolder.getId())) {
                 throw new CopyIntoItselfException(sourceFolder.getId());
@@ -1545,7 +1548,7 @@ public class NodeApi {
           try {
             copiedFolder = copyFolder(folder, destinationFolder, requesterId, false);
           } catch (RuntimeException e) {
-            logger.error("Unable to copy folder {}: {}", folder.getId(), e.getMessage(), e);
+            logCopyFailure("Unable to copy folder " + folder.getId(), e);
             failures.add(new CopyFailure(folder, e));
             return;
           }
