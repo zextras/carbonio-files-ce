@@ -128,8 +128,7 @@ class AncestorRewriteApiIT extends AbstractFilesIT {
     Assertions.assertThat(row(tree.markedFile).parentId()).isEqualTo(tree.marked);
   }
 
-  private static void assertTimestampsAdvanced(Map<String, Long> before, Tree tree)
-      throws SQLException {
+  private static void assertTimestampsAdvanced(Map<String, Long> before) throws SQLException {
     for (String id : before.keySet()) {
       Assertions.assertThat(row(id).updatedAt())
           .as("updated_timestamp of %s", id)
@@ -163,6 +162,7 @@ class AncestorRewriteApiIT extends AbstractFilesIT {
                 .withWantedResultFormat("{ id }")
                 .build(),
             COOKIE);
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
   }
 
@@ -180,13 +180,13 @@ class AncestorRewriteApiIT extends AbstractFilesIT {
     trash(tree.top);
     Assertions.assertThat(row(tree.top).ancestors()).isEqualTo(TRASH_ROOT);
     assertDescendants(tree, TRASH_ROOT);
-    assertTimestampsAdvanced(before, tree);
+    assertTimestampsAdvanced(before);
 
     before = timestamps(tree);
     restore(tree.top);
     Assertions.assertThat(row(tree.top).ancestors()).isEqualTo("LOCAL_ROOT");
     assertDescendants(tree, "LOCAL_ROOT");
-    assertTimestampsAdvanced(before, tree);
+    assertTimestampsAdvanced(before);
 
     String d1 = folder("d1", LOCAL_ROOT);
     String d2 = folder("d2", d1);
@@ -196,20 +196,64 @@ class AncestorRewriteApiIT extends AbstractFilesIT {
     String movedTopAncestors = "LOCAL_ROOT," + d1 + "," + d2 + "," + d3;
     Assertions.assertThat(row(tree.top).ancestors()).isEqualTo(movedTopAncestors);
     assertDescendants(tree, movedTopAncestors);
-    assertTimestampsAdvanced(before, tree);
+    assertTimestampsAdvanced(before);
 
     before = timestamps(tree);
     move(LOCAL_ROOT, tree.top);
     Assertions.assertThat(row(tree.top).ancestors()).isEqualTo("LOCAL_ROOT");
     assertDescendants(tree, "LOCAL_ROOT");
-    assertTimestampsAdvanced(before, tree);
+    assertTimestampsAdvanced(before);
 
     before = timestamps(tree);
     trash(tree.top);
     restore(tree.top);
     move(d1, tree.top);
     assertDescendants(tree, "LOCAL_ROOT," + d1);
-    assertTimestampsAdvanced(before, tree);
+    assertTimestampsAdvanced(before);
+  }
+
+  @Test
+  void givenASubtreeTrashedFromANestedFolderRestoreShouldRewriteEveryDescendantPath()
+      throws SQLException {
+    String d1 = folder("d1", LOCAL_ROOT);
+    String d2 = folder("d2", d1);
+    String d3 = folder("d3", d2);
+    String sub = folder("sub", d3);
+    String subChild = folder("subChild", sub);
+    String subGrandChild = folder("subGrandChild", subChild);
+    String subFile = file("subFile.txt", sub);
+    String childFile = file("childFile.txt", subChild);
+    String grandChildFile = file("grandChildFile.txt", subGrandChild);
+
+    String parentPath = "LOCAL_ROOT," + d1 + "," + d2 + "," + d3;
+    Map<String, String> expected = new LinkedHashMap<>();
+    expected.put(sub, parentPath);
+    expected.put(subChild, parentPath + "," + sub);
+    expected.put(subFile, parentPath + "," + sub);
+    expected.put(subGrandChild, parentPath + "," + sub + "," + subChild);
+    expected.put(childFile, parentPath + "," + sub + "," + subChild);
+    expected.put(grandChildFile, parentPath + "," + sub + "," + subChild + "," + subGrandChild);
+    for (Map.Entry<String, String> entry : expected.entrySet()) {
+      Assertions.assertThat(row(entry.getKey()).ancestors()).isEqualTo(entry.getValue());
+    }
+
+    trash(sub);
+    Assertions.assertThat(row(sub).ancestors()).isEqualTo(TRASH_ROOT);
+    Assertions.assertThat(row(subChild).ancestors()).isEqualTo(TRASH_ROOT + "," + sub);
+
+    Map<String, Long> before = new LinkedHashMap<>();
+    for (String id : expected.keySet()) {
+      before.put(id, row(id).updatedAt());
+    }
+    restore(sub);
+
+    Assertions.assertThat(row(sub).parentId()).isEqualTo(d3);
+    for (Map.Entry<String, String> entry : expected.entrySet()) {
+      Assertions.assertThat(row(entry.getKey()).ancestors())
+          .as("ancestor_ids of %s", entry.getKey())
+          .isEqualTo(entry.getValue());
+    }
+    assertTimestampsAdvanced(before);
   }
 
   @Test
