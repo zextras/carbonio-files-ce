@@ -273,11 +273,35 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
   }
 
   private static Response invite(String invitationId) {
+    return invite(invitationId, TARGET_COOKIE);
+  }
+
+  private static Response invite(String invitationId, String cookie) {
     return RestAssured.given()
         .redirects()
         .follow(false)
-        .header("Cookie", TARGET_COOKIE)
+        .header("Cookie", cookie)
         .get("/invite/" + invitationId);
+  }
+
+  private static String unsharedTrashedFileWithInvitation(boolean nested) {
+    String folder = nested ? seedFolder("trashed-parent", LOCAL_ROOT, OWNER_COOKIE) : null;
+    String file = seedFile("doc.txt", nested ? folder : LOCAL_ROOT, "one".getBytes(), OWNER_COOKIE);
+    Map<String, Object> collaboration =
+        TestUtils.jsonResponseToMap(
+            graphql(
+                    GraphqlCommandBuilder.aMutationBuilder("createCollaborationLink")
+                        .withString("node_id", file)
+                        .withEnumLiteral("permission", SharePermission.READ_AND_SHARE.name())
+                        .withWantedResultFormat("{ url }")
+                        .build(),
+                    OWNER_COOKIE)
+                .getBody()
+                .asString(),
+            "createCollaborationLink");
+    String url = (String) collaboration.get("url");
+    seedTrashed(nested ? folder : file, OWNER_COOKIE);
+    return file + ":" + url.substring(url.length() - 8);
   }
 
   private static void assertGraphqlRefused(
@@ -665,6 +689,84 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
     }
 
     Assertions.assertThat(response.statusCode()).isEqualTo(404);
+    Assertions.assertThat(versionRows(file)).containsExactly(1);
+    Assertions.assertThat(column("SELECT current_version FROM node WHERE node_id = ?", file))
+        .isEqualTo("1");
+    Assertions.assertThat(storages.has(file, 2)).isFalse();
+    Assertions.assertThat(storages.blobCount()).isEqualTo(blobs);
+    Assertions.assertThat(pendingReservations(file)).isEmpty();
+    Assertions.assertThat(tombstoneRowsForNode(file)).isZero();
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void redeemingACollaborationLinkThatWouldCreateAShareIsRefused(boolean nested)
+      throws SQLException {
+    String[] fileAndInvitation = unsharedTrashedFileWithInvitation(nested).split(":");
+    String file = fileAndInvitation[0];
+    String before = snapshot(file);
+
+    Assertions.assertThat(invite(fileAndInvitation[1]).statusCode()).isEqualTo(404);
+    Assertions.assertThat(snapshot(file)).isEqualTo(before);
+    Assertions.assertThat(column("SELECT count(*) FROM share WHERE node_id = ?", file))
+        .isEqualTo("0");
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void theOwnerRedeemingACollaborationLinkOnATrashedNodeChangesNothing(boolean nested)
+      throws SQLException {
+    String[] fileAndInvitation = unsharedTrashedFileWithInvitation(nested).split(":");
+    String file = fileAndInvitation[0];
+    String before = snapshot(file);
+
+    Assertions.assertThat(invite(fileAndInvitation[1], OWNER_COOKIE).statusCode()).isEqualTo(307);
+    Assertions.assertThat(snapshot(file)).isEqualTo(before);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void copyingATrashedNodeElsewhereStillWorks(boolean nested) {
+    Scene scene = scene(nested);
+    String destination = seedFolder("destination", LOCAL_ROOT, OWNER_COOKIE);
+
+    Response response =
+        graphql(
+            GraphqlCommandBuilder.aMutationBuilder("copyNodes")
+                .withListOfStrings("node_ids", new String[] {scene.file()})
+                .withString("destination_id", destination)
+                .withWantedResultFormat("{ id }")
+                .build(),
+            OWNER_COOKIE);
+
+    Assertions.assertThat(errors(response)).isEmpty();
+    Assertions.assertThat(childIds(destination, OWNER_COOKIE)).hasSize(1);
+  }
+
+  @Test
+  void aCloneVersionBehindATrashIsDiscardedAfterTheLock() throws Exception {
+    MockStoragesService storages = FilesStackTestResource.getStoragesService();
+    String folder = seedFolder("parent", LOCAL_ROOT, OWNER_COOKIE);
+    String file = seedFile("doc.txt", folder, "one".getBytes(), OWNER_COOKIE);
+    int blobs = storages.blobCount();
+
+    Response response;
+    try (Connection holder = holdNode(folder, "FOR NO KEY UPDATE")) {
+      CompletableFuture<Response> cloning = async(() -> cloneVersion(file));
+      awaitBlockedBy(holder, 1);
+      Assertions.assertThat(storages.has(file, 2)).isTrue();
+      trashInHolder(holder, folder, LOCAL_ROOT, TRASH_ROOT);
+      try (PreparedStatement descendants =
+          holder.prepareStatement("UPDATE node SET ancestor_ids = ? WHERE node_id = ?")) {
+        descendants.setString(1, TRASH_ROOT + "," + folder);
+        descendants.setString(2, file);
+        descendants.executeUpdate();
+      }
+      holder.commit();
+      response = cloning.get(60, TimeUnit.SECONDS);
+    }
+
+    Assertions.assertThat(errorCodes(response)).containsExactly(NODE_WRITE_ERROR);
     Assertions.assertThat(versionRows(file)).containsExactly(1);
     Assertions.assertThat(column("SELECT current_version FROM node WHERE node_id = ?", file))
         .isEqualTo("1");
