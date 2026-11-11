@@ -209,7 +209,7 @@ class TreeLocksApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void createFolderBehindATrashGetsTheTrashedAncestors() throws Exception {
+  void createFolderBehindATrashIsRefusedAfterTheLock() throws Exception {
     String parent = seedFolder("P", LOCAL_ROOT, COOKIE);
 
     Response createResponse;
@@ -223,10 +223,8 @@ class TreeLocksApiIT extends AbstractFilesIT {
       createResponse = second.get(60, TimeUnit.SECONDS);
     }
 
-    Assertions.assertThat(errorMessages(createResponse)).isEmpty();
-    String childId =
-        column("node_id", "SELECT node_id FROM node WHERE folder_id = ?", parent).trim();
-    Assertions.assertThat(ancestors(childId)).startsWith(TRASH_ROOT + ",");
+    Assertions.assertThat(errorCodes(createResponse)).containsExactly("NODE_NOT_FOUND");
+    Assertions.assertThat(count("SELECT count(*) FROM node WHERE folder_id = ?", parent)).isZero();
   }
 
   @Test
