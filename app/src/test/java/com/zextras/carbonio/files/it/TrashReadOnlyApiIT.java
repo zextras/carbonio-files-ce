@@ -377,11 +377,11 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  void updateSharesIsRefusedLikeAShareTheRequesterCannotChange(boolean nested) throws SQLException {
+  void updateSharesIsRefused(boolean nested) throws SQLException {
     Scene scene = scene(nested);
     String before = snapshot(scene.file());
 
-    assertGraphqlRefused(updateShares(scene.file()), "SHARE_NOT_FOUND", scene.file(), before);
+    assertGraphqlRefused(updateShares(scene.file()), NODE_WRITE_ERROR, scene.file(), before);
   }
 
   @ParameterizedTest

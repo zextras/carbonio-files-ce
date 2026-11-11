@@ -219,13 +219,13 @@ public class ShareApi {
     boolean allowed = canShare(nodeId, me);
     if (allowed) {
       nodeLocks.lockForChange(List.of(nodeId));
+      if (isInTrash(nodeId)) {
+        throw FilesGraphQLErrors.nodeWriteError(nodeId);
+      }
     }
     ACL myPermissions = permissionsChecker.getPermissions(nodeId, me);
     boolean hasPermission =
-        allowed
-            && myPermissions.has(ACL.SharePermission.READ_AND_SHARE)
-            && !isRootNode(nodeId)
-            && !isInTrash(nodeId);
+        allowed && myPermissions.has(ACL.SharePermission.READ_AND_SHARE) && !isRootNode(nodeId);
 
     List<ShareModel> updated = new ArrayList<>();
     List<String> failed = new ArrayList<>();

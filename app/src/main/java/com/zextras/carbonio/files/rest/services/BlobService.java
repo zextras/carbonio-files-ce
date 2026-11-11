@@ -726,8 +726,7 @@ public class BlobService {
         nodeRepository
             .getNode(nodeId)
             .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
-    // Before the lease and the first byte: once the bytes are written the save is never refused,
-    // or the current version would be left corrupted.
+    // Refuse only before the first byte: a refusal after the write corrupts the current version.
     if (NodeRules.isInTrash(node)) {
       logger.warn("Node {} is in the trash: it cannot be overwritten", nodeId);
       return Optional.empty();

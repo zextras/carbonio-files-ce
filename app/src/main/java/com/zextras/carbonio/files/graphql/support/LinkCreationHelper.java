@@ -125,7 +125,8 @@ public class LinkCreationHelper {
       super(
           "Cannot create link for node "
               + nodeId
-              + ": missing READ_AND_SHARE permission, node not found, or node is a root");
+              + ": missing READ_AND_SHARE permission, node not found, node is a root or in the"
+              + " trash");
     }
   }
 }

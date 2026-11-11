@@ -473,7 +473,7 @@ public class NodeApi {
 
     List<String> candidates = flaggable(nodeIds, me, false);
     nodeLocks.lockForChange(candidates);
-    List<String> flaggableNodes = flaggable(nodeIds, me, true);
+    List<String> flaggableNodes = flaggable(candidates, me, true);
 
     List<String> nodesInError =
         nodeIds.stream().filter(nodeId -> !flaggableNodes.contains(nodeId)).toList();
@@ -1289,10 +1289,7 @@ public class NodeApi {
   }
 
   private boolean insideTrash(String nodeId) {
-    return nodeRepository
-        .getNode(nodeId)
-        .map(n -> n.getAncestorsList().contains(RootId.TRASH_ROOT))
-        .orElse(false);
+    return nodeRepository.getNode(nodeId).map(NodeRules::isInTrash).orElse(false);
   }
 
   private List<String> writableByMe(List<String> nodeIds, String me) {
