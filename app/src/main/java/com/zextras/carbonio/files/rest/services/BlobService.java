@@ -583,7 +583,8 @@ public class BlobService {
       long blobLength,
       String nodeId,
       String filename,
-      boolean overwrite) {
+      boolean overwrite,
+      boolean allowInTrash) {
     String requesterId = requester.getId().getUserId();
 
     if (!permissionsChecker
@@ -604,7 +605,7 @@ public class BlobService {
         nodeRepository
             .getNode(nodeId)
             .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
-    if (NodeRules.isInTrash(node)) {
+    if (!allowInTrash && NodeRules.isInTrash(node)) {
       logger.warn("Node {} is in the trash: no new version can be uploaded", nodeId);
       return Optional.empty();
     }
@@ -633,7 +634,14 @@ public class BlobService {
     }
 
     Optional<Integer> version =
-        uploadNewVersion(requesterId, blobStream, blobLength, node, mediaType, maxNumberOfVersions);
+        uploadNewVersion(
+            requesterId,
+            blobStream,
+            blobLength,
+            node,
+            mediaType,
+            maxNumberOfVersions,
+            allowInTrash);
 
     if (version.isPresent()) {
       countUpload("/upload/version");
@@ -647,7 +655,8 @@ public class BlobService {
       long blobLength,
       Node node,
       MediaType mediaType,
-      int maxNumberOfVersions) {
+      int maxNumberOfVersions,
+      boolean allowInTrash) {
     String nodeId = node.getId();
     String ownerId = node.getOwnerId();
     Reservation reservation =
@@ -672,7 +681,11 @@ public class BlobService {
               .call(
                   () -> {
                     nodeLocks.lockForChange(List.of(nodeId));
-                    if (nodeRepository.getNode(nodeId).filter(NodeRules::isInTrash).isPresent()) {
+                    if (!allowInTrash
+                        && nodeRepository
+                            .getNode(nodeId)
+                            .filter(NodeRules::isInTrash)
+                            .isPresent()) {
                       return Optional.<List<FileVersion>>empty();
                     }
                     long versionDate = versionReservations.confirm(reservation);

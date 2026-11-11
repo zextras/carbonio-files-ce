@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.it;
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
+import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import com.zextras.carbonio.files.it.support.MockStoragesService;
@@ -140,6 +141,10 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
       }
     }
     return state.toString();
+  }
+
+  private static String updatedAt(String nodeId) throws SQLException {
+    return column("SELECT updated_timestamp FROM node WHERE node_id = ?", nodeId);
   }
 
   private static String column(String sql, String... parameters) throws SQLException {
@@ -322,12 +327,35 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  void descriptionIsRefused(boolean nested) throws SQLException {
+  void renameWithADescriptionIsRefused(boolean nested) throws SQLException {
     Scene scene = scene(nested);
     String before = snapshot(scene.file());
 
-    assertGraphqlRefused(
-        updateNode(scene.file(), "description", "changed"), NODE_WRITE_ERROR, scene.file(), before);
+    Response response =
+        graphql(
+            GraphqlCommandBuilder.aMutationBuilder("updateNode")
+                .withString("node_id", scene.file())
+                .withString("name", "renamed")
+                .withString("description", "changed")
+                .withWantedResultFormat("{ id }")
+                .build(),
+            OWNER_COOKIE);
+
+    assertGraphqlRefused(response, NODE_WRITE_ERROR, scene.file(), before);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void descriptionStillWorksAndKeepsTheTrashDate(boolean nested) throws SQLException {
+    Scene scene = scene(nested);
+    String date = updatedAt(scene.file());
+
+    Response response = updateNode(scene.file(), "description", "changed");
+
+    Assertions.assertThat(errors(response)).isEmpty();
+    Assertions.assertThat(column("SELECT description FROM node WHERE node_id = ?", scene.file()))
+        .isEqualTo("changed");
+    Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
   @ParameterizedTest
@@ -372,68 +400,114 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  void cloneVersionIsRefused(boolean nested) throws SQLException {
+  void cloneVersionStillWorksAndKeepsTheTrashDate(boolean nested) throws SQLException {
     Scene scene = scene(nested);
-    String before = snapshot(scene.file());
-    int blobs = FilesStackTestResource.getStoragesService().blobCount();
+    String date = updatedAt(scene.file());
 
-    assertGraphqlRefused(cloneVersion(scene.file()), NODE_WRITE_ERROR, scene.file(), before);
-    Assertions.assertThat(FilesStackTestResource.getStoragesService().blobCount()).isEqualTo(blobs);
+    Response response = cloneVersion(scene.file());
+
+    Assertions.assertThat(errors(response)).isEmpty();
+    Assertions.assertThat(versionRows(scene.file())).containsExactly(1, 2, 3);
+    Assertions.assertThat(
+            column("SELECT current_version FROM node WHERE node_id = ?", scene.file()))
+        .isEqualTo("3");
+    Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  void keepVersionsIsRefused(boolean nested) throws SQLException {
+  void keepVersionsStillWorksAndKeepsTheTrashDate(boolean nested) throws SQLException {
     Scene scene = scene(nested);
-    String before = snapshot(scene.file());
+    String date = updatedAt(scene.file());
 
-    assertGraphqlRefused(keepVersions(scene.file()), NODE_WRITE_ERROR, scene.file(), before);
+    Response response = keepVersions(scene.file());
+
+    Assertions.assertThat(errors(response)).isEmpty();
+    Assertions.assertThat(
+            column(
+                "SELECT keep_forever FROM revision WHERE node_id = ? AND version = 1",
+                scene.file()))
+        .isEqualTo("t");
+    Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  void createShareIsRefused(boolean nested) throws SQLException {
+  void createShareStillWorksAndKeepsTheTrashDate(boolean nested) throws SQLException {
     Scene scene = scene(nested);
-    String before = snapshot(scene.file());
+    String date = updatedAt(scene.file());
 
-    assertGraphqlRefused(createShare(scene.file()), NODE_WRITE_ERROR, scene.file(), before);
+    Response response = createShare(scene.file());
+
+    Assertions.assertThat(errors(response)).isEmpty();
+    Assertions.assertThat(
+            column(
+                "SELECT count(*) FROM share WHERE node_id = ? AND target_uuid = ?",
+                scene.file(),
+                OTHER_ID))
+        .isEqualTo("1");
+    Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  void updateSharesIsRefused(boolean nested) throws SQLException {
+  void updateSharesStillWorksAndKeepsTheTrashDate(boolean nested) throws SQLException {
     Scene scene = scene(nested);
-    String before = snapshot(scene.file());
+    String date = updatedAt(scene.file());
 
-    assertGraphqlRefused(updateShares(scene.file()), NODE_WRITE_ERROR, scene.file(), before);
+    Response response = updateShares(scene.file());
+
+    Assertions.assertThat(errors(response)).isEmpty();
+    Assertions.assertThat(
+            column(
+                "SELECT rights FROM share WHERE node_id = ? AND target_uuid = ?",
+                scene.file(),
+                TARGET_ID))
+        .isNotEqualTo(String.valueOf(ACL.decode(SharePermission.READ_ONLY).encode()));
+    Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  void createLinkIsRefused(boolean nested) throws SQLException {
+  void createLinkStillWorksAndKeepsTheTrashDate(boolean nested) throws SQLException {
     Scene scene = scene(nested);
-    String before = snapshot(scene.file());
+    String date = updatedAt(scene.file());
 
-    assertGraphqlRefused(createLink(scene.file()), NODE_WRITE_ERROR, scene.file(), before);
+    Response response = createLink(scene.file());
+
+    Assertions.assertThat(errors(response)).isEmpty();
+    Assertions.assertThat(column("SELECT count(*) FROM link WHERE node_id = ?", scene.file()))
+        .isEqualTo("2");
+    Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  void updateLinkIsRefused(boolean nested) throws SQLException {
+  void updateLinkStillWorksAndKeepsTheTrashDate(boolean nested) throws SQLException {
     Scene scene = scene(nested);
-    String before = snapshot(scene.file());
+    String date = updatedAt(scene.file());
 
-    assertGraphqlRefused(updateLink(scene.linkId()), NODE_WRITE_ERROR, scene.file(), before);
+    Response response = updateLink(scene.linkId());
+
+    Assertions.assertThat(errors(response)).isEmpty();
+    Assertions.assertThat(column("SELECT description FROM link WHERE node_id = ?", scene.file()))
+        .isEqualTo("changed");
+    Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  void createCollaborationLinkIsRefused(boolean nested) throws SQLException {
+  void createCollaborationLinkStillWorksAndKeepsTheTrashDate(boolean nested) throws SQLException {
     Scene scene = scene(nested);
-    String before = snapshot(scene.file());
+    String date = updatedAt(scene.file());
 
-    assertGraphqlRefused(
-        createCollaborationLink(scene.file()), NODE_WRITE_ERROR, scene.file(), before);
+    Response response = createCollaborationLink(scene.file());
+
+    Assertions.assertThat(errors(response)).isEmpty();
+    Assertions.assertThat(
+            column("SELECT count(*) FROM collaboration_link WHERE node_id = ?", scene.file()))
+        .isEqualTo("2");
+    Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
   @ParameterizedTest
@@ -455,38 +529,55 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  void redeemingACollaborationLinkAddsNoShare(boolean nested) throws SQLException {
+  void redeemingACollaborationLinkUpdatesTheShareAndKeepsTheTrashDate(boolean nested)
+      throws SQLException {
     Scene scene = scene(nested);
-    String before = snapshot(scene.file());
+    String date = updatedAt(scene.file());
 
-    Assertions.assertThat(invite(scene.invitationId()).statusCode()).isEqualTo(404);
-    Assertions.assertThat(snapshot(scene.file())).isEqualTo(before);
+    Assertions.assertThat(invite(scene.invitationId()).statusCode()).isEqualTo(307);
     Assertions.assertThat(
             column(
-                "SELECT count(*) FROM share WHERE node_id = ? AND target_uuid = ?",
+                "SELECT rights FROM share WHERE node_id = ? AND target_uuid = ?",
                 scene.file(),
                 TARGET_ID))
-        .isEqualTo("1");
+        .isNotEqualTo(String.valueOf(ACL.decode(SharePermission.READ_ONLY).encode()));
+    Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  void uploadVersionIsRefusedWithoutWritingTheBlob(boolean nested) throws SQLException {
+  void internalUploadVersionIsRefusedWithoutWritingTheBlob(boolean nested) throws SQLException {
     Scene scene = scene(nested);
     String before = snapshot(scene.file());
     MockStoragesService storages = FilesStackTestResource.getStoragesService();
     int blobs = storages.blobCount();
 
-    Response response =
-        uploadVersion(scene.file(), "three".getBytes(), "doc.txt", false, OWNER_COOKIE);
     Response internal = internalUploadVersion(scene.file(), false);
 
-    Assertions.assertThat(response.statusCode()).isEqualTo(404);
     Assertions.assertThat(internal.statusCode()).isEqualTo(404);
     Assertions.assertThat(snapshot(scene.file())).isEqualTo(before);
     Assertions.assertThat(versionRows(scene.file())).containsExactly(1, 2);
     Assertions.assertThat(storages.blobCount()).isEqualTo(blobs);
     Assertions.assertThat(storages.has(scene.file(), 3)).isFalse();
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void publicUploadVersionStillWorksAndKeepsTheTrashDate(boolean nested) throws SQLException {
+    Scene scene = scene(nested);
+    String date = updatedAt(scene.file());
+
+    Response response =
+        uploadVersion(scene.file(), "three".getBytes(), "doc.txt", false, OWNER_COOKIE);
+
+    Assertions.assertThat(response.statusCode()).isEqualTo(200);
+    Assertions.assertThat(versionRows(scene.file())).containsExactly(1, 2, 3);
+    Assertions.assertThat(
+            column("SELECT current_version FROM node WHERE node_id = ?", scene.file()))
+        .isEqualTo("3");
+    Assertions.assertThat(FilesStackTestResource.getStoragesService().has(scene.file(), 3))
+        .isTrue();
+    Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
   @ParameterizedTest
@@ -523,6 +614,7 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
   @ValueSource(booleans = {false, true})
   void deleteVersionsStillWorks(boolean nested) throws SQLException {
     Scene scene = scene(nested);
+    String date = updatedAt(scene.file());
 
     Response response =
         mutation(
@@ -533,12 +625,14 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
 
     Assertions.assertThat(errors(response)).isEmpty();
     Assertions.assertThat(versionRows(scene.file())).containsExactly(2);
+    Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void deleteSharesStillWorks(boolean nested) throws SQLException {
     Scene scene = scene(nested);
+    String date = updatedAt(scene.file());
 
     Response response =
         mutation(
@@ -550,12 +644,14 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
     Assertions.assertThat(errors(response)).isEmpty();
     Assertions.assertThat(column("SELECT count(*) FROM share WHERE node_id = ?", scene.file()))
         .isEqualTo("0");
+    Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void deleteLinksStillWorks(boolean nested) throws SQLException {
     Scene scene = scene(nested);
+    String date = updatedAt(scene.file());
 
     Response response =
         mutation(
@@ -566,12 +662,14 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
     Assertions.assertThat(errors(response)).isEmpty();
     Assertions.assertThat(column("SELECT count(*) FROM link WHERE node_id = ?", scene.file()))
         .isEqualTo("0");
+    Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void deleteCollaborationLinksStillWorks(boolean nested) throws SQLException {
     Scene scene = scene(nested);
+    String date = updatedAt(scene.file());
 
     Response response =
         mutation(
@@ -584,6 +682,7 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
     Assertions.assertThat(
             column("SELECT count(*) FROM collaboration_link WHERE node_id = ?", scene.file()))
         .isEqualTo("0");
+    Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
   @ParameterizedTest
@@ -637,7 +736,7 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"name", "description"})
+  @ValueSource(strings = {"name", "flagged"})
   void aRenameBehindATrashIsRefusedAfterTheLock(String field) throws Exception {
     String file = seedFile("doc.txt", LOCAL_ROOT, "one".getBytes(), OWNER_COOKIE);
     String name = column("SELECT name FROM node WHERE node_id = ?", file);
@@ -647,7 +746,7 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
     Response response;
     try (Connection holder = holdNode(file, "FOR NO KEY UPDATE")) {
       CompletableFuture<Response> updating =
-          async(() -> updateNode(file, field, "name".equals(field) ? "renamed" : "changed"));
+          async(() -> updateNode(file, field, "name".equals(field) ? "renamed" : (Object) true));
       awaitBlockedBy(holder, 1);
       trashInHolder(holder, file, LOCAL_ROOT, TRASH_ROOT);
       holder.commit();
@@ -665,7 +764,28 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void aVersionUploadBehindATrashIsDiscardedAtPublish() throws Exception {
+  void aDescriptionBehindATrashIsSavedWithoutRefreshingTheTrashDate() throws Exception {
+    String file = seedFile("doc.txt", LOCAL_ROOT, "one".getBytes(), OWNER_COOKIE);
+    String date = updatedAt(file);
+
+    Response response;
+    try (Connection holder = holdNode(file, "FOR NO KEY UPDATE")) {
+      CompletableFuture<Response> updating =
+          async(() -> updateNode(file, "description", "changed"));
+      awaitBlockedBy(holder, 1);
+      trashInHolder(holder, file, LOCAL_ROOT, TRASH_ROOT);
+      holder.commit();
+      response = updating.get(60, TimeUnit.SECONDS);
+    }
+
+    Assertions.assertThat(errors(response)).isEmpty();
+    Assertions.assertThat(column("SELECT description FROM node WHERE node_id = ?", file))
+        .isEqualTo("changed");
+    Assertions.assertThat(updatedAt(file)).isEqualTo(date);
+  }
+
+  @Test
+  void anInternalVersionUploadBehindATrashIsDiscardedAtPublish() throws Exception {
     MockStoragesService storages = FilesStackTestResource.getStoragesService();
     String folder = seedFolder("parent", LOCAL_ROOT, OWNER_COOKIE);
     String file = seedFile("doc.txt", folder, "one".getBytes(), OWNER_COOKIE);
@@ -673,8 +793,7 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
 
     Response response;
     try (Connection holder = holdNode(folder, "FOR NO KEY UPDATE")) {
-      CompletableFuture<Response> uploading =
-          async(() -> uploadVersion(file, "two".getBytes(), "doc.txt", false, OWNER_COOKIE));
+      CompletableFuture<Response> uploading = async(() -> internalUploadVersion(file, false));
       awaitBlockedBy(holder, 1);
       Assertions.assertThat(storages.has(file, 2)).isTrue();
       trashInHolder(holder, folder, LOCAL_ROOT, TRASH_ROOT);
@@ -700,16 +819,16 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  void redeemingACollaborationLinkThatWouldCreateAShareIsRefused(boolean nested)
+  void redeemingACollaborationLinkCreatesAShareAndKeepsTheTrashDate(boolean nested)
       throws SQLException {
     String[] fileAndInvitation = unsharedTrashedFileWithInvitation(nested).split(":");
     String file = fileAndInvitation[0];
-    String before = snapshot(file);
+    String date = updatedAt(file);
 
-    Assertions.assertThat(invite(fileAndInvitation[1]).statusCode()).isEqualTo(404);
-    Assertions.assertThat(snapshot(file)).isEqualTo(before);
+    Assertions.assertThat(invite(fileAndInvitation[1]).statusCode()).isEqualTo(307);
     Assertions.assertThat(column("SELECT count(*) FROM share WHERE node_id = ?", file))
-        .isEqualTo("0");
+        .isEqualTo("1");
+    Assertions.assertThat(updatedAt(file)).isEqualTo(date);
   }
 
   @ParameterizedTest
@@ -744,17 +863,15 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void aCloneVersionBehindATrashIsDiscardedAfterTheLock() throws Exception {
-    MockStoragesService storages = FilesStackTestResource.getStoragesService();
+  void aCloneVersionBehindATrashCompletesAndKeepsTheTrashDate() throws Exception {
     String folder = seedFolder("parent", LOCAL_ROOT, OWNER_COOKIE);
     String file = seedFile("doc.txt", folder, "one".getBytes(), OWNER_COOKIE);
-    int blobs = storages.blobCount();
+    String date = updatedAt(file);
 
     Response response;
     try (Connection holder = holdNode(folder, "FOR NO KEY UPDATE")) {
       CompletableFuture<Response> cloning = async(() -> cloneVersion(file));
       awaitBlockedBy(holder, 1);
-      Assertions.assertThat(storages.has(file, 2)).isTrue();
       trashInHolder(holder, folder, LOCAL_ROOT, TRASH_ROOT);
       try (PreparedStatement descendants =
           holder.prepareStatement("UPDATE node SET ancestor_ids = ? WHERE node_id = ?")) {
@@ -766,13 +883,8 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
       response = cloning.get(60, TimeUnit.SECONDS);
     }
 
-    Assertions.assertThat(errorCodes(response)).containsExactly(NODE_WRITE_ERROR);
-    Assertions.assertThat(versionRows(file)).containsExactly(1);
-    Assertions.assertThat(column("SELECT current_version FROM node WHERE node_id = ?", file))
-        .isEqualTo("1");
-    Assertions.assertThat(storages.has(file, 2)).isFalse();
-    Assertions.assertThat(storages.blobCount()).isEqualTo(blobs);
-    Assertions.assertThat(pendingReservations(file)).isEmpty();
-    Assertions.assertThat(tombstoneRowsForNode(file)).isZero();
+    Assertions.assertThat(errors(response)).isEmpty();
+    Assertions.assertThat(versionRows(file)).containsExactly(1, 2);
+    Assertions.assertThat(updatedAt(file)).isEqualTo(date);
   }
 }

@@ -169,14 +169,22 @@ public class NodeRepositoryImpl implements NodeRepository {
     return Optional.of(new VersionSlot((Integer) slot[0], (Long) slot[1]));
   }
 
+  // A node in the trash keeps its date: it is the retention key of the purge.
+  private static final String KEEP_TRASH_DATE =
+      " case when n.mAncestorIds = :trash or n.mAncestorIds like :trashPrefix then n.mUpdatedAt"
+          + " else greatest(n.mUpdatedAt, :updatedAt) end";
+
   @Override
   @Transactional
   public boolean moveCurrentVersion(String nodeId, int version, long updatedAt) {
     return entityManager
             .createQuery(
                 "update Node n set n.mCurrentVersion = :version, n.mUpdatedAt ="
-                    + " greatest(n.mUpdatedAt, :updatedAt) where n.mId = :id and"
+                    + KEEP_TRASH_DATE
+                    + " where n.mId = :id and"
                     + " (n.mCurrentVersion is null or n.mCurrentVersion <= :version)")
+            .setParameter("trash", RootId.TRASH_ROOT)
+            .setParameter("trashPrefix", RootId.TRASH_ROOT + ",%")
             .setParameter("version", version)
             .setParameter("updatedAt", updatedAt)
             .setParameter("id", normalizeId(nodeId))
@@ -191,9 +199,12 @@ public class NodeRepositoryImpl implements NodeRepository {
     return entityManager
             .createQuery(
                 "update Node n set n.mCurrentVersion = :version, n.mUpdatedAt ="
-                    + " greatest(n.mUpdatedAt, :updatedAt), n.mSize = :size, n.mLastEditorId ="
+                    + KEEP_TRASH_DATE
+                    + ", n.mSize = :size, n.mLastEditorId ="
                     + " :editorId where n.mId = :id and (n.mCurrentVersion is null or"
                     + " n.mCurrentVersion <= :version)")
+            .setParameter("trash", RootId.TRASH_ROOT)
+            .setParameter("trashPrefix", RootId.TRASH_ROOT + ",%")
             .setParameter("version", version)
             .setParameter("updatedAt", updatedAt)
             .setParameter("size", size)
@@ -311,6 +322,12 @@ public class NodeRepositoryImpl implements NodeRepository {
   @Transactional
   public Node updateNode(Node node) {
     node.setUpdatedAt(System.currentTimeMillis());
+    return entityManager.merge(node);
+  }
+
+  @Override
+  @Transactional
+  public Node updateNodeKeepingDate(Node node) {
     return entityManager.merge(node);
   }
 

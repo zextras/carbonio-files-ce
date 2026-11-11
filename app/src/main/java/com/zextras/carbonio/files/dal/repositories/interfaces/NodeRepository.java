@@ -266,6 +266,9 @@ public interface NodeRepository {
    */
   Node updateNode(Node node);
 
+  /** As {@link #updateNode(Node)}, leaving the updated timestamp as it is. */
+  Node updateNodeKeepingDate(Node node);
+
   /**
    * Deletes the roots and all their descendants in the caller's transaction with a constant number
    * of statements. Every revision of the deleted files gets a tombstone under the owner of its

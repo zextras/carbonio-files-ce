@@ -192,7 +192,8 @@ public class BlobResource {
                       contentLength == null ? -1L : contentLength,
                       nodeId,
                       decodedFilename,
-                      overwrite);
+                      overwrite,
+                      true);
               if (version.isEmpty()) {
                 throw notFoundOrForbidden(nodeId);
               }

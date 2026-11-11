@@ -71,10 +71,23 @@ public class LinkCreationHelper {
    * @throws LinkLimitReachedException if the node already has {@link
    *     com.zextras.carbonio.files.Constants.Config.Link#MAX_LINKS_PER_NODE} links
    * @throws NodeAccessException if the requester lacks READ_AND_SHARE, or the node is missing / a
-   *     root / in the trash
+   *     root
+   */
+  public Link createPublicLink(
+      String requesterId,
+      String nodeId,
+      Optional<Long> optExpiresAt,
+      Optional<String> optDescription,
+      Optional<String> optAccessCode) {
+    return createLink(requesterId, nodeId, optExpiresAt, optDescription, optAccessCode, false);
+  }
+
+  /**
+   * As {@link #createPublicLink}, for the trusted-caller REST path: a node in the trash is refused,
+   * deciding after the node lock in the transaction that creates the link.
    */
   @Transactional
-  public Link createPublicLink(
+  public Link createPublicLinkOutsideTrash(
       String requesterId,
       String nodeId,
       Optional<Long> optExpiresAt,
@@ -86,11 +99,21 @@ public class LinkCreationHelper {
       throw new NodeAccessException(nodeId);
     }
     nodeLocks.lockForChange(List.of(nodeId));
+    return createLink(requesterId, nodeId, optExpiresAt, optDescription, optAccessCode, true);
+  }
+
+  private Link createLink(
+      String requesterId,
+      String nodeId,
+      Optional<Long> optExpiresAt,
+      Optional<String> optDescription,
+      Optional<String> optAccessCode,
+      boolean refuseInTrash) {
     Optional<Node> optNode = nodeRepository.getNode(nodeId);
     if (permissionsChecker.getPermissions(nodeId, requesterId).has(SharePermission.READ_AND_SHARE)
         && optNode.isPresent()
         && optNode.get().getNodeType() != NodeType.ROOT
-        && !NodeRules.isInTrash(optNode.get())) {
+        && !(refuseInTrash && NodeRules.isInTrash(optNode.get()))) {
       if (linkRepository.getLinkCountByNode(optNode.get()) >= MAX_LINKS_PER_NODE) {
         throw new LinkLimitReachedException(nodeId);
       }
@@ -125,8 +148,7 @@ public class LinkCreationHelper {
       super(
           "Cannot create link for node "
               + nodeId
-              + ": missing READ_AND_SHARE permission, node not found, node is a root or in the"
-              + " trash");
+              + ": missing READ_AND_SHARE permission, node not found, or node is a root");
     }
   }
 }

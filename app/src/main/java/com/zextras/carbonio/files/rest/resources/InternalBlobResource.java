@@ -138,7 +138,8 @@ public class InternalBlobResource {
                       contentLength == null ? -1L : contentLength,
                       nodeId,
                       decodedFilename,
-                      overwrite);
+                      overwrite,
+                      false);
               if (version.isEmpty()) {
                 throw notFoundOrForbidden(nodeId);
               }

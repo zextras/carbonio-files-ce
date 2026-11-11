@@ -234,7 +234,7 @@ public class InternalNodeResource {
 
     try {
       Link link =
-          linkCreationHelper.createPublicLink(
+          linkCreationHelper.createPublicLinkOutsideTrash(
               userId, nodeId, Optional.empty(), Optional.empty(), Optional.empty());
 
       String url =

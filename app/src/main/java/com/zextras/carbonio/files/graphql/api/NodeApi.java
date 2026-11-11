@@ -443,7 +443,8 @@ public class NodeApi {
             .getNode(nodeId)
             .filter(node -> !NodeRules.isRoot(node))
             .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
-    if (NodeRules.isInTrash(nodeToUpdate)) {
+    boolean inTrash = NodeRules.isInTrash(nodeToUpdate);
+    if (inTrash && (name != null || flagged != null)) {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
@@ -464,7 +465,11 @@ public class NodeApi {
     if (description != null) nodeToUpdate.setDescription(description);
     if (flagged != null) nodeRepository.flagForUser(nodeId, me, flagged);
     nodeToUpdate.setLastEditorId(me);
-    nodeRepository.updateNode(nodeToUpdate);
+    if (inTrash) {
+      nodeRepository.updateNodeKeepingDate(nodeToUpdate);
+    } else {
+      nodeRepository.updateNode(nodeToUpdate);
+    }
     NodeModel model = NodeModelFactory.from(nodeToUpdate, null, me);
     NodeModelFactory.requireVersion(model, model);
     return model;
@@ -1087,8 +1092,7 @@ public class NodeApi {
       nodeLocks.lockForChange(List.of(nodeId));
     }
     if (!writable
-        || !permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)
-        || insideTrash(nodeId)) {
+        || !permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
@@ -1136,12 +1140,11 @@ public class NodeApi {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
-    Node nodeToClone =
-        nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
-    if (NodeRules.isInTrash(nodeToClone)) {
-      throw FilesGraphQLErrors.nodeWriteError(nodeId);
-    }
-    String ownerId = nodeToClone.getOwnerId();
+    String ownerId =
+        nodeRepository
+            .getNode(nodeId)
+            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId))
+            .getOwnerId();
 
     int maxNumberOfVersions = getMaxNumberOfVersions();
     if (fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)).size()
@@ -1172,43 +1175,32 @@ public class NodeApi {
     }
     var copiedBlobResponse = copyAttempt.get();
 
-    boolean refused;
     try {
-      refused =
-          QuarkusTransaction.requiringNew()
-              .call(
-                  () -> {
-                    nodeLocks.lockForChange(List.of(nodeId));
-                    if (insideTrash(nodeId)) {
-                      return true;
-                    }
-                    long versionDate = versionReservations.confirm(reservation);
-                    fileVersionRepository
-                        .createFileVersionAt(
-                            nodeId,
-                            me,
-                            newVersion,
-                            fileVersion.getMimeType(),
-                            copiedBlobResponse.getSize(),
-                            copiedBlobResponse.getDigest(),
-                            versionDate)
-                        .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+      QuarkusTransaction.requiringNew()
+          .run(
+              () -> {
+                nodeLocks.lockForChange(List.of(nodeId));
+                long versionDate = versionReservations.confirm(reservation);
+                fileVersionRepository
+                    .createFileVersionAt(
+                        nodeId,
+                        me,
+                        newVersion,
+                        fileVersion.getMimeType(),
+                        copiedBlobResponse.getSize(),
+                        copiedBlobResponse.getDigest(),
+                        versionDate)
+                    .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
 
-                    nodeRepository.moveCurrentVersion(nodeId, newVersion, versionDate);
+                nodeRepository.moveCurrentVersion(nodeId, newVersion, versionDate);
 
-                    FileVersion newFv =
-                        fileVersionRepository.getFileVersion(nodeId, newVersion).get();
-                    newFv.setClonedFromVersion(version);
-                    fileVersionRepository.updateFileVersion(newFv);
-                    return false;
-                  });
+                FileVersion newFv = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
+                newFv.setClonedFromVersion(version);
+                fileVersionRepository.updateFileVersion(newFv);
+              });
     } catch (RuntimeException e) {
       blobLifecycle.discard(reservation);
       throw e;
-    }
-    if (refused) {
-      blobLifecycle.discard(reservation);
-      throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
     logger.debug(

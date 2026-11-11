@@ -370,7 +370,7 @@ class InternalNodeResourceTest {
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(folderNode));
 
     Link link = new Link("link-id", NODE_ID, "publicId123", 123L, null, null);
-    when(linkCreationHelper.createPublicLink(
+    when(linkCreationHelper.createPublicLinkOutsideTrash(
             USER_ID, NODE_ID, Optional.empty(), Optional.empty(), Optional.empty()))
         .thenReturn(link);
     when(linkCreationHelper.buildPublicLinkUrl(link, "https://mydomain.example", true))
@@ -390,7 +390,7 @@ class InternalNodeResourceTest {
         .thenReturn(Optional.of(aUser("https://mydomain.example")));
     Node node = mock(Node.class);
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
-    when(linkCreationHelper.createPublicLink(any(), any(), any(), any(), any()))
+    when(linkCreationHelper.createPublicLinkOutsideTrash(any(), any(), any(), any(), any()))
         .thenThrow(new LinkCreationHelper.LinkLimitReachedException(NODE_ID));
 
     RestResponse<PublicLinkDto> response =
@@ -405,7 +405,7 @@ class InternalNodeResourceTest {
         .thenReturn(Optional.of(aUser("https://mydomain.example")));
     Node node = mock(Node.class);
     when(nodeRepository.getNode(NODE_ID)).thenReturn(Optional.of(node));
-    when(linkCreationHelper.createPublicLink(any(), any(), any(), any(), any()))
+    when(linkCreationHelper.createPublicLinkOutsideTrash(any(), any(), any(), any(), any()))
         .thenThrow(new LinkCreationHelper.NodeAccessException(NODE_ID));
 
     RestResponse<PublicLinkDto> response =

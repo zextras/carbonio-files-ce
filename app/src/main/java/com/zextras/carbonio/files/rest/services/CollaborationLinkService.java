@@ -84,13 +84,6 @@ public class CollaborationLinkService {
                           // does nothing. However, the system returns success because the
                           // collaboration link and the node exist.
                           if (!requesterId.equals(node.getOwnerId())) {
-                            if (NodeRules.isInTrash(node)) {
-                              return Try.<Node>failure(
-                                  new NoSuchElementException(
-                                      MessageFormat.format(
-                                          "Node {0} is in the trash and cannot be shared",
-                                          node.getId())));
-                            }
                             Optional<Share> optShare =
                                 shareRepository.getShare(
                                     collaborationLink.getNodeId(), requesterId);
