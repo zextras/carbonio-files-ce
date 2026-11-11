@@ -9,16 +9,13 @@ import static com.zextras.carbonio.files.utilities.RenameNodeUtils.searchAlterna
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
-import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.rest.services.BlobKey;
 import com.zextras.carbonio.files.rest.services.BlobLifecycle;
 import com.zextras.carbonio.files.utilities.NodeRules;
@@ -27,13 +24,9 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,8 +46,6 @@ public class NodeCreationHelper {
   private final ShareRepository shareRepository;
   private final NotificationRepository notificationRepository;
   private final FilesConfig filesConfig;
-  private final FileVersionRepository fileVersionRepository;
-  private final TombstoneRepository tombstoneRepository;
   private final BlobLifecycle blobLifecycle;
   private final PermissionsChecker permissionsChecker;
   private final ShareCascadeHelper shareCascade;
@@ -66,8 +57,6 @@ public class NodeCreationHelper {
       ShareRepository shareRepository,
       NotificationRepository notificationRepository,
       FilesConfig filesConfig,
-      FileVersionRepository fileVersionRepository,
-      TombstoneRepository tombstoneRepository,
       BlobLifecycle blobLifecycle,
       PermissionsChecker permissionsChecker,
       ShareCascadeHelper shareCascade,
@@ -76,8 +65,6 @@ public class NodeCreationHelper {
     this.shareRepository = shareRepository;
     this.notificationRepository = notificationRepository;
     this.filesConfig = filesConfig;
-    this.fileVersionRepository = fileVersionRepository;
-    this.tombstoneRepository = tombstoneRepository;
     this.blobLifecycle = blobLifecycle;
     this.permissionsChecker = permissionsChecker;
     this.shareCascade = shareCascade;
@@ -161,48 +148,11 @@ public class NodeCreationHelper {
    * @throws RuntimeException if the DB transaction fails (caller must treat as a rollback)
    */
   public void deleteAllNodesAndBlobsForUser(String userId) {
-    Map<String, List<FileVersion>> fileVersionsByOwner =
+    Map<String, List<BlobKey>> keysByOwner =
         QuarkusTransaction.requiringNew()
-            .call(
-                () -> {
-                  List<Node> allNodes =
-                      nodeRepository.findNodesByOwner(userId).stream()
-                          .filter(Objects::nonNull)
-                          .filter(node -> !node.getNodeType().equals(NodeType.ROOT))
-                          .toList();
+            .call(() -> nodeRepository.deleteSubtrees(nodeRepository.getNonRootIdsByOwner(userId)));
 
-                  Map<String, String> ownerOfFile = new HashMap<>();
-                  allNodes.stream()
-                      .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
-                      .forEach(node -> ownerOfFile.put(node.getId(), node.getOwnerId()));
-
-                  Map<String, List<FileVersion>> versionsByOwner = new HashMap<>();
-                  if (!ownerOfFile.isEmpty()) {
-                    fileVersionRepository
-                        .getFileVersionsOf(ownerOfFile.keySet())
-                        .forEach(
-                            version ->
-                                versionsByOwner
-                                    .computeIfAbsent(
-                                        ownerOfFile.get(version.getNodeId()),
-                                        k -> new ArrayList<>())
-                                    .add(version));
-                  }
-
-                  versionsByOwner.forEach(
-                      (ownerId, versions) ->
-                          tombstoneRepository.createTombstonesBulk(versions, ownerId));
-                  deleteNodes(allNodes);
-                  allNodes.stream()
-                      .filter(node -> node.getNodeType().equals(NodeType.FOLDER))
-                      .map(Node::getId)
-                      .forEach(this::cascadeDeleteNode);
-                  return versionsByOwner;
-                });
-
-    fileVersionsByOwner.forEach(
-        (ownerId, versions) ->
-            blobLifecycle.deleteAndClear(ownerId, versions.stream().map(BlobKey::of).toList()));
+    keysByOwner.forEach(blobLifecycle::deleteAndClear);
   }
 
   private List<String> createIndirectShare(String sharedParentId, Node nodeToShare) {
@@ -228,31 +178,6 @@ public class NodeCreationHelper {
               }
             });
     return targetUserIds;
-  }
-
-  private void cascadeDeleteNode(String nodeId) {
-    List<String> childrenIds =
-        nodeRepository.getChildrenIds(nodeId, Optional.empty(), Optional.empty(), true);
-
-    if (!childrenIds.isEmpty()) {
-      List<Node> children =
-          nodeRepository.getNodes(childrenIds, Optional.empty()).collect(Collectors.toList());
-      deleteNodes(children);
-      children.stream()
-          .filter(node -> node.getNodeType().equals(NodeType.FOLDER))
-          .forEach(node -> cascadeDeleteNode(node.getId()));
-    }
-
-    shareRepository.deleteSharesBulk(nodeRepository.getTrashedNodeIdsByOldParent(nodeId));
-  }
-
-  private void deleteNodes(List<Node> nodes) {
-    List<String> nodeIds = nodes.stream().map(Node::getId).collect(Collectors.toList());
-
-    if (!nodeIds.isEmpty()) {
-      shareRepository.deleteSharesBulk(nodeIds);
-      nodeRepository.deleteNodes(nodeIds);
-    }
   }
 
   /** Thrown by {@link #createFolder} when the requester lacks READ_AND_WRITE on the parent. */

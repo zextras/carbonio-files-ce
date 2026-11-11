@@ -111,8 +111,6 @@ class NodeApiMutationsTest {
             shareRepository,
             notificationRepository,
             filesConfig,
-            fileVersionRepository,
-            tombstoneRepository,
             mock(BlobLifecycle.class),
             permissionsChecker,
             shareCascade,

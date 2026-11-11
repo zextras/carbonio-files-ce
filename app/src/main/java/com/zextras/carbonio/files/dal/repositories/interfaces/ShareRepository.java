@@ -92,14 +92,6 @@ public interface ShareRepository {
   void deleteSharesBulk(List<String> nodeIds, String targetUserId);
 
   /**
-   * Deletes all shares of each given node. This method considers the parameters in input already
-   * valid so it does not do any kind of control on them.
-   *
-   * @param nodeIds is a {@link List<String>} of the nodeIds where to delete all shares.
-   */
-  void deleteSharesBulk(List<String> nodeIds);
-
-  /**
    * Propagates a share of a user to every descendant of a node, at any depth, with a constant
    * number of SQL statements. Trashed nodes, and what lies below them, are not reached. A
    * descendant without a share gets an inherited one; a descendant with an inherited share gets the

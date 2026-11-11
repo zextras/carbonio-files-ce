@@ -7,9 +7,7 @@ package com.zextras.carbonio.files.tasks;
 import com.google.common.collect.Lists;
 import com.zextras.carbonio.files.Constants.Config;
 import com.zextras.carbonio.files.Constants.Db.RootId;
-import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
 import com.zextras.carbonio.files.dal.dao.ebean.VersionReservation;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
@@ -110,11 +108,7 @@ public class PurgeService {
         if (expiredTop.isEmpty()) {
           continue;
         }
-        List<String> fileIds =
-            nodeRepository.getSubtree(expiredTop.get()).stream()
-                .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
-                .map(Node::getId)
-                .toList();
+        List<String> fileIds = nodeRepository.getFileIdsInSubtree(top.getId());
         for (List<String> batch : Lists.partition(fileIds, PURGE_BATCH_SIZE)) {
           collect(
               keysByOwner,
@@ -143,10 +137,8 @@ public class PurgeService {
     if (top.isEmpty()) {
       return Map.of();
     }
-    List<Node> tree = nodeRepository.getSubtree(top.get());
-    Map<String, List<BlobKey>> keysByOwner = tombstoneFiles(tree);
-    nodeRepository.deleteNodes(tree.stream().map(Node::getId).toList());
-    logger.info("Purged {} trashed nodes from database", tree.size());
+    Map<String, List<BlobKey>> keysByOwner = nodeRepository.deleteSubtrees(List.of(topId));
+    logger.info("Purged trashed tree {} from database", topId);
     return keysByOwner;
   }
 
@@ -157,15 +149,7 @@ public class PurgeService {
     if (expiredTrashedTop(topId, retentionTimestamp).isEmpty()) {
       return Map.of();
     }
-    List<Node> files =
-        fileIds.stream()
-            .map(nodeRepository::getNode)
-            .flatMap(Optional::stream)
-            .filter(node -> node.getAncestorsList().contains(topId))
-            .toList();
-    Map<String, List<BlobKey>> keysByOwner = tombstoneFiles(files);
-    nodeRepository.deleteNodes(files.stream().map(Node::getId).toList());
-    return keysByOwner;
+    return nodeRepository.deleteSubtrees(nodeRepository.filterIdsUnderAncestor(topId, fileIds));
   }
 
   private Optional<Node> expiredTrashedTop(String topId, long retentionTimestamp) {
@@ -173,28 +157,6 @@ public class PurgeService {
         .getNode(topId)
         .filter(node -> node.getParentId().filter(RootId.TRASH_ROOT::equals).isPresent())
         .filter(node -> NodeRules.isPastTrashRetention(node.getUpdatedAt(), retentionTimestamp));
-  }
-
-  private Map<String, List<BlobKey>> tombstoneFiles(List<Node> nodes) {
-    Map<String, List<BlobKey>> keysByOwner = new HashMap<>();
-    Map<String, String> ownerOf = new HashMap<>();
-    nodes.stream()
-        .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
-        .forEach(node -> ownerOf.put(node.getId(), node.getOwnerId()));
-    Map<String, List<FileVersion>> versionsByOwner = new HashMap<>();
-    fileVersionRepository
-        .getFileVersionsOf(ownerOf.keySet())
-        .forEach(
-            version ->
-                versionsByOwner
-                    .computeIfAbsent(ownerOf.get(version.getNodeId()), k -> new ArrayList<>())
-                    .add(version));
-    versionsByOwner.forEach(
-        (ownerId, versions) -> {
-          tombstoneRepository.createTombstonesBulk(versions, ownerId);
-          keysByOwner.put(ownerId, new ArrayList<>(versions.stream().map(BlobKey::of).toList()));
-        });
-    return keysByOwner;
   }
 
   private static void collect(

@@ -12,14 +12,19 @@ import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
+import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
+import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
+import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SortOrder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.rest.services.BlobKey;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -35,11 +40,12 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -48,6 +54,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.hibernate.Session;
+import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -222,14 +229,6 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   @Override
-  public List<Node> findNodesByOwner(String ownerId) {
-    return entityManager
-        .createQuery("select n from Node n where n.mOwnerId = :owner", Node.class)
-        .setParameter("owner", ownerId)
-        .getResultList();
-  }
-
-  @Override
   public Stream<Node> getNodes(List<String> nodeIds, Optional<NodeSort> sort) {
     if (nodeIds.isEmpty()) {
       return Stream.empty();
@@ -317,22 +316,175 @@ public class NodeRepositoryImpl implements NodeRepository {
     return entityManager.merge(node);
   }
 
+  private static final String DELETE_SUBTREES_SQL =
+      """
+      WITH RECURSIVE subtree(node_id, node_type) AS (
+          SELECT n.node_id, n.node_type
+          FROM node n
+          WHERE n.node_id = ANY(CAST(:ids AS character(36)[]))
+          UNION
+          SELECT c.node_id, c.node_type
+          FROM subtree s
+          CROSS JOIN LATERAL (
+              SELECT n.node_id, n.node_type
+              FROM node n
+              WHERE n.folder_id = s.node_id
+          ) c
+          WHERE s.node_type = 'FOLDER'
+      ),
+      files AS (
+          SELECT n.node_id, n.owner_id, r.version
+          FROM subtree s
+          INNER JOIN node n ON n.node_id = s.node_id
+          INNER JOIN revision r ON r.node_id = s.node_id
+          WHERE s.node_type <> 'FOLDER'
+      ),
+      tombstoned AS (
+          INSERT INTO tombstone (node_id, owner_id, timestamp, version, attempts)
+          SELECT f.node_id, f.owner_id, CAST(:now AS BIGINT), f.version, 0
+          FROM files f
+          ON CONFLICT (node_id, version) DO NOTHING
+      ),
+      unshared AS (
+          DELETE FROM share sh
+          USING trashed t
+          WHERE sh.node_id = t.node_id
+            AND t.parent_id IN (SELECT s.node_id FROM subtree s WHERE s.node_type = 'FOLDER')
+      ),
+      removed AS (
+          DELETE FROM node n
+          USING subtree s
+          WHERE n.node_id = s.node_id
+      )
+      SELECT f.owner_id, RTRIM(f.node_id), f.version FROM files f
+      """;
+
+  private static final String FILE_IDS_IN_SUBTREE_SQL =
+      """
+      WITH RECURSIVE subtree(node_id, node_type) AS (
+          SELECT n.node_id, n.node_type
+          FROM node n
+          WHERE n.node_id = CAST(:root AS CHARACTER(36))
+          UNION
+          SELECT c.node_id, c.node_type
+          FROM subtree s
+          CROSS JOIN LATERAL (
+              SELECT n.node_id, n.node_type
+              FROM node n
+              WHERE n.folder_id = s.node_id
+          ) c
+          WHERE s.node_type = 'FOLDER'
+      )
+      SELECT RTRIM(s.node_id) FROM subtree s WHERE s.node_type <> 'FOLDER'
+      """;
+
   @Override
   @Transactional
-  public int deleteNodes(List<String> nodesIds) {
-    if (nodesIds.isEmpty()) {
-      return 0;
+  @SuppressWarnings("unchecked")
+  public Map<String, List<BlobKey>> deleteSubtrees(Collection<String> rootIds) {
+    if (rootIds.isEmpty()) {
+      return Map.of();
     }
-    // Fetch-then-remove: a JPQL bulk delete would bypass the L1 cache leaving stale managed
-    // instances; removing managed entities keeps the persistence context consistent (and lets the
-    // DB-level ON DELETE CASCADE clean child tables).
-    List<Node> nodes =
+    entityManager.flush();
+    List<Object[]> tombstoned =
         entityManager
-            .createQuery("select n from Node n where n.mId in :ids", Node.class)
-            .setParameter("ids", nodesIds.stream().map(NodeRepositoryImpl::normalizeId).toList())
+            .createNativeQuery(DELETE_SUBTREES_SQL, Object[].class)
+            .setParameter("ids", rootIds.stream().map(String::trim).toArray(String[]::new))
+            .setParameter("now", System.currentTimeMillis())
             .getResultList();
-    nodes.forEach(entityManager::remove);
-    return nodes.size();
+    detachDeletedEntities();
+    Map<String, List<BlobKey>> keysByOwner = new HashMap<>();
+    for (Object[] row : tombstoned) {
+      keysByOwner
+          .computeIfAbsent((String) row[0], owner -> new ArrayList<>())
+          .add(new BlobKey(((String) row[1]).trim(), ((Number) row[2]).intValue()));
+    }
+    return keysByOwner;
+  }
+
+  private void detachDeletedEntities() {
+    Session session = entityManager.unwrap(Session.class);
+    if (entityManager
+            .unwrap(SharedSessionContractImplementor.class)
+            .getPersistenceContext()
+            .getNumberOfManagedEntities()
+        == 0) {
+      return;
+    }
+    Map<Object, String> managed = new IdentityHashMap<>();
+    session.getManagedEntities(Node.class).forEach(e -> managed.put(e, e.getId().trim()));
+    session.getManagedEntities(Share.class).forEach(e -> managed.put(e, e.getNodeId().trim()));
+    session
+        .getManagedEntities(FileVersion.class)
+        .forEach(e -> managed.put(e, e.getNodeId().trim()));
+    session
+        .getManagedEntities(NodeCustomAttributes.class)
+        .forEach(e -> managed.put(e, e.getNodeId().trim()));
+    session.getManagedEntities(Link.class).forEach(e -> managed.put(e, e.getNodeId().trim()));
+    session
+        .getManagedEntities(CollaborationLink.class)
+        .forEach(e -> managed.put(e, e.getNodeId().trim()));
+    session.getManagedEntities(TrashedNode.class).forEach(e -> managed.put(e, e.getId().trim()));
+    if (managed.isEmpty()) {
+      return;
+    }
+    List<String> remaining =
+        entityManager
+            .createNativeQuery(
+                "SELECT RTRIM(node_id) FROM node WHERE node_id = ANY(CAST(:ids AS"
+                    + " character(36)[]))",
+                String.class)
+            .setParameter("ids", new HashSet<>(managed.values()).toArray(String[]::new))
+            .getResultList();
+    Set<String> alive = new HashSet<>(remaining);
+    managed.forEach(
+        (entity, nodeId) -> {
+          if (!alive.contains(nodeId)) {
+            session.detach(entity);
+          }
+        });
+  }
+
+  @Override
+  @Transactional
+  @SuppressWarnings("unchecked")
+  public List<String> getFileIdsInSubtree(String rootId) {
+    return entityManager
+        .createNativeQuery(FILE_IDS_IN_SUBTREE_SQL, String.class)
+        .setParameter("root", normalizeId(rootId))
+        .getResultList();
+  }
+
+  @Override
+  @Transactional
+  @SuppressWarnings("unchecked")
+  public List<String> filterIdsUnderAncestor(String topId, Collection<String> nodeIds) {
+    if (nodeIds.isEmpty()) {
+      return List.of();
+    }
+    return entityManager
+        .createNativeQuery(
+            "SELECT RTRIM(n.node_id) FROM node n WHERE n.node_id = ANY(CAST(:ids AS"
+                + " character(36)[])) AND POSITION(',' || :top || ',' IN ',' || n.ancestor_ids ||"
+                + " ',') > 0",
+            String.class)
+        .setParameter("ids", nodeIds.stream().map(String::trim).toArray(String[]::new))
+        .setParameter("top", topId.trim())
+        .getResultList();
+  }
+
+  @Override
+  public List<String> getNonRootIdsByOwner(String ownerId) {
+    return entityManager
+        .createQuery(
+            "select n.mId from Node n where n.mOwnerId = :owner and n.mNodeType <> :root",
+            String.class)
+        .setParameter("owner", ownerId)
+        .setParameter("root", NodeType.ROOT)
+        .getResultList()
+        .stream()
+        .map(String::trim)
+        .toList();
   }
 
   private static final String REWRITE_DESCENDANT_ANCESTORS_SQL =
@@ -506,22 +658,6 @@ public class NodeRepositoryImpl implements NodeRepository {
     if (trashedNode != null) {
       entityManager.remove(trashedNode);
     }
-  }
-
-  @Override
-  @Transactional
-  public List<Node> getSubtree(Node root) {
-    List<Node> result = new ArrayList<>(List.of(root));
-    if (root.getNodeType().equals(NodeType.FOLDER)) {
-      List<String> childrenIds =
-          getChildrenIds(root.getId(), Optional.empty(), Optional.empty(), true);
-      if (!childrenIds.isEmpty()) {
-        getNodes(childrenIds, Optional.empty())
-            .filter(Objects::nonNull)
-            .forEach(child -> result.addAll(getSubtree(child)));
-      }
-    }
-    return result;
   }
 
   @Override

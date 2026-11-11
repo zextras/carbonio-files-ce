@@ -270,22 +270,39 @@ class NodeQueryDalTest {
 
   @Test
   @TestTransaction
-  void getSubtreeReturnsTheRootAndAllItsDescendantsTopDown() {
+  void getFileIdsInSubtreeReturnsTheFilesAtAnyDepthTrashedOrNot() {
     long now = System.currentTimeMillis();
     String root = id();
     String sub = id();
     String file = id();
     String deepFile = id();
-    Node rootNode = persistAt(root, NodeType.FOLDER, "TRASH_ROOT", "TRASH_ROOT", now);
+    String outsideFile = id();
+    persistAt(root, NodeType.FOLDER, "TRASH_ROOT", "TRASH_ROOT", now);
     persistAt(sub, NodeType.FOLDER, root, "TRASH_ROOT," + root, now);
     persistAt(file, NodeType.TEXT, root, "TRASH_ROOT," + root, now);
     persistAt(deepFile, NodeType.TEXT, sub, "TRASH_ROOT," + root + "," + sub, now);
+    persistAt(outsideFile, NodeType.TEXT, "TRASH_ROOT", "TRASH_ROOT", now);
     entityManager.flush();
     entityManager.clear();
 
-    assertThat(nodeRepository.getSubtree(rootNode))
-        .extracting(Node::getId)
-        .containsExactlyInAnyOrder(root, sub, file, deepFile)
-        .startsWith(root);
+    assertThat(nodeRepository.getFileIdsInSubtree(root)).containsExactlyInAnyOrder(file, deepFile);
+    assertThat(nodeRepository.getFileIdsInSubtree(file)).containsExactly(file);
+  }
+
+  @Test
+  @TestTransaction
+  void filterIdsUnderAncestorKeepsOnlyTheNodesWithTheTopAmongTheirAncestors() {
+    long now = System.currentTimeMillis();
+    String top = id();
+    String inside = id();
+    String moved = id();
+    persistAt(top, NodeType.FOLDER, "TRASH_ROOT", "TRASH_ROOT", now);
+    persistAt(inside, NodeType.TEXT, top, "TRASH_ROOT," + top, now);
+    persistAt(moved, NodeType.TEXT, "LOCAL_ROOT", "LOCAL_ROOT", now);
+    entityManager.flush();
+
+    assertThat(nodeRepository.filterIdsUnderAncestor(top, List.of(inside, moved, top)))
+        .containsExactly(inside);
+    assertThat(nodeRepository.filterIdsUnderAncestor(top, List.of())).isEmpty();
   }
 }

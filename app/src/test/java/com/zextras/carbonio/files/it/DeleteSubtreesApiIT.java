@@ -438,4 +438,18 @@ class DeleteSubtreesApiIT extends AbstractFilesIT {
     Assertions.assertThat(FilesStackTestResource.getStoragesService().has(f.trashedFileOfB, 1))
         .isTrue();
   }
+
+  @Test
+  void deleteAllNodesOfAUserTombstonesTheFilesOfOtherOwnersInTheirFoldersUnderTheirOwner()
+      throws SQLException {
+    Fixture f = seedFixture();
+    execute("UPDATE node SET owner_id = ? WHERE node_id = ?", B_ID, f.file3);
+    FilesStackTestResource.getStoragesService().setBulkDeleteAlwaysThrows(true);
+
+    Response response = deleteAccount(A_ID);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(rows("node", Set.of(f.file3, f.deep))).isZero();
+    Assertions.assertThat(tombstones()).contains(f.file3 + ":1:" + B_ID);
+  }
 }

@@ -871,11 +871,7 @@ public class NodeApi {
       throw deleteNodesFailure(nodeIds);
     }
 
-    deletion
-        .versionsByOwner()
-        .forEach(
-            (ownerId, versions) ->
-                blobLifecycle.deleteAndClear(ownerId, versions.stream().map(BlobKey::of).toList()));
+    deletion.keysByOwner().forEach(blobLifecycle::deleteAndClear);
 
     Set<String> requestedNodeIds = deletion.deletedIds();
     List<String> successIds = new ArrayList<>(requestedNodeIds);
@@ -887,7 +883,7 @@ public class NodeApi {
     return successIds;
   }
 
-  private record Deletion(Set<String> deletedIds, Map<String, List<FileVersion>> versionsByOwner) {}
+  private record Deletion(Set<String> deletedIds, Map<String, List<BlobKey>> keysByOwner) {}
 
   private Deletion deleteNodesInTransaction(List<String> nodeIds, String me) {
     Set<String> lockedIds = Set.copyOf(writableByMe(nodeIds, me));
@@ -911,39 +907,7 @@ public class NodeApi {
 
     Set<String> deletableIds = requestedNodes.stream().map(Node::getId).collect(Collectors.toSet());
 
-    List<Node> allNodes =
-        requestedNodes.stream().flatMap(root -> nodeRepository.getSubtree(root).stream()).toList();
-
-    Map<String, String> ownerOf = new HashMap<>();
-    allNodes.forEach(node -> ownerOf.putIfAbsent(node.getId(), node.getOwnerId()));
-    List<String> fileIds =
-        allNodes.stream()
-            .filter(
-                node ->
-                    !node.getNodeType()
-                        .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
-            .map(Node::getId)
-            .toList();
-
-    Map<String, List<FileVersion>> versionsByOwner = new HashMap<>();
-    fileVersionRepository
-        .getFileVersionsOf(fileIds)
-        .forEach(
-            fv ->
-                versionsByOwner
-                    .computeIfAbsent(ownerOf.get(fv.getNodeId()), k -> new ArrayList<>())
-                    .add(fv));
-    versionsByOwner.forEach(
-        (ownerId, versions) -> tombstoneRepository.createTombstonesBulk(versions, ownerId));
-
-    deleteNodesFromDb(allNodes);
-    allNodes.stream()
-        .filter(
-            node ->
-                node.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
-        .map(Node::getId)
-        .forEach(this::cascadeDeleteNodeHelper);
-    return new Deletion(deletableIds, versionsByOwner);
+    return new Deletion(deletableIds, nodeRepository.deleteSubtrees(deletableIds));
   }
 
   // TODO: synchronous, kept alive by the GraphQLExecutionRoute heartbeat (an inactivity-timeout
@@ -1314,31 +1278,6 @@ public class NodeApi {
     return ids.stream()
         .filter(id -> permissions.get(id).has(SharePermission.READ_AND_WRITE))
         .toList();
-  }
-
-  private void cascadeDeleteNodeHelper(String nodeId) {
-    List<String> childrenIds =
-        nodeRepository.getChildrenIds(nodeId, Optional.empty(), Optional.empty(), true);
-    if (!childrenIds.isEmpty()) {
-      List<Node> children =
-          nodeRepository.getNodes(childrenIds, Optional.empty()).collect(Collectors.toList());
-      deleteNodesFromDb(children);
-      children.stream()
-          .filter(
-              node ->
-                  node.getNodeType()
-                      .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
-          .forEach(node -> cascadeDeleteNodeHelper(node.getId()));
-    }
-    shareRepository.deleteSharesBulk(nodeRepository.getTrashedNodeIdsByOldParent(nodeId));
-  }
-
-  private void deleteNodesFromDb(List<Node> nodes) {
-    List<String> ids = nodes.stream().map(Node::getId).toList();
-    if (!ids.isEmpty()) {
-      shareRepository.deleteSharesBulk(ids);
-      nodeRepository.deleteNodes(ids);
-    }
   }
 
   private static FilesGraphQLException pathNodeNotFound(String nodeId) {
