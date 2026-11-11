@@ -472,9 +472,7 @@ public class NodeApi {
     if (description != null) nodeToUpdate.setDescription(description);
     if (flagged != null) nodeRepository.flagForUser(nodeId, me, flagged);
     nodeToUpdate.setLastEditorId(me);
-    if (inTrash) {
-      nodeRepository.updateNodeKeepingDate(nodeToUpdate);
-    } else {
+    if (!inTrash) {
       nodeRepository.updateNode(nodeToUpdate);
     }
     NodeModel model = NodeModelFactory.from(nodeToUpdate, null, me);

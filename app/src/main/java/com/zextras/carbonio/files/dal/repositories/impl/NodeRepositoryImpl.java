@@ -325,12 +325,6 @@ public class NodeRepositoryImpl implements NodeRepository {
     return entityManager.merge(node);
   }
 
-  @Override
-  @Transactional
-  public Node updateNodeKeepingDate(Node node) {
-    return entityManager.merge(node);
-  }
-
   private static final String DELETE_SUBTREES_SQL =
       """
       WITH RECURSIVE subtree(node_id, node_type, owner_id) AS (

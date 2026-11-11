@@ -140,15 +140,17 @@ public class LinkCreationHelper {
   }
 
   /**
-   * Thrown by {@link #createPublicLink} when the requester lacks the READ_AND_SHARE permission, or
-   * the target node does not exist / is a root.
+   * Thrown by {@link #createPublicLink} and {@link #createPublicLinkOutsideTrash} when the
+   * requester lacks the READ_AND_SHARE permission, or the target node does not exist / is a root;
+   * the latter also when the node is in the trash.
    */
   public static class NodeAccessException extends RuntimeException {
     public NodeAccessException(String nodeId) {
       super(
           "Cannot create link for node "
               + nodeId
-              + ": missing READ_AND_SHARE permission, node not found, or node is a root");
+              + ": missing READ_AND_SHARE permission, node not found, node is a root or in the"
+              + " trash");
     }
   }
 }

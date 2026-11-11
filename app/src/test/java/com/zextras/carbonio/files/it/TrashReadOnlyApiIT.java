@@ -37,8 +37,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * A node in the trash (the trashed top or anything inside a trashed folder) is read-only: nothing
- * is added or modified, only removed.
+ * What a node in the trash (the trashed top or anything inside a trashed folder) accepts. The
+ * writes the web client offers on it (description, collaborators, public and collaboration links, a
+ * new version without the overwrite header, clone, keep forever, redeeming a collaboration link)
+ * work and never refresh its updated_timestamp, the trash retention key. Rename, flag, Docs
+ * overwrite, internal link creation and the internal version upload are refused, and removals still
+ * work.
  */
 class TrashReadOnlyApiIT extends AbstractFilesIT {
 
@@ -97,7 +101,7 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
   private record Scene(
       String file, String trashedId, String linkId, String collaborationId, String invitationId) {}
 
-  private static Scene scene(boolean nested) {
+  private static Scene scene(boolean nested) throws SQLException {
     String folder = nested ? seedFolder("trashed-parent", LOCAL_ROOT, OWNER_COOKIE) : null;
     String file = seedFile("doc.txt", nested ? folder : LOCAL_ROOT, "one".getBytes(), OWNER_COOKIE);
     seedVersion(file, "two".getBytes(), "doc.txt", OWNER_COOKIE);
@@ -119,6 +123,7 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
     String url = (String) collaboration.get("url");
     String trashedId = nested ? folder : file;
     seedTrashed(trashedId, OWNER_COOKIE);
+    pinDates(file, trashedId);
     return new Scene(
         file, trashedId, linkId, (String) collaboration.get("id"), url.substring(url.length() - 8));
   }
@@ -141,6 +146,19 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
       }
     }
     return state.toString();
+  }
+
+  private static void pinDates(String... nodeIds) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "UPDATE node SET updated_timestamp = (extract(epoch FROM now()) * 1000)::bigint -"
+                    + " 3600000 WHERE node_id = ?")) {
+      for (String nodeId : nodeIds) {
+        statement.setString(1, nodeId);
+        statement.executeUpdate();
+      }
+    }
   }
 
   private static String updatedAt(String nodeId) throws SQLException {
@@ -289,7 +307,7 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
         .get("/invite/" + invitationId);
   }
 
-  private static String unsharedTrashedFileWithInvitation(boolean nested) {
+  private static String unsharedTrashedFileWithInvitation(boolean nested) throws SQLException {
     String folder = nested ? seedFolder("trashed-parent", LOCAL_ROOT, OWNER_COOKIE) : null;
     String file = seedFile("doc.txt", nested ? folder : LOCAL_ROOT, "one".getBytes(), OWNER_COOKIE);
     Map<String, Object> collaboration =
@@ -306,6 +324,7 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
             "createCollaborationLink");
     String url = (String) collaboration.get("url");
     seedTrashed(nested ? folder : file, OWNER_COOKIE);
+    pinDates(file, nested ? folder : file);
     return file + ":" + url.substring(url.length() - 8);
   }
 
@@ -463,7 +482,7 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
                 "SELECT rights FROM share WHERE node_id = ? AND target_uuid = ?",
                 scene.file(),
                 TARGET_ID))
-        .isNotEqualTo(String.valueOf(ACL.decode(SharePermission.READ_ONLY).encode()));
+        .isEqualTo(String.valueOf(ACL.decode(SharePermission.READ_AND_WRITE).encode()));
     Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
@@ -540,7 +559,7 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
                 "SELECT rights FROM share WHERE node_id = ? AND target_uuid = ?",
                 scene.file(),
                 TARGET_ID))
-        .isNotEqualTo(String.valueOf(ACL.decode(SharePermission.READ_ONLY).encode()));
+        .isEqualTo(String.valueOf(ACL.decode(SharePermission.READ_AND_SHARE).encode()));
     Assertions.assertThat(updatedAt(scene.file())).isEqualTo(date);
   }
 
@@ -741,7 +760,8 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
     String file = seedFile("doc.txt", LOCAL_ROOT, "one".getBytes(), OWNER_COOKIE);
     String name = column("SELECT name FROM node WHERE node_id = ?", file);
     String description = column("SELECT description FROM node WHERE node_id = ?", file);
-    String updatedAt = column("SELECT updated_timestamp FROM node WHERE node_id = ?", file);
+    pinDates(file);
+    String updatedAt = updatedAt(file);
 
     Response response;
     try (Connection holder = holdNode(file, "FOR NO KEY UPDATE")) {
@@ -761,11 +781,14 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
         .isEqualTo(updatedAt);
     Assertions.assertThat(column("SELECT folder_id FROM node WHERE node_id = ?", file).trim())
         .isEqualTo(TRASH_ROOT);
+    Assertions.assertThat(column("SELECT count(*) FROM custom WHERE node_id = ?", file))
+        .isEqualTo("0");
   }
 
   @Test
   void aDescriptionBehindATrashIsSavedWithoutRefreshingTheTrashDate() throws Exception {
     String file = seedFile("doc.txt", LOCAL_ROOT, "one".getBytes(), OWNER_COOKIE);
+    pinDates(file);
     String date = updatedAt(file);
 
     Response response;
@@ -845,7 +868,7 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  void copyingATrashedNodeElsewhereStillWorks(boolean nested) {
+  void copyingATrashedNodeElsewhereStillWorks(boolean nested) throws SQLException {
     Scene scene = scene(nested);
     String destination = seedFolder("destination", LOCAL_ROOT, OWNER_COOKIE);
 
@@ -866,6 +889,7 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
   void aCloneVersionBehindATrashCompletesAndKeepsTheTrashDate() throws Exception {
     String folder = seedFolder("parent", LOCAL_ROOT, OWNER_COOKIE);
     String file = seedFile("doc.txt", folder, "one".getBytes(), OWNER_COOKIE);
+    pinDates(file);
     String date = updatedAt(file);
 
     Response response;
@@ -886,5 +910,41 @@ class TrashReadOnlyApiIT extends AbstractFilesIT {
     Assertions.assertThat(errors(response)).isEmpty();
     Assertions.assertThat(versionRows(file)).containsExactly(1, 2);
     Assertions.assertThat(updatedAt(file)).isEqualTo(date);
+  }
+
+  @Test
+  void aVersionUploadOnALiveNodeStillMovesTheDateForward() throws SQLException {
+    String file = seedFile("live.txt", LOCAL_ROOT, "one".getBytes(), OWNER_COOKIE);
+    pinDates(file);
+    long pinned = Long.parseLong(updatedAt(file));
+
+    Response response = uploadVersion(file, "two".getBytes(), "live.txt", false, OWNER_COOKIE);
+
+    Assertions.assertThat(response.statusCode()).isEqualTo(200);
+    Assertions.assertThat(Long.parseLong(updatedAt(file))).isGreaterThan(pinned);
+  }
+
+  @Test
+  void aCloneOnALiveNodeStillMovesTheDateForward() throws SQLException {
+    String file = seedFile("live.txt", LOCAL_ROOT, "one".getBytes(), OWNER_COOKIE);
+    pinDates(file);
+    long pinned = Long.parseLong(updatedAt(file));
+
+    Response response = cloneVersion(file);
+
+    Assertions.assertThat(errors(response)).isEmpty();
+    Assertions.assertThat(Long.parseLong(updatedAt(file))).isGreaterThan(pinned);
+  }
+
+  @Test
+  void aDescriptionOnALiveNodeStillMovesTheDateForward() throws SQLException {
+    String file = seedFile("live.txt", LOCAL_ROOT, "one".getBytes(), OWNER_COOKIE);
+    pinDates(file);
+    long pinned = Long.parseLong(updatedAt(file));
+
+    Response response = updateNode(file, "description", "changed");
+
+    Assertions.assertThat(errors(response)).isEmpty();
+    Assertions.assertThat(Long.parseLong(updatedAt(file))).isGreaterThan(pinned);
   }
 }

@@ -65,8 +65,8 @@ import org.jboss.resteasy.reactive.RestResponse;
  *       returned, replicating the retired GraphQL {@code getNode(node_id, version)} query.
  *   <li>{@code POST /internal/folders} → {@link NodeCreationHelper#createFolder} (the extracted
  *       core of the code-first {@code createFolder} mutation).
- *   <li>{@code POST /internal/links} → {@link LinkCreationHelper#createPublicLink} + {@link
- *       LinkCreationHelper#buildPublicLinkUrl}, mirroring {@code
+ *   <li>{@code POST /internal/links} → {@link LinkCreationHelper#createPublicLinkOutsideTrash} +
+ *       {@link LinkCreationHelper#buildPublicLinkUrl}, mirroring {@code
  *       FilesGrpcService#createPublicLink}.
  *   <li>{@code DELETE /internal/nodes} → {@link NodeCreationHelper#deleteAllNodesAndBlobsForUser}.
  * </ul>
@@ -211,8 +211,9 @@ public class InternalNodeResource {
   /**
    * Mirrors {@code FilesGrpcService#createPublicLink} exactly: the requester's domain is resolved
    * the same trusted-caller way (a direct {@link UserRepository#getUserById} call, cookie ignored),
-   * then {@link LinkCreationHelper#createPublicLink} + {@link
-   * LinkCreationHelper#buildPublicLinkUrl} build the link, identically to the gRPC RPC.
+   * then {@link LinkCreationHelper#createPublicLinkOutsideTrash} + {@link
+   * LinkCreationHelper#buildPublicLinkUrl} build the link, identically to the gRPC RPC, except that
+   * a node in the trash is refused.
    */
   @POST
   @Path("/links")
