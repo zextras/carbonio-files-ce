@@ -243,6 +243,47 @@ class UploadCopyLocksApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void aCopyIntoADestinationMovedUnderTheSourceDuringTheLockWaitIsRefused() throws Exception {
+    String source = seedFolder("A", LOCAL_ROOT, COOKIE);
+    String destination = seedFolder("B", LOCAL_ROOT, COOKIE);
+    String inside = seedFolder("C", destination, COOKIE);
+
+    Response copyResponse;
+    try (Connection holder = holdNode(destination, "FOR NO KEY UPDATE")) {
+      CompletableFuture<Response> copying = async(() -> copy(destination, source));
+      awaitBlockedBy(holder, 1);
+      try (PreparedStatement moveDestination =
+              holder.prepareStatement(
+                  "UPDATE node SET folder_id = ?,"
+                      + " ancestor_ids = (SELECT trim(ancestor_ids) || ',' || trim(node_id)"
+                      + " FROM node WHERE node_id = ?) WHERE node_id = ?");
+          PreparedStatement moveInside =
+              holder.prepareStatement(
+                  "UPDATE node SET ancestor_ids = (SELECT trim(ancestor_ids) || ',' ||"
+                      + " trim(node_id) FROM node WHERE node_id = ?) WHERE node_id = ?")) {
+        moveDestination.setString(1, source);
+        moveDestination.setString(2, source);
+        moveDestination.setString(3, destination);
+        moveDestination.executeUpdate();
+        moveInside.setString(1, destination);
+        moveInside.setString(2, inside);
+        moveInside.executeUpdate();
+      }
+      holder.commit();
+      copyResponse = copying.get(60, TimeUnit.SECONDS);
+    }
+
+    Assertions.assertThat(errorMessages(copyResponse)).isNotEmpty();
+    Assertions.assertThat(
+            scalar("SELECT folder_id FROM node WHERE node_id = ?", destination).trim())
+        .isEqualTo(source.trim());
+    Assertions.assertThat(count("SELECT count(*) FROM node WHERE name = 'A'")).isEqualTo(1);
+    Assertions.assertThat(count("SELECT count(*) FROM node WHERE folder_id = ?", destination))
+        .isEqualTo(1);
+    Assertions.assertThat(count("SELECT count(*) FROM node WHERE folder_id = ?", inside)).isZero();
+  }
+
+  @Test
   void aRevokedShareOfTheDestinationIsNotAddedToTheCopy() throws Exception {
     String destination = seedFolder("D", LOCAL_ROOT, COOKIE);
     seedShare(destination, OTHER_USER_ID, ACL.SharePermission.READ_ONLY, COOKIE);

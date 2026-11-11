@@ -1289,12 +1289,21 @@ public class NodeApi {
 
   record CopyFailure(Node node, Throwable cause) {}
 
+  private static final class CopyIntoItselfException extends RuntimeException {
+    CopyIntoItselfException(String folderId) {
+      super("Folder " + folderId + " cannot be copied into itself or its descendants");
+    }
+  }
+
   FilesGraphQLException copyFailureError(
       List<Node> nodesWithoutPermission, List<CopyFailure> copyErrors) {
     if (!nodesWithoutPermission.isEmpty()) {
       return FilesGraphQLErrors.nodeWriteError(nodesWithoutPermission.get(0).getId());
     }
     CopyFailure failure = copyErrors.get(0);
+    if (failure.cause() instanceof CopyIntoItselfException) {
+      return FilesGraphQLErrors.nodeWriteError(failure.node().getId());
+    }
     return copyError(copyFailureClassifier.classify(failure.cause()), failure);
   }
 
@@ -1457,6 +1466,10 @@ public class NodeApi {
                           () ->
                               new NoSuchElementException(
                                   "Destination " + destinationFolder.getId() + " not found"));
+              if (parent.getId().equals(sourceFolder.getId())
+                  || parent.getAncestorsList().contains(sourceFolder.getId())) {
+                throw new CopyIntoItselfException(sourceFolder.getId());
+              }
               String ownerId =
                   (com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
                               parent.getNodeType())
