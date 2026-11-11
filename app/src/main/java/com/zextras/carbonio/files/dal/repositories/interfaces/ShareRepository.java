@@ -122,6 +122,30 @@ public interface ShareRepository {
   void deleteSharesBulk(List<String> nodeIds);
 
   /**
+   * Propagates a share of a user to every descendant of a node, at any depth, with a constant
+   * number of SQL statements. Trashed nodes, and what lies below them, are not reached. A
+   * descendant without a share gets an inherited one; a descendant with an inherited share gets the
+   * new permissions, has the link flag reset and its expiration replaced only if one is given; a
+   * descendant with a direct share is left untouched.
+   *
+   * <p>The pending changes are flushed first and the stale {@link Share} entities of the affected
+   * descendants are detached afterwards.
+   */
+  void cascadeUpsertInheritedShares(
+      String nodeId, String targetUserId, ACL permissions, Optional<Long> expireTimestamp);
+
+  /**
+   * Removes the shares of a user from the descendants of a node, with a constant number of SQL
+   * statements. The descendants are the children of the node plus the nodes trashed from it, then
+   * recursively the same for every folder reached. A node with a direct share of the user is left
+   * untouched and is not descended into.
+   *
+   * <p>The pending changes are flushed first and the stale {@link Share} entities of the affected
+   * descendants are detached afterwards.
+   */
+  void cascadeDeleteInheritedShares(String nodeId, String targetUserId);
+
+  /**
    * Reads only the permissions of the share of a user on a node, without loading the {@link Share}
    * entity into the persistence context.
    *
