@@ -13,9 +13,7 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SortOrde
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +21,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.hibernate.Session;
-import org.hibernate.engine.spi.EntityKey;
 import org.hibernate.query.TypedParameterValue;
 import org.hibernate.type.StandardBasicTypes;
 
@@ -50,11 +47,15 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
           WHERE n.folder_id = :root
             AND NOT EXISTS (SELECT 1 FROM trashed t WHERE t.node_id = n.node_id)
           UNION
-          SELECT n.node_id, n.node_type
+          SELECT c.node_id, c.node_type
           FROM subtree s
-          INNER JOIN node n ON n.folder_id = s.node_id
+          CROSS JOIN LATERAL (
+              SELECT n.node_id, n.node_type
+              FROM node n
+              WHERE n.folder_id = s.node_id
+                AND NOT EXISTS (SELECT 1 FROM trashed t WHERE t.node_id = n.node_id)
+          ) c
           WHERE s.node_type = 'FOLDER'
-            AND NOT EXISTS (SELECT 1 FROM trashed t WHERE t.node_id = n.node_id)
       )
       INSERT INTO share (node_id, rights, timestamp, target_uuid, expire_date, direct,
                          created_via_link)
@@ -81,14 +82,16 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
           INNER JOIN node n ON n.node_id = t.node_id
           WHERE t.parent_id = :root
           UNION
-          SELECT n.node_id, n.node_type
+          SELECT c.node_id, c.node_type
           FROM subtree s
-          INNER JOIN (
-              SELECT folder_id AS parent_id, node_id FROM node
+          CROSS JOIN LATERAL (
+              SELECT n.node_id, n.node_type FROM node n WHERE n.folder_id = s.node_id
               UNION ALL
-              SELECT parent_id, node_id FROM trashed
-          ) e ON e.parent_id = s.node_id
-          INNER JOIN node n ON n.node_id = e.node_id
+              SELECT n.node_id, n.node_type
+              FROM trashed t
+              INNER JOIN node n ON n.node_id = t.node_id
+              WHERE t.parent_id = s.node_id
+          ) c
           WHERE s.node_type = 'FOLDER'
             AND NOT EXISTS (
                 SELECT 1 FROM share d
@@ -159,26 +162,6 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
   }
 
   @Override
-  @Transactional
-  public void upsertShareBulk(
-      List<String> nodeIds,
-      String targetUserId,
-      ACL permissions,
-      Boolean direct,
-      Boolean createdViaCollaborationLink,
-      Optional<Long> expireTimestamp) {
-    nodeIds.forEach(
-        nodeId ->
-            upsertShare(
-                nodeId,
-                targetUserId,
-                permissions,
-                direct,
-                createdViaCollaborationLink,
-                expireTimestamp));
-  }
-
-  @Override
   public void flush() {
     getEntityManager().flush();
   }
@@ -222,10 +205,10 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
   public void cascadeUpsertInheritedShares(
       String nodeId, String targetUserId, ACL permissions, Optional<Long> expireTimestamp) {
     flush();
-    List<?> affected =
+    List<String> affected =
         getEntityManager()
-            .createNativeQuery(CASCADE_UPSERT_SQL)
-            .setParameter("root", padded(nodeId))
+            .createNativeQuery(CASCADE_UPSERT_SQL, String.class)
+            .setParameter("root", nodeId)
             .setParameter("userId", targetUserId)
             .setParameter("rights", permissions.encode())
             .setParameter("now", System.currentTimeMillis())
@@ -240,43 +223,28 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
   @Transactional
   public void cascadeDeleteInheritedShares(String nodeId, String targetUserId) {
     flush();
-    List<?> affected =
+    List<String> affected =
         getEntityManager()
-            .createNativeQuery(CASCADE_DELETE_SQL)
-            .setParameter("root", padded(nodeId))
+            .createNativeQuery(CASCADE_DELETE_SQL, String.class)
+            .setParameter("root", nodeId)
             .setParameter("userId", targetUserId)
             .getResultList();
     detachShares(affected, targetUserId);
   }
 
-  private void detachShares(List<?> affectedNodeIds, String targetUserId) {
+  private void detachShares(List<String> affectedNodeIds, String targetUserId) {
     if (affectedNodeIds.isEmpty()) {
       return;
     }
     Set<String> affected = new HashSet<>();
-    affectedNodeIds.forEach(id -> affected.add(((String) id).trim()));
-    EntityManager entityManager = getEntityManager();
-    Set<?> managedKeys = entityManager.unwrap(Session.class).getStatistics().getEntityKeys();
-    List<SharePK> stale = new ArrayList<>();
-    for (Object key : managedKeys) {
-      if (key instanceof EntityKey entityKey
-          && entityKey.getIdentifier() instanceof SharePK pk
-          && targetUserId.equals(pk.getTargetUserId())
-          && affected.contains(pk.getNodeId().trim())) {
-        stale.add(pk);
-      }
-    }
-    stale.forEach(
-        pk -> {
-          Share share = entityManager.find(Share.class, pk);
-          if (share != null) {
-            entityManager.detach(share);
-          }
-        });
-  }
-
-  private static String padded(String id) {
-    return id.length() >= 36 ? id : id + " ".repeat(36 - id.length());
+    affectedNodeIds.forEach(id -> affected.add(id.trim()));
+    Session session = getEntityManager().unwrap(Session.class);
+    session.getManagedEntities(Share.class).stream()
+        .filter(
+            share ->
+                targetUserId.equals(share.getTargetUserId())
+                    && affected.contains(share.getNodeId().trim()))
+        .forEach(session::detach);
   }
 
   @Override
