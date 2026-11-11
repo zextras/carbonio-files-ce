@@ -492,8 +492,8 @@ public class NodeRepositoryImpl implements NodeRepository {
       WITH RECURSIVE subtree(node_id, node_type, path) AS (
           SELECT n.node_id, n.node_type, CAST(:prefix AS TEXT)
           FROM node n
-          WHERE n.folder_id = :root
-          UNION
+          WHERE n.folder_id = CAST(:root AS CHARACTER(36))
+          UNION ALL
           SELECT c.node_id, c.node_type, s.path || ',' || RTRIM(s.node_id)
           FROM subtree s
           CROSS JOIN LATERAL (
@@ -502,6 +502,7 @@ public class NodeRepositoryImpl implements NodeRepository {
               WHERE n.folder_id = s.node_id
           ) c
           WHERE s.node_type = 'FOLDER'
+            AND length(s.path) <= 4096
       )
       UPDATE node n
       SET ancestor_ids = s.path,
