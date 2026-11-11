@@ -10,6 +10,9 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public final class LockProbe {
@@ -86,9 +89,8 @@ public final class LockProbe {
             observer.prepareStatement(
                 "SELECT pid FROM pg_stat_activity WHERE pg_blocking_pids(pid) && ?::int[]")) {
       while (true) {
-        java.util.Set<Integer> blockers =
-            new java.util.LinkedHashSet<>(java.util.List.of(holderPid));
-        java.util.Set<Integer> waiting = new java.util.LinkedHashSet<>();
+        Set<Integer> blockers = new LinkedHashSet<>(List.of(holderPid));
+        Set<Integer> waiting = new LinkedHashSet<>();
         boolean grew = true;
         while (grew) {
           blocked.setArray(1, observer.createArrayOf("integer", blockers.toArray()));

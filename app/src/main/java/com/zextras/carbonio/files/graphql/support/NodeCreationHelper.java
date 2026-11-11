@@ -28,8 +28,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Shared node business logic, originally extracted from the retired {@code NodeDataFetcher}
@@ -41,7 +39,6 @@ import org.slf4j.LoggerFactory;
 @ApplicationScoped
 public class NodeCreationHelper {
 
-  private static final Logger logger = LoggerFactory.getLogger(NodeCreationHelper.class);
   private static final Duration DELETION_TIMEOUT = Duration.ofSeconds(600);
 
   private final NodeRepository nodeRepository;

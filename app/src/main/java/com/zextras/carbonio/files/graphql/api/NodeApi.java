@@ -19,6 +19,8 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.locks.NodeLockTimeoutException;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
+import com.zextras.carbonio.files.dal.locks.NodeLocks.SubtreeMode;
+import com.zextras.carbonio.files.dal.locks.NodeLocks.SubtreeScope;
 import com.zextras.carbonio.files.dal.repositories.impl.InvalidPageTokenException;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
@@ -61,6 +63,7 @@ import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -418,6 +421,10 @@ public class NodeApi {
     }
   }
 
+  private void lockDescendants(Collection<String> rootIds) {
+    nodeLocks.lockSubtrees(rootIds, SubtreeScope.DESCENDANTS, SubtreeMode.NO_KEY_UPDATE);
+  }
+
   @Mutation("updateNode")
   public @NonNull NodeModel updateNode(
       @Name("node_id") @NonNull String nodeId,
@@ -509,6 +516,7 @@ public class NodeApi {
             .filter(id -> !insideTrash(id))
             .collect(Collectors.toUnmodifiableSet());
     nodeLocks.lockForChange(lockedIds);
+    lockDescendants(lockedIds);
 
     List<String> trashableNodes =
         nodeIds.stream()
@@ -595,6 +603,7 @@ public class NodeApi {
                 .getTrashedNode(id)
                 .ifPresent(t -> parentBeforeLock.put(id, t.getParentId().trim())));
     nodeLocks.lock(parentBeforeLock.keySet(), parentBeforeLock.values());
+    lockDescendants(parentBeforeLock.keySet());
 
     long retentionCutoff =
         NodeRules.trashRetentionCutoff(
@@ -713,6 +722,7 @@ public class NodeApi {
       throw FilesGraphQLErrors.nodeWriteError(destinationId);
     }
     nodeLocks.lock(movable, List.of(destinationId));
+    lockDescendants(movable);
 
     if (!permissionsChecker.getPermissions(destinationId, me).has(SharePermission.READ_AND_WRITE)) {
       throw FilesGraphQLErrors.nodeWriteError(destinationId);

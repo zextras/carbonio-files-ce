@@ -130,15 +130,23 @@ class SubtreePreLockDalTest {
   }
 
   private void trashSubtree() {
+    trashRoots(List.of(subtree));
+  }
+
+  private void trashRoots(List<String> roots) {
     transactions.inNewTransaction(
         () -> {
-          nodeLocks.lockForChange(List.of(subtree));
-          Node node = nodeRepository.getNode(subtree).orElseThrow();
-          node.setAncestorIds("TRASH_ROOT");
-          node.setParentId("TRASH_ROOT");
-          nodeRepository.trashNode(subtree, "LOCAL_ROOT");
-          nodeRepository.updateNode(node);
-          nodeRepository.rewriteDescendantAncestors(node);
+          nodeLocks.lockForChange(roots);
+          nodeLocks.lockSubtrees(
+              roots, NodeLocks.SubtreeScope.DESCENDANTS, NodeLocks.SubtreeMode.NO_KEY_UPDATE);
+          for (String root : roots) {
+            Node node = nodeRepository.getNode(root).orElseThrow();
+            node.setAncestorIds("TRASH_ROOT");
+            node.setParentId("TRASH_ROOT");
+            nodeRepository.trashNode(root, "LOCAL_ROOT");
+            nodeRepository.updateNode(node);
+            nodeRepository.rewriteDescendantAncestors(node);
+          }
           return null;
         });
   }
@@ -204,5 +212,35 @@ class SubtreePreLockDalTest {
     assertThat(strings("SELECT trim(node_id) FROM node WHERE owner_id IN (?, ?)"))
         .containsExactlyInAnyOrder(subtree, folder1, folder2);
     assertThat(sharedNodes()).containsExactlyInAnyOrder(folder1, folder2);
+  }
+
+  @Test
+  void hiddenFlagChangeAndATwoRootTrashDoNotDeadlock() throws Exception {
+    String first = "11000000" + TAIL;
+    String second = "12000000" + TAIL;
+    String middle = "13000000" + TAIL;
+    String deep = "e7000000" + TAIL;
+    String shallow = "e8000000" + TAIL;
+    create(first, OWNER_A, "LOCAL_ROOT", "LOCAL_ROOT");
+    create(second, OWNER_A, "LOCAL_ROOT", "LOCAL_ROOT");
+    create(middle, OWNER_A, first, "LOCAL_ROOT," + first);
+    create(deep, OWNER_B, middle, "LOCAL_ROOT," + first + "," + middle);
+    create(shallow, OWNER_B, second, "LOCAL_ROOT," + second);
+
+    CompletableFuture<Void> trash;
+    try (Connection flagger = LockProbe.holder()) {
+      LockProbe.hold(flagger, shallow, "FOR NO KEY UPDATE");
+      trash = CompletableFuture.runAsync(() -> trashRoots(List.of(first, second)));
+      LockProbe.awaitBlockedBy(flagger, 1);
+      LockProbe.hold(flagger, deep, "FOR NO KEY UPDATE");
+      flagger.commit();
+    }
+
+    assertThatCode(() -> trash.get(60, TimeUnit.SECONDS)).doesNotThrowAnyException();
+    assertThat(
+            strings(
+                "SELECT trim(node_id) FROM node WHERE owner_id IN (?, ?) AND ancestor_ids LIKE"
+                    + " 'TRASH_ROOT,%'"))
+        .containsExactlyInAnyOrder(middle, deep, shallow);
   }
 }
