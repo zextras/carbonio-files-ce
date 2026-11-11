@@ -91,8 +91,7 @@ public class NodeCreationHelper {
    *
    * @throws NodeAccessException if the requester lacks READ_AND_WRITE on the parent (checked first,
    *     so a missing parent, which grants no permission, ends here too)
-   * @throws NodeNotFoundException if the parent does not accept children (missing, a trash root, or
-   *     inside the trash)
+   * @throws NodeNotFoundException if the parent is a file, the trash root, or inside the trash
    */
   public Node createFolder(String requesterId, String parentId, String name, UserMyself requester) {
     if (!permissionsChecker

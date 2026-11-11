@@ -319,7 +319,12 @@ class UploadCopyLocksApiIT extends AbstractFilesIT {
       copyResponse = copying.get(60, TimeUnit.SECONDS);
     }
 
-    Assertions.assertThat(errorMessages(copyResponse)).isNotEmpty();
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(copyResponse.getBody().asString()))
+        .containsExactly("NODE_WRITE_ERROR");
+    Assertions.assertThat(errorMessages(copyResponse))
+        .singleElement()
+        .asString()
+        .contains(source.trim());
     Assertions.assertThat(
             scalar("SELECT folder_id FROM node WHERE node_id = ?", destination).trim())
         .isEqualTo(source.trim());
