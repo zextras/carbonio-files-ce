@@ -12,13 +12,9 @@ import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
-import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
-import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
-import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
@@ -44,7 +40,6 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -55,7 +50,6 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.hibernate.Session;
-import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -393,7 +387,7 @@ public class NodeRepositoryImpl implements NodeRepository {
             .setParameter("ids", rootIds.stream().map(String::trim).toArray(String[]::new))
             .setParameter("now", System.currentTimeMillis())
             .getResultList();
-    detachDeletedEntities();
+    entityManager.clear();
     Map<String, List<BlobKey>> keysByOwner = new HashMap<>();
     for (Object[] row : tombstoned) {
       keysByOwner
@@ -401,49 +395,6 @@ public class NodeRepositoryImpl implements NodeRepository {
           .add(new BlobKey(((String) row[1]).trim(), ((Number) row[2]).intValue()));
     }
     return keysByOwner;
-  }
-
-  private void detachDeletedEntities() {
-    Session session = entityManager.unwrap(Session.class);
-    if (entityManager
-            .unwrap(SharedSessionContractImplementor.class)
-            .getPersistenceContext()
-            .getNumberOfManagedEntities()
-        == 0) {
-      return;
-    }
-    Map<Object, String> managed = new IdentityHashMap<>();
-    session.getManagedEntities(Node.class).forEach(e -> managed.put(e, e.getId().trim()));
-    session.getManagedEntities(Share.class).forEach(e -> managed.put(e, e.getNodeId().trim()));
-    session
-        .getManagedEntities(FileVersion.class)
-        .forEach(e -> managed.put(e, e.getNodeId().trim()));
-    session
-        .getManagedEntities(NodeCustomAttributes.class)
-        .forEach(e -> managed.put(e, e.getNodeId().trim()));
-    session.getManagedEntities(Link.class).forEach(e -> managed.put(e, e.getNodeId().trim()));
-    session
-        .getManagedEntities(CollaborationLink.class)
-        .forEach(e -> managed.put(e, e.getNodeId().trim()));
-    session.getManagedEntities(TrashedNode.class).forEach(e -> managed.put(e, e.getId().trim()));
-    if (managed.isEmpty()) {
-      return;
-    }
-    List<String> remaining =
-        entityManager
-            .createNativeQuery(
-                "SELECT RTRIM(node_id) FROM node WHERE node_id = ANY(CAST(:ids AS"
-                    + " character(36)[]))",
-                String.class)
-            .setParameter("ids", new HashSet<>(managed.values()).toArray(String[]::new))
-            .getResultList();
-    Set<String> alive = new HashSet<>(remaining);
-    managed.forEach(
-        (entity, nodeId) -> {
-          if (!alive.contains(nodeId)) {
-            session.detach(entity);
-          }
-        });
   }
 
   @Override
@@ -562,6 +513,9 @@ public class NodeRepositoryImpl implements NodeRepository {
     Set<String> affectedIds = new HashSet<>();
     affected.forEach(id -> affectedIds.add(id.trim()));
     Session session = entityManager.unwrap(Session.class);
+    if (session.getStatistics().getEntityCount() == 0) {
+      return affected.size();
+    }
     session.getManagedEntities(Node.class).stream()
         .filter(node -> affectedIds.contains(node.getId()))
         .forEach(session::refresh);

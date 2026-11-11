@@ -233,6 +233,9 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
     Set<String> affected = new HashSet<>();
     affectedNodeIds.forEach(id -> affected.add(id.trim()));
     Session session = getEntityManager().unwrap(Session.class);
+    if (session.getStatistics().getEntityCount() == 0) {
+      return;
+    }
     session.getManagedEntities(Share.class).stream()
         .filter(
             share ->

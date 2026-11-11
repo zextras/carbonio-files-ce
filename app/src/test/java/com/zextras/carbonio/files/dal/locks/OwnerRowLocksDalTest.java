@@ -19,6 +19,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -69,13 +70,15 @@ class OwnerRowLocksDalTest {
                   "LOCAL_ROOT," + folder,
                   0L);
             });
-    try (Connection connection = LockProbe.holder()) {
-      connection.setAutoCommit(true);
-      try (PreparedStatement statement =
-          connection.prepareStatement(
-              "UPDATE node SET updated_timestamp = updated_timestamp + 1 WHERE node_id = ?")) {
-        statement.setString(1, folder);
-        statement.executeUpdate();
+    for (int attempt = 0; attempt < 50 && !scanOrder().equals(List.of(child, folder)); attempt++) {
+      try (Connection connection = LockProbe.holder()) {
+        connection.setAutoCommit(true);
+        try (PreparedStatement statement =
+            connection.prepareStatement(
+                "UPDATE node SET updated_timestamp = updated_timestamp + 1 WHERE node_id = ?")) {
+          statement.setString(1, folder);
+          statement.executeUpdate();
+        }
       }
     }
     assertThat(scanOrder()).containsExactly(child, folder);

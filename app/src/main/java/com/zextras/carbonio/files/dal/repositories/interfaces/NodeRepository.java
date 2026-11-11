@@ -270,8 +270,8 @@ public interface NodeRepository {
    * Deletes the roots and all their descendants in the caller's transaction with a constant number
    * of statements. Every revision of the deleted files gets a tombstone under the owner of its
    * node, the shares of the nodes trashed from a deleted folder are removed (the nodes stay), and
-   * the rows that reference the deleted nodes are removed with them. Flushes first and detaches the
-   * managed entities of the deleted rows.
+   * the rows that reference the deleted nodes are removed with them. Flushes first and then clears
+   * the persistence context, so the caller must end its transaction right after the call.
    *
    * @param rootIds the ids of the roots of the subtrees to delete.
    * @return the blob keys of the tombstoned revisions by owner, to delete after the commit.
