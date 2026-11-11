@@ -27,6 +27,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeCategory;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
+import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -114,7 +115,8 @@ class NodeApiMutationsTest {
             mock(BlobLifecycle.class),
             permissionsChecker,
             shareCascade,
-            nodeLocks);
+            nodeLocks,
+            mock(Transactions.class));
 
     nodeApi =
         new NodeApi(

@@ -104,11 +104,10 @@ public class NodeLocks {
   @Transactional(TxType.MANDATORY)
   public void lockOwnerRowsForDeletion(String ownerId) {
     lockOwnerRows(
-        ownerId,
         "SELECT 1 FROM node WHERE owner_id = ? AND node_type <> 'ROOT' ORDER BY "
             + LOCK_ORDER
             + " FOR UPDATE",
-        null);
+        statement -> statement.setString(1, ownerId));
   }
 
   /**
@@ -118,14 +117,21 @@ public class NodeLocks {
   @Transactional(TxType.MANDATORY)
   public void lockOwnerRowsForHiddenChange(String ownerId, boolean hidden) {
     lockOwnerRows(
-        ownerId,
         "SELECT 1 FROM node WHERE owner_id = ? AND hidden <> ? ORDER BY "
             + LOCK_ORDER
             + " FOR NO KEY UPDATE",
-        hidden);
+        statement -> {
+          statement.setString(1, ownerId);
+          statement.setBoolean(2, hidden);
+        });
   }
 
-  private void lockOwnerRows(String ownerId, String sql, Boolean hidden) {
+  @FunctionalInterface
+  private interface Binder {
+    void bind(PreparedStatement statement) throws SQLException;
+  }
+
+  private void lockOwnerRows(String lockQuery, Binder binder) {
     entityManager
         .unwrap(Session.class)
         .doWork(
@@ -133,12 +139,13 @@ public class NodeLocks {
               String lockTimeout = setting(connection, "lock_timeout");
               String statementTimeout = setting(connection, "statement_timeout");
               setTimeouts(connection, "0", "0");
-              try (PreparedStatement statement = connection.prepareStatement(sql)) {
-                statement.setString(1, ownerId);
-                if (hidden != null) {
-                  statement.setBoolean(2, hidden);
+              try (PreparedStatement statement =
+                  connection.prepareStatement("SELECT count(*) FROM (" + lockQuery + ") s")) {
+                binder.bind(statement);
+                try (ResultSet rows = statement.executeQuery()) {
+                  rows.next();
+                  rows.getLong(1);
                 }
-                statement.executeQuery().close();
               }
               setTimeouts(connection, lockTimeout, statementTimeout);
             });
