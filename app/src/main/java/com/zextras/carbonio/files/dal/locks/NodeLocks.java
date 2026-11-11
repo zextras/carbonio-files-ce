@@ -126,6 +126,74 @@ public class NodeLocks {
         });
   }
 
+  public enum SubtreeMode {
+    KEY_SHARE("FOR KEY SHARE"),
+    NO_KEY_UPDATE("FOR NO KEY UPDATE"),
+    UPDATE("FOR UPDATE");
+
+    private final String clause;
+
+    SubtreeMode(String clause) {
+      this.clause = clause;
+    }
+  }
+
+  public enum SubtreeScope {
+    DESCENDANTS("n.folder_id", ""),
+    DESCENDANTS_OUTSIDE_TRASH(
+        "n.folder_id", " AND NOT EXISTS (SELECT 1 FROM trashed t WHERE t.node_id = n.node_id)"),
+    ROOTS_AND_DESCENDANTS("n.node_id", "");
+
+    private final String seed;
+    private final String descendantFilter;
+
+    SubtreeScope(String seed, String descendantFilter) {
+      this.seed = seed;
+      this.descendantFilter = descendantFilter;
+    }
+  }
+
+  /**
+   * Locks, in {@code LOCK_ORDER} and in one statement, the rows a set-based cascade is about to
+   * touch, so that their plan order cannot deadlock with the other writers. Runs after the caller
+   * holds the anchors: it adds no wait bound and keeps the caller's timeouts.
+   */
+  @Transactional(TxType.MANDATORY)
+  public void lockSubtrees(Collection<String> rootIds, SubtreeScope scope, SubtreeMode mode) {
+    Set<String> roots = sanitize(rootIds);
+    if (roots.isEmpty()) {
+      return;
+    }
+    String sql =
+        "WITH RECURSIVE subtree(node_id, node_type) AS ("
+            + " SELECT n.node_id, n.node_type FROM node n WHERE "
+            + scope.seed
+            + " = ANY(CAST(? AS CHARACTER(36)[]))"
+            + (scope == SubtreeScope.ROOTS_AND_DESCENDANTS ? "" : scope.descendantFilter)
+            + " UNION SELECT c.node_id, c.node_type FROM subtree s CROSS JOIN LATERAL ("
+            + " SELECT n.node_id, n.node_type FROM node n WHERE n.folder_id = s.node_id"
+            + scope.descendantFilter
+            + ") c WHERE s.node_type = 'FOLDER')"
+            + " SELECT count(*) FROM (SELECT 1 FROM node n WHERE n.node_id ="
+            + " ANY(ARRAY(SELECT node_id FROM subtree)) ORDER BY "
+            + LOCK_ORDER
+            + " "
+            + mode.clause
+            + " OF n) s";
+    entityManager
+        .unwrap(Session.class)
+        .doWork(
+            connection -> {
+              try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setArray(1, connection.createArrayOf("text", roots.toArray()));
+                try (ResultSet rows = statement.executeQuery()) {
+                  rows.next();
+                  rows.getLong(1);
+                }
+              }
+            });
+  }
+
   @FunctionalInterface
   private interface Binder {
     void bind(PreparedStatement statement) throws SQLException;

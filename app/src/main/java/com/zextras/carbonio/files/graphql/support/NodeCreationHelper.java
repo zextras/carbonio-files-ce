@@ -23,14 +23,10 @@ import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import java.sql.SQLException;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,8 +43,6 @@ public class NodeCreationHelper {
 
   private static final Logger logger = LoggerFactory.getLogger(NodeCreationHelper.class);
   private static final Duration DELETION_TIMEOUT = Duration.ofSeconds(600);
-  private static final int DELETION_ATTEMPTS = 3;
-  private static final String DEADLOCK = "40P01";
 
   private final NodeRepository nodeRepository;
   private final ShareRepository shareRepository;
@@ -159,43 +153,15 @@ public class NodeCreationHelper {
    * @throws RuntimeException if the DB transaction fails (caller must treat as a rollback)
    */
   public void deleteAllNodesAndBlobsForUser(String userId) {
-    Map<String, List<BlobKey>> keysByOwner;
-    int attempt = 1;
-    while (true) {
-      try {
-        keysByOwner =
-            transactions.inNewTransaction(
-                DELETION_TIMEOUT,
-                () -> {
-                  nodeLocks.lockOwnerRowsForDeletion(userId);
-                  return nodeRepository.deleteSubtrees(nodeRepository.getTopMostIdsByOwner(userId));
-                });
-        break;
-      } catch (RuntimeException e) {
-        if (attempt >= DELETION_ATTEMPTS || !isDeadlock(e)) {
-          throw e;
-        }
-        logger.warn(
-            "Deadlock deleting the nodes of user {}, retrying (attempt {} of {})",
-            userId,
-            attempt + 1,
-            DELETION_ATTEMPTS,
-            e);
-        attempt++;
-      }
-    }
+    Map<String, List<BlobKey>> keysByOwner =
+        transactions.inNewTransaction(
+            DELETION_TIMEOUT,
+            () -> {
+              nodeLocks.lockOwnerRowsForDeletion(userId);
+              return nodeRepository.deleteSubtrees(nodeRepository.getTopMostIdsByOwner(userId));
+            });
 
     keysByOwner.forEach(blobLifecycle::deleteAndClear);
-  }
-
-  private static boolean isDeadlock(Throwable failure) {
-    Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
-    for (Throwable t = failure; t != null && seen.add(t); t = t.getCause()) {
-      if (t instanceof SQLException sql && DEADLOCK.equals(sql.getSQLState())) {
-        return true;
-      }
-    }
-    return false;
   }
 
   private List<String> createIndirectShare(String sharedParentId, Node nodeToShare) {

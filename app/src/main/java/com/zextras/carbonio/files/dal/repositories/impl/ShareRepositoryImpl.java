@@ -8,11 +8,15 @@ import com.zextras.carbonio.files.Constants.Db;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.dao.ebean.SharePK;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
+import com.zextras.carbonio.files.dal.locks.NodeLocks.SubtreeMode;
+import com.zextras.carbonio.files.dal.locks.NodeLocks.SubtreeScope;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.ShareSort;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SortOrder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.util.HashSet;
 import java.util.List;
@@ -30,6 +34,8 @@ import org.hibernate.type.StandardBasicTypes;
  */
 @ApplicationScoped
 public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBase<Share, SharePK> {
+
+  @Inject NodeLocks nodeLocks;
 
   /** Maps a {@link ShareSort} DB column name to the entity property path used in HQL. */
   private static final Map<String, String> SORT_PROPERTIES_BY_COLUMN =
@@ -199,6 +205,8 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
   public void cascadeUpsertInheritedShares(
       String nodeId, String targetUserId, ACL permissions, Optional<Long> expireTimestamp) {
     flush();
+    nodeLocks.lockSubtrees(
+        List.of(nodeId), SubtreeScope.DESCENDANTS_OUTSIDE_TRASH, SubtreeMode.KEY_SHARE);
     List<String> affected =
         getEntityManager()
             .createNativeQuery(CASCADE_UPSERT_SQL, String.class)

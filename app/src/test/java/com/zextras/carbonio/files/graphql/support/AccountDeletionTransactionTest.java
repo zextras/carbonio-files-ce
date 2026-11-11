@@ -5,7 +5,6 @@
 package com.zextras.carbonio.files.graphql.support;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -34,7 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
-class AccountDeletionRetryTest {
+class AccountDeletionTransactionTest {
 
   private static final String USER = "user-1";
 
@@ -68,44 +67,28 @@ class AccountDeletionRetryTest {
     when(nodeRepository.getTopMostIdsByOwner(USER)).thenReturn(List.of("node-1"));
   }
 
-  private static RuntimeException deadlock() {
-    return new IllegalStateException(
-        "wrapped", new RuntimeException("hibernate", new SQLException("deadlock", "40P01")));
-  }
-
   @Test
-  void retriesTheWholeTransactionAfterADeadlockAndDeletesBlobsOnce() {
-    when(nodeRepository.deleteSubtrees(List.of("node-1"))).thenThrow(deadlock()).thenReturn(keys);
+  void locksThenDeletesInOneSynchronousTransactionAndDeletesBlobsAfterwards() {
+    when(nodeRepository.deleteSubtrees(List.of("node-1"))).thenReturn(keys);
 
     helper.deleteAllNodesAndBlobsForUser(USER);
 
-    InOrder order = inOrder(nodeLocks, nodeRepository);
+    InOrder order = inOrder(transactions, nodeLocks, nodeRepository, blobLifecycle);
+    order.verify(transactions).inNewTransaction(eq(Duration.ofSeconds(600)), any());
     order.verify(nodeLocks).lockOwnerRowsForDeletion(USER);
     order.verify(nodeRepository).deleteSubtrees(List.of("node-1"));
-    order.verify(nodeLocks).lockOwnerRowsForDeletion(USER);
-    order.verify(nodeRepository).deleteSubtrees(List.of("node-1"));
-    verify(transactions, times(2)).inNewTransaction(eq(Duration.ofSeconds(600)), any());
-    verify(blobLifecycle, times(1)).deleteAndClear("owner", keys.get("owner"));
+    order.verify(blobLifecycle).deleteAndClear("owner", keys.get("owner"));
+    verify(transactions, times(1)).inNewTransaction(any(Duration.class), any());
   }
 
   @Test
-  void givesUpAfterThreeAttemptsWithoutDeletingBlobs() {
-    when(nodeRepository.deleteSubtrees(any())).thenThrow(deadlock());
-
-    assertThatThrownBy(() -> helper.deleteAllNodesAndBlobsForUser(USER))
-        .isInstanceOf(IllegalStateException.class);
-
-    verify(nodeLocks, times(3)).lockOwnerRowsForDeletion(USER);
-    verify(blobLifecycle, never()).deleteAndClear(any(), any());
-  }
-
-  @Test
-  void doesNotRetryOtherFailures() {
-    RuntimeException failure = new RuntimeException(new SQLException("other", "23505"));
+  void doesNotRetryADeadlockAndDeletesNoBlobs() {
+    RuntimeException failure = new RuntimeException(new SQLException("deadlock", "40P01"));
     when(nodeRepository.deleteSubtrees(any())).thenThrow(failure);
 
     assertThat(catchThrowable(() -> helper.deleteAllNodesAndBlobsForUser(USER))).isSameAs(failure);
 
+    verify(transactions, times(1)).inNewTransaction(any(Duration.class), any());
     verify(nodeLocks, times(1)).lockOwnerRowsForDeletion(USER);
     verify(blobLifecycle, never()).deleteAndClear(any(), any());
   }

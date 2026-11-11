@@ -17,6 +17,8 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
 import com.zextras.carbonio.files.dal.locks.NodeLocks;
+import com.zextras.carbonio.files.dal.locks.NodeLocks.SubtreeMode;
+import com.zextras.carbonio.files.dal.locks.NodeLocks.SubtreeScope;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SortOrder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
@@ -381,6 +383,7 @@ public class NodeRepositoryImpl implements NodeRepository {
       return Map.of();
     }
     entityManager.flush();
+    nodeLocks.lockSubtrees(rootIds, SubtreeScope.ROOTS_AND_DESCENDANTS, SubtreeMode.UPDATE);
     List<Object[]> tombstoned =
         entityManager
             .createNativeQuery(DELETE_SUBTREES_SQL, Object[].class)
@@ -500,6 +503,8 @@ public class NodeRepositoryImpl implements NodeRepository {
         NodeType.ROOT.equals(parent.getNodeType())
             ? parent.getId()
             : parent.getAncestorIds() + Node.ANCESTORS_SEPARATOR + parent.getId();
+    nodeLocks.lockSubtrees(
+        List.of(parent.getId()), SubtreeScope.DESCENDANTS, SubtreeMode.NO_KEY_UPDATE);
     List<String> affected =
         entityManager
             .createNativeQuery(REWRITE_DESCENDANT_ANCESTORS_SQL, String.class)

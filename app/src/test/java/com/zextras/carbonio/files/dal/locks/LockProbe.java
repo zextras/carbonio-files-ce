@@ -78,6 +78,40 @@ public final class LockProbe {
     }
   }
 
+  public static void awaitBlockedBy(Connection holder, int blockedCount) throws Exception {
+    int holderPid = backendPid(holder);
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+    try (Connection observer = holder();
+        PreparedStatement blocked =
+            observer.prepareStatement(
+                "SELECT pid FROM pg_stat_activity WHERE pg_blocking_pids(pid) && ?::int[]")) {
+      while (true) {
+        java.util.Set<Integer> blockers =
+            new java.util.LinkedHashSet<>(java.util.List.of(holderPid));
+        java.util.Set<Integer> waiting = new java.util.LinkedHashSet<>();
+        boolean grew = true;
+        while (grew) {
+          blocked.setArray(1, observer.createArrayOf("integer", blockers.toArray()));
+          grew = false;
+          try (ResultSet pids = blocked.executeQuery()) {
+            while (pids.next()) {
+              grew |= waiting.add(pids.getInt(1));
+            }
+          }
+          blockers.addAll(waiting);
+        }
+        observer.rollback();
+        if (waiting.size() >= blockedCount) {
+          return;
+        }
+        if (System.nanoTime() > deadline) {
+          throw new AssertionError(
+              "Fewer than " + blockedCount + " backends waited for " + holderPid);
+        }
+      }
+    }
+  }
+
   static void awaitAdvisoryWaiter() throws Exception {
     long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
     try (Connection observer = holder();
