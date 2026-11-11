@@ -430,7 +430,11 @@ public class NodeApi {
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
       throw FilesGraphQLErrors.nodeNotFound(nodeId);
     }
-    nodeLocks.lockForChange(List.of(nodeId));
+    Optional<String> parentBeforeLock =
+        name == null
+            ? Optional.empty()
+            : nodeRepository.getNode(nodeId).flatMap(Node::getParentId).map(String::trim);
+    nodeLocks.lock(List.of(nodeId), parentBeforeLock.map(List::of).orElse(List.of()));
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
       throw FilesGraphQLErrors.nodeNotFound(nodeId);
     }
@@ -446,6 +450,9 @@ public class NodeApi {
     String parentFolderId = nodeToUpdate.getParentId().orElse(RootId.LOCAL_ROOT);
 
     if (name != null) {
+      if (!parentBeforeLock.equals(nodeToUpdate.getParentId().map(String::trim))) {
+        throw FilesGraphQLErrors.nodeWriteError(nodeId);
+      }
       String nodeFullName = nodeToUpdate.getExtension().map(ext -> name + "." + ext).orElse(name);
       if (!searchAlternativeName(
               nodeRepository, nodeFullName, parentFolderId, nodeToUpdate.getOwnerId())
