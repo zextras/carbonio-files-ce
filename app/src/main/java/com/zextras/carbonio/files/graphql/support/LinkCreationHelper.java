@@ -11,11 +11,15 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -32,15 +36,18 @@ public class LinkCreationHelper {
   private final LinkRepository linkRepository;
   private final NodeRepository nodeRepository;
   private final PermissionsChecker permissionsChecker;
+  private final NodeLocks nodeLocks;
 
   @Inject
   public LinkCreationHelper(
       LinkRepository linkRepository,
       NodeRepository nodeRepository,
-      PermissionsChecker permissionsChecker) {
+      PermissionsChecker permissionsChecker,
+      NodeLocks nodeLocks) {
     this.linkRepository = linkRepository;
     this.nodeRepository = nodeRepository;
     this.permissionsChecker = permissionsChecker;
+    this.nodeLocks = nodeLocks;
   }
 
   /**
@@ -64,18 +71,26 @@ public class LinkCreationHelper {
    * @throws LinkLimitReachedException if the node already has {@link
    *     com.zextras.carbonio.files.Constants.Config.Link#MAX_LINKS_PER_NODE} links
    * @throws NodeAccessException if the requester lacks READ_AND_SHARE, or the node is missing / a
-   *     root
+   *     root / in the trash
    */
+  @Transactional
   public Link createPublicLink(
       String requesterId,
       String nodeId,
       Optional<Long> optExpiresAt,
       Optional<String> optDescription,
       Optional<String> optAccessCode) {
+    if (!permissionsChecker
+        .getPermissions(nodeId, requesterId)
+        .has(SharePermission.READ_AND_SHARE)) {
+      throw new NodeAccessException(nodeId);
+    }
+    nodeLocks.lockForChange(List.of(nodeId));
     Optional<Node> optNode = nodeRepository.getNode(nodeId);
     if (permissionsChecker.getPermissions(nodeId, requesterId).has(SharePermission.READ_AND_SHARE)
         && optNode.isPresent()
-        && optNode.get().getNodeType() != NodeType.ROOT) {
+        && optNode.get().getNodeType() != NodeType.ROOT
+        && !NodeRules.isInTrash(optNode.get())) {
       if (linkRepository.getLinkCountByNode(optNode.get()) >= MAX_LINKS_PER_NODE) {
         throw new LinkLimitReachedException(nodeId);
       }

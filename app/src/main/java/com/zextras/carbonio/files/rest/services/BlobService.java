@@ -604,6 +604,10 @@ public class BlobService {
         nodeRepository
             .getNode(nodeId)
             .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
+    if (NodeRules.isInTrash(node)) {
+      logger.warn("Node {} is in the trash: no new version can be uploaded", nodeId);
+      return Optional.empty();
+    }
 
     // P9 CE seam: quota check before the new version blob is stored (no-op in CE).
     quotaChecker.ensureNotOverQuota(node.getOwnerId(), blobLength);
@@ -628,14 +632,16 @@ public class BlobService {
               nodeId, nodeType, node.getNodeType()));
     }
 
-    int version =
+    Optional<Integer> version =
         uploadNewVersion(requesterId, blobStream, blobLength, node, mediaType, maxNumberOfVersions);
 
-    countUpload("/upload/version");
-    return Optional.of(version);
+    if (version.isPresent()) {
+      countUpload("/upload/version");
+    }
+    return version;
   }
 
-  private int uploadNewVersion(
+  private Optional<Integer> uploadNewVersion(
       String requesterId,
       InputStream blobStream,
       long blobLength,
@@ -659,13 +665,16 @@ public class BlobService {
                 fileStore.uploadPost(
                     FilesIdentifier.of(nodeId, version, ownerId), blobStream, blobLength));
 
-    List<FileVersion> trimmedVersions;
+    Optional<List<FileVersion>> published;
     try {
-      trimmedVersions =
+      published =
           QuarkusTransaction.requiringNew()
               .call(
                   () -> {
                     nodeLocks.lockForChange(List.of(nodeId));
+                    if (nodeRepository.getNode(nodeId).filter(NodeRules::isInTrash).isPresent()) {
+                      return Optional.<List<FileVersion>>empty();
+                    }
                     long versionDate = versionReservations.confirm(reservation);
                     requireOwner(nodeId, ownerId);
                     fileVersionRepository
@@ -680,16 +689,23 @@ public class BlobService {
                         .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
                     nodeRepository.moveCurrentVersion(
                         nodeId, version, versionDate, uploadResponse.getSize(), requesterId);
-                    return trimOldestVersion(nodeId, ownerId, version, maxNumberOfVersions);
+                    return Optional.of(
+                        trimOldestVersion(nodeId, ownerId, version, maxNumberOfVersions));
                   });
     } catch (RuntimeException e) {
       blobLifecycle.discard(reservation);
       throw e;
     }
 
-    deleteTrimmedBlobs(ownerId, trimmedVersions);
+    if (published.isEmpty()) {
+      logger.warn(
+          "Node {} went to the trash during the upload: the new version is discarded", nodeId);
+      blobLifecycle.discard(reservation);
+      return Optional.empty();
+    }
+    deleteTrimmedBlobs(ownerId, published.get());
     logUploaded(nodeId, version, uploadResponse);
-    return version;
+    return Optional.of(version);
   }
 
   /**
@@ -710,6 +726,12 @@ public class BlobService {
         nodeRepository
             .getNode(nodeId)
             .orElseThrow(() -> new NoSuchElementException(NODE_NOT_FOUND + nodeId));
+    // Before the lease and the first byte: once the bytes are written the save is never refused,
+    // or the current version would be left corrupted.
+    if (NodeRules.isInTrash(node)) {
+      logger.warn("Node {} is in the trash: it cannot be overwritten", nodeId);
+      return Optional.empty();
+    }
 
     // P9 CE seam: quota check before the new version blob is stored (no-op in CE).
     quotaChecker.ensureNotOverQuota(node.getOwnerId(), blobLength);

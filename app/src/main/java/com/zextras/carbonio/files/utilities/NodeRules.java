@@ -34,8 +34,12 @@ public final class NodeRules {
     return updatedAt < retentionCutoff;
   }
 
+  public static boolean isInTrash(Node node) {
+    return node.getAncestorsList().contains(RootId.TRASH_ROOT);
+  }
+
   public static boolean acceptsChildren(Node node) {
-    if (node.getAncestorsList().contains(RootId.TRASH_ROOT)) {
+    if (isInTrash(node)) {
       return false;
     }
     return NodeType.FOLDER.equals(node.getNodeType())

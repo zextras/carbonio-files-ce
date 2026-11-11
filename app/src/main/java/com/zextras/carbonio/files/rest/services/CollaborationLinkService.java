@@ -74,6 +74,13 @@ public class CollaborationLinkService {
                     .getNode(collaborationLink.getNodeId())
                     .map(
                         node -> {
+                          if (NodeRules.isInTrash(node)) {
+                            return Try.<Node>failure(
+                                new NoSuchElementException(
+                                    MessageFormat.format(
+                                        "Node {0} is in the trash and cannot be shared",
+                                        node.getId())));
+                          }
                           if (NodeRules.isRoot(node)) {
                             return Try.<Node>failure(
                                 new NoSuchElementException(

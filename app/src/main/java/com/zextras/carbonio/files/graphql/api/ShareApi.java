@@ -169,6 +169,9 @@ public class ShareApi {
             .getNode(nodeId)
             .filter(node -> !NodeRules.isRoot(node))
             .orElseThrow(() -> FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId));
+    if (NodeRules.isInTrash(sharedNode)) {
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
+    }
     if (shareTargetId.equals(sharedNode.getOwnerId())) {
       throw FilesGraphQLErrors.shareCreationError(nodeId, shareTargetId);
     }
@@ -219,7 +222,10 @@ public class ShareApi {
     }
     ACL myPermissions = permissionsChecker.getPermissions(nodeId, me);
     boolean hasPermission =
-        allowed && myPermissions.has(ACL.SharePermission.READ_AND_SHARE) && !isRootNode(nodeId);
+        allowed
+            && myPermissions.has(ACL.SharePermission.READ_AND_SHARE)
+            && !isRootNode(nodeId)
+            && !isInTrash(nodeId);
 
     List<ShareModel> updated = new ArrayList<>();
     List<String> failed = new ArrayList<>();
@@ -319,6 +325,10 @@ public class ShareApi {
 
   private static ACL assignablePermissions(ACL requesterPermissions, Share share) {
     return ACL.decode((short) (requesterPermissions.encode() | share.getPermissions().encode()));
+  }
+
+  private boolean isInTrash(String nodeId) {
+    return nodeRepository.getNode(nodeId).map(NodeRules::isInTrash).orElse(false);
   }
 
   private boolean isRootNode(String nodeId) {

@@ -10,6 +10,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.LinkSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
@@ -21,6 +22,7 @@ import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
 import com.zextras.carbonio.files.graphql.support.LinkCreationHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
@@ -47,6 +49,7 @@ public class LinkApi {
   @Inject GraphQLInputValidator validator;
   @Inject @AuthenticatedUser UserMyself requester;
   @Inject LinkCreationHelper linkCreationHelper;
+  @Inject NodeLocks nodeLocks;
 
   private static LinkModel toModel(Link link, String domain, boolean isFolder) {
     String url =
@@ -162,6 +165,25 @@ public class LinkApi {
         .checkLinkAccessCode(accessCode)
         .validate();
     String me = requester.getId().getUserId();
+    Link link = authorizedLink(linkId, me);
+    nodeLocks.lockForChange(List.of(link.getNodeId()));
+    link = authorizedLink(linkId, me);
+    Optional<Node> optNode = nodeRepository.getNode(link.getNodeId());
+    if (optNode.isEmpty()) {
+      throw FilesGraphQLErrors.nodeNotFound(link.getNodeId());
+    }
+    if (NodeRules.isInTrash(optNode.get())) {
+      throw FilesGraphQLErrors.nodeWriteError(link.getNodeId());
+    }
+    Optional.ofNullable(expiresAt).ifPresent(link::setExpiresAt);
+    Optional.ofNullable(description).ifPresent(link::setDescription);
+    Optional.ofNullable(accessCode).ifPresent(link::setAccessCode);
+    Link updated = linkRepository.updateLink(link);
+    boolean isFolder = optNode.get().getNodeType().equals(NodeType.FOLDER);
+    return toModel(updated, requester.getDomain(), isFolder);
+  }
+
+  private Link authorizedLink(String linkId, String me) throws FilesGraphQLException {
     Link link =
         linkRepository
             .getLinkById(linkId)
@@ -171,16 +193,7 @@ public class LinkApi {
         .has(SharePermission.READ_AND_SHARE)) {
       throw FilesGraphQLErrors.linkNotFound(linkId);
     }
-    Optional<Node> optNode = nodeRepository.getNode(link.getNodeId());
-    if (optNode.isEmpty()) {
-      throw FilesGraphQLErrors.nodeNotFound(link.getNodeId());
-    }
-    Optional.ofNullable(expiresAt).ifPresent(link::setExpiresAt);
-    Optional.ofNullable(description).ifPresent(link::setDescription);
-    Optional.ofNullable(accessCode).ifPresent(link::setAccessCode);
-    Link updated = linkRepository.updateLink(link);
-    boolean isFolder = optNode.get().getNodeType().equals(NodeType.FOLDER);
-    return toModel(updated, requester.getDomain(), isFolder);
+    return link;
   }
 
   @Mutation("deleteLinks")

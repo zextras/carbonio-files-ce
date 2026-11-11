@@ -16,6 +16,7 @@ import com.zextras.carbonio.files.dal.dao.UserId;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.interfaces.LinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
@@ -49,6 +50,7 @@ class LinkApiTest {
     linkApi = new LinkApi();
     linkApi.linkRepository = linkRepository;
     linkApi.nodeRepository = nodeRepository;
+    linkApi.nodeLocks = mock(NodeLocks.class);
     linkApi.permissionsChecker = permissionsChecker;
     linkApi.validator = new GraphQLInputValidator();
     linkApi.requester = requester;

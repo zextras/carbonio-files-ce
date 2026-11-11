@@ -430,11 +430,18 @@ public class NodeApi {
     if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
       throw FilesGraphQLErrors.nodeNotFound(nodeId);
     }
+    nodeLocks.lockForChange(List.of(nodeId));
+    if (!permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
+      throw FilesGraphQLErrors.nodeNotFound(nodeId);
+    }
     Node nodeToUpdate =
         nodeRepository
             .getNode(nodeId)
             .filter(node -> !NodeRules.isRoot(node))
             .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
+    if (NodeRules.isInTrash(nodeToUpdate)) {
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
+    }
 
     String parentFolderId = nodeToUpdate.getParentId().orElse(RootId.LOCAL_ROOT);
 
@@ -464,21 +471,9 @@ public class NodeApi {
     validator.requireNodeIds(nodeIds).validate();
     String me = requester.getId().getUserId();
 
-    List<String> flaggableNodes =
-        nodeIds.stream()
-            .filter(
-                nodeId -> {
-                  Optional<Node> rNode = nodeRepository.getNode(nodeId);
-                  return rNode.isPresent()
-                      && rNode.get().getNodeType()
-                          != com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT;
-                })
-            .filter(
-                nodeId ->
-                    permissionsChecker
-                        .getPermissions(nodeId, me)
-                        .has(SharePermission.READ_AND_WRITE))
-            .collect(Collectors.toList());
+    List<String> candidates = flaggable(nodeIds, me, false);
+    nodeLocks.lockForChange(candidates);
+    List<String> flaggableNodes = flaggable(nodeIds, me, true);
 
     List<String> nodesInError =
         nodeIds.stream().filter(nodeId -> !flaggableNodes.contains(nodeId)).toList();
@@ -1085,7 +1080,8 @@ public class NodeApi {
       nodeLocks.lockForChange(List.of(nodeId));
     }
     if (!writable
-        || !permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)) {
+        || !permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE)
+        || insideTrash(nodeId)) {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
@@ -1133,11 +1129,12 @@ public class NodeApi {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
-    String ownerId =
-        nodeRepository
-            .getNode(nodeId)
-            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId))
-            .getOwnerId();
+    Node nodeToClone =
+        nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
+    if (NodeRules.isInTrash(nodeToClone)) {
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
+    }
+    String ownerId = nodeToClone.getOwnerId();
 
     int maxNumberOfVersions = getMaxNumberOfVersions();
     if (fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)).size()
@@ -1168,32 +1165,43 @@ public class NodeApi {
     }
     var copiedBlobResponse = copyAttempt.get();
 
+    boolean refused;
     try {
-      QuarkusTransaction.requiringNew()
-          .run(
-              () -> {
-                nodeLocks.lockForChange(List.of(nodeId));
-                long versionDate = versionReservations.confirm(reservation);
-                fileVersionRepository
-                    .createFileVersionAt(
-                        nodeId,
-                        me,
-                        newVersion,
-                        fileVersion.getMimeType(),
-                        copiedBlobResponse.getSize(),
-                        copiedBlobResponse.getDigest(),
-                        versionDate)
-                    .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+      refused =
+          QuarkusTransaction.requiringNew()
+              .call(
+                  () -> {
+                    nodeLocks.lockForChange(List.of(nodeId));
+                    if (insideTrash(nodeId)) {
+                      return true;
+                    }
+                    long versionDate = versionReservations.confirm(reservation);
+                    fileVersionRepository
+                        .createFileVersionAt(
+                            nodeId,
+                            me,
+                            newVersion,
+                            fileVersion.getMimeType(),
+                            copiedBlobResponse.getSize(),
+                            copiedBlobResponse.getDigest(),
+                            versionDate)
+                        .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
 
-                nodeRepository.moveCurrentVersion(nodeId, newVersion, versionDate);
+                    nodeRepository.moveCurrentVersion(nodeId, newVersion, versionDate);
 
-                FileVersion newFv = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
-                newFv.setClonedFromVersion(version);
-                fileVersionRepository.updateFileVersion(newFv);
-              });
+                    FileVersion newFv =
+                        fileVersionRepository.getFileVersion(nodeId, newVersion).get();
+                    newFv.setClonedFromVersion(version);
+                    fileVersionRepository.updateFileVersion(newFv);
+                    return false;
+                  });
     } catch (RuntimeException e) {
       blobLifecycle.discard(reservation);
       throw e;
+    }
+    if (refused) {
+      blobLifecycle.discard(reservation);
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
     logger.debug(
@@ -1260,6 +1268,24 @@ public class NodeApi {
     return nodeRepository
         .getNode(nodeRepository.getTrashedNode(nodeId).get().getParentId())
         .filter(parent -> !parent.getAncestorsList().contains(RootId.TRASH_ROOT));
+  }
+
+  private List<String> flaggable(List<String> nodeIds, String me, boolean excludeTrash) {
+    return nodeIds.stream()
+        .filter(
+            nodeId ->
+                nodeRepository
+                    .getNode(nodeId)
+                    .filter(
+                        node ->
+                            node.getNodeType()
+                                    != com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT
+                                && !(excludeTrash && NodeRules.isInTrash(node)))
+                    .isPresent())
+        .filter(
+            nodeId ->
+                permissionsChecker.getPermissions(nodeId, me).has(SharePermission.READ_AND_WRITE))
+        .collect(Collectors.toList());
   }
 
   private boolean insideTrash(String nodeId) {

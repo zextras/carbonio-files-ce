@@ -8,6 +8,7 @@ import com.zextras.carbonio.files.Constants.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.CollaborationLink;
+import com.zextras.carbonio.files.dal.locks.NodeLocks;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollaborationLinkRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUser;
@@ -44,6 +45,7 @@ public class CollaborationLinkApi {
 
   @Inject CollaborationLinkRepository collaborationLinkRepository;
   @Inject NodeRepository nodeRepository;
+  @Inject NodeLocks nodeLocks;
   @Inject PermissionsChecker permissionsChecker;
   @Inject GraphQLInputValidator validator;
   @Inject @AuthenticatedUser UserMyself requester;
@@ -116,10 +118,12 @@ public class CollaborationLinkApi {
     validator.checkNodeId(nodeId).validate();
     String me = requester.getId().getUserId();
     ACL.SharePermission aclPerm = ACL.SharePermission.valueOf(permission.name());
-    ACL myPermissions = permissionsChecker.getPermissions(nodeId, me);
-    if (!myPermissions.has(ACL.SharePermission.READ_AND_SHARE)
-        || !myPermissions.has(aclPerm)
-        || nodeRepository.getNode(nodeId).map(NodeRules::isRoot).orElse(false)) {
+    if (!canShareWith(nodeId, me, aclPerm)) {
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
+    }
+    nodeLocks.lockForChange(List.of(nodeId));
+    if (!canShareWith(nodeId, me, aclPerm)
+        || nodeRepository.getNode(nodeId).map(NodeRules::isInTrash).orElse(false)) {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
     CollaborationLink link =
@@ -135,6 +139,13 @@ public class CollaborationLinkApi {
                         RandomStringUtils.randomAlphanumeric(8),
                         aclPerm));
     return toModel(link, requester.getDomain());
+  }
+
+  private boolean canShareWith(String nodeId, String me, ACL.SharePermission aclPerm) {
+    ACL myPermissions = permissionsChecker.getPermissions(nodeId, me);
+    return myPermissions.has(ACL.SharePermission.READ_AND_SHARE)
+        && myPermissions.has(aclPerm)
+        && !nodeRepository.getNode(nodeId).map(NodeRules::isRoot).orElse(false);
   }
 
   @Mutation("deleteCollaborationLinks")
