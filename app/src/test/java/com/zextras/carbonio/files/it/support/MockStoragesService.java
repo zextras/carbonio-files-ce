@@ -115,6 +115,9 @@ public class MockStoragesService {
    */
   private final List<String> downloadLog = Collections.synchronizedList(new ArrayList<>());
 
+  /** Every {@code node/version} key received by a bulk-delete, duplicates included. */
+  private final List<String> bulkDeleteLog = Collections.synchronizedList(new ArrayList<>());
+
   private volatile boolean uploadFails = false;
   private volatile boolean uploadSkipsStore = false;
   private volatile boolean downloadFails = false;
@@ -177,6 +180,12 @@ public class MockStoragesService {
 
   public boolean wasDownloaded(String node, int version) {
     return downloadLog.contains(key(node, version));
+  }
+
+  public List<String> bulkDeleteRequests() {
+    synchronized (bulkDeleteLog) {
+      return new ArrayList<>(bulkDeleteLog);
+    }
   }
 
   public int downloadCount() {
@@ -288,6 +297,7 @@ public class MockStoragesService {
     heldCopies.drainPermits();
     unreachable = false;
     downloadLog.clear();
+    bulkDeleteLog.clear();
   }
 
   /** Wipes all stored blobs. Used on acceptance app close() for cross-test-class hygiene. */
@@ -401,6 +411,7 @@ public class MockStoragesService {
     }
 
     List<Map.Entry<String, Integer>> items = parseBulkDeleteItems(request.getBodyAsString());
+    items.forEach(item -> bulkDeleteLog.add(key(item.getKey(), item.getValue())));
     List<Map.Entry<String, Integer>> failed = new ArrayList<>();
     for (Map.Entry<String, Integer> item : items) {
       String node = item.getKey();

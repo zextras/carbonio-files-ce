@@ -270,7 +270,7 @@ class NodeQueryDalTest {
 
   @Test
   @TestTransaction
-  void getFileIdsInSubtreeReturnsTheFilesAtAnyDepthTrashedOrNot() {
+  void getFileIdsInSubtreeReturnsTheFilesAtAnyDepth() {
     long now = System.currentTimeMillis();
     String root = id();
     String sub = id();

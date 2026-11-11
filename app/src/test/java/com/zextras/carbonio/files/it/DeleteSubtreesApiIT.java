@@ -360,6 +360,71 @@ class DeleteSubtreesApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void deleteNodesOfOverlappingRootsDeletesEachBlobAndWritesEachTombstoneOnce()
+      throws SQLException {
+    Fixture f = seedFixture();
+    Set<String> expected = versionsOf(f.files());
+    Set<String> expectedKeys = new HashSet<>();
+    expected.forEach(
+        entry -> expectedKeys.add(entry.substring(0, entry.lastIndexOf(':')).replace(':', '/')));
+
+    Response response = deleteNodes(f.top, f.sub, f.deep, f.file3, f.file1);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    List<String> requested = FilesStackTestResource.getStoragesService().bulkDeleteRequests();
+    Assertions.assertThat(requested).doesNotHaveDuplicates();
+    Assertions.assertThat(requested).containsExactlyInAnyOrderElementsOf(expectedKeys);
+  }
+
+  @Test
+  void deleteNodesKeepsAnExistingTombstoneOfAnotherOwnerUnchanged() throws SQLException {
+    Fixture f = seedFixture();
+    execute(
+        "INSERT INTO tombstone (node_id, owner_id, timestamp, version, attempts) VALUES (?, ?,"
+            + " 12345, 1, 2)",
+        f.file1,
+        B_ID);
+    FilesStackTestResource.getStoragesService().setBulkDeleteAlwaysThrows(true);
+
+    Response response = deleteNodes(f.top);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT owner_id, timestamp, attempts FROM tombstone WHERE node_id = ? AND version"
+                    + " = 1")) {
+      statement.setString(1, f.file1);
+      try (ResultSet rows = statement.executeQuery()) {
+        Assertions.assertThat(rows.next()).isTrue();
+        Assertions.assertThat(rows.getString(1)).isEqualTo(B_ID);
+        Assertions.assertThat(rows.getLong(2)).isEqualTo(12345L);
+        Assertions.assertThat(rows.getInt(3)).isEqualTo(2);
+        Assertions.assertThat(rows.next()).isFalse();
+      }
+    }
+    assertTreeGone(f);
+  }
+
+  @Test
+  void deleteNodesStillDeletesTheBlobOfARevisionThatAlreadyHadATombstone() throws SQLException {
+    Fixture f = seedFixture();
+    execute(
+        "INSERT INTO tombstone (node_id, owner_id, timestamp, version, attempts) VALUES (?, ?,"
+            + " 12345, 1, 2)",
+        f.file1,
+        B_ID);
+    Assertions.assertThat(FilesStackTestResource.getStoragesService().has(f.file1, 1)).isTrue();
+
+    Response response = deleteNodes(f.top);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(FilesStackTestResource.getStoragesService().has(f.file1, 1)).isFalse();
+    Assertions.assertThat(FilesStackTestResource.getStoragesService().bulkDeleteRequests())
+        .contains(f.file1 + "/1");
+  }
+
+  @Test
   void deleteNodesOfAnInnerFolderKeepsTheRestOfTheTree() throws SQLException {
     Fixture f = seedFixture();
     Set<String> inner = Set.of(f.deep, f.file3);
