@@ -9,6 +9,7 @@ import com.zextras.carbonio.files.Constants.Config;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
+import com.zextras.carbonio.files.dal.dao.ebean.TombstonePK;
 import com.zextras.carbonio.files.dal.dao.ebean.VersionReservation;
 import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
@@ -190,9 +191,12 @@ public class PurgeService {
     }
 
     // Remove confirmed-deleted tombstones; apply retry-cap to failed ones.
+    List<TombstonePK> toDelete = new ArrayList<>();
+    List<TombstonePK> toCount = new ArrayList<>();
     for (Tombstone t : ownerTombstones) {
+      TombstonePK id = new TombstonePK(t.getNodeId(), t.getVersion());
       if (!failedKeys.get().contains(new BlobKey(t.getNodeId(), t.getVersion()))) {
-        tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
+        toDelete.add(id);
       } else if (t.getAttempts() + 1 >= MAX_TOMBSTONE_RETRIES) {
         // Genuine per-blob PowerStore rejection — increment attempts toward retry cap.
         logger.warn(
@@ -201,10 +205,16 @@ public class PurgeService {
             t.getNodeId(),
             t.getVersion(),
             t.getAttempts() + 1);
-        tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
+        toDelete.add(id);
       } else {
-        tombstoneRepository.updateTombstone(t.setAttempts(t.getAttempts() + 1));
+        toCount.add(id);
       }
+    }
+    if (!toDelete.isEmpty()) {
+      tombstoneRepository.deleteTombstones(toDelete);
+    }
+    if (!toCount.isEmpty()) {
+      tombstoneRepository.incrementAttempts(toCount);
     }
   }
 

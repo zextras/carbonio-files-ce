@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -153,6 +154,20 @@ class PurgeServiceTest {
     BulkDeleteResponseItem item = mock(BulkDeleteResponseItem.class);
     when(item.getNode()).thenReturn(nodeId);
     return item;
+  }
+
+  private void givenTombstones(List<Tombstone> tombstones) {
+    when(tombstoneRepository.getTombstones()).thenReturn(tombstones);
+    doAnswer(
+            i -> {
+              Collection<TombstonePK> ids = i.getArgument(0);
+              tombstones.stream()
+                  .filter(t -> ids.contains(new TombstonePK(t.getNodeId(), t.getVersion())))
+                  .forEach(t -> t.setAttempts(t.getAttempts() + 1));
+              return null;
+            })
+        .when(tombstoneRepository)
+        .incrementAttempts(anyCollection());
   }
 
   @BeforeEach
@@ -310,7 +325,7 @@ class PurgeServiceTest {
     purgeService.purgeTrashedNodes(30);
 
     verify(tombstoneRepository, never()).deleteTombstones(List.of(new TombstonePK("file-b", 1)));
-    verify(tombstoneRepository, never()).updateTombstone(any());
+    verify(tombstoneRepository, never()).incrementAttempts(any());
     verify(tombstoneRepository)
         .deleteTombstones(List.of(new TombstonePK("file-a", 1), new TombstonePK("file-a", 2)));
   }
@@ -326,7 +341,7 @@ class PurgeServiceTest {
 
     verify(nodeRepository).deleteSubtrees(List.of("folder-f"));
     verify(tombstoneRepository, never()).deleteTombstones(any());
-    verify(tombstoneRepository, never()).updateTombstone(any());
+    verify(tombstoneRepository, never()).incrementAttempts(any());
   }
 
   @Test
@@ -458,46 +473,44 @@ class PurgeServiceTest {
   @Test
   void purgeTombstonesRemovesTombstoneWhenBulkDeleteSucceeds() throws Exception {
     Tombstone tombstone = new Tombstone("node-a", "owner-1", 1L, 1);
-    when(tombstoneRepository.getTombstones()).thenReturn(List.of(tombstone));
+    givenTombstones(List.of(tombstone));
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList()))
         .thenReturn(List.of());
 
     purgeService.purgeTombstones();
 
-    verify(tombstoneRepository).deleteTombstonesByNodeAndVersion("node-a", 1);
-    verify(tombstoneRepository, never()).updateTombstone(any());
+    verify(tombstoneRepository).deleteTombstones(List.of(new TombstonePK("node-a", 1)));
+    verify(tombstoneRepository, never()).incrementAttempts(any());
   }
 
   @Test
   void purgeTombstonesKeepsAndIncrementsAttemptsOnAGenuinePartialFailure() throws Exception {
     Tombstone keptFailing = new Tombstone("node-fail", "owner-2", 1L, 1);
     Tombstone succeeding = new Tombstone("node-ok", "owner-2", 1L, 1);
-    when(tombstoneRepository.getTombstones()).thenReturn(List.of(keptFailing, succeeding));
+    givenTombstones(List.of(keptFailing, succeeding));
     List<BulkDeleteResponseItem> partialFailure = List.of(failedItem("node-fail"));
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-2"), anyList()))
         .thenReturn(partialFailure);
 
     purgeService.purgeTombstones();
 
-    verify(tombstoneRepository).deleteTombstonesByNodeAndVersion("node-ok", 1);
-    ArgumentCaptor<Tombstone> captor = ArgumentCaptor.forClass(Tombstone.class);
-    verify(tombstoneRepository).updateTombstone(captor.capture());
-    assertThat(captor.getValue().getNodeId()).isEqualTo("node-fail");
-    assertThat(captor.getValue().getAttempts()).isEqualTo(1);
-    verify(tombstoneRepository, never()).deleteTombstonesByNodeAndVersion("node-fail", 1);
+    verify(tombstoneRepository).deleteTombstones(List.of(new TombstonePK("node-ok", 1)));
+    verify(tombstoneRepository).incrementAttempts(List.of(new TombstonePK("node-fail", 1)));
+    assertThat(keptFailing.getAttempts()).isEqualTo(1);
+    assertThat(succeeding.getAttempts()).isZero();
   }
 
   @Test
   void purgeTombstonesKeepsWithoutTouchingAttemptsOnACompleteOutage() throws Exception {
     Tombstone tombstone = new Tombstone("node-b", "owner-3", 1L, 1);
-    when(tombstoneRepository.getTombstones()).thenReturn(List.of(tombstone));
+    givenTombstones(List.of(tombstone));
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-3"), anyList()))
         .thenThrow(new RuntimeException("connection refused"));
 
     purgeService.purgeTombstones();
 
-    verify(tombstoneRepository, never()).deleteTombstonesByNodeAndVersion(any(), any());
-    verify(tombstoneRepository, never()).updateTombstone(any());
+    verify(tombstoneRepository, never()).deleteTombstones(any());
+    verify(tombstoneRepository, never()).incrementAttempts(any());
     assertThat(tombstone.getAttempts()).isZero();
   }
 
@@ -506,13 +519,13 @@ class PurgeServiceTest {
     // A null/empty response is NOT a success signal (happens on connection failure) and must be
     // treated like an outage, never as "all deleted".
     Tombstone tombstone = new Tombstone("node-c", "owner-4", 1L, 1);
-    when(tombstoneRepository.getTombstones()).thenReturn(List.of(tombstone));
+    givenTombstones(List.of(tombstone));
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-4"), anyList())).thenReturn(null);
 
     purgeService.purgeTombstones();
 
-    verify(tombstoneRepository, never()).deleteTombstonesByNodeAndVersion(any(), any());
-    verify(tombstoneRepository, never()).updateTombstone(any());
+    verify(tombstoneRepository, never()).deleteTombstones(any());
+    verify(tombstoneRepository, never()).incrementAttempts(any());
     assertThat(tombstone.getAttempts()).isZero();
   }
 
@@ -521,7 +534,7 @@ class PurgeServiceTest {
     // An outage must NEVER burn the retry budget, no matter how many cycles pass: attempts stay
     // untouched at 0 for every one of 3 consecutive purge runs while storages is down.
     Tombstone tombstone = new Tombstone("node-d", "owner-5", 1L, 1);
-    when(tombstoneRepository.getTombstones()).thenReturn(List.of(tombstone));
+    givenTombstones(List.of(tombstone));
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-5"), anyList()))
         .thenThrow(new RuntimeException("connection refused"));
 
@@ -529,8 +542,8 @@ class PurgeServiceTest {
       purgeService.purgeTombstones();
       assertThat(tombstone.getAttempts()).as("attempts after outage run " + run).isZero();
     }
-    verify(tombstoneRepository, never()).deleteTombstonesByNodeAndVersion(any(), any());
-    verify(tombstoneRepository, never()).updateTombstone(any());
+    verify(tombstoneRepository, never()).deleteTombstones(any());
+    verify(tombstoneRepository, never()).incrementAttempts(any());
   }
 
   @Test
@@ -539,7 +552,7 @@ class PurgeServiceTest {
     // MAX_TOMBSTONE_RETRIES = 3: a blob PowerStore keeps genuinely rejecting (HTTP 200, listed in
     // the failed-ids response — NOT an outage) is dropped as an accepted orphan on the 3rd run.
     Tombstone tombstone = new Tombstone("node-e", "owner-6", 1L, 1);
-    when(tombstoneRepository.getTombstones()).thenReturn(List.of(tombstone));
+    givenTombstones(List.of(tombstone));
     List<BulkDeleteResponseItem> partialFailure = List.of(failedItem("node-e"));
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-6"), anyList()))
         .thenReturn(partialFailure);
@@ -551,8 +564,8 @@ class PurgeServiceTest {
     purgeService.purgeTombstones(); // run 3 -> attempts+1==3==MAX -> orphan accepted, dropped
 
     verify(tombstoneRepository, times(3)).getTombstones();
-    verify(tombstoneRepository).deleteTombstonesByNodeAndVersion("node-e", 1);
-    verify(tombstoneRepository, times(2)).updateTombstone(any());
+    verify(tombstoneRepository).deleteTombstones(List.of(new TombstonePK("node-e", 1)));
+    verify(tombstoneRepository, times(2)).incrementAttempts(List.of(new TombstonePK("node-e", 1)));
   }
 
   @Test
@@ -560,7 +573,7 @@ class PurgeServiceTest {
     // Retry-and-recover: a blob that fails once but succeeds on the second run is removed
     // normally, well before the retry cap — the counter is not a one-way ratchet toward deletion.
     Tombstone tombstone = new Tombstone("node-f", "owner-7", 1L, 1);
-    when(tombstoneRepository.getTombstones()).thenReturn(List.of(tombstone));
+    givenTombstones(List.of(tombstone));
     List<BulkDeleteResponseItem> partialFailure = List.of(failedItem("node-f"));
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-7"), anyList()))
         .thenReturn(partialFailure);
@@ -572,22 +585,22 @@ class PurgeServiceTest {
         .thenReturn(List.of());
     purgeService.purgeTombstones(); // run 2 -> succeeds -> removed, nowhere near the retry cap
 
-    verify(tombstoneRepository).deleteTombstonesByNodeAndVersion("node-f", 1);
+    verify(tombstoneRepository).deleteTombstones(List.of(new TombstonePK("node-f", 1)));
   }
 
   @Test
   void purgeTombstonesMatchesTheFailedItemsByNodeAndVersion() throws Exception {
     Tombstone failing = new Tombstone("n1", "owner-9", 1L, 2);
     Tombstone deleted = new Tombstone("n1", "owner-9", 1L, 3);
-    when(tombstoneRepository.getTombstones()).thenReturn(List.of(failing, deleted));
+    givenTombstones(List.of(failing, deleted));
     List<BulkDeleteResponseItem> notDeleted = List.of(failedItem("n1", 2));
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-9"), anyList()))
         .thenReturn(notDeleted);
 
     purgeService.purgeTombstones();
 
-    verify(tombstoneRepository).deleteTombstonesByNodeAndVersion("n1", 3);
-    verify(tombstoneRepository, never()).deleteTombstonesByNodeAndVersion("n1", 2);
+    verify(tombstoneRepository).deleteTombstones(List.of(new TombstonePK("n1", 3)));
+    verify(tombstoneRepository).incrementAttempts(List.of(new TombstonePK("n1", 2)));
     assertThat(failing.getAttempts()).isEqualTo(1);
     assertThat(deleted.getAttempts()).isZero();
   }
@@ -596,14 +609,16 @@ class PurgeServiceTest {
   void purgeTombstonesTreatsAnItemWithoutVersionAsFailingEveryVersionOfTheNode() throws Exception {
     Tombstone first = new Tombstone("n1", "owner-9", 1L, 2);
     Tombstone second = new Tombstone("n1", "owner-9", 1L, 3);
-    when(tombstoneRepository.getTombstones()).thenReturn(List.of(first, second));
+    givenTombstones(List.of(first, second));
     List<BulkDeleteResponseItem> notDeleted = List.of(failedItem("n1"));
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-9"), anyList()))
         .thenReturn(notDeleted);
 
     purgeService.purgeTombstones();
 
-    verify(tombstoneRepository, never()).deleteTombstonesByNodeAndVersion(any(), any());
+    verify(tombstoneRepository, never()).deleteTombstones(any());
+    verify(tombstoneRepository)
+        .incrementAttempts(List.of(new TombstonePK("n1", 2), new TombstonePK("n1", 3)));
     assertThat(first.getAttempts()).isEqualTo(1);
     assertThat(second.getAttempts()).isEqualTo(1);
   }
@@ -611,20 +626,20 @@ class PurgeServiceTest {
   @Test
   void purgeTombstonesKeepsEverythingAndCountsNothingWhenTheBodyIsMalformed() throws Exception {
     Tombstone tombstone = new Tombstone("n1", "owner-9", 1L, 2);
-    when(tombstoneRepository.getTombstones()).thenReturn(List.of(tombstone));
+    givenTombstones(List.of(tombstone));
     when(filestore.bulkDelete(eq(IdentifierType.files), eq("owner-9"), anyList()))
         .thenThrow(new NullPointerException("malformed"));
 
     purgeService.purgeTombstones();
 
-    verify(tombstoneRepository, never()).deleteTombstonesByNodeAndVersion(any(), any());
-    verify(tombstoneRepository, never()).updateTombstone(any());
+    verify(tombstoneRepository, never()).deleteTombstones(any());
+    verify(tombstoneRepository, never()).incrementAttempts(any());
     assertThat(tombstone.getAttempts()).isZero();
   }
 
   @Test
   void purgeTombstonesDoesNothingWhenThereAreNoTombstones() {
-    when(tombstoneRepository.getTombstones()).thenReturn(List.of());
+    givenTombstones(List.of());
 
     purgeService.purgeTombstones();
 

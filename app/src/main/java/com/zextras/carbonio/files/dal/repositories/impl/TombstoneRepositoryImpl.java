@@ -68,12 +68,6 @@ public class TombstoneRepositoryImpl
 
   @Override
   @Transactional
-  public void deleteTombstonesByNodeAndVersion(String nodeId, Integer version) {
-    deleteById(new TombstonePK(nodeId, version));
-  }
-
-  @Override
-  @Transactional
   public void deleteTombstones(Collection<TombstonePK> ids) {
     if (!ids.isEmpty()) {
       delete("mComposedId in ?1", List.copyOf(ids));
@@ -82,7 +76,9 @@ public class TombstoneRepositoryImpl
 
   @Override
   @Transactional
-  public void updateTombstone(Tombstone tombstone) {
-    getEntityManager().merge(tombstone);
+  public void incrementAttempts(Collection<TombstonePK> ids) {
+    if (!ids.isEmpty()) {
+      update("mAttempts = mAttempts + 1 where mComposedId in ?1", List.copyOf(ids));
+    }
   }
 }

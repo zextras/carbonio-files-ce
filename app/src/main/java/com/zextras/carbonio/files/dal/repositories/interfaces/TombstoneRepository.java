@@ -46,15 +46,6 @@ public interface TombstoneRepository {
   void createTombstonesBulk(List<FileVersion> fileVersions, String ownerId);
 
   /**
-   * Deletes a single tombstone identified by nodeId and version. Used after a blob has been
-   * confirmed deleted from PowerStore.
-   *
-   * @param nodeId the node identifier
-   * @param version the file version
-   */
-  void deleteTombstonesByNodeAndVersion(String nodeId, Integer version);
-
-  /**
    * Deletes the given tombstones with one statement in one transaction.
    *
    * @param ids the identifiers (node and version) of the tombstones to delete
@@ -62,9 +53,9 @@ public interface TombstoneRepository {
   void deleteTombstones(Collection<TombstonePK> ids);
 
   /**
-   * Persists an updated {@link Tombstone} (e.g. after incrementing the attempts counter).
+   * Increments the attempts counter of the given tombstones with one statement in one transaction.
    *
-   * @param tombstone the tombstone to update
+   * @param ids the identifiers (node and version) of the tombstones to count a failed attempt on
    */
-  void updateTombstone(Tombstone tombstone);
+  void incrementAttempts(Collection<TombstonePK> ids);
 }
