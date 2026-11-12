@@ -952,35 +952,27 @@ public class NodeApi {
     Node node =
         nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
 
-    List<FileVersion> fileVersionsToDelete =
-        (versions != null
-                ? fileVersionRepository.getFileVersions(nodeId, versions)
-                : fileVersionRepository.getFileVersions(
-                    nodeId, List.of(FileVersionSort.VERSION_DESC)))
-            .stream()
-                .filter(fv -> !fv.isKeptForever())
-                .filter(fv -> !node.getCurrentVersion().equals(fv.getVersion()))
-                .collect(Collectors.toList());
-
-    List<Integer> versionsToDelete =
-        fileVersionsToDelete.stream().map(FileVersion::getVersion).collect(Collectors.toList());
+    String ownerId = node.getOwnerId();
+    List<Integer> versionsToDelete;
+    try {
+      versionsToDelete =
+          QuarkusTransaction.requiringNew()
+              .call(
+                  () -> {
+                    List<Integer> deleted =
+                        fileVersionRepository.deleteNotKeptForeverNorCurrent(nodeId, versions);
+                    deleted.forEach(
+                        v -> tombstoneRepository.createNewTombstone(nodeId, ownerId, v));
+                    return deleted;
+                  });
+    } catch (RuntimeException e) {
+      logger.error("DB error during deleteVersions, rolling back: {}", e.getMessage());
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
+    }
 
     if (!versionsToDelete.isEmpty()) {
-      String ownerId = node.getOwnerId();
-      try {
-        QuarkusTransaction.requiringNew()
-            .run(
-                () -> {
-                  tombstoneRepository.createTombstonesBulk(fileVersionsToDelete, ownerId);
-                  fileVersionRepository.deleteFileVersions(nodeId, versionsToDelete);
-                });
-      } catch (RuntimeException e) {
-        logger.error("DB error during deleteVersions, rolling back: {}", e.getMessage());
-        throw FilesGraphQLErrors.nodeWriteError(nodeId);
-      }
-
       blobLifecycle.deleteAndClear(
-          ownerId, fileVersionsToDelete.stream().map(BlobKey::of).toList());
+          ownerId, versionsToDelete.stream().map(v -> new BlobKey(nodeId, v)).toList());
     }
 
     if (versions != null) {

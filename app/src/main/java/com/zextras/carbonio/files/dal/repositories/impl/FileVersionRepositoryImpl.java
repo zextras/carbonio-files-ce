@@ -13,7 +13,9 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionReposit
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -160,6 +162,35 @@ public class FileVersionRepositoryImpl
   @Transactional
   public boolean existsAbove(String nodeId, int version) {
     return count("mComposedId.mNodeId = ?1 and mVersion > ?2", nodeId, version) > 0;
+  }
+
+  private static final String DELETE_NOT_KEPT_NOT_CURRENT_SQL =
+      """
+      DELETE FROM revision
+      WHERE node_id = CAST(:nodeId AS CHARACTER(36))
+        %s
+        AND keep_forever = false
+        AND version <> (SELECT current_version FROM node WHERE node_id = CAST(:nodeId AS CHARACTER(36)))
+      RETURNING version
+      """;
+
+  @Override
+  @Transactional
+  @SuppressWarnings("unchecked")
+  public List<Integer> deleteNotKeptForeverNorCurrent(String nodeId, Collection<Integer> versions) {
+    getEntityManager().flush();
+    String sql =
+        DELETE_NOT_KEPT_NOT_CURRENT_SQL.formatted(
+            versions == null ? "" : "AND version = ANY(CAST(:requested AS integer[]))");
+    var query = getEntityManager().createNativeQuery(sql, Integer.class);
+    query.setParameter("nodeId", nodeId.trim());
+    if (versions != null) {
+      query.setParameter("requested", versions.toArray(Integer[]::new));
+    }
+    List<Integer> deleted = new ArrayList<>(query.getResultList());
+    getEntityManager().clear();
+    deleted.sort(Comparator.reverseOrder());
+    return deleted;
   }
 
   @Override
