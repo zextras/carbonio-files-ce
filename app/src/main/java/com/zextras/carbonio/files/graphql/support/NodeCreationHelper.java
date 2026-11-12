@@ -129,11 +129,14 @@ public class NodeCreationHelper {
   }
 
   /**
-   * Purges every non-root node owned by {@code userId}, including their blobs on Storages. DB rows
-   * (tombstones + node/version deletes + folder cascade) are committed in a single transaction
-   * FIRST; only AFTER commit is the best-effort storages {@code bulkDelete} attempted, so no blob
-   * is ever orphaned by a failed metadata delete. Tombstones of blobs that storages fails to delete
-   * are kept for the purge retry.
+   * Purges the nodes owned by {@code userId}, including their blobs on Storages. The purge starts
+   * from the user's top-most nodes (those whose parent is not owned by the user) and deletes the
+   * whole subtree of each, so files that other users created inside the user's folders are deleted
+   * too; their blobs are tombstoned and deleted under their own owner. DB rows (tombstones +
+   * node/version deletes + folder cascade) are committed in a single transaction FIRST; only AFTER
+   * commit is the best-effort storages {@code bulkDelete} attempted, so no blob is ever orphaned by
+   * a failed metadata delete. Tombstones of blobs that storages fails to delete are kept for the
+   * purge retry.
    *
    * @throws RuntimeException if the DB transaction fails (caller must treat as a rollback)
    */

@@ -195,16 +195,6 @@ public class FileVersionRepositoryImpl
 
   @Override
   @Transactional
-  public void deleteFileVersions(String nodeId, Collection<Integer> versions) {
-    // Fetch-then-remove (rather than a bulk "delete ... where ... in" JPQL statement) so entities
-    // already managed in the current persistence context are correctly evicted; JPA bulk
-    // statements bypass the first-level cache and would otherwise leave stale managed instances
-    // behind for the rest of the transaction.
-    list("mComposedId.mNodeId = ?1 and mVersion in ?2", nodeId, versions).forEach(this::delete);
-  }
-
-  @Override
-  @Transactional
   public Map<String, List<FileVersion>> getFileVersionsRelatedToNodesHavingVersionsGreaterThan(
       int maxNumberOfVersions) {
     // No ORM association from FileVersion to Node is used here on purpose (see the P5a comment on

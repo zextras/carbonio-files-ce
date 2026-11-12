@@ -110,8 +110,6 @@ public interface FileVersionRepository {
    */
   boolean deleteFileVersion(FileVersion fileVersion);
 
-  void deleteFileVersions(String nodeId, Collection<Integer> versions);
-
   /**
    * Deletes in one statement the versions of the node that are not kept forever and are not the
    * node's current version, both read by the statement itself.

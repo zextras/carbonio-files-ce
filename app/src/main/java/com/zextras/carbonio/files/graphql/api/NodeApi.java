@@ -522,10 +522,10 @@ public class NodeApi {
           candidate -> {
             String nodeParentId = candidate.getParentId().get();
             if (!nodeRepository.trashNodeIfParent(candidate.getId(), nodeParentId)) {
-              trashableNodes.remove(candidate.getId());
+              trashableNodes.removeIf(candidate.getId()::equals);
               return;
             }
-            Node trashedNode = nodeRepository.getNode(candidate.getId()).get();
+            Node trashedNode = candidate;
 
             List<String> usersToNotify =
                 new ArrayList<>(shareRepository.getSharesUsersIds(trashedNode.getId(), List.of()));
