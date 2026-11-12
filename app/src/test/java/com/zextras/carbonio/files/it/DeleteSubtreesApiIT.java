@@ -360,6 +360,23 @@ class DeleteSubtreesApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void deleteNodesOfOverlappingRootsDeletesEachBlobAndWritesEachTombstoneOnce()
+      throws SQLException {
+    Fixture f = seedFixture();
+    Set<String> expected = versionsOf(f.files());
+    Set<String> expectedKeys = new HashSet<>();
+    expected.forEach(
+        entry -> expectedKeys.add(entry.substring(0, entry.lastIndexOf(':')).replace(':', '/')));
+
+    Response response = deleteNodes(f.top, f.sub, f.deep, f.file3, f.file1);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    List<String> requested = FilesStackTestResource.getStoragesService().bulkDeleteRequests();
+    Assertions.assertThat(requested).doesNotHaveDuplicates();
+    Assertions.assertThat(requested).containsExactlyInAnyOrderElementsOf(expectedKeys);
+  }
+
+  @Test
   void deleteNodesKeepsAnExistingTombstoneOfAnotherOwnerUnchanged() throws SQLException {
     Fixture f = seedFixture();
     execute(
@@ -486,5 +503,19 @@ class DeleteSubtreesApiIT extends AbstractFilesIT {
     Assertions.assertThat(FilesStackTestResource.getStoragesService().has(f.bFile, 2)).isTrue();
     Assertions.assertThat(FilesStackTestResource.getStoragesService().has(f.trashedFileOfB, 1))
         .isTrue();
+  }
+
+  @Test
+  void deleteAllNodesOfAUserTombstonesTheFilesOfOtherOwnersInTheirFoldersUnderTheirOwner()
+      throws SQLException {
+    Fixture f = seedFixture();
+    execute("UPDATE node SET owner_id = ? WHERE node_id = ?", B_ID, f.file3);
+    FilesStackTestResource.getStoragesService().setBulkDeleteAlwaysThrows(true);
+
+    Response response = deleteAccount(A_ID);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(rows("node", Set.of(f.file3, f.deep))).isZero();
+    Assertions.assertThat(tombstones()).contains(f.file3 + ":1:" + B_ID);
   }
 }

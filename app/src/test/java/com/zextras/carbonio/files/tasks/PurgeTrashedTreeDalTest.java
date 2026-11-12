@@ -191,6 +191,13 @@ class PurgeTrashedTreeDalTest {
 
     String survivor = folder(OWNER_1, "TRASH_ROOT", "TRASH_ROOT", System.currentTimeMillis());
     trash(survivor, sub);
+    inTransaction(
+        "INSERT INTO share (node_id, rights, timestamp, target_uuid, direct, created_via_link)"
+            + " VALUES ('"
+            + survivor
+            + "', 1, 1, '"
+            + SHARE_TARGET
+            + "', true, false)");
     String freshTop = folder(OWNER_1, "TRASH_ROOT", "TRASH_ROOT", System.currentTimeMillis());
     trash(freshTop, "LOCAL_ROOT");
     files(OWNER_1, freshTop, "TRASH_ROOT," + freshTop, 3, 1);
@@ -253,6 +260,8 @@ class PurgeTrashedTreeDalTest {
                 + "' OR folder_id = '"
                 + f.freshTop
                 + "')");
+    assertThat(count("SELECT count(*) FROM share WHERE node_id = '" + f.survivor + "'"))
+        .isEqualTo(1);
     FilesStackTestResource.getStoragesService().setBulkDeleteAlwaysThrows(true);
 
     purgeInRequestContext();
@@ -295,6 +304,7 @@ class PurgeTrashedTreeDalTest {
         .isEqualTo(1);
     assertThat(count("SELECT count(*) FROM trashed WHERE node_id = '" + f.survivor + "'"))
         .isEqualTo(1);
+    assertThat(count("SELECT count(*) FROM share WHERE node_id = '" + f.survivor + "'")).isZero();
   }
 
   @Test
