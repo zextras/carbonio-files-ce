@@ -104,6 +104,18 @@ class MoveTrashConflictApiIT extends AbstractFilesIT {
     return TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
   }
 
+  private static void assertLostRace(Response response, String operation, String nodeId) {
+    String body = response.getBody().asString();
+    Assertions.assertThat(errorCodes(response)).containsExactly(NODE_WRITE_ERROR);
+    Assertions.assertThat(TestUtils.jsonResponseToErrors(body))
+        .singleElement()
+        .asString()
+        .contains(nodeId);
+    Assertions.assertThat(
+            (List<?>) TestUtils.jsonResponseToValue(body, operation).orElse(List.of()))
+        .isEmpty();
+  }
+
   private static void hold(Connection holder, String nodeId) throws SQLException {
     holder.setAutoCommit(false);
     try (PreparedStatement statement =
@@ -165,10 +177,10 @@ class MoveTrashConflictApiIT extends AbstractFilesIT {
     Assertions.assertThat(ghosts()).isEmpty();
     Row after = row(nodeId);
     if (trashCodes.isEmpty()) {
-      Assertions.assertThat(moveCodes).containsExactly(NODE_WRITE_ERROR);
+      assertLostRace(move, "moveNodes", nodeId);
       Assertions.assertThat(after).isEqualTo(new Row(TRASH_ROOT, TRASH_ROOT, true));
     } else {
-      Assertions.assertThat(trashCodes).containsExactly(NODE_WRITE_ERROR);
+      assertLostRace(trash, "trashNodes", nodeId);
       Assertions.assertThat(after)
           .isEqualTo(new Row(destination, "LOCAL_ROOT," + destination, false));
     }
@@ -199,6 +211,7 @@ class MoveTrashConflictApiIT extends AbstractFilesIT {
     Assertions.assertThat(firstCodes.size() + secondCodes.size()).isEqualTo(1);
     Row after = row(nodeId);
     String winner = firstCodes.isEmpty() ? first : second;
+    assertLostRace(firstCodes.isEmpty() ? toSecond : toFirst, "moveNodes", nodeId);
     Assertions.assertThat(after).isEqualTo(new Row(winner, "LOCAL_ROOT," + winner, false));
   }
 

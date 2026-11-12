@@ -43,8 +43,8 @@ import org.junit.jupiter.api.Test;
  * tombstone-write-then-delete transaction (returning a single {@code nodeWriteError}) cannot be
  * exercised black-box: {@code TombstoneRepositoryEbean#createNewTombstone} is deliberately
  * idempotent (check-then-insert, cannot PK-violate); {@code
- * FileVersionRepositoryEbean#deleteFileVersions} is a plain bulk {@code DELETE} with no FK
- * referencing {@code file_version} from any other table; the only fault-injection this stack
+ * FileVersionRepositoryEbean#deleteNotKeptForeverNorCurrent} is a plain bulk {@code DELETE} with no
+ * FK referencing {@code file_version} from any other table; the only fault-injection this stack
  * exposes is on the STORAGES side (already exercised by {@link DeleteVersionsApiIT}'s
  * PowerStore-fails test). No unit test exercises this catch block either. Documented here as a
  * genuine coverage gap rather than forced with a workaround.

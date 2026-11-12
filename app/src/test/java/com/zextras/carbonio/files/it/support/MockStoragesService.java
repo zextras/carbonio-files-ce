@@ -115,7 +115,11 @@ public class MockStoragesService {
    */
   private final List<String> downloadLog = Collections.synchronizedList(new ArrayList<>());
 
-  /** Every {@code node/version} key received by a bulk-delete, duplicates included. */
+  /**
+   * Every {@code node/version} key received by a bulk-delete, duplicates included. Requests
+   * answered in the always-throws (500) and returns-null ({@code {}}) modes return before
+   * recording, so they are not logged.
+   */
   private final List<String> bulkDeleteLog = Collections.synchronizedList(new ArrayList<>());
 
   private volatile boolean uploadFails = false;

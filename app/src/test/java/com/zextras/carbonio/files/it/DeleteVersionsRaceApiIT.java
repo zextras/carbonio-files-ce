@@ -115,6 +115,8 @@ class DeleteVersionsRaceApiIT extends AbstractFilesIT {
     }
 
     Assertions.assertThat(deleted(response)).containsExactly(2);
+    Assertions.assertThat(TestUtils.jsonResponseToErrorCodes(response.getBody().asString()))
+        .containsExactly("FILE_VERSION_NOT_FOUND");
     Assertions.assertThat(remainingVersions(nodeId)).containsExactly(1, 3);
     Assertions.assertThat(tombstoneRowsForNode(nodeId)).isZero();
   }
@@ -141,6 +143,9 @@ class DeleteVersionsRaceApiIT extends AbstractFilesIT {
 
     Assertions.assertThat(deleted(response)).containsExactly(2);
     Assertions.assertThat(remainingVersions(nodeId)).containsExactly(1, 3);
+    Assertions.assertThat(FilesStackTestResource.getStoragesService().bulkDeleteRequests())
+        .containsExactly(nodeId + "/2");
+    Assertions.assertThat(tombstoneRowsForNode(nodeId)).isZero();
   }
 
   @Test
