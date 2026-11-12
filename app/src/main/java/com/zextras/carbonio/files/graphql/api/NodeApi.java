@@ -708,7 +708,7 @@ public class NodeApi {
                       nodeRepository, node.getFullName(), destinationId, node.getOwnerId());
             }
             if (!nodeRepository.moveNodeIfParent(
-                nodeId, expectedParentId, destinationFolder, newName)) {
+                nodeId, expectedParentId, destinationFolder, node.getFullName(), newName)) {
               return;
             }
             movedIds.add(nodeId);

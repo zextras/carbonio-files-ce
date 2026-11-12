@@ -465,7 +465,11 @@ public class NodeRepositoryImpl implements NodeRepository {
   @Override
   @Transactional
   public boolean moveNodeIfParent(
-      String nodeId, String expectedParentId, Node destinationFolder, String name) {
+      String nodeId,
+      String expectedParentId,
+      Node destinationFolder,
+      String expectedName,
+      String name) {
     entityManager.flush();
     String ancestorIds =
         NodeType.ROOT.equals(destinationFolder.getNodeType())
@@ -477,11 +481,14 @@ public class NodeRepositoryImpl implements NodeRepository {
         entityManager
             .createNativeQuery(
                 "UPDATE node SET folder_id = CAST(:dest AS CHARACTER(36)),"
-                    + " ancestor_ids = :anc, name = :name, updated_timestamp = :now"
+                    + " ancestor_ids = :anc,"
+                    + " name = CASE WHEN name = :expectedName THEN :name ELSE name END,"
+                    + " updated_timestamp = :now"
                     + " WHERE node_id = CAST(:id AS CHARACTER(36))"
                     + " AND folder_id = CAST(:expected AS CHARACTER(36))")
             .setParameter("dest", destinationFolder.getId())
             .setParameter("anc", ancestorIds)
+            .setParameter("expectedName", expectedName)
             .setParameter("name", name)
             .setParameter("now", System.currentTimeMillis())
             .setParameter("id", nodeId)

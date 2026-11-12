@@ -242,12 +242,18 @@ public interface NodeRepository {
    * @param expectedParentId is a {@link String} representing the parent the node had when it was
    *     read
    * @param destinationFolder is a {@link Node} representing the destination folder
+   * @param expectedName is a {@link String} representing the name the node had when it was read;
+   *     the name is written only if it is still this one
    * @param name is a {@link String} representing the name the node gets in the destination
    * @return true if the node was moved, false if its parent had changed (trashed or moved
    *     meanwhile)
    */
   boolean moveNodeIfParent(
-      String nodeId, String expectedParentId, Node destinationFolder, String name);
+      String nodeId,
+      String expectedParentId,
+      Node destinationFolder,
+      String expectedName,
+      String name);
 
   /**
    * Moves a node under the trash root only if its parent is still the expected one, with one

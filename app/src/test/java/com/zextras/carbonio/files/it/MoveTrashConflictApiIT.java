@@ -191,4 +191,38 @@ class MoveTrashConflictApiIT extends AbstractFilesIT {
     String winner = firstCodes.isEmpty() ? first : second;
     Assertions.assertThat(after).isEqualTo(new Row(winner, "LOCAL_ROOT," + winner, false));
   }
+
+  @Test
+  void givenAConcurrentRenameMoveNodesShouldKeepTheNewName() throws Exception {
+    String destination = seedFolder("destination", LOCAL_ROOT, COOKIE);
+    String nodeId = file("original.txt", LOCAL_ROOT);
+
+    Response move;
+    try (Connection holder = jdbcConnection()) {
+      holder.setAutoCommit(false);
+      try (PreparedStatement statement =
+          holder.prepareStatement("UPDATE node SET name = 'renamed.txt' WHERE node_id = ?")) {
+        statement.setString(1, nodeId);
+        statement.executeUpdate();
+      }
+      CompletableFuture<Response> moving =
+          CompletableFuture.supplyAsync(() -> moveResponse(destination, nodeId));
+      awaitBlockedBy(holder);
+      holder.commit();
+      move = moving.get(60, TimeUnit.SECONDS);
+    }
+
+    Assertions.assertThat(errorCodes(move)).isEmpty();
+    Assertions.assertThat(row(nodeId))
+        .isEqualTo(new Row(destination, "LOCAL_ROOT," + destination, false));
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("SELECT name FROM node WHERE node_id = ?")) {
+      statement.setString(1, nodeId);
+      try (ResultSet rows = statement.executeQuery()) {
+        Assertions.assertThat(rows.next()).isTrue();
+        Assertions.assertThat(rows.getString(1)).isEqualTo("renamed.txt");
+      }
+    }
+  }
 }
