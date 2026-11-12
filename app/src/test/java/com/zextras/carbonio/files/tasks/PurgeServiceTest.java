@@ -24,6 +24,7 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
+import com.zextras.carbonio.files.dal.dao.ebean.TombstonePK;
 import com.zextras.carbonio.files.dal.dao.ebean.VersionReservation;
 import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
@@ -246,9 +247,9 @@ class PurgeServiceTest {
     order.verify(nodeRepository).deleteSubtrees(List.of("folder-f"));
     order.verify(filestore).bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList());
     order.verify(filestore).bulkDelete(eq(IdentifierType.files), eq("owner-2"), anyList());
-    verify(tombstoneRepository).deleteTombstonesByNodeAndVersion("file-a", 1);
-    verify(tombstoneRepository).deleteTombstonesByNodeAndVersion("file-a", 2);
-    verify(tombstoneRepository).deleteTombstonesByNodeAndVersion("file-b", 1);
+    verify(tombstoneRepository)
+        .deleteTombstones(List.of(new TombstonePK("file-a", 1), new TombstonePK("file-a", 2)));
+    verify(tombstoneRepository).deleteTombstones(List.of(new TombstonePK("file-b", 1)));
   }
 
   @Test
@@ -308,9 +309,10 @@ class PurgeServiceTest {
 
     purgeService.purgeTrashedNodes(30);
 
-    verify(tombstoneRepository, never()).deleteTombstonesByNodeAndVersion("file-b", 1);
+    verify(tombstoneRepository, never()).deleteTombstones(List.of(new TombstonePK("file-b", 1)));
     verify(tombstoneRepository, never()).updateTombstone(any());
-    verify(tombstoneRepository).deleteTombstonesByNodeAndVersion("file-a", 1);
+    verify(tombstoneRepository)
+        .deleteTombstones(List.of(new TombstonePK("file-a", 1), new TombstonePK("file-a", 2)));
   }
 
   @Test
@@ -323,7 +325,7 @@ class PurgeServiceTest {
     purgeService.purgeTrashedNodes(30);
 
     verify(nodeRepository).deleteSubtrees(List.of("folder-f"));
-    verify(tombstoneRepository, never()).deleteTombstonesByNodeAndVersion(any(), any());
+    verify(tombstoneRepository, never()).deleteTombstones(any());
     verify(tombstoneRepository, never()).updateTombstone(any());
   }
 
@@ -378,8 +380,8 @@ class PurgeServiceTest {
     purgeService.purgeTrashedNodes(30);
 
     verify(filestore, times(1)).bulkDelete(eq(IdentifierType.files), eq("owner-1"), anyList());
-    verify(tombstoneRepository).deleteTombstonesByNodeAndVersion("file-x", 1);
-    verify(tombstoneRepository).deleteTombstonesByNodeAndVersion("file-y", 1);
+    verify(tombstoneRepository)
+        .deleteTombstones(List.of(new TombstonePK("file-x", 1), new TombstonePK("file-y", 1)));
   }
 
   @Test

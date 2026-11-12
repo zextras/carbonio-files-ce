@@ -7,6 +7,8 @@ package com.zextras.carbonio.files.dal.repositories.interfaces;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
+import com.zextras.carbonio.files.dal.dao.ebean.TombstonePK;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,6 +53,13 @@ public interface TombstoneRepository {
    * @param version the file version
    */
   void deleteTombstonesByNodeAndVersion(String nodeId, Integer version);
+
+  /**
+   * Deletes the given tombstones with one statement in one transaction.
+   *
+   * @param ids the identifiers (node and version) of the tombstones to delete
+   */
+  void deleteTombstones(Collection<TombstonePK> ids);
 
   /**
    * Persists an updated {@link Tombstone} (e.g. after incrementing the attempts counter).

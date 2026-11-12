@@ -11,6 +11,7 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepositor
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -69,6 +70,14 @@ public class TombstoneRepositoryImpl
   @Transactional
   public void deleteTombstonesByNodeAndVersion(String nodeId, Integer version) {
     deleteById(new TombstonePK(nodeId, version));
+  }
+
+  @Override
+  @Transactional
+  public void deleteTombstones(Collection<TombstonePK> ids) {
+    if (!ids.isEmpty()) {
+      delete("mComposedId in ?1", List.copyOf(ids));
+    }
   }
 
   @Override
