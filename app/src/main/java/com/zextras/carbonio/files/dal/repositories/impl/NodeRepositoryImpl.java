@@ -464,29 +464,67 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Override
   @Transactional
-  public int moveNodes(List<String> nodesIds, Node destinationFolder) {
-    if (nodesIds.isEmpty()) {
-      return 0;
-    }
+  public boolean moveNodeIfParent(
+      String nodeId, String expectedParentId, Node destinationFolder, String name) {
+    entityManager.flush();
     String ancestorIds =
         NodeType.ROOT.equals(destinationFolder.getNodeType())
             ? destinationFolder.getId()
             : destinationFolder.getAncestorIds()
                 + Node.ANCESTORS_SEPARATOR
                 + destinationFolder.getId();
-    long now = System.currentTimeMillis();
-
-    // Fetch-then-set (not a JPQL bulk update) so the managed entities stay coherent with the L1
-    // cache; Hibernate dirty-checking flushes the changes.
-    List<Node> nodes =
+    int updated =
         entityManager
-            .createQuery("select n from Node n where n.mId in :ids", Node.class)
-            .setParameter("ids", nodesIds.stream().map(NodeRepositoryImpl::normalizeId).toList())
-            .getResultList();
-    nodes.forEach(
-        n ->
-            n.setParentId(destinationFolder.getId()).setAncestorIds(ancestorIds).setUpdatedAt(now));
-    return nodes.size();
+            .createNativeQuery(
+                "UPDATE node SET folder_id = CAST(:dest AS CHARACTER(36)),"
+                    + " ancestor_ids = :anc, name = :name, updated_timestamp = :now"
+                    + " WHERE node_id = CAST(:id AS CHARACTER(36))"
+                    + " AND folder_id = CAST(:expected AS CHARACTER(36))")
+            .setParameter("dest", destinationFolder.getId())
+            .setParameter("anc", ancestorIds)
+            .setParameter("name", name)
+            .setParameter("now", System.currentTimeMillis())
+            .setParameter("id", nodeId)
+            .setParameter("expected", expectedParentId)
+            .executeUpdate();
+    if (updated == 0) {
+      return false;
+    }
+    refreshManagedNodes(Set.of(nodeId));
+    return true;
+  }
+
+  @Override
+  @Transactional
+  public boolean trashNodeIfParent(String nodeId, String expectedParentId) {
+    entityManager.flush();
+    int updated =
+        entityManager
+            .createNativeQuery(
+                "UPDATE node SET folder_id = CAST(:trash AS CHARACTER(36)), ancestor_ids = :trash,"
+                    + " updated_timestamp = :now"
+                    + " WHERE node_id = CAST(:id AS CHARACTER(36))"
+                    + " AND folder_id = CAST(:expected AS CHARACTER(36))")
+            .setParameter("trash", RootId.TRASH_ROOT)
+            .setParameter("now", System.currentTimeMillis())
+            .setParameter("id", nodeId)
+            .setParameter("expected", expectedParentId)
+            .executeUpdate();
+    if (updated == 0) {
+      return false;
+    }
+    refreshManagedNodes(Set.of(nodeId));
+    return true;
+  }
+
+  private void refreshManagedNodes(Set<String> nodeIds) {
+    Session session = entityManager.unwrap(Session.class);
+    if (session.getStatistics().getEntityCount() == 0) {
+      return;
+    }
+    session.getManagedEntities(Node.class).stream()
+        .filter(node -> nodeIds.contains(node.getId()))
+        .forEach(session::refresh);
   }
 
   @Override
@@ -510,13 +548,7 @@ public class NodeRepositoryImpl implements NodeRepository {
     }
     Set<String> affectedIds = new HashSet<>();
     affected.forEach(id -> affectedIds.add(id.trim()));
-    Session session = entityManager.unwrap(Session.class);
-    if (session.getStatistics().getEntityCount() == 0) {
-      return affected.size();
-    }
-    session.getManagedEntities(Node.class).stream()
-        .filter(node -> affectedIds.contains(node.getId()))
-        .forEach(session::refresh);
+    refreshManagedNodes(affectedIds);
     return affected.size();
   }
 

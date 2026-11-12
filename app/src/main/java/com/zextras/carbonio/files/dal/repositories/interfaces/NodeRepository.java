@@ -235,16 +235,31 @@ public interface NodeRepository {
   void restoreNode(String nodeId);
 
   /**
-   * Moves a list of {@link Node}s to a destination folder.
+   * Moves a node to a destination folder only if its parent is still the expected one, with one
+   * conditional statement. The managed copy of the node is refreshed.
    *
-   * <p>This operation is done in bulk in one single database call./p>
-   *
-   * @param nodesIds a {@link List} of {@link String}s representing the ids of nodes to move.
-   * @param destinationFolder is a {@link Node} representing the node of the destination folder.
-   * @return an integer representing the number of moved nodes. This value can be useful for testing
-   *     purposes.
+   * @param nodeId is a {@link String} representing the id of the node to move
+   * @param expectedParentId is a {@link String} representing the parent the node had when it was
+   *     read
+   * @param destinationFolder is a {@link Node} representing the destination folder
+   * @param name is a {@link String} representing the name the node gets in the destination
+   * @return true if the node was moved, false if its parent had changed (trashed or moved
+   *     meanwhile)
    */
-  int moveNodes(List<String> nodesIds, Node destinationFolder);
+  boolean moveNodeIfParent(
+      String nodeId, String expectedParentId, Node destinationFolder, String name);
+
+  /**
+   * Moves a node under the trash root only if its parent is still the expected one, with one
+   * conditional statement. The {@code trashed} row is not written, see {@link #trashNode}.
+   *
+   * @param nodeId is a {@link String} representing the id of the node to trash
+   * @param expectedParentId is a {@link String} representing the parent the node had when it was
+   *     read
+   * @return true if the node was moved to the trash, false if its parent had changed (trashed or
+   *     moved meanwhile)
+   */
+  boolean trashNodeIfParent(String nodeId, String expectedParentId);
 
   /**
    * Rewrites the {@code ancestor_ids} and the update timestamp of every descendant of a folder, at

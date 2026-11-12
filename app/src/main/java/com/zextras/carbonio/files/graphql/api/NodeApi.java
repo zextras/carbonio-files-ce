@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.graphql.api;
 
 import static com.zextras.carbonio.files.utilities.RenameNodeUtils.searchAlternativeName;
 
-import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.Constants.ServiceDiscover.Config;
 import com.zextras.carbonio.files.config.FilesConfig;
@@ -520,14 +519,19 @@ public class NodeApi {
               .toList();
       trashableNodes.retainAll(nodesToTrash.stream().map(Node::getId).toList());
       nodesToTrash.forEach(
-          trashedNode -> {
-            String nodeParentId = trashedNode.getParentId().get();
+          candidate -> {
+            String nodeParentId = candidate.getParentId().get();
+            if (!nodeRepository.trashNodeIfParent(candidate.getId(), nodeParentId)) {
+              trashableNodes.remove(candidate.getId());
+              return;
+            }
+            Node trashedNode = nodeRepository.getNode(candidate.getId()).get();
 
             List<String> usersToNotify =
                 new ArrayList<>(shareRepository.getSharesUsersIds(trashedNode.getId(), List.of()));
             usersToNotify.remove(me);
 
-            Node parent = nodeRepository.getNode(trashedNode.getParentId().get()).get();
+            Node parent = nodeRepository.getNode(nodeParentId).get();
             if (!parent.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
                 && !me.equals(parent.getOwnerId())
                 && !usersToNotify.contains(parent.getOwnerId())) {
@@ -541,10 +545,7 @@ public class NodeApi {
                           trashedNode, parent, requester, RemovedNodeType.DELETE, usersToNotify));
             }
 
-            trashedNode.setAncestorIds(Constants.Db.RootId.TRASH_ROOT);
-            trashedNode.setParentId(RootId.TRASH_ROOT);
             nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
-            nodeRepository.updateNode(trashedNode);
             nodeRepository.rewriteDescendantAncestors(trashedNode);
           });
 
@@ -690,27 +691,33 @@ public class NodeApi {
             .filter(nodeId -> !rootIds.contains(nodeId))
             .filter(nodeId -> !destinationId.equals(nodeId))
             .toList();
-    List<String> nodeIdsToMove = excludeAncestorsOf(destinationFolder, movableIds);
+    List<String> nodeIdsToMove = excludeTrashed(excludeAncestorsOf(destinationFolder, movableIds));
 
     List<NodeModel> movedNodesResult = List.of();
+    List<String> movedIds = new ArrayList<>();
     if (!nodeIdsToMove.isEmpty()) {
       List<Runnable> pendingNotifications = new ArrayList<>();
       nodeIdsToMove.forEach(
           nodeId -> {
             Node node = nodeRepository.getNode(nodeId).get();
-            if (node.getParentId().isPresent() && !node.getParentId().get().equals(destinationId)) {
-              String newName =
+            String expectedParentId = node.getParentId().get();
+            String newName = node.getFullName();
+            if (!expectedParentId.equals(destinationId)) {
+              newName =
                   searchAlternativeName(
                       nodeRepository, node.getFullName(), destinationId, node.getOwnerId());
-              node.setFullName(newName);
             }
-            nodeRepository.updateNode(node);
+            if (!nodeRepository.moveNodeIfParent(
+                nodeId, expectedParentId, destinationFolder, newName)) {
+              return;
+            }
+            movedIds.add(nodeId);
 
             List<String> usersToNotifyRemove =
                 new ArrayList<>(shareRepository.getSharesUsersIds(node.getId(), List.of()));
             usersToNotifyRemove.remove(me);
 
-            Node parent = nodeRepository.getNode(node.getParentId().get()).get();
+            Node parent = nodeRepository.getNode(expectedParentId).get();
             if (!parent.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
                 && !me.equals(parent.getOwnerId())
                 && !usersToNotifyRemove.contains(parent.getOwnerId())) {
@@ -725,9 +732,7 @@ public class NodeApi {
             }
           });
 
-      nodeRepository.moveNodes(nodeIdsToMove, destinationFolder);
-
-      nodeIdsToMove.forEach(
+      movedIds.forEach(
           nodeId -> {
             Node node = nodeRepository.getNode(nodeId).get();
             nodeRepository.rewriteDescendantAncestors(node);
@@ -784,7 +789,7 @@ public class NodeApi {
 
       movedNodesResult =
           nodeRepository
-              .getNodes(nodeIdsToMove, Optional.empty())
+              .getNodes(movedIds, Optional.empty())
               .map(node -> NodeModelFactory.from(node, null, me))
               .collect(Collectors.toList());
 
@@ -793,7 +798,7 @@ public class NodeApi {
 
     NodeModelFactory.requireVersions(movedNodesResult, movedNodesResult);
     List<String> nodesInError =
-        nodeIds.stream().filter(nodeId -> !nodeIdsToMove.contains(nodeId)).toList();
+        nodeIds.stream().filter(nodeId -> !movedIds.contains(nodeId)).toList();
 
     if (!nodesInError.isEmpty()) {
       throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0))
@@ -1167,6 +1172,19 @@ public class NodeApi {
   private List<String> excludeAncestorsOf(Node destinationFolder, List<String> nodeIds) {
     List<String> destinationAncestors = destinationFolder.getAncestorsList();
     return nodeIds.stream().filter(id -> !destinationAncestors.contains(id)).toList();
+  }
+
+  private List<String> excludeTrashed(List<String> nodeIds) {
+    List<String> trashedIds = nodeRepository.getTrashedNodeIds(nodeIds);
+    return nodeIds.stream()
+        .filter(id -> !trashedIds.contains(id))
+        .filter(
+            id ->
+                nodeRepository
+                    .getNode(id)
+                    .map(node -> !node.getAncestorsList().contains(RootId.TRASH_ROOT))
+                    .orElse(true))
+        .toList();
   }
 
   private Optional<Node> restoreDestination(String nodeId) {
