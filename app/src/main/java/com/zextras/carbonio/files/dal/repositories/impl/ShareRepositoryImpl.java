@@ -196,12 +196,6 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
 
   @Override
   @Transactional
-  public void deleteSharesBulk(List<String> nodeIds) {
-    list("composedPrimaryKey.mNodeId in ?1", nodeIds).forEach(this::delete);
-  }
-
-  @Override
-  @Transactional
   public void cascadeUpsertInheritedShares(
       String nodeId, String targetUserId, ACL permissions, Optional<Long> expireTimestamp) {
     flush();

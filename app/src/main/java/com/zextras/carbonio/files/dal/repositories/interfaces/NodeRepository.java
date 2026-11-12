@@ -10,8 +10,11 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
+import com.zextras.carbonio.files.rest.services.BlobKey;
 import jakarta.annotation.Nullable;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -189,8 +192,6 @@ public interface NodeRepository {
       String ancestorIds,
       Long size);
 
-  int deleteNodes(List<String> nodesIds);
-
   /**
    * Changes the flag custom attribute for a {@link Node}.
    *
@@ -265,8 +266,29 @@ public interface NodeRepository {
    */
   Node updateNode(Node node);
 
-  /** The root followed by all its descendants, top-down, trashed or not. */
-  List<Node> getSubtree(Node root);
+  /**
+   * Deletes the roots and all their descendants in the caller's transaction with a constant number
+   * of statements. Every revision of the deleted files gets a tombstone under the owner of its
+   * node, the shares of the nodes trashed from a deleted folder are removed (the nodes stay), and
+   * the rows that reference the deleted nodes are removed with them. Flushes first and then clears
+   * the persistence context, so the caller must end its transaction right after the call.
+   *
+   * @param rootIds the ids of the roots of the subtrees to delete.
+   * @return the blob keys of the tombstoned revisions by owner, to delete after the commit.
+   */
+  Map<String, List<BlobKey>> deleteSubtrees(Collection<String> rootIds);
+
+  /** The ids of the non-folder nodes of the subtree of the root, the root included. */
+  List<String> getFileIdsInSubtree(String rootId);
+
+  /** The ids, among the given ones, of the nodes that have the top as an ancestor. */
+  List<String> filterIdsUnderAncestor(String topId, Collection<String> nodeIds);
+
+  /**
+   * The ids of the top-most nodes owned by the user: the non-root nodes whose parent is not owned
+   * by the user. Every other node of the user is a descendant of one of them.
+   */
+  List<String> getTopMostIdsByOwner(String ownerId);
 
   /**
    * Returns the nodes directly under the trash root that were trashed before the given timestamp.
@@ -290,12 +312,6 @@ public interface NodeRepository {
    * @return an {@link Optional<Node>} with the node if it was found or empty
    */
   Optional<Node> getNodeByName(String nodeName, String folderId, String nodeOwner);
-
-  /**
-   * @param ownerId is the owner id from which to return nodes.
-   * @return a {@link List<Node>} representing all nodes owned by ownerId.
-   */
-  List<Node> findNodesByOwner(String ownerId);
 
   /**
    * Sets the hidden flag to the given absolute value on every node owned by ownerId. Idempotent.
