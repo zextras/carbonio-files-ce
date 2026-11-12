@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.zextras.carbonio.files.FilesStackTestResource;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
+import com.zextras.carbonio.files.dal.dao.ebean.Share;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import io.quarkus.test.TestTransaction;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -81,6 +82,7 @@ class DeleteSharesOfUserBelowDalTest {
     String trashedFromSub = id();
     String trashedChild = id();
     String outside = id();
+    String trashedFromRoot = id();
     node(root, NodeType.FOLDER, "LOCAL_ROOT", "LOCAL_ROOT");
     node(sub, NodeType.FOLDER, root, "LOCAL_ROOT," + root);
     node(deepFile, NodeType.TEXT, sub, "LOCAL_ROOT," + root + "," + sub);
@@ -88,7 +90,10 @@ class DeleteSharesOfUserBelowDalTest {
     node(trashedFromSub, NodeType.FOLDER, "TRASH_ROOT", "TRASH_ROOT");
     node(trashedChild, NodeType.TEXT, trashedFromSub, "TRASH_ROOT," + trashedFromSub);
     node(outside, NodeType.FOLDER, "LOCAL_ROOT", "LOCAL_ROOT");
+    node(trashedFromRoot, NodeType.TEXT, "TRASH_ROOT", "TRASH_ROOT");
     trash(trashedFromSub, sub);
+    trash(trashedFromRoot, root);
+    share(trashedFromRoot, u, true);
     share(root, u, true);
     share(sub, u, true);
     share(deepFile, u, false);
@@ -100,7 +105,13 @@ class DeleteSharesOfUserBelowDalTest {
     share(trashedFromSub, v, false);
     share(outside, u, true);
 
+    Share managed = shareRepository.getShare(deepFile, u).orElseThrow();
+    assertThat(entityManager.contains(managed)).isTrue();
+
     shareRepository.deleteSharesOfUserBelow(root, u);
+
+    assertThat(entityManager.contains(managed)).isFalse();
+    assertThat(hasShare(trashedFromRoot, u)).isFalse();
 
     assertThat(hasShare(sub, u)).isFalse();
     assertThat(hasShare(deepFile, u)).isFalse();
