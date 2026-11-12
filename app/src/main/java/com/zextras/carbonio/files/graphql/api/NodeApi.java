@@ -1167,9 +1167,7 @@ public class NodeApi {
   }
 
   private List<String> excludeTrashed(List<String> nodeIds) {
-    List<String> trashedIds = nodeRepository.getTrashedNodeIds(nodeIds);
     return nodeIds.stream()
-        .filter(id -> !trashedIds.contains(id))
         .filter(
             id ->
                 nodeRepository

@@ -70,6 +70,16 @@ class MoveTrashConflictApiIT extends AbstractFilesIT {
     }
   }
 
+  private static void update(String sql, Object... params) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement = connection.prepareStatement(sql)) {
+      for (int i = 0; i < params.length; i++) {
+        statement.setObject(i + 1, params[i]);
+      }
+      statement.executeUpdate();
+    }
+  }
+
   private static Response moveResponse(String destination, String... ids) {
     return graphql(
         GraphqlCommandBuilder.aMutationBuilder("moveNodes")
@@ -224,5 +234,17 @@ class MoveTrashConflictApiIT extends AbstractFilesIT {
         Assertions.assertThat(rows.getString(1)).isEqualTo("renamed.txt");
       }
     }
+  }
+
+  @Test
+  void givenANodeWithAStaleTrashedRowAndALivePathMoveNodesShouldMoveIt() throws SQLException {
+    String destination = seedFolder("destination", LOCAL_ROOT, COOKIE);
+    String nodeId = file("ghost.txt", LOCAL_ROOT);
+    update("INSERT INTO trashed (node_id, parent_id) VALUES (?, ?)", nodeId, LOCAL_ROOT);
+
+    Assertions.assertThat(errorCodes(moveResponse(destination, nodeId))).isEmpty();
+
+    Assertions.assertThat(row(nodeId))
+        .isEqualTo(new Row(destination, "LOCAL_ROOT," + destination, true));
   }
 }
