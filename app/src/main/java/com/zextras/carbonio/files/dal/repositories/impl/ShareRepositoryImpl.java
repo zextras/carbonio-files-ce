@@ -44,7 +44,7 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
       WITH RECURSIVE subtree(node_id, node_type) AS (
           SELECT n.node_id, n.node_type
           FROM node n
-          WHERE n.folder_id = :root
+          WHERE n.folder_id = CAST(:root AS CHARACTER(36))
             AND NOT EXISTS (SELECT 1 FROM trashed t WHERE t.node_id = n.node_id)
           UNION
           SELECT c.node_id, c.node_type
@@ -75,12 +75,12 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
       WITH RECURSIVE subtree(node_id, node_type) AS (
           SELECT n.node_id, n.node_type
           FROM node n
-          WHERE n.folder_id = :root
+          WHERE n.folder_id = CAST(:root AS CHARACTER(36))
           UNION
           SELECT n.node_id, n.node_type
           FROM trashed t
           INNER JOIN node n ON n.node_id = t.node_id
-          WHERE t.parent_id = :root
+          WHERE t.parent_id = CAST(:root AS CHARACTER(36))
           UNION
           SELECT c.node_id, c.node_type
           FROM subtree s
@@ -239,6 +239,9 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
     Set<String> affected = new HashSet<>();
     affectedNodeIds.forEach(id -> affected.add(id.trim()));
     Session session = getEntityManager().unwrap(Session.class);
+    if (session.getStatistics().getEntityCount() == 0) {
+      return;
+    }
     session.getManagedEntities(Share.class).stream()
         .filter(
             share ->
