@@ -63,28 +63,6 @@ public interface ShareRepository {
       Optional<Long> expireTimestamp);
 
   /**
-   * Creates new {@link Share} for a list of nodes saving it in the database.
-   *
-   * <p>This method considers the parameters in input already valid so it does not do any kind of
-   * control on them. This method is created as a utility for the propagation of the share on sub
-   * nodes.
-   *
-   * @param nodeIds is a {@link List<String>} of the nodeIds where to create the share.
-   * @param targetUserId is a {@link String} of the target user id which the node will be shared to.
-   * @param permissions is a {@link ACL} representing the permissions of this share.
-   * @param direct is a {@link Boolean} used to determine if the share is direct or inherited.
-   * @param expireTimestamp is an {@link Optional<Long>} for creating a temporary share with an
-   *     expiration date.
-   */
-  void upsertShareBulk(
-      List<String> nodeIds,
-      String targetUserId,
-      ACL permissions,
-      Boolean direct,
-      Boolean createdViaCollaborationLink,
-      Optional<Long> expireTimestamp);
-
-  /**
    * This method is used to update a share on database. It requires the updated share and it will
    * update it on database.
    *

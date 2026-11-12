@@ -171,6 +171,23 @@ class ShareCascadeApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void upsertSkipsATrashedRowThatKeepsItsParentAndWhatLiesBelowIt() throws Exception {
+    String s = folder("S", LOCAL_ROOT);
+    String marked = folder("marked", s);
+    String below = folder("below", marked);
+    String belowFile = file("below.txt", below);
+    String plain = folder("plain", s);
+    update("INSERT INTO trashed (node_id, parent_id) VALUES (?, ?)", marked, s);
+
+    createShare(s, USER_ID, ACL.SharePermission.READ_ONLY);
+
+    Assertions.assertThat(share(plain, USER_ID)).isNotNull();
+    Assertions.assertThat(share(marked, USER_ID)).isNull();
+    Assertions.assertThat(share(below, USER_ID)).isNull();
+    Assertions.assertThat(share(belowFile, USER_ID)).isNull();
+  }
+
+  @Test
   void upsertUpdatesInheritedSharesAndKeepsOrReplacesTheirExpiry() throws Exception {
     String s = folder("S", LOCAL_ROOT);
     String a = folder("a", s);
