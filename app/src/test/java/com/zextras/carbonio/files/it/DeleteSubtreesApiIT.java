@@ -260,9 +260,9 @@ class DeleteSubtreesApiIT extends AbstractFilesIT {
     return ids;
   }
 
-  private static void assertBlobsExist(Collection<String> fileIds, boolean expected)
-      throws SQLException {
-    for (String entry : versionsOf(fileIds)) {
+  private static void assertBlobsExist(Set<String> versions, boolean expected) {
+    Assertions.assertThat(versions).isNotEmpty();
+    for (String entry : versions) {
       String[] parts = entry.split(":");
       Assertions.assertThat(
               FilesStackTestResource.getStoragesService().has(parts[0], Integer.parseInt(parts[1])))
@@ -332,14 +332,14 @@ class DeleteSubtreesApiIT extends AbstractFilesIT {
   @Test
   void deleteNodesDeletesTheBlobsOfTheSubtreeAfterCommit() throws SQLException {
     Fixture f = seedFixture();
-    Set<String> files = f.files();
-    assertBlobsExist(files, true);
+    Set<String> blobs = versionsOf(f.files());
+    assertBlobsExist(blobs, true);
 
     Response response = deleteNodes(f.top);
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     assertTreeGone(f);
-    assertBlobsExist(files, false);
+    assertBlobsExist(blobs, false);
     Assertions.assertThat(tombstones()).isEmpty();
     Assertions.assertThat(FilesStackTestResource.getStoragesService().has(f.otherFile, 1)).isTrue();
     Assertions.assertThat(FilesStackTestResource.getStoragesService().has(f.bFile, 2)).isTrue();
@@ -474,12 +474,13 @@ class DeleteSubtreesApiIT extends AbstractFilesIT {
     Fixture f = seedFixture();
     Set<String> ownedByA = new HashSet<>(f.tree);
     ownedByA.addAll(Set.of(f.trashedFileOfA, f.trashedChild, f.otherFile));
-    assertBlobsExist(ownedByA, true);
+    Set<String> blobs = versionsOf(ownedByA);
+    assertBlobsExist(blobs, true);
 
     Response response = deleteAccount(A_ID);
 
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    assertBlobsExist(ownedByA, false);
+    assertBlobsExist(blobs, false);
     Assertions.assertThat(tombstones()).isEmpty();
     Assertions.assertThat(FilesStackTestResource.getStoragesService().has(f.bFile, 1)).isTrue();
     Assertions.assertThat(FilesStackTestResource.getStoragesService().has(f.bFile, 2)).isTrue();

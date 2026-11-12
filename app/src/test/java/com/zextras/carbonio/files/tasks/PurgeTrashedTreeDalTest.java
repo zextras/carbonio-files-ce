@@ -307,9 +307,17 @@ class PurgeTrashedTreeDalTest {
             "SELECT trim(node_id) FROM node WHERE node_type = 'TEXT' AND trim(node_id) IN ("
                 + purgedList
                 + ")");
+    Set<String> expectedKeys =
+        strings(
+            "SELECT trim(node_id) || '/' || version FROM revision WHERE trim(node_id) IN ("
+                + purgedList
+                + ")");
+    assertThat(expectedKeys).isNotEmpty();
 
     purgeInRequestContext();
 
+    assertThat(FilesStackTestResource.getStoragesService().bulkDeleteRequests())
+        .containsExactlyInAnyOrderElementsOf(expectedKeys);
     assertThat(count("SELECT count(*) FROM node WHERE trim(node_id) IN (" + purgedList + ")"))
         .isZero();
     assertThat(
