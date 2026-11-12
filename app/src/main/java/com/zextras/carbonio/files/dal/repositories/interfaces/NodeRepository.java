@@ -246,6 +246,18 @@ public interface NodeRepository {
   int moveNodes(List<String> nodesIds, Node destinationFolder);
 
   /**
+   * Rewrites the {@code ancestor_ids} and the update timestamp of every descendant of a folder, at
+   * any depth and including the children marked for deletion, in one single database statement.
+   *
+   * <p>The ancestors of the direct children are computed from the given in-memory folder, which may
+   * hold changes not yet flushed. Managed descendants are refreshed to reflect the new state.
+   *
+   * @param parent is a {@link Node} representing the folder whose subtree must be rewritten.
+   * @return an integer representing the number of rewritten descendants.
+   */
+  int rewriteDescendantAncestors(Node parent);
+
+  /**
    * Updates a {@link Node} on database.
    *
    * @param node is the {@link Node} to update

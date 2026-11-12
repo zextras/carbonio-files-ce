@@ -546,7 +546,7 @@ public class NodeApi {
             trashedNode.setParentId(RootId.TRASH_ROOT);
             nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
             nodeRepository.updateNode(trashedNode);
-            cascadeUpdateAncestors(trashedNode);
+            nodeRepository.rewriteDescendantAncestors(trashedNode);
           });
 
       pendingNotifications.forEach(Runnable::run);
@@ -643,7 +643,7 @@ public class NodeApi {
                   node.setFullName(newName);
                   nodeRepository.restoreNode(node.getId());
                   nodeRepository.updateNode(node);
-                  cascadeUpdateAncestors(node);
+                  nodeRepository.rewriteDescendantAncestors(node);
                   return NodeModelFactory.from(node, null, me);
                 })
             .collect(Collectors.toList());
@@ -731,7 +731,7 @@ public class NodeApi {
       nodeIdsToMove.forEach(
           nodeId -> {
             Node node = nodeRepository.getNode(nodeId).get();
-            cascadeUpdateAncestors(node);
+            nodeRepository.rewriteDescendantAncestors(node);
 
             shareRepository.getShares(nodeId, Collections.emptyList()).stream()
                 .filter(share -> !share.isDirect())
@@ -1198,20 +1198,6 @@ public class NodeApi {
               }
             });
     return targetUserIds;
-  }
-
-  private void cascadeUpdateAncestors(Node parentNode) {
-    List<String> childrenIds =
-        nodeRepository.getChildrenIds(parentNode.getId(), Optional.empty(), Optional.empty(), true);
-    if (!childrenIds.isEmpty()) {
-      nodeRepository.moveNodes(childrenIds, parentNode);
-      List<Node> childrenNodes =
-          nodeRepository.getNodes(childrenIds, Optional.empty()).collect(Collectors.toList());
-      childrenNodes.stream()
-          .filter(
-              n -> n.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
-          .forEach(this::cascadeUpdateAncestors);
-    }
   }
 
   private List<String> excludeAncestorsOf(Node destinationFolder, List<String> nodeIds) {

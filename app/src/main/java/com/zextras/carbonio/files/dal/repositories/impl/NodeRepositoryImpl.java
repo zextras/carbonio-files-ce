@@ -36,15 +36,18 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.hibernate.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -343,6 +346,31 @@ public class NodeRepositoryImpl implements NodeRepository {
     return nodes.size();
   }
 
+  private static final String REWRITE_DESCENDANT_ANCESTORS_SQL =
+      """
+      WITH RECURSIVE subtree(node_id, node_type, path) AS (
+          SELECT n.node_id, n.node_type, CAST(:prefix AS TEXT)
+          FROM node n
+          WHERE n.folder_id = CAST(:root AS CHARACTER(36))
+          UNION ALL
+          SELECT c.node_id, c.node_type, s.path || ',' || RTRIM(s.node_id)
+          FROM subtree s
+          CROSS JOIN LATERAL (
+              SELECT n.node_id, n.node_type
+              FROM node n
+              WHERE n.folder_id = s.node_id
+          ) c
+          WHERE s.node_type = 'FOLDER'
+            AND length(s.path) <= 4096
+      )
+      UPDATE node n
+      SET ancestor_ids = s.path,
+          updated_timestamp = :now
+      FROM subtree s
+      WHERE n.node_id = s.node_id
+      RETURNING n.node_id
+      """;
+
   @Override
   @Transactional
   public int moveNodes(List<String> nodesIds, Node destinationFolder) {
@@ -368,6 +396,37 @@ public class NodeRepositoryImpl implements NodeRepository {
         n ->
             n.setParentId(destinationFolder.getId()).setAncestorIds(ancestorIds).setUpdatedAt(now));
     return nodes.size();
+  }
+
+  @Override
+  @Transactional
+  @SuppressWarnings("unchecked")
+  public int rewriteDescendantAncestors(Node parent) {
+    entityManager.flush();
+    String prefix =
+        NodeType.ROOT.equals(parent.getNodeType())
+            ? parent.getId()
+            : parent.getAncestorIds() + Node.ANCESTORS_SEPARATOR + parent.getId();
+    List<String> affected =
+        entityManager
+            .createNativeQuery(REWRITE_DESCENDANT_ANCESTORS_SQL, String.class)
+            .setParameter("root", normalizeId(parent.getId()))
+            .setParameter("prefix", prefix)
+            .setParameter("now", System.currentTimeMillis())
+            .getResultList();
+    if (affected.isEmpty()) {
+      return 0;
+    }
+    Set<String> affectedIds = new HashSet<>();
+    affected.forEach(id -> affectedIds.add(id.trim()));
+    Session session = entityManager.unwrap(Session.class);
+    if (session.getStatistics().getEntityCount() == 0) {
+      return affected.size();
+    }
+    session.getManagedEntities(Node.class).stream()
+        .filter(node -> affectedIds.contains(node.getId()))
+        .forEach(session::refresh);
+    return affected.size();
   }
 
   @Override
