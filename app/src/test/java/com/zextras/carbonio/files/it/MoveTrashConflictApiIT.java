@@ -247,4 +247,45 @@ class MoveTrashConflictApiIT extends AbstractFilesIT {
     Assertions.assertThat(row(nodeId))
         .isEqualTo(new Row(destination, "LOCAL_ROOT," + destination, true));
   }
+
+  @Test
+  void givenAConcurrentMoveOutOfATrashedFolderTrashNodesShouldNotRewriteTheMovedSubtree()
+      throws Exception {
+    String destination = seedFolder("destination", LOCAL_ROOT, COOKIE);
+    String trashed = seedFolder("trashed", LOCAL_ROOT, COOKIE);
+    String moved = seedFolder("moved", trashed, COOKIE);
+    String movedChild = file("movedChild.txt", moved);
+    String sibling = file("sibling.txt", trashed);
+    String destinationPath = "LOCAL_ROOT," + destination;
+
+    Response trash;
+    try (Connection holder = jdbcConnection()) {
+      holder.setAutoCommit(false);
+      try (PreparedStatement statement =
+          holder.prepareStatement(
+              "UPDATE node SET folder_id = ?, ancestor_ids = ? WHERE node_id = ?")) {
+        statement.setString(1, destination);
+        statement.setString(2, destinationPath);
+        statement.setString(3, moved);
+        statement.executeUpdate();
+      }
+      try (PreparedStatement statement =
+          holder.prepareStatement("UPDATE node SET ancestor_ids = ? WHERE node_id = ?")) {
+        statement.setString(1, destinationPath + "," + moved);
+        statement.setString(2, movedChild);
+        statement.executeUpdate();
+      }
+      CompletableFuture<Response> trashing =
+          CompletableFuture.supplyAsync(() -> trashResponse(trashed));
+      awaitBlockedBy(holder);
+      holder.commit();
+      trash = trashing.get(60, TimeUnit.SECONDS);
+    }
+
+    Assertions.assertThat(errorCodes(trash)).isEmpty();
+    Assertions.assertThat(row(trashed)).isEqualTo(new Row(TRASH_ROOT, TRASH_ROOT, true));
+    Assertions.assertThat(row(sibling).ancestors()).isEqualTo(TRASH_ROOT + "," + trashed);
+    Assertions.assertThat(row(moved)).isEqualTo(new Row(destination, destinationPath, false));
+    Assertions.assertThat(row(movedChild).ancestors()).isEqualTo(destinationPath + "," + moved);
+  }
 }

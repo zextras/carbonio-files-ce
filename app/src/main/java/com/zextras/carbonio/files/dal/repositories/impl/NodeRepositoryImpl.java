@@ -439,15 +439,15 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   private static final String REWRITE_DESCENDANT_ANCESTORS_SQL =
       """
-      WITH RECURSIVE subtree(node_id, node_type, path) AS (
-          SELECT n.node_id, n.node_type, CAST(:prefix AS TEXT)
+      WITH RECURSIVE subtree(node_id, node_type, path, old_ancestors) AS (
+          SELECT n.node_id, n.node_type, CAST(:prefix AS TEXT), n.ancestor_ids
           FROM node n
           WHERE n.folder_id = CAST(:root AS CHARACTER(36))
           UNION ALL
-          SELECT c.node_id, c.node_type, s.path || ',' || RTRIM(s.node_id)
+          SELECT c.node_id, c.node_type, s.path || ',' || RTRIM(s.node_id), c.ancestor_ids
           FROM subtree s
           CROSS JOIN LATERAL (
-              SELECT n.node_id, n.node_type
+              SELECT n.node_id, n.node_type, n.ancestor_ids
               FROM node n
               WHERE n.folder_id = s.node_id
           ) c
@@ -459,6 +459,7 @@ public class NodeRepositoryImpl implements NodeRepository {
           updated_timestamp = :now
       FROM subtree s
       WHERE n.node_id = s.node_id
+        AND n.ancestor_ids IS NOT DISTINCT FROM s.old_ancestors
       RETURNING n.node_id
       """;
 
