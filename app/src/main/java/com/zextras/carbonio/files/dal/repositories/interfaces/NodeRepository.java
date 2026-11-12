@@ -298,15 +298,15 @@ public interface NodeRepository {
   List<Node> findNodesByOwner(String ownerId);
 
   /**
-   * @param ownerId is the owner id from which to return node.
-   *     <p>Returns the first {@link Node} of all nodes owned by ownerIds.
+   * Sets the hidden flag to the given absolute value on every node owned by ownerId. Idempotent.
+   * Being a bulk update it flushes and then clears the persistence context, detaching every managed
+   * entity of the current transaction.
+   *
+   * @param ownerId is the owner whose nodes are updated.
+   * @param hidden is the value to set.
+   * @return the number of nodes whose flag changed.
    */
-  Optional<Node> findFirstByOwner(String ownerId);
-
-  /**
-   * @param nodesToFlag is the list of the nodes to show/hide.
-   */
-  void invertHiddenFlagNodes(List<Node> nodesToFlag);
+  int setHiddenForOwner(String ownerId, boolean hidden);
 
   /*
   Calculates the absolute size of a folder by performing a sum of the sizes of all files that have that folder

@@ -230,17 +230,6 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   @Override
-  public Optional<Node> findFirstByOwner(String ownerId) {
-    return entityManager
-        .createQuery("select n from Node n where n.mOwnerId = :owner", Node.class)
-        .setParameter("owner", ownerId)
-        .setMaxResults(1)
-        .getResultList()
-        .stream()
-        .findFirst();
-  }
-
-  @Override
   public Stream<Node> getNodes(List<String> nodeIds, Optional<NodeSort> sort) {
     if (nodeIds.isEmpty()) {
       return Stream.empty();
@@ -431,8 +420,19 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Override
   @Transactional
-  public void invertHiddenFlagNodes(List<Node> nodesToFlag) {
-    nodesToFlag.forEach(node -> entityManager.merge(node.setHidden(!node.isHidden())));
+  public int setHiddenForOwner(String ownerId, boolean hidden) {
+    entityManager.flush();
+    int updated =
+        entityManager
+            .createQuery(
+                "update Node n set n.mHidden = :hidden where n.mOwnerId = :owner and n.mHidden <>"
+                    + " :hidden")
+            .setParameter("hidden", hidden)
+            .setParameter("owner", ownerId)
+            .executeUpdate();
+    // A bulk update bypasses the persistence context: drop managed copies that are now stale.
+    entityManager.clear();
+    return updated;
   }
 
   // ---------------------------------------------------------------------------------------------
