@@ -354,7 +354,8 @@ public class NodeRepositoryImpl implements NodeRepository {
       SELECT f.owner_id, RTRIM(f.node_id), f.version FROM files f
       """;
 
-  // Native: recursive CTE, which JPQL cannot express.
+  // Native: kept with the sibling subtree statements, and to control the plan of the LATERAL
+  // walk over the folder_id index, which HQL's recursive CTE does not give.
   private static final String FILE_IDS_IN_SUBTREE_SQL =
       """
       WITH RECURSIVE subtree(node_id, node_type) AS (

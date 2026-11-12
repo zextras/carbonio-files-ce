@@ -495,6 +495,7 @@ class PurgeServiceTest {
     purgeService.purgeTombstones();
 
     verify(tombstoneRepository).deleteTombstones(List.of(new TombstonePK("node-ok", 1)));
+    verify(tombstoneRepository).deleteTombstones(anyCollection());
     verify(tombstoneRepository).incrementAttempts(List.of(new TombstonePK("node-fail", 1)));
     assertThat(keptFailing.getAttempts()).isEqualTo(1);
     assertThat(succeeding.getAttempts()).isZero();
@@ -600,6 +601,7 @@ class PurgeServiceTest {
     purgeService.purgeTombstones();
 
     verify(tombstoneRepository).deleteTombstones(List.of(new TombstonePK("n1", 3)));
+    verify(tombstoneRepository).deleteTombstones(anyCollection());
     verify(tombstoneRepository).incrementAttempts(List.of(new TombstonePK("n1", 2)));
     assertThat(failing.getAttempts()).isEqualTo(1);
     assertThat(deleted.getAttempts()).isZero();

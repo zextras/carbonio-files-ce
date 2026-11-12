@@ -198,7 +198,7 @@ public class PurgeService {
       if (!failedKeys.get().contains(new BlobKey(t.getNodeId(), t.getVersion()))) {
         toDelete.add(id);
       } else if (t.getAttempts() + 1 >= MAX_TOMBSTONE_RETRIES) {
-        // Genuine per-blob PowerStore rejection — increment attempts toward retry cap.
+        // Genuine per-blob PowerStore rejection on the last allowed attempt: drop the tombstone.
         logger.warn(
             "purgeTombstones: giving up on blob nodeId={} version={} after {} attempts; "
                 + "accepting orphan and removing tombstone.",
@@ -207,6 +207,7 @@ public class PurgeService {
             t.getAttempts() + 1);
         toDelete.add(id);
       } else {
+        // Genuine per-blob PowerStore rejection: count an attempt toward the retry cap.
         toCount.add(id);
       }
     }
