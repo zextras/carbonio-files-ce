@@ -106,6 +106,38 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
       RETURNING sh.node_id
       """;
 
+  // Native: recursive walk with plan control (LATERAL) and DELETE ... RETURNING, which JPQL cannot
+  // express.
+  private static final String DELETE_SHARES_BELOW_SQL =
+      """
+      WITH RECURSIVE subtree(node_id, node_type) AS (
+          SELECT n.node_id, n.node_type
+          FROM node n
+          WHERE n.folder_id = CAST(:root AS CHARACTER(36))
+          UNION
+          SELECT n.node_id, n.node_type
+          FROM trashed t
+          INNER JOIN node n ON n.node_id = t.node_id
+          WHERE t.parent_id = CAST(:root AS CHARACTER(36))
+          UNION
+          SELECT c.node_id, c.node_type
+          FROM subtree s
+          CROSS JOIN LATERAL (
+              SELECT n.node_id, n.node_type FROM node n WHERE n.folder_id = s.node_id
+              UNION ALL
+              SELECT n.node_id, n.node_type
+              FROM trashed t
+              INNER JOIN node n ON n.node_id = t.node_id
+              WHERE t.parent_id = s.node_id
+          ) c
+          WHERE s.node_type = 'FOLDER'
+      )
+      DELETE FROM share sh
+      USING subtree s
+      WHERE sh.node_id = s.node_id AND sh.target_uuid = :userId
+      RETURNING sh.node_id
+      """;
+
   private String buildOrderByClause(List<ShareSort> sorts) {
     if (sorts.isEmpty()) {
       return "";
@@ -227,6 +259,19 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
             .setParameter("userId", targetUserId)
             .getResultList();
     detachShares(affected, targetUserId);
+  }
+
+  @Override
+  @Transactional
+  public void deleteSharesOfUserBelow(String nodeId, String userId) {
+    flush();
+    List<String> affected =
+        getEntityManager()
+            .createNativeQuery(DELETE_SHARES_BELOW_SQL, String.class)
+            .setParameter("root", nodeId)
+            .setParameter("userId", userId)
+            .getResultList();
+    detachShares(affected, userId);
   }
 
   private void detachShares(List<String> affectedNodeIds, String targetUserId) {

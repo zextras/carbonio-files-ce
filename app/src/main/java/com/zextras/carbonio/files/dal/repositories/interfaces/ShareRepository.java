@@ -116,6 +116,16 @@ public interface ShareRepository {
   void cascadeDeleteInheritedShares(String nodeId, String targetUserId);
 
   /**
+   * Deletes every share, direct or inherited, of {@code userId} on all the descendants of {@code
+   * nodeId} (the node itself is excluded). Children are reached by folder and through the nodes
+   * trashed from each folder, descending only into folders.
+   *
+   * <p>The pending changes are flushed first and the stale {@link Share} entities of the affected
+   * descendants are detached afterwards.
+   */
+  void deleteSharesOfUserBelow(String nodeId, String userId);
+
+  /**
    * Reads only the permissions of the share of a user on a node, without loading the {@link Share}
    * entity into the persistence context.
    *
