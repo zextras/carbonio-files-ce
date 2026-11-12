@@ -164,6 +164,8 @@ public class FileVersionRepositoryImpl
     return count("mComposedId.mNodeId = ?1 and mVersion > ?2", nodeId, version) > 0;
   }
 
+  // Native: DELETE ... RETURNING reports exactly the versions this statement removed; reading them
+  // before a JPQL delete would reopen the race with concurrent deleters.
   private static final String DELETE_NOT_KEPT_NOT_CURRENT_SQL =
       """
       DELETE FROM revision

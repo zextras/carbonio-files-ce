@@ -39,6 +39,8 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
           Db.Share.PERMISSIONS, "permissions",
           Db.Share.EXPIRED_AT, "expiredAt");
 
+  // Native: recursive CTE with LATERAL and INSERT ... ON CONFLICT DO UPDATE, which JPQL cannot
+  // express.
   private static final String CASCADE_UPSERT_SQL =
       """
       WITH RECURSIVE subtree(node_id, node_type) AS (
@@ -70,6 +72,7 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
       RETURNING node_id
       """;
 
+  // Native: recursive CTE with LATERAL and DELETE ... RETURNING, which JPQL cannot express.
   private static final String CASCADE_DELETE_SQL =
       """
       WITH RECURSIVE subtree(node_id, node_type) AS (

@@ -310,6 +310,8 @@ public class NodeRepositoryImpl implements NodeRepository {
     return entityManager.merge(node);
   }
 
+  // Native: recursive CTE feeding a data-modifying CTE, with the rows read back in one statement;
+  // JPQL has neither.
   private static final String DELETE_SUBTREES_SQL =
       """
       WITH RECURSIVE subtree(node_id, node_type, owner_id) AS (
@@ -352,6 +354,7 @@ public class NodeRepositoryImpl implements NodeRepository {
       SELECT f.owner_id, RTRIM(f.node_id), f.version FROM files f
       """;
 
+  // Native: recursive CTE, which JPQL cannot express.
   private static final String FILE_IDS_IN_SUBTREE_SQL =
       """
       WITH RECURSIVE subtree(node_id, node_type) AS (
@@ -407,36 +410,43 @@ public class NodeRepositoryImpl implements NodeRepository {
 
   @Override
   @Transactional
-  @SuppressWarnings("unchecked")
   public List<String> filterIdsUnderAncestor(String topId, Collection<String> nodeIds) {
     if (nodeIds.isEmpty()) {
       return List.of();
     }
+    List<String> ids = nodeIds.stream().map(NodeRepositoryImpl::normalizeId).toList();
     return entityManager
-        .createNativeQuery(
-            "SELECT RTRIM(n.node_id) FROM node n WHERE n.node_id = ANY(CAST(:ids AS"
-                + " character(36)[])) AND POSITION(',' || :top || ',' IN ',' || n.ancestor_ids ||"
-                + " ',') > 0",
+        .createQuery(
+            "select n.mId from Node n where n.mId in :ids and locate(:top, concat(',',"
+                + " n.mAncestorIds, ',')) > 0",
             String.class)
-        .setParameter("ids", nodeIds.stream().map(String::trim).toArray(String[]::new))
-        .setParameter("top", topId.trim())
-        .getResultList();
+        .setParameter("ids", ids)
+        .setParameter("top", "," + topId.trim() + ",")
+        .getResultList()
+        .stream()
+        .map(String::trim)
+        .toList();
   }
 
   @Override
   @Transactional
-  @SuppressWarnings("unchecked")
   public List<String> getTopMostIdsByOwner(String ownerId) {
     return entityManager
-        .createNativeQuery(
-            "SELECT RTRIM(n.node_id) FROM node n LEFT JOIN node p ON p.node_id = n.folder_id"
-                + " WHERE n.owner_id = CAST(:owner AS VARCHAR(256)) AND n.node_type <> 'ROOT'"
-                + " AND p.owner_id IS DISTINCT FROM CAST(:owner AS VARCHAR(256))",
+        .createQuery(
+            "select n.mId from Node n left join Node p on p.mId = n.mParentId"
+                + " where n.mOwnerId = :owner and n.mNodeType <> :root"
+                + " and p.mOwnerId is distinct from :owner",
             String.class)
         .setParameter("owner", ownerId)
-        .getResultList();
+        .setParameter("root", NodeType.ROOT)
+        .getResultList()
+        .stream()
+        .map(String::trim)
+        .toList();
   }
 
+  // Native: recursive CTE with LATERAL, UPDATE ... FROM and RETURNING for the compare-and-swap on
+  // the old ancestors; JPQL has none of them.
   private static final String REWRITE_DESCENDANT_ANCESTORS_SQL =
       """
       WITH RECURSIVE subtree(node_id, node_type, path, old_ancestors) AS (
@@ -480,20 +490,17 @@ public class NodeRepositoryImpl implements NodeRepository {
                 + destinationFolder.getId();
     int updated =
         entityManager
-            .createNativeQuery(
-                "UPDATE node SET folder_id = CAST(:dest AS CHARACTER(36)),"
-                    + " ancestor_ids = :anc,"
-                    + " name = CASE WHEN name = :expectedName THEN :name ELSE name END,"
-                    + " updated_timestamp = :now"
-                    + " WHERE node_id = CAST(:id AS CHARACTER(36))"
-                    + " AND folder_id = CAST(:expected AS CHARACTER(36))")
-            .setParameter("dest", destinationFolder.getId())
+            .createQuery(
+                "update Node n set n.mParentId = :dest, n.mAncestorIds = :anc,"
+                    + " n.mName = case when n.mName = :expectedName then :name else n.mName end,"
+                    + " n.mUpdatedAt = :now where n.mId = :id and n.mParentId = :expected")
+            .setParameter("dest", normalizeId(destinationFolder.getId()))
             .setParameter("anc", ancestorIds)
             .setParameter("expectedName", expectedName)
             .setParameter("name", name)
             .setParameter("now", System.currentTimeMillis())
-            .setParameter("id", nodeId)
-            .setParameter("expected", expectedParentId)
+            .setParameter("id", normalizeId(nodeId))
+            .setParameter("expected", normalizeId(expectedParentId))
             .executeUpdate();
     if (updated == 0) {
       return false;
@@ -508,15 +515,14 @@ public class NodeRepositoryImpl implements NodeRepository {
     entityManager.flush();
     int updated =
         entityManager
-            .createNativeQuery(
-                "UPDATE node SET folder_id = CAST(:trash AS CHARACTER(36)), ancestor_ids = :trash,"
-                    + " updated_timestamp = :now"
-                    + " WHERE node_id = CAST(:id AS CHARACTER(36))"
-                    + " AND folder_id = CAST(:expected AS CHARACTER(36))")
-            .setParameter("trash", RootId.TRASH_ROOT)
+            .createQuery(
+                "update Node n set n.mParentId = :trash, n.mAncestorIds = :ancestors,"
+                    + " n.mUpdatedAt = :now where n.mId = :id and n.mParentId = :expected")
+            .setParameter("trash", normalizeId(RootId.TRASH_ROOT))
+            .setParameter("ancestors", RootId.TRASH_ROOT)
             .setParameter("now", System.currentTimeMillis())
-            .setParameter("id", nodeId)
-            .setParameter("expected", expectedParentId)
+            .setParameter("id", normalizeId(nodeId))
+            .setParameter("expected", normalizeId(expectedParentId))
             .executeUpdate();
     if (updated == 0) {
       return false;
