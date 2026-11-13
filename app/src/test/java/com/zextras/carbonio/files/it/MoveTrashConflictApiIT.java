@@ -301,4 +301,92 @@ class MoveTrashConflictApiIT extends AbstractFilesIT {
     Assertions.assertThat(row(moved)).isEqualTo(new Row(destination, destinationPath, false));
     Assertions.assertThat(row(movedChild).ancestors()).isEqualTo(destinationPath + "," + moved);
   }
+
+  private static Response deleteResponse(String... ids) {
+    return graphql(
+        GraphqlCommandBuilder.aMutationBuilder("deleteNodes")
+            .withListOfStrings("node_ids", ids)
+            .withWantedResultFormat("")
+            .build(),
+        COOKIE);
+  }
+
+  private static boolean exists(String nodeId) throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement("SELECT 1 FROM node WHERE node_id = ?")) {
+      statement.setString(1, nodeId);
+      try (ResultSet rows = statement.executeQuery()) {
+        return rows.next();
+      }
+    }
+  }
+
+  private static Response deleteWhileMoveCommits(String[][] moves, String deletedId)
+      throws Exception {
+    try (Connection holder = jdbcConnection()) {
+      holder.setAutoCommit(false);
+      try (PreparedStatement statement =
+          holder.prepareStatement(
+              "UPDATE node SET folder_id = ?, ancestor_ids = ? WHERE node_id = ?")) {
+        for (String[] move : moves) {
+          statement.setString(1, move[1]);
+          statement.setString(2, move[2]);
+          statement.setString(3, move[0]);
+          statement.executeUpdate();
+        }
+      }
+      CompletableFuture<Response> deleting =
+          CompletableFuture.supplyAsync(() -> deleteResponse(deletedId));
+      awaitBlockedBy(holder);
+      holder.commit();
+      return deleting.get(60, TimeUnit.SECONDS);
+    }
+  }
+
+  @Test
+  void givenAMoveOutCommittedWhileTheOldParentIsDeletedDeleteNodesShouldKeepTheMovedSubtree()
+      throws Exception {
+    String destination = seedFolder("destination", LOCAL_ROOT, COOKIE);
+    String deleted = seedFolder("deleted", LOCAL_ROOT, COOKIE);
+    String moved = seedFolder("moved", deleted, COOKIE);
+    String movedChild = file("movedChild.txt", moved);
+    String sibling = file("sibling.txt", deleted);
+    String destinationPath = "LOCAL_ROOT," + destination;
+
+    Response delete =
+        deleteWhileMoveCommits(
+            new String[][] {
+              {moved, destination, destinationPath},
+              {movedChild, moved, destinationPath + "," + moved}
+            },
+            deleted);
+
+    Assertions.assertThat(errorCodes(delete)).isEmpty();
+    Assertions.assertThat(exists(deleted)).isFalse();
+    Assertions.assertThat(exists(sibling)).isFalse();
+    Assertions.assertThat(row(moved)).isEqualTo(new Row(destination, destinationPath, false));
+    Assertions.assertThat(row(movedChild).ancestors()).isEqualTo(destinationPath + "," + moved);
+    Assertions.assertThat(tombstoneRowsForNode(movedChild)).isZero();
+    Assertions.assertThat(download(movedChild, COOKIE).getStatusCode()).isEqualTo(200);
+  }
+
+  @Test
+  void givenAMoveInsideTheSubtreeCommittedWhileItIsDeletedDeleteNodesShouldDeleteTheMovedNode()
+      throws Exception {
+    String deleted = seedFolder("deleted", LOCAL_ROOT, COOKIE);
+    String from = seedFolder("from", deleted, COOKIE);
+    String to = seedFolder("to", deleted, COOKIE);
+    String moved = file("moved.txt", from);
+
+    Response delete =
+        deleteWhileMoveCommits(
+            new String[][] {{moved, to, "LOCAL_ROOT," + deleted + "," + to}}, deleted);
+
+    Assertions.assertThat(errorCodes(delete)).isEmpty();
+    Assertions.assertThat(exists(deleted)).isFalse();
+    Assertions.assertThat(exists(to)).isFalse();
+    Assertions.assertThat(exists(moved)).isFalse();
+    Assertions.assertThat(download(moved, COOKIE).getStatusCode()).isEqualTo(404);
+  }
 }

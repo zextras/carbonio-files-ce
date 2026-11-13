@@ -314,19 +314,29 @@ public class NodeRepositoryImpl implements NodeRepository {
   // JPQL has neither.
   private static final String DELETE_SUBTREES_SQL =
       """
-      WITH RECURSIVE subtree(node_id, node_type, owner_id) AS (
-          SELECT n.node_id, n.node_type, n.owner_id
+      WITH RECURSIVE subtree(node_id, node_type, owner_id, ancestor_ids) AS (
+          SELECT n.node_id, n.node_type, n.owner_id, n.ancestor_ids
           FROM node n
           WHERE n.node_id = ANY(CAST(:ids AS character(36)[]))
           UNION
-          SELECT c.node_id, c.node_type, c.owner_id
+          SELECT c.node_id, c.node_type, c.owner_id, c.ancestor_ids
           FROM subtree s
           CROSS JOIN LATERAL (
-              SELECT n.node_id, n.node_type, n.owner_id
+              SELECT n.node_id, n.node_type, n.owner_id, n.ancestor_ids
               FROM node n
               WHERE n.folder_id = s.node_id
           ) c
           WHERE s.node_type = 'FOLDER'
+      ),
+      removed AS (
+          DELETE FROM node n
+          USING subtree s
+          WHERE n.node_id = ANY(ARRAY(SELECT st.node_id FROM subtree st))
+            AND n.node_id = s.node_id
+            AND (n.node_id = ANY(CAST(:ids AS character(36)[]))
+                 OR n.ancestor_ids IS NOT DISTINCT FROM s.ancestor_ids
+                 OR string_to_array(n.ancestor_ids, ',') && CAST(:ids AS text[]))
+          RETURNING n.node_id
       ),
       files AS (
           SELECT s.node_id, s.owner_id, r.version
@@ -335,6 +345,7 @@ public class NodeRepositoryImpl implements NodeRepository {
               SELECT rv.version FROM revision rv WHERE rv.node_id = s.node_id OFFSET 0
           ) r
           WHERE s.node_type <> 'FOLDER'
+            AND s.node_id IN (SELECT rm.node_id FROM removed rm)
       ),
       tombstoned AS (
           INSERT INTO tombstone (node_id, owner_id, timestamp, version, attempts)
@@ -346,10 +357,7 @@ public class NodeRepositoryImpl implements NodeRepository {
           DELETE FROM share sh
           USING trashed t
           WHERE sh.node_id = t.node_id
-            AND t.parent_id IN (SELECT s.node_id FROM subtree s WHERE s.node_type = 'FOLDER')
-      ),
-      removed AS (
-          DELETE FROM node WHERE node_id = ANY(ARRAY(SELECT s.node_id FROM subtree s))
+            AND t.parent_id IN (SELECT rm.node_id FROM removed rm)
       )
       SELECT f.owner_id, RTRIM(f.node_id), f.version FROM files f
       """;
