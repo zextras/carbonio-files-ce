@@ -1,3 +1,9 @@
+## [3.0.11](https://github.com/zextras/carbonio-files-ce/compare/v3.0.10...v3.0.11) (2026-11-13)
+
+### Bug Fixes
+
+* [CO-4728] close the Files write races without locks and run the cascades as set-based SQL ([#360](https://github.com/zextras/carbonio-files-ce/issues/360)) ([1c9a5f3](https://github.com/zextras/carbonio-files-ce/commit/1c9a5f3013ac3165be40f06f4ebb090a74f76a4f))
+
 ## [3.0.10](https://github.com/zextras/carbonio-files-ce/compare/v3.0.9...v3.0.10) (2026-11-10)
 
 ### Bug Fixes
