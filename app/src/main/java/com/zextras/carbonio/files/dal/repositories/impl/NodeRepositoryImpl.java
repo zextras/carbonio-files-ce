@@ -20,6 +20,7 @@ import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.SortOrder;
 import com.zextras.carbonio.files.dal.repositories.interfaces.CollationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
+import com.zextras.carbonio.files.rest.services.BlobKey;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -35,16 +36,19 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.hibernate.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -219,25 +223,6 @@ public class NodeRepositoryImpl implements NodeRepository {
   }
 
   @Override
-  public List<Node> findNodesByOwner(String ownerId) {
-    return entityManager
-        .createQuery("select n from Node n where n.mOwnerId = :owner", Node.class)
-        .setParameter("owner", ownerId)
-        .getResultList();
-  }
-
-  @Override
-  public Optional<Node> findFirstByOwner(String ownerId) {
-    return entityManager
-        .createQuery("select n from Node n where n.mOwnerId = :owner", Node.class)
-        .setParameter("owner", ownerId)
-        .setMaxResults(1)
-        .getResultList()
-        .stream()
-        .findFirst();
-  }
-
-  @Override
   public Stream<Node> getNodes(List<String> nodeIds, Optional<NodeSort> sort) {
     if (nodeIds.isEmpty()) {
       return Stream.empty();
@@ -325,55 +310,286 @@ public class NodeRepositoryImpl implements NodeRepository {
     return entityManager.merge(node);
   }
 
+  // Native: recursive CTE feeding a data-modifying CTE, with the rows read back in one statement;
+  // JPQL has neither.
+  private static final String DELETE_SUBTREES_SQL =
+      """
+      WITH RECURSIVE subtree(node_id, node_type, owner_id, ancestor_ids) AS (
+          SELECT n.node_id, n.node_type, n.owner_id, n.ancestor_ids
+          FROM node n
+          WHERE n.node_id = ANY(CAST(:ids AS character(36)[]))
+          UNION
+          SELECT c.node_id, c.node_type, c.owner_id, c.ancestor_ids
+          FROM subtree s
+          CROSS JOIN LATERAL (
+              SELECT n.node_id, n.node_type, n.owner_id, n.ancestor_ids
+              FROM node n
+              WHERE n.folder_id = s.node_id
+          ) c
+          WHERE s.node_type = 'FOLDER'
+      ),
+      removed AS (
+          DELETE FROM node n
+          USING subtree s
+          WHERE n.node_id = ANY(ARRAY(SELECT st.node_id FROM subtree st))
+            AND n.node_id = s.node_id
+            AND (n.node_id = ANY(CAST(:ids AS character(36)[]))
+                 OR n.ancestor_ids IS NOT DISTINCT FROM s.ancestor_ids
+                 OR string_to_array(n.ancestor_ids, ',') && CAST(:ids AS text[]))
+          RETURNING n.node_id
+      ),
+      files AS (
+          SELECT s.node_id, s.owner_id, r.version
+          FROM subtree s
+          CROSS JOIN LATERAL (
+              SELECT rv.version FROM revision rv WHERE rv.node_id = s.node_id OFFSET 0
+          ) r
+          WHERE s.node_type <> 'FOLDER'
+            AND s.node_id IN (SELECT rm.node_id FROM removed rm)
+      ),
+      tombstoned AS (
+          INSERT INTO tombstone (node_id, owner_id, timestamp, version, attempts)
+          SELECT f.node_id, f.owner_id, CAST(:now AS BIGINT), f.version, 0
+          FROM files f
+          ON CONFLICT (node_id, version) DO NOTHING
+      ),
+      unshared AS (
+          DELETE FROM share sh
+          USING trashed t
+          WHERE sh.node_id = t.node_id
+            AND t.parent_id IN (SELECT rm.node_id FROM removed rm)
+      )
+      SELECT f.owner_id, RTRIM(f.node_id), f.version FROM files f
+      """;
+
+  // Native: kept with the sibling subtree statements, and to control the plan of the LATERAL
+  // walk over the folder_id index, which HQL's recursive CTE does not give.
+  private static final String FILE_IDS_IN_SUBTREE_SQL =
+      """
+      WITH RECURSIVE subtree(node_id, node_type) AS (
+          SELECT n.node_id, n.node_type
+          FROM node n
+          WHERE n.node_id = CAST(:root AS CHARACTER(36))
+          UNION
+          SELECT c.node_id, c.node_type
+          FROM subtree s
+          CROSS JOIN LATERAL (
+              SELECT n.node_id, n.node_type
+              FROM node n
+              WHERE n.folder_id = s.node_id
+          ) c
+          WHERE s.node_type = 'FOLDER'
+      )
+      SELECT RTRIM(s.node_id) FROM subtree s WHERE s.node_type <> 'FOLDER'
+      """;
+
   @Override
   @Transactional
-  public int deleteNodes(List<String> nodesIds) {
-    if (nodesIds.isEmpty()) {
-      return 0;
+  @SuppressWarnings("unchecked")
+  public Map<String, List<BlobKey>> deleteSubtrees(Collection<String> rootIds) {
+    if (rootIds.isEmpty()) {
+      return Map.of();
     }
-    // Fetch-then-remove: a JPQL bulk delete would bypass the L1 cache leaving stale managed
-    // instances; removing managed entities keeps the persistence context consistent (and lets the
-    // DB-level ON DELETE CASCADE clean child tables).
-    List<Node> nodes =
+    entityManager.flush();
+    List<Object[]> tombstoned =
         entityManager
-            .createQuery("select n from Node n where n.mId in :ids", Node.class)
-            .setParameter("ids", nodesIds.stream().map(NodeRepositoryImpl::normalizeId).toList())
+            .createNativeQuery(DELETE_SUBTREES_SQL, Object[].class)
+            .setParameter("ids", rootIds.stream().map(String::trim).toArray(String[]::new))
+            .setParameter("now", System.currentTimeMillis())
             .getResultList();
-    nodes.forEach(entityManager::remove);
-    return nodes.size();
+    entityManager.clear();
+    Map<String, List<BlobKey>> keysByOwner = new HashMap<>();
+    for (Object[] row : tombstoned) {
+      keysByOwner
+          .computeIfAbsent((String) row[0], owner -> new ArrayList<>())
+          .add(new BlobKey(((String) row[1]).trim(), ((Number) row[2]).intValue()));
+    }
+    return keysByOwner;
   }
 
   @Override
   @Transactional
-  public int moveNodes(List<String> nodesIds, Node destinationFolder) {
-    if (nodesIds.isEmpty()) {
-      return 0;
+  @SuppressWarnings("unchecked")
+  public List<String> getFileIdsInSubtree(String rootId) {
+    return entityManager
+        .createNativeQuery(FILE_IDS_IN_SUBTREE_SQL, String.class)
+        .setParameter("root", normalizeId(rootId))
+        .getResultList();
+  }
+
+  @Override
+  @Transactional
+  public List<String> filterIdsUnderAncestor(String topId, Collection<String> nodeIds) {
+    if (nodeIds.isEmpty()) {
+      return List.of();
     }
+    List<String> ids = nodeIds.stream().map(NodeRepositoryImpl::normalizeId).toList();
+    return entityManager
+        .createQuery(
+            "select n.mId from Node n where n.mId in :ids and locate(:top, concat(',',"
+                + " n.mAncestorIds, ',')) > 0",
+            String.class)
+        .setParameter("ids", ids)
+        .setParameter("top", "," + topId.trim() + ",")
+        .getResultList()
+        .stream()
+        .map(String::trim)
+        .toList();
+  }
+
+  @Override
+  @Transactional
+  public List<String> getTopMostIdsByOwner(String ownerId) {
+    return entityManager
+        .createQuery(
+            "select n.mId from Node n left join Node p on p.mId = n.mParentId"
+                + " where n.mOwnerId = :owner and n.mNodeType <> :root"
+                + " and p.mOwnerId is distinct from :owner",
+            String.class)
+        .setParameter("owner", ownerId)
+        .setParameter("root", NodeType.ROOT)
+        .getResultList()
+        .stream()
+        .map(String::trim)
+        .toList();
+  }
+
+  // Native: recursive CTE with LATERAL, UPDATE ... FROM and RETURNING for the compare-and-swap on
+  // the old ancestors; JPQL has none of them.
+  private static final String REWRITE_DESCENDANT_ANCESTORS_SQL =
+      """
+      WITH RECURSIVE subtree(node_id, node_type, path, old_ancestors) AS (
+          SELECT n.node_id, n.node_type, CAST(:prefix AS TEXT), n.ancestor_ids
+          FROM node n
+          WHERE n.folder_id = CAST(:root AS CHARACTER(36))
+          UNION ALL
+          SELECT c.node_id, c.node_type, s.path || ',' || RTRIM(s.node_id), c.ancestor_ids
+          FROM subtree s
+          CROSS JOIN LATERAL (
+              SELECT n.node_id, n.node_type, n.ancestor_ids
+              FROM node n
+              WHERE n.folder_id = s.node_id
+          ) c
+          WHERE s.node_type = 'FOLDER'
+            AND length(s.path) <= 4096
+      )
+      UPDATE node n
+      SET ancestor_ids = s.path,
+          updated_timestamp = :now
+      FROM subtree s
+      WHERE n.node_id = s.node_id
+        AND n.ancestor_ids IS NOT DISTINCT FROM s.old_ancestors
+      RETURNING n.node_id
+      """;
+
+  @Override
+  @Transactional
+  public boolean moveNodeIfParent(
+      String nodeId,
+      String expectedParentId,
+      Node destinationFolder,
+      String expectedName,
+      String name) {
+    entityManager.flush();
     String ancestorIds =
         NodeType.ROOT.equals(destinationFolder.getNodeType())
             ? destinationFolder.getId()
             : destinationFolder.getAncestorIds()
                 + Node.ANCESTORS_SEPARATOR
                 + destinationFolder.getId();
-    long now = System.currentTimeMillis();
-
-    // Fetch-then-set (not a JPQL bulk update) so the managed entities stay coherent with the L1
-    // cache; Hibernate dirty-checking flushes the changes.
-    List<Node> nodes =
+    int updated =
         entityManager
-            .createQuery("select n from Node n where n.mId in :ids", Node.class)
-            .setParameter("ids", nodesIds.stream().map(NodeRepositoryImpl::normalizeId).toList())
-            .getResultList();
-    nodes.forEach(
-        n ->
-            n.setParentId(destinationFolder.getId()).setAncestorIds(ancestorIds).setUpdatedAt(now));
-    return nodes.size();
+            .createQuery(
+                "update Node n set n.mParentId = :dest, n.mAncestorIds = :anc,"
+                    + " n.mName = case when n.mName = :expectedName then :name else n.mName end,"
+                    + " n.mUpdatedAt = :now where n.mId = :id and n.mParentId = :expected")
+            .setParameter("dest", normalizeId(destinationFolder.getId()))
+            .setParameter("anc", ancestorIds)
+            .setParameter("expectedName", expectedName)
+            .setParameter("name", name)
+            .setParameter("now", System.currentTimeMillis())
+            .setParameter("id", normalizeId(nodeId))
+            .setParameter("expected", normalizeId(expectedParentId))
+            .executeUpdate();
+    if (updated == 0) {
+      return false;
+    }
+    refreshManagedNodes(Set.of(nodeId));
+    return true;
   }
 
   @Override
   @Transactional
-  public void invertHiddenFlagNodes(List<Node> nodesToFlag) {
-    nodesToFlag.forEach(node -> entityManager.merge(node.setHidden(!node.isHidden())));
+  public boolean trashNodeIfParent(String nodeId, String expectedParentId) {
+    entityManager.flush();
+    int updated =
+        entityManager
+            .createQuery(
+                "update Node n set n.mParentId = :trash, n.mAncestorIds = :ancestors,"
+                    + " n.mUpdatedAt = :now where n.mId = :id and n.mParentId = :expected")
+            .setParameter("trash", normalizeId(RootId.TRASH_ROOT))
+            .setParameter("ancestors", RootId.TRASH_ROOT)
+            .setParameter("now", System.currentTimeMillis())
+            .setParameter("id", normalizeId(nodeId))
+            .setParameter("expected", normalizeId(expectedParentId))
+            .executeUpdate();
+    if (updated == 0) {
+      return false;
+    }
+    refreshManagedNodes(Set.of(nodeId));
+    return true;
+  }
+
+  private void refreshManagedNodes(Set<String> nodeIds) {
+    Session session = entityManager.unwrap(Session.class);
+    if (session.getStatistics().getEntityCount() == 0) {
+      return;
+    }
+    session.getManagedEntities(Node.class).stream()
+        .filter(node -> nodeIds.contains(node.getId()))
+        .forEach(session::refresh);
+  }
+
+  @Override
+  @Transactional
+  @SuppressWarnings("unchecked")
+  public int rewriteDescendantAncestors(Node parent) {
+    entityManager.flush();
+    String prefix =
+        NodeType.ROOT.equals(parent.getNodeType())
+            ? parent.getId()
+            : parent.getAncestorIds() + Node.ANCESTORS_SEPARATOR + parent.getId();
+    List<String> affected =
+        entityManager
+            .createNativeQuery(REWRITE_DESCENDANT_ANCESTORS_SQL, String.class)
+            .setParameter("root", normalizeId(parent.getId()))
+            .setParameter("prefix", prefix)
+            .setParameter("now", System.currentTimeMillis())
+            .getResultList();
+    if (affected.isEmpty()) {
+      return 0;
+    }
+    Set<String> affectedIds = new HashSet<>();
+    affected.forEach(id -> affectedIds.add(id.trim()));
+    refreshManagedNodes(affectedIds);
+    return affected.size();
+  }
+
+  @Override
+  @Transactional
+  public int setHiddenForOwner(String ownerId, boolean hidden) {
+    entityManager.flush();
+    int updated =
+        entityManager
+            .createQuery(
+                "update Node n set n.mHidden = :hidden where n.mOwnerId = :owner and n.mHidden <>"
+                    + " :hidden")
+            .setParameter("hidden", hidden)
+            .setParameter("owner", ownerId)
+            .executeUpdate();
+    // A bulk update bypasses the persistence context: drop managed copies that are now stale.
+    entityManager.clear();
+    return updated;
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -451,22 +667,6 @@ public class NodeRepositoryImpl implements NodeRepository {
     if (trashedNode != null) {
       entityManager.remove(trashedNode);
     }
-  }
-
-  @Override
-  @Transactional
-  public List<Node> getSubtree(Node root) {
-    List<Node> result = new ArrayList<>(List.of(root));
-    if (root.getNodeType().equals(NodeType.FOLDER)) {
-      List<String> childrenIds =
-          getChildrenIds(root.getId(), Optional.empty(), Optional.empty(), true);
-      if (!childrenIds.isEmpty()) {
-        getNodes(childrenIds, Optional.empty())
-            .filter(Objects::nonNull)
-            .forEach(child -> result.addAll(getSubtree(child)));
-      }
-    }
-    return result;
   }
 
   @Override

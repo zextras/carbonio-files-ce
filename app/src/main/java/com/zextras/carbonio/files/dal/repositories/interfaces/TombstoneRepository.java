@@ -7,6 +7,8 @@ package com.zextras.carbonio.files.dal.repositories.interfaces;
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
+import com.zextras.carbonio.files.dal.dao.ebean.TombstonePK;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,18 +46,16 @@ public interface TombstoneRepository {
   void createTombstonesBulk(List<FileVersion> fileVersions, String ownerId);
 
   /**
-   * Deletes a single tombstone identified by nodeId and version. Used after a blob has been
-   * confirmed deleted from PowerStore.
+   * Deletes the given tombstones with one statement in one transaction.
    *
-   * @param nodeId the node identifier
-   * @param version the file version
+   * @param ids the identifiers (node and version) of the tombstones to delete
    */
-  void deleteTombstonesByNodeAndVersion(String nodeId, Integer version);
+  void deleteTombstones(Collection<TombstonePK> ids);
 
   /**
-   * Persists an updated {@link Tombstone} (e.g. after incrementing the attempts counter).
+   * Increments the attempts counter of the given tombstones with one statement in one transaction.
    *
-   * @param tombstone the tombstone to update
+   * @param ids the identifiers (node and version) of the tombstones to count a failed attempt on
    */
-  void updateTombstone(Tombstone tombstone);
+  void incrementAttempts(Collection<TombstonePK> ids);
 }

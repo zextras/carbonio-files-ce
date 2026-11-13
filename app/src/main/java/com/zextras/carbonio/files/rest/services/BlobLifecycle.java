@@ -5,6 +5,7 @@
 package com.zextras.carbonio.files.rest.services;
 
 import com.google.common.collect.Lists;
+import com.zextras.carbonio.files.dal.dao.ebean.TombstonePK;
 import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
@@ -97,19 +98,26 @@ public class BlobLifecycle {
   /** Runs after the commit that wrote the tombstones; never throws. */
   public void deleteAndClear(String ownerId, Collection<BlobKey> keys) {
     for (List<BlobKey> batch : Lists.partition(List.copyOf(keys), DELETE_BATCH_SIZE)) {
-      try {
-        delete(ownerId, batch)
-            .ifPresent(
-                failed ->
+      deleteBatchAndClear(ownerId, batch);
+    }
+  }
+
+  private void deleteBatchAndClear(String ownerId, List<BlobKey> batch) {
+    try {
+      delete(ownerId, batch)
+          .ifPresent(
+              failed -> {
+                List<TombstonePK> deleted =
                     batch.stream()
                         .filter(k -> !failed.contains(k))
-                        .forEach(
-                            k ->
-                                tombstoneRepository.deleteTombstonesByNodeAndVersion(
-                                    k.nodeId(), k.version())));
-      } catch (RuntimeException e) {
-        logger.warn("Unable to clear the tombstones of owner {}: {}", ownerId, e.getMessage());
-      }
+                        .map(k -> new TombstonePK(k.nodeId(), k.version()))
+                        .toList();
+                if (!deleted.isEmpty()) {
+                  tombstoneRepository.deleteTombstones(deleted);
+                }
+              });
+    } catch (RuntimeException e) {
+      logger.warn("Unable to clear the tombstones of owner {}: {}", ownerId, e.getMessage());
     }
   }
 

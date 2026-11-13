@@ -7,13 +7,11 @@ package com.zextras.carbonio.files.tasks;
 import com.google.common.collect.Lists;
 import com.zextras.carbonio.files.Constants.Config;
 import com.zextras.carbonio.files.Constants.Db.RootId;
-import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
-import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.Tombstone;
+import com.zextras.carbonio.files.dal.dao.ebean.TombstonePK;
 import com.zextras.carbonio.files.dal.dao.ebean.VersionReservation;
 import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.OverwriteLeaseRepository;
@@ -105,11 +103,7 @@ public class PurgeService {
         if (expiredTop.isEmpty()) {
           continue;
         }
-        List<String> fileIds =
-            nodeRepository.getSubtree(expiredTop.get()).stream()
-                .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
-                .map(Node::getId)
-                .toList();
+        List<String> fileIds = nodeRepository.getFileIdsInSubtree(top.getId());
         for (List<String> batch : Lists.partition(fileIds, PURGE_BATCH_SIZE)) {
           collect(
               keysByOwner,
@@ -137,10 +131,11 @@ public class PurgeService {
     if (top.isEmpty()) {
       return Map.of();
     }
-    List<Node> tree = nodeRepository.getSubtree(top.get());
-    Map<String, List<BlobKey>> keysByOwner = tombstoneFiles(tree);
-    nodeRepository.deleteNodes(tree.stream().map(Node::getId).toList());
-    logger.info("Purged {} trashed nodes from database", tree.size());
+    Map<String, List<BlobKey>> keysByOwner = nodeRepository.deleteSubtrees(List.of(topId));
+    logger.info(
+        "Purged trashed tree {} from database: {} revisions tombstoned",
+        topId,
+        keysByOwner.values().stream().mapToInt(List::size).sum());
     return keysByOwner;
   }
 
@@ -150,11 +145,7 @@ public class PurgeService {
     if (expiredTrashedTop(topId, retentionTimestamp).isEmpty()) {
       return Map.of();
     }
-    List<Node> files =
-        fileIds.stream().map(nodeRepository::getNode).flatMap(Optional::stream).toList();
-    Map<String, List<BlobKey>> keysByOwner = tombstoneFiles(files);
-    nodeRepository.deleteNodes(files.stream().map(Node::getId).toList());
-    return keysByOwner;
+    return nodeRepository.deleteSubtrees(nodeRepository.filterIdsUnderAncestor(topId, fileIds));
   }
 
   private Optional<Node> expiredTrashedTop(String topId, long retentionTimestamp) {
@@ -162,23 +153,6 @@ public class PurgeService {
         .getNode(topId)
         .filter(node -> node.getParentId().filter(RootId.TRASH_ROOT::equals).isPresent())
         .filter(node -> node.getUpdatedAt() < retentionTimestamp);
-  }
-
-  private Map<String, List<BlobKey>> tombstoneFiles(List<Node> nodes) {
-    Map<String, List<BlobKey>> keysByOwner = new HashMap<>();
-    nodes.stream()
-        .filter(node -> !node.getNodeType().equals(NodeType.FOLDER))
-        .forEach(
-            node -> {
-              List<FileVersion> versions =
-                  fileVersionRepository.getFileVersions(
-                      node.getId(), List.of(FileVersionSort.VERSION_ASC));
-              tombstoneRepository.createTombstonesBulk(versions, node.getOwnerId());
-              keysByOwner
-                  .computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
-                  .addAll(versions.stream().map(BlobKey::of).toList());
-            });
-    return keysByOwner;
   }
 
   private static void collect(
@@ -217,21 +191,31 @@ public class PurgeService {
     }
 
     // Remove confirmed-deleted tombstones; apply retry-cap to failed ones.
+    List<TombstonePK> toDelete = new ArrayList<>();
+    List<TombstonePK> toCount = new ArrayList<>();
     for (Tombstone t : ownerTombstones) {
+      TombstonePK id = new TombstonePK(t.getNodeId(), t.getVersion());
       if (!failedKeys.get().contains(new BlobKey(t.getNodeId(), t.getVersion()))) {
-        tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
+        toDelete.add(id);
       } else if (t.getAttempts() + 1 >= MAX_TOMBSTONE_RETRIES) {
-        // Genuine per-blob PowerStore rejection — increment attempts toward retry cap.
+        // Genuine per-blob PowerStore rejection on the last allowed attempt: drop the tombstone.
         logger.warn(
             "purgeTombstones: giving up on blob nodeId={} version={} after {} attempts; "
                 + "accepting orphan and removing tombstone.",
             t.getNodeId(),
             t.getVersion(),
             t.getAttempts() + 1);
-        tombstoneRepository.deleteTombstonesByNodeAndVersion(t.getNodeId(), t.getVersion());
+        toDelete.add(id);
       } else {
-        tombstoneRepository.updateTombstone(t.setAttempts(t.getAttempts() + 1));
+        // Genuine per-blob PowerStore rejection: count an attempt toward the retry cap.
+        toCount.add(id);
       }
+    }
+    if (!toDelete.isEmpty()) {
+      tombstoneRepository.deleteTombstones(toDelete);
+    }
+    if (!toCount.isEmpty()) {
+      tombstoneRepository.incrementAttempts(toCount);
     }
   }
 

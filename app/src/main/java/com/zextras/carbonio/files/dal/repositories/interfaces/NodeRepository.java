@@ -10,8 +10,11 @@ import com.zextras.carbonio.files.dal.dao.ebean.NodeCustomAttributes;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.dao.ebean.TrashedNode;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.NodeSort;
+import com.zextras.carbonio.files.rest.services.BlobKey;
 import jakarta.annotation.Nullable;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -189,8 +192,6 @@ public interface NodeRepository {
       String ancestorIds,
       Long size);
 
-  int deleteNodes(List<String> nodesIds);
-
   /**
    * Changes the flag custom attribute for a {@link Node}.
    *
@@ -234,16 +235,49 @@ public interface NodeRepository {
   void restoreNode(String nodeId);
 
   /**
-   * Moves a list of {@link Node}s to a destination folder.
+   * Moves a node to a destination folder only if its parent is still the expected one, with one
+   * conditional statement. The managed copy of the node is refreshed.
    *
-   * <p>This operation is done in bulk in one single database call./p>
-   *
-   * @param nodesIds a {@link List} of {@link String}s representing the ids of nodes to move.
-   * @param destinationFolder is a {@link Node} representing the node of the destination folder.
-   * @return an integer representing the number of moved nodes. This value can be useful for testing
-   *     purposes.
+   * @param nodeId is a {@link String} representing the id of the node to move
+   * @param expectedParentId is a {@link String} representing the parent the node had when it was
+   *     read
+   * @param destinationFolder is a {@link Node} representing the destination folder
+   * @param expectedName is a {@link String} representing the name the node had when it was read;
+   *     the name is written only if it is still this one
+   * @param name is a {@link String} representing the name the node gets in the destination
+   * @return true if the node was moved, false if its parent had changed (trashed or moved
+   *     meanwhile)
    */
-  int moveNodes(List<String> nodesIds, Node destinationFolder);
+  boolean moveNodeIfParent(
+      String nodeId,
+      String expectedParentId,
+      Node destinationFolder,
+      String expectedName,
+      String name);
+
+  /**
+   * Moves a node under the trash root only if its parent is still the expected one, with one
+   * conditional statement. The {@code trashed} row is not written, see {@link #trashNode}.
+   *
+   * @param nodeId is a {@link String} representing the id of the node to trash
+   * @param expectedParentId is a {@link String} representing the parent the node had when it was
+   *     read
+   * @return true if the node was moved to the trash, false if its parent had changed (trashed or
+   *     moved meanwhile)
+   */
+  boolean trashNodeIfParent(String nodeId, String expectedParentId);
+
+  /**
+   * Rewrites the {@code ancestor_ids} and the update timestamp of every descendant of a folder, at
+   * any depth and including the children marked for deletion, in one single database statement.
+   *
+   * <p>The ancestors of the direct children are computed from the given in-memory folder, which may
+   * hold changes not yet flushed. Managed descendants are refreshed to reflect the new state.
+   *
+   * @param parent is a {@link Node} representing the folder whose subtree must be rewritten.
+   * @return an integer representing the number of rewritten descendants.
+   */
+  int rewriteDescendantAncestors(Node parent);
 
   /**
    * Updates a {@link Node} on database.
@@ -253,8 +287,30 @@ public interface NodeRepository {
    */
   Node updateNode(Node node);
 
-  /** The root followed by all its descendants, top-down, trashed or not. */
-  List<Node> getSubtree(Node root);
+  /**
+   * Deletes the roots and all their descendants in the caller's transaction with a constant number
+   * of statements. Every revision of the deleted files gets a tombstone under the owner of its
+   * node, the shares of the nodes trashed from a deleted folder are removed (the nodes stay), and
+   * the rows that reference the deleted nodes are removed with them. A descendant that a concurrent
+   * writer moved out of the subtrees meanwhile is kept, with its blobs. Flushes first and then
+   * clears the persistence context, so the caller must end its transaction right after the call.
+   *
+   * @param rootIds the ids of the roots of the subtrees to delete.
+   * @return the blob keys of the tombstoned revisions by owner, to delete after the commit.
+   */
+  Map<String, List<BlobKey>> deleteSubtrees(Collection<String> rootIds);
+
+  /** The ids of the non-folder nodes of the subtree of the root, the root included. */
+  List<String> getFileIdsInSubtree(String rootId);
+
+  /** The ids, among the given ones, of the nodes that have the top as an ancestor. */
+  List<String> filterIdsUnderAncestor(String topId, Collection<String> nodeIds);
+
+  /**
+   * The ids of the top-most nodes owned by the user: the non-root nodes whose parent is not owned
+   * by the user. Every other node of the user is a descendant of one of them.
+   */
+  List<String> getTopMostIdsByOwner(String ownerId);
 
   /**
    * Returns the nodes directly under the trash root that were trashed before the given timestamp.
@@ -280,21 +336,15 @@ public interface NodeRepository {
   Optional<Node> getNodeByName(String nodeName, String folderId, String nodeOwner);
 
   /**
-   * @param ownerId is the owner id from which to return nodes.
-   * @return a {@link List<Node>} representing all nodes owned by ownerId.
+   * Sets the hidden flag to the given absolute value on every node owned by ownerId. Idempotent.
+   * Being a bulk update it flushes and then clears the persistence context, detaching every managed
+   * entity of the current transaction.
+   *
+   * @param ownerId is the owner whose nodes are updated.
+   * @param hidden is the value to set.
+   * @return the number of nodes whose flag changed.
    */
-  List<Node> findNodesByOwner(String ownerId);
-
-  /**
-   * @param ownerId is the owner id from which to return node.
-   *     <p>Returns the first {@link Node} of all nodes owned by ownerIds.
-   */
-  Optional<Node> findFirstByOwner(String ownerId);
-
-  /**
-   * @param nodesToFlag is the list of the nodes to show/hide.
-   */
-  void invertHiddenFlagNodes(List<Node> nodesToFlag);
+  int setHiddenForOwner(String ownerId, boolean hidden);
 
   /*
   Calculates the absolute size of a folder by performing a sum of the sizes of all files that have that folder

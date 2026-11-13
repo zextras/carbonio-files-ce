@@ -18,6 +18,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.zextras.carbonio.files.dal.dao.ebean.TombstonePK;
 import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
@@ -75,8 +76,8 @@ class BlobLifecycleTest {
 
     blobLifecycle.deleteAndClear("owner", List.of(new BlobKey("n1", 2), new BlobKey("n1", 3)));
 
-    verify(tombstones).deleteTombstonesByNodeAndVersion("n1", 3);
-    verify(tombstones, never()).deleteTombstonesByNodeAndVersion("n1", 2);
+    verify(tombstones).deleteTombstones(List.of(new TombstonePK("n1", 3)));
+    verifyNoMoreInteractions(tombstones);
   }
 
   @Test
@@ -87,7 +88,7 @@ class BlobLifecycleTest {
     blobLifecycle.deleteAndClear(
         "owner", List.of(new BlobKey("n1", 1), new BlobKey("n1", 2), new BlobKey("n2", 1)));
 
-    verify(tombstones).deleteTombstonesByNodeAndVersion("n2", 1);
+    verify(tombstones).deleteTombstones(List.of(new TombstonePK("n2", 1)));
     verifyNoMoreInteractions(tombstones);
   }
 
@@ -134,7 +135,7 @@ class BlobLifecycleTest {
     order.verify(reservations).consume("n1", 2);
     order.verify(tombstones).createNewTombstone("n1", "owner", 2);
     order.verify(fileStore).bulkDelete(eq(IdentifierType.files), eq("owner"), anyList());
-    order.verify(tombstones).deleteTombstonesByNodeAndVersion("n1", 2);
+    order.verify(tombstones).deleteTombstones(List.of(new TombstonePK("n1", 2)));
   }
 
   @Test
@@ -164,7 +165,7 @@ class BlobLifecycleTest {
 
     verify(tombstones).createNewTombstone("n1", "owner", 2);
     verifyNoInteractions(fileStore);
-    verify(tombstones, never()).deleteTombstonesByNodeAndVersion(anyString(), any());
+    verify(tombstones, never()).deleteTombstones(any());
   }
 
   @Test
@@ -193,7 +194,11 @@ class BlobLifecycleTest {
     assertThat(batches.getAllValues())
         .extracting(List::size)
         .containsExactly(BlobLifecycle.DELETE_BATCH_SIZE, 1);
-    verify(tombstones, times(keys.size())).deleteTombstonesByNodeAndVersion(eq("n1"), any());
+    ArgumentCaptor<List<TombstonePK>> cleared = ArgumentCaptor.captor();
+    verify(tombstones, times(2)).deleteTombstones(cleared.capture());
+    assertThat(cleared.getAllValues())
+        .extracting(List::size)
+        .containsExactly(BlobLifecycle.DELETE_BATCH_SIZE, 1);
   }
 
   @Test
@@ -208,8 +213,9 @@ class BlobLifecycleTest {
 
     blobLifecycle.deleteAndClear("owner", keys);
 
-    verify(tombstones, times(1)).deleteTombstonesByNodeAndVersion(eq("n1"), any());
-    verify(tombstones).deleteTombstonesByNodeAndVersion("n1", BlobLifecycle.DELETE_BATCH_SIZE + 1);
+    verify(tombstones, times(1)).deleteTombstones(any());
+    verify(tombstones)
+        .deleteTombstones(List.of(new TombstonePK("n1", BlobLifecycle.DELETE_BATCH_SIZE + 1)));
   }
 
   @Test
