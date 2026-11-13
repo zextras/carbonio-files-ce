@@ -153,7 +153,8 @@ class LongBlobOperationsTransferPoolTest {
 
   private static void awaitRequestContextsDestroyed() {
     long deadline = System.nanoTime() + 5_000_000_000L;
-    while (System.nanoTime() < deadline && DESTROYED.get() < INITIALIZED.get()) {
+    while (System.nanoTime() < deadline
+        && (DESTROYED.get() < INITIALIZED.get() || BEAN_PRE_DESTROY.get() < BEAN_CREATED.get())) {
       Thread.onSpinWait();
     }
   }
@@ -161,6 +162,7 @@ class LongBlobOperationsTransferPoolTest {
   private record Lifecycle(int initialized, int destroyed, int beans, int preDestroyed) {}
 
   private static Lifecycle lifecycleOf(Runnable request) {
+    awaitRequestContextsDestroyed();
     int i = INITIALIZED.get();
     int d = DESTROYED.get();
     int b = BEAN_CREATED.get();
