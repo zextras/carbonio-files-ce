@@ -1,6 +1,6 @@
 # apt-installing a JRE in the final stage needs QEMU on arm64; copy temurin's instead.
 ARG SIDECAR_IMAGE=registry.dev.zextras.com/dev/carbonio-sidecar:main
-FROM docker.io/library/eclipse-temurin:21-jre-jammy AS jre
+FROM docker.io/library/eclipse-temurin:26-jre-jammy AS jre
 
 FROM ${SIDECAR_IMAGE}
 
