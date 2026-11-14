@@ -59,7 +59,7 @@ List of third-party dependencies grouped by their license type.
         * Caffeine cache (com.github.ben-manes.caffeine:jcache:3.2.4 - https://github.com/ben-manes/caffeine)
         * ClassMate (com.fasterxml:classmate:1.7.1 - https://github.com/FasterXML/java-classmate)
         * flyway-core (org.flywaydb:flyway-core:12.0.0 - https://flywaydb.org/flyway-core)
-        * Guava: Google Core Libraries for Java (com.google.guava:guava:33.4.8-jre - https://github.com/google/guava)
+        * Guava: Google Core Libraries for Java (com.google.guava:guava:33.7.2-jre - https://github.com/google/guava)
         * Hibernate ORM - hibernate-core (org.hibernate.orm:hibernate-core:7.4.9.Final - https://hibernate.org/orm)
         * Hibernate ORM - hibernate-graalvm (org.hibernate.orm:hibernate-graalvm:7.4.9.Final - https://hibernate.org/orm)
         * Hibernate ORM - hibernate-jcache (org.hibernate.orm:hibernate-jcache:7.4.9.Final - https://hibernate.org/orm)
