@@ -1,3 +1,5 @@
+## [3.0.12](https://github.com/zextras/carbonio-files-ce/compare/v3.0.11...v3.0.12) (2026-11-16)
+
 ## [3.0.11](https://github.com/zextras/carbonio-files-ce/compare/v3.0.10...v3.0.11) (2026-11-13)
 
 ### Bug Fixes
