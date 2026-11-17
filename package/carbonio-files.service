@@ -21,6 +21,8 @@ Restart=on-failure
 RestartSec=15s
 TimeoutStartSec=120s
 TimeoutStopSec=120s
+# The JVM exits with 128+SIGTERM when stopped
+SuccessExitStatus=143
 
 
 [Install]
