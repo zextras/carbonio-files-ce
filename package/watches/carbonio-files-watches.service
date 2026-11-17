@@ -21,4 +21,4 @@ TimeoutStopSec=120
 
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=carbonio.target multi-user.target
