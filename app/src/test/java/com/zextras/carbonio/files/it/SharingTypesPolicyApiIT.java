@@ -219,6 +219,7 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
     return switch (tier) {
       case "account" -> OWNER_ID;
       case "cos" -> OWNER_COS;
+      case "global" -> null;
       default -> throw new IllegalArgumentException(tier);
     };
   }
@@ -289,7 +290,7 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"account", "cos"})
+  @ValueSource(strings = {"account", "cos", "global"})
   void disabledAccountSharesRejectCreateAndUpdate(String tier) throws Exception {
     String nodeId = newFile();
     String other = newFile();
@@ -343,17 +344,37 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"account", "cos"})
+  @ValueSource(strings = {"account", "cos", "global"})
   void everyTierDisablesAndAMoreSpecificTierReEnables(String tier) throws Exception {
     String nodeId = newFile();
     setHierarchicalConfig(tier, scopeIdOf(tier), "public-links-enabled", "false");
 
     assertDisabled(createLink(nodeId, OWNER_COOKIE), "PUBLIC_LINKS");
 
-    if (!"account".equals(tier)) {
+    if ("global".equals(tier)) {
+      setHierarchicalConfig("cos", OWNER_COS, "public-links-enabled", "true");
+      assertNoErrors(createLink(nodeId, OWNER_COOKIE));
+
+      clearHierarchicalConfig();
+      setHierarchicalConfig("global", null, "public-links-enabled", "false");
+      setHierarchicalConfig("cos", OWNER_COS, "public-links-enabled", "false");
+      assertDisabled(createLink(newFile(), OWNER_COOKIE), "PUBLIC_LINKS");
+      setHierarchicalConfig("account", OWNER_ID, "public-links-enabled", "true");
+      assertNoErrors(createLink(newFile(), OWNER_COOKIE));
+    } else if (!"account".equals(tier)) {
       setHierarchicalConfig("account", OWNER_ID, "public-links-enabled", "true");
       assertNoErrors(createLink(nodeId, OWNER_COOKIE));
     }
+  }
+
+  @Test
+  void aGlobalSettingAppliesToEveryAccount() throws Exception {
+    setHierarchicalConfig("global", null, "public-links-enabled", "false");
+    String otherNode =
+        seedFile("o.txt", LOCAL_ROOT, "c".getBytes(StandardCharsets.UTF_8), OTHER_COOKIE);
+
+    assertDisabled(createLink(newFile(), OWNER_COOKIE), "PUBLIC_LINKS");
+    assertDisabled(createLink(otherNode, OTHER_COOKIE), "PUBLIC_LINKS");
   }
 
   @Test
@@ -524,7 +545,7 @@ class SharingTypesPolicyApiIT extends AbstractFilesIT {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"account", "cos"})
+  @ValueSource(strings = {"account", "cos", "global"})
   void internalLinkEndpointRejectsWithAnExplicitBody(String tier) throws Exception {
     String nodeId = newFile();
     setHierarchicalConfig(tier, scopeIdOf(tier), "public-links-enabled", "false");

@@ -85,17 +85,38 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void domainScopeIsRejectedAndTheGlobalRoutesAreGone() throws SQLException {
+  @SuppressWarnings("unchecked")
+  void domainScopeIsRejectedAndTheGlobalRoutesWork() throws SQLException {
     Response domain = put("/admin/config/raw/domain/x", ADMIN_COOKIE, body(KEY, "d"));
     assertThat(domain.statusCode()).isEqualTo(400);
-    assertThat(domain.asString()).contains("Unknown scope (expected account|cos)");
-
-    assertThat(get("/admin/config/raw/global", ADMIN_COOKIE).statusCode()).isEqualTo(404);
-    assertThat(put("/admin/config/raw/global", ADMIN_COOKIE, body(KEY, "g")).statusCode())
-        .isEqualTo(404);
-    assertThat(delete("/admin/config/raw/global/" + KEY).statusCode()).isEqualTo(405);
+    assertThat(domain.asString()).contains("Unknown scope");
     assertThat(get("/admin/config/raw/domain/x", ADMIN_COOKIE).statusCode()).isEqualTo(400);
     assertThat(delete("/admin/config/raw/domain/x/" + KEY).statusCode()).isEqualTo(400);
+    assertThat(configRows()).isZero();
+
+    assertThat(resolvedFor(USER_ID))
+        .containsEntry("value", DEFAULT_VALUE)
+        .containsEntry("source", "default");
+
+    assertThat(put("/admin/config/raw/global", ADMIN_COOKIE, body(KEY, "g")).statusCode())
+        .isEqualTo(204);
+    Response raw = get("/admin/config/raw/global", ADMIN_COOKIE);
+    assertThat(raw.statusCode()).isEqualTo(200);
+    assertThat(raw.as(Map.class)).containsOnly(Map.entry(KEY, "g"));
+    assertThat(resolvedFor(USER_ID)).containsEntry("value", "g").containsEntry("source", "global");
+    assertThat(userConfig()).containsEntry(KEY, "g");
+
+    assertThat(put("/admin/config/raw/cos/" + COS_ID, ADMIN_COOKIE, body(KEY, "c")).statusCode())
+        .isEqualTo(204);
+    assertThat(resolvedFor(USER_ID)).containsEntry("value", "c").containsEntry("source", "cos");
+
+    assertThat(delete("/admin/config/raw/cos/" + COS_ID + "/" + KEY).statusCode()).isEqualTo(204);
+    assertThat(resolvedFor(USER_ID)).containsEntry("value", "g").containsEntry("source", "global");
+
+    assertThat(delete("/admin/config/raw/global/" + KEY).statusCode()).isEqualTo(204);
+    assertThat(resolvedFor(USER_ID))
+        .containsEntry("value", DEFAULT_VALUE)
+        .containsEntry("source", "default");
     assertThat(configRows()).isZero();
   }
 
@@ -116,6 +137,14 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
       assertThat(put(scoped, NON_GLOBAL_ADMIN_COOKIE, body(KEY, "x")).statusCode()).isEqualTo(403);
       assertThat(delete(scoped + "/" + KEY, NON_GLOBAL_ADMIN_COOKIE).statusCode()).isEqualTo(403);
     }
+
+    String global = "/admin/config/raw/global";
+    assertThat(get(global, null).statusCode()).isEqualTo(401);
+    assertThat(put(global, null, body(KEY, "x")).statusCode()).isEqualTo(401);
+    assertThat(delete(global + "/" + KEY, null).statusCode()).isEqualTo(401);
+    assertThat(get(global, NON_GLOBAL_ADMIN_COOKIE).statusCode()).isEqualTo(403);
+    assertThat(put(global, NON_GLOBAL_ADMIN_COOKIE, body(KEY, "x")).statusCode()).isEqualTo(403);
+    assertThat(delete(global + "/" + KEY, NON_GLOBAL_ADMIN_COOKIE).statusCode()).isEqualTo(403);
     assertThat(configRows()).isZero();
   }
 
@@ -226,7 +255,8 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
         ResultSet resultSet =
             statement.executeQuery(
                 "SELECT (SELECT count(*) FROM carbonio_account_config)"
-                    + " + (SELECT count(*) FROM carbonio_cos_config)")) {
+                    + " + (SELECT count(*) FROM carbonio_cos_config)"
+                    + " + (SELECT count(*) FROM carbonio_global_config)")) {
       resultSet.next();
       return resultSet.getInt(1);
     }

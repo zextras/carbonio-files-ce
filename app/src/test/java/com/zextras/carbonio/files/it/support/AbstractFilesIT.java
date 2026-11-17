@@ -145,12 +145,15 @@ public abstract class AbstractFilesIT {
                   + " ?)";
           case "cos" ->
               "INSERT INTO carbonio_cos_config (cos_id, config_key, value) VALUES (?, ?, ?)";
+          case "global" -> "INSERT INTO carbonio_global_config (config_key, value) VALUES (?, ?)";
           default -> throw new IllegalArgumentException(tier);
         };
     try (Connection connection = jdbcConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
       int i = 1;
-      statement.setString(i++, scopeId);
+      if (!"global".equals(tier)) {
+        statement.setString(i++, scopeId);
+      }
       statement.setString(i++, key);
       statement.setString(i, value);
       statement.executeUpdate();
@@ -162,6 +165,7 @@ public abstract class AbstractFilesIT {
         Statement statement = connection.createStatement()) {
       statement.execute("DELETE FROM carbonio_account_config");
       statement.execute("DELETE FROM carbonio_cos_config");
+      statement.execute("DELETE FROM carbonio_global_config");
     }
   }
 
