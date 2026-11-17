@@ -1,3 +1,9 @@
+## [3.0.13](https://github.com/zextras/carbonio-files-ce/compare/v3.0.12...v3.0.13) (2026-11-17)
+
+### Bug Fixes
+
+* [CO-3502] start carbonio-files.service and carbonio-files-watches.service with carbonio.target ([#363](https://github.com/zextras/carbonio-files-ce/issues/363)) ([e0704af](https://github.com/zextras/carbonio-files-ce/commit/e0704af83d304c8cf0110e72ff6ed597aaf9692c))
+
 ## [3.0.12](https://github.com/zextras/carbonio-files-ce/compare/v3.0.11...v3.0.12) (2026-11-16)
 
 ## [3.0.11](https://github.com/zextras/carbonio-files-ce/compare/v3.0.10...v3.0.11) (2026-11-13)
