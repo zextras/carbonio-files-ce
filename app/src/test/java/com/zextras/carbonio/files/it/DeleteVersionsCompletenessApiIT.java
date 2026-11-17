@@ -22,32 +22,24 @@ import org.junit.jupiter.api.Test;
  * to {@link DeleteVersionsApiIT} (which covers the happy path, the PowerStore-fails DB-first
  * invariant, current-version protection with only a bare error-count assertion, and keep-forever
  * protection likewise): this class re-covers the two "protected version" branches with their EXACT
- * message asserted, adds the genuinely-nonexistent-version case for direct comparison, and
- * documents (rather than fakes) the one branch this suite cannot reach.
+ * message asserted and adds the genuinely-nonexistent-version case for direct comparison.
  *
- * <p><b>FINDING (carried over) — "protected" and "nonexistent" are indistinguishable to the
- * caller:</b> reading {@code NodeDataFetcher#deleteVersionsFetcher} precisely, ALL THREE of the
- * following collapse onto the exact SAME {@code fileVersionNotFound(nodeId, v, path)} error
- * (message {@code "Could not find version: <v> for node with id <id>"}, extension {@code errorCode:
- * FILE_VERSION_NOT_FOUND}): {@code v} IS the node's current version (filtered out by {@code
- * !node.getCurrentVersion().equals(fv.getVersion())}); {@code v} is marked {@code keepForever}
- * (filtered out by {@code !fv.isKeptForever()}); {@code v} simply has no {@code FileVersion} row at
- * all for this node. The result-composition code only ever compares "was {@code v} requested?"
- * against "is {@code v} in the final {@code versionsToDelete} list?" — it has no memory of WHY a
- * version fell out of that list, so a client can never tell a protected version apart from a
- * typo'd/nonexistent one. Asserted directly below (all three scenarios produce the byte-identical
- * message shape), not fixed (test-only task).
+ * <p>{@code NodeApi#deleteVersions} runs one conditional {@code DELETE ... RETURNING} ({@code
+ * FileVersionRepositoryImpl#deleteNotKeptForeverNorCurrent}) that skips the current version and the
+ * kept-forever ones, tombstones the returned rows in the same transaction, and deletes the blobs
+ * after commit.
  *
- * <p><b>GAP (carried over) — the transaction-rollback branch has NO reachable trigger through this
- * suite:</b> {@code deleteVersionsFetcher}'s {@code catch (RuntimeException e)} around the
- * tombstone-write-then-delete transaction (returning a single {@code nodeWriteError}) cannot be
- * exercised black-box: {@code TombstoneRepositoryEbean#createNewTombstone} is deliberately
- * idempotent (check-then-insert, cannot PK-violate); {@code
- * FileVersionRepositoryEbean#deleteFileVersions} is a plain bulk {@code DELETE} with no FK
- * referencing {@code file_version} from any other table; the only fault-injection this stack
- * exposes is on the STORAGES side (already exercised by {@link DeleteVersionsApiIT}'s
- * PowerStore-fails test). No unit test exercises this catch block either. Documented here as a
- * genuine coverage gap rather than forced with a workaround.
+ * <p><b>Protected and nonexistent are indistinguishable to the caller:</b> a version that is the
+ * node's current one, is marked {@code keepForever}, or has no {@code FileVersion} row at all is
+ * simply absent from the rows the {@code DELETE} returns, so all three collapse onto the same
+ * {@code fileVersionNotFound(nodeId, v)} error (message {@code "Could not find version: <v> for
+ * node with id <id>"}, extension {@code errorCode: FILE_VERSION_NOT_FOUND}). Asserted below.
+ *
+ * <p><b>Not reachable black-box:</b> the {@code catch (RuntimeException e)} around that transaction
+ * (answering {@code nodeWriteError}). {@code TombstoneRepositoryImpl#createNewTombstone} is
+ * idempotent, the {@code DELETE} has no foreign key referencing {@code revision} to violate, and
+ * the only fault injection this stack exposes is on the storages side (covered by {@link
+ * DeleteVersionsApiIT}'s PowerStore-fails test).
  */
 class DeleteVersionsCompletenessApiIT extends AbstractFilesIT {
 

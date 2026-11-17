@@ -22,6 +22,7 @@ import com.zextras.carbonio.files.dal.dao.UserId;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.Share;
+import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import com.zextras.carbonio.files.graphql.errors.ErrorCodes;
 import com.zextras.carbonio.files.graphql.errors.FilesGraphQLException;
@@ -61,6 +62,7 @@ class ShareApiTest {
 
     shareApi = new ShareApi();
     shareApi.shareRepository = shareRepository;
+    shareApi.nodeRepository = mock(NodeRepository.class);
     shareApi.permissionsChecker = permissionsChecker;
     shareApi.sharingPolicy = sharingPolicy;
     shareApi.requester = requester;

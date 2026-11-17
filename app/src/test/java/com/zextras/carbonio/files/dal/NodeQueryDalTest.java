@@ -234,4 +234,111 @@ class NodeQueryDalTest {
         .extracting(Node::getId)
         .containsExactly(literalPercent);
   }
+
+  private Node persistAt(
+      String id, NodeType type, String parent, String ancestors, long updatedAt) {
+    String owner = "owner";
+    Node node =
+        new Node(
+            id, owner, owner, parent, updatedAt, updatedAt, "n-" + id, "d", type, ancestors, 0L);
+    entityManager.persist(node);
+    return node;
+  }
+
+  @Test
+  @TestTransaction
+  void getTrashedTopNodesReturnsOldTopsOnlyAndNeverTheirChildren() {
+    long old = System.currentTimeMillis() - 40L * 86400 * 1000;
+    long retention = System.currentTimeMillis() - 30L * 86400 * 1000;
+    String oldTop = id();
+    String recentChild = id();
+    String recentTop = id();
+    String strayDescendant = id();
+    persistAt(oldTop, NodeType.FOLDER, "TRASH_ROOT", "TRASH_ROOT", old);
+    persistAt(
+        recentChild, NodeType.TEXT, oldTop, "TRASH_ROOT," + oldTop, System.currentTimeMillis());
+    persistAt(recentTop, NodeType.FOLDER, "TRASH_ROOT", "TRASH_ROOT", System.currentTimeMillis());
+    persistAt(strayDescendant, NodeType.TEXT, oldTop, "TRASH_ROOT," + oldTop, old);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(nodeRepository.getTrashedTopNodes(retention))
+        .extracting(Node::getId)
+        .contains(oldTop)
+        .doesNotContain(recentChild, recentTop, strayDescendant);
+  }
+
+  @Test
+  @TestTransaction
+  void getFileIdsInSubtreeReturnsTheFilesAtAnyDepth() {
+    long now = System.currentTimeMillis();
+    String root = id();
+    String sub = id();
+    String file = id();
+    String deepFile = id();
+    String outsideFile = id();
+    persistAt(root, NodeType.FOLDER, "TRASH_ROOT", "TRASH_ROOT", now);
+    persistAt(sub, NodeType.FOLDER, root, "TRASH_ROOT," + root, now);
+    persistAt(file, NodeType.TEXT, root, "TRASH_ROOT," + root, now);
+    persistAt(deepFile, NodeType.TEXT, sub, "TRASH_ROOT," + root + "," + sub, now);
+    persistAt(outsideFile, NodeType.TEXT, "TRASH_ROOT", "TRASH_ROOT", now);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(nodeRepository.getFileIdsInSubtree(root)).containsExactlyInAnyOrder(file, deepFile);
+    assertThat(nodeRepository.getFileIdsInSubtree(file)).containsExactly(file);
+  }
+
+  @Test
+  @TestTransaction
+  void filterIdsUnderAncestorKeepsOnlyTheNodesWithTheTopAmongTheirAncestors() {
+    long now = System.currentTimeMillis();
+    String top = id();
+    String inside = id();
+    String moved = id();
+    persistAt(top, NodeType.FOLDER, "TRASH_ROOT", "TRASH_ROOT", now);
+    persistAt(inside, NodeType.TEXT, top, "TRASH_ROOT," + top, now);
+    persistAt(moved, NodeType.TEXT, "LOCAL_ROOT", "LOCAL_ROOT", now);
+    entityManager.flush();
+
+    assertThat(nodeRepository.filterIdsUnderAncestor(top, List.of(inside, moved, top)))
+        .containsExactly(inside);
+    assertThat(nodeRepository.filterIdsUnderAncestor(top, List.of())).isEmpty();
+  }
+
+  @Test
+  @TestTransaction
+  void getTopMostIdsByOwnerReturnsOnlyTheNodesWhoseParentBelongsToSomeoneElse() {
+    String user = id();
+    String other = id();
+    String top = id();
+    String child = id();
+    String deep = id();
+    String foreignFolder = id();
+    String insideForeign = id();
+    String foreignInsideMine = id();
+    String hidden = id();
+    persist(top, "top", user, NodeType.FOLDER, false, 0, "LOCAL_ROOT", "LOCAL_ROOT");
+    persist(child, "child", user, NodeType.FOLDER, false, 0, top, "LOCAL_ROOT," + top);
+    persist(deep, "deep", user, NodeType.TEXT, false, 1, child, "LOCAL_ROOT," + top + "," + child);
+    persist(foreignFolder, "foreign", other, NodeType.FOLDER, false, 0, "LOCAL_ROOT", "LOCAL_ROOT");
+    persist(
+        insideForeign,
+        "inside",
+        user,
+        NodeType.TEXT,
+        false,
+        1,
+        foreignFolder,
+        "LOCAL_ROOT," + foreignFolder);
+    persist(foreignInsideMine, "theirs", other, NodeType.TEXT, false, 1, top, "LOCAL_ROOT," + top);
+    persist(hidden, "hidden", user, NodeType.TEXT, true, 1, "TRASH_ROOT", "TRASH_ROOT");
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(nodeRepository.getTopMostIdsByOwner(user))
+        .containsExactlyInAnyOrder(top, insideForeign, hidden);
+    assertThat(nodeRepository.getTopMostIdsByOwner(other))
+        .containsExactlyInAnyOrder(foreignFolder, foreignInsideMine);
+  }
 }

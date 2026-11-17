@@ -9,34 +9,23 @@ import static com.zextras.carbonio.files.utilities.RenameNodeUtils.searchAlterna
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
-import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.AddedNodeType;
-import com.zextras.carbonio.files.dal.repositories.impl.ebean.utilities.FileVersionSort;
-import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NotificationRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
-import com.zextras.carbonio.files.dal.repositories.interfaces.TombstoneRepository;
+import com.zextras.carbonio.files.rest.services.BlobKey;
+import com.zextras.carbonio.files.rest.services.BlobLifecycle;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
-import com.zextras.filestore.api.Filestore;
-import com.zextras.filestore.model.BulkDeleteRequestItem;
-import com.zextras.filestore.model.BulkDeleteResponseItem;
-import com.zextras.filestore.model.IdentifierType;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,9 +45,7 @@ public class NodeCreationHelper {
   private final ShareRepository shareRepository;
   private final NotificationRepository notificationRepository;
   private final FilesConfig filesConfig;
-  private final FileVersionRepository fileVersionRepository;
-  private final TombstoneRepository tombstoneRepository;
-  private final Filestore fileStore;
+  private final BlobLifecycle blobLifecycle;
   private final PermissionsChecker permissionsChecker;
   private final ShareCascadeHelper shareCascade;
 
@@ -68,31 +55,28 @@ public class NodeCreationHelper {
       ShareRepository shareRepository,
       NotificationRepository notificationRepository,
       FilesConfig filesConfig,
-      FileVersionRepository fileVersionRepository,
-      TombstoneRepository tombstoneRepository,
-      Filestore fileStore,
+      BlobLifecycle blobLifecycle,
       PermissionsChecker permissionsChecker,
       ShareCascadeHelper shareCascade) {
     this.nodeRepository = nodeRepository;
     this.shareRepository = shareRepository;
     this.notificationRepository = notificationRepository;
     this.filesConfig = filesConfig;
-    this.fileVersionRepository = fileVersionRepository;
-    this.tombstoneRepository = tombstoneRepository;
-    this.fileStore = fileStore;
+    this.blobLifecycle = blobLifecycle;
     this.permissionsChecker = permissionsChecker;
     this.shareCascade = shareCascade;
   }
 
   /**
-   * Enforces READ_AND_WRITE on the parent, requires the parent to be a {@link NodeType#FOLDER} or
-   * {@link NodeType#ROOT}, computes the new folder's owner, de-duplicates the requested name
-   * against existing siblings, creates the folder, propagates inherited shares onto it, and fires
-   * the added-node notification (gated on {@link FilesConfig#areNotificationsEnabled()}).
+   * Enforces READ_AND_WRITE on the parent, requires the parent to be a {@link NodeType#FOLDER} or a
+   * {@link NodeType#ROOT} other than the trash, computes the new folder's owner, de-duplicates the
+   * requested name against existing siblings, creates the folder, propagates inherited shares onto
+   * it, and fires the added-node notification (gated on {@link
+   * FilesConfig#areNotificationsEnabled()}).
    *
    * @throws NodeAccessException if the requester lacks READ_AND_WRITE on the parent (checked first,
    *     so a missing parent, which grants no permission, ends here too)
-   * @throws NodeNotFoundException if the parent is neither a FOLDER nor a ROOT
+   * @throws NodeNotFoundException if the parent is neither a FOLDER nor a ROOT other than the trash
    */
   public Node createFolder(String requesterId, String parentId, String name, UserMyself requester) {
     if (!permissionsChecker
@@ -104,10 +88,7 @@ public class NodeCreationHelper {
     Node parent =
         nodeRepository
             .getNode(parentId)
-            .filter(
-                p ->
-                    NodeType.FOLDER.equals(p.getNodeType())
-                        || NodeType.ROOT.equals(p.getNodeType()))
+            .filter(NodeRules::acceptsChildren)
             .orElseThrow(() -> new NodeNotFoundException(parentId));
 
     String ownerId =
@@ -148,87 +129,28 @@ public class NodeCreationHelper {
   }
 
   /**
-   * Purges every non-root node owned by {@code userId}, including their blobs on Storages. DB rows
-   * (tombstones + node/version deletes + folder cascade) are committed in a single transaction
-   * FIRST; only AFTER commit is the best-effort storages {@code bulkDelete} attempted, so no blob
-   * is ever orphaned by a failed metadata delete. Tombstones of blobs that storages fails to delete
-   * are kept for the purge retry.
+   * Purges the nodes owned by {@code userId}, including their blobs on Storages. The purge starts
+   * from the user's top-most nodes (those whose parent is not owned by the user) and deletes the
+   * whole subtree of each, so files that other users created inside the user's folders are deleted
+   * too; their blobs are tombstoned and deleted under their own owner. DB rows (tombstones +
+   * node/version deletes + folder cascade) are committed in a single transaction FIRST; only AFTER
+   * commit is the best-effort storages {@code bulkDelete} attempted, so no blob is ever orphaned by
+   * a failed metadata delete. Tombstones of blobs that storages fails to delete are kept for the
+   * purge retry.
    *
    * @throws RuntimeException if the DB transaction fails (caller must treat as a rollback)
    */
   public void deleteAllNodesAndBlobsForUser(String userId) {
-    List<Node> allNodes =
-        nodeRepository.findNodesByOwner(userId).stream()
-            .filter(Objects::nonNull)
-            .filter(node -> !node.getNodeType().equals(NodeType.ROOT))
-            .toList();
+    Map<String, List<BlobKey>> keysByOwner =
+        QuarkusTransaction.requiringNew()
+            .call(() -> nodeRepository.deleteSubtrees(nodeRepository.getTopMostIdsByOwner(userId)));
 
-    List<Node> fileNodes =
-        allNodes.stream().filter(node -> !node.getNodeType().equals(NodeType.FOLDER)).toList();
-
-    Map<String, List<FileVersion>> fileVersionsByOwner = new HashMap<>();
-    fileNodes.forEach(
-        node -> {
-          List<FileVersion> versions =
-              fileVersionRepository.getFileVersions(
-                  node.getId(), List.of(FileVersionSort.VERSION_ASC));
-          fileVersionsByOwner
-              .computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
-              .addAll(versions);
-        });
-
-    QuarkusTransaction.requiringNew()
-        .run(
-            () -> {
-              fileVersionsByOwner.forEach(
-                  (ownerId, versions) ->
-                      tombstoneRepository.createTombstonesBulk(versions, ownerId));
-              deleteNodes(allNodes);
-              allNodes.stream()
-                  .filter(node -> node.getNodeType().equals(NodeType.FOLDER))
-                  .map(Node::getId)
-                  .forEach(this::cascadeDeleteNode);
-            });
-
-    fileVersionsByOwner.forEach(
-        (ownerId, versions) -> {
-          List<BulkDeleteRequestItem> deleteRequests =
-              versions.stream()
-                  .map(fv -> BulkDeleteRequestItem.filesItem(fv.getNodeId(), fv.getVersion()))
-                  .collect(Collectors.toList());
-          if (deleteRequests.isEmpty()) return;
-          List<BulkDeleteResponseItem> failedItems;
-          try {
-            failedItems = fileStore.bulkDelete(IdentifierType.files, ownerId, deleteRequests);
-          } catch (Exception e) {
-            logger.warn(
-                "Bulk delete failed for owner {}: {}. Tombstones remain for retry.",
-                ownerId,
-                e.getMessage());
-            return;
-          }
-          if (failedItems == null) {
-            logger.warn(
-                "Bulk delete returned null for owner {} (treated as failure). Tombstones remain for"
-                    + " retry.",
-                ownerId);
-            return;
-          }
-          Set<String> failedNodeIds =
-              failedItems.stream().map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
-          versions.stream()
-              .filter(fv -> !failedNodeIds.contains(fv.getNodeId()))
-              .forEach(
-                  fv ->
-                      tombstoneRepository.deleteTombstonesByNodeAndVersion(
-                          fv.getNodeId(), fv.getVersion()));
-        });
+    keysByOwner.forEach(blobLifecycle::deleteAndClear);
   }
 
   private List<String> createIndirectShare(String sharedParentId, Node nodeToShare) {
     List<String> targetUserIds = new ArrayList<>();
-    shareRepository
-        .getShares(sharedParentId, Collections.emptyList())
+    NodeRules.inheritableShares(shareRepository, sharedParentId)
         .forEach(
             share -> {
               targetUserIds.add(share.getTargetUserId());
@@ -249,31 +171,6 @@ public class NodeCreationHelper {
               }
             });
     return targetUserIds;
-  }
-
-  private void cascadeDeleteNode(String nodeId) {
-    List<String> childrenIds =
-        nodeRepository.getChildrenIds(nodeId, Optional.empty(), Optional.empty(), true);
-
-    if (!childrenIds.isEmpty()) {
-      List<Node> children =
-          nodeRepository.getNodes(childrenIds, Optional.empty()).collect(Collectors.toList());
-      deleteNodes(children);
-      children.stream()
-          .filter(node -> node.getNodeType().equals(NodeType.FOLDER))
-          .forEach(node -> cascadeDeleteNode(node.getId()));
-    }
-
-    shareRepository.deleteSharesBulk(nodeRepository.getTrashedNodeIdsByOldParent(nodeId));
-  }
-
-  private void deleteNodes(List<Node> nodes) {
-    List<String> nodeIds = nodes.stream().map(Node::getId).collect(Collectors.toList());
-
-    if (!nodeIds.isEmpty()) {
-      shareRepository.deleteSharesBulk(nodeIds);
-      nodeRepository.deleteNodes(nodeIds);
-    }
   }
 
   /** Thrown by {@link #createFolder} when the requester lacks READ_AND_WRITE on the parent. */

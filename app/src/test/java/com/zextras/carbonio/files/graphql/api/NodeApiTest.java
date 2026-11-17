@@ -47,11 +47,23 @@ class NodeApiTest {
     UserId userId = new UserId(REQUESTER_ID);
     when(requester.getId()).thenReturn(userId);
 
-    nodeApi = new NodeApi();
-    nodeApi.nodeRepository = nodeRepository;
-    nodeApi.fileVersionRepository = fileVersionRepository;
-    nodeApi.permissionsChecker = permissionsChecker;
-    nodeApi.requester = requester;
+    nodeApi =
+        new NodeApi(
+            nodeRepository,
+            fileVersionRepository,
+            permissionsChecker,
+            null,
+            null,
+            null,
+            null,
+            null,
+            requester,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
   }
 
   private Node mockFileNode(String id) {

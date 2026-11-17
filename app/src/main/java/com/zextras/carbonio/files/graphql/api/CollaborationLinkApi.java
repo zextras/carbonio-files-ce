@@ -20,6 +20,7 @@ import com.zextras.carbonio.files.graphql.model.NodeModel;
 import com.zextras.carbonio.files.graphql.model.SharePermission;
 import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
 import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigScope;
 import io.quarkus.security.Authenticated;
@@ -126,8 +127,10 @@ public class CollaborationLinkApi {
     if (!sharingPolicy.allowsGrant(aclPerm, scope)) {
       throw FilesGraphQLErrors.sharePermissionNotAllowed(permission.name());
     }
-    ACL own = permissionsChecker.getPermissions(nodeId, me);
-    if (!own.has(ACL.SharePermission.READ_AND_SHARE) || !own.has(aclPerm)) {
+    ACL myPermissions = permissionsChecker.getPermissions(nodeId, me);
+    if (!myPermissions.has(ACL.SharePermission.READ_AND_SHARE)
+        || !myPermissions.has(aclPerm)
+        || nodeRepository.getNode(nodeId).map(NodeRules::isRoot).orElse(false)) {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
     CollaborationLink link =

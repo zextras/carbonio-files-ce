@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -34,9 +35,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Uploads whose body is still streaming while the server works: a client that disconnects mid-body
- * (legacy deleted the placeholder node), a placeholder renamed mid-body, and upload-versions whose
- * version number is reserved before the body is read (no transaction or lock while it streams).
+ * Uploads whose body is still streaming while the server works: a client that disconnects mid-body,
+ * an upload whose node appears only once its blob is stored, and upload-versions whose version
+ * number is reserved before the body is read (no transaction or lock while it streams).
  */
 class StreamedUploadApiIT extends AbstractFilesIT {
 
@@ -50,8 +51,9 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenTheClientDisconnectsMidBodyThenThePlaceholderNodeIsRemoved() throws Exception {
+  void givenTheClientDisconnectsMidBodyThenNoNodeAndNoPendingReservationAreLeft() throws Exception {
     String folderId = seedFolder("streamed-upload", LOCAL_ROOT, REQUESTER_COOKIE);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
 
     try (Socket socket = new Socket("localhost", RestAssured.port)) {
       OutputStream out = socket.getOutputStream();
@@ -62,37 +64,35 @@ class StreamedUploadApiIT extends AbstractFilesIT {
         out.write(new byte[CHUNK]);
       }
       out.flush();
-      eventually("placeholder created", () -> children(folderId) == 1);
+      eventually(
+          "upload reserved", () -> pendingReservationsWithoutNodeSince(pendingBefore).size() == 1);
+      Assertions.assertThat(children(folderId)).isZero();
     }
 
-    eventually("placeholder removed", () -> children(folderId) == 0);
+    eventually(
+        "reservation discarded",
+        () -> pendingReservationsWithoutNodeSince(pendingBefore).isEmpty());
+    Assertions.assertThat(children(folderId)).isZero();
   }
 
   @Test
-  void givenThePlaceholderIsRenamedWhileTheBodyStreamsThenTheUploadKeepsTheNewName()
-      throws Exception {
-    String folderId = seedFolder("streamed-upload-rename", LOCAL_ROOT, REQUESTER_COOKIE);
+  void givenAnUploadStreamingThenNoNodeIsListedUntilItEnds() throws Exception {
+    String folderId = seedFolder("streamed-upload-listing", LOCAL_ROOT, REQUESTER_COOKIE);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
 
-    String renamed;
     String statusLine;
     try (Socket socket = new Socket("localhost", RestAssured.port)) {
       socket.setSoTimeout(30_000);
       OutputStream out = socket.getOutputStream();
       out.write(
-          head("/upload", "ParentId: " + folderId, "placeholder.bin", 2 * CHUNK)
+          head("/upload", "ParentId: " + folderId, "streamed.bin", 2 * CHUNK)
               .getBytes(StandardCharsets.UTF_8));
       out.write(new byte[CHUNK]);
       out.flush();
-      eventually("placeholder created", () -> children(folderId) == 1);
-      graphql(
-          GraphqlCommandBuilder.aMutationBuilder("updateNode")
-              .withString("node_id", onlyChild(folderId, "node_id"))
-              .withString("name", "renamed")
-              .withWantedResultFormat("{ id }")
-              .build(),
-          REQUESTER_COOKIE);
-      renamed = onlyChild(folderId, "name");
-      Assertions.assertThat(renamed).isNotEqualTo("placeholder.bin");
+      eventually(
+          "upload reserved", () -> pendingReservationsWithoutNodeSince(pendingBefore).size() == 1);
+      Assertions.assertThat(children(folderId)).isZero();
+      Assertions.assertThat(childIds(folderId, REQUESTER_COOKIE)).isEmpty();
 
       out.write(new byte[CHUNK]);
       out.flush();
@@ -102,7 +102,71 @@ class StreamedUploadApiIT extends AbstractFilesIT {
     }
 
     Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
-    Assertions.assertThat(onlyChild(folderId, "name")).isEqualTo(renamed);
+    Assertions.assertThat(onlyChild(folderId, "name")).isEqualTo("streamed.bin");
+    Assertions.assertThat(childIds(folderId, REQUESTER_COOKIE)).hasSize(1);
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
+  }
+
+  @Test
+  void givenTheFolderIsTrashedWhileAnUploadStreamsThenTheNewNodeIsInTheTrashedFolder()
+      throws Exception {
+    String folderId = seedFolder("streamed-upload-trashed", LOCAL_ROOT, REQUESTER_COOKIE);
+
+    String statusLine =
+        uploadAround(folderId, "trashed.bin", () -> seedTrashed(folderId, REQUESTER_COOKIE));
+
+    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 200");
+    Assertions.assertThat(onlyChild(folderId, "ancestor_ids")).isEqualTo("TRASH_ROOT," + folderId);
+  }
+
+  @Test
+  void givenTheFolderIsDeletedWhileAnUploadStreamsThenTheUploadIsNotFoundAndLeavesNothing()
+      throws Exception {
+    String folderId = seedFolder("streamed-upload-deleted", LOCAL_ROOT, REQUESTER_COOKIE);
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
+
+    String statusLine =
+        uploadAround(
+            folderId,
+            "deleted.bin",
+            () -> {
+              seedTrashed(folderId, REQUESTER_COOKIE);
+              graphql(
+                      GraphqlCommandBuilder.aMutationBuilder("deleteNodes")
+                          .withListOfStrings("node_ids", new String[] {folderId})
+                          .withWantedResultFormat("")
+                          .build(),
+                      REQUESTER_COOKIE)
+                  .then()
+                  .statusCode(200);
+            });
+
+    Assertions.assertThat(statusLine).startsWith("HTTP/1.1 404");
+    Assertions.assertThat(children(folderId)).isZero();
+    Assertions.assertThat(pendingReservationsWithoutNodeSince(pendingBefore)).isEmpty();
+  }
+
+  /** Uploads two chunks into the folder and runs {@code meanwhile} between them. */
+  private static String uploadAround(String folderId, String filename, Runnable meanwhile)
+      throws Exception {
+    Set<String> pendingBefore = pendingReservationsWithoutNode();
+    try (Socket socket = new Socket("localhost", RestAssured.port)) {
+      socket.setSoTimeout(30_000);
+      OutputStream out = socket.getOutputStream();
+      out.write(
+          head("/upload", "ParentId: " + folderId, filename, 2 * CHUNK)
+              .getBytes(StandardCharsets.UTF_8));
+      out.write(new byte[CHUNK]);
+      out.flush();
+      eventually(
+          "upload reserved", () -> pendingReservationsWithoutNodeSince(pendingBefore).size() == 1);
+      meanwhile.run();
+      out.write(new byte[CHUNK]);
+      out.flush();
+      return new BufferedReader(
+              new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
+          .readLine();
+    }
   }
 
   @Test
@@ -439,6 +503,57 @@ class StreamedUploadApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenAKeptForeverVersionWhenOverwrittenThenItStaysKeptForever() throws Exception {
+    String nodeId = seedFile("kept-overwrite.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+    graphql(
+        GraphqlCommandBuilder.aMutationBuilder("keepVersions")
+            .withString("node_id", nodeId)
+            .withListOfIntegers("versions", new int[] {1})
+            .withBoolean("keep_forever", true)
+            .withWantedResultFormat("")
+            .build(),
+        REQUESTER_COOKIE);
+    Assertions.assertThat(revisionColumn(nodeId, 1, "keep_forever")).isEqualTo("true");
+
+    Response overwritten =
+        uploadVersion(
+            nodeId,
+            "other".getBytes(StandardCharsets.UTF_8),
+            "kept-overwrite.txt",
+            true,
+            REQUESTER_COOKIE);
+
+    Assertions.assertThat(overwritten.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(versionContent(nodeId, 1))
+        .isEqualTo("other".getBytes(StandardCharsets.UTF_8));
+    Assertions.assertThat(revisionColumn(nodeId, 1, "keep_forever")).isEqualTo("true");
+  }
+
+  @Test
+  void givenAClonedVersionWhenOverwrittenThenItKeepsItsClonedFromVersion() throws Exception {
+    String nodeId = seedFile("cloned-overwrite.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+    graphql(
+        GraphqlCommandBuilder.aMutationBuilder("cloneVersion")
+            .withString("node_id", nodeId)
+            .withInteger("version", 1)
+            .withWantedResultFormat("{ version }")
+            .build(),
+        REQUESTER_COOKIE);
+    Assertions.assertThat(revisionColumn(nodeId, 2, "cloned_from_version")).isEqualTo("1");
+
+    Response overwritten =
+        uploadVersion(
+            nodeId,
+            "other".getBytes(StandardCharsets.UTF_8),
+            "cloned-overwrite.txt",
+            true,
+            REQUESTER_COOKIE);
+
+    Assertions.assertThat(overwritten.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(revisionColumn(nodeId, 2, "cloned_from_version")).isEqualTo("1");
+  }
+
+  @Test
   void givenAnOverwriteBetweenTwoSavesConfirmingInReverseThenTheDatesFollowTheNumbers()
       throws Exception {
     String nodeId = seedFile("reverse-dates.txt", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
@@ -743,6 +858,21 @@ class StreamedUploadApiIT extends AbstractFilesIT {
                     + " WHERE node_id = ?")) {
       transfer.setString(1, nodeId);
       Assertions.assertThat(transfer.executeUpdate()).isEqualTo(1);
+    }
+  }
+
+  private static String revisionColumn(String nodeId, int version, String column)
+      throws SQLException {
+    try (Connection connection = jdbcConnection();
+        PreparedStatement statement =
+            connection.prepareStatement(
+                "SELECT " + column + " FROM revision WHERE node_id = ? AND version = ?")) {
+      statement.setString(1, nodeId);
+      statement.setInt(2, version);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        Assertions.assertThat(resultSet.next()).isTrue();
+        return String.valueOf(resultSet.getObject(1));
+      }
     }
   }
 

@@ -14,10 +14,15 @@ import com.zextras.carbonio.files.dal.repositories.interfaces.ShareRepository;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
+import org.hibernate.Session;
+import org.hibernate.query.TypedParameterValue;
+import org.hibernate.type.StandardBasicTypes;
 
 /**
  * Panache implementation of {@link ShareRepository}. Replaces the old Ebean-based {@code
@@ -33,6 +38,105 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
           Db.Share.SHARE_TARGET_UUID, "composedPrimaryKey.mTargetUserId",
           Db.Share.PERMISSIONS, "permissions",
           Db.Share.EXPIRED_AT, "expiredAt");
+
+  // Native: recursive CTE with LATERAL and INSERT ... ON CONFLICT DO UPDATE, which JPQL cannot
+  // express.
+  private static final String CASCADE_UPSERT_SQL =
+      """
+      WITH RECURSIVE subtree(node_id, node_type) AS (
+          SELECT n.node_id, n.node_type
+          FROM node n
+          WHERE n.folder_id = CAST(:root AS CHARACTER(36))
+            AND NOT EXISTS (SELECT 1 FROM trashed t WHERE t.node_id = n.node_id)
+          UNION
+          SELECT c.node_id, c.node_type
+          FROM subtree s
+          CROSS JOIN LATERAL (
+              SELECT n.node_id, n.node_type
+              FROM node n
+              WHERE n.folder_id = s.node_id
+                AND NOT EXISTS (SELECT 1 FROM trashed t WHERE t.node_id = n.node_id)
+          ) c
+          WHERE s.node_type = 'FOLDER'
+      )
+      INSERT INTO share (node_id, rights, timestamp, target_uuid, expire_date, direct,
+                         created_via_link)
+      SELECT s.node_id, CAST(:rights AS SMALLINT), CAST(:now AS BIGINT), :userId,
+             CAST(:expire AS BIGINT), false, false
+      FROM subtree s
+      ON CONFLICT (node_id, target_uuid) DO UPDATE
+      SET rights = EXCLUDED.rights,
+          created_via_link = false,
+          expire_date = COALESCE(EXCLUDED.expire_date, share.expire_date)
+      WHERE share.direct = false
+      RETURNING node_id
+      """;
+
+  // Native: recursive CTE with LATERAL and DELETE ... RETURNING, which JPQL cannot express.
+  private static final String CASCADE_DELETE_SQL =
+      """
+      WITH RECURSIVE subtree(node_id, node_type) AS (
+          SELECT n.node_id, n.node_type
+          FROM node n
+          WHERE n.folder_id = CAST(:root AS CHARACTER(36))
+          UNION
+          SELECT n.node_id, n.node_type
+          FROM trashed t
+          INNER JOIN node n ON n.node_id = t.node_id
+          WHERE t.parent_id = CAST(:root AS CHARACTER(36))
+          UNION
+          SELECT c.node_id, c.node_type
+          FROM subtree s
+          CROSS JOIN LATERAL (
+              SELECT n.node_id, n.node_type FROM node n WHERE n.folder_id = s.node_id
+              UNION ALL
+              SELECT n.node_id, n.node_type
+              FROM trashed t
+              INNER JOIN node n ON n.node_id = t.node_id
+              WHERE t.parent_id = s.node_id
+          ) c
+          WHERE s.node_type = 'FOLDER'
+            AND NOT EXISTS (
+                SELECT 1 FROM share d
+                WHERE d.node_id = s.node_id AND d.target_uuid = :userId AND d.direct)
+      )
+      DELETE FROM share sh
+      USING subtree s
+      WHERE sh.node_id = s.node_id AND sh.target_uuid = :userId AND NOT sh.direct
+      RETURNING sh.node_id
+      """;
+
+  // Native: recursive walk with plan control (LATERAL) and DELETE ... RETURNING, which JPQL cannot
+  // express.
+  private static final String DELETE_SHARES_BELOW_SQL =
+      """
+      WITH RECURSIVE subtree(node_id, node_type) AS (
+          SELECT n.node_id, n.node_type
+          FROM node n
+          WHERE n.folder_id = CAST(:root AS CHARACTER(36))
+          UNION
+          SELECT n.node_id, n.node_type
+          FROM trashed t
+          INNER JOIN node n ON n.node_id = t.node_id
+          WHERE t.parent_id = CAST(:root AS CHARACTER(36))
+          UNION
+          SELECT c.node_id, c.node_type
+          FROM subtree s
+          CROSS JOIN LATERAL (
+              SELECT n.node_id, n.node_type FROM node n WHERE n.folder_id = s.node_id
+              UNION ALL
+              SELECT n.node_id, n.node_type
+              FROM trashed t
+              INNER JOIN node n ON n.node_id = t.node_id
+              WHERE t.parent_id = s.node_id
+          ) c
+          WHERE s.node_type = 'FOLDER'
+      )
+      DELETE FROM share sh
+      USING subtree s
+      WHERE sh.node_id = s.node_id AND sh.target_uuid = :userId
+      RETURNING sh.node_id
+      """;
 
   private String buildOrderByClause(List<ShareSort> sorts) {
     if (sorts.isEmpty()) {
@@ -93,26 +197,6 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
   }
 
   @Override
-  @Transactional
-  public void upsertShareBulk(
-      List<String> nodeIds,
-      String targetUserId,
-      ACL permissions,
-      Boolean direct,
-      Boolean createdViaCollaborationLink,
-      Optional<Long> expireTimestamp) {
-    nodeIds.forEach(
-        nodeId ->
-            upsertShare(
-                nodeId,
-                targetUserId,
-                permissions,
-                direct,
-                createdViaCollaborationLink,
-                expireTimestamp));
-  }
-
-  @Override
   public void flush() {
     getEntityManager().flush();
   }
@@ -147,8 +231,65 @@ public class ShareRepositoryImpl implements ShareRepository, PanacheRepositoryBa
 
   @Override
   @Transactional
-  public void deleteSharesBulk(List<String> nodeIds) {
-    list("composedPrimaryKey.mNodeId in ?1", nodeIds).forEach(this::delete);
+  public void cascadeUpsertInheritedShares(
+      String nodeId, String targetUserId, ACL permissions, Optional<Long> expireTimestamp) {
+    flush();
+    List<String> affected =
+        getEntityManager()
+            .createNativeQuery(CASCADE_UPSERT_SQL, String.class)
+            .setParameter("root", nodeId)
+            .setParameter("userId", targetUserId)
+            .setParameter("rights", permissions.encode())
+            .setParameter("now", System.currentTimeMillis())
+            .setParameter(
+                "expire",
+                new TypedParameterValue<>(StandardBasicTypes.LONG, expireTimestamp.orElse(null)))
+            .getResultList();
+    detachShares(affected, targetUserId);
+  }
+
+  @Override
+  @Transactional
+  public void cascadeDeleteInheritedShares(String nodeId, String targetUserId) {
+    flush();
+    List<String> affected =
+        getEntityManager()
+            .createNativeQuery(CASCADE_DELETE_SQL, String.class)
+            .setParameter("root", nodeId)
+            .setParameter("userId", targetUserId)
+            .getResultList();
+    detachShares(affected, targetUserId);
+  }
+
+  @Override
+  @Transactional
+  public void deleteSharesOfUserBelow(String nodeId, String userId) {
+    flush();
+    List<String> affected =
+        getEntityManager()
+            .createNativeQuery(DELETE_SHARES_BELOW_SQL, String.class)
+            .setParameter("root", nodeId)
+            .setParameter("userId", userId)
+            .getResultList();
+    detachShares(affected, userId);
+  }
+
+  private void detachShares(List<String> affectedNodeIds, String targetUserId) {
+    if (affectedNodeIds.isEmpty()) {
+      return;
+    }
+    Set<String> affected = new HashSet<>();
+    affectedNodeIds.forEach(id -> affected.add(id.trim()));
+    Session session = getEntityManager().unwrap(Session.class);
+    if (session.getStatistics().getEntityCount() == 0) {
+      return;
+    }
+    session.getManagedEntities(Share.class).stream()
+        .filter(
+            share ->
+                targetUserId.equals(share.getTargetUserId())
+                    && affected.contains(share.getNodeId().trim()))
+        .forEach(session::detach);
   }
 
   @Override

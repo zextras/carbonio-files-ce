@@ -1,3 +1,29 @@
+## [3.0.12](https://github.com/zextras/carbonio-files-ce/compare/v3.0.11...v3.0.12) (2026-11-16)
+
+## [3.0.11](https://github.com/zextras/carbonio-files-ce/compare/v3.0.10...v3.0.11) (2026-11-13)
+
+### Bug Fixes
+
+* [CO-4728] close the Files write races without locks and run the cascades as set-based SQL ([#360](https://github.com/zextras/carbonio-files-ce/issues/360)) ([1c9a5f3](https://github.com/zextras/carbonio-files-ce/commit/1c9a5f3013ac3165be40f06f4ebb090a74f76a4f))
+
+## [3.0.10](https://github.com/zextras/carbonio-files-ce/compare/v3.0.9...v3.0.10) (2026-11-10)
+
+### Bug Fixes
+
+* [CO-4708] vendor pika instead of depending on python3-pika ([#358](https://github.com/zextras/carbonio-files-ce/issues/358)) ([aec29a7](https://github.com/zextras/carbonio-files-ce/commit/aec29a7f66c8710ac193481aeeae1ebd67d763f3))
+
+## [3.0.9](https://github.com/zextras/carbonio-files-ce/compare/v3.0.8...v3.0.9) (2026-11-06)
+
+### Bug Fixes
+
+* one reservation/tombstone cycle for every blob operation ([#352](https://github.com/zextras/carbonio-files-ce/issues/352)) ([c2971ae](https://github.com/zextras/carbonio-files-ce/commit/c2971ae01980626684c88f58ecfa2ad0736bcf19))
+
+## [3.0.8](https://github.com/zextras/carbonio-files-ce/compare/v3.0.7...v3.0.8) (2026-11-05)
+
+### Bug Fixes
+
+* [CO-4666] harden node permission checks ([#353](https://github.com/zextras/carbonio-files-ce/issues/353)) ([2110de8](https://github.com/zextras/carbonio-files-ce/commit/2110de81797438d028ae1aad8bdea72a5ee7093c))
+
 ## [3.0.7](https://github.com/zextras/carbonio-files-ce/compare/v3.0.6...v3.0.7) (2026-10-30)
 
 ### Bug Fixes

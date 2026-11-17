@@ -109,6 +109,18 @@ class DeleteVersionsApiIT extends AbstractFilesIT {
     Assertions.assertThat(tombstoneRowsForNode(nodeId)).isEqualTo(0);
   }
 
+  @Test
+  void givenOneVersionFailsOnStorageThenOnlyItsTombstoneRemains() throws SQLException {
+    String nodeId = createFileWithThreeVersions();
+    FilesStackTestResource.getStoragesService().failBulkDeleteForVersion(nodeId, 2);
+
+    Response response = executeDeleteVersions(nodeId, 1, 2);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
+    Assertions.assertThat(getRemainingVersionNumbers(nodeId)).containsExactly(3);
+    Assertions.assertThat(tombstoneRowsForNode(nodeId)).isEqualTo(1);
+  }
+
   // --- Test 2: PowerStore fails (exception) — versions still deleted from DB, no error to user ---
   // Core tombstone invariant: DB-first, tombstones remain for retry.
 

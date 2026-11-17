@@ -4,6 +4,8 @@
 
 package com.zextras.carbonio.files.rest.services;
 
+import com.zextras.carbonio.files.dal.repositories.impl.DatabaseClockReader;
+import com.zextras.carbonio.files.dal.repositories.impl.Transactions;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.VersionReservationRepository;
@@ -30,15 +32,21 @@ public class VersionReservations {
   private final NodeRepository nodeRepository;
   private final FileVersionRepository fileVersionRepository;
   private final VersionReservationRepository reservationRepository;
+  private final DatabaseClockReader clock;
+  private final Transactions transactions;
 
   @Inject
   public VersionReservations(
       NodeRepository nodeRepository,
       FileVersionRepository fileVersionRepository,
-      VersionReservationRepository reservationRepository) {
+      VersionReservationRepository reservationRepository,
+      DatabaseClockReader clock,
+      Transactions transactions) {
     this.nodeRepository = nodeRepository;
     this.fileVersionRepository = fileVersionRepository;
     this.reservationRepository = reservationRepository;
+    this.clock = clock;
+    this.transactions = transactions;
   }
 
   /**
@@ -59,6 +67,16 @@ public class VersionReservations {
                         }));
   }
 
+  /** A key for a node that does not exist yet (new upload, copy, transfer); no node row is read. */
+  public Reservation reserveNew(String nodeId, int version, String blobOwnerId) {
+    return transactions.inNewTransaction(
+        () -> {
+          long now = clock.nowMillis();
+          reservationRepository.reserve(nodeId, version, blobOwnerId, now);
+          return new Reservation(nodeId, version, now, blobOwnerId);
+        });
+  }
+
   /**
    * Consumes the reservation inside the transaction that creates the version, which then holds the
    * node row until it ends, so confirmations of one node never interleave.
@@ -72,14 +90,7 @@ public class VersionReservations {
    */
   public long confirm(Reservation reservation) {
     String nodeId = reservation.nodeId();
-    if (!reservationRepository.consume(nodeId, reservation.version())) {
-      throw new IllegalStateException(
-          "Reservation of version "
-              + reservation.version()
-              + " of node "
-              + nodeId
-              + " is no longer pending");
-    }
+    confirmNew(reservation);
     nodeRepository
         .reserveTimestamp(nodeId)
         .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
@@ -87,5 +98,21 @@ public class VersionReservations {
         .latestDateBelow(nodeId, reservation.version())
         .map(latest -> Math.max(reservation.reservedAt(), latest + 1))
         .orElse(reservation.reservedAt());
+  }
+
+  /**
+   * Consumes a reservation of {@link #reserveNew} inside the transaction that creates its node.
+   *
+   * @throws IllegalStateException when the purge already claimed it
+   */
+  public void confirmNew(Reservation reservation) {
+    if (!reservationRepository.consume(reservation.nodeId(), reservation.version())) {
+      throw new IllegalStateException(
+          "Reservation of version "
+              + reservation.version()
+              + " of node "
+              + reservation.nodeId()
+              + " is no longer pending");
+    }
   }
 }

@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.graphql.api;
 
 import static com.zextras.carbonio.files.utilities.RenameNodeUtils.searchAlternativeName;
 
-import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.Constants.ServiceDiscover.Config;
 import com.zextras.carbonio.files.config.FilesConfig;
@@ -43,19 +42,17 @@ import com.zextras.carbonio.files.graphql.spi.CopyFailureClassifier;
 import com.zextras.carbonio.files.graphql.support.NodeCreationHelper;
 import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import com.zextras.carbonio.files.rest.services.BlobKey;
+import com.zextras.carbonio.files.rest.services.BlobLifecycle;
 import com.zextras.carbonio.files.rest.services.VersionReservations;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
+import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
-import com.zextras.filestore.api.Filestore;
-import com.zextras.filestore.model.BulkDeleteRequestItem;
-import com.zextras.filestore.model.BulkDeleteResponseItem;
 import com.zextras.filestore.model.FilesIdentifier;
-import com.zextras.filestore.model.IdentifierType;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.security.Authenticated;
 import io.smallrye.graphql.api.Context;
 import io.smallrye.graphql.api.Nullable;
-import io.vavr.control.Try;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
@@ -63,7 +60,6 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -100,21 +96,55 @@ public class NodeApi {
 
   private static final Logger logger = LoggerFactory.getLogger(NodeApi.class);
 
-  @Inject NodeRepository nodeRepository;
-  @Inject FileVersionRepository fileVersionRepository;
-  @Inject PermissionsChecker permissionsChecker;
-  @Inject ShareRepository shareRepository;
-  @Inject FilesConfig filesConfig;
-  @Inject CopyFailureClassifier copyFailureClassifier;
-  @Inject GraphQLInputValidator validator;
-  @Inject Context gqlContext;
-  @Inject @AuthenticatedUser UserMyself requester;
-  @Inject TombstoneRepository tombstoneRepository;
-  @Inject NotificationRepository notificationRepository;
-  @Inject Filestore fileStore;
-  @Inject ShareCascadeHelper shareCascade;
-  @Inject NodeCreationHelper nodeCreationHelper;
-  @Inject VersionReservations versionReservations;
+  private final NodeRepository nodeRepository;
+  private final FileVersionRepository fileVersionRepository;
+  private final PermissionsChecker permissionsChecker;
+  private final ShareRepository shareRepository;
+  private final FilesConfig filesConfig;
+  private final CopyFailureClassifier copyFailureClassifier;
+  private final GraphQLInputValidator validator;
+  private final Context gqlContext;
+  private final UserMyself requester;
+  private final TombstoneRepository tombstoneRepository;
+  private final NotificationRepository notificationRepository;
+  private final ShareCascadeHelper shareCascade;
+  private final NodeCreationHelper nodeCreationHelper;
+  private final VersionReservations versionReservations;
+  private final BlobLifecycle blobLifecycle;
+
+  @Inject
+  public NodeApi(
+      NodeRepository nodeRepository,
+      FileVersionRepository fileVersionRepository,
+      PermissionsChecker permissionsChecker,
+      ShareRepository shareRepository,
+      FilesConfig filesConfig,
+      CopyFailureClassifier copyFailureClassifier,
+      GraphQLInputValidator validator,
+      Context gqlContext,
+      @AuthenticatedUser UserMyself requester,
+      TombstoneRepository tombstoneRepository,
+      NotificationRepository notificationRepository,
+      ShareCascadeHelper shareCascade,
+      NodeCreationHelper nodeCreationHelper,
+      VersionReservations versionReservations,
+      BlobLifecycle blobLifecycle) {
+    this.nodeRepository = nodeRepository;
+    this.fileVersionRepository = fileVersionRepository;
+    this.permissionsChecker = permissionsChecker;
+    this.shareRepository = shareRepository;
+    this.filesConfig = filesConfig;
+    this.copyFailureClassifier = copyFailureClassifier;
+    this.validator = validator;
+    this.gqlContext = gqlContext;
+    this.requester = requester;
+    this.tombstoneRepository = tombstoneRepository;
+    this.notificationRepository = notificationRepository;
+    this.shareCascade = shareCascade;
+    this.nodeCreationHelper = nodeCreationHelper;
+    this.versionReservations = versionReservations;
+    this.blobLifecycle = blobLifecycle;
+  }
 
   // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -394,7 +424,10 @@ public class NodeApi {
       throw FilesGraphQLErrors.nodeNotFound(nodeId);
     }
     Node nodeToUpdate =
-        nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
+        nodeRepository
+            .getNode(nodeId)
+            .filter(node -> !NodeRules.isRoot(node))
+            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
 
     String parentFolderId = nodeToUpdate.getParentId().orElse(RootId.LOCAL_ROOT);
 
@@ -486,14 +519,19 @@ public class NodeApi {
               .toList();
       trashableNodes.retainAll(nodesToTrash.stream().map(Node::getId).toList());
       nodesToTrash.forEach(
-          trashedNode -> {
-            String nodeParentId = trashedNode.getParentId().get();
+          candidate -> {
+            String nodeParentId = candidate.getParentId().get();
+            if (!nodeRepository.trashNodeIfParent(candidate.getId(), nodeParentId)) {
+              trashableNodes.removeIf(candidate.getId()::equals);
+              return;
+            }
+            Node trashedNode = candidate;
 
             List<String> usersToNotify =
                 new ArrayList<>(shareRepository.getSharesUsersIds(trashedNode.getId(), List.of()));
             usersToNotify.remove(me);
 
-            Node parent = nodeRepository.getNode(trashedNode.getParentId().get()).get();
+            Node parent = nodeRepository.getNode(nodeParentId).get();
             if (!parent.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
                 && !me.equals(parent.getOwnerId())
                 && !usersToNotify.contains(parent.getOwnerId())) {
@@ -507,11 +545,8 @@ public class NodeApi {
                           trashedNode, parent, requester, RemovedNodeType.DELETE, usersToNotify));
             }
 
-            trashedNode.setAncestorIds(Constants.Db.RootId.TRASH_ROOT);
-            trashedNode.setParentId(RootId.TRASH_ROOT);
             nodeRepository.trashNode(trashedNode.getId(), nodeParentId);
-            nodeRepository.updateNode(trashedNode);
-            cascadeUpdateAncestors(trashedNode);
+            nodeRepository.rewriteDescendantAncestors(trashedNode);
           });
 
       pendingNotifications.forEach(Runnable::run);
@@ -579,8 +614,7 @@ public class NodeApi {
                                 + Node.ANCESTORS_SEPARATOR
                                 + destParentId;
 
-                    shareRepository
-                        .getShares(destParentId, Collections.emptyList())
+                    NodeRules.inheritableShares(shareRepository, destParentId)
                         .forEach(
                             share -> {
                               shareRepository.upsertShare(
@@ -609,7 +643,7 @@ public class NodeApi {
                   node.setFullName(newName);
                   nodeRepository.restoreNode(node.getId());
                   nodeRepository.updateNode(node);
-                  cascadeUpdateAncestors(node);
+                  nodeRepository.rewriteDescendantAncestors(node);
                   return NodeModelFactory.from(node, null, me);
                 })
             .collect(Collectors.toList());
@@ -641,11 +675,7 @@ public class NodeApi {
     Node destinationFolder =
         nodeRepository
             .getNode(destinationId)
-            .filter(
-                p ->
-                    com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER.equals(p.getNodeType())
-                        || com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                            p.getNodeType()))
+            .filter(NodeRules::acceptsChildren)
             .orElseThrow(() -> FilesGraphQLErrors.nodeWriteError(destinationId));
 
     List<String> rootIds =
@@ -661,27 +691,33 @@ public class NodeApi {
             .filter(nodeId -> !rootIds.contains(nodeId))
             .filter(nodeId -> !destinationId.equals(nodeId))
             .toList();
-    List<String> nodeIdsToMove = excludeAncestorsOf(destinationFolder, movableIds);
+    List<String> nodeIdsToMove = excludeTrashed(excludeAncestorsOf(destinationFolder, movableIds));
 
     List<NodeModel> movedNodesResult = List.of();
+    List<String> movedIds = new ArrayList<>();
     if (!nodeIdsToMove.isEmpty()) {
       List<Runnable> pendingNotifications = new ArrayList<>();
       nodeIdsToMove.forEach(
           nodeId -> {
             Node node = nodeRepository.getNode(nodeId).get();
-            if (node.getParentId().isPresent() && !node.getParentId().get().equals(destinationId)) {
-              String newName =
+            String expectedParentId = node.getParentId().get();
+            String newName = node.getFullName();
+            if (!expectedParentId.equals(destinationId)) {
+              newName =
                   searchAlternativeName(
                       nodeRepository, node.getFullName(), destinationId, node.getOwnerId());
-              node.setFullName(newName);
             }
-            nodeRepository.updateNode(node);
+            if (!nodeRepository.moveNodeIfParent(
+                nodeId, expectedParentId, destinationFolder, node.getFullName(), newName)) {
+              return;
+            }
+            movedIds.add(nodeId);
 
             List<String> usersToNotifyRemove =
                 new ArrayList<>(shareRepository.getSharesUsersIds(node.getId(), List.of()));
             usersToNotifyRemove.remove(me);
 
-            Node parent = nodeRepository.getNode(node.getParentId().get()).get();
+            Node parent = nodeRepository.getNode(expectedParentId).get();
             if (!parent.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT)
                 && !me.equals(parent.getOwnerId())
                 && !usersToNotifyRemove.contains(parent.getOwnerId())) {
@@ -696,12 +732,10 @@ public class NodeApi {
             }
           });
 
-      nodeRepository.moveNodes(nodeIdsToMove, destinationFolder);
-
-      nodeIdsToMove.forEach(
+      movedIds.forEach(
           nodeId -> {
             Node node = nodeRepository.getNode(nodeId).get();
-            cascadeUpdateAncestors(node);
+            nodeRepository.rewriteDescendantAncestors(node);
 
             shareRepository.getShares(nodeId, Collections.emptyList()).stream()
                 .filter(share -> !share.isDirect())
@@ -712,8 +746,7 @@ public class NodeApi {
                     });
 
             List<String> usersToNotifyAdd = new ArrayList<>();
-            shareRepository
-                .getShares(destinationId, Collections.emptyList())
+            NodeRules.inheritableShares(shareRepository, destinationId)
                 .forEach(
                     share -> {
                       Optional<Share> sourceShare =
@@ -756,7 +789,7 @@ public class NodeApi {
 
       movedNodesResult =
           nodeRepository
-              .getNodes(nodeIdsToMove, Optional.empty())
+              .getNodes(movedIds, Optional.empty())
               .map(node -> NodeModelFactory.from(node, null, me))
               .collect(Collectors.toList());
 
@@ -765,7 +798,7 @@ public class NodeApi {
 
     NodeModelFactory.requireVersions(movedNodesResult, movedNodesResult);
     List<String> nodesInError =
-        nodeIds.stream().filter(nodeId -> !nodeIdsToMove.contains(nodeId)).toList();
+        nodeIds.stream().filter(nodeId -> !movedIds.contains(nodeId)).toList();
 
     if (!nodesInError.isEmpty()) {
       throw FilesGraphQLErrors.nodeWriteError(nodesInError.get(0))
@@ -799,80 +832,17 @@ public class NodeApi {
     Set<String> requestedNodeIds =
         requestedNodes.stream().map(Node::getId).collect(Collectors.toSet());
 
-    List<Node> allNodes = collectAllDescendants(requestedNodes);
-
-    List<Node> fileNodes =
-        allNodes.stream()
-            .filter(
-                node ->
-                    !node.getNodeType()
-                        .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
-            .toList();
-
-    Map<String, List<FileVersion>> fileVersionsByOwner = new HashMap<>();
-    fileNodes.forEach(
-        node -> {
-          List<FileVersion> versions =
-              fileVersionRepository.getFileVersions(
-                  node.getId(), List.of(FileVersionSort.VERSION_ASC));
-          fileVersionsByOwner
-              .computeIfAbsent(node.getOwnerId(), k -> new ArrayList<>())
-              .addAll(versions);
-        });
-
+    Map<String, List<BlobKey>> keysByOwner;
     try {
-      QuarkusTransaction.requiringNew()
-          .run(
-              () -> {
-                fileVersionsByOwner.forEach(
-                    (ownerId, versions) ->
-                        tombstoneRepository.createTombstonesBulk(versions, ownerId));
-                deleteNodesFromDb(allNodes);
-                allNodes.stream()
-                    .filter(
-                        node ->
-                            node.getNodeType()
-                                .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
-                    .map(Node::getId)
-                    .forEach(this::cascadeDeleteNodeHelper);
-              });
+      keysByOwner =
+          QuarkusTransaction.requiringNew()
+              .call(() -> nodeRepository.deleteSubtrees(requestedNodeIds));
     } catch (RuntimeException e) {
       logger.error("DB error during deleteNodes, rolling back: {}", e.getMessage());
       throw deleteNodesFailure(nodeIds, requestedNodeIds);
     }
 
-    fileVersionsByOwner.forEach(
-        (ownerId, versions) -> {
-          List<BulkDeleteRequestItem> deleteRequests =
-              versions.stream()
-                  .map(fv -> BulkDeleteRequestItem.filesItem(fv.getNodeId(), fv.getVersion()))
-                  .collect(Collectors.toList());
-          if (deleteRequests.isEmpty()) return;
-          List<BulkDeleteResponseItem> failedItems;
-          try {
-            failedItems = fileStore.bulkDelete(IdentifierType.files, ownerId, deleteRequests);
-          } catch (Exception ex) {
-            logger.warn(
-                "Bulk delete failed for owner {}: {}. Tombstones remain for retry.",
-                ownerId,
-                ex.getMessage());
-            return;
-          }
-          if (failedItems == null) {
-            logger.warn(
-                "Bulk delete returned null for owner {} (treated as failure). Tombstones remain.",
-                ownerId);
-            return;
-          }
-          Set<String> failedNodeIds =
-              failedItems.stream().map(BulkDeleteResponseItem::getNode).collect(Collectors.toSet());
-          versions.stream()
-              .filter(fv -> !failedNodeIds.contains(fv.getNodeId()))
-              .forEach(
-                  fv ->
-                      tombstoneRepository.deleteTombstonesByNodeAndVersion(
-                          fv.getNodeId(), fv.getVersion()));
-        });
+    keysByOwner.forEach(blobLifecycle::deleteAndClear);
 
     List<String> successIds = new ArrayList<>(requestedNodeIds);
     List<String> errorIds = nodeIds.stream().filter(id -> !requestedNodeIds.contains(id)).toList();
@@ -901,11 +871,7 @@ public class NodeApi {
     Node destinationFolder =
         nodeRepository
             .getNode(destinationId)
-            .filter(
-                p ->
-                    com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER.equals(p.getNodeType())
-                        || com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                            p.getNodeType()))
+            .filter(NodeRules::acceptsChildren)
             .orElseThrow(() -> FilesGraphQLErrors.nodeWriteError(destinationId));
 
     List<Node> nodes =
@@ -936,6 +902,7 @@ public class NodeApi {
 
     List<NodeModel> copiedNodesResult = new ArrayList<>();
     List<CopyFailure> copyErrors = new ArrayList<>();
+    List<CopyFailure> nestedCopyErrors = new ArrayList<>();
 
     List<Node> nodesInCopyOrder =
         Stream.concat(
@@ -945,47 +912,19 @@ public class NodeApi {
                     .filter(n -> !targetFolderChildrenNames.contains(n.getFullName())))
             .toList();
 
-    nodesInCopyOrder.forEach(
-        node -> {
-          if (node.getNodeType() == com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER) {
-            Node copiedFolder = copyFolder(node, destinationFolder, me, true);
-            copiedNodesResult.add(NodeModelFactory.from(copiedFolder, null, me));
-            copyFolderCascade(node.getId(), copiedFolder, me);
+    for (Node node : nodesInCopyOrder) {
+      CopyOutcome outcome = copyTopNode(node, destinationFolder, me, nestedCopyErrors);
+      outcome
+          .node()
+          .ifPresentOrElse(
+              copied -> {
+                copiedNodesResult.add(NodeModelFactory.from(copied, null, me));
+                shareAndNotifyCopy(copied, destinationId, destinationFolder, me);
+              },
+              () -> copyErrors.add(new CopyFailure(node, outcome.failure())));
+    }
 
-            List<String> usersToNotify = createIndirectShare(destinationId, copiedFolder);
-            usersToNotify.remove(me);
-            if (!com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                    destinationFolder.getNodeType())
-                && !me.equals(destinationFolder.getOwnerId())
-                && !usersToNotify.contains(destinationFolder.getOwnerId())) {
-              usersToNotify.add(destinationFolder.getOwnerId());
-            }
-            if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled()) {
-              notificationRepository.createAddedNodeNotification(
-                  copiedFolder, destinationFolder, requester, AddedNodeType.COPY, usersToNotify);
-            }
-          } else {
-            CopyOutcome outcome = copyFile(node, destinationFolder, me, true);
-            if (outcome.node().isPresent()) {
-              Node copiedNode = outcome.node().get();
-              copiedNodesResult.add(NodeModelFactory.from(copiedNode, null, me));
-              List<String> usersToNotify = createIndirectShare(destinationId, copiedNode);
-              usersToNotify.remove(me);
-              if (!com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                      destinationFolder.getNodeType())
-                  && !me.equals(destinationFolder.getOwnerId())
-                  && !usersToNotify.contains(destinationFolder.getOwnerId())) {
-                usersToNotify.add(destinationFolder.getOwnerId());
-              }
-              if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled()) {
-                notificationRepository.createAddedNodeNotification(
-                    copiedNode, destinationFolder, requester, AddedNodeType.COPY, usersToNotify);
-              }
-            } else {
-              copyErrors.add(new CopyFailure(node, outcome.failure()));
-            }
-          }
-        });
+    copyErrors.addAll(nestedCopyErrors);
 
     List<Node> nodesWithoutPermission =
         nodes.stream().filter(node -> !nodesToCopy.contains(node)).collect(Collectors.toList());
@@ -1013,62 +952,27 @@ public class NodeApi {
     Node node =
         nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
 
-    List<FileVersion> fileVersionsToDelete =
-        (versions != null
-                ? fileVersionRepository.getFileVersions(nodeId, versions)
-                : fileVersionRepository.getFileVersions(
-                    nodeId, List.of(FileVersionSort.VERSION_DESC)))
-            .stream()
-                .filter(fv -> !fv.isKeptForever())
-                .filter(fv -> !node.getCurrentVersion().equals(fv.getVersion()))
-                .collect(Collectors.toList());
-
-    List<Integer> versionsToDelete =
-        fileVersionsToDelete.stream().map(FileVersion::getVersion).collect(Collectors.toList());
+    String ownerId = node.getOwnerId();
+    List<Integer> versionsToDelete;
+    try {
+      versionsToDelete =
+          QuarkusTransaction.requiringNew()
+              .call(
+                  () -> {
+                    List<Integer> deleted =
+                        fileVersionRepository.deleteNotKeptForeverNorCurrent(nodeId, versions);
+                    deleted.forEach(
+                        v -> tombstoneRepository.createNewTombstone(nodeId, ownerId, v));
+                    return deleted;
+                  });
+    } catch (RuntimeException e) {
+      logger.error("DB error during deleteVersions, rolling back: {}", e.getMessage());
+      throw FilesGraphQLErrors.nodeWriteError(nodeId);
+    }
 
     if (!versionsToDelete.isEmpty()) {
-      String ownerId = node.getOwnerId();
-      try {
-        QuarkusTransaction.requiringNew()
-            .run(
-                () -> {
-                  tombstoneRepository.createTombstonesBulk(fileVersionsToDelete, ownerId);
-                  fileVersionRepository.deleteFileVersions(nodeId, versionsToDelete);
-                });
-      } catch (RuntimeException e) {
-        logger.error("DB error during deleteVersions, rolling back: {}", e.getMessage());
-        throw FilesGraphQLErrors.nodeWriteError(nodeId);
-      }
-
-      List<BulkDeleteRequestItem> deleteRequests =
-          fileVersionsToDelete.stream()
-              .map(fv -> BulkDeleteRequestItem.filesItem(nodeId, fv.getVersion()))
-              .collect(Collectors.toList());
-      List<BulkDeleteResponseItem> failedItems;
-      try {
-        failedItems = fileStore.bulkDelete(IdentifierType.files, ownerId, deleteRequests);
-      } catch (Exception e) {
-        logger.warn(
-            "Bulk delete failed for node {}: {}. Tombstones remain.", nodeId, e.getMessage());
-        failedItems = null;
-      }
-      if (failedItems == null) {
-        logger.warn("Bulk delete returned null for node {} (treated as failure).", nodeId);
-      } else {
-        Set<Integer> failedVersionSet =
-            failedItems.stream()
-                .filter(item -> nodeId.equals(item.getNode()))
-                .map(BulkDeleteResponseItem::getVersion)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(Collectors.toSet());
-        fileVersionsToDelete.stream()
-            .filter(fv -> !failedVersionSet.contains(fv.getVersion()))
-            .forEach(
-                fv ->
-                    tombstoneRepository.deleteTombstonesByNodeAndVersion(
-                        fv.getNodeId(), fv.getVersion()));
-      }
+      blobLifecycle.deleteAndClear(
+          ownerId, versionsToDelete.stream().map(v -> new BlobKey(nodeId, v)).toList());
     }
 
     if (versions != null) {
@@ -1137,7 +1041,11 @@ public class NodeApi {
       throw FilesGraphQLErrors.nodeWriteError(nodeId);
     }
 
-    nodeRepository.getNode(nodeId).orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
+    String ownerId =
+        nodeRepository
+            .getNode(nodeId)
+            .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId))
+            .getOwnerId();
 
     int maxNumberOfVersions = getMaxNumberOfVersions();
     if (fileVersionRepository.getFileVersions(nodeId, List.of(FileVersionSort.VERSION_DESC)).size()
@@ -1154,50 +1062,46 @@ public class NodeApi {
 
     Reservation reservation =
         versionReservations
-            .reserve(nodeId, me)
+            .reserve(nodeId, ownerId)
             .orElseThrow(() -> FilesGraphQLErrors.nodeNotFound(nodeId));
     int newVersion = reservation.version();
 
     var copyAttempt =
-        Try.of(
-            () ->
-                fileStore.copy(
-                    FilesIdentifier.of(nodeId, version, me),
-                    FilesIdentifier.of(nodeId, newVersion, me),
-                    false));
+        blobLifecycle.copy(
+            FilesIdentifier.of(nodeId, version, ownerId),
+            FilesIdentifier.of(nodeId, newVersion, ownerId));
     if (copyAttempt.isFailure()) {
-      String error =
-          MessageFormat.format("Copy error with nodeId: {0} and version {1}", nodeId, version);
-      logger.error(error);
-      ErrorCodes code = copyFailureClassifier.classify(copyAttempt.getCause());
-      if (code == ErrorCodes.NODE_COPY_ERROR) {
-        throw FilesGraphQLErrors.dataFetching(gqlContext.getPath(), error);
-      }
-      throw FilesGraphQLErrors.cloneCopyError(code, nodeId, version);
+      blobLifecycle.abandon(reservation);
+      throw cloneCopyFailure(nodeId, version, copyAttempt.getCause());
     }
     var copiedBlobResponse = copyAttempt.get();
 
-    QuarkusTransaction.requiringNew()
-        .run(
-            () -> {
-              long versionDate = versionReservations.confirm(reservation);
-              fileVersionRepository
-                  .createFileVersionAt(
-                      nodeId,
-                      me,
-                      newVersion,
-                      fileVersion.getMimeType(),
-                      copiedBlobResponse.getSize(),
-                      copiedBlobResponse.getDigest(),
-                      versionDate)
-                  .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
+    try {
+      QuarkusTransaction.requiringNew()
+          .run(
+              () -> {
+                long versionDate = versionReservations.confirm(reservation);
+                fileVersionRepository
+                    .createFileVersionAt(
+                        nodeId,
+                        me,
+                        newVersion,
+                        fileVersion.getMimeType(),
+                        copiedBlobResponse.getSize(),
+                        copiedBlobResponse.getDigest(),
+                        versionDate)
+                    .orElseThrow(() -> new NoSuchElementException("Node not found: " + nodeId));
 
-              nodeRepository.moveCurrentVersion(nodeId, newVersion, versionDate);
+                nodeRepository.moveCurrentVersion(nodeId, newVersion, versionDate);
 
-              FileVersion newFv = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
-              newFv.setClonedFromVersion(version);
-              fileVersionRepository.updateFileVersion(newFv);
-            });
+                FileVersion newFv = fileVersionRepository.getFileVersion(nodeId, newVersion).get();
+                newFv.setClonedFromVersion(version);
+                fileVersionRepository.updateFileVersion(newFv);
+              });
+    } catch (RuntimeException e) {
+      blobLifecycle.discard(reservation);
+      throw e;
+    }
 
     logger.debug(
         MessageFormat.format(
@@ -1208,6 +1112,17 @@ public class NodeApi {
   }
 
   // ─── Private helpers (ported from NodeDataFetcher) ────────────────────────────
+
+  private FilesGraphQLException cloneCopyFailure(String nodeId, int version, Throwable cause) {
+    String error =
+        MessageFormat.format("Copy error with nodeId: {0} and version {1}", nodeId, version);
+    logger.error(error);
+    ErrorCodes code = copyFailureClassifier.classify(cause);
+    if (code == ErrorCodes.NODE_COPY_ERROR) {
+      return FilesGraphQLErrors.dataFetching(gqlContext.getPath(), error);
+    }
+    return FilesGraphQLErrors.cloneCopyError(code, nodeId, version);
+  }
 
   private int getMaxNumberOfVersions() {
     return filesConfig.getMaxNumberOfVersions();
@@ -1222,8 +1137,7 @@ public class NodeApi {
 
   private List<String> createIndirectShare(String sharedParentId, Node nodeToShare) {
     List<String> targetUserIds = new ArrayList<>();
-    shareRepository
-        .getShares(sharedParentId, Collections.emptyList())
+    NodeRules.inheritableShares(shareRepository, sharedParentId)
         .forEach(
             share -> {
               targetUserIds.add(share.getTargetUserId());
@@ -1247,73 +1161,26 @@ public class NodeApi {
     return targetUserIds;
   }
 
-  private void cascadeUpdateAncestors(Node parentNode) {
-    List<String> childrenIds =
-        nodeRepository.getChildrenIds(parentNode.getId(), Optional.empty(), Optional.empty(), true);
-    if (!childrenIds.isEmpty()) {
-      nodeRepository.moveNodes(childrenIds, parentNode);
-      List<Node> childrenNodes =
-          nodeRepository.getNodes(childrenIds, Optional.empty()).collect(Collectors.toList());
-      childrenNodes.stream()
-          .filter(
-              n -> n.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
-          .forEach(this::cascadeUpdateAncestors);
-    }
-  }
-
   private List<String> excludeAncestorsOf(Node destinationFolder, List<String> nodeIds) {
     List<String> destinationAncestors = destinationFolder.getAncestorsList();
     return nodeIds.stream().filter(id -> !destinationAncestors.contains(id)).toList();
+  }
+
+  private List<String> excludeTrashed(List<String> nodeIds) {
+    return nodeIds.stream()
+        .filter(
+            id ->
+                nodeRepository
+                    .getNode(id)
+                    .map(node -> !node.getAncestorsList().contains(RootId.TRASH_ROOT))
+                    .orElse(true))
+        .toList();
   }
 
   private Optional<Node> restoreDestination(String nodeId) {
     return nodeRepository
         .getNode(nodeRepository.getTrashedNode(nodeId).get().getParentId())
         .filter(parent -> !parent.getAncestorsList().contains(RootId.TRASH_ROOT));
-  }
-
-  private List<Node> collectAllDescendants(List<Node> rootNodes) {
-    List<Node> result = new ArrayList<>(rootNodes);
-    for (Node node : rootNodes) {
-      if (node.getNodeType().equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER)) {
-        List<String> childrenIds =
-            nodeRepository.getChildrenIds(node.getId(), Optional.empty(), Optional.empty(), true);
-        if (!childrenIds.isEmpty()) {
-          List<Node> children =
-              nodeRepository
-                  .getNodes(childrenIds, Optional.empty())
-                  .filter(Objects::nonNull)
-                  .collect(Collectors.toList());
-          result.addAll(collectAllDescendants(children));
-        }
-      }
-    }
-    return result;
-  }
-
-  private void cascadeDeleteNodeHelper(String nodeId) {
-    List<String> childrenIds =
-        nodeRepository.getChildrenIds(nodeId, Optional.empty(), Optional.empty(), true);
-    if (!childrenIds.isEmpty()) {
-      List<Node> children =
-          nodeRepository.getNodes(childrenIds, Optional.empty()).collect(Collectors.toList());
-      deleteNodesFromDb(children);
-      children.stream()
-          .filter(
-              node ->
-                  node.getNodeType()
-                      .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
-          .forEach(node -> cascadeDeleteNodeHelper(node.getId()));
-    }
-    shareRepository.deleteSharesBulk(nodeRepository.getTrashedNodeIdsByOldParent(nodeId));
-  }
-
-  private void deleteNodesFromDb(List<Node> nodes) {
-    List<String> ids = nodes.stream().map(Node::getId).collect(Collectors.toList());
-    if (!ids.isEmpty()) {
-      shareRepository.deleteSharesBulk(ids);
-      nodeRepository.deleteNodes(ids);
-    }
   }
 
   private static FilesGraphQLException pathNodeNotFound(String nodeId) {
@@ -1348,6 +1215,39 @@ public class NodeApi {
         .withPartialResults(List.of());
   }
 
+  /** Copies a requested node: a file, or a folder with everything under it. */
+  private CopyOutcome copyTopNode(
+      Node node, Node destinationFolder, String me, List<CopyFailure> nestedCopyErrors) {
+    if (node.getNodeType() != com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER) {
+      return copyFile(node, destinationFolder, me, true);
+    }
+    Node copiedFolder;
+    try {
+      copiedFolder = copyFolder(node, destinationFolder, me, true);
+    } catch (RuntimeException e) {
+      logger.error("Unable to copy folder {}", node.getId(), e);
+      return new CopyOutcome(Optional.empty(), e);
+    }
+    copyFolderCascade(node.getId(), copiedFolder, me, nestedCopyErrors);
+    return new CopyOutcome(Optional.of(copiedFolder), null);
+  }
+
+  private void shareAndNotifyCopy(
+      Node copied, String destinationId, Node destinationFolder, String me) {
+    List<String> usersToNotify = createIndirectShare(destinationId, copied);
+    usersToNotify.remove(me);
+    if (!com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
+            destinationFolder.getNodeType())
+        && !me.equals(destinationFolder.getOwnerId())
+        && !usersToNotify.contains(destinationFolder.getOwnerId())) {
+      usersToNotify.add(destinationFolder.getOwnerId());
+    }
+    if (!usersToNotify.isEmpty() && filesConfig.areNotificationsEnabled()) {
+      notificationRepository.createAddedNodeNotification(
+          copied, destinationFolder, requester, AddedNodeType.COPY, usersToNotify);
+    }
+  }
+
   private CopyOutcome copyFile(
       Node sourceNode, Node destinationFolder, String requesterId, boolean dedupName) {
     String ownerId =
@@ -1357,99 +1257,92 @@ public class NodeApi {
             ? requesterId
             : destinationFolder.getOwnerId();
 
-    Node createdNode =
-        nodeRepository.createNewNode(
-            UUID.randomUUID().toString(),
-            requesterId,
-            ownerId,
-            destinationFolder.getId(),
-            dedupName
-                ? searchAlternativeName(
-                    nodeRepository,
-                    sourceNode.getFullName(),
-                    destinationFolder.getId(),
-                    sourceNode.getOwnerId())
-                : sourceNode.getFullName(),
-            sourceNode.getDescription().orElse(""),
-            sourceNode.getNodeType(),
-            com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
-                    destinationFolder.getNodeType())
-                ? destinationFolder.getId()
-                : destinationFolder.getAncestorIds() + "," + destinationFolder.getId(),
-            sourceNode.getSize());
-
-    boolean blobCopied = false;
+    String newId = UUID.randomUUID().toString();
+    FilesIdentifier source =
+        FilesIdentifier.of(
+            sourceNode.getId(), sourceNode.getCurrentVersion(), sourceNode.getOwnerId());
+    FilesIdentifier destination = FilesIdentifier.of(newId, 1, ownerId);
+    FileVersion sourceCurrentVersion;
+    Reservation reservation;
     try {
-      FileVersion sourceCurrentVersion =
+      sourceCurrentVersion =
           fileVersionRepository
               .getFileVersion(sourceNode.getId(), sourceNode.getCurrentVersion())
-              .get();
+              .orElseThrow(
+                  () ->
+                      new NoSuchElementException(
+                          "Version "
+                              + sourceNode.getCurrentVersion()
+                              + " of node "
+                              + sourceNode.getId()
+                              + " not found"));
+      reservation = versionReservations.reserveNew(newId, 1, ownerId);
+    } catch (RuntimeException e) {
+      logger.error("Unable to copy node {}: {}", sourceNode.getId(), e.getMessage(), e);
+      return new CopyOutcome(Optional.empty(), e);
+    }
 
-      var copyAttempt =
-          Try.of(
-              () ->
-                  fileStore.copy(
-                      FilesIdentifier.of(
-                          sourceNode.getId(),
-                          sourceNode.getCurrentVersion(),
-                          sourceNode.getOwnerId()),
-                      FilesIdentifier.of(createdNode.getId(), 1, requesterId),
-                      false));
-      if (copyAttempt.isFailure()) {
-        logger.error(
-            MessageFormat.format(
-                "Unable to copy node {0}. {1}", sourceNode.getId(), copyAttempt.getCause()));
-        nodeRepository.deleteNode(createdNode.getId());
-        return new CopyOutcome(nodeRepository.getNode(createdNode.getId()), copyAttempt.getCause());
-      }
-      blobCopied = true;
-      var response = copyAttempt.get();
+    var copyAttempt = blobLifecycle.copy(source, destination);
+    if (copyAttempt.isFailure()) {
+      logger.error("Unable to copy node {}", sourceNode.getId(), copyAttempt.getCause());
+      blobLifecycle.abandon(reservation);
+      return new CopyOutcome(Optional.empty(), copyAttempt.getCause());
+    }
+    var response = copyAttempt.get();
 
+    try {
       QuarkusTransaction.requiringNew()
           .run(
               () -> {
-                Node copiedNode = nodeRepository.getNode(createdNode.getId()).get();
+                Node parent =
+                    nodeRepository
+                        .getNode(destinationFolder.getId())
+                        .filter(NodeRules::acceptsChildren)
+                        .orElseThrow(
+                            () ->
+                                new NoSuchElementException(
+                                    "Destination " + destinationFolder.getId() + " not found"));
+                versionReservations.confirmNew(reservation);
+                nodeRepository.createNewNode(
+                    newId,
+                    requesterId,
+                    ownerId,
+                    parent.getId(),
+                    dedupName
+                        ? searchAlternativeName(
+                            nodeRepository,
+                            sourceNode.getFullName(),
+                            parent.getId(),
+                            sourceNode.getOwnerId())
+                        : sourceNode.getFullName(),
+                    sourceNode.getDescription().orElse(""),
+                    sourceNode.getNodeType(),
+                    com.zextras.carbonio.files.dal.dao.ebean.NodeType.ROOT.equals(
+                            parent.getNodeType())
+                        ? parent.getId()
+                        : parent.getAncestorIds() + "," + parent.getId(),
+                    sourceNode.getSize());
                 fileVersionRepository.createNewFileVersion(
-                    createdNode.getId(),
+                    newId,
                     requesterId,
                     1,
                     sourceCurrentVersion.getMimeType(),
                     response.getSize(),
                     response.getDigest(),
                     false);
-                copiedNode.setCurrentVersion(1);
-                nodeRepository.updateNode(copiedNode);
               });
     } catch (RuntimeException e) {
-      discardFailedCopy(createdNode.getId(), requesterId, blobCopied);
-      throw e;
+      logger.error(
+          "Unable to publish the copy {} of node {}: {}",
+          newId,
+          sourceNode.getId(),
+          e.getMessage(),
+          e);
+      blobLifecycle.discard(reservation);
+      return new CopyOutcome(Optional.empty(), e);
     }
 
-    return new CopyOutcome(nodeRepository.getNode(createdNode.getId()), null);
-  }
-
-  private void discardFailedCopy(String nodeId, String blobOwnerId, boolean blobCopied) {
-    try {
-      nodeRepository.deleteNode(nodeId);
-    } catch (RuntimeException e) {
-      logger.warn("Unable to delete node {} of a failed copy: {}", nodeId, e.getMessage());
-    }
-    if (!blobCopied) {
-      return;
-    }
-    try {
-      List<BulkDeleteResponseItem> failedItems =
-          fileStore.bulkDelete(
-              IdentifierType.files,
-              blobOwnerId,
-              List.of(BulkDeleteRequestItem.filesItem(nodeId, 1)));
-      if (failedItems == null || !failedItems.isEmpty()) {
-        logger.warn("Unable to delete the blob of node {} of a failed copy", nodeId);
-      }
-    } catch (Exception e) {
-      logger.warn(
-          "Unable to delete the blob of node {} of a failed copy: {}", nodeId, e.getMessage());
-    }
+    return new CopyOutcome(nodeRepository.getNode(newId), null);
   }
 
   private Node copyFolder(
@@ -1483,7 +1376,10 @@ public class NodeApi {
   }
 
   private void copyFolderCascade(
-      String sourceFolderId, Node destinationFolder, String requesterId) {
+      String sourceFolderId,
+      Node destinationFolder,
+      String requesterId,
+      List<CopyFailure> failures) {
     List<Node> folderChildren =
         nodeRepository
             .getNodes(
@@ -1508,12 +1404,25 @@ public class NodeApi {
                         .equals(com.zextras.carbonio.files.dal.dao.ebean.NodeType.FOLDER))
             .collect(Collectors.toList());
 
-    filesToCopy.forEach(file -> copyFile(file, destinationFolder, requesterId, false));
+    filesToCopy.forEach(
+        file -> {
+          CopyOutcome outcome = copyFile(file, destinationFolder, requesterId, false);
+          if (outcome.node().isEmpty()) {
+            failures.add(new CopyFailure(file, outcome.failure()));
+          }
+        });
 
     foldersToCopy.forEach(
         folder -> {
-          Node copiedFolder = copyFolder(folder, destinationFolder, requesterId, false);
-          copyFolderCascade(folder.getId(), copiedFolder, requesterId);
+          Node copiedFolder;
+          try {
+            copiedFolder = copyFolder(folder, destinationFolder, requesterId, false);
+          } catch (RuntimeException e) {
+            logger.error("Unable to copy folder {}: {}", folder.getId(), e.getMessage(), e);
+            failures.add(new CopyFailure(folder, e));
+            return;
+          }
+          copyFolderCascade(folder.getId(), copiedFolder, requesterId, failures);
         });
   }
 }

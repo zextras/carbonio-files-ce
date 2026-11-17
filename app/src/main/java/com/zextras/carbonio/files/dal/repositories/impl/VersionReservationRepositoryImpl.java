@@ -60,15 +60,4 @@ public class VersionReservationRepositoryImpl
   public void remove(VersionReservation reservation) {
     deleteById(reservation.getId());
   }
-
-  @Override
-  @Transactional
-  public void recordFailedAttempt(VersionReservation reservation) {
-    update(
-        "mAttempts = mAttempts + 1 where mComposedId.mNodeId = ?1 and mComposedId.mVersion = ?2"
-            + " and mState = ?3",
-        reservation.getNodeId(),
-        reservation.getVersion(),
-        VersionReservationState.PURGING);
-  }
 }

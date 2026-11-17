@@ -1,5 +1,10 @@
 {
-  "branches": ["main"],
+  "branches": [
+    { "name": "release/v1.1.x", "range": "1.1.x" },
+    { "name": "release/v1.2.x", "range": "1.2.x" },
+    { "name": "release/v2.1.x", "range": "2.1.x" },
+    "main"
+  ],
   "repositoryUrl": "https://github.com/zextras/carbonio-files-ce",
   "tagFormat": "v${version}",
   "plugins": [
