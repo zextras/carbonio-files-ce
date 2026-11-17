@@ -53,7 +53,7 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void adminKeysListsTheFiveSharingKeys() {
+  void adminKeysListsTheThreeSharingKeys() {
     Response response = get("/admin/config/keys", ADMIN_COOKIE);
 
     assertThat(response.statusCode()).isEqualTo(200);
@@ -61,11 +61,7 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
     assertThat(keys)
         .extracting(k -> k.get("key"))
         .containsExactly(
-            "account-shares-enabled",
-            "collaboration-links-enabled",
-            "public-links-enabled",
-            "share-reshare-permission-enabled",
-            "share-write-permission-enabled");
+            "account-shares-enabled", "collaboration-links-enabled", "public-links-enabled");
     assertThat(keys).allSatisfy(k -> assertThat(k).containsEntry("defaultValue", DEFAULT_VALUE));
     assertThat(keys)
         .filteredOn(k -> KEY.equals(k.get("key")))
@@ -125,29 +121,29 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
 
   @Test
   void valueIsResolvedThroughUserManagementIds() {
-    assertThat(userConfig()).hasSize(5).containsEntry(KEY, DEFAULT_VALUE);
+    assertThat(userConfig()).hasSize(3).containsEntry(KEY, DEFAULT_VALUE);
     assertThat(resolvedFor(USER_ID))
         .containsEntry("value", DEFAULT_VALUE)
         .containsEntry("source", "default");
 
     assertThat(put("/admin/config/raw/cos/" + COS_ID, ADMIN_COOKIE, body(KEY, "c")).statusCode())
         .isEqualTo(204);
-    assertThat(userConfig()).hasSize(5).containsEntry(KEY, "c");
+    assertThat(userConfig()).hasSize(3).containsEntry(KEY, "c");
     assertThat(resolvedFor(USER_ID)).containsEntry("value", "c").containsEntry("source", "cos");
 
     assertThat(
             put("/admin/config/raw/account/" + USER_ID, ADMIN_COOKIE, body(KEY, "a")).statusCode())
         .isEqualTo(204);
-    assertThat(userConfig()).hasSize(5).containsEntry(KEY, "a");
+    assertThat(userConfig()).hasSize(3).containsEntry(KEY, "a");
     assertThat(resolvedFor(USER_ID)).containsEntry("value", "a").containsEntry("source", "account");
 
     assertThat(delete("/admin/config/raw/account/" + USER_ID + "/" + KEY).statusCode())
         .isEqualTo(204);
-    assertThat(userConfig()).hasSize(5).containsEntry(KEY, "c");
+    assertThat(userConfig()).hasSize(3).containsEntry(KEY, "c");
     assertThat(resolvedFor(USER_ID)).containsEntry("value", "c").containsEntry("source", "cos");
 
     assertThat(delete("/admin/config/raw/cos/" + COS_ID + "/" + KEY).statusCode()).isEqualTo(204);
-    assertThat(userConfig()).hasSize(5).containsEntry(KEY, DEFAULT_VALUE);
+    assertThat(userConfig()).hasSize(3).containsEntry(KEY, DEFAULT_VALUE);
     assertThat(resolvedFor(USER_ID))
         .containsEntry("value", DEFAULT_VALUE)
         .containsEntry("source", "default");
@@ -161,7 +157,7 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
             put("/admin/config/raw/account/" + USER_ID, ADMIN_COOKIE, body(KEY, "a")).statusCode())
         .isEqualTo(204);
 
-    assertThat(userConfig()).hasSize(5).containsEntry(KEY, "a");
+    assertThat(userConfig()).hasSize(3).containsEntry(KEY, "a");
     assertThat(resolvedFor(USER_ID)).containsEntry("value", "a").containsEntry("source", "account");
   }
 
@@ -188,7 +184,7 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
     Response response = get("/admin/config?accountId=" + accountId, ADMIN_COOKIE);
     assertThat(response.statusCode()).isEqualTo(200);
     Map<String, Object> all = response.as(Map.class);
-    assertThat(all).hasSize(5).containsKey(KEY);
+    assertThat(all).hasSize(3).containsKey(KEY);
     return (Map<String, Object>) all.get(KEY);
   }
 

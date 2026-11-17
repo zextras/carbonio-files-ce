@@ -10,7 +10,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -55,7 +54,6 @@ class ShareApiTest {
     permissionsChecker = mock(PermissionsChecker.class);
     sharingPolicy = mock(SharingPolicy.class);
     when(sharingPolicy.isEnabled(any(), any())).thenReturn(true);
-    when(sharingPolicy.allowsGrant(any(), any())).thenReturn(true);
 
     UserMyself requester = mock(UserMyself.class);
     when(requester.getId()).thenReturn(new UserId(REQUESTER_ID));
@@ -180,46 +178,7 @@ class ShareApiTest {
   }
 
   @Test
-  void createShareRejectsAnExcessivePermissionBeforeNodeAuthorization() {
-    when(sharingPolicy.allowsGrant(eq(ACL.SharePermission.READ_AND_WRITE), any()))
-        .thenReturn(false);
-
-    assertThatThrownBy(
-            () ->
-                shareApi.createShare(
-                    NODE_ID, TARGET_ID_1, SharePermission.READ_AND_WRITE, null, null))
-        .satisfies(ex -> assertErrorCode(ex, ErrorCodes.SHARE_PERMISSION_NOT_ALLOWED));
-    verifyNoInteractions(permissionsChecker);
-  }
-
-  @Test
-  void updateSharesRejectsAnExcessivePermissionBeforeNodeAuthorization() {
-    when(sharingPolicy.allowsGrant(eq(ACL.SharePermission.READ_AND_WRITE), any()))
-        .thenReturn(false);
-
-    assertThatThrownBy(
-            () ->
-                shareApi.updateShares(
-                    NODE_ID, List.of(TARGET_ID_1), SharePermission.READ_AND_WRITE, null))
-        .satisfies(ex -> assertErrorCode(ex, ErrorCodes.SHARE_PERMISSION_NOT_ALLOWED));
-    verifyNoInteractions(permissionsChecker);
-  }
-
-  @Test
-  void updateSharesWithoutAPermissionDoesNotEvaluateTheGrantCap() throws Exception {
-    when(permissionsChecker.getPermissions(NODE_ID, REQUESTER_ID))
-        .thenReturn(aclWith(ACL.SharePermission.READ_AND_SHARE));
-    Share existing = mockShare(NODE_ID, TARGET_ID_1);
-    when(shareRepository.getShare(NODE_ID, TARGET_ID_1)).thenReturn(Optional.of(existing));
-    when(shareRepository.updateShare(any())).thenAnswer(i -> i.getArgument(0));
-
-    shareApi.updateShares(NODE_ID, List.of(TARGET_ID_1), null, 5000L);
-
-    verify(sharingPolicy, never()).allowsGrant(any(), any());
-  }
-
-  @Test
-  void aDisabledTypeIsRejectedBeforeTheGrantCapAndNodeAuthorization() {
+  void aDisabledTypeIsRejectedBeforeNodeAuthorization() {
     when(sharingPolicy.isEnabled(eq(SharingType.ACCOUNT_SHARES), any())).thenReturn(false);
 
     assertThatThrownBy(
@@ -232,7 +191,6 @@ class ShareApiTest {
                 shareApi.updateShares(
                     NODE_ID, List.of(TARGET_ID_1), SharePermission.READ_AND_WRITE, null))
         .satisfies(ex -> assertErrorCode(ex, ErrorCodes.SHARING_TYPE_DISABLED));
-    verify(sharingPolicy, never()).allowsGrant(any(), any());
     verifyNoInteractions(permissionsChecker);
   }
 }

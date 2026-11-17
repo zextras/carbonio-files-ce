@@ -5,17 +5,13 @@
 package com.zextras.carbonio.files.config;
 
 import static com.zextras.carbonio.files.config.FilesHierarchicalConfig.HierarchicalConfig.PUBLIC_LINKS_ENABLED;
-import static com.zextras.carbonio.files.config.FilesHierarchicalConfig.HierarchicalConfig.SHARE_RESHARE_PERMISSION_ENABLED;
-import static com.zextras.carbonio.files.config.FilesHierarchicalConfig.HierarchicalConfig.SHARE_WRITE_PERMISSION_ENABLED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.zextras.carbonio.files.dal.dao.UserId;
 import com.zextras.carbonio.files.dal.dao.UserInfo;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
-import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigResolver;
 import com.zextras.carbonio.quarkus.extensions.confighierarchical.ConfigScope;
 import java.util.Optional;
@@ -61,37 +57,6 @@ class SharingPolicyTest {
   void eachTypeReadsItsOwnKey(SharingType type) {
     resolves(type.configKey(), "false");
     assertThat(policy.isEnabled(type, scope)).isFalse();
-  }
-
-  @Test
-  void readOnlyIsAlwaysGrantableWithoutReadingTheConfig() {
-    assertThat(policy.allowsGrant(SharePermission.READ_ONLY, scope)).isTrue();
-    verifyNoInteractions(resolver);
-  }
-
-  @Test
-  void writeNeedsTheWriteKey() {
-    resolves(SHARE_WRITE_PERMISSION_ENABLED, "false");
-    assertThat(policy.allowsGrant(SharePermission.READ_AND_WRITE, scope)).isFalse();
-    resolves(SHARE_WRITE_PERMISSION_ENABLED, "true");
-    assertThat(policy.allowsGrant(SharePermission.READ_AND_WRITE, scope)).isTrue();
-  }
-
-  @Test
-  void reshareNeedsTheReshareKey() {
-    resolves(SHARE_RESHARE_PERMISSION_ENABLED, "false");
-    assertThat(policy.allowsGrant(SharePermission.READ_AND_SHARE, scope)).isFalse();
-    resolves(SHARE_RESHARE_PERMISSION_ENABLED, "true");
-    assertThat(policy.allowsGrant(SharePermission.READ_AND_SHARE, scope)).isTrue();
-  }
-
-  @Test
-  void readWriteAndShareNeedsBothKeys() {
-    resolves(SHARE_WRITE_PERMISSION_ENABLED, "true");
-    resolves(SHARE_RESHARE_PERMISSION_ENABLED, "false");
-    assertThat(policy.allowsGrant(SharePermission.READ_WRITE_AND_SHARE, scope)).isFalse();
-    resolves(SHARE_RESHARE_PERMISSION_ENABLED, "true");
-    assertThat(policy.allowsGrant(SharePermission.READ_WRITE_AND_SHARE, scope)).isTrue();
   }
 
   @Test

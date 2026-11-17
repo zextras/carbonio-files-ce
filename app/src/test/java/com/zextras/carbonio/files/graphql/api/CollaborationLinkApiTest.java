@@ -63,7 +63,6 @@ class CollaborationLinkApiTest {
     collaborationLinkApi.requester = requester;
     sharingPolicy = mock(SharingPolicy.class);
     when(sharingPolicy.isEnabled(any(), any())).thenReturn(true);
-    when(sharingPolicy.allowsGrant(any(), any())).thenReturn(true);
     collaborationLinkApi.sharingPolicy = sharingPolicy;
   }
 
@@ -110,32 +109,5 @@ class CollaborationLinkApiTest {
             FilesGraphQLException.class,
             ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.SHARING_TYPE_DISABLED));
     verifyNoInteractions(permissionsChecker, collaborationLinkRepository);
-  }
-
-  @Test
-  void createCollaborationLinkRejectsAnExcessivePermissionBeforeNodeAuthorization() {
-    when(sharingPolicy.allowsGrant(eq(ACL.SharePermission.READ_AND_WRITE), any()))
-        .thenReturn(false);
-
-    assertThatThrownBy(
-            () ->
-                collaborationLinkApi.createCollaborationLink(
-                    NODE_ID, SharePermission.READ_AND_WRITE))
-        .isInstanceOfSatisfying(
-            FilesGraphQLException.class,
-            ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCodes.SHARE_PERMISSION_NOT_ALLOWED));
-    verifyNoInteractions(permissionsChecker, collaborationLinkRepository);
-  }
-
-  @Test
-  void createCollaborationLinkDoesNotEvaluateTheGrantCapWhenTheTypeIsDisabled() {
-    when(sharingPolicy.isEnabled(eq(SharingType.COLLABORATION_LINKS), any())).thenReturn(false);
-
-    assertThatThrownBy(
-            () ->
-                collaborationLinkApi.createCollaborationLink(
-                    NODE_ID, SharePermission.READ_AND_WRITE))
-        .isInstanceOf(FilesGraphQLException.class);
-    verify(sharingPolicy, never()).allowsGrant(any(), any());
   }
 }

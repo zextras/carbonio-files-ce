@@ -162,9 +162,6 @@ public class ShareApi {
       throw FilesGraphQLErrors.sharingTypeDisabled(SharingType.ACCOUNT_SHARES);
     }
     ACL.SharePermission requested = mapToAclPermission(permission);
-    if (!sharingPolicy.allowsGrant(requested, scope)) {
-      throw FilesGraphQLErrors.sharePermissionNotAllowed(permission.name());
-    }
     String me = requester.getId().getUserId();
     ACL myPermissions = permissionsChecker.getPermissions(nodeId, me);
     if (!myPermissions.has(ACL.SharePermission.READ_AND_SHARE)
@@ -225,9 +222,6 @@ public class ShareApi {
     }
     Optional<ACL.SharePermission> optNewPermission =
         Optional.ofNullable(permission).map(ShareApi::mapToAclPermission);
-    if (optNewPermission.isPresent() && !sharingPolicy.allowsGrant(optNewPermission.get(), scope)) {
-      throw FilesGraphQLErrors.sharePermissionNotAllowed(permission.name());
-    }
     String me = requester.getId().getUserId();
     ACL myPermissions = permissionsChecker.getPermissions(nodeId, me);
     boolean hasPermission =

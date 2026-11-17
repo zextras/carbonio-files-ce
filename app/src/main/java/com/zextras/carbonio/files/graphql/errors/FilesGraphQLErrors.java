@@ -137,14 +137,6 @@ public final class FilesGraphQLErrors {
         type.name());
   }
 
-  public static FilesGraphQLException sharePermissionNotAllowed(String permission) {
-    return build(
-        ErrorCodes.SHARE_PERMISSION_NOT_ALLOWED,
-        "Permission " + permission + " exceeds what the administrator allows",
-        "permission",
-        permission);
-  }
-
   private static FilesGraphQLException overQuota(String nodeId) {
     return build(ErrorCodes.OVER_QUOTA_REACHED, "User quota has been reached for user " + nodeId);
   }

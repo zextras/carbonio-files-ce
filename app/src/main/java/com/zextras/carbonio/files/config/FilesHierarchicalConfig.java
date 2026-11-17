@@ -22,16 +22,5 @@ public final class FilesHierarchicalConfig {
     @ConfigKey(
         description = "Whether the user may create and update public links, Smart Links included")
     public static final String PUBLIC_LINKS_ENABLED = "public-links-enabled";
-
-    @ConfigKey(
-        description =
-            "Whether the user may grant the write permission in shares and collaboration links")
-    public static final String SHARE_WRITE_PERMISSION_ENABLED = "share-write-permission-enabled";
-
-    @ConfigKey(
-        description =
-            "Whether the user may grant the reshare permission in shares and collaboration links")
-    public static final String SHARE_RESHARE_PERMISSION_ENABLED =
-        "share-reshare-permission-enabled";
   }
 }
