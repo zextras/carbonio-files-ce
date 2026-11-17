@@ -1,3 +1,9 @@
+## [3.0.14](https://github.com/zextras/carbonio-files-ce/compare/v3.0.13...v3.0.14) (2026-11-17)
+
+### Bug Fixes
+
+* [CO-3502] treat exit 143 as success for files ([#364](https://github.com/zextras/carbonio-files-ce/issues/364)) ([521a3b3](https://github.com/zextras/carbonio-files-ce/commit/521a3b3a58d1bfce7dd518cee3d869208da871a6))
+
 ## [3.0.13](https://github.com/zextras/carbonio-files-ce/compare/v3.0.12...v3.0.13) (2026-11-17)
 
 ### Bug Fixes
