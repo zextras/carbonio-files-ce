@@ -89,7 +89,7 @@ class HierarchicalConfigApiIT extends AbstractFilesIT {
   void domainScopeIsRejectedAndTheGlobalRoutesWork() throws SQLException {
     Response domain = put("/admin/config/raw/domain/x", ADMIN_COOKIE, body(KEY, "d"));
     assertThat(domain.statusCode()).isEqualTo(400);
-    assertThat(domain.asString()).contains("Unknown scope");
+    assertThat(domain.asString()).contains("Unknown scope (expected account|cos)");
     assertThat(get("/admin/config/raw/domain/x", ADMIN_COOKIE).statusCode()).isEqualTo(400);
     assertThat(delete("/admin/config/raw/domain/x/" + KEY).statusCode()).isEqualTo(400);
     assertThat(configRows()).isZero();
