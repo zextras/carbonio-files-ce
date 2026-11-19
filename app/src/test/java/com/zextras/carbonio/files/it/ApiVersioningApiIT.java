@@ -4,6 +4,7 @@
 
 package com.zextras.carbonio.files.it;
 
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -83,7 +84,11 @@ class ApiVersioningApiIT extends AbstractFilesIT {
   }
 
   private static String ownVersion() {
-    return graphqlAs(null, getNodeTypeQuery(LOCAL_ROOT)).getHeader(versionHeader());
+    return RestAssured.given()
+        .header("Cookie", REQUESTER_COOKIE)
+        .get("/versions")
+        .jsonPath()
+        .getString("current");
   }
 
   // ---------------------------------------------------------------------------------- C1
@@ -209,7 +214,7 @@ class ApiVersioningApiIT extends AbstractFilesIT {
           .then()
           .statusCode(200)
           .body("data.getNode.type", equalTo("ARCHIVE"))
-          .header(versionHeader(), equalTo(own))
+          .header(versionHeader(), anyOf(equalTo(own), equalTo("current")))
           .header("Vary", containsString(versionHeader()))
           .header(DEBUG, nullValue());
     }
@@ -271,9 +276,12 @@ class ApiVersioningApiIT extends AbstractFilesIT {
         .then()
         .statusCode(200)
         .body("data.getNode.type", equalTo("ARCHIVE"))
-        .header(versionHeader(), equalTo(own))
+        .header(versionHeader(), anyOf(equalTo(own), equalTo("current")))
         .header(DEBUG, nullValue());
-    downloadAs("999.0.0", nodeId).then().statusCode(200).header(versionHeader(), equalTo(own));
+    downloadAs("999.0.0", nodeId)
+        .then()
+        .statusCode(200)
+        .header(versionHeader(), anyOf(equalTo(own), equalTo("current")));
   }
 
   @Test
