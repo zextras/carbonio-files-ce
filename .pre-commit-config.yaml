@@ -4,25 +4,20 @@
 #
 # Local hooks regenerate files but don't `git add` the result — if one changes a
 # tracked file, review the diff, `git add` it, and re-commit.
-default_install_hook_types: [pre-commit, commit-msg, pre-push]
-default_stages: [pre-commit]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: check-added-large-files
-        stages: [pre-commit]
         args: [--maxkb=2048]
       - id: check-json
       - id: check-merge-conflict
       - id: check-shebang-scripts-are-executable
-        stages: [pre-commit]
       - id: check-toml
       - id: check-xml
       - id: check-yaml
         args: [--allow-multiple-documents]
       - id: end-of-file-fixer
-        stages: [pre-commit]
         # A formatting hook rewriting a generated file makes CI red forever (generator
         # writes X -> hook rewrites X -> dev commits that -> CI regenerates X -> diff -> FAIL).
         # Not excluded from `reuse` lint: licence checks must still cover generated files.
@@ -34,7 +29,6 @@ repos:
         # verbatim or dt3_pipeline's "Verify Build Outputs" stage fails.
         exclude: &generated-files "^THIRDPARTIES$|^package/PKGBUILD$|^app/src/main/resources/db/migration/|^app/docs/"
       - id: trailing-whitespace
-        stages: [pre-commit]
         # Two trailing spaces are a hard line break in Markdown; stripping them changes rendering.
         args: [--markdown-linebreak-ext=md]
         exclude: *generated-files
@@ -111,9 +105,10 @@ repos:
 
       - id: api-guard
         name: API contract guard
-        description: "Fails when the API contract changes without a since = ApiVersion.CURRENT converter; vendored from jenkins-lib-common."
+        description: "Fails when the staged API contract changes without a since = ApiVersion.CURRENT converter; vendored from jenkins-lib-common."
         entry: >-
           bash .ci/api-guard.sh
+          --staged
           --contract app/docs/contract/schema.graphql
           --contract app/docs/contract/openapi.json
           --oldest-supported-file app/src/main/resources/application.properties
@@ -122,4 +117,4 @@ repos:
         pass_filenames: false
         always_run: true
         verbose: true
-        stages: [pre-push]
+        stages: [pre-commit]

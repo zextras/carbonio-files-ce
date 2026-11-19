@@ -12,8 +12,10 @@
 #   2. Support window: prints ONE warning listing vX.Y.Z tags merged into the default branch that
 #      are older than the window and still at or above the oldest supported version. Never fails.
 #
-# Runs in Jenkins (dt3_apiGuard) and as a local pre-push hook (vendored as .ci/api-guard.sh).
-# Only the committed HEAD is compared, not the working tree.
+# Runs in Jenkins (dt3_apiGuard) and as a local pre-commit hook (vendored as .ci/api-guard.sh).
+# By default only the committed HEAD is compared, never the working tree. With --staged the INDEX
+# is compared instead of HEAD (normal-stage pre-commit hook during `git commit`); with a clean
+# index both modes agree.
 #
 # Usage: api-guard.sh [options]
 #   --base <ref>                     Compare against this ref (default: merge-base with the base branch)
@@ -28,6 +30,7 @@
 #   --oldest-supported-key <key>     Key in that file (default: quarkus.carbonio-api-versioning.oldest-supported)
 #   --window-months <n>              Support window length (default: 15)
 #   --branch <name>                  Branch under test; release/* skips both checks (default: current branch)
+#   --staged                         Compare the index instead of HEAD (contract files, converters, pom)
 #   --skip-converter-check           Run only the window warning
 #   --skip-window                    Run only the converter check
 #   --pom-file <path>                POM holding the embedded pin property (default: pom.xml)
@@ -56,6 +59,9 @@ OLDEST_KEY="quarkus.carbonio-api-versioning.oldest-supported"
 WINDOW_MONTHS=15
 BRANCH=""
 SKIP_CONVERTER=0
+STAGED=0
+NEW_REV="HEAD"
+CACHED=()
 SKIP_WINDOW=0
 POM_FILE="pom.xml"
 NOW=""
@@ -77,6 +83,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --skip-converter-check) SKIP_CONVERTER=1; shift; continue ;;
         --skip-window) SKIP_WINDOW=1; shift; continue ;;
+        --staged) STAGED=1; shift; continue ;;
         -h | --help) sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
     esac
     need_value "$1" "$#"
@@ -115,6 +122,11 @@ case "$WINDOW_MONTHS" in '' | *[!0-9]*) die "--window-months must be a non-negat
 git rev-parse --git-dir > /dev/null 2>&1 || die "not inside a git working tree"
 git rev-parse --verify -q HEAD > /dev/null || die "repository has no commits"
 
+if [ "$STAGED" -eq 1 ]; then
+    NEW_REV=""
+    CACHED=(--cached)
+fi
+
 [ ${#CONTRACTS[@]} -gt 0 ] || CONTRACTS=(app/docs/contract/schema.graphql app/docs/contract/openapi.json)
 [ ${#SOURCES[@]} -gt 0 ] || SOURCES=(':(glob)**/src/main/java/**/*.java')
 [ -n "$BASE_BRANCH" ] || BASE_BRANCH="$DEFAULT_BRANCH"
@@ -137,9 +149,13 @@ resolve_branch_ref() {
 
 # ─── 1. converter check ──────────────────────────────────────────────────────
 
-# changed_lines <base> <path>: signed changed lines of <path> between <base> and HEAD, commas stripped
+# changed_lines <base> <path>: signed changed lines of <path> between <base> and HEAD (or the index), commas stripped
 changed_lines() {
-    git diff -U0 --no-color --no-ext-diff "$1" HEAD -- "$2" \
+    if [ "$STAGED" -eq 1 ]; then
+        git diff --cached -U0 --no-color --no-ext-diff "$1" -- "$2"
+    else
+        git diff -U0 --no-color --no-ext-diff "$1" HEAD -- "$2"
+    fi \
         | grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' \
         | sed -E 's/,[[:space:]]*$//' || true
 }
@@ -164,7 +180,7 @@ embedded_ignored_file() {
         [ -n "$theirs" ] || continue
         prop="${EMB_PROP[$i]}"
         old=$(pom_property "$base" "$prop")
-        new=$(pom_property HEAD "$prop")
+        new=$(pom_property "$NEW_REV" "$prop")
         if [ -z "$old" ] || [ -z "$new" ] || [ "$old" = "$new" ]; then continue; fi
         repo="${EMB_REPO[$i]}"
         prefix="${EMB_PREFIX[$i]}"
@@ -207,12 +223,14 @@ converter_check() {
 
     for path in "${CONTRACTS[@]}"; do
         if ! git cat-file -e "$base:$path" 2> /dev/null; then
-            if git cat-file -e "HEAD:$path" 2> /dev/null; then
+            if git cat-file -e "$NEW_REV:$path" 2> /dev/null; then
                 echo "$TAG $path is new in this branch: first introduction is not a contract change"
             fi
             continue
         fi
-        if git diff --quiet "$base" HEAD -- "$path"; then
+        if [ "$STAGED" -eq 1 ]; then
+            if git diff --cached --quiet "$base" -- "$path"; then continue; fi
+        elif git diff --quiet "$base" HEAD -- "$path"; then
             continue
         fi
         ce=""
@@ -238,7 +256,9 @@ converter_check() {
         return 0
     fi
 
-    if git grep -q -E 'since[[:space:]]*=[[:space:]]*(ApiVersion\.)?CURRENT([^A-Za-z0-9_]|$)' HEAD -- "${SOURCES[@]}"; then
+    local rev=()
+    [ "$STAGED" -eq 1 ] || rev=(HEAD)
+    if git grep "${CACHED[@]}" -q -E 'since[[:space:]]*=[[:space:]]*(ApiVersion\.)?CURRENT([^A-Za-z0-9_]|$)' "${rev[@]}" -- "${SOURCES[@]}"; then
         echo "$TAG Contract changed (${changed[*]}) and a CURRENT converter exists"
         return 0
     fi
