@@ -261,11 +261,22 @@ SPDX-License-Identifier: AGPL-3.0-only
       <artifactId>carbonio-quarkus-extensions-graphql</artifactId>
       <version>${carbonio-quarkus-extensions.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.zextras.carbonio.quarkus</groupId>
+      <artifactId>carbonio-quarkus-extensions-api-versioning</artifactId>
+      <version>${carbonio-quarkus-extensions.version}</version>
+    </dependency>
 
     <!-- Test -->
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.zextras.carbonio.quarkus</groupId>
+      <artifactId>carbonio-quarkus-extensions-api-versioning-test</artifactId>
+      <version>${carbonio-quarkus-extensions.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>

@@ -238,7 +238,10 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
             // Contract strict mode for the whole suite: a status or GraphQL error code that is not
             // declared fails the request. Set here (global resource) so it adds no app relaunch.
             Map.entry("quarkus.carbonio-rest.strict-declared-responses", "true"),
-            Map.entry("quarkus.carbonio-graphql.strict-declared-errors", "true"));
+            Map.entry("quarkus.carbonio-graphql.strict-declared-errors", "true"),
+            // The debug header lists the converters applied to each request: the API versioning
+            // test kit reads it to prove that every active converter is covered by a test.
+            Map.entry("quarkus.carbonio-api-versioning.debug-header", "true"));
 
     started = true;
     return cachedConfig;

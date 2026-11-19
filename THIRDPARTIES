@@ -3,6 +3,7 @@ List of third-party dependencies grouped by their license type.
 
     AGPL-3.0-only:
 
+        * Carbonio Quarkus Extensions - API Versioning Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-api-versioning:1.17.0-pocver-SNAPSHOT - no url defined)
         * Carbonio Quarkus Extensions - Bootstrap Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-bootstrap:1.17.0-pocver-SNAPSHOT - no url defined)
         * Carbonio Quarkus Extensions - Database Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-database:1.17.0-pocver-SNAPSHOT - no url defined)
         * Carbonio Quarkus Extensions - GraphQL Runtime (com.zextras.carbonio.quarkus:carbonio-quarkus-extensions-graphql:1.17.0-pocver-SNAPSHOT - no url defined)

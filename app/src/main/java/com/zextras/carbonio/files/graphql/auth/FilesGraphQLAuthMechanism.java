@@ -16,12 +16,14 @@ import io.vertx.core.http.Cookie;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.Set;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * HTTP-level authentication mechanism for the SmallRye GraphQL endpoint ({@code POST /graphql}).
  *
- * <p>The mechanism handles ONLY requests whose path starts with {@code /graphql}; all other paths
- * receive {@code nullItem} so other mechanisms (or the default) can handle them.
+ * <p>The mechanism handles ONLY requests whose path starts with {@code /graphql} and the API
+ * versions endpoint (so that the extension can tell an authenticated caller from an anonymous one);
+ * all other paths receive {@code nullItem} so other mechanisms (or the default) can handle them.
  *
  * <p>Authentication is proactive: it runs before the GraphQL engine for every request. No {@code
  * ZM_AUTH_TOKEN} cookie → anonymous identity ({@code nullItem}), which only the {@code @PermitAll}
@@ -41,10 +43,14 @@ public class FilesGraphQLAuthMechanism implements HttpAuthenticationMechanism {
   static final String CTX_STATUS = "files.auth.status";
   static final String CTX_MESSAGE = "files.auth.message";
 
+  @ConfigProperty(name = "quarkus.carbonio-api-versioning.versions-path", defaultValue = "/graphql")
+  String versionsPath;
+
   @Override
   public Uni<SecurityIdentity> authenticate(RoutingContext ctx, IdentityProviderManager idm) {
     String path = ctx.normalizedPath();
-    if (!"/graphql".equals(path) && !path.startsWith("/graphql/")) {
+    boolean graphql = "/graphql".equals(path) || path.startsWith("/graphql/");
+    if (!graphql && !path.equals(versionsPath)) {
       return Uni.createFrom().nullItem();
     }
 
