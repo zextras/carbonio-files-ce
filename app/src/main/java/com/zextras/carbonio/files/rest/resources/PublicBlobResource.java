@@ -94,11 +94,7 @@ public class PublicBlobResource {
     @APIResponse(
         responseCode = "307",
         description = "Redirect to the access-code page (access-code-protected link)"),
-    @APIResponse(responseCode = "404", description = "Link or node not found"),
-    @APIResponse(
-        responseCode = "204",
-        description =
-            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
+    @APIResponse(responseCode = "404", description = "Link or node not found")
   })
   public Uni<Void> downloadByPublicLink(
       @PathParam("publicLinkId") String publicLinkId, @Context HttpServerResponse resp) {
@@ -119,11 +115,7 @@ public class PublicBlobResource {
     @APIResponse(
         responseCode = "307",
         description = "Redirect to the access-code page (access-code-protected link)"),
-    @APIResponse(responseCode = "404", description = "Link or node not found"),
-    @APIResponse(
-        responseCode = "204",
-        description =
-            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
+    @APIResponse(responseCode = "404", description = "Link or node not found")
   })
   public Uni<Void> downloadViaPublicLink(
       @PathParam("publicLinkId") String publicLinkId, @Context HttpServerResponse resp) {
@@ -172,11 +164,7 @@ public class PublicBlobResource {
                 schema = @Schema(type = SchemaType.STRING, format = "binary"))),
     @APIResponse(
         responseCode = "404",
-        description = "Node not found or not accessible via the link"),
-    @APIResponse(
-        responseCode = "204",
-        description =
-            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
+        description = "Node not found or not accessible via the link")
   })
   public Uni<Void> downloadPublicFile(
       @PathParam("nodeId") String nodeId,
@@ -241,11 +229,7 @@ public class PublicBlobResource {
     @APIResponse(
         responseCode = "413",
         description = "Payload or file size exceeds the configured limit"),
-    @APIResponse(responseCode = "415", description = "Unsupported media type"),
-    @APIResponse(
-        responseCode = "204",
-        description =
-            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
+    @APIResponse(responseCode = "415", description = "Unsupported media type")
   })
   public Uni<Void> downloadPublicMultiple(
       InputStream requestBody, @Context HttpServerResponse resp) {

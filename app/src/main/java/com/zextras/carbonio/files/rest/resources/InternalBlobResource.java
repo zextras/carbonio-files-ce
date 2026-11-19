@@ -217,11 +217,7 @@ public class InternalBlobResource {
     @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
     @APIResponse(
         responseCode = "413",
-        description = "Payload or file size exceeds the configured limit"),
-    @APIResponse(
-        responseCode = "204",
-        description =
-            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
+        description = "Payload or file size exceeds the configured limit")
   })
   public Uni<Void> download(
       @PathParam("userId") String userId,
@@ -244,11 +240,7 @@ public class InternalBlobResource {
     @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
     @APIResponse(
         responseCode = "413",
-        description = "Payload or file size exceeds the configured limit"),
-    @APIResponse(
-        responseCode = "204",
-        description =
-            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
+        description = "Payload or file size exceeds the configured limit")
   })
   public Uni<Void> downloadVersion(
       @PathParam("userId") String userId,

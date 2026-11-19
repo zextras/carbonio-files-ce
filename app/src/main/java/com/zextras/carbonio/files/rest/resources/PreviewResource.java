@@ -133,11 +133,7 @@ public class PreviewResource {
                 schema = @Schema(type = SchemaType.STRING, format = "binary"))),
     @APIResponse(responseCode = "304", description = "Not modified (ETag matched)"),
     @APIResponse(responseCode = "400", description = "Unsupported mimetype for this preview type"),
-    @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
-    @APIResponse(
-        responseCode = "204",
-        description =
-            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
   })
   public Uni<Void> previewImage(
       @HeaderParam("Cookie") String cookieHeader,
@@ -196,11 +192,7 @@ public class PreviewResource {
                 schema = @Schema(type = SchemaType.STRING, format = "binary"))),
     @APIResponse(responseCode = "304", description = "Not modified (ETag matched)"),
     @APIResponse(responseCode = "400", description = "Unsupported mimetype for this preview type"),
-    @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
-    @APIResponse(
-        responseCode = "204",
-        description =
-            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
   })
   public Uni<Void> thumbnailImage(
       @HeaderParam("Cookie") String cookieHeader,
@@ -261,11 +253,7 @@ public class PreviewResource {
                 schema = @Schema(type = SchemaType.STRING, format = "binary"))),
     @APIResponse(responseCode = "304", description = "Not modified (ETag matched)"),
     @APIResponse(responseCode = "400", description = "Unsupported mimetype for this preview type"),
-    @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
-    @APIResponse(
-        responseCode = "204",
-        description =
-            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
   })
   public Uni<Void> previewPdf(
       @HeaderParam("Cookie") String cookieHeader,
@@ -322,11 +310,7 @@ public class PreviewResource {
                 schema = @Schema(type = SchemaType.STRING, format = "binary"))),
     @APIResponse(responseCode = "304", description = "Not modified (ETag matched)"),
     @APIResponse(responseCode = "400", description = "Unsupported mimetype for this preview type"),
-    @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
-    @APIResponse(
-        responseCode = "204",
-        description =
-            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
   })
   public Uni<Void> thumbnailPdf(
       @HeaderParam("Cookie") String cookieHeader,
@@ -387,11 +371,7 @@ public class PreviewResource {
                 schema = @Schema(type = SchemaType.STRING, format = "binary"))),
     @APIResponse(responseCode = "304", description = "Not modified (ETag matched)"),
     @APIResponse(responseCode = "400", description = "Unsupported mimetype for this preview type"),
-    @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
-    @APIResponse(
-        responseCode = "204",
-        description =
-            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
   })
   public Uni<Void> previewDocument(
       @HeaderParam("Cookie") String cookieHeader,
@@ -451,11 +431,7 @@ public class PreviewResource {
                 schema = @Schema(type = SchemaType.STRING, format = "binary"))),
     @APIResponse(responseCode = "304", description = "Not modified (ETag matched)"),
     @APIResponse(responseCode = "400", description = "Unsupported mimetype for this preview type"),
-    @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
-    @APIResponse(
-        responseCode = "204",
-        description =
-            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
   })
   public Uni<Void> thumbnailDocument(
       @HeaderParam("Cookie") String cookieHeader,

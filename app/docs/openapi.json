@@ -60,9 +60,6 @@
           "415" : {
             "description" : "Unsupported media type"
           },
-          "204" : {
-            "description" : "Streamed response: JAX-RS reports 204, the body is written directly to the connection"
-          },
           "500" : {
             "description" : "Internal Server Error"
           }
@@ -179,9 +176,6 @@
           "413" : {
             "description" : "Payload or file size exceeds the configured limit"
           },
-          "204" : {
-            "description" : "Streamed response: JAX-RS reports 204, the body is written directly to the connection"
-          },
           "500" : {
             "description" : "Internal Server Error"
           }
@@ -296,9 +290,6 @@
           "413" : {
             "description" : "Payload or file size exceeds the configured limit"
           },
-          "204" : {
-            "description" : "Streamed response: JAX-RS reports 204, the body is written directly to the connection"
-          },
           "500" : {
             "description" : "Internal Server Error"
           }
@@ -392,9 +383,6 @@
           "413" : {
             "description" : "Payload or file size exceeds the configured limit"
           },
-          "204" : {
-            "description" : "Streamed response: JAX-RS reports 204, the body is written directly to the connection"
-          },
           "500" : {
             "description" : "Internal Server Error"
           }
@@ -448,9 +436,6 @@
           },
           "413" : {
             "description" : "Payload or file size exceeds the configured limit"
-          },
-          "204" : {
-            "description" : "Streamed response: JAX-RS reports 204, the body is written directly to the connection"
           },
           "500" : {
             "description" : "Internal Server Error"
@@ -844,9 +829,6 @@
           "404" : {
             "description" : "Link or node not found"
           },
-          "204" : {
-            "description" : "Streamed response: JAX-RS reports 204, the body is written directly to the connection"
-          },
           "500" : {
             "description" : "Internal Server Error"
           }
@@ -950,9 +932,6 @@
           },
           "404" : {
             "description" : "Node not found or not accessible"
-          },
-          "204" : {
-            "description" : "Streamed response: JAX-RS reports 204, the body is written directly to the connection"
           },
           "500" : {
             "description" : "Internal Server Error"
@@ -1066,9 +1045,6 @@
           "404" : {
             "description" : "Node not found or not accessible"
           },
-          "204" : {
-            "description" : "Streamed response: JAX-RS reports 204, the body is written directly to the connection"
-          },
           "500" : {
             "description" : "Internal Server Error"
           }
@@ -1180,9 +1156,6 @@
           },
           "404" : {
             "description" : "Node not found or not accessible"
-          },
-          "204" : {
-            "description" : "Streamed response: JAX-RS reports 204, the body is written directly to the connection"
           },
           "500" : {
             "description" : "Internal Server Error"
@@ -1296,9 +1269,6 @@
           "404" : {
             "description" : "Node not found or not accessible"
           },
-          "204" : {
-            "description" : "Streamed response: JAX-RS reports 204, the body is written directly to the connection"
-          },
           "500" : {
             "description" : "Internal Server Error"
           }
@@ -1402,9 +1372,6 @@
           },
           "404" : {
             "description" : "Node not found or not accessible"
-          },
-          "204" : {
-            "description" : "Streamed response: JAX-RS reports 204, the body is written directly to the connection"
           },
           "500" : {
             "description" : "Internal Server Error"
@@ -1518,9 +1485,6 @@
           "404" : {
             "description" : "Node not found or not accessible"
           },
-          "204" : {
-            "description" : "Streamed response: JAX-RS reports 204, the body is written directly to the connection"
-          },
           "500" : {
             "description" : "Internal Server Error"
           }
@@ -1613,9 +1577,6 @@
           "415" : {
             "description" : "Unsupported media type"
           },
-          "204" : {
-            "description" : "Streamed response: JAX-RS reports 204, the body is written directly to the connection"
-          },
           "500" : {
             "description" : "Internal Server Error"
           }
@@ -1704,9 +1665,6 @@
           "404" : {
             "description" : "Node not found or not accessible via the link"
           },
-          "204" : {
-            "description" : "Streamed response: JAX-RS reports 204, the body is written directly to the connection"
-          },
           "500" : {
             "description" : "Internal Server Error"
           }
@@ -1788,9 +1746,6 @@
           },
           "404" : {
             "description" : "Link or node not found"
-          },
-          "204" : {
-            "description" : "Streamed response: JAX-RS reports 204, the body is written directly to the connection"
           },
           "500" : {
             "description" : "Internal Server Error"

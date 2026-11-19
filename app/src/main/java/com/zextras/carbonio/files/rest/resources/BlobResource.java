@@ -285,11 +285,7 @@ public class BlobResource {
     @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
     @APIResponse(
         responseCode = "413",
-        description = "Payload or file size exceeds the configured limit"),
-    @APIResponse(
-        responseCode = "204",
-        description =
-            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
+        description = "Payload or file size exceeds the configured limit")
   })
   public Uni<Void> download(
       @HeaderParam("Cookie") String cookieHeader,
@@ -313,11 +309,7 @@ public class BlobResource {
     @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
     @APIResponse(
         responseCode = "413",
-        description = "Payload or file size exceeds the configured limit"),
-    @APIResponse(
-        responseCode = "204",
-        description =
-            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
+        description = "Payload or file size exceeds the configured limit")
   })
   public Uni<Void> downloadVersion(
       @HeaderParam("Cookie") String cookieHeader,
@@ -389,11 +381,7 @@ public class BlobResource {
     @APIResponse(
         responseCode = "413",
         description = "Payload or file size exceeds the configured limit"),
-    @APIResponse(responseCode = "415", description = "Unsupported media type"),
-    @APIResponse(
-        responseCode = "204",
-        description =
-            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
+    @APIResponse(responseCode = "415", description = "Unsupported media type")
   })
   public Uni<Void> downloadMultiple(
       @HeaderParam("Cookie") String cookieHeader,

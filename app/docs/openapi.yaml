@@ -41,9 +41,6 @@ paths:
           description: Payload or file size exceeds the configured limit
         "415":
           description: Unsupported media type
-        "204":
-          description: "Streamed response: JAX-RS reports 204, the body is written\
-            \ directly to the connection"
         "500":
           description: Internal Server Error
       summary: Download Multiple
@@ -123,9 +120,6 @@ paths:
           description: Node not found or not accessible
         "413":
           description: Payload or file size exceeds the configured limit
-        "204":
-          description: "Streamed response: JAX-RS reports 204, the body is written\
-            \ directly to the connection"
         "500":
           description: Internal Server Error
       summary: Download
@@ -205,9 +199,6 @@ paths:
           description: Node not found or not accessible
         "413":
           description: Payload or file size exceeds the configured limit
-        "204":
-          description: "Streamed response: JAX-RS reports 204, the body is written\
-            \ directly to the connection"
         "500":
           description: Internal Server Error
       summary: Download Version
@@ -273,9 +264,6 @@ paths:
           description: Node not found or not accessible
         "413":
           description: Payload or file size exceeds the configured limit
-        "204":
-          description: "Streamed response: JAX-RS reports 204, the body is written\
-            \ directly to the connection"
         "500":
           description: Internal Server Error
       summary: Download
@@ -314,9 +302,6 @@ paths:
           description: Node not found or not accessible
         "413":
           description: Payload or file size exceeds the configured limit
-        "204":
-          description: "Streamed response: JAX-RS reports 204, the body is written\
-            \ directly to the connection"
         "500":
           description: Internal Server Error
       summary: Download Version
@@ -583,9 +568,6 @@ paths:
           description: Redirect to the access-code page (access-code-protected link)
         "404":
           description: Link or node not found
-        "204":
-          description: "Streamed response: JAX-RS reports 204, the body is written\
-            \ directly to the connection"
         "500":
           description: Internal Server Error
       summary: Download By Public Link
@@ -657,9 +639,6 @@ paths:
           description: Unsupported mimetype for this preview type
         "404":
           description: Node not found or not accessible
-        "204":
-          description: "Streamed response: JAX-RS reports 204, the body is written\
-            \ directly to the connection"
         "500":
           description: Internal Server Error
       summary: Preview Document
@@ -737,9 +716,6 @@ paths:
           description: Unsupported mimetype for this preview type
         "404":
           description: Node not found or not accessible
-        "204":
-          description: "Streamed response: JAX-RS reports 204, the body is written\
-            \ directly to the connection"
         "500":
           description: Internal Server Error
       summary: Thumbnail Document
@@ -817,9 +793,6 @@ paths:
           description: Unsupported mimetype for this preview type
         "404":
           description: Node not found or not accessible
-        "204":
-          description: "Streamed response: JAX-RS reports 204, the body is written\
-            \ directly to the connection"
         "500":
           description: Internal Server Error
       summary: Preview Image
@@ -897,9 +870,6 @@ paths:
           description: Unsupported mimetype for this preview type
         "404":
           description: Node not found or not accessible
-        "204":
-          description: "Streamed response: JAX-RS reports 204, the body is written\
-            \ directly to the connection"
         "500":
           description: Internal Server Error
       summary: Thumbnail Image
@@ -971,9 +941,6 @@ paths:
           description: Unsupported mimetype for this preview type
         "404":
           description: Node not found or not accessible
-        "204":
-          description: "Streamed response: JAX-RS reports 204, the body is written\
-            \ directly to the connection"
         "500":
           description: Internal Server Error
       summary: Preview Pdf
@@ -1051,9 +1018,6 @@ paths:
           description: Unsupported mimetype for this preview type
         "404":
           description: Node not found or not accessible
-        "204":
-          description: "Streamed response: JAX-RS reports 204, the body is written\
-            \ directly to the connection"
         "500":
           description: Internal Server Error
       summary: Thumbnail Pdf
@@ -1117,9 +1081,6 @@ paths:
           description: Payload or file size exceeds the configured limit
         "415":
           description: Unsupported media type
-        "204":
-          description: "Streamed response: JAX-RS reports 204, the body is written\
-            \ directly to the connection"
         "500":
           description: Internal Server Error
       summary: Download Public Multiple
@@ -1180,9 +1141,6 @@ paths:
                 type: string
         "404":
           description: Node not found or not accessible via the link
-        "204":
-          description: "Streamed response: JAX-RS reports 204, the body is written\
-            \ directly to the connection"
         "500":
           description: Internal Server Error
       summary: Download Public File
@@ -1240,9 +1198,6 @@ paths:
           description: Redirect to the access-code page (access-code-protected link)
         "404":
           description: Link or node not found
-        "204":
-          description: "Streamed response: JAX-RS reports 204, the body is written\
-            \ directly to the connection"
         "500":
           description: Internal Server Error
       summary: Download Via Public Link
