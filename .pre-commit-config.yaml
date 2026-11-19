@@ -4,6 +4,7 @@
 #
 # Local hooks regenerate files but don't `git add` the result — if one changes a
 # tracked file, review the diff, `git add` it, and re-commit.
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -38,7 +39,7 @@ repos:
     hooks:
       - id: shellcheck
         # Vendored verbatim from jenkins-lib-common; fix warnings upstream, then re-vendor.
-        exclude: "^\\.ci/checksum-verify\\.sh$"
+        exclude: "^\\.ci/(checksum-verify|api-guard)\\.sh$"
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.3.0
@@ -102,3 +103,17 @@ repos:
         language: system
         pass_filenames: false
         files: ^package/
+
+      - id: api-guard
+        name: API contract guard
+        description: "Fails when the API contract changes without a since = ApiVersion.CURRENT converter; vendored from jenkins-lib-common."
+        entry: >-
+          bash .ci/api-guard.sh
+          --contract app/docs/contract/schema.graphql
+          --contract app/docs/contract/openapi.json
+          --oldest-supported-file app/src/main/resources/application.properties
+          --window-months 15
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

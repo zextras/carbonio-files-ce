@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 library(
-    identifier: 'jenkins-lib-common@v5.5.0',
+    identifier: 'jenkins-lib-common@poc-files-versioning',
     retriever: modernSCM([
         $class: 'GitSCMSource',
         credentialsId: 'jenkins-integration-with-github-account',
@@ -48,5 +48,10 @@ dt3_pipeline(
     reuse: [projectType: 'CE'],
     flywayGuard: [
         migrationPaths: ['app/src/main/resources/db/migration'],
+    ],
+    apiGuard: [
+        contractFiles: ['app/docs/contract/schema.graphql', 'app/docs/contract/openapi.json'],
+        oldestSupportedFile: 'app/src/main/resources/application.properties',
+        windowMonths: 15,
     ]
 )
