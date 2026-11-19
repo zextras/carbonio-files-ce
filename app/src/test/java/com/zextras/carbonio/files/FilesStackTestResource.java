@@ -234,7 +234,11 @@ public class FilesStackTestResource implements QuarkusTestResourceLifecycleManag
             // disappearing out from under an assertion mid-test). Disable the scheduler outright
             // via
             // the same config channel.
-            Map.entry("quarkus.scheduler.enabled", "false"));
+            Map.entry("quarkus.scheduler.enabled", "false"),
+            // Contract strict mode for the whole suite: a status or GraphQL error code that is not
+            // declared fails the request. Set here (global resource) so it adds no app relaunch.
+            Map.entry("quarkus.carbonio-rest.strict-declared-responses", "true"),
+            Map.entry("quarkus.carbonio-graphql.strict-declared-errors", "true"));
 
     started = true;
     return cachedConfig;
