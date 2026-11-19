@@ -122,7 +122,6 @@ class ApiVersioningApiIT extends AbstractFilesIT {
         .header("Vary", containsString(versionHeader()));
   }
 
-  // Known gap: the debug header is not set when the converter ran on the transfer pool.
   @Test
   @ApiVersionBefore(ArchiveNodeTypeConverter.class)
   void oldClientSeesArchivesAsOtherOnALongBlobOperation() {
@@ -137,7 +136,7 @@ class ApiVersioningApiIT extends AbstractFilesIT {
         .body("data.copyNodes[0].type", equalTo("OTHER"))
         .header(versionHeader(), equalTo(ApiVersionTestContext.version()))
         .header("Vary", containsString(versionHeader()))
-        .header(DEBUG, nullValue());
+        .header(DEBUG, containsString(ArchiveNodeTypeConverter.class.getName()));
   }
 
   @Test
