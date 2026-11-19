@@ -4,6 +4,14 @@
 
 package com.zextras.carbonio.files.graphql.api;
 
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.ACCOUNT_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.FILE_VERSION_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.LINK_LIMIT_EXCEEDED;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.LINK_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.NODE_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.NODE_WRITE_ERROR;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.UNAUTHENTICATED;
+
 import com.zextras.carbonio.files.Constants.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
@@ -22,6 +30,7 @@ import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
 import com.zextras.carbonio.files.graphql.support.LinkCreationHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.quarkus.extensions.graphql.GraphqlErrors;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
@@ -98,6 +107,7 @@ public class LinkApi {
   }
 
   @Query("getLinks")
+  @GraphqlErrors({UNAUTHENTICATED, ACCOUNT_NOT_FOUND, NODE_NOT_FOUND, FILE_VERSION_NOT_FOUND})
   public @NonNull List<LinkModel> getLinks(@Name("node_id") @Id @NonNull String nodeId)
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).validate();
@@ -116,6 +126,14 @@ public class LinkApi {
   }
 
   @Mutation("createLink")
+  @GraphqlErrors({
+    UNAUTHENTICATED,
+    LINK_LIMIT_EXCEEDED,
+    NODE_WRITE_ERROR,
+    ACCOUNT_NOT_FOUND,
+    NODE_NOT_FOUND,
+    FILE_VERSION_NOT_FOUND
+  })
   public @NonNull LinkModel createLink(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("expires_at") Long expiresAt,
@@ -150,6 +168,13 @@ public class LinkApi {
   }
 
   @Mutation("updateLink")
+  @GraphqlErrors({
+    UNAUTHENTICATED,
+    LINK_NOT_FOUND,
+    ACCOUNT_NOT_FOUND,
+    NODE_NOT_FOUND,
+    FILE_VERSION_NOT_FOUND
+  })
   public LinkModel updateLink(
       @Name("link_id") @Id @NonNull String linkId,
       @Name("expires_at") Long expiresAt,
@@ -184,6 +209,7 @@ public class LinkApi {
   }
 
   @Mutation("deleteLinks")
+  @GraphqlErrors({UNAUTHENTICATED, LINK_NOT_FOUND})
   public @NonNull @Id List<String> deleteLinks(
       @Name("link_ids") @NonNull List<@NonNull String> linkIds) throws FilesGraphQLException {
     validator.checkLinkIds(linkIds).validate();

@@ -21,6 +21,8 @@ import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 import java.text.MessageFormat;
 import java.util.NoSuchElementException;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +43,12 @@ import org.slf4j.LoggerFactory;
  */
 @Path("/")
 @ApplicationScoped
+@APIResponses({
+  @APIResponse(responseCode = "401", description = "Missing or invalid authentication cookie"),
+  @APIResponse(
+      responseCode = "403",
+      description = "User not allowed (inactive, guest or feature disabled)")
+})
 public class CollaborationLinkResource {
 
   private static final Logger logger = LoggerFactory.getLogger(CollaborationLinkResource.class);
@@ -58,6 +66,12 @@ public class CollaborationLinkResource {
   @GET
   @Path("/invite/{invitationId:\\w{8}}")
   @Blocking
+  @APIResponses({
+    @APIResponse(responseCode = "307", description = "Redirect to the invitation target"),
+    @APIResponse(
+        responseCode = "404",
+        description = "Node, link or version not found or not accessible")
+  })
   public Response invite(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,

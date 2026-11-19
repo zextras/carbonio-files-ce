@@ -4,6 +4,11 @@
 
 package com.zextras.carbonio.files.graphql.api;
 
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.ACCESS_CODE_REQUIRED;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.LINK_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.NODE_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.WRONG_ACCESS_CODE;
+
 import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Link;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
@@ -20,6 +25,7 @@ import com.zextras.carbonio.files.graphql.model.PublicFolderModel;
 import com.zextras.carbonio.files.graphql.model.PublicNodeModel;
 import com.zextras.carbonio.files.graphql.model.PublicNodePageModel;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import com.zextras.carbonio.quarkus.extensions.graphql.GraphqlErrors;
 import io.smallrye.graphql.api.Context;
 import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
@@ -43,6 +49,7 @@ public class PublicApi {
   @Inject GraphQLInputValidator validator;
 
   @Query("getPublicNode")
+  @GraphqlErrors({LINK_NOT_FOUND, NODE_NOT_FOUND, ACCESS_CODE_REQUIRED, WRONG_ACCESS_CODE})
   @PermitAll
   public PublicNodeModel getPublicNode(
       @Name("node_link_id") @NonNull String nodeLinkId, @Name("access_code") String accessCode)
@@ -77,6 +84,7 @@ public class PublicApi {
   }
 
   @Query("findPublicNodes")
+  @GraphqlErrors({NODE_NOT_FOUND, ACCESS_CODE_REQUIRED})
   @PermitAll
   public PublicNodePageModel findPublicNodes(
       @Name("folder_id") @Id @NonNull String folderId,

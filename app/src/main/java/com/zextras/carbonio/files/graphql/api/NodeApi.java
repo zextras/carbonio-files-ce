@@ -4,6 +4,14 @@
 
 package com.zextras.carbonio.files.graphql.api;
 
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.ACCOUNT_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.FILE_VERSION_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.NODE_COPY_ERROR;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.NODE_DUPLICATED;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.NODE_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.NODE_WRITE_ERROR;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.UNAUTHENTICATED;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.VERSIONS_LIMIT_REACHED;
 import static com.zextras.carbonio.files.utilities.RenameNodeUtils.searchAlternativeName;
 
 import com.zextras.carbonio.files.Constants.Db.RootId;
@@ -48,6 +56,7 @@ import com.zextras.carbonio.files.rest.services.VersionReservations;
 import com.zextras.carbonio.files.rest.services.VersionReservations.Reservation;
 import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.quarkus.extensions.graphql.GraphqlErrors;
 import com.zextras.filestore.model.FilesIdentifier;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.security.Authenticated;
@@ -149,6 +158,7 @@ public class NodeApi {
   // ─── Queries ──────────────────────────────────────────────────────────────────
 
   @Query("getNode")
+  @GraphqlErrors({UNAUTHENTICATED, ACCOUNT_NOT_FOUND, NODE_NOT_FOUND, FILE_VERSION_NOT_FOUND})
   public NodeModel getNode(
       @Name("node_id") @Id @NonNull String nodeId, @Name("version") Integer version)
       throws FilesGraphQLException {
@@ -165,6 +175,7 @@ public class NodeApi {
   }
 
   @Query("findNodes")
+  @GraphqlErrors({UNAUTHENTICATED, ACCOUNT_NOT_FOUND, NODE_NOT_FOUND, FILE_VERSION_NOT_FOUND})
   public NodePageModel findNodes(
       @Name("keywords") @Nullable List<@NonNull String> keywords,
       @Name("flagged") Boolean flagged,
@@ -224,6 +235,13 @@ public class NodeApi {
   }
 
   @Query("getVersions")
+  @GraphqlErrors({
+    UNAUTHENTICATED,
+    NODE_WRITE_ERROR,
+    ACCOUNT_NOT_FOUND,
+    NODE_NOT_FOUND,
+    FILE_VERSION_NOT_FOUND
+  })
   public @NonNull List<FileModel> getVersions(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("versions") @Nullable List<@NonNull Integer> versions)
@@ -262,6 +280,7 @@ public class NodeApi {
   }
 
   @Query("getPath")
+  @GraphqlErrors({UNAUTHENTICATED, ACCOUNT_NOT_FOUND, NODE_NOT_FOUND, FILE_VERSION_NOT_FOUND})
   public @NonNull List<NodeModel> getPath(@Name("node_id") @Id @NonNull String nodeId)
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).validate();
@@ -309,6 +328,7 @@ public class NodeApi {
   }
 
   @Query("getRootsList")
+  @GraphqlErrors({UNAUTHENTICATED})
   public @NonNull List<RootModel> getRootsList() {
     return nodeRepository.getRootsList().stream()
         .map(root -> new RootModel(root.getId(), root.getName()))
@@ -396,6 +416,13 @@ public class NodeApi {
   // ─── Mutations ────────────────────────────────────────────────────────────────
 
   @Mutation("createFolder")
+  @GraphqlErrors({
+    UNAUTHENTICATED,
+    NODE_WRITE_ERROR,
+    ACCOUNT_NOT_FOUND,
+    NODE_NOT_FOUND,
+    FILE_VERSION_NOT_FOUND
+  })
   public @NonNull NodeModel createFolder(
       @Name("destination_id") @NonNull String destinationId, @Name("name") @NonNull String name)
       throws FilesGraphQLException {
@@ -412,6 +439,13 @@ public class NodeApi {
   }
 
   @Mutation("updateNode")
+  @GraphqlErrors({
+    UNAUTHENTICATED,
+    NODE_DUPLICATED,
+    ACCOUNT_NOT_FOUND,
+    NODE_NOT_FOUND,
+    FILE_VERSION_NOT_FOUND
+  })
   public @NonNull NodeModel updateNode(
       @Name("node_id") @NonNull String nodeId,
       @Name("name") String name,
@@ -450,6 +484,7 @@ public class NodeApi {
   }
 
   @Mutation("flagNodes")
+  @GraphqlErrors({UNAUTHENTICATED, NODE_WRITE_ERROR})
   public @Nullable @Id List<@NonNull String> flagNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("flag") @NonNull Boolean flag)
@@ -486,6 +521,7 @@ public class NodeApi {
   }
 
   @Mutation("trashNodes")
+  @GraphqlErrors({UNAUTHENTICATED, NODE_WRITE_ERROR})
   public @Nullable @Id List<@NonNull String> trashNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
@@ -563,6 +599,13 @@ public class NodeApi {
   }
 
   @Mutation("restoreNodes")
+  @GraphqlErrors({
+    UNAUTHENTICATED,
+    NODE_WRITE_ERROR,
+    ACCOUNT_NOT_FOUND,
+    NODE_NOT_FOUND,
+    FILE_VERSION_NOT_FOUND
+  })
   public @Nullable List<NodeModel> restoreNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
@@ -661,6 +704,13 @@ public class NodeApi {
   }
 
   @Mutation("moveNodes")
+  @GraphqlErrors({
+    UNAUTHENTICATED,
+    NODE_WRITE_ERROR,
+    ACCOUNT_NOT_FOUND,
+    NODE_NOT_FOUND,
+    FILE_VERSION_NOT_FOUND
+  })
   public @Nullable List<@NonNull NodeModel> moveNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("destination_id") @Id @NonNull String destinationId)
@@ -808,6 +858,7 @@ public class NodeApi {
   }
 
   @Mutation("deleteNodes")
+  @GraphqlErrors({UNAUTHENTICATED, NODE_NOT_FOUND, NODE_WRITE_ERROR})
   @Transactional(TxType.NOT_SUPPORTED)
   public @Nullable @Id List<@NonNull String> deleteNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
@@ -856,6 +907,14 @@ public class NodeApi {
   // TODO: synchronous, kept alive by the GraphQLExecutionRoute heartbeat (an inactivity-timeout
   // hack): make it an asynchronous job.
   @Mutation("copyNodes")
+  @GraphqlErrors({
+    UNAUTHENTICATED,
+    NODE_WRITE_ERROR,
+    NODE_COPY_ERROR,
+    ACCOUNT_NOT_FOUND,
+    NODE_NOT_FOUND,
+    FILE_VERSION_NOT_FOUND
+  })
   @Transactional(TxType.NOT_SUPPORTED)
   public @Nullable List<@NonNull NodeModel> copyNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
@@ -939,6 +998,7 @@ public class NodeApi {
   }
 
   @Mutation("deleteVersions")
+  @GraphqlErrors({UNAUTHENTICATED, NODE_WRITE_ERROR, NODE_NOT_FOUND, FILE_VERSION_NOT_FOUND})
   @Transactional(TxType.NOT_SUPPORTED)
   public @NonNull List<Integer> deleteVersions(
       @Name("node_id") @Id @NonNull String nodeId,
@@ -987,6 +1047,7 @@ public class NodeApi {
   }
 
   @Mutation("keepVersions")
+  @GraphqlErrors({UNAUTHENTICATED, NODE_WRITE_ERROR, VERSIONS_LIMIT_REACHED})
   public @NonNull List<Integer> keepVersions(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("versions") @NonNull List<@NonNull Integer> versions,
@@ -1032,6 +1093,14 @@ public class NodeApi {
   // TODO: synchronous, kept alive by the GraphQLExecutionRoute heartbeat (an inactivity-timeout
   // hack): make it an asynchronous job.
   @Mutation("cloneVersion")
+  @GraphqlErrors({
+    UNAUTHENTICATED,
+    NODE_WRITE_ERROR,
+    VERSIONS_LIMIT_REACHED,
+    ACCOUNT_NOT_FOUND,
+    NODE_NOT_FOUND,
+    FILE_VERSION_NOT_FOUND
+  })
   @Transactional(TxType.NOT_SUPPORTED)
   public @NonNull FileModel cloneVersion(
       @Name("node_id") @Id @NonNull String nodeId, @Name("version") @NonNull Integer version)

@@ -20,6 +20,12 @@ paths:
               format: binary
         required: true
       responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
           description: ZIP archive of the requested nodes
           content:
@@ -31,6 +37,15 @@ paths:
           description: Missing or malformed nodeIds
         "404":
           description: Some nodes do not exist or are not accessible
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "415":
+          description: Unsupported media type
+        "204":
+          description: "Streamed response: JAX-RS reports 204, the body is written\
+            \ directly to the connection"
+        "500":
+          description: Internal Server Error
       summary: Download Multiple
       tags:
       - Blob Resource
@@ -53,11 +68,24 @@ paths:
               format: binary
         required: true
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "204":
+          description: "Success, no content"
+        "400":
+          description: Missing or malformed input
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal Server Error
       summary: Check Download Multiple
       tags:
       - Blob Resource
@@ -78,6 +106,12 @@ paths:
         schema:
           type: string
       responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
           description: File bytes
           content:
@@ -87,6 +121,13 @@ paths:
                 type: string
         "404":
           description: Node not found or not accessible
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "204":
+          description: "Streamed response: JAX-RS reports 204, the body is written\
+            \ directly to the connection"
+        "500":
+          description: Internal Server Error
       summary: Download
       tags:
       - Blob Resource
@@ -107,11 +148,20 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "204":
+          description: "Success, no content"
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "500":
+          description: Internal Server Error
       summary: Check Download
       tags:
       - Blob Resource
@@ -138,6 +188,12 @@ paths:
         schema:
           type: string
       responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
           description: File bytes
           content:
@@ -147,6 +203,13 @@ paths:
                 type: string
         "404":
           description: Node not found or not accessible
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "204":
+          description: "Streamed response: JAX-RS reports 204, the body is written\
+            \ directly to the connection"
+        "500":
+          description: Internal Server Error
       summary: Download Version
       tags:
       - Blob Resource
@@ -154,32 +217,32 @@ paths:
     get:
       responses:
         "200":
-          description: OK
+          description: Success
           content:
             application/json:
               schema: {}
+        "500":
+          description: A required dependency is not ready
       summary: Health
       tags:
       - Health Resource
   /health/live:
     get:
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "204":
+          description: "Success, no content"
+        "500":
+          description: Internal Server Error
       summary: Health Live
       tags:
       - Health Resource
   /health/ready:
     get:
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "204":
+          description: "Success, no content"
+        "500":
+          description: A required dependency is not ready
       summary: Health Ready
       tags:
       - Health Resource
@@ -197,6 +260,8 @@ paths:
         schema:
           type: string
       responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
           description: File bytes
           content:
@@ -206,6 +271,13 @@ paths:
                 type: string
         "404":
           description: Node not found or not accessible
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "204":
+          description: "Streamed response: JAX-RS reports 204, the body is written\
+            \ directly to the connection"
+        "500":
+          description: Internal Server Error
       summary: Download
       tags:
       - Internal Blob Resource
@@ -229,6 +301,8 @@ paths:
           type: integer
           format: int32
       responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
           description: File bytes
           content:
@@ -238,6 +312,13 @@ paths:
                 type: string
         "404":
           description: Node not found or not accessible
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "204":
+          description: "Streamed response: JAX-RS reports 204, the body is written\
+            \ directly to the connection"
+        "500":
+          description: Internal Server Error
       summary: Download Version
       tags:
       - Internal Blob Resource
@@ -261,11 +342,17 @@ paths:
           format: int32
       responses:
         "200":
-          description: OK
+          description: Success
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/InternalNodeDto"
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "500":
+          description: Internal Server Error
       summary: Get Node
       tags:
       - Internal Node Resource
@@ -302,10 +389,18 @@ paths:
               format: binary
         required: true
       responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
-          description: OK
+          description: Success
           content:
             application/json: {}
+        "400":
+          description: Missing or malformed input
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "500":
+          description: Internal Server Error
       summary: Upload
       tags:
       - Internal Blob Resource
@@ -342,10 +437,22 @@ paths:
               format: binary
         required: true
       responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
-          description: OK
+          description: Success
           content:
             application/json: {}
+        "400":
+          description: Missing or malformed input
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "405":
+          description: Maximum number of file versions reached
+        "423":
+          description: Overwrite of the node already in progress
+        "500":
+          description: Internal Server Error
       summary: Upload Version
       tags:
       - Internal Blob Resource
@@ -359,13 +466,19 @@ paths:
         required: true
       responses:
         "200":
-          description: OK
+          description: Success
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/InternalNodeIdDto"
         "400":
-          description: Bad Request
+          description: Missing or malformed input
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "500":
+          description: Internal Server Error
       summary: Create Folder
       tags:
       - Internal Node Resource
@@ -379,13 +492,21 @@ paths:
         required: true
       responses:
         "200":
-          description: OK
+          description: Success
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/PublicLinkDto"
         "400":
-          description: Bad Request
+          description: Missing or malformed input
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "429":
+          description: Public link limit reached
+        "500":
+          description: Internal Server Error
       summary: Create Public Link
       tags:
       - Internal Node Resource
@@ -399,11 +520,13 @@ paths:
         required: true
       responses:
         "200":
-          description: OK
+          description: Success
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeleteAllResponse"
+        "500":
+          description: Internal Server Error
       summary: Delete All Nodes And Blobs
       tags:
       - Internal Node Resource
@@ -425,11 +548,16 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "307":
+          description: Redirect to the invitation target
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "500":
+          description: Internal Server Error
       summary: Invite
       tags:
       - Collaboration Link Resource
@@ -442,6 +570,8 @@ paths:
         schema:
           type: string
       responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
           description: File bytes
           content:
@@ -453,6 +583,11 @@ paths:
           description: Redirect to the access-code page (access-code-protected link)
         "404":
           description: Link or node not found
+        "204":
+          description: "Streamed response: JAX-RS reports 204, the body is written\
+            \ directly to the connection"
+        "500":
+          description: Internal Server Error
       summary: Download By Public Link
       tags:
       - Public Blob Resource
@@ -503,6 +638,12 @@ paths:
         schema:
           type: string
       responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
           description: Preview bytes
           content:
@@ -516,6 +657,11 @@ paths:
           description: Unsupported mimetype for this preview type
         "404":
           description: Node not found or not accessible
+        "204":
+          description: "Streamed response: JAX-RS reports 204, the body is written\
+            \ directly to the connection"
+        "500":
+          description: Internal Server Error
       summary: Preview Document
       tags:
       - Preview Resource
@@ -572,6 +718,12 @@ paths:
         schema:
           type: string
       responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
           description: Preview bytes
           content:
@@ -585,6 +737,11 @@ paths:
           description: Unsupported mimetype for this preview type
         "404":
           description: Node not found or not accessible
+        "204":
+          description: "Streamed response: JAX-RS reports 204, the body is written\
+            \ directly to the connection"
+        "500":
+          description: Internal Server Error
       summary: Thumbnail Document
       tags:
       - Preview Resource
@@ -641,6 +798,12 @@ paths:
         schema:
           type: string
       responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
           description: Preview bytes
           content:
@@ -654,6 +817,11 @@ paths:
           description: Unsupported mimetype for this preview type
         "404":
           description: Node not found or not accessible
+        "204":
+          description: "Streamed response: JAX-RS reports 204, the body is written\
+            \ directly to the connection"
+        "500":
+          description: Internal Server Error
       summary: Preview Image
       tags:
       - Preview Resource
@@ -710,6 +878,12 @@ paths:
         schema:
           type: string
       responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
           description: Preview bytes
           content:
@@ -723,6 +897,11 @@ paths:
           description: Unsupported mimetype for this preview type
         "404":
           description: Node not found or not accessible
+        "204":
+          description: "Streamed response: JAX-RS reports 204, the body is written\
+            \ directly to the connection"
+        "500":
+          description: Internal Server Error
       summary: Thumbnail Image
       tags:
       - Preview Resource
@@ -773,6 +952,12 @@ paths:
         schema:
           type: string
       responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
           description: Preview bytes
           content:
@@ -786,6 +971,11 @@ paths:
           description: Unsupported mimetype for this preview type
         "404":
           description: Node not found or not accessible
+        "204":
+          description: "Streamed response: JAX-RS reports 204, the body is written\
+            \ directly to the connection"
+        "500":
+          description: Internal Server Error
       summary: Preview Pdf
       tags:
       - Preview Resource
@@ -842,6 +1032,12 @@ paths:
         schema:
           type: string
       responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
           description: Preview bytes
           content:
@@ -855,6 +1051,11 @@ paths:
           description: Unsupported mimetype for this preview type
         "404":
           description: Node not found or not accessible
+        "204":
+          description: "Streamed response: JAX-RS reports 204, the body is written\
+            \ directly to the connection"
+        "500":
+          description: Internal Server Error
       summary: Thumbnail Pdf
       tags:
       - Preview Resource
@@ -876,11 +1077,16 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "400":
+          description: Missing or malformed input
+        "500":
+          description: Internal Server Error
       summary: Unmatched Preview Path
       tags:
       - Preview Resource
@@ -894,6 +1100,8 @@ paths:
               format: binary
         required: true
       responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
           description: ZIP archive of the requested nodes
           content:
@@ -905,6 +1113,15 @@ paths:
           description: Missing or malformed parameters
         "404":
           description: Nodes not accessible via the link
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "415":
+          description: Unsupported media type
+        "204":
+          description: "Streamed response: JAX-RS reports 204, the body is written\
+            \ directly to the connection"
+        "500":
+          description: Internal Server Error
       summary: Download Public Multiple
       tags:
       - Public Blob Resource
@@ -918,11 +1135,20 @@ paths:
               format: binary
         required: true
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "204":
+          description: "Success, no content"
+        "400":
+          description: Missing or malformed input
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal Server Error
       summary: Check Download Public Multiple
       tags:
       - Public Blob Resource
@@ -943,6 +1169,8 @@ paths:
         schema:
           type: string
       responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
           description: File bytes
           content:
@@ -952,6 +1180,11 @@ paths:
                 type: string
         "404":
           description: Node not found or not accessible via the link
+        "204":
+          description: "Streamed response: JAX-RS reports 204, the body is written\
+            \ directly to the connection"
+        "500":
+          description: Internal Server Error
       summary: Download Public File
       tags:
       - Public Blob Resource
@@ -972,11 +1205,16 @@ paths:
         schema:
           type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "204":
+          description: "Success, no content"
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "500":
+          description: Internal Server Error
       summary: Check Download Public File
       tags:
       - Public Blob Resource
@@ -989,6 +1227,8 @@ paths:
         schema:
           type: string
       responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
           description: File bytes
           content:
@@ -1000,6 +1240,11 @@ paths:
           description: Redirect to the access-code page (access-code-protected link)
         "404":
           description: Link or node not found
+        "204":
+          description: "Streamed response: JAX-RS reports 204, the body is written\
+            \ directly to the connection"
+        "500":
+          description: Internal Server Error
       summary: Download Via Public Link
       tags:
       - Public Blob Resource
@@ -1039,10 +1284,24 @@ paths:
               format: binary
         required: true
       responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
-          description: OK
+          description: Success
           content:
             application/json: {}
+        "400":
+          description: Missing or malformed input
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "500":
+          description: Internal Server Error
       summary: Upload
       tags:
       - Blob Resource
@@ -1065,10 +1324,26 @@ paths:
               format: binary
         required: true
       responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
-          description: OK
+          description: Success
           content:
             application/json: {}
+        "400":
+          description: Missing or malformed input
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal Server Error
       summary: Upload To
       tags:
       - Procedure Resource
@@ -1108,10 +1383,28 @@ paths:
               format: binary
         required: true
       responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
         "200":
-          description: OK
+          description: Success
           content:
             application/json: {}
+        "400":
+          description: Missing or malformed input
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "405":
+          description: Maximum number of file versions reached
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "423":
+          description: Overwrite of the node already in progress
+        "500":
+          description: Internal Server Error
       summary: Upload Version
       tags:
       - Blob Resource

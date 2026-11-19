@@ -99,25 +99,25 @@ type Link {
 
 "Mutation root"
 type Mutation {
-  cloneVersion(node_id: ID!, version: Int!): File!
-  copyNodes(destination_id: ID!, node_ids: [String!]): [Node!]
-  createCollaborationLink(node_id: ID!, permission: SharePermission!): CollaborationLink!
-  createFolder(destination_id: String!, name: String!): Node!
-  createLink(access_code: String, description: String, expires_at: BigInteger, node_id: ID!): Link!
-  createShare(custom_message: String, expires_at: BigInteger, node_id: ID!, permission: SharePermission!, share_target_id: ID!): Share!
-  deleteCollaborationLinks(collaboration_link_ids: [String!]!): [ID]!
-  deleteLinks(link_ids: [String!]!): [ID]!
-  deleteNodes(node_ids: [String!]): [ID!]
-  deleteShares(node_id: ID!, share_target_ids: [String!]!): [ID]!
-  deleteVersions(node_id: ID!, versions: [Int!]): [Int]!
-  flagNodes(flag: Boolean!, node_ids: [String!]): [ID!]
-  keepVersions(keep_forever: Boolean!, node_id: ID!, versions: [Int!]!): [Int]!
-  moveNodes(destination_id: ID!, node_ids: [String!]): [Node!]
-  restoreNodes(node_ids: [String!]): [Node]
-  trashNodes(node_ids: [String!]): [ID!]
-  updateLink(access_code: String, description: String, expires_at: BigInteger, link_id: ID!): Link
-  updateNode(description: String, flagged: Boolean, name: String, node_id: String!): Node!
-  updateShares(expires_at: BigInteger, node_id: ID!, permission: SharePermission, share_target_ids: [String!]!): [Share]!
+  cloneVersion(node_id: ID!, version: Int!): File! @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "VERSIONS_LIMIT_REACHED", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  copyNodes(destination_id: ID!, node_ids: [String!]): [Node!] @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "NODE_COPY_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  createCollaborationLink(node_id: ID!, permission: SharePermission!): CollaborationLink! @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  createFolder(destination_id: String!, name: String!): Node! @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  createLink(access_code: String, description: String, expires_at: BigInteger, node_id: ID!): Link! @errors(codes : ["UNAUTHENTICATED", "LINK_LIMIT_EXCEEDED", "NODE_WRITE_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  createShare(custom_message: String, expires_at: BigInteger, node_id: ID!, permission: SharePermission!, share_target_id: ID!): Share! @errors(codes : ["UNAUTHENTICATED", "SHARE_CREATION_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  deleteCollaborationLinks(collaboration_link_ids: [String!]!): [ID]! @errors(codes : ["UNAUTHENTICATED", "MISSING_FIELD"])
+  deleteLinks(link_ids: [String!]!): [ID]! @errors(codes : ["UNAUTHENTICATED", "LINK_NOT_FOUND"])
+  deleteNodes(node_ids: [String!]): [ID!] @errors(codes : ["UNAUTHENTICATED", "NODE_NOT_FOUND", "NODE_WRITE_ERROR"])
+  deleteShares(node_id: ID!, share_target_ids: [String!]!): [ID]! @errors(codes : ["UNAUTHENTICATED", "SHARE_NOT_FOUND"])
+  deleteVersions(node_id: ID!, versions: [Int!]): [Int]! @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  flagNodes(flag: Boolean!, node_ids: [String!]): [ID!] @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR"])
+  keepVersions(keep_forever: Boolean!, node_id: ID!, versions: [Int!]!): [Int]! @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "VERSIONS_LIMIT_REACHED"])
+  moveNodes(destination_id: ID!, node_ids: [String!]): [Node!] @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  restoreNodes(node_ids: [String!]): [Node] @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  trashNodes(node_ids: [String!]): [ID!] @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR"])
+  updateLink(access_code: String, description: String, expires_at: BigInteger, link_id: ID!): Link @errors(codes : ["UNAUTHENTICATED", "LINK_NOT_FOUND", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  updateNode(description: String, flagged: Boolean, name: String, node_id: String!): Node! @errors(codes : ["UNAUTHENTICATED", "NODE_DUPLICATED", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  updateShares(expires_at: BigInteger, node_id: ID!, permission: SharePermission, share_target_ids: [String!]!): [Share]! @errors(codes : ["UNAUTHENTICATED", "SHARE_NOT_FOUND", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
 }
 
 type NewShare {
@@ -246,21 +246,21 @@ type PublicNodePage {
 
 "Query root"
 type Query {
-  findNodes(cascade: Boolean, direct_share: Boolean, flagged: Boolean, folder_id: String, keywords: [String!], limit: Int, owner_id: String, page_token: String, shared_by_me: Boolean, shared_with_me: Boolean, sort: NodeSort, type: NodeType): NodePage
-  findPublicNodes(access_code: String, folder_id: ID!, limit: Int, node_link_id: String, page_token: String): PublicNodePage
-  getAccountByEmail(email: String!): Account
-  getAccountsByEmail(emails: [String!]!): [Account]!
-  getCollaborationLinks(node_id: ID!): [CollaborationLink]!
-  getConfigs: [Config]!
-  getLinks(node_id: ID!): [Link]!
-  getNode(node_id: ID!, version: Int): Node
-  getNotifications(limit: Int, page_token: String, update_last_seen: Boolean!): NotificationPage
-  getPath(node_id: ID!): [Node]!
-  getPublicNode(access_code: String, node_link_id: String!): PublicNode
-  getRootsList: [Root]!
-  getShare(node_id: ID!, share_target_id: ID!): Share
-  getUserById(user_id: ID!): User
-  getVersions(node_id: ID!, versions: [Int!]): [File]!
+  findNodes(cascade: Boolean, direct_share: Boolean, flagged: Boolean, folder_id: String, keywords: [String!], limit: Int, owner_id: String, page_token: String, shared_by_me: Boolean, shared_with_me: Boolean, sort: NodeSort, type: NodeType): NodePage @errors(codes : ["UNAUTHENTICATED", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  findPublicNodes(access_code: String, folder_id: ID!, limit: Int, node_link_id: String, page_token: String): PublicNodePage @errors(codes : ["NODE_NOT_FOUND", "ACCESS_CODE_REQUIRED"])
+  getAccountByEmail(email: String!): Account @errors(codes : ["UNAUTHENTICATED", "ACCOUNT_NOT_FOUND"])
+  getAccountsByEmail(emails: [String!]!): [Account]! @errors(codes : ["UNAUTHENTICATED", "ACCOUNT_NOT_FOUND"])
+  getCollaborationLinks(node_id: ID!): [CollaborationLink]! @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  getConfigs: [Config]! @errors(codes : ["UNAUTHENTICATED"])
+  getLinks(node_id: ID!): [Link]! @errors(codes : ["UNAUTHENTICATED", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  getNode(node_id: ID!, version: Int): Node @errors(codes : ["UNAUTHENTICATED", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  getNotifications(limit: Int, page_token: String, update_last_seen: Boolean!): NotificationPage @errors(codes : ["UNAUTHENTICATED"])
+  getPath(node_id: ID!): [Node]! @errors(codes : ["UNAUTHENTICATED", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  getPublicNode(access_code: String, node_link_id: String!): PublicNode @errors(codes : ["LINK_NOT_FOUND", "NODE_NOT_FOUND", "ACCESS_CODE_REQUIRED", "WRONG_ACCESS_CODE"])
+  getRootsList: [Root]! @errors(codes : ["UNAUTHENTICATED"])
+  getShare(node_id: ID!, share_target_id: ID!): Share @errors(codes : ["UNAUTHENTICATED", "SHARE_NOT_FOUND", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  getUserById(user_id: ID!): User @errors(codes : ["UNAUTHENTICATED", "ACCOUNT_NOT_FOUND"])
+  getVersions(node_id: ID!, versions: [Int!]): [File]! @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
 }
 
 type RemovedNode {
@@ -332,3 +332,6 @@ type User {
   full_name: String!
   id: ID!
 }
+
+"Error codes the operation may return"
+directive @errors(codes: [String!]!) on FIELD_DEFINITION

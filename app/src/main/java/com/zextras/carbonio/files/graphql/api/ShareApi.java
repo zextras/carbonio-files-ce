@@ -4,6 +4,13 @@
 
 package com.zextras.carbonio.files.graphql.api;
 
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.ACCOUNT_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.FILE_VERSION_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.NODE_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.SHARE_CREATION_ERROR;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.SHARE_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.UNAUTHENTICATED;
+
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
@@ -25,6 +32,7 @@ import com.zextras.carbonio.files.graphql.support.ShareCascadeHelper;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.quarkus.extensions.graphql.GraphqlErrors;
 import io.quarkus.security.Authenticated;
 import io.smallrye.graphql.api.Nullable;
 import jakarta.inject.Inject;
@@ -129,6 +137,13 @@ public class ShareApi {
   }
 
   @Query("getShare")
+  @GraphqlErrors({
+    UNAUTHENTICATED,
+    SHARE_NOT_FOUND,
+    ACCOUNT_NOT_FOUND,
+    NODE_NOT_FOUND,
+    FILE_VERSION_NOT_FOUND
+  })
   public ShareModel getShare(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("share_target_id") @Id @NonNull String shareTargetId)
@@ -145,6 +160,13 @@ public class ShareApi {
   }
 
   @Mutation("createShare")
+  @GraphqlErrors({
+    UNAUTHENTICATED,
+    SHARE_CREATION_ERROR,
+    ACCOUNT_NOT_FOUND,
+    NODE_NOT_FOUND,
+    FILE_VERSION_NOT_FOUND
+  })
   public @NonNull ShareModel createShare(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("share_target_id") @Id @NonNull String shareTargetId,
@@ -200,6 +222,13 @@ public class ShareApi {
   }
 
   @Mutation("updateShares")
+  @GraphqlErrors({
+    UNAUTHENTICATED,
+    SHARE_NOT_FOUND,
+    ACCOUNT_NOT_FOUND,
+    NODE_NOT_FOUND,
+    FILE_VERSION_NOT_FOUND
+  })
   public @NonNull List<ShareModel> updateShares(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("share_target_ids") @NonNull List<@NonNull String> shareTargetIds,
@@ -248,6 +277,7 @@ public class ShareApi {
   }
 
   @Mutation("deleteShares")
+  @GraphqlErrors({UNAUTHENTICATED, SHARE_NOT_FOUND})
   public @NonNull @Id List<String> deleteShares(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("share_target_ids") @NonNull List<@NonNull String> shareTargetIds)

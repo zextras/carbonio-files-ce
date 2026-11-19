@@ -4,9 +4,12 @@
 
 package com.zextras.carbonio.files.graphql.api;
 
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.UNAUTHENTICATED;
+
 import com.zextras.carbonio.files.Constants.ServiceDiscover.Config;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.graphql.model.ConfigModel;
+import com.zextras.carbonio.quarkus.extensions.graphql.GraphqlErrors;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import java.util.List;
@@ -21,6 +24,7 @@ public class ConfigApi {
   @Inject FilesConfig filesConfig;
 
   @Query("getConfigs")
+  @GraphqlErrors({UNAUTHENTICATED})
   public @NonNull List<ConfigModel> getConfigs() {
     String maxVersionsRaw = filesConfig.getMaxNumberOfVersionsRaw();
     int maxVersions = Integer.parseInt(maxVersionsRaw);

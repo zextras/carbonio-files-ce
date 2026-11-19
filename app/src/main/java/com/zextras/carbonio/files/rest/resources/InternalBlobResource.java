@@ -66,6 +66,9 @@ import org.jboss.resteasy.reactive.server.Cancellable;
 @ApplicationScoped
 // Not cancelled on disconnect: the transfer must finish to close its stream and request context.
 @Cancellable(false)
+@APIResponses({
+  @APIResponse(responseCode = "503", description = "Transfer pool saturated, retry later")
+})
 public class InternalBlobResource {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -89,6 +92,13 @@ public class InternalBlobResource {
   @Path("/accounts/{userId}/upload")
   @Consumes(MediaType.WILDCARD)
   @Produces(MediaType.APPLICATION_JSON)
+  @APIResponses({
+    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(responseCode = "400", description = "Missing or malformed input"),
+    @APIResponse(
+        responseCode = "404",
+        description = "Node, link or version not found or not accessible")
+  })
   public Uni<Response> upload(
       @PathParam("userId") String userId,
       @HeaderParam(Headers.UPLOAD_FILENAME) String encodedFilename,
@@ -110,6 +120,15 @@ public class InternalBlobResource {
   @Path("/accounts/{userId}/upload-version")
   @Consumes(MediaType.WILDCARD)
   @Produces(MediaType.APPLICATION_JSON)
+  @APIResponses({
+    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(responseCode = "400", description = "Missing or malformed input"),
+    @APIResponse(
+        responseCode = "404",
+        description = "Node, link or version not found or not accessible"),
+    @APIResponse(responseCode = "405", description = "Maximum number of file versions reached"),
+    @APIResponse(responseCode = "423", description = "Overwrite of the node already in progress")
+  })
   public Uni<Response> uploadVersion(
       @PathParam("userId") String userId,
       @HeaderParam(Headers.UPLOAD_NODE_ID) String nodeId,
@@ -195,7 +214,14 @@ public class InternalBlobResource {
             @Content(
                 mediaType = "application/octet-stream",
                 schema = @Schema(type = SchemaType.STRING, format = "binary"))),
-    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
+    @APIResponse(
+        responseCode = "413",
+        description = "Payload or file size exceeds the configured limit"),
+    @APIResponse(
+        responseCode = "204",
+        description =
+            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
   })
   public Uni<Void> download(
       @PathParam("userId") String userId,
@@ -215,7 +241,14 @@ public class InternalBlobResource {
             @Content(
                 mediaType = "application/octet-stream",
                 schema = @Schema(type = SchemaType.STRING, format = "binary"))),
-    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
+    @APIResponse(
+        responseCode = "413",
+        description = "Payload or file size exceeds the configured limit"),
+    @APIResponse(
+        responseCode = "204",
+        description =
+            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
   })
   public Uni<Void> downloadVersion(
       @PathParam("userId") String userId,

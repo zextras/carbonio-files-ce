@@ -4,6 +4,9 @@
 
 package com.zextras.carbonio.files.graphql.api;
 
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.ACCOUNT_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.UNAUTHENTICATED;
+
 import com.zextras.carbonio.files.dal.dao.UserInfo;
 import com.zextras.carbonio.files.dal.repositories.interfaces.UserRepository;
 import com.zextras.carbonio.files.graphql.auth.AuthenticatedUserProducer;
@@ -18,6 +21,7 @@ import com.zextras.carbonio.files.graphql.model.UserModel;
 import com.zextras.carbonio.files.graphql.support.RequestUserCache;
 import com.zextras.carbonio.files.graphql.support.RequestedNodeUsers;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import com.zextras.carbonio.quarkus.extensions.graphql.GraphqlErrors;
 import graphql.schema.DataFetchingEnvironment;
 import io.quarkus.security.Authenticated;
 import io.smallrye.graphql.api.Context;
@@ -151,6 +155,7 @@ public class UserApi {
   }
 
   @Query("getUserById")
+  @GraphqlErrors({UNAUTHENTICATED, ACCOUNT_NOT_FOUND})
   public UserModel getUserById(@Name("user_id") @Id @NonNull String userId)
       throws FilesGraphQLException {
     return userRepository
@@ -160,6 +165,7 @@ public class UserApi {
   }
 
   @Query("getAccountByEmail")
+  @GraphqlErrors({UNAUTHENTICATED, ACCOUNT_NOT_FOUND})
   public Account getAccountByEmail(@Name("email") @NonNull String email)
       throws FilesGraphQLException {
     validator.checkEmail(email).validate();
@@ -170,6 +176,7 @@ public class UserApi {
   }
 
   @Query("getAccountsByEmail")
+  @GraphqlErrors({UNAUTHENTICATED, ACCOUNT_NOT_FOUND})
   public @NonNull List<Account> getAccountsByEmail(
       @Name("emails") @NonNull List<@NonNull String> emails) throws FilesGraphQLException {
     validator.checkEmails(emails).validate();

@@ -4,6 +4,13 @@
 
 package com.zextras.carbonio.files.graphql.api;
 
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.ACCOUNT_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.FILE_VERSION_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.MISSING_FIELD;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.NODE_NOT_FOUND;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.NODE_WRITE_ERROR;
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.UNAUTHENTICATED;
+
 import com.zextras.carbonio.files.Constants.API.Endpoints;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
@@ -20,6 +27,7 @@ import com.zextras.carbonio.files.graphql.model.support.NodeModelFactory;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
 import com.zextras.carbonio.files.utilities.NodeRules;
 import com.zextras.carbonio.files.utilities.PermissionsChecker;
+import com.zextras.carbonio.quarkus.extensions.graphql.GraphqlErrors;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import java.text.MessageFormat;
@@ -90,6 +98,13 @@ public class CollaborationLinkApi {
   }
 
   @Query("getCollaborationLinks")
+  @GraphqlErrors({
+    UNAUTHENTICATED,
+    NODE_WRITE_ERROR,
+    ACCOUNT_NOT_FOUND,
+    NODE_NOT_FOUND,
+    FILE_VERSION_NOT_FOUND
+  })
   public @NonNull List<CollaborationLinkModel> getCollaborationLinks(
       @Name("node_id") @Id @NonNull String nodeId) throws FilesGraphQLException {
     validator.checkNodeId(nodeId).validate();
@@ -109,6 +124,13 @@ public class CollaborationLinkApi {
   }
 
   @Mutation("createCollaborationLink")
+  @GraphqlErrors({
+    UNAUTHENTICATED,
+    NODE_WRITE_ERROR,
+    ACCOUNT_NOT_FOUND,
+    NODE_NOT_FOUND,
+    FILE_VERSION_NOT_FOUND
+  })
   public @NonNull CollaborationLinkModel createCollaborationLink(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("permission") @NonNull SharePermission permission)
@@ -138,6 +160,7 @@ public class CollaborationLinkApi {
   }
 
   @Mutation("deleteCollaborationLinks")
+  @GraphqlErrors({UNAUTHENTICATED, MISSING_FIELD})
   public @NonNull @Id List<String> deleteCollaborationLinks(
       @Name("collaboration_link_ids") @NonNull List<@NonNull String> collaborationLinkIds)
       throws FilesGraphQLException {

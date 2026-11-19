@@ -4,6 +4,8 @@
 
 package com.zextras.carbonio.files.graphql.api;
 
+import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.UNAUTHENTICATED;
+
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.notifications.AddedNodeNotification;
@@ -30,6 +32,7 @@ import com.zextras.carbonio.files.graphql.model.SnapshotNodeModel;
 import com.zextras.carbonio.files.graphql.model.SnapshotUserModel;
 import com.zextras.carbonio.files.graphql.spi.NotificationModelContributor;
 import com.zextras.carbonio.files.graphql.validation.GraphQLInputValidator;
+import com.zextras.carbonio.quarkus.extensions.graphql.GraphqlErrors;
 import io.quarkus.security.Authenticated;
 import jakarta.enterprise.inject.Any;
 import jakarta.enterprise.inject.Instance;
@@ -122,6 +125,7 @@ public class NotificationApi {
   }
 
   @Query("getNotifications")
+  @GraphqlErrors({UNAUTHENTICATED})
   public NotificationPageModel getNotifications(
       @Name("update_last_seen") @NonNull Boolean updateLastSeen,
       Integer limit,

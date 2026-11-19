@@ -87,6 +87,13 @@ import org.slf4j.LoggerFactory;
 @ApplicationScoped
 // Not cancelled on disconnect: the transfer must finish to close its stream and request context.
 @Cancellable(false)
+@APIResponses({
+  @APIResponse(responseCode = "401", description = "Missing or invalid authentication cookie"),
+  @APIResponse(
+      responseCode = "403",
+      description = "User not allowed (inactive, guest or feature disabled)"),
+  @APIResponse(responseCode = "503", description = "Transfer pool saturated, retry later")
+})
 public class BlobResource {
 
   private static final Logger logger = LoggerFactory.getLogger(BlobResource.class);
@@ -119,6 +126,16 @@ public class BlobResource {
   @Path("/upload")
   @Consumes(MediaType.WILDCARD)
   @Produces(MediaType.APPLICATION_JSON)
+  @APIResponses({
+    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(responseCode = "400", description = "Missing or malformed input"),
+    @APIResponse(
+        responseCode = "404",
+        description = "Node, link or version not found or not accessible"),
+    @APIResponse(
+        responseCode = "413",
+        description = "Payload or file size exceeds the configured limit")
+  })
   public Uni<Response> upload(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
@@ -155,6 +172,18 @@ public class BlobResource {
   @Path("/upload-version")
   @Consumes(MediaType.WILDCARD)
   @Produces(MediaType.APPLICATION_JSON)
+  @APIResponses({
+    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(responseCode = "400", description = "Missing or malformed input"),
+    @APIResponse(
+        responseCode = "404",
+        description = "Node, link or version not found or not accessible"),
+    @APIResponse(responseCode = "405", description = "Maximum number of file versions reached"),
+    @APIResponse(
+        responseCode = "413",
+        description = "Payload or file size exceeds the configured limit"),
+    @APIResponse(responseCode = "423", description = "Overwrite of the node already in progress")
+  })
   public Uni<Response> uploadVersion(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
@@ -248,7 +277,14 @@ public class BlobResource {
             @Content(
                 mediaType = "application/octet-stream",
                 schema = @Schema(type = SchemaType.STRING, format = "binary"))),
-    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
+    @APIResponse(
+        responseCode = "413",
+        description = "Payload or file size exceeds the configured limit"),
+    @APIResponse(
+        responseCode = "204",
+        description =
+            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
   })
   public Uni<Void> download(
       @HeaderParam("Cookie") String cookieHeader,
@@ -269,7 +305,14 @@ public class BlobResource {
             @Content(
                 mediaType = "application/octet-stream",
                 schema = @Schema(type = SchemaType.STRING, format = "binary"))),
-    @APIResponse(responseCode = "404", description = "Node not found or not accessible")
+    @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
+    @APIResponse(
+        responseCode = "413",
+        description = "Payload or file size exceeds the configured limit"),
+    @APIResponse(
+        responseCode = "204",
+        description =
+            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
   })
   public Uni<Void> downloadVersion(
       @HeaderParam("Cookie") String cookieHeader,
@@ -301,6 +344,15 @@ public class BlobResource {
   @GET
   @Path("/download/{nodeId}/check")
   @Blocking
+  @APIResponses({
+    @APIResponse(responseCode = "204", description = "Success, no content"),
+    @APIResponse(
+        responseCode = "404",
+        description = "Node, link or version not found or not accessible"),
+    @APIResponse(
+        responseCode = "413",
+        description = "Payload or file size exceeds the configured limit")
+  })
   public Response checkDownload(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
@@ -328,7 +380,15 @@ public class BlobResource {
     @APIResponse(responseCode = "400", description = "Missing or malformed nodeIds"),
     @APIResponse(
         responseCode = "404",
-        description = "Some nodes do not exist or are not accessible")
+        description = "Some nodes do not exist or are not accessible"),
+    @APIResponse(
+        responseCode = "413",
+        description = "Payload or file size exceeds the configured limit"),
+    @APIResponse(responseCode = "415", description = "Unsupported media type"),
+    @APIResponse(
+        responseCode = "204",
+        description =
+            "Streamed response: JAX-RS reports 204, the body is written directly to the connection")
   })
   public Uni<Void> downloadMultiple(
       @HeaderParam("Cookie") String cookieHeader,
@@ -364,6 +424,17 @@ public class BlobResource {
   @Path("/download-multiple/check")
   @Blocking
   @Consumes(MediaType.APPLICATION_JSON)
+  @APIResponses({
+    @APIResponse(responseCode = "204", description = "Success, no content"),
+    @APIResponse(responseCode = "400", description = "Missing or malformed input"),
+    @APIResponse(
+        responseCode = "404",
+        description = "Node, link or version not found or not accessible"),
+    @APIResponse(
+        responseCode = "413",
+        description = "Payload or file size exceeds the configured limit"),
+    @APIResponse(responseCode = "415", description = "Unsupported media type")
+  })
   public Response checkDownloadMultiple(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,

@@ -30,6 +30,8 @@ import jakarta.ws.rs.core.Response;
 import java.io.InputStream;
 import java.text.MessageFormat;
 import java.util.NoSuchElementException;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.jboss.resteasy.reactive.server.Cancellable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +50,13 @@ import org.slf4j.LoggerFactory;
 @Path("/upload-to")
 @ApplicationScoped
 @Cancellable(false)
+@APIResponses({
+  @APIResponse(responseCode = "401", description = "Missing or invalid authentication cookie"),
+  @APIResponse(
+      responseCode = "403",
+      description = "User not allowed (inactive, guest or feature disabled)"),
+  @APIResponse(responseCode = "503", description = "Transfer pool saturated, retry later")
+})
 public class ProcedureResource {
 
   private static final Logger logger = LoggerFactory.getLogger(ProcedureResource.class);
@@ -79,6 +88,17 @@ public class ProcedureResource {
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
+  @APIResponses({
+    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(responseCode = "400", description = "Missing or malformed input"),
+    @APIResponse(
+        responseCode = "404",
+        description = "Node, link or version not found or not accessible"),
+    @APIResponse(
+        responseCode = "413",
+        description = "Payload or file size exceeds the configured limit"),
+    @APIResponse(responseCode = "415", description = "Unsupported media type")
+  })
   public Uni<Response> uploadTo(
       @HeaderParam("Cookie") String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,

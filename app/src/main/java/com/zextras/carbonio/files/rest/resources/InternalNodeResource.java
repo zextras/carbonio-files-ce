@@ -42,6 +42,8 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response.Status;
 import java.util.Optional;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.jboss.resteasy.reactive.RestResponse;
 
 /**
@@ -101,6 +103,15 @@ public class InternalNodeResource {
   @GET
   @Path("/accounts/{userId}/nodes/{nodeId}")
   @Blocking
+  @APIResponses({
+    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(
+        responseCode = "403",
+        description = "User not allowed (inactive, guest or feature disabled)"),
+    @APIResponse(
+        responseCode = "404",
+        description = "Node, link or version not found or not accessible")
+  })
   public RestResponse<InternalNodeDto> getNode(
       @PathParam("userId") String userId,
       @PathParam("nodeId") String nodeId,
@@ -189,6 +200,16 @@ public class InternalNodeResource {
   @Consumes(MediaType.APPLICATION_JSON)
   @Blocking
   @Transactional
+  @APIResponses({
+    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(responseCode = "400", description = "Missing or malformed input"),
+    @APIResponse(
+        responseCode = "403",
+        description = "User not allowed (inactive, guest or feature disabled)"),
+    @APIResponse(
+        responseCode = "404",
+        description = "Node, link or version not found or not accessible")
+  })
   public RestResponse<InternalNodeIdDto> createFolder(CreateFolderRequest request) {
     try {
       Node createdFolder =
@@ -218,6 +239,17 @@ public class InternalNodeResource {
   @Path("/links")
   @Consumes(MediaType.APPLICATION_JSON)
   @Blocking
+  @APIResponses({
+    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(responseCode = "400", description = "Missing or malformed input"),
+    @APIResponse(
+        responseCode = "403",
+        description = "User not allowed (inactive, guest or feature disabled)"),
+    @APIResponse(
+        responseCode = "404",
+        description = "Node, link or version not found or not accessible"),
+    @APIResponse(responseCode = "429", description = "Public link limit reached")
+  })
   public RestResponse<PublicLinkDto> createPublicLink(CreatePublicLinkRequest request) {
     String userId = request.userId();
     String nodeId = request.nodeId();
@@ -256,6 +288,7 @@ public class InternalNodeResource {
   @Path("/nodes")
   @Consumes(MediaType.APPLICATION_JSON)
   @Blocking
+  @APIResponses({@APIResponse(responseCode = "200", description = "Success")})
   public RestResponse<DeleteAllResponse> deleteAllNodesAndBlobs(DeleteAllRequest request) {
     nodeCreationHelper.deleteAllNodesAndBlobsForUser(request.userId());
     return RestResponse.ok(new DeleteAllResponse(true));

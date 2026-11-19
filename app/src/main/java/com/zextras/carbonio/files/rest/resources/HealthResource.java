@@ -18,6 +18,8 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.List;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 
 @Path("/health")
 @ApplicationScoped
@@ -32,6 +34,7 @@ public class HealthResource {
 
   @GET
   @Path("/live")
+  @APIResponses({@APIResponse(responseCode = "204", description = "Success, no content")})
   public Response healthLive() {
     return Response.noContent().build();
   }
@@ -39,6 +42,10 @@ public class HealthResource {
   @GET
   @Path("/ready")
   @Blocking
+  @APIResponses({
+    @APIResponse(responseCode = "204", description = "Success, no content"),
+    @APIResponse(responseCode = "500", description = "A required dependency is not ready")
+  })
   public Response healthReady() {
     boolean databaseIsUp = healthService.isDatabaseLive();
     boolean userManagementIsUp = healthService.isUserManagementLive();
@@ -53,6 +60,10 @@ public class HealthResource {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @Blocking
+  @APIResponses({
+    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(responseCode = "500", description = "A required dependency is not ready")
+  })
   public Response health() {
     List<ServiceHealth> dependencies = new ArrayList<>();
     dependencies.add(healthService.getDatabaseHealth());
