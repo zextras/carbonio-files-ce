@@ -16,6 +16,7 @@ public enum NodeType {
   PRESENTATION,
   FOLDER,
   APPLICATION,
+  ARCHIVE,
   MESSAGE,
   ROOT,
   OTHER;
@@ -69,6 +70,18 @@ public enum NodeType {
           case "vnd.debian.binary-package":
           case "x-msi":
             nodeType = NodeType.APPLICATION;
+            break;
+          case "zip":
+          case "x-zip-compressed":
+          case "gzip":
+          case "x-gzip":
+          case "x-tar":
+          case "x-bzip2":
+          case "x-xz":
+          case "x-7z-compressed":
+          case "vnd.rar":
+          case "x-rar-compressed":
+            nodeType = NodeType.ARCHIVE;
             break;
           case "vnd.ms-outlook":
           case "mbox":

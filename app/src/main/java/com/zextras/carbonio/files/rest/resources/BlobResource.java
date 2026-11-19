@@ -8,7 +8,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.zextras.carbonio.files.Constants.API.Headers;
-import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.TransferPool;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
@@ -128,7 +127,10 @@ public class BlobResource {
   @Produces(MediaType.APPLICATION_JSON)
   @APIResponses({
     @APIResponse(responseCode = "200", description = "Success"),
-    @APIResponse(responseCode = "400", description = "Missing or malformed input"),
+    @APIResponse(
+        responseCode = "400",
+        description =
+            "Missing or malformed input (the Filename and ParentId headers are required)"),
     @APIResponse(
         responseCode = "404",
         description = "Node, link or version not found or not accessible"),
@@ -239,7 +241,10 @@ public class BlobResource {
       String encodedFilename,
       String description) {
 
-    String parentId = parentIdHeader != null ? parentIdHeader : RootId.LOCAL_ROOT;
+    if (parentIdHeader == null || parentIdHeader.isBlank()) {
+      throw new IllegalArgumentException("Missing ParentId header");
+    }
+    String parentId = parentIdHeader;
     String desc = description != null ? description : "";
 
     String decodedFilename = decodeFilename(encodedFilename);

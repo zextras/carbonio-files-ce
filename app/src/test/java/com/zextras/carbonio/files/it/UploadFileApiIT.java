@@ -190,6 +190,7 @@ class UploadFileApiIT extends AbstractFilesIT {
     Response response =
         RestAssured.given()
             .header("Filename", "not-!-valid-!-base64")
+            .header("ParentId", LOCAL_ROOT)
             .header("Cookie", REQUESTER_COOKIE)
             .body("content".getBytes(StandardCharsets.UTF_8))
             .post("/upload");

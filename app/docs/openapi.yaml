@@ -1295,7 +1295,8 @@ paths:
           content:
             application/json: {}
         "400":
-          description: Missing or malformed input
+          description: Missing or malformed input (the Filename and ParentId headers
+            are required)
         "404":
           description: "Node, link or version not found or not accessible"
         "413":
