@@ -12,11 +12,6 @@ import com.zextras.carbonio.quarkus.extensions.apiversioning.ValueConverter;
 public class ArchiveNodeTypeConverter implements ValueConverter<NodeType> {
 
   @Override
-  public Class<NodeType> type() {
-    return NodeType.class;
-  }
-
-  @Override
   public NodeType convert(NodeType value) {
     return value == NodeType.ARCHIVE ? NodeType.OTHER : value;
   }
