@@ -10,7 +10,7 @@ import com.zextras.carbonio.quarkus.extensions.apiversioning.ApiVersion;
 @ApiChange(
     since = ApiVersion.CURRENT,
     converter = ArchiveNodeTypeConverter.class,
-    inputUnaffected =
+    inputNotConverted =
         "findNodes(type: OTHER) cannot be widened to OTHER and ARCHIVE without changing the"
             + " domain query, so an old client asking for OTHER no longer finds archives")
 @ApiChange(since = ApiVersion.CURRENT, converter = UploadParentIdConverter.class)

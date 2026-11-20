@@ -69,12 +69,11 @@ class ApiVersioningApiIT extends AbstractFilesIT {
     if (version != null) {
       request = request.header(versionHeader(), version);
     }
-    return rejectUndeclared(
-        request
-            .contentType("application/json")
-            .header("Cookie", REQUESTER_COOKIE)
-            .body(TestUtils.queryPayload(query))
-            .post("/graphql/"));
+    return request
+        .contentType("application/json")
+        .header("Cookie", REQUESTER_COOKIE)
+        .body(TestUtils.queryPayload(query))
+        .post("/graphql/");
   }
 
   private static Response downloadAs(String version, String nodeId) {

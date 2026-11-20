@@ -99,6 +99,21 @@ public abstract class AbstractFilesIT {
    */
   protected static final String LOCAL_ROOT = "LOCAL_ROOT";
 
+  static {
+    RestAssured.filters(
+        (request, response, ctx) -> {
+          Response result = ctx.next(request, response);
+          if (request.getURI().contains("/graphql")
+              && result.asString().contains("UNDECLARED_ERROR")) {
+            throw new AssertionError(
+                "GraphQL response carries UNDECLARED_ERROR (error code missing from the"
+                    + " contract): "
+                    + result.asString());
+          }
+          return result;
+        });
+  }
+
   // --------------------------------------------------------------------------------- lifecycle
 
   /**
@@ -321,22 +336,17 @@ public abstract class AbstractFilesIT {
   }
 
   /**
-   * POSTs an authenticated GraphQL {@code query}/{@code mutation} string to {@code /graphql/}.
-   * Fails the test when the response carries {@code UNDECLARED_ERROR} (an error code missing from
-   * the contract, reported by strict mode).
+   * POSTs an authenticated GraphQL {@code query}/{@code mutation} string to {@code /graphql/}. A
+   * RestAssured filter installed by this class fails any test whose {@code /graphql} response
+   * carries {@code UNDECLARED_ERROR} (an error code missing from the contract).
    */
   protected static Response graphql(String query, String cookie) {
-    return rejectUndeclared(graphqlRequest(RestAssured.given(), query, cookie));
+    return graphqlRequest(RestAssured.given(), query, cookie);
   }
 
   /** Same as {@link #graphql} but sends the API version of the running test (call under test). */
   protected static Response versionedGraphql(String query, String cookie) {
-    return rejectUndeclared(graphqlRequest(withApiVersion(RestAssured.given()), query, cookie));
-  }
-
-  /** Same as {@link #graphql} for a test that explicitly expects {@code UNDECLARED_ERROR}. */
-  protected static Response graphqlExpectingUndeclared(String query, String cookie) {
-    return graphqlRequest(RestAssured.given(), query, cookie);
+    return graphqlRequest(withApiVersion(RestAssured.given()), query, cookie);
   }
 
   private static Response graphqlRequest(RequestSpecification base, String query, String cookie) {
@@ -347,26 +357,16 @@ public abstract class AbstractFilesIT {
     return request.post("/graphql/");
   }
 
-  protected static Response rejectUndeclared(Response response) {
-    if (response.asString().contains("UNDECLARED_ERROR")) {
-      throw new AssertionError(
-          "GraphQL response carries UNDECLARED_ERROR (error code missing from the contract): "
-              + response.asString());
-    }
-    return response;
-  }
-
   /**
    * POSTs an UNAUTHENTICATED GraphQL {@code query}/{@code mutation} string to {@code /graphql/} (no
    * cookie — anonymous identity, so only {@code @PermitAll} public operations succeed). Fails the
    * test on {@code UNDECLARED_ERROR}, like {@link #graphql}.
    */
   protected static Response publicGraphql(String query) {
-    return rejectUndeclared(
-        RestAssured.given()
-            .contentType("application/json")
-            .body(TestUtils.queryPayload(query))
-            .post("/graphql/"));
+    return RestAssured.given()
+        .contentType("application/json")
+        .body(TestUtils.queryPayload(query))
+        .post("/graphql/");
   }
 
   // ------------------------------------------------------------------- runtime app-config (live

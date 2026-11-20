@@ -6,7 +6,7 @@
 #
 #   1. Registry rule: when a contract file differs between the base and HEAD, the diff of the
 #      registry file(s) (--registry) between the same two points must ADD at least one line
-#      matching `@ApiChange\s*\(`. Lines that only start a comment do not count. A contract file
+#      starting with `@ApiChange` (optionally fully qualified). Comments and strings do not count. A contract file
 #      that does not exist at the base (its first introduction) is not a change; a deleted one is.
 #   2. Main builds (--main-build): same rule on HEAD^1..HEAD, reported as a warning, never a failure.
 #   3. Support window (--window-months): prints ONE warning listing vX.Y.Z tags merged into the
@@ -142,7 +142,7 @@ diff_quiet() {
     fi
 }
 
-# registry_added <base>: number of added registry lines that contain @ApiChange(
+# registry_added <base>: number of added registry lines that start an @ApiChange annotation
 registry_added() {
     local count
     if [ "$STAGED" -eq 1 ]; then
@@ -154,8 +154,8 @@ registry_added() {
 }
 
 registry_filter() {
-    grep -E '^\+' | grep -vE '^\+\+\+' | sed -E 's/^\+[[:space:]]*//' \
-        | grep -vE '^(//|/\*|\*)' | grep -cE '@ApiChange[[:space:]]*\(' || true
+    grep -E '^\+' | grep -vE '^\+\+\+' \
+        | grep -cE '^\+[[:space:]]*@([A-Za-z_$][A-Za-z0-9_$]*\.)*ApiChange\b' || true
 }
 
 report_violation() {
@@ -181,7 +181,7 @@ report_violation() {
 }
 
 contract_check() {
-    local base ref path count
+    local base ref path count reg
     local changed=()
 
     if [ "$MAIN_BUILD" -eq 1 ]; then
@@ -216,6 +216,12 @@ contract_check() {
         echo "$TAG No contract change needing an @ApiChange line"
         return 0
     fi
+
+    for reg in "${REGISTRIES[@]}"; do
+        if ! git cat-file -e "${NEW_REV:-}:$reg" 2> /dev/null; then
+            die "registry file $reg does not exist at ${NEW_REV:-the index}"
+        fi
+    done
 
     count=$(registry_added "$base")
     if [ "$count" -gt 0 ]; then
