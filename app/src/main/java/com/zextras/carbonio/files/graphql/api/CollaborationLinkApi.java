@@ -4,7 +4,6 @@
 
 package com.zextras.carbonio.files.graphql.api;
 
-import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.ACCOUNT_NOT_FOUND;
 import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.FILE_VERSION_NOT_FOUND;
 import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.MISSING_FIELD;
 import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.NODE_NOT_FOUND;
@@ -84,6 +83,7 @@ public class CollaborationLinkApi {
         .collect(Collectors.toList());
   }
 
+  @GraphqlErrors({NODE_NOT_FOUND, FILE_VERSION_NOT_FOUND})
   @Name("node")
   @NonNull
   public NodeModel node(@Source CollaborationLinkModel cl) throws FilesGraphQLException {
@@ -98,13 +98,7 @@ public class CollaborationLinkApi {
   }
 
   @Query("getCollaborationLinks")
-  @GraphqlErrors({
-    UNAUTHENTICATED,
-    NODE_WRITE_ERROR,
-    ACCOUNT_NOT_FOUND,
-    NODE_NOT_FOUND,
-    FILE_VERSION_NOT_FOUND
-  })
+  @GraphqlErrors({UNAUTHENTICATED, NODE_WRITE_ERROR})
   public @NonNull List<CollaborationLinkModel> getCollaborationLinks(
       @Name("node_id") @Id @NonNull String nodeId) throws FilesGraphQLException {
     validator.checkNodeId(nodeId).validate();
@@ -124,13 +118,7 @@ public class CollaborationLinkApi {
   }
 
   @Mutation("createCollaborationLink")
-  @GraphqlErrors({
-    UNAUTHENTICATED,
-    NODE_WRITE_ERROR,
-    ACCOUNT_NOT_FOUND,
-    NODE_NOT_FOUND,
-    FILE_VERSION_NOT_FOUND
-  })
+  @GraphqlErrors({UNAUTHENTICATED, NODE_WRITE_ERROR})
   public @NonNull CollaborationLinkModel createCollaborationLink(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("permission") @NonNull SharePermission permission)

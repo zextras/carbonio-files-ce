@@ -6,12 +6,9 @@ package com.zextras.carbonio.files.versioning;
 
 import com.zextras.carbonio.files.graphql.model.NodeType;
 import com.zextras.carbonio.quarkus.extensions.apiversioning.ApiConverter;
-import com.zextras.carbonio.quarkus.extensions.apiversioning.ApiVersion;
 import com.zextras.carbonio.quarkus.extensions.apiversioning.ValueConverter;
 
-@ApiConverter(
-    since = ApiVersion.CURRENT,
-    description = "NodeType.ARCHIVE is new: older clients know compressed archives as OTHER")
+@ApiConverter
 public class ArchiveNodeTypeConverter implements ValueConverter<NodeType> {
 
   @Override

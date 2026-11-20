@@ -41,6 +41,7 @@ import java.util.Optional;
 import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.jboss.resteasy.reactive.server.Cancellable;
@@ -168,8 +169,8 @@ public class PublicBlobResource {
   })
   public Uni<Void> downloadPublicFile(
       @PathParam("nodeId") String nodeId,
-      @QueryParam("node_link_id") String nodeLinkId,
-      @QueryParam("access_code") String accessCode,
+      @QueryParam("node_link_id") @Parameter(required = true) String nodeLinkId,
+      @QueryParam("access_code") @Parameter(required = false) String accessCode,
       @Context HttpServerResponse resp) {
 
     BlobResponse blob =
@@ -198,8 +199,8 @@ public class PublicBlobResource {
   public Response checkDownloadPublicFile(
       @Context UriInfo uriInfo,
       @PathParam("nodeId") String nodeId,
-      @QueryParam("node_link_id") String nodeLinkId,
-      @QueryParam("access_code") String accessCode) {
+      @QueryParam("node_link_id") @Parameter(required = true) String nodeLinkId,
+      @QueryParam("access_code") @Parameter(required = false) String accessCode) {
 
     requireNodeLinkIdFirst(uriInfo);
 

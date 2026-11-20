@@ -59,17 +59,20 @@ public class UserApi {
 
   // ─── Batch @Source resolvers — Node.creator / owner / last_editor ─────────────
 
+  @GraphqlErrors({ACCOUNT_NOT_FOUND})
   @Name(RequestedNodeUsers.CREATOR)
   @NonNull
   public List<UserModel> creators(@Source List<NodeModel> nodes) {
     return resolveNodeUsers(nodes, RequestedNodeUsers.CREATOR);
   }
 
+  @GraphqlErrors({ACCOUNT_NOT_FOUND})
   @Name(RequestedNodeUsers.OWNER)
   public List<UserModel> owners(@Source List<NodeModel> nodes) {
     return resolveNodeUsers(nodes, RequestedNodeUsers.OWNER);
   }
 
+  @GraphqlErrors({ACCOUNT_NOT_FOUND})
   @Name(RequestedNodeUsers.LAST_EDITOR)
   public List<UserModel> lastEditors(@Source List<NodeModel> nodes) {
     return resolveNodeUsers(nodes, RequestedNodeUsers.LAST_EDITOR);
@@ -137,6 +140,7 @@ public class UserApi {
 
   // Batched to coalesce per-share target lookups into one user-management call per request,
   // restoring the pre-Quarkus USER_BATCH_LOADER coalescing (renders the same schema field).
+  @GraphqlErrors({ACCOUNT_NOT_FOUND})
   @Name("share_target")
   public List<SharedTarget> shareTargets(@Source List<ShareModel> shares) {
     return resolveEach(

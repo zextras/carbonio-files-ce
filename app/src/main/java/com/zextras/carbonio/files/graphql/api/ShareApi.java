@@ -4,7 +4,6 @@
 
 package com.zextras.carbonio.files.graphql.api;
 
-import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.ACCOUNT_NOT_FOUND;
 import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.FILE_VERSION_NOT_FOUND;
 import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.NODE_NOT_FOUND;
 import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.SHARE_CREATION_ERROR;
@@ -79,6 +78,7 @@ public class ShareApi {
 
   // ─── Single-item @Source resolvers — Share.node ──────────────────────────────
 
+  @GraphqlErrors({NODE_NOT_FOUND, FILE_VERSION_NOT_FOUND})
   @Name("node")
   @NonNull
   public NodeModel node(@Source ShareModel share) throws FilesGraphQLException {
@@ -137,13 +137,7 @@ public class ShareApi {
   }
 
   @Query("getShare")
-  @GraphqlErrors({
-    UNAUTHENTICATED,
-    SHARE_NOT_FOUND,
-    ACCOUNT_NOT_FOUND,
-    NODE_NOT_FOUND,
-    FILE_VERSION_NOT_FOUND
-  })
+  @GraphqlErrors({UNAUTHENTICATED, SHARE_NOT_FOUND})
   public ShareModel getShare(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("share_target_id") @Id @NonNull String shareTargetId)
@@ -160,13 +154,7 @@ public class ShareApi {
   }
 
   @Mutation("createShare")
-  @GraphqlErrors({
-    UNAUTHENTICATED,
-    SHARE_CREATION_ERROR,
-    ACCOUNT_NOT_FOUND,
-    NODE_NOT_FOUND,
-    FILE_VERSION_NOT_FOUND
-  })
+  @GraphqlErrors({UNAUTHENTICATED, SHARE_CREATION_ERROR})
   public @NonNull ShareModel createShare(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("share_target_id") @Id @NonNull String shareTargetId,
@@ -222,13 +210,7 @@ public class ShareApi {
   }
 
   @Mutation("updateShares")
-  @GraphqlErrors({
-    UNAUTHENTICATED,
-    SHARE_NOT_FOUND,
-    ACCOUNT_NOT_FOUND,
-    NODE_NOT_FOUND,
-    FILE_VERSION_NOT_FOUND
-  })
+  @GraphqlErrors({UNAUTHENTICATED, SHARE_NOT_FOUND})
   public @NonNull List<ShareModel> updateShares(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("share_target_ids") @NonNull List<@NonNull String> shareTargetIds,

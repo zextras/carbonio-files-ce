@@ -38,6 +38,7 @@ import java.util.Optional;
 import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.jboss.resteasy.reactive.server.Cancellable;
@@ -93,7 +94,13 @@ public class InternalBlobResource {
   @Consumes(MediaType.WILDCARD)
   @Produces(MediaType.APPLICATION_JSON)
   @APIResponses({
-    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(
+        responseCode = "200",
+        description = "Success",
+        content =
+            @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = UploadVersionResponse.class))),
     @APIResponse(responseCode = "400", description = "Missing or malformed input"),
     @APIResponse(
         responseCode = "404",
@@ -101,10 +108,10 @@ public class InternalBlobResource {
   })
   public Uni<Response> upload(
       @PathParam("userId") String userId,
-      @HeaderParam(Headers.UPLOAD_FILENAME) String encodedFilename,
-      @HeaderParam(Headers.UPLOAD_DESCRIPTION) String description,
-      @HeaderParam(Headers.UPLOAD_PARENT_ID) String parentId,
-      @HeaderParam(HttpHeaders.CONTENT_LENGTH) Long contentLength,
+      @HeaderParam(Headers.UPLOAD_FILENAME) @Parameter(required = true) String encodedFilename,
+      @HeaderParam(Headers.UPLOAD_DESCRIPTION) @Parameter(required = false) String description,
+      @HeaderParam(Headers.UPLOAD_PARENT_ID) @Parameter(required = false) String parentId,
+      @HeaderParam(HttpHeaders.CONTENT_LENGTH) @Parameter(required = false) Long contentLength,
       InputStream body) {
 
     // Offloaded to the transfer pool exactly like BlobResource's uploads: the whole upload
@@ -121,7 +128,13 @@ public class InternalBlobResource {
   @Consumes(MediaType.WILDCARD)
   @Produces(MediaType.APPLICATION_JSON)
   @APIResponses({
-    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(
+        responseCode = "200",
+        description = "Success",
+        content =
+            @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = UploadVersionResponse.class))),
     @APIResponse(responseCode = "400", description = "Missing or malformed input"),
     @APIResponse(
         responseCode = "404",
@@ -131,10 +144,11 @@ public class InternalBlobResource {
   })
   public Uni<Response> uploadVersion(
       @PathParam("userId") String userId,
-      @HeaderParam(Headers.UPLOAD_NODE_ID) String nodeId,
-      @HeaderParam(Headers.UPLOAD_FILENAME) String encodedFilename,
-      @HeaderParam(Headers.UPLOAD_OVERWRITE_VERSION) String overwriteHeader,
-      @HeaderParam(HttpHeaders.CONTENT_LENGTH) Long contentLength,
+      @HeaderParam(Headers.UPLOAD_NODE_ID) @Parameter(required = true) String nodeId,
+      @HeaderParam(Headers.UPLOAD_FILENAME) @Parameter(required = true) String encodedFilename,
+      @HeaderParam(Headers.UPLOAD_OVERWRITE_VERSION) @Parameter(required = false)
+          String overwriteHeader,
+      @HeaderParam(HttpHeaders.CONTENT_LENGTH) @Parameter(required = false) Long contentLength,
       InputStream body) {
 
     return Uni.createFrom()

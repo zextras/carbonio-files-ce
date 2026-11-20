@@ -158,7 +158,7 @@ public class NodeApi {
   // ─── Queries ──────────────────────────────────────────────────────────────────
 
   @Query("getNode")
-  @GraphqlErrors({UNAUTHENTICATED, ACCOUNT_NOT_FOUND, NODE_NOT_FOUND, FILE_VERSION_NOT_FOUND})
+  @GraphqlErrors({UNAUTHENTICATED, NODE_NOT_FOUND, FILE_VERSION_NOT_FOUND})
   public NodeModel getNode(
       @Name("node_id") @Id @NonNull String nodeId, @Name("version") Integer version)
       throws FilesGraphQLException {
@@ -175,7 +175,7 @@ public class NodeApi {
   }
 
   @Query("findNodes")
-  @GraphqlErrors({UNAUTHENTICATED, ACCOUNT_NOT_FOUND, NODE_NOT_FOUND, FILE_VERSION_NOT_FOUND})
+  @GraphqlErrors({UNAUTHENTICATED})
   public NodePageModel findNodes(
       @Name("keywords") @Nullable List<@NonNull String> keywords,
       @Name("flagged") Boolean flagged,
@@ -235,13 +235,7 @@ public class NodeApi {
   }
 
   @Query("getVersions")
-  @GraphqlErrors({
-    UNAUTHENTICATED,
-    NODE_WRITE_ERROR,
-    ACCOUNT_NOT_FOUND,
-    NODE_NOT_FOUND,
-    FILE_VERSION_NOT_FOUND
-  })
+  @GraphqlErrors({UNAUTHENTICATED, NODE_WRITE_ERROR, NODE_NOT_FOUND})
   public @NonNull List<FileModel> getVersions(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("versions") @Nullable List<@NonNull Integer> versions)
@@ -280,7 +274,7 @@ public class NodeApi {
   }
 
   @Query("getPath")
-  @GraphqlErrors({UNAUTHENTICATED, ACCOUNT_NOT_FOUND, NODE_NOT_FOUND, FILE_VERSION_NOT_FOUND})
+  @GraphqlErrors({UNAUTHENTICATED})
   public @NonNull List<NodeModel> getPath(@Name("node_id") @Id @NonNull String nodeId)
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).validate();
@@ -337,6 +331,7 @@ public class NodeApi {
 
   // ─── Single-item @Source resolvers ────────────────────────────────────────────
 
+  @GraphqlErrors({FILE_VERSION_NOT_FOUND})
   @Name("children")
   @NonNull
   public NodePageModel children(
@@ -416,13 +411,7 @@ public class NodeApi {
   // ─── Mutations ────────────────────────────────────────────────────────────────
 
   @Mutation("createFolder")
-  @GraphqlErrors({
-    UNAUTHENTICATED,
-    NODE_WRITE_ERROR,
-    ACCOUNT_NOT_FOUND,
-    NODE_NOT_FOUND,
-    FILE_VERSION_NOT_FOUND
-  })
+  @GraphqlErrors({UNAUTHENTICATED, NODE_WRITE_ERROR, NODE_NOT_FOUND})
   public @NonNull NodeModel createFolder(
       @Name("destination_id") @NonNull String destinationId, @Name("name") @NonNull String name)
       throws FilesGraphQLException {
@@ -439,13 +428,7 @@ public class NodeApi {
   }
 
   @Mutation("updateNode")
-  @GraphqlErrors({
-    UNAUTHENTICATED,
-    NODE_DUPLICATED,
-    ACCOUNT_NOT_FOUND,
-    NODE_NOT_FOUND,
-    FILE_VERSION_NOT_FOUND
-  })
+  @GraphqlErrors({UNAUTHENTICATED, NODE_DUPLICATED, NODE_NOT_FOUND, FILE_VERSION_NOT_FOUND})
   public @NonNull NodeModel updateNode(
       @Name("node_id") @NonNull String nodeId,
       @Name("name") String name,
@@ -599,13 +582,7 @@ public class NodeApi {
   }
 
   @Mutation("restoreNodes")
-  @GraphqlErrors({
-    UNAUTHENTICATED,
-    NODE_WRITE_ERROR,
-    ACCOUNT_NOT_FOUND,
-    NODE_NOT_FOUND,
-    FILE_VERSION_NOT_FOUND
-  })
+  @GraphqlErrors({UNAUTHENTICATED, NODE_WRITE_ERROR})
   public @Nullable List<NodeModel> restoreNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds) throws FilesGraphQLException {
     validator.checkNodeIds(nodeIds).validate();
@@ -704,13 +681,7 @@ public class NodeApi {
   }
 
   @Mutation("moveNodes")
-  @GraphqlErrors({
-    UNAUTHENTICATED,
-    NODE_WRITE_ERROR,
-    ACCOUNT_NOT_FOUND,
-    NODE_NOT_FOUND,
-    FILE_VERSION_NOT_FOUND
-  })
+  @GraphqlErrors({UNAUTHENTICATED, NODE_WRITE_ERROR})
   public @Nullable List<@NonNull NodeModel> moveNodes(
       @Name("node_ids") @Nullable List<@NonNull String> nodeIds,
       @Name("destination_id") @Id @NonNull String destinationId)

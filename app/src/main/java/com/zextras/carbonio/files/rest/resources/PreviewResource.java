@@ -39,9 +39,11 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.commons.lang3.tuple.Pair;
+import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.jboss.resteasy.reactive.server.Cancellable;
@@ -136,18 +138,18 @@ public class PreviewResource {
     @APIResponse(responseCode = "404", description = "Node not found or not accessible")
   })
   public Uni<Void> previewImage(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       @Context HttpHeaders httpHeaders,
       @PathParam("nodeId") String nodeId,
       @PathParam("area") String area,
-      @QueryParam("quality") String quality,
-      @QueryParam("output_format") String outputFormat,
-      @QueryParam("crop") Boolean crop,
-      @QueryParam("shape") String shape,
-      @QueryParam("first_page") Integer firstPage,
-      @QueryParam("last_page") Integer lastPage,
-      @QueryParam("version") String version,
+      @QueryParam("quality") @Parameter(required = false) String quality,
+      @QueryParam("output_format") @Parameter(required = false) String outputFormat,
+      @QueryParam("crop") @Parameter(required = false) Boolean crop,
+      @QueryParam("shape") @Parameter(required = false) String shape,
+      @QueryParam("first_page") @Parameter(required = false) Integer firstPage,
+      @QueryParam("last_page") @Parameter(required = false) Integer lastPage,
+      @QueryParam("version") @Parameter(required = false) String version,
       @Context HttpServerResponse resp) {
     String ifNoneMatch = httpHeaders.getHeaderString(HttpHeaders.IF_NONE_MATCH);
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
@@ -195,18 +197,18 @@ public class PreviewResource {
     @APIResponse(responseCode = "404", description = "Node not found or not accessible")
   })
   public Uni<Void> thumbnailImage(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       @Context HttpHeaders httpHeaders,
       @PathParam("nodeId") String nodeId,
       @PathParam("area") String area,
-      @QueryParam("quality") String quality,
-      @QueryParam("output_format") String outputFormat,
-      @QueryParam("crop") Boolean crop,
-      @QueryParam("shape") String shape,
-      @QueryParam("first_page") Integer firstPage,
-      @QueryParam("last_page") Integer lastPage,
-      @QueryParam("version") String version,
+      @QueryParam("quality") @Parameter(required = false) String quality,
+      @QueryParam("output_format") @Parameter(required = false) String outputFormat,
+      @QueryParam("crop") @Parameter(required = false) Boolean crop,
+      @QueryParam("shape") @Parameter(required = false) String shape,
+      @QueryParam("first_page") @Parameter(required = false) Integer firstPage,
+      @QueryParam("last_page") @Parameter(required = false) Integer lastPage,
+      @QueryParam("version") @Parameter(required = false) String version,
       @Context HttpServerResponse resp) {
     String ifNoneMatch = httpHeaders.getHeaderString(HttpHeaders.IF_NONE_MATCH);
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
@@ -256,17 +258,17 @@ public class PreviewResource {
     @APIResponse(responseCode = "404", description = "Node not found or not accessible")
   })
   public Uni<Void> previewPdf(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       @Context HttpHeaders httpHeaders,
       @PathParam("nodeId") String nodeId,
-      @QueryParam("quality") String quality,
-      @QueryParam("output_format") String outputFormat,
-      @QueryParam("crop") Boolean crop,
-      @QueryParam("shape") String shape,
-      @QueryParam("first_page") Integer firstPage,
-      @QueryParam("last_page") Integer lastPage,
-      @QueryParam("version") String version,
+      @QueryParam("quality") @Parameter(required = false) String quality,
+      @QueryParam("output_format") @Parameter(required = false) String outputFormat,
+      @QueryParam("crop") @Parameter(required = false) Boolean crop,
+      @QueryParam("shape") @Parameter(required = false) String shape,
+      @QueryParam("first_page") @Parameter(required = false) Integer firstPage,
+      @QueryParam("last_page") @Parameter(required = false) Integer lastPage,
+      @QueryParam("version") @Parameter(required = false) String version,
       @Context HttpServerResponse resp) {
     String ifNoneMatch = httpHeaders.getHeaderString(HttpHeaders.IF_NONE_MATCH);
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
@@ -313,18 +315,18 @@ public class PreviewResource {
     @APIResponse(responseCode = "404", description = "Node not found or not accessible")
   })
   public Uni<Void> thumbnailPdf(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       @Context HttpHeaders httpHeaders,
       @PathParam("nodeId") String nodeId,
       @PathParam("area") String area,
-      @QueryParam("quality") String quality,
-      @QueryParam("output_format") String outputFormat,
-      @QueryParam("crop") Boolean crop,
-      @QueryParam("shape") String shape,
-      @QueryParam("first_page") Integer firstPage,
-      @QueryParam("last_page") Integer lastPage,
-      @QueryParam("version") String version,
+      @QueryParam("quality") @Parameter(required = false) String quality,
+      @QueryParam("output_format") @Parameter(required = false) String outputFormat,
+      @QueryParam("crop") @Parameter(required = false) Boolean crop,
+      @QueryParam("shape") @Parameter(required = false) String shape,
+      @QueryParam("first_page") @Parameter(required = false) Integer firstPage,
+      @QueryParam("last_page") @Parameter(required = false) Integer lastPage,
+      @QueryParam("version") @Parameter(required = false) String version,
       @Context HttpServerResponse resp) {
     String ifNoneMatch = httpHeaders.getHeaderString(HttpHeaders.IF_NONE_MATCH);
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
@@ -374,17 +376,17 @@ public class PreviewResource {
     @APIResponse(responseCode = "404", description = "Node not found or not accessible")
   })
   public Uni<Void> previewDocument(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       @Context HttpHeaders httpHeaders,
       @PathParam("nodeId") String nodeId,
-      @QueryParam("quality") String quality,
-      @QueryParam("output_format") String outputFormat,
-      @QueryParam("crop") Boolean crop,
-      @QueryParam("shape") String shape,
-      @QueryParam("first_page") Integer firstPage,
-      @QueryParam("last_page") Integer lastPage,
-      @QueryParam("version") String version,
+      @QueryParam("quality") @Parameter(required = false) String quality,
+      @QueryParam("output_format") @Parameter(required = false) String outputFormat,
+      @QueryParam("crop") @Parameter(required = false) Boolean crop,
+      @QueryParam("shape") @Parameter(required = false) String shape,
+      @QueryParam("first_page") @Parameter(required = false) Integer firstPage,
+      @QueryParam("last_page") @Parameter(required = false) Integer lastPage,
+      @QueryParam("version") @Parameter(required = false) String version,
       @Context HttpServerResponse resp) {
     String ifNoneMatch = httpHeaders.getHeaderString(HttpHeaders.IF_NONE_MATCH);
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
@@ -434,18 +436,18 @@ public class PreviewResource {
     @APIResponse(responseCode = "404", description = "Node not found or not accessible")
   })
   public Uni<Void> thumbnailDocument(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       @Context HttpHeaders httpHeaders,
       @PathParam("nodeId") String nodeId,
       @PathParam("area") String area,
-      @QueryParam("quality") String quality,
-      @QueryParam("output_format") String outputFormat,
-      @QueryParam("crop") Boolean crop,
-      @QueryParam("shape") String shape,
-      @QueryParam("first_page") Integer firstPage,
-      @QueryParam("last_page") Integer lastPage,
-      @QueryParam("version") String version,
+      @QueryParam("quality") @Parameter(required = false) String quality,
+      @QueryParam("output_format") @Parameter(required = false) String outputFormat,
+      @QueryParam("crop") @Parameter(required = false) Boolean crop,
+      @QueryParam("shape") @Parameter(required = false) String shape,
+      @QueryParam("first_page") @Parameter(required = false) Integer firstPage,
+      @QueryParam("last_page") @Parameter(required = false) Integer lastPage,
+      @QueryParam("version") @Parameter(required = false) String version,
       @Context HttpServerResponse resp) {
     String ifNoneMatch = httpHeaders.getHeaderString(HttpHeaders.IF_NONE_MATCH);
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
@@ -500,10 +502,16 @@ public class PreviewResource {
    */
   @GET
   @Path("/{unmatched: .*}")
-  @APIResponses({@APIResponse(responseCode = "400", description = "Missing or malformed input")})
+  @Operation(hidden = true)
+  @APIResponses({
+    @APIResponse(
+        responseCode = "200",
+        description = "Never returned: the route always answers 400"),
+    @APIResponse(responseCode = "400", description = "Missing or malformed input")
+  })
   public Response unmatchedPreviewPath(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       @PathParam("unmatched") String unmatched)
       throws BadRequestException {
     authenticator.requireUser(cookieHeader, zmToken);

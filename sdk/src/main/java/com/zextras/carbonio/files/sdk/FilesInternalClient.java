@@ -170,7 +170,7 @@ public final class FilesInternalClient {
    */
   public InternalNodeDto getNode(String userId, String nodeId) {
     try {
-      return nodeApi.internalAccountsUserIdNodesNodeIdGet(nodeId, userId, null);
+      return nodeApi.internalAccountsUserIdNodesNodeIdGet(nodeId, userId, null, null);
     } catch (ApiException e) {
       throw mapApiException("getNode", e);
     }
@@ -188,7 +188,7 @@ public final class FilesInternalClient {
    */
   public InternalNodeDto getNode(String userId, String nodeId, int version) {
     try {
-      return nodeApi.internalAccountsUserIdNodesNodeIdGet(nodeId, userId, version);
+      return nodeApi.internalAccountsUserIdNodesNodeIdGet(nodeId, userId, version, null);
     } catch (ApiException e) {
       throw mapApiException("getNode", e);
     }
@@ -205,7 +205,7 @@ public final class FilesInternalClient {
     CreateFolderRequest request =
         new CreateFolderRequest().userId(userId).destinationId(destinationId).name(name);
     try {
-      InternalNodeIdDto response = nodeApi.internalFoldersPost(request);
+      InternalNodeIdDto response = nodeApi.internalFoldersPost(request, null);
       return response.getNodeId();
     } catch (ApiException e) {
       throw mapApiException("createFolder", e);
@@ -222,7 +222,7 @@ public final class FilesInternalClient {
   public String createPublicLink(String userId, String nodeId) {
     CreatePublicLinkRequest request = new CreatePublicLinkRequest().userId(userId).nodeId(nodeId);
     try {
-      PublicLinkDto response = nodeApi.internalLinksPost(request);
+      PublicLinkDto response = nodeApi.internalLinksPost(request, null);
       return response.getUrl();
     } catch (ApiException e) {
       throw mapApiException("createPublicLink", e);
@@ -239,7 +239,7 @@ public final class FilesInternalClient {
   public boolean deleteAllNodesAndBlobs(String userId) {
     DeleteAllRequest request = new DeleteAllRequest().userId(userId);
     try {
-      DeleteAllResponse response = nodeApi.internalNodesDelete(request);
+      DeleteAllResponse response = nodeApi.internalNodesDelete(request, null);
       return Boolean.TRUE.equals(response.getDeleted());
     } catch (ApiException e) {
       throw mapApiException("deleteAllNodesAndBlobs", e);

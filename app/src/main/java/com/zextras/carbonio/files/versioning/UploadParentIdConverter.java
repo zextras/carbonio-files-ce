@@ -7,15 +7,10 @@ package com.zextras.carbonio.files.versioning;
 import com.zextras.carbonio.files.Constants.API.Headers;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.quarkus.extensions.apiversioning.ApiConverter;
-import com.zextras.carbonio.quarkus.extensions.apiversioning.ApiVersion;
 import com.zextras.carbonio.quarkus.extensions.apiversioning.RestRequest;
 import com.zextras.carbonio.quarkus.extensions.apiversioning.RestRequestConverter;
 
-@ApiConverter(
-    since = ApiVersion.CURRENT,
-    operation = "com.zextras.carbonio.files.rest.resources.BlobResource#upload",
-    description =
-        "POST /upload requires the ParentId header: older clients omitted it for the root")
+@ApiConverter(operation = "com.zextras.carbonio.files.rest.resources.BlobResource#upload")
 public class UploadParentIdConverter implements RestRequestConverter {
 
   @Override

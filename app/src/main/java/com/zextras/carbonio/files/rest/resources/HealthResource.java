@@ -18,6 +18,8 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.List;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 
@@ -61,7 +63,13 @@ public class HealthResource {
   @Produces(MediaType.APPLICATION_JSON)
   @Blocking
   @APIResponses({
-    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(
+        responseCode = "200",
+        description = "Success",
+        content =
+            @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = HealthResponse.class))),
     @APIResponse(responseCode = "500", description = "A required dependency is not ready")
   })
   public Response health() {

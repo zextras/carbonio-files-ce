@@ -42,6 +42,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response.Status;
 import java.util.Optional;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.jboss.resteasy.reactive.RestResponse;
@@ -115,7 +116,7 @@ public class InternalNodeResource {
   public RestResponse<InternalNodeDto> getNode(
       @PathParam("userId") String userId,
       @PathParam("nodeId") String nodeId,
-      @QueryParam("version") Integer version) {
+      @QueryParam("version") @Parameter(required = false) Integer version) {
     Optional<Node> optNode = nodeRepository.getNode(nodeId);
     if (optNode.isEmpty()) {
       return RestResponse.status(Status.NOT_FOUND);
@@ -288,7 +289,10 @@ public class InternalNodeResource {
   @Path("/nodes")
   @Consumes(MediaType.APPLICATION_JSON)
   @Blocking
-  @APIResponses({@APIResponse(responseCode = "200", description = "Success")})
+  @APIResponses({
+    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(responseCode = "400", description = "Missing or malformed request body")
+  })
   public RestResponse<DeleteAllResponse> deleteAllNodesAndBlobs(DeleteAllRequest request) {
     nodeCreationHelper.deleteAllNodesAndBlobsForUser(request.userId());
     return RestResponse.ok(new DeleteAllResponse(true));

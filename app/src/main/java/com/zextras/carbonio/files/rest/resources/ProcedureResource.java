@@ -30,6 +30,9 @@ import jakarta.ws.rs.core.Response;
 import java.io.InputStream;
 import java.text.MessageFormat;
 import java.util.NoSuchElementException;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.jboss.resteasy.reactive.server.Cancellable;
@@ -89,7 +92,13 @@ public class ProcedureResource {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   @APIResponses({
-    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(
+        responseCode = "200",
+        description = "Success",
+        content =
+            @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = UploadAttachmentResponse.class))),
     @APIResponse(responseCode = "400", description = "Missing or malformed input"),
     @APIResponse(
         responseCode = "404",
@@ -100,8 +109,8 @@ public class ProcedureResource {
     @APIResponse(responseCode = "415", description = "Unsupported media type")
   })
   public Uni<Response> uploadTo(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       InputStream requestBody) {
 
     return Uni.createFrom()

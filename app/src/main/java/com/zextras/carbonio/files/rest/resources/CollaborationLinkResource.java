@@ -21,6 +21,7 @@ import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 import java.text.MessageFormat;
 import java.util.NoSuchElementException;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.slf4j.Logger;
@@ -73,8 +74,8 @@ public class CollaborationLinkResource {
         description = "Node, link or version not found or not accessible")
   })
   public Response invite(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       @PathParam("invitationId") String invitationId) {
 
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);

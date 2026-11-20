@@ -4,7 +4,6 @@
 
 package com.zextras.carbonio.files.graphql.api;
 
-import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.ACCOUNT_NOT_FOUND;
 import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.FILE_VERSION_NOT_FOUND;
 import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.LINK_LIMIT_EXCEEDED;
 import static com.zextras.carbonio.files.graphql.errors.ErrorCodeNames.LINK_NOT_FOUND;
@@ -93,6 +92,7 @@ public class LinkApi {
         .collect(Collectors.toList());
   }
 
+  @GraphqlErrors({NODE_NOT_FOUND, FILE_VERSION_NOT_FOUND})
   @Name("node")
   @NonNull
   public NodeModel node(@Source LinkModel link) throws FilesGraphQLException {
@@ -107,7 +107,7 @@ public class LinkApi {
   }
 
   @Query("getLinks")
-  @GraphqlErrors({UNAUTHENTICATED, ACCOUNT_NOT_FOUND, NODE_NOT_FOUND, FILE_VERSION_NOT_FOUND})
+  @GraphqlErrors({UNAUTHENTICATED})
   public @NonNull List<LinkModel> getLinks(@Name("node_id") @Id @NonNull String nodeId)
       throws FilesGraphQLException {
     validator.checkNodeId(nodeId).validate();
@@ -126,14 +126,7 @@ public class LinkApi {
   }
 
   @Mutation("createLink")
-  @GraphqlErrors({
-    UNAUTHENTICATED,
-    LINK_LIMIT_EXCEEDED,
-    NODE_WRITE_ERROR,
-    ACCOUNT_NOT_FOUND,
-    NODE_NOT_FOUND,
-    FILE_VERSION_NOT_FOUND
-  })
+  @GraphqlErrors({UNAUTHENTICATED, LINK_LIMIT_EXCEEDED, NODE_WRITE_ERROR})
   public @NonNull LinkModel createLink(
       @Name("node_id") @Id @NonNull String nodeId,
       @Name("expires_at") Long expiresAt,
@@ -168,13 +161,7 @@ public class LinkApi {
   }
 
   @Mutation("updateLink")
-  @GraphqlErrors({
-    UNAUTHENTICATED,
-    LINK_NOT_FOUND,
-    ACCOUNT_NOT_FOUND,
-    NODE_NOT_FOUND,
-    FILE_VERSION_NOT_FOUND
-  })
+  @GraphqlErrors({UNAUTHENTICATED, LINK_NOT_FOUND, NODE_NOT_FOUND})
   public LinkModel updateLink(
       @Name("link_id") @Id @NonNull String linkId,
       @Name("expires_at") Long expiresAt,

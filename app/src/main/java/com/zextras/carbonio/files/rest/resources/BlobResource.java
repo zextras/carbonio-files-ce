@@ -44,6 +44,7 @@ import java.util.Optional;
 import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.jboss.resteasy.reactive.server.Cancellable;
@@ -126,7 +127,13 @@ public class BlobResource {
   @Consumes(MediaType.WILDCARD)
   @Produces(MediaType.APPLICATION_JSON)
   @APIResponses({
-    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(
+        responseCode = "200",
+        description = "Success",
+        content =
+            @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = UploadVersionResponse.class))),
     @APIResponse(
         responseCode = "400",
         description =
@@ -139,12 +146,12 @@ public class BlobResource {
         description = "Payload or file size exceeds the configured limit")
   })
   public Uni<Response> upload(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
-      @HeaderParam(Headers.UPLOAD_FILENAME) String encodedFilename,
-      @HeaderParam(Headers.UPLOAD_DESCRIPTION) String description,
-      @HeaderParam(Headers.UPLOAD_PARENT_ID) String parentId,
-      @HeaderParam(HttpHeaders.CONTENT_LENGTH) Long contentLength,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
+      @HeaderParam(Headers.UPLOAD_FILENAME) @Parameter(required = true) String encodedFilename,
+      @HeaderParam(Headers.UPLOAD_DESCRIPTION) @Parameter(required = false) String description,
+      @HeaderParam(Headers.UPLOAD_PARENT_ID) @Parameter(required = true) String parentId,
+      @HeaderParam(HttpHeaders.CONTENT_LENGTH) @Parameter(required = false) Long contentLength,
       InputStream body) {
 
     // Offloaded to the transfer pool: the whole upload (auth + size check + streamed body consume +
@@ -175,7 +182,13 @@ public class BlobResource {
   @Consumes(MediaType.WILDCARD)
   @Produces(MediaType.APPLICATION_JSON)
   @APIResponses({
-    @APIResponse(responseCode = "200", description = "Success"),
+    @APIResponse(
+        responseCode = "200",
+        description = "Success",
+        content =
+            @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = UploadVersionResponse.class))),
     @APIResponse(responseCode = "400", description = "Missing or malformed input"),
     @APIResponse(
         responseCode = "404",
@@ -187,12 +200,13 @@ public class BlobResource {
     @APIResponse(responseCode = "423", description = "Overwrite of the node already in progress")
   })
   public Uni<Response> uploadVersion(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
-      @HeaderParam(Headers.UPLOAD_NODE_ID) String nodeId,
-      @HeaderParam(Headers.UPLOAD_FILENAME) String encodedFilename,
-      @HeaderParam(Headers.UPLOAD_OVERWRITE_VERSION) String overwriteHeader,
-      @HeaderParam(HttpHeaders.CONTENT_LENGTH) Long contentLength,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
+      @HeaderParam(Headers.UPLOAD_NODE_ID) @Parameter(required = true) String nodeId,
+      @HeaderParam(Headers.UPLOAD_FILENAME) @Parameter(required = true) String encodedFilename,
+      @HeaderParam(Headers.UPLOAD_OVERWRITE_VERSION) @Parameter(required = false)
+          String overwriteHeader,
+      @HeaderParam(HttpHeaders.CONTENT_LENGTH) @Parameter(required = false) Long contentLength,
       InputStream body) {
 
     return Uni.createFrom()
@@ -288,8 +302,8 @@ public class BlobResource {
         description = "Payload or file size exceeds the configured limit")
   })
   public Uni<Void> download(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       @PathParam("nodeId") String nodeId,
       @Context HttpServerResponse resp) {
     return doDownload(cookieHeader, zmToken, nodeId, null, resp);
@@ -312,8 +326,8 @@ public class BlobResource {
         description = "Payload or file size exceeds the configured limit")
   })
   public Uni<Void> downloadVersion(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       @PathParam("nodeId") String nodeId,
       @PathParam("version") int version,
       @Context HttpServerResponse resp) {
@@ -351,8 +365,8 @@ public class BlobResource {
         description = "Payload or file size exceeds the configured limit")
   })
   public Response checkDownload(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       @PathParam("nodeId") String nodeId) {
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
     Optional<Node> node = blobService.checkDownloadFileById(nodeId, requester);
@@ -384,8 +398,8 @@ public class BlobResource {
     @APIResponse(responseCode = "415", description = "Unsupported media type")
   })
   public Uni<Void> downloadMultiple(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       InputStream requestBody,
       @Context HttpServerResponse resp) {
     // @Blocking (worker thread): auth + the ZIP plan (buildZipPlan tree walk, EntityManager active)
@@ -429,8 +443,8 @@ public class BlobResource {
     @APIResponse(responseCode = "415", description = "Unsupported media type")
   })
   public Response checkDownloadMultiple(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       InputStream requestBody) {
     // See downloadMultiple's javadoc comment: bounded raw-InputStream read (legacy 1MB cap),
     // before authentication, in place of trusting Content-Length.
