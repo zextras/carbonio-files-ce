@@ -4,11 +4,12 @@
 #
 # API guard: a change of the generated API contract files must come with a new API change entry.
 #
-#   1. Registry rule: when a contract file differs between the base and HEAD, the diff of the
-#      registry file(s) (--registry) between the same two points must ADD at least one line
-#      starting with `@ApiChange` (optionally fully qualified). Comments and strings do not count. A contract file
+#   1. Registry rule: when a contract file differs between the base and HEAD, the registry file(s)
+#      (--registry) at HEAD must contain an @ApiChange whose since is ApiVersion.CURRENT, CURRENT
+#      or "current" (the annotation may span lines; `//` comment lines are ignored). A contract file
 #      that does not exist at the base (its first introduction) is not a change; a deleted one is.
-#   2. Main builds (--main-build): same rule on HEAD^1..HEAD, reported as a warning, never a failure.
+#   2. Main builds (--main-build): contract changed in HEAD^1..HEAD and no CURRENT entry at HEAD,
+#      reported as a warning, never a failure.
 #   3. Support window (--window-months): prints ONE warning listing vX.Y.Z tags merged into the
 #      default branch that are older than the window and still at or above the oldest supported
 #      version. Computed only when --window-months is passed. Never fails.
@@ -142,29 +143,28 @@ diff_quiet() {
     fi
 }
 
-# registry_added <base>: number of added registry lines that start an @ApiChange annotation
-registry_added() {
-    local count
-    if [ "$STAGED" -eq 1 ]; then
-        count=$(git diff --cached -U0 --no-color --no-ext-diff "$1" -- "${REGISTRIES[@]}" | registry_filter || true)
-    else
-        count=$(git diff -U0 --no-color --no-ext-diff "$1" HEAD -- "${REGISTRIES[@]}" | registry_filter || true)
-    fi
-    echo "${count:-0}"
-}
-
-registry_filter() {
-    grep -E '^\+' | grep -vE '^\+\+\+' \
-        | grep -cE '^\+[[:space:]]*@([A-Za-z_$][A-Za-z0-9_$]*\.)*ApiChange\b' || true
+# registry_has_current: succeeds when a registry file (at HEAD, or in the index with --staged) holds an
+# @ApiChange whose since is ApiVersion.CURRENT, CURRENT or "current"; comment lines are ignored
+registry_has_current() {
+    local reg rev
+    rev="$NEW_REV"
+    for reg in "${REGISTRIES[@]}"; do
+        if git show "$rev:$reg" \
+            | grep -vE '^[[:space:]]*(//|/\*|\*)' | tr '\n' ' ' \
+            | grep -qE 'since[[:space:]]*=[[:space:]]*(([A-Za-z_$][A-Za-z0-9_$]*\.)*ApiVersion\.CURRENT\b|CURRENT\b|"current")'; then
+            return 0
+        fi
+    done
+    return 1
 }
 
 report_violation() {
     local changed=("$@") path reg
     echo ""
     if [ "$MAIN_BUILD" -eq 1 ]; then
-        echo "$TAG WARNING: the last commit on the default branch changed contract files without adding an @ApiChange line to the registry:"
+        echo "$TAG WARNING: the last commit on the default branch changed contract files and the registry has no @ApiChange with since = CURRENT:"
     else
-        echo "$TAG FATAL: contract files changed but no @ApiChange line was added to the registry:"
+        echo "$TAG FATAL: contract files changed but the registry has no @ApiChange entry with since = CURRENT for this version:"
     fi
     for path in "${changed[@]}"; do
         echo "$TAG   changed contract file: $path"
@@ -181,7 +181,7 @@ report_violation() {
 }
 
 contract_check() {
-    local base ref path count reg
+    local base ref path reg
     local changed=()
 
     if [ "$MAIN_BUILD" -eq 1 ]; then
@@ -223,9 +223,8 @@ contract_check() {
         fi
     done
 
-    count=$(registry_added "$base")
-    if [ "$count" -gt 0 ]; then
-        echo "$TAG Contract changed (${changed[*]}) and $count @ApiChange line(s) added"
+    if registry_has_current; then
+        echo "$TAG Contract changed (${changed[*]}) and the registry has an @ApiChange entry with since = CURRENT"
         return 0
     fi
 
