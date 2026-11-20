@@ -20,10 +20,10 @@ for f in "$@"; do [ -f "$f" ] || { echo "not a file: $f" >&2; exit 2; }; done
 status=0
 for f in "$@"; do
     sed -E -z -i \
-        -e 's/(\bsince[[:space:]]*=)[[:space:]]*\n[[:space:]]*/\1 /g' \
-        -e "s/(\bsince[[:space:]]*=[[:space:]]*)([A-Za-z_\$][A-Za-z0-9_\$]*\.)*CURRENT\b/\1\"$version\"/g" \
-        -e "s/(\bsince[[:space:]]*=[[:space:]]*)\"current\"/\1\"$version\"/g" "$f"
-    bad=$(grep -nE '\bsince[[:space:]]*=' "$f" | grep -vE 'since[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"' || true)
+        -e 's/([(,][[:space:]]*since[[:space:]]*=)[[:space:]]*\n[[:space:]]*/\1 /g' \
+        -e "s/([(,][[:space:]]*since[[:space:]]*=[[:space:]]*)([A-Za-z_\$][A-Za-z0-9_\$]*\.)*CURRENT\b/\1\"$version\"/g" \
+        -e "s/([(,][[:space:]]*since[[:space:]]*=[[:space:]]*)\"current\"/\1\"$version\"/g" "$f"
+    bad=$(grep -nE '(^|[(,])[[:space:]]*since[[:space:]]*(=|$)' "$f" | grep -vE 'since[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"' || true)
     if [ -n "$bad" ]; then
         echo "$f: since is not a quoted X.Y.Z literal:" >&2
         echo "$bad" >&2

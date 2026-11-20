@@ -19,8 +19,7 @@
 # compared instead of HEAD (normal-stage pre-commit hook during `git commit`).
 #
 # Usage: api-guard.sh [options]
-#   --registry <path>                Registry file holding the @ApiChange lines, repeatable (required
-#                                    unless --skip-converter-check)
+#   --registry <path>                Registry file holding the @ApiChange lines, repeatable (required)
 #   --contract <path>                Contract file, repeatable
 #                                    (default: app/docs/schema.graphql, app/docs/openapi.json)
 #   --base <ref>                     Compare against this ref (default: merge-base with the base branch)
@@ -30,7 +29,6 @@
 #   --branch <name>                  Branch under test; release/* skips every check (default: current branch)
 #   --staged                         Compare the index instead of HEAD
 #   --main-build                     Compare HEAD^1..HEAD and only warn (builds of the default branch)
-#   --skip-converter-check           Skip the registry rule
 #   --oldest-supported-file <file>   File holding the oldest supported version (window warning)
 #   --oldest-supported-key <key>     Key in that file (default: quarkus.carbonio-api-versioning.oldest-supported)
 #   --window-months <n>              Support window length; the window warning runs only when this is passed
@@ -51,7 +49,6 @@ OLDEST_FILE=""
 OLDEST_KEY="quarkus.carbonio-api-versioning.oldest-supported"
 WINDOW_MONTHS=""
 BRANCH=""
-SKIP_CONVERTER=0
 STAGED=0
 MAIN_BUILD=0
 NEW_REV="HEAD"
@@ -73,7 +70,6 @@ need_value() {
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --skip-converter-check) SKIP_CONVERTER=1; shift; continue ;;
         --staged) STAGED=1; shift; continue ;;
         --main-build) MAIN_BUILD=1; shift; continue ;;
         -h | --help) sed -n '2,/^set -Eeuo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -104,7 +100,7 @@ else
     NOW=$(date -u +%s)
 fi
 [ "$STAGED" -eq 0 ] || [ "$MAIN_BUILD" -eq 0 ] || die "--staged and --main-build cannot be combined"
-[ "$SKIP_CONVERTER" -eq 1 ] || [ "${#REGISTRIES[@]}" -gt 0 ] || die "--registry is required (path of the file holding the @ApiChange lines)"
+[ "${#REGISTRIES[@]}" -gt 0 ] || die "--registry is required (path of the file holding the @ApiChange lines)"
 
 git rev-parse --git-dir > /dev/null 2>&1 || die "not inside a git working tree"
 git rev-parse --verify -q HEAD > /dev/null || die "repository has no commits"
@@ -144,14 +140,15 @@ diff_quiet() {
 }
 
 # registry_has_current: succeeds when a registry file (at HEAD, or in the index with --staged) holds an
-# @ApiChange whose since is ApiVersion.CURRENT, CURRENT or "current"; comment lines are ignored
+# @ApiChange whose since is ApiVersion.CURRENT, CURRENT or "current"; comments are ignored and since must
+# follow a `(` or `,`, so the word inside a string does not count
 registry_has_current() {
     local reg rev
     rev="$NEW_REV"
     for reg in "${REGISTRIES[@]}"; do
         if git show "$rev:$reg" \
-            | grep -vE '^[[:space:]]*(//|/\*|\*)' | tr '\n' ' ' \
-            | grep -qE 'since[[:space:]]*=[[:space:]]*(([A-Za-z_$][A-Za-z0-9_$]*\.)*ApiVersion\.CURRENT\b|CURRENT\b|"current")'; then
+            | grep -vE '^[[:space:]]*(//|/\*|\*)' | sed -E 's#(^|[[:space:]])//.*$##' | tr '\n' ' ' \
+            | grep -qE '[(,][[:space:]]*since[[:space:]]*=[[:space:]]*(([A-Za-z_$][A-Za-z0-9_$]*\.)*ApiVersion\.CURRENT\b|CURRENT\b|"current")'; then
             return 0
         fi
     done
@@ -181,7 +178,7 @@ report_violation() {
 }
 
 contract_check() {
-    local base ref path reg
+    local base ref path reg merge_head
     local changed=()
 
     if [ "$MAIN_BUILD" -eq 1 ]; then
@@ -194,14 +191,29 @@ contract_check() {
     else
         ref=$(resolve_branch_ref "$BASE_BRANCH")
         [ -n "$ref" ] || die "no origin/$BASE_BRANCH or $BASE_BRANCH to compare against (fetch it, or pass --base)"
-        base=$(git merge-base HEAD "$ref" 2> /dev/null) \
-            || die "no merge-base between HEAD and $ref (shallow clone? fetch more history)"
+        merge_head=""
+        if [ "$STAGED" -eq 1 ]; then
+            merge_head=$(git rev-parse -q --verify MERGE_HEAD 2> /dev/null || true)
+        fi
+        if [ -n "$merge_head" ]; then
+            base=$(git merge-base "$ref" HEAD "$merge_head" 2> /dev/null) \
+                || die "no merge-base between $ref and the merge being committed"
+        else
+            base=$(git merge-base HEAD "$ref" 2> /dev/null) \
+                || die "no merge-base between HEAD and $ref (shallow clone? fetch more history)"
+        fi
     fi
     echo "$TAG Comparing contract files against ${base:0:12}"
 
+    for reg in "${REGISTRIES[@]}"; do
+        if ! git rev-parse -q --verify "$NEW_REV:$reg" > /dev/null 2>&1; then
+            die "registry file $reg does not exist at ${NEW_REV:-the index}"
+        fi
+    done
+
     for path in "${CONTRACTS[@]}"; do
-        if ! git cat-file -e "$base:$path" 2> /dev/null; then
-            if git cat-file -e "$NEW_REV:$path" 2> /dev/null; then
+        if ! git rev-parse -q --verify "$base:$path" > /dev/null 2>&1; then
+            if git rev-parse -q --verify "$NEW_REV:$path" > /dev/null 2>&1; then
                 echo "$TAG $path is new in this branch: first introduction is not a contract change"
             fi
             continue
@@ -216,12 +228,6 @@ contract_check() {
         echo "$TAG No contract change needing an @ApiChange line"
         return 0
     fi
-
-    for reg in "${REGISTRIES[@]}"; do
-        if ! git cat-file -e "${NEW_REV:-}:$reg" 2> /dev/null; then
-            die "registry file $reg does not exist at ${NEW_REV:-the index}"
-        fi
-    done
 
     if registry_has_current; then
         echo "$TAG Contract changed (${changed[*]}) and the registry has an @ApiChange entry with since = CURRENT"
@@ -278,8 +284,6 @@ window_warning() {
     fi
 }
 
-if [ "$SKIP_CONVERTER" -eq 0 ]; then
-    contract_check
-fi
+contract_check
 window_warning
 exit "$VIOLATION"
