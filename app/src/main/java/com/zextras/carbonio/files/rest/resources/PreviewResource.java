@@ -503,12 +503,7 @@ public class PreviewResource {
   @GET
   @Path("/{unmatched: .*}")
   @Operation(hidden = true)
-  @APIResponses({
-    @APIResponse(
-        responseCode = "200",
-        description = "Never returned: the route always answers 400"),
-    @APIResponse(responseCode = "400", description = "Missing or malformed input")
-  })
+  @APIResponses({@APIResponse(responseCode = "400", description = "Missing or malformed input")})
   public Response unmatchedPreviewPath(
       @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,

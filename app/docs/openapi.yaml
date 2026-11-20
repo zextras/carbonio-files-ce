@@ -133,6 +133,15 @@ components:
           type: string
         current:
           type: string
+  parameters:
+    ApiVersionHeader:
+      in: header
+      name: X-FILES-API-VERSION
+      required: false
+      description: "The API version the client speaks: a semantic version or current.\
+        \ Missing means current. The response repeats the version it was served at."
+      schema:
+        type: string
 paths:
   /download-multiple:
     post:
@@ -145,14 +154,6 @@ paths:
       - required: false
         name: ZM_AUTH_TOKEN
         in: cookie
-        schema:
-          type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
         schema:
           type: string
       requestBody:
@@ -203,14 +204,6 @@ paths:
         in: cookie
         schema:
           type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
       requestBody:
         content:
           application/json:
@@ -257,14 +250,6 @@ paths:
       - required: false
         name: ZM_AUTH_TOKEN
         in: cookie
-        schema:
-          type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
         schema:
           type: string
       responses:
@@ -315,14 +300,6 @@ paths:
         in: cookie
         schema:
           type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
       responses:
         "401":
           description: Missing or invalid authentication cookie
@@ -370,14 +347,6 @@ paths:
       - required: false
         name: ZM_AUTH_TOKEN
         in: cookie
-        schema:
-          type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
         schema:
           type: string
       responses:
@@ -431,15 +400,6 @@ paths:
       summary: Health
       tags:
       - Health Resource
-      parameters:
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
   /health/live:
     get:
       responses:
@@ -457,15 +417,6 @@ paths:
       summary: Health Live
       tags:
       - Health Resource
-      parameters:
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
   /health/ready:
     get:
       responses:
@@ -483,15 +434,6 @@ paths:
       summary: Health Ready
       tags:
       - Health Resource
-      parameters:
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
   /internal/accounts/{userId}/download/{nodeId}:
     get:
       parameters:
@@ -503,14 +445,6 @@ paths:
       - name: userId
         in: path
         required: true
-        schema:
-          type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
         schema:
           type: string
       responses:
@@ -558,14 +492,6 @@ paths:
         schema:
           type: integer
           format: int32
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
       responses:
         "503":
           description: "Transfer pool saturated, retry later"
@@ -611,14 +537,6 @@ paths:
         schema:
           type: integer
           format: int32
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
       responses:
         "200":
           description: Success
@@ -669,14 +587,6 @@ paths:
       - required: false
         name: ParentId
         in: header
-        schema:
-          type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
         schema:
           type: string
       requestBody:
@@ -732,14 +642,6 @@ paths:
       - required: false
         name: OverwriteVersion
         in: header
-        schema:
-          type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
         schema:
           type: string
       requestBody:
@@ -799,15 +701,6 @@ paths:
       summary: Create Folder
       tags:
       - Internal Node Resource
-      parameters:
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
   /internal/links:
     post:
       requestBody:
@@ -837,15 +730,6 @@ paths:
       summary: Create Public Link
       tags:
       - Internal Node Resource
-      parameters:
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
   /internal/nodes:
     delete:
       requestBody:
@@ -869,15 +753,6 @@ paths:
       summary: Delete All Nodes And Blobs
       tags:
       - Internal Node Resource
-      parameters:
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
   /invite/{invitationId}:
     get:
       parameters:
@@ -895,14 +770,6 @@ paths:
       - required: false
         name: ZM_AUTH_TOKEN
         in: cookie
-        schema:
-          type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
         schema:
           type: string
       responses:
@@ -932,14 +799,6 @@ paths:
       - name: publicLinkId
         in: path
         required: true
-        schema:
-          type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
         schema:
           type: string
       responses:
@@ -1021,14 +880,6 @@ paths:
       - required: false
         name: ZM_AUTH_TOKEN
         in: cookie
-        schema:
-          type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
         schema:
           type: string
       responses:
@@ -1118,14 +969,6 @@ paths:
         in: cookie
         schema:
           type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
       responses:
         "401":
           description: Missing or invalid authentication cookie
@@ -1211,14 +1054,6 @@ paths:
       - required: false
         name: ZM_AUTH_TOKEN
         in: cookie
-        schema:
-          type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
         schema:
           type: string
       responses:
@@ -1308,14 +1143,6 @@ paths:
         in: cookie
         schema:
           type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
       responses:
         "401":
           description: Missing or invalid authentication cookie
@@ -1395,14 +1222,6 @@ paths:
       - required: false
         name: ZM_AUTH_TOKEN
         in: cookie
-        schema:
-          type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
         schema:
           type: string
       responses:
@@ -1492,14 +1311,6 @@ paths:
         in: cookie
         schema:
           type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
       responses:
         "401":
           description: Missing or invalid authentication cookie
@@ -1559,15 +1370,6 @@ paths:
       summary: Download Public Multiple
       tags:
       - Public Blob Resource
-      parameters:
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
   /public/download-multiple/check:
     post:
       requestBody:
@@ -1596,15 +1398,6 @@ paths:
       summary: Check Download Public Multiple
       tags:
       - Public Blob Resource
-      parameters:
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
   /public/download/{nodeId}:
     get:
       parameters:
@@ -1621,14 +1414,6 @@ paths:
       - required: true
         name: node_link_id
         in: query
-        schema:
-          type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
         schema:
           type: string
       responses:
@@ -1673,14 +1458,6 @@ paths:
         in: query
         schema:
           type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
       responses:
         "503":
           description: "Transfer pool saturated, retry later"
@@ -1708,14 +1485,6 @@ paths:
       - name: publicLinkId
         in: path
         required: true
-        schema:
-          type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
         schema:
           type: string
       responses:
@@ -1778,14 +1547,6 @@ paths:
         in: cookie
         schema:
           type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
       requestBody:
         content:
           '*/*':
@@ -1830,14 +1591,6 @@ paths:
       - required: false
         name: ZM_AUTH_TOKEN
         in: cookie
-        schema:
-          type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
         schema:
           type: string
       requestBody:
@@ -1908,14 +1661,6 @@ paths:
         in: cookie
         schema:
           type: string
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
       requestBody:
         content:
           '*/*':
@@ -1980,15 +1725,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiVersionError"
-      parameters:
-      - in: header
-        name: X-FILES-API-VERSION
-        required: false
-        description: "The API version the client speaks: a semantic version or current.\
-          \ Missing means current. The response repeats the version it was served\
-          \ at."
-        schema:
-          type: string
 info:
   title: carbonio-files-ce-app API
   version: unversioned

@@ -197,6 +197,17 @@
           }
         }
       }
+    },
+    "parameters" : {
+      "ApiVersionHeader" : {
+        "in" : "header",
+        "name" : "X-FILES-API-VERSION",
+        "required" : false,
+        "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
+        "schema" : {
+          "type" : "string"
+        }
+      }
     }
   },
   "paths" : {
@@ -213,14 +224,6 @@
           "required" : false,
           "name" : "ZM_AUTH_TOKEN",
           "in" : "cookie",
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
           "schema" : {
             "type" : "string"
           }
@@ -293,14 +296,6 @@
           "schema" : {
             "type" : "string"
           }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
         } ],
         "requestBody" : {
           "content" : {
@@ -366,14 +361,6 @@
           "required" : false,
           "name" : "ZM_AUTH_TOKEN",
           "in" : "cookie",
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
           "schema" : {
             "type" : "string"
           }
@@ -446,14 +433,6 @@
           "schema" : {
             "type" : "string"
           }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
         } ],
         "responses" : {
           "401" : {
@@ -520,14 +499,6 @@
           "required" : false,
           "name" : "ZM_AUTH_TOKEN",
           "in" : "cookie",
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
           "schema" : {
             "type" : "string"
           }
@@ -605,16 +576,7 @@
           }
         },
         "summary" : "Health",
-        "tags" : [ "Health Resource" ],
-        "parameters" : [ {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
-        } ]
+        "tags" : [ "Health Resource" ]
       }
     },
     "/health/live" : {
@@ -638,16 +600,7 @@
           }
         },
         "summary" : "Health Live",
-        "tags" : [ "Health Resource" ],
-        "parameters" : [ {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
-        } ]
+        "tags" : [ "Health Resource" ]
       }
     },
     "/health/ready" : {
@@ -671,16 +624,7 @@
           }
         },
         "summary" : "Health Ready",
-        "tags" : [ "Health Resource" ],
-        "parameters" : [ {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
-        } ]
+        "tags" : [ "Health Resource" ]
       }
     },
     "/internal/accounts/{userId}/download/{nodeId}" : {
@@ -696,14 +640,6 @@
           "name" : "userId",
           "in" : "path",
           "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
           "schema" : {
             "type" : "string"
           }
@@ -771,14 +707,6 @@
             "type" : "integer",
             "format" : "int32"
           }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
         } ],
         "responses" : {
           "503" : {
@@ -842,14 +770,6 @@
           "schema" : {
             "type" : "integer",
             "format" : "int32"
-          }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
           }
         } ],
         "responses" : {
@@ -922,14 +842,6 @@
           "required" : false,
           "name" : "ParentId",
           "in" : "header",
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
           "schema" : {
             "type" : "string"
           }
@@ -1008,14 +920,6 @@
           "required" : false,
           "name" : "OverwriteVersion",
           "in" : "header",
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
           "schema" : {
             "type" : "string"
           }
@@ -1102,16 +1006,7 @@
           }
         },
         "summary" : "Create Folder",
-        "tags" : [ "Internal Node Resource" ],
-        "parameters" : [ {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
-        } ]
+        "tags" : [ "Internal Node Resource" ]
       }
     },
     "/internal/links" : {
@@ -1154,16 +1049,7 @@
           }
         },
         "summary" : "Create Public Link",
-        "tags" : [ "Internal Node Resource" ],
-        "parameters" : [ {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
-        } ]
+        "tags" : [ "Internal Node Resource" ]
       }
     },
     "/internal/nodes" : {
@@ -1197,16 +1083,7 @@
           }
         },
         "summary" : "Delete All Nodes And Blobs",
-        "tags" : [ "Internal Node Resource" ],
-        "parameters" : [ {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
-        } ]
+        "tags" : [ "Internal Node Resource" ]
       }
     },
     "/invite/{invitationId}" : {
@@ -1230,14 +1107,6 @@
           "required" : false,
           "name" : "ZM_AUTH_TOKEN",
           "in" : "cookie",
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
           "schema" : {
             "type" : "string"
           }
@@ -1279,14 +1148,6 @@
           "name" : "publicLinkId",
           "in" : "path",
           "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
           "schema" : {
             "type" : "string"
           }
@@ -1401,14 +1262,6 @@
           "required" : false,
           "name" : "ZM_AUTH_TOKEN",
           "in" : "cookie",
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
           "schema" : {
             "type" : "string"
           }
@@ -1533,14 +1386,6 @@
           "schema" : {
             "type" : "string"
           }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
         } ],
         "responses" : {
           "401" : {
@@ -1659,14 +1504,6 @@
           "required" : false,
           "name" : "ZM_AUTH_TOKEN",
           "in" : "cookie",
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
           "schema" : {
             "type" : "string"
           }
@@ -1791,14 +1628,6 @@
           "schema" : {
             "type" : "string"
           }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
         } ],
         "responses" : {
           "401" : {
@@ -1909,14 +1738,6 @@
           "required" : false,
           "name" : "ZM_AUTH_TOKEN",
           "in" : "cookie",
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
           "schema" : {
             "type" : "string"
           }
@@ -2041,14 +1862,6 @@
           "schema" : {
             "type" : "string"
           }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
         } ],
         "responses" : {
           "401" : {
@@ -2133,16 +1946,7 @@
           }
         },
         "summary" : "Download Public Multiple",
-        "tags" : [ "Public Blob Resource" ],
-        "parameters" : [ {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
-        } ]
+        "tags" : [ "Public Blob Resource" ]
       }
     },
     "/public/download-multiple/check" : {
@@ -2182,16 +1986,7 @@
           }
         },
         "summary" : "Check Download Public Multiple",
-        "tags" : [ "Public Blob Resource" ],
-        "parameters" : [ {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
-        } ]
+        "tags" : [ "Public Blob Resource" ]
       }
     },
     "/public/download/{nodeId}" : {
@@ -2214,14 +2009,6 @@
           "required" : true,
           "name" : "node_link_id",
           "in" : "query",
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
           "schema" : {
             "type" : "string"
           }
@@ -2285,14 +2072,6 @@
           "schema" : {
             "type" : "string"
           }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
         } ],
         "responses" : {
           "503" : {
@@ -2331,14 +2110,6 @@
           "name" : "publicLinkId",
           "in" : "path",
           "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
           "schema" : {
             "type" : "string"
           }
@@ -2427,14 +2198,6 @@
           "schema" : {
             "type" : "string"
           }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
         } ],
         "requestBody" : {
           "content" : {
@@ -2497,14 +2260,6 @@
           "required" : false,
           "name" : "ZM_AUTH_TOKEN",
           "in" : "cookie",
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
           "schema" : {
             "type" : "string"
           }
@@ -2605,14 +2360,6 @@
           "schema" : {
             "type" : "string"
           }
-        }, {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
         } ],
         "requestBody" : {
           "content" : {
@@ -2709,16 +2456,7 @@
               }
             }
           }
-        },
-        "parameters" : [ {
-          "in" : "header",
-          "name" : "X-FILES-API-VERSION",
-          "required" : false,
-          "description" : "The API version the client speaks: a semantic version or current. Missing means current. The response repeats the version it was served at.",
-          "schema" : {
-            "type" : "string"
-          }
-        } ]
+        }
       }
     }
   },
