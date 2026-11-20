@@ -12,7 +12,6 @@ import com.zextras.carbonio.files.dal.dao.ebean.FileVersion;
 import com.zextras.carbonio.files.dal.dao.ebean.Node;
 import com.zextras.carbonio.files.dal.repositories.interfaces.FileVersionRepository;
 import com.zextras.carbonio.files.dal.repositories.interfaces.NodeRepository;
-import com.zextras.carbonio.files.exceptions.BadRequestException;
 import com.zextras.carbonio.files.rest.services.PreviewService;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
@@ -31,7 +30,6 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
-import jakarta.ws.rs.core.Response;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
@@ -471,35 +469,6 @@ public class PreviewResource {
             .getOrElseThrow(this::collapseToNotFound);
 
     return streamPreview(resp, blob, fileDigestWithLanguage);
-  }
-
-  // ---------------------------------------------------------------------------- unmatched (400)
-
-  /**
-   * Legacy parity: the legacy Netty routing captured ANY sub-path under {@code /preview/} (see
-   * {@code Constants.API.Endpoints#PREVIEW}, {@code SERVICE + "preview/(.*)"}) and handed it to
-   * {@code PreviewController}, which fell back to a generic {@code BadRequestException} (→ 400)
-   * whenever none of the 6 image/pdf/document sub-patterns matched it. JAX-RS routing has no such
-   * catch-all: an unmatched {@code /preview/**} sub-path would otherwise 404 straight out of the
-   * router, never reaching {@link BlobExceptionMapper}. This wildcard template is strictly LESS
-   * specific (fewer literal characters) than every {@code image/pdf/document} template above, so
-   * per the JAX-RS matching algorithm it is only ever selected once none of them match the path.
-   *
-   * <p>Legacy parity (restored): {@code HttpRoutingHandler#channelRead0} placed {@code
-   * auth-handler} before {@code preview-handler} for the WHOLE {@code /preview/**} family (lines
-   * ~179-186), so even a request that falls through to this generic 400 was authenticated FIRST.
-   * This was the only method in the class that never called {@link BlobAuthenticator#requireUser},
-   * so an unauthenticated request reached the 400 without ever being challenged — restored below.
-   */
-  @GET
-  @Path("/{unmatched: .*}")
-  public Response unmatchedPreviewPath(
-      @HeaderParam("Cookie") String cookieHeader,
-      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) String zmToken,
-      @PathParam("unmatched") String unmatched)
-      throws BadRequestException {
-    authenticator.requireUser(cookieHeader, zmToken);
-    throw new BadRequestException();
   }
 
   // --------------------------------------------------------------------------------------- shared

@@ -858,32 +858,6 @@ paths:
       summary: Thumbnail Pdf
       tags:
       - Preview Resource
-  /preview/{unmatched}:
-    get:
-      parameters:
-      - name: unmatched
-        in: path
-        required: true
-        schema:
-          type: string
-          pattern: .*
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema: {}
-      summary: Unmatched Preview Path
-      tags:
-      - Preview Resource
   /public/download-multiple:
     post:
       requestBody:
