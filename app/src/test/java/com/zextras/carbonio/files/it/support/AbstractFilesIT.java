@@ -320,14 +320,23 @@ public abstract class AbstractFilesIT {
     return version == null ? request : request.header(ApiVersionTestContext.headerName(), version);
   }
 
-  /** POSTs an authenticated GraphQL {@code query}/{@code mutation} string to {@code /graphql/}. */
+  /**
+   * POSTs an authenticated GraphQL {@code query}/{@code mutation} string to {@code /graphql/}.
+   * Fails the test when the response carries {@code UNDECLARED_ERROR} (an error code missing from
+   * the contract, reported by strict mode).
+   */
   protected static Response graphql(String query, String cookie) {
-    return graphqlRequest(RestAssured.given(), query, cookie);
+    return rejectUndeclared(graphqlRequest(RestAssured.given(), query, cookie));
   }
 
   /** Same as {@link #graphql} but sends the API version of the running test (call under test). */
   protected static Response versionedGraphql(String query, String cookie) {
-    return graphqlRequest(withApiVersion(RestAssured.given()), query, cookie);
+    return rejectUndeclared(graphqlRequest(withApiVersion(RestAssured.given()), query, cookie));
+  }
+
+  /** Same as {@link #graphql} for a test that explicitly expects {@code UNDECLARED_ERROR}. */
+  protected static Response graphqlExpectingUndeclared(String query, String cookie) {
+    return graphqlRequest(RestAssured.given(), query, cookie);
   }
 
   private static Response graphqlRequest(RequestSpecification base, String query, String cookie) {
@@ -338,15 +347,26 @@ public abstract class AbstractFilesIT {
     return request.post("/graphql/");
   }
 
+  protected static Response rejectUndeclared(Response response) {
+    if (response.asString().contains("UNDECLARED_ERROR")) {
+      throw new AssertionError(
+          "GraphQL response carries UNDECLARED_ERROR (error code missing from the contract): "
+              + response.asString());
+    }
+    return response;
+  }
+
   /**
    * POSTs an UNAUTHENTICATED GraphQL {@code query}/{@code mutation} string to {@code /graphql/} (no
-   * cookie — anonymous identity, so only {@code @PermitAll} public operations succeed).
+   * cookie — anonymous identity, so only {@code @PermitAll} public operations succeed). Fails the
+   * test on {@code UNDECLARED_ERROR}, like {@link #graphql}.
    */
   protected static Response publicGraphql(String query) {
-    return RestAssured.given()
-        .contentType("application/json")
-        .body(TestUtils.queryPayload(query))
-        .post("/graphql/");
+    return rejectUndeclared(
+        RestAssured.given()
+            .contentType("application/json")
+            .body(TestUtils.queryPayload(query))
+            .post("/graphql/"));
   }
 
   // ------------------------------------------------------------------- runtime app-config (live

@@ -6,9 +6,7 @@ package com.zextras.carbonio.files.it;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
 import com.zextras.carbonio.files.FilesStackTestResource;
@@ -16,7 +14,6 @@ import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.it.support.AbstractFilesIT;
 import com.zextras.carbonio.files.versioning.ArchiveNodeTypeConverter;
-import com.zextras.carbonio.files.versioning.GetConfigsNamesArgument;
 import com.zextras.carbonio.files.versioning.UploadParentIdConverter;
 import com.zextras.carbonio.quarkus.extensions.apiversioning.test.ApiVersionBefore;
 import com.zextras.carbonio.quarkus.extensions.apiversioning.test.ApiVersionTestContext;
@@ -37,8 +34,6 @@ class ApiVersioningApiIT extends AbstractFilesIT {
   private static final String REQUESTER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
   private static final String REQUESTER_COOKIE = "ZM_AUTH_TOKEN=fake-token";
   private static final String DEBUG = "X-Api-Versioning-Applied";
-  private static final String OLDEST_SUPPORTED = "3.0.14";
-  private static final String CURRENT = "current";
   private static final byte[] CONTENT = "archive".getBytes(StandardCharsets.UTF_8);
 
   @BeforeAll
@@ -48,6 +43,10 @@ class ApiVersioningApiIT extends AbstractFilesIT {
 
   private static String versionHeader() {
     return ApiVersionTestContext.headerName();
+  }
+
+  private static String current() {
+    return ApiVersionTestContext.current();
   }
 
   private static String getNodeTypeQuery(String nodeId) {
@@ -70,11 +69,12 @@ class ApiVersioningApiIT extends AbstractFilesIT {
     if (version != null) {
       request = request.header(versionHeader(), version);
     }
-    return request
-        .contentType("application/json")
-        .header("Cookie", REQUESTER_COOKIE)
-        .body(TestUtils.queryPayload(query))
-        .post("/graphql/");
+    return rejectUndeclared(
+        request
+            .contentType("application/json")
+            .header("Cookie", REQUESTER_COOKIE)
+            .body(TestUtils.queryPayload(query))
+            .post("/graphql/"));
   }
 
   private static Response downloadAs(String version, String nodeId) {
@@ -83,14 +83,6 @@ class ApiVersioningApiIT extends AbstractFilesIT {
       request = request.header(versionHeader(), version);
     }
     return request.get("/download/" + nodeId);
-  }
-
-  private static String ownVersion() {
-    return RestAssured.given()
-        .header("Cookie", REQUESTER_COOKIE)
-        .get("/versions")
-        .jsonPath()
-        .getString("current");
   }
 
   // ---------------------------------------------------------------------------------- C1
@@ -103,7 +95,7 @@ class ApiVersioningApiIT extends AbstractFilesIT {
         .then()
         .statusCode(200)
         .body("data.getNode.type", equalTo("ARCHIVE"))
-        .header(versionHeader(), equalTo(CURRENT))
+        .header(versionHeader(), equalTo(current()))
         .header("Vary", containsString(versionHeader()))
         .header(DEBUG, nullValue());
   }
@@ -147,7 +139,7 @@ class ApiVersioningApiIT extends AbstractFilesIT {
         .then()
         .statusCode(200)
         .body("data.copyNodes[0].type", equalTo("ARCHIVE"))
-        .header(versionHeader(), equalTo(CURRENT))
+        .header(versionHeader(), equalTo(current()))
         .header("Vary", containsString(versionHeader()))
         .header(DEBUG, nullValue());
   }
@@ -159,7 +151,7 @@ class ApiVersioningApiIT extends AbstractFilesIT {
     versionedUploadWithoutParentId(CONTENT, "no-parent.bin", REQUESTER_COOKIE)
         .then()
         .statusCode(400)
-        .header(versionHeader(), equalTo(CURRENT))
+        .header(versionHeader(), equalTo(current()))
         .header(DEBUG, nullValue());
   }
 
@@ -197,19 +189,18 @@ class ApiVersioningApiIT extends AbstractFilesIT {
         .statusCode(200)
         .body("data.getConfigs", hasSize(1))
         .body("data.getConfigs[0].name", equalTo("max-number-of-versions"))
-        .header(versionHeader(), equalTo(CURRENT))
+        .header(versionHeader(), equalTo(current()))
         .header(DEBUG, nullValue());
   }
 
   @Test
-  @ApiVersionBefore(GetConfigsNamesArgument.class)
   void oldClientStillGetsAllTheConfigs() {
-    versionedGraphql(getConfigsQuery(), REQUESTER_COOKIE)
+    graphqlAs(ApiVersionTestContext.oldestSupported(), getConfigsQuery())
         .then()
         .statusCode(200)
         .body("data.getConfigs", hasSize(4))
         .header(DEBUG, nullValue())
-        .header(versionHeader(), equalTo(ApiVersionTestContext.version()));
+        .header(versionHeader(), equalTo(ApiVersionTestContext.oldestSupported()));
   }
 
   // --------------------------------------------------------------------------- negotiation
@@ -217,34 +208,35 @@ class ApiVersioningApiIT extends AbstractFilesIT {
   @Test
   void noHeaderCurrentAndTheExactOwnVersionAllGetTheNewBehaviour() {
     String nodeId = seedFile("backup.zip", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
-    String own = ownVersion();
+    String own = current();
 
-    for (String sent : new String[] {null, CURRENT, own}) {
+    for (String sent : new String[] {null, "current", own}) {
       graphqlAs(sent, getNodeTypeQuery(nodeId))
           .then()
           .statusCode(200)
           .body("data.getNode.type", equalTo("ARCHIVE"))
-          .header(versionHeader(), equalTo(CURRENT))
+          .header(versionHeader(), equalTo(current()))
           .header("Vary", containsString(versionHeader()))
           .header(DEBUG, nullValue());
     }
   }
 
   @Test
+  @ApiVersionBefore(ArchiveNodeTypeConverter.class)
   void theOldestSupportedVersionIsConvertedAndEchoedOnGraphqlAndRest() {
     String nodeId = seedFile("backup.zip", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
 
-    graphqlAs(OLDEST_SUPPORTED, getNodeTypeQuery(nodeId))
+    graphqlAs(ApiVersionTestContext.oldestSupported(), getNodeTypeQuery(nodeId))
         .then()
         .statusCode(200)
         .body("data.getNode.type", equalTo("OTHER"))
-        .header(versionHeader(), equalTo(OLDEST_SUPPORTED))
+        .header(versionHeader(), equalTo(ApiVersionTestContext.oldestSupported()))
         .header("Vary", containsString(versionHeader()))
         .header(DEBUG, containsString(ArchiveNodeTypeConverter.class.getName()));
-    downloadAs(OLDEST_SUPPORTED, nodeId)
+    downloadAs(ApiVersionTestContext.oldestSupported(), nodeId)
         .then()
         .statusCode(200)
-        .header(versionHeader(), equalTo(OLDEST_SUPPORTED))
+        .header(versionHeader(), equalTo(ApiVersionTestContext.oldestSupported()))
         .header("Vary", containsString(versionHeader()));
   }
 
@@ -252,21 +244,21 @@ class ApiVersioningApiIT extends AbstractFilesIT {
   void aVersionBelowTheOldestSupportedIsRejectedOnGraphqlAndRest() {
     String nodeId = seedFile("backup.zip", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
 
-    graphqlAs("3.0.13", getNodeTypeQuery(nodeId))
+    graphqlAs(ApiVersionTestContext.belowSupported(), getNodeTypeQuery(nodeId))
         .then()
         .statusCode(400)
         .body("code", equalTo("UNSUPPORTED_API_VERSION"))
-        .body("received", equalTo("3.0.13"))
-        .body("oldestSupported", equalTo(OLDEST_SUPPORTED))
-        .body("$", not(hasKey("current")))
+        .body("received", equalTo(ApiVersionTestContext.belowSupported()))
+        .body("oldestSupported", equalTo(ApiVersionTestContext.oldestSupported()))
+        .body("current", equalTo(current()))
         .header("Vary", containsString(versionHeader()));
-    downloadAs("3.0.13", nodeId)
+    downloadAs(ApiVersionTestContext.belowSupported(), nodeId)
         .then()
         .statusCode(400)
         .body("code", equalTo("UNSUPPORTED_API_VERSION"))
-        .body("received", equalTo("3.0.13"))
-        .body("oldestSupported", equalTo(OLDEST_SUPPORTED))
-        .body("$", not(hasKey("current")))
+        .body("received", equalTo(ApiVersionTestContext.belowSupported()))
+        .body("oldestSupported", equalTo(ApiVersionTestContext.oldestSupported()))
+        .body("current", equalTo(current()))
         .header("Vary", containsString(versionHeader()));
   }
 
@@ -279,52 +271,46 @@ class ApiVersioningApiIT extends AbstractFilesIT {
         .statusCode(400)
         .body("code", equalTo("INVALID_API_VERSION"))
         .body("received", equalTo("not-a-version"))
-        .body("oldestSupported", equalTo(OLDEST_SUPPORTED))
-        .body("$", not(hasKey("current")))
+        .body("oldestSupported", equalTo(ApiVersionTestContext.oldestSupported()))
+        .body("current", equalTo(current()))
         .header("Vary", containsString(versionHeader()));
     downloadAs("not-a-version", nodeId)
         .then()
         .statusCode(400)
         .body("code", equalTo("INVALID_API_VERSION"))
         .body("received", equalTo("not-a-version"))
-        .body("oldestSupported", equalTo(OLDEST_SUPPORTED))
-        .body("$", not(hasKey("current")))
+        .body("oldestSupported", equalTo(ApiVersionTestContext.oldestSupported()))
+        .body("current", equalTo(current()))
         .header("Vary", containsString(versionHeader()));
   }
 
   @Test
   void aVersionAboveTheCurrentOneIsServedAtCurrentOnGraphqlAndRest() {
     String nodeId = seedFile("backup.zip", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
-    graphqlAs("999.0.0", getNodeTypeQuery(nodeId))
+    graphqlAs(ApiVersionTestContext.aboveCurrent(), getNodeTypeQuery(nodeId))
         .then()
         .statusCode(200)
         .body("data.getNode.type", equalTo("ARCHIVE"))
-        .header(versionHeader(), equalTo(CURRENT))
+        .header(versionHeader(), equalTo(current()))
         .header("Vary", containsString(versionHeader()))
         .header(DEBUG, nullValue());
-    downloadAs("999.0.0", nodeId)
+    downloadAs(ApiVersionTestContext.aboveCurrent(), nodeId)
         .then()
         .statusCode(200)
-        .header(versionHeader(), equalTo(CURRENT))
+        .header(versionHeader(), equalTo(current()))
         .header("Vary", containsString(versionHeader()));
   }
 
   @Test
-  void theVersionsEndpointAnswersAnAuthenticatedUser() {
+  void theVersionsEndpointIsPublic() {
     RestAssured.given()
-        .header("Cookie", REQUESTER_COOKIE)
         .get("/versions")
         .then()
         .statusCode(200)
         .body("name", equalTo("carbonio-files"))
         .body("edition", equalTo("ce"))
-        .body("oldestSupported", equalTo(OLDEST_SUPPORTED))
+        .body("oldestSupported", equalTo(ApiVersionTestContext.oldestSupported()))
         .body("header", equalTo(versionHeader()))
-        .body("current", equalTo(ownVersion()));
-  }
-
-  @Test
-  void theVersionsEndpointRejectsAnAnonymousUser() {
-    RestAssured.given().get("/versions").then().statusCode(401);
+        .body("current", equalTo(current()));
   }
 }
