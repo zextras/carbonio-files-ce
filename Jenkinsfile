@@ -50,7 +50,7 @@ dt3_pipeline(
         migrationPaths: ['app/src/main/resources/db/migration'],
     ],
     apiGuard: [
-        contractFiles: ['app/docs/contract/schema.graphql', 'app/docs/contract/openapi.json'],
+        registryFiles: ['app/src/main/java/com/zextras/carbonio/files/versioning/FilesApiChanges.java'],
         oldestSupportedFile: 'app/src/main/resources/application.properties',
         windowMonths: 15,
     ]

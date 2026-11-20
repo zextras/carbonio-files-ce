@@ -44,13 +44,13 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "sed -i 's|<revision>.*</revision>|<revision>${nextRelease.version}</revision>|' pom.xml && sed -i 's/^pkgver=.*/pkgver=\"${nextRelease.version}\"/' package/PKGBUILD && .ci/stamp-api-converters.sh ${nextRelease.version}"
+        "prepareCmd": "sed -i 's|<revision>.*</revision>|<revision>${nextRelease.version}</revision>|' pom.xml && sed -i 's/^pkgver=.*/pkgver=\"${nextRelease.version}\"/' package/PKGBUILD && bash .ci/stamp-api-changes.sh ${nextRelease.version} app/src/main/java/com/zextras/carbonio/files/versioning/FilesApiChanges.java"
       }
     ],
     [
       "@semantic-release/git",
       {
-        "assets": ["pom.xml", "CHANGELOG.md", "package/PKGBUILD", "app/src/main/java/**/*.java"],
+        "assets": ["pom.xml", "CHANGELOG.md", "package/PKGBUILD", "app/src/main/java/com/zextras/carbonio/files/versioning/FilesApiChanges.java"],
         "message": "chore(release): ${nextRelease.version}\n\n${nextRelease.notes}"
       }
     ]

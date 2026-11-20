@@ -38,7 +38,7 @@ repos:
     hooks:
       - id: shellcheck
         # Vendored verbatim from jenkins-lib-common; fix warnings upstream, then re-vendor.
-        exclude: "^\\.ci/(checksum-verify|api-guard)\\.sh$"
+        exclude: "^\\.ci/(checksum-verify|api-guard|stamp-api-changes)\\.sh$"
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.3.0
@@ -105,14 +105,8 @@ repos:
 
       - id: api-guard
         name: API contract guard
-        description: "Fails when the staged API contract changes without a since = ApiVersion.CURRENT converter; vendored from jenkins-lib-common."
-        entry: >-
-          bash .ci/api-guard.sh
-          --staged
-          --contract app/docs/contract/schema.graphql
-          --contract app/docs/contract/openapi.json
-          --oldest-supported-file app/src/main/resources/application.properties
-          --window-months 15
+        description: "Fails when the staged API contract docs change without a new @ApiChange line in the registry; vendored from jenkins-lib-common."
+        entry: bash .ci/api-guard.sh --staged --registry app/src/main/java/com/zextras/carbonio/files/versioning/FilesApiChanges.java
         language: system
         pass_filenames: false
         always_run: true

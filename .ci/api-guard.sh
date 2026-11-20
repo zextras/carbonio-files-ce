@@ -2,73 +2,64 @@
 # SPDX-FileCopyrightText: 2026 Zextras <https://www.zextras.com>
 # SPDX-License-Identifier: AGPL-3.0-only
 #
-# API guard: keeps generated API contract files and API converters in step.
+# API guard: a change of the generated API contract files must come with a new API change entry.
 #
-#   1. Converter check: when a contract file differs textually between the base and HEAD, at least
-#      one `since = (ApiVersion.)?CURRENT` converter must exist in the sources at HEAD (an empty
-#      @ApiConverter class is enough). A contract file that does not exist at the base (its first
-#      introduction) is not a change. Lines of our contract that are explained by an embedded
-#      dependency pin bump (see --embedded-*) are ignored.
-#   2. Support window: prints ONE warning listing vX.Y.Z tags merged into the default branch that
-#      are older than the window and still at or above the oldest supported version. Never fails.
+#   1. Registry rule: when a contract file differs between the base and HEAD, the diff of the
+#      registry file(s) (--registry) between the same two points must ADD at least one line
+#      matching `@ApiChange\s*\(`. Lines that only start a comment do not count. A contract file
+#      that does not exist at the base (its first introduction) is not a change; a deleted one is.
+#   2. Main builds (--main-build): same rule on HEAD^1..HEAD, reported as a warning, never a failure.
+#   3. Support window (--window-months): prints ONE warning listing vX.Y.Z tags merged into the
+#      default branch that are older than the window and still at or above the oldest supported
+#      version. Computed only when --window-months is passed. Never fails.
 #
 # Runs in Jenkins (dt3_apiGuard) and as a local pre-commit hook (vendored as .ci/api-guard.sh).
-# By default only the committed HEAD is compared, never the working tree. With --staged the INDEX
-# is compared instead of HEAD (normal-stage pre-commit hook during `git commit`); with a clean
-# index both modes agree.
+# By default the committed HEAD is compared, never the working tree. With --staged the INDEX is
+# compared instead of HEAD (normal-stage pre-commit hook during `git commit`).
 #
 # Usage: api-guard.sh [options]
+#   --registry <path>                Registry file holding the @ApiChange lines, repeatable (required
+#                                    unless --skip-converter-check)
+#   --contract <path>                Contract file, repeatable
+#                                    (default: app/docs/schema.graphql, app/docs/openapi.json)
 #   --base <ref>                     Compare against this ref (default: merge-base with the base branch)
 #   --base-branch <name>             Branch whose origin/<name> (or local <name>) gives the merge-base
 #                                    (default: --default-branch)
 #   --default-branch <name>          Default branch (default: main)
-#   --contract <path>                Contract file, repeatable
-#                                    (default: app/docs/contract/schema.graphql, app/docs/contract/openapi.json)
-#   --sources <pathspec>             git pathspec of converter sources, repeatable
-#                                    (default: Java files under any src/main/java)
-#   --oldest-supported-file <file>   File holding the oldest supported version (enables the window warning)
+#   --branch <name>                  Branch under test; release/* skips every check (default: current branch)
+#   --staged                         Compare the index instead of HEAD
+#   --main-build                     Compare HEAD^1..HEAD and only warn (builds of the default branch)
+#   --skip-converter-check           Skip the registry rule
+#   --oldest-supported-file <file>   File holding the oldest supported version (window warning)
 #   --oldest-supported-key <key>     Key in that file (default: quarkus.carbonio-api-versioning.oldest-supported)
-#   --window-months <n>              Support window length (default: 15)
-#   --branch <name>                  Branch under test; release/* skips both checks (default: current branch)
-#   --staged                         Compare the index instead of HEAD (contract files, converters, pom)
-#   --skip-converter-check           Run only the window warning
-#   --skip-window                    Run only the converter check
-#   --pom-file <path>                POM holding the embedded pin property (default: pom.xml)
-#   --embedded-pom-property <name>   Property pinning the embedded dependency version, repeatable with
-#   --embedded-repo <url-or-path>    repository of the embedded dependency,
-#   --embedded-tag-prefix <prefix>   tag prefix (default: v; a trailing -<digits> in the property is dropped),
-#   --embedded-contract <theirs>=<ours>
-#                                    contract file in the embedded repository and its counterpart here,
-#                                    repeatable. The options are positional: each --embedded-pom-property
-#                                    starts a new embedded dependency.
+#   --window-months <n>              Support window length; the window warning runs only when this is passed
 #   --now <epoch>                    Override the current time (tests)
 #
 # Exit codes:
-#   0 ok (warnings allowed), 1 violation, 2 usage or environment error
+#   0 ok (warnings allowed), 1 rule violation, 2 usage or unexpected error
 
-set -euo pipefail
+set -Eeuo pipefail
 
 TAG="[api-guard]"
 DEFAULT_BRANCH="main"
 BASE=""
 BASE_BRANCH=""
 CONTRACTS=()
-SOURCES=()
+REGISTRIES=()
 OLDEST_FILE=""
 OLDEST_KEY="quarkus.carbonio-api-versioning.oldest-supported"
-WINDOW_MONTHS=15
+WINDOW_MONTHS=""
 BRANCH=""
 SKIP_CONVERTER=0
 STAGED=0
+MAIN_BUILD=0
 NEW_REV="HEAD"
-CACHED=()
-SKIP_WINDOW=0
-POM_FILE="pom.xml"
 NOW=""
-EMB_PROP=()
-EMB_REPO=()
-EMB_PREFIX=()
-EMB_MAPS=()
+VIOLATION=0
+rc=0
+SECONDS_PER_MONTH=2629746
+
+trap 'rc=$?; echo "$TAG ERROR: unexpected failure (exit $rc) at line $LINENO" >&2; exit 2' ERR
 
 die() {
     echo "$TAG ERROR: $*" >&2
@@ -82,9 +73,9 @@ need_value() {
 while [ $# -gt 0 ]; do
     case "$1" in
         --skip-converter-check) SKIP_CONVERTER=1; shift; continue ;;
-        --skip-window) SKIP_WINDOW=1; shift; continue ;;
         --staged) STAGED=1; shift; continue ;;
-        -h | --help) sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --main-build) MAIN_BUILD=1; shift; continue ;;
+        -h | --help) sed -n '2,/^set -Eeuo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
     esac
     need_value "$1" "$#"
     case "$1" in
@@ -92,49 +83,44 @@ while [ $# -gt 0 ]; do
         --base-branch) BASE_BRANCH="$2" ;;
         --default-branch) DEFAULT_BRANCH="$2" ;;
         --contract) CONTRACTS+=("$2") ;;
-        --sources) SOURCES+=("$2") ;;
+        --registry) REGISTRIES+=("$2") ;;
         --oldest-supported-file) OLDEST_FILE="$2" ;;
         --oldest-supported-key) OLDEST_KEY="$2" ;;
         --window-months) WINDOW_MONTHS="$2" ;;
         --branch) BRANCH="$2" ;;
-        --pom-file) POM_FILE="$2" ;;
         --now) NOW="$2" ;;
-        --embedded-pom-property)
-            EMB_PROP+=("$2"); EMB_REPO+=(""); EMB_PREFIX+=("v"); EMB_MAPS+=("") ;;
-        --embedded-repo | --embedded-tag-prefix | --embedded-contract)
-            [ "${#EMB_PROP[@]}" -gt 0 ] || die "$1 must follow --embedded-pom-property"
-            last=$((${#EMB_PROP[@]} - 1))
-            case "$1" in
-                --embedded-repo) EMB_REPO[last]="$2" ;;
-                --embedded-tag-prefix) EMB_PREFIX[last]="$2" ;;
-                --embedded-contract)
-                    case "$2" in *=*) ;; *) die "--embedded-contract expects <theirs>=<ours>" ;; esac
-                    EMB_MAPS[last]="${EMB_MAPS[last]}$2"$'\n' ;;
-            esac ;;
         *) die "unknown option: $1" ;;
     esac
     shift 2
 done
 
-case "$WINDOW_MONTHS" in '' | *[!0-9]*) die "--window-months must be a non-negative integer" ;; esac
-[ -n "$NOW" ] || NOW=$(date -u +%s)
+if [ -n "$WINDOW_MONTHS" ]; then
+    case "$WINDOW_MONTHS" in *[!0-9]*) die "--window-months must be a non-negative integer" ;; esac
+fi
+if [ -n "$NOW" ]; then
+    case "$NOW" in *[!0-9]*) die "--now must be an epoch in seconds" ;; esac
+else
+    NOW=$(date -u +%s)
+fi
+[ "$STAGED" -eq 0 ] || [ "$MAIN_BUILD" -eq 0 ] || die "--staged and --main-build cannot be combined"
+[ "$SKIP_CONVERTER" -eq 1 ] || [ "${#REGISTRIES[@]}" -gt 0 ] || die "--registry is required (path of the file holding the @ApiChange lines)"
 
 git rev-parse --git-dir > /dev/null 2>&1 || die "not inside a git working tree"
 git rev-parse --verify -q HEAD > /dev/null || die "repository has no commits"
 
 if [ "$STAGED" -eq 1 ]; then
     NEW_REV=""
-    CACHED=(--cached)
 fi
 
-[ ${#CONTRACTS[@]} -gt 0 ] || CONTRACTS=(app/docs/contract/schema.graphql app/docs/contract/openapi.json)
-[ ${#SOURCES[@]} -gt 0 ] || SOURCES=(':(glob)**/src/main/java/**/*.java')
+if [ "${#CONTRACTS[@]}" -eq 0 ]; then
+    CONTRACTS=(app/docs/schema.graphql app/docs/openapi.json)
+fi
 [ -n "$BASE_BRANCH" ] || BASE_BRANCH="$DEFAULT_BRANCH"
 [ -n "$BRANCH" ] || BRANCH=$(git rev-parse --abbrev-ref HEAD 2> /dev/null || true)
 
 case "$BRANCH" in
     release/*)
-        echo "$TAG Branch $BRANCH is a release branch: contract and window checks skipped"
+        echo "$TAG Branch $BRANCH is a release branch: all checks skipped"
         exit 0 ;;
 esac
 
@@ -147,68 +133,63 @@ resolve_branch_ref() {
     fi
 }
 
-# ─── 1. converter check ──────────────────────────────────────────────────────
-
-# changed_lines <base> <path>: signed changed lines of <path> between <base> and HEAD (or the index), commas stripped
-changed_lines() {
+# diff_quiet <base> <path>: succeeds when <path> is identical at <base> and at the compared point
+diff_quiet() {
     if [ "$STAGED" -eq 1 ]; then
-        git diff --cached -U0 --no-color --no-ext-diff "$1" -- "$2"
+        git diff --cached --quiet "$1" -- "$2"
     else
-        git diff -U0 --no-color --no-ext-diff "$1" HEAD -- "$2"
-    fi \
-        | grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' \
-        | sed -E 's/,[[:space:]]*$//' || true
+        git diff --quiet "$1" HEAD -- "$2"
+    fi
 }
 
-pom_property() {
-    git show "$1:$POM_FILE" 2> /dev/null \
-        | sed -n -E "s|.*<$2>[[:space:]]*([^<[:space:]]+)[[:space:]]*</$2>.*|\1|p" | head -n 1 || true
+# registry_added <base>: number of added registry lines that contain @ApiChange(
+registry_added() {
+    local count
+    if [ "$STAGED" -eq 1 ]; then
+        count=$(git diff --cached -U0 --no-color --no-ext-diff "$1" -- "${REGISTRIES[@]}" | registry_filter || true)
+    else
+        count=$(git diff -U0 --no-color --no-ext-diff "$1" HEAD -- "${REGISTRIES[@]}" | registry_filter || true)
+    fi
+    echo "${count:-0}"
 }
 
-# embedded_ignored_file <base> <our-path> <tmpdir>: prints the path of a file with the embedded contract diff lines
-embedded_ignored_file() {
-    local base="$1" ours="$2" tmp="$3" i prop old new tagold tagnew repo prefix theirs
-    local ce="$tmp/ce.diff"
-    : > "$ce"
-    local found=0
-    for i in "${!EMB_PROP[@]}"; do
-        theirs=""
-        while IFS= read -r m; do
-            [ -n "$m" ] || continue
-            if [ "${m#*=}" = "$ours" ]; then theirs="${m%%=*}"; fi
-        done <<< "${EMB_MAPS[$i]}"
-        [ -n "$theirs" ] || continue
-        prop="${EMB_PROP[$i]}"
-        old=$(pom_property "$base" "$prop")
-        new=$(pom_property "$NEW_REV" "$prop")
-        if [ -z "$old" ] || [ -z "$new" ] || [ "$old" = "$new" ]; then continue; fi
-        repo="${EMB_REPO[$i]}"
-        prefix="${EMB_PREFIX[$i]}"
-        [ -n "$repo" ] || { echo "$TAG WARNING: no --embedded-repo for $prop, pin bump not analysed" >&2; continue; }
-        tagold="${prefix}$(echo "$old" | sed -E 's/-[0-9]+$//')"
-        tagnew="${prefix}$(echo "$new" | sed -E 's/-[0-9]+$//')"
-        local work="$tmp/emb$i"
-        if [ ! -d "$work" ]; then
-            mkdir -p "$work"
-            if ! { git init -q "$work" \
-                && git -C "$work" fetch -q --depth=1 "$repo" tag "$tagold" tag "$tagnew"; } > /dev/null 2>&1; then
-                echo "$TAG WARNING: cannot fetch tags $tagold and $tagnew from $repo: pin bump of $prop not analysed" >&2
-                continue
-            fi
-        fi
-        echo "$TAG Pin $prop moved $old -> $new: comparing $theirs between $tagold and $tagnew" >&2
-        git -C "$work" diff -U0 --no-color --no-ext-diff "refs/tags/$tagold" "refs/tags/$tagnew" -- "$theirs" \
-            | grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' | sed -E 's/,[[:space:]]*$//' >> "$ce" || true
-        found=1
+registry_filter() {
+    grep -E '^\+' | grep -vE '^\+\+\+' | sed -E 's/^\+[[:space:]]*//' \
+        | grep -vE '^(//|/\*|\*)' | grep -cE '@ApiChange[[:space:]]*\(' || true
+}
+
+report_violation() {
+    local changed=("$@") path reg
+    echo ""
+    if [ "$MAIN_BUILD" -eq 1 ]; then
+        echo "$TAG WARNING: the last commit on the default branch changed contract files without adding an @ApiChange line to the registry:"
+    else
+        echo "$TAG FATAL: contract files changed but no @ApiChange line was added to the registry:"
+    fi
+    for path in "${changed[@]}"; do
+        echo "$TAG   changed contract file: $path"
     done
-    [ "$found" -eq 1 ] && echo "$ce"
-    return 0
+    for reg in "${REGISTRIES[@]}"; do
+        echo "$TAG   registry file: $reg"
+    done
+    echo "$TAG Fix: add one line to the registry, for example"
+    echo "$TAG   @ApiChange(since = ApiVersion.CURRENT, description = \"what changed in the API\")"
+    echo "$TAG   (or converter = <YourConverter>.class when old clients need their values converted)"
+    if [ "$MAIN_BUILD" -eq 0 ]; then
+        echo "$TAG Local bypass (hook only; CI still checks): SKIP=api-guard git commit ..."
+    fi
 }
 
-converter_check() {
-    local base ref tmp changed=() path unexplained=0 ignored=0 ce
+contract_check() {
+    local base ref path count
+    local changed=()
 
-    if [ -n "$BASE" ]; then
+    if [ "$MAIN_BUILD" -eq 1 ]; then
+        if ! base=$(git rev-parse --verify -q "HEAD^1^{commit}"); then
+            echo "$TAG Main build: HEAD has no parent, nothing to compare"
+            return 0
+        fi
+    elif [ -n "$BASE" ]; then
         base=$(git rev-parse --verify -q "$BASE^{commit}") || die "--base $BASE is not a commit"
     else
         ref=$(resolve_branch_ref "$BASE_BRANCH")
@@ -218,9 +199,6 @@ converter_check() {
     fi
     echo "$TAG Comparing contract files against ${base:0:12}"
 
-    tmp=$(mktemp -d)
-    trap 'rm -rf "${tmp:?}"' RETURN
-
     for path in "${CONTRACTS[@]}"; do
         if ! git cat-file -e "$base:$path" 2> /dev/null; then
             if git cat-file -e "$NEW_REV:$path" 2> /dev/null; then
@@ -228,51 +206,29 @@ converter_check() {
             fi
             continue
         fi
-        if [ "$STAGED" -eq 1 ]; then
-            if git diff --cached --quiet "$base" -- "$path"; then continue; fi
-        elif git diff --quiet "$base" HEAD -- "$path"; then
+        if diff_quiet "$base" "$path"; then
             continue
-        fi
-        ce=""
-        if [ "${#EMB_PROP[@]}" -gt 0 ]; then
-            ce=$(embedded_ignored_file "$base" "$path" "$tmp")
-        fi
-        if [ -n "$ce" ]; then
-            read -r unexplained ignored < <(changed_lines "$base" "$path" | awk -v ce="$ce" '
-                BEGIN { while ((getline l < ce) > 0) n[l]++ }
-                { if (n[$0] > 0) { n[$0]--; ig++ } else { un++; print "[api-guard]   unexplained: " $0 > "/dev/stderr" } }
-                END { print un + 0, ig + 0 }')
-            if [ "$unexplained" -eq 0 ]; then
-                echo "$TAG $path: all $ignored changed line(s) are explained by the embedded pin bump: ignored"
-                continue
-            fi
-            echo "$TAG $path: $ignored changed line(s) explained by the embedded pin bump, $unexplained not"
         fi
         changed+=("$path")
     done
 
-    if [ ${#changed[@]} -eq 0 ]; then
-        echo "$TAG No contract change needing a converter"
+    if [ "${#changed[@]}" -eq 0 ]; then
+        echo "$TAG No contract change needing an @ApiChange line"
         return 0
     fi
 
-    local rev=()
-    [ "$STAGED" -eq 1 ] || rev=(HEAD)
-    if git grep "${CACHED[@]}" -q -E 'since[[:space:]]*=[[:space:]]*(ApiVersion\.)?CURRENT([^A-Za-z0-9_]|$)' "${rev[@]}" -- "${SOURCES[@]}"; then
-        echo "$TAG Contract changed (${changed[*]}) and a CURRENT converter exists"
+    count=$(registry_added "$base")
+    if [ "$count" -gt 0 ]; then
+        echo "$TAG Contract changed (${changed[*]}) and $count @ApiChange line(s) added"
         return 0
     fi
 
-    echo ""
-    echo "$TAG FATAL: contract files changed but no converter with since = CURRENT exists:"
-    for path in "${changed[@]}"; do
-        echo "$TAG   changed: $path"
-    done
-    echo "$TAG Fix: add a class annotated @ApiConverter(since = ApiVersion.CURRENT) (it may be empty, to document the change)."
-    return 1
+    report_violation "${changed[@]}"
+    if [ "$MAIN_BUILD" -eq 0 ]; then
+        VIOLATION=1
+    fi
+    return 0
 }
-
-# ─── 2. window warning ───────────────────────────────────────────────────────
 
 semver_parts() {
     printf '%s\n' "$1" | sed -n -E 's/^v?([0-9]+)\.([0-9]+)\.([0-9]+).*/\1 \2 \3/p'
@@ -280,6 +236,7 @@ semver_parts() {
 
 window_warning() {
     local raw parts ref cutoff old_tags
+    [ -n "$WINDOW_MONTHS" ] || return 0
     [ -n "$OLDEST_FILE" ] || return 0
     if [ ! -f "$OLDEST_FILE" ]; then
         echo "$TAG WARNING: $OLDEST_FILE not found, support window not checked"
@@ -297,25 +254,7 @@ window_warning() {
         return 0
     fi
 
-    cutoff=$(echo "$NOW" | awk -v months="$WINDOW_MONTHS" '
-        function dim(y, m) { return (m == 2) ? ((y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)) ? 29 : 28) : ((m == 4 || m == 6 || m == 9 || m == 11) ? 30 : 31) }
-        function days(y, m, d,    era, yoe, doy, doe) {
-            y -= (m <= 2); era = int((y >= 0 ? y : y - 399) / 400); yoe = y - era * 400
-            doy = int((153 * (m + (m > 2 ? -3 : 9)) + 2) / 5) + d - 1
-            doe = yoe * 365 + int(yoe / 4) - int(yoe / 100) + doy
-            return era * 146097 + doe - 719468
-        }
-        function civil(z,    era, doe, yoe, y, doy, mp) {
-            z += 719468; era = int((z >= 0 ? z : z - 146096) / 146097); doe = z - era * 146097
-            yoe = int((doe - int(doe / 1460) + int(doe / 36524) - int(doe / 146096)) / 365)
-            y = yoe + era * 400; doy = doe - (365 * yoe + int(yoe / 4) - int(yoe / 100))
-            mp = int((5 * doy + 2) / 153); CD = doy - int((153 * mp + 2) / 5) + 1
-            CM = mp + (mp < 10 ? 3 : -9); CY = y + (CM <= 2)
-        }
-        { t = $1; secs = t % 86400; civil(int(t / 86400))
-          m = CM - months; y = CY; while (m < 1) { m += 12; y-- }
-          d = CD; if (d > dim(y, m)) d = dim(y, m)
-          print days(y, m, d) * 86400 + secs }')
+    cutoff=$((NOW - WINDOW_MONTHS * SECONDS_PER_MONTH))
 
     old_tags=$(git for-each-ref --merged "$ref" --format='%(refname:short) %(creatordate:unix)' 'refs/tags/v*' \
         | awk -v cutoff="$cutoff" -v floor="$parts" '
@@ -334,11 +273,8 @@ window_warning() {
     fi
 }
 
-status=0
 if [ "$SKIP_CONVERTER" -eq 0 ]; then
-    converter_check || status=$?
+    contract_check
 fi
-if [ "$SKIP_WINDOW" -eq 0 ]; then
-    window_warning
-fi
-exit "$status"
+window_warning
+exit "$VIOLATION"
