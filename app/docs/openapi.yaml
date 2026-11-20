@@ -1,1369 +1,5 @@
 ---
 openapi: 3.1.0
-paths:
-  /download-multiple:
-    post:
-      parameters:
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              type: string
-              format: binary
-        required: true
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: ZIP archive of the requested nodes
-          content:
-            application/zip:
-              schema:
-                format: binary
-                type: string
-        "400":
-          description: Missing or malformed nodeIds
-        "404":
-          description: Some nodes do not exist or are not accessible
-        "413":
-          description: Payload or file size exceeds the configured limit
-        "415":
-          description: Unsupported media type
-        "500":
-          description: Internal Server Error
-      summary: Download Multiple
-      tags:
-      - Blob Resource
-  /download-multiple/check:
-    post:
-      parameters:
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: string
-              format: binary
-        required: true
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "204":
-          description: "Success, no content"
-        "400":
-          description: Missing or malformed input
-        "404":
-          description: "Node, link or version not found or not accessible"
-        "413":
-          description: Payload or file size exceeds the configured limit
-        "415":
-          description: Unsupported media type
-        "500":
-          description: Internal Server Error
-      summary: Check Download Multiple
-      tags:
-      - Blob Resource
-  /download/{nodeId}:
-    get:
-      parameters:
-      - name: nodeId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: File bytes
-          content:
-            application/octet-stream:
-              schema:
-                format: binary
-                type: string
-        "404":
-          description: Node not found or not accessible
-        "413":
-          description: Payload or file size exceeds the configured limit
-        "500":
-          description: Internal Server Error
-      summary: Download
-      tags:
-      - Blob Resource
-  /download/{nodeId}/check:
-    get:
-      parameters:
-      - name: nodeId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "204":
-          description: "Success, no content"
-        "404":
-          description: "Node, link or version not found or not accessible"
-        "413":
-          description: Payload or file size exceeds the configured limit
-        "500":
-          description: Internal Server Error
-      summary: Check Download
-      tags:
-      - Blob Resource
-  /download/{nodeId}/{version}:
-    get:
-      parameters:
-      - name: nodeId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: version
-        in: path
-        required: true
-        schema:
-          type: integer
-          format: int32
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: File bytes
-          content:
-            application/octet-stream:
-              schema:
-                format: binary
-                type: string
-        "404":
-          description: Node not found or not accessible
-        "413":
-          description: Payload or file size exceeds the configured limit
-        "500":
-          description: Internal Server Error
-      summary: Download Version
-      tags:
-      - Blob Resource
-  /health:
-    get:
-      responses:
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema: {}
-        "500":
-          description: A required dependency is not ready
-      summary: Health
-      tags:
-      - Health Resource
-  /health/live:
-    get:
-      responses:
-        "204":
-          description: "Success, no content"
-        "500":
-          description: Internal Server Error
-      summary: Health Live
-      tags:
-      - Health Resource
-  /health/ready:
-    get:
-      responses:
-        "204":
-          description: "Success, no content"
-        "500":
-          description: A required dependency is not ready
-      summary: Health Ready
-      tags:
-      - Health Resource
-  /internal/accounts/{userId}/download/{nodeId}:
-    get:
-      parameters:
-      - name: nodeId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: userId
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: File bytes
-          content:
-            application/octet-stream:
-              schema:
-                format: binary
-                type: string
-        "404":
-          description: Node not found or not accessible
-        "413":
-          description: Payload or file size exceeds the configured limit
-        "500":
-          description: Internal Server Error
-      summary: Download
-      tags:
-      - Internal Blob Resource
-  /internal/accounts/{userId}/download/{nodeId}/{version}:
-    get:
-      parameters:
-      - name: nodeId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: userId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: version
-        in: path
-        required: true
-        schema:
-          type: integer
-          format: int32
-      responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: File bytes
-          content:
-            application/octet-stream:
-              schema:
-                format: binary
-                type: string
-        "404":
-          description: Node not found or not accessible
-        "413":
-          description: Payload or file size exceeds the configured limit
-        "500":
-          description: Internal Server Error
-      summary: Download Version
-      tags:
-      - Internal Blob Resource
-  /internal/accounts/{userId}/nodes/{nodeId}:
-    get:
-      parameters:
-      - name: nodeId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: userId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: version
-        in: query
-        schema:
-          type: integer
-          format: int32
-      responses:
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/InternalNodeDto"
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "404":
-          description: "Node, link or version not found or not accessible"
-        "500":
-          description: Internal Server Error
-      summary: Get Node
-      tags:
-      - Internal Node Resource
-  /internal/accounts/{userId}/upload:
-    post:
-      parameters:
-      - name: userId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: Content-Length
-        in: header
-        schema:
-          type: integer
-          format: int64
-      - name: Description
-        in: header
-        schema:
-          type: string
-      - name: Filename
-        in: header
-        schema:
-          type: string
-      - name: ParentId
-        in: header
-        schema:
-          type: string
-      requestBody:
-        content:
-          '*/*':
-            schema:
-              type: string
-              format: binary
-        required: true
-      responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: Success
-          content:
-            application/json: {}
-        "400":
-          description: Missing or malformed input
-        "404":
-          description: "Node, link or version not found or not accessible"
-        "500":
-          description: Internal Server Error
-      summary: Upload
-      tags:
-      - Internal Blob Resource
-  /internal/accounts/{userId}/upload-version:
-    post:
-      parameters:
-      - name: userId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: Content-Length
-        in: header
-        schema:
-          type: integer
-          format: int64
-      - name: Filename
-        in: header
-        schema:
-          type: string
-      - name: NodeId
-        in: header
-        schema:
-          type: string
-      - name: OverwriteVersion
-        in: header
-        schema:
-          type: string
-      requestBody:
-        content:
-          '*/*':
-            schema:
-              type: string
-              format: binary
-        required: true
-      responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: Success
-          content:
-            application/json: {}
-        "400":
-          description: Missing or malformed input
-        "404":
-          description: "Node, link or version not found or not accessible"
-        "405":
-          description: Maximum number of file versions reached
-        "423":
-          description: Overwrite of the node already in progress
-        "500":
-          description: Internal Server Error
-      summary: Upload Version
-      tags:
-      - Internal Blob Resource
-  /internal/folders:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateFolderRequest"
-        required: true
-      responses:
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/InternalNodeIdDto"
-        "400":
-          description: Missing or malformed input
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "404":
-          description: "Node, link or version not found or not accessible"
-        "500":
-          description: Internal Server Error
-      summary: Create Folder
-      tags:
-      - Internal Node Resource
-  /internal/links:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreatePublicLinkRequest"
-        required: true
-      responses:
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PublicLinkDto"
-        "400":
-          description: Missing or malformed input
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "404":
-          description: "Node, link or version not found or not accessible"
-        "429":
-          description: Public link limit reached
-        "500":
-          description: Internal Server Error
-      summary: Create Public Link
-      tags:
-      - Internal Node Resource
-  /internal/nodes:
-    delete:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DeleteAllRequest"
-        required: true
-      responses:
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DeleteAllResponse"
-        "500":
-          description: Internal Server Error
-      summary: Delete All Nodes And Blobs
-      tags:
-      - Internal Node Resource
-  /invite/{invitationId}:
-    get:
-      parameters:
-      - name: invitationId
-        in: path
-        required: true
-        schema:
-          type: string
-          pattern: "\\w{8}"
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "307":
-          description: Redirect to the invitation target
-        "404":
-          description: "Node, link or version not found or not accessible"
-        "500":
-          description: Internal Server Error
-      summary: Invite
-      tags:
-      - Collaboration Link Resource
-  /link/{publicLinkId}:
-    get:
-      parameters:
-      - name: publicLinkId
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: File bytes
-          content:
-            application/octet-stream:
-              schema:
-                format: binary
-                type: string
-        "307":
-          description: Redirect to the access-code page (access-code-protected link)
-        "404":
-          description: Link or node not found
-        "500":
-          description: Internal Server Error
-      summary: Download By Public Link
-      tags:
-      - Public Blob Resource
-  /preview/document/{nodeId}:
-    get:
-      parameters:
-      - name: nodeId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: crop
-        in: query
-        schema:
-          type: boolean
-      - name: first_page
-        in: query
-        schema:
-          type: integer
-          format: int32
-      - name: last_page
-        in: query
-        schema:
-          type: integer
-          format: int32
-      - name: output_format
-        in: query
-        schema:
-          type: string
-      - name: quality
-        in: query
-        schema:
-          type: string
-      - name: shape
-        in: query
-        schema:
-          type: string
-      - name: version
-        in: query
-        schema:
-          type: string
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: Preview bytes
-          content:
-            application/octet-stream:
-              schema:
-                format: binary
-                type: string
-        "304":
-          description: Not modified (ETag matched)
-        "400":
-          description: Unsupported mimetype for this preview type
-        "404":
-          description: Node not found or not accessible
-        "500":
-          description: Internal Server Error
-      summary: Preview Document
-      tags:
-      - Preview Resource
-  /preview/document/{nodeId}/{area}/thumbnail:
-    get:
-      parameters:
-      - name: area
-        in: path
-        required: true
-        schema:
-          type: string
-          pattern: "[\\d]*x[\\d]*"
-      - name: nodeId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: crop
-        in: query
-        schema:
-          type: boolean
-      - name: first_page
-        in: query
-        schema:
-          type: integer
-          format: int32
-      - name: last_page
-        in: query
-        schema:
-          type: integer
-          format: int32
-      - name: output_format
-        in: query
-        schema:
-          type: string
-      - name: quality
-        in: query
-        schema:
-          type: string
-      - name: shape
-        in: query
-        schema:
-          type: string
-      - name: version
-        in: query
-        schema:
-          type: string
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: Preview bytes
-          content:
-            application/octet-stream:
-              schema:
-                format: binary
-                type: string
-        "304":
-          description: Not modified (ETag matched)
-        "400":
-          description: Unsupported mimetype for this preview type
-        "404":
-          description: Node not found or not accessible
-        "500":
-          description: Internal Server Error
-      summary: Thumbnail Document
-      tags:
-      - Preview Resource
-  /preview/image/{nodeId}/{area}:
-    get:
-      parameters:
-      - name: area
-        in: path
-        required: true
-        schema:
-          type: string
-          pattern: "[\\d]*x[\\d]*"
-      - name: nodeId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: crop
-        in: query
-        schema:
-          type: boolean
-      - name: first_page
-        in: query
-        schema:
-          type: integer
-          format: int32
-      - name: last_page
-        in: query
-        schema:
-          type: integer
-          format: int32
-      - name: output_format
-        in: query
-        schema:
-          type: string
-      - name: quality
-        in: query
-        schema:
-          type: string
-      - name: shape
-        in: query
-        schema:
-          type: string
-      - name: version
-        in: query
-        schema:
-          type: string
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: Preview bytes
-          content:
-            application/octet-stream:
-              schema:
-                format: binary
-                type: string
-        "304":
-          description: Not modified (ETag matched)
-        "400":
-          description: Unsupported mimetype for this preview type
-        "404":
-          description: Node not found or not accessible
-        "500":
-          description: Internal Server Error
-      summary: Preview Image
-      tags:
-      - Preview Resource
-  /preview/image/{nodeId}/{area}/thumbnail:
-    get:
-      parameters:
-      - name: area
-        in: path
-        required: true
-        schema:
-          type: string
-          pattern: "[\\d]*x[\\d]*"
-      - name: nodeId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: crop
-        in: query
-        schema:
-          type: boolean
-      - name: first_page
-        in: query
-        schema:
-          type: integer
-          format: int32
-      - name: last_page
-        in: query
-        schema:
-          type: integer
-          format: int32
-      - name: output_format
-        in: query
-        schema:
-          type: string
-      - name: quality
-        in: query
-        schema:
-          type: string
-      - name: shape
-        in: query
-        schema:
-          type: string
-      - name: version
-        in: query
-        schema:
-          type: string
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: Preview bytes
-          content:
-            application/octet-stream:
-              schema:
-                format: binary
-                type: string
-        "304":
-          description: Not modified (ETag matched)
-        "400":
-          description: Unsupported mimetype for this preview type
-        "404":
-          description: Node not found or not accessible
-        "500":
-          description: Internal Server Error
-      summary: Thumbnail Image
-      tags:
-      - Preview Resource
-  /preview/pdf/{nodeId}:
-    get:
-      parameters:
-      - name: nodeId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: crop
-        in: query
-        schema:
-          type: boolean
-      - name: first_page
-        in: query
-        schema:
-          type: integer
-          format: int32
-      - name: last_page
-        in: query
-        schema:
-          type: integer
-          format: int32
-      - name: output_format
-        in: query
-        schema:
-          type: string
-      - name: quality
-        in: query
-        schema:
-          type: string
-      - name: shape
-        in: query
-        schema:
-          type: string
-      - name: version
-        in: query
-        schema:
-          type: string
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: Preview bytes
-          content:
-            application/octet-stream:
-              schema:
-                format: binary
-                type: string
-        "304":
-          description: Not modified (ETag matched)
-        "400":
-          description: Unsupported mimetype for this preview type
-        "404":
-          description: Node not found or not accessible
-        "500":
-          description: Internal Server Error
-      summary: Preview Pdf
-      tags:
-      - Preview Resource
-  /preview/pdf/{nodeId}/{area}/thumbnail:
-    get:
-      parameters:
-      - name: area
-        in: path
-        required: true
-        schema:
-          type: string
-          pattern: "[\\d]*x[\\d]*"
-      - name: nodeId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: crop
-        in: query
-        schema:
-          type: boolean
-      - name: first_page
-        in: query
-        schema:
-          type: integer
-          format: int32
-      - name: last_page
-        in: query
-        schema:
-          type: integer
-          format: int32
-      - name: output_format
-        in: query
-        schema:
-          type: string
-      - name: quality
-        in: query
-        schema:
-          type: string
-      - name: shape
-        in: query
-        schema:
-          type: string
-      - name: version
-        in: query
-        schema:
-          type: string
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: Preview bytes
-          content:
-            application/octet-stream:
-              schema:
-                format: binary
-                type: string
-        "304":
-          description: Not modified (ETag matched)
-        "400":
-          description: Unsupported mimetype for this preview type
-        "404":
-          description: Node not found or not accessible
-        "500":
-          description: Internal Server Error
-      summary: Thumbnail Pdf
-      tags:
-      - Preview Resource
-  /preview/{unmatched}:
-    get:
-      parameters:
-      - name: unmatched
-        in: path
-        required: true
-        schema:
-          type: string
-          pattern: .*
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "400":
-          description: Missing or malformed input
-        "500":
-          description: Internal Server Error
-      summary: Unmatched Preview Path
-      tags:
-      - Preview Resource
-  /public/download-multiple:
-    post:
-      requestBody:
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              type: string
-              format: binary
-        required: true
-      responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: ZIP archive of the requested nodes
-          content:
-            application/zip:
-              schema:
-                format: binary
-                type: string
-        "400":
-          description: Missing or malformed parameters
-        "404":
-          description: Nodes not accessible via the link
-        "413":
-          description: Payload or file size exceeds the configured limit
-        "415":
-          description: Unsupported media type
-        "500":
-          description: Internal Server Error
-      summary: Download Public Multiple
-      tags:
-      - Public Blob Resource
-  /public/download-multiple/check:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: string
-              format: binary
-        required: true
-      responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "204":
-          description: "Success, no content"
-        "400":
-          description: Missing or malformed input
-        "404":
-          description: "Node, link or version not found or not accessible"
-        "413":
-          description: Payload or file size exceeds the configured limit
-        "415":
-          description: Unsupported media type
-        "500":
-          description: Internal Server Error
-      summary: Check Download Public Multiple
-      tags:
-      - Public Blob Resource
-  /public/download/{nodeId}:
-    get:
-      parameters:
-      - name: nodeId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: access_code
-        in: query
-        schema:
-          type: string
-      - name: node_link_id
-        in: query
-        schema:
-          type: string
-      responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: File bytes
-          content:
-            application/octet-stream:
-              schema:
-                format: binary
-                type: string
-        "404":
-          description: Node not found or not accessible via the link
-        "500":
-          description: Internal Server Error
-      summary: Download Public File
-      tags:
-      - Public Blob Resource
-  /public/download/{nodeId}/check:
-    get:
-      parameters:
-      - name: nodeId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: access_code
-        in: query
-        schema:
-          type: string
-      - name: node_link_id
-        in: query
-        schema:
-          type: string
-      responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "204":
-          description: "Success, no content"
-        "404":
-          description: "Node, link or version not found or not accessible"
-        "413":
-          description: Payload or file size exceeds the configured limit
-        "500":
-          description: Internal Server Error
-      summary: Check Download Public File
-      tags:
-      - Public Blob Resource
-  /public/link/download/{publicLinkId}:
-    get:
-      parameters:
-      - name: publicLinkId
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: File bytes
-          content:
-            application/octet-stream:
-              schema:
-                format: binary
-                type: string
-        "307":
-          description: Redirect to the access-code page (access-code-protected link)
-        "404":
-          description: Link or node not found
-        "500":
-          description: Internal Server Error
-      summary: Download Via Public Link
-      tags:
-      - Public Blob Resource
-  /upload:
-    post:
-      parameters:
-      - name: Content-Length
-        in: header
-        schema:
-          type: integer
-          format: int64
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: Description
-        in: header
-        schema:
-          type: string
-      - name: Filename
-        in: header
-        schema:
-          type: string
-      - name: ParentId
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      requestBody:
-        content:
-          '*/*':
-            schema:
-              type: string
-              format: binary
-        required: true
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: Success
-          content:
-            application/json: {}
-        "400":
-          description: Missing or malformed input (the Filename and ParentId headers
-            are required)
-        "404":
-          description: "Node, link or version not found or not accessible"
-        "413":
-          description: Payload or file size exceeds the configured limit
-        "500":
-          description: Internal Server Error
-      summary: Upload
-      tags:
-      - Blob Resource
-  /upload-to:
-    post:
-      parameters:
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: string
-              format: binary
-        required: true
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: Success
-          content:
-            application/json: {}
-        "400":
-          description: Missing or malformed input
-        "404":
-          description: "Node, link or version not found or not accessible"
-        "413":
-          description: Payload or file size exceeds the configured limit
-        "415":
-          description: Unsupported media type
-        "500":
-          description: Internal Server Error
-      summary: Upload To
-      tags:
-      - Procedure Resource
-  /upload-version:
-    post:
-      parameters:
-      - name: Content-Length
-        in: header
-        schema:
-          type: integer
-          format: int64
-      - name: Cookie
-        in: header
-        schema:
-          type: string
-      - name: Filename
-        in: header
-        schema:
-          type: string
-      - name: NodeId
-        in: header
-        schema:
-          type: string
-      - name: OverwriteVersion
-        in: header
-        schema:
-          type: string
-      - name: ZM_AUTH_TOKEN
-        in: cookie
-        schema:
-          type: string
-      requestBody:
-        content:
-          '*/*':
-            schema:
-              type: string
-              format: binary
-        required: true
-      responses:
-        "401":
-          description: Missing or invalid authentication cookie
-        "403":
-          description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
-        "200":
-          description: Success
-          content:
-            application/json: {}
-        "400":
-          description: Missing or malformed input
-        "404":
-          description: "Node, link or version not found or not accessible"
-        "405":
-          description: Maximum number of file versions reached
-        "413":
-          description: Payload or file size exceeds the configured limit
-        "423":
-          description: Overwrite of the node already in progress
-        "500":
-          description: Internal Server Error
-      summary: Upload Version
-      tags:
-      - Blob Resource
 components:
   schemas:
     CreateFolderRequest:
@@ -1392,6 +28,20 @@ components:
       properties:
         deleted:
           type: boolean
+    DependencyType:
+      type: string
+      enum:
+      - OPTIONAL
+      - REQUIRED
+    HealthResponse:
+      type: object
+      properties:
+        ready:
+          type: boolean
+        dependencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceHealth"
     InternalNodeDto:
       type: object
       properties:
@@ -1442,6 +92,1902 @@ components:
       type: object
       properties:
         url:
+          type: string
+    ServiceHealth:
+      type: object
+      properties:
+        name:
+          type: string
+        ready:
+          type: boolean
+        live:
+          type: boolean
+        type:
+          $ref: "#/components/schemas/DependencyType"
+    UploadAttachmentResponse:
+      type: object
+      properties:
+        attachmentId:
+          type: string
+    UploadVersionResponse:
+      type: object
+      properties:
+        nodeId:
+          type: string
+        version:
+          type: integer
+          format: int32
+    ApiVersionError:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - INVALID_API_VERSION
+          - UNSUPPORTED_API_VERSION
+        message:
+          type: string
+        received:
+          type: string
+        oldestSupported:
+          type: string
+        current:
+          type: string
+paths:
+  /download-multiple:
+    post:
+      parameters:
+      - required: false
+        name: Cookie
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: ZIP archive of the requested nodes
+          content:
+            application/zip:
+              schema:
+                format: binary
+                type: string
+        "400":
+          description: "Missing or malformed nodeIds The version header is rejected:\
+            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "404":
+          description: Some nodes do not exist or are not accessible
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal Server Error
+      summary: Download Multiple
+      tags:
+      - Blob Resource
+  /download-multiple/check:
+    post:
+      parameters:
+      - required: false
+        name: Cookie
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "204":
+          description: "Success, no content"
+        "400":
+          description: "Missing or malformed input The version header is rejected:\
+            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal Server Error
+      summary: Check Download Multiple
+      tags:
+      - Blob Resource
+  /download/{nodeId}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - required: false
+        name: Cookie
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "404":
+          description: Node not found or not accessible
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "500":
+          description: Internal Server Error
+        "400":
+          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+      summary: Download
+      tags:
+      - Blob Resource
+  /download/{nodeId}/check:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - required: false
+        name: Cookie
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "204":
+          description: "Success, no content"
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "500":
+          description: Internal Server Error
+        "400":
+          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+      summary: Check Download
+      tags:
+      - Blob Resource
+  /download/{nodeId}/{version}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+      - required: false
+        name: Cookie
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "404":
+          description: Node not found or not accessible
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "500":
+          description: Internal Server Error
+        "400":
+          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+      summary: Download Version
+      tags:
+      - Blob Resource
+  /health:
+    get:
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "500":
+          description: A required dependency is not ready
+        "400":
+          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+      summary: Health
+      tags:
+      - Health Resource
+      parameters:
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+  /health/live:
+    get:
+      responses:
+        "204":
+          description: "Success, no content"
+        "500":
+          description: Internal Server Error
+        "400":
+          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+      summary: Health Live
+      tags:
+      - Health Resource
+      parameters:
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+  /health/ready:
+    get:
+      responses:
+        "204":
+          description: "Success, no content"
+        "500":
+          description: A required dependency is not ready
+        "400":
+          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+      summary: Health Ready
+      tags:
+      - Health Resource
+      parameters:
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+  /internal/accounts/{userId}/download/{nodeId}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "404":
+          description: Node not found or not accessible
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "500":
+          description: Internal Server Error
+        "400":
+          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+      summary: Download
+      tags:
+      - Internal Blob Resource
+  /internal/accounts/{userId}/download/{nodeId}/{version}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "404":
+          description: Node not found or not accessible
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "500":
+          description: Internal Server Error
+        "400":
+          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+      summary: Download Version
+      tags:
+      - Internal Blob Resource
+  /internal/accounts/{userId}/nodes/{nodeId}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      - required: false
+        name: version
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalNodeDto"
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "500":
+          description: Internal Server Error
+        "400":
+          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+      summary: Get Node
+      tags:
+      - Internal Node Resource
+  /internal/accounts/{userId}/upload:
+    post:
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      - required: false
+        name: Content-Length
+        in: header
+        schema:
+          type: integer
+          format: int64
+      - required: false
+        name: Description
+        in: header
+        schema:
+          type: string
+      - required: true
+        name: Filename
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ParentId
+        in: header
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadVersionResponse"
+        "400":
+          description: "Missing or malformed input The version header is rejected:\
+            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "500":
+          description: Internal Server Error
+      summary: Upload
+      tags:
+      - Internal Blob Resource
+  /internal/accounts/{userId}/upload-version:
+    post:
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      - required: false
+        name: Content-Length
+        in: header
+        schema:
+          type: integer
+          format: int64
+      - required: true
+        name: Filename
+        in: header
+        schema:
+          type: string
+      - required: true
+        name: NodeId
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: OverwriteVersion
+        in: header
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadVersionResponse"
+        "400":
+          description: "Missing or malformed input The version header is rejected:\
+            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "405":
+          description: Maximum number of file versions reached
+        "423":
+          description: Overwrite of the node already in progress
+        "500":
+          description: Internal Server Error
+      summary: Upload Version
+      tags:
+      - Internal Blob Resource
+  /internal/folders:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFolderRequest"
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalNodeIdDto"
+        "400":
+          description: "Missing or malformed input The version header is rejected:\
+            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "500":
+          description: Internal Server Error
+      summary: Create Folder
+      tags:
+      - Internal Node Resource
+      parameters:
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+  /internal/links:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePublicLinkRequest"
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicLinkDto"
+        "400":
+          description: "Missing or malformed input The version header is rejected:\
+            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "429":
+          description: Public link limit reached
+        "500":
+          description: Internal Server Error
+      summary: Create Public Link
+      tags:
+      - Internal Node Resource
+      parameters:
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+  /internal/nodes:
+    delete:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteAllRequest"
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteAllResponse"
+        "400":
+          description: "Missing or malformed request body The version header is rejected:\
+            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "500":
+          description: Internal Server Error
+      summary: Delete All Nodes And Blobs
+      tags:
+      - Internal Node Resource
+      parameters:
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+  /invite/{invitationId}:
+    get:
+      parameters:
+      - name: invitationId
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: "\\w{8}"
+      - required: false
+        name: Cookie
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "307":
+          description: Redirect to the invitation target
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "500":
+          description: Internal Server Error
+        "400":
+          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+      summary: Invite
+      tags:
+      - Collaboration Link Resource
+  /link/{publicLinkId}:
+    get:
+      parameters:
+      - name: publicLinkId
+        in: path
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "307":
+          description: Redirect to the access-code page (access-code-protected link)
+        "404":
+          description: Link or node not found
+        "500":
+          description: Internal Server Error
+        "400":
+          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+      summary: Download By Public Link
+      tags:
+      - Public Blob Resource
+  /preview/document/{nodeId}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - required: false
+        name: crop
+        in: query
+        schema:
+          type: boolean
+      - required: false
+        name: first_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - required: false
+        name: last_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - required: false
+        name: output_format
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: quality
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: shape
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: version
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: Cookie
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: Preview bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "304":
+          description: Not modified (ETag matched)
+        "400":
+          description: "Unsupported mimetype for this preview type The version header\
+            \ is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "404":
+          description: Node not found or not accessible
+        "500":
+          description: Internal Server Error
+      summary: Preview Document
+      tags:
+      - Preview Resource
+  /preview/document/{nodeId}/{area}/thumbnail:
+    get:
+      parameters:
+      - name: area
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: "[\\d]*x[\\d]*"
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - required: false
+        name: crop
+        in: query
+        schema:
+          type: boolean
+      - required: false
+        name: first_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - required: false
+        name: last_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - required: false
+        name: output_format
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: quality
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: shape
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: version
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: Cookie
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: Preview bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "304":
+          description: Not modified (ETag matched)
+        "400":
+          description: "Unsupported mimetype for this preview type The version header\
+            \ is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "404":
+          description: Node not found or not accessible
+        "500":
+          description: Internal Server Error
+      summary: Thumbnail Document
+      tags:
+      - Preview Resource
+  /preview/image/{nodeId}/{area}:
+    get:
+      parameters:
+      - name: area
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: "[\\d]*x[\\d]*"
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - required: false
+        name: crop
+        in: query
+        schema:
+          type: boolean
+      - required: false
+        name: first_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - required: false
+        name: last_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - required: false
+        name: output_format
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: quality
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: shape
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: version
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: Cookie
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: Preview bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "304":
+          description: Not modified (ETag matched)
+        "400":
+          description: "Unsupported mimetype for this preview type The version header\
+            \ is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "404":
+          description: Node not found or not accessible
+        "500":
+          description: Internal Server Error
+      summary: Preview Image
+      tags:
+      - Preview Resource
+  /preview/image/{nodeId}/{area}/thumbnail:
+    get:
+      parameters:
+      - name: area
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: "[\\d]*x[\\d]*"
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - required: false
+        name: crop
+        in: query
+        schema:
+          type: boolean
+      - required: false
+        name: first_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - required: false
+        name: last_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - required: false
+        name: output_format
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: quality
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: shape
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: version
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: Cookie
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: Preview bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "304":
+          description: Not modified (ETag matched)
+        "400":
+          description: "Unsupported mimetype for this preview type The version header\
+            \ is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "404":
+          description: Node not found or not accessible
+        "500":
+          description: Internal Server Error
+      summary: Thumbnail Image
+      tags:
+      - Preview Resource
+  /preview/pdf/{nodeId}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - required: false
+        name: crop
+        in: query
+        schema:
+          type: boolean
+      - required: false
+        name: first_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - required: false
+        name: last_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - required: false
+        name: output_format
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: quality
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: shape
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: version
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: Cookie
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: Preview bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "304":
+          description: Not modified (ETag matched)
+        "400":
+          description: "Unsupported mimetype for this preview type The version header\
+            \ is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "404":
+          description: Node not found or not accessible
+        "500":
+          description: Internal Server Error
+      summary: Preview Pdf
+      tags:
+      - Preview Resource
+  /preview/pdf/{nodeId}/{area}/thumbnail:
+    get:
+      parameters:
+      - name: area
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: "[\\d]*x[\\d]*"
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - required: false
+        name: crop
+        in: query
+        schema:
+          type: boolean
+      - required: false
+        name: first_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - required: false
+        name: last_page
+        in: query
+        schema:
+          type: integer
+          format: int32
+      - required: false
+        name: output_format
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: quality
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: shape
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: version
+        in: query
+        schema:
+          type: string
+      - required: false
+        name: Cookie
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: Preview bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "304":
+          description: Not modified (ETag matched)
+        "400":
+          description: "Unsupported mimetype for this preview type The version header\
+            \ is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "404":
+          description: Node not found or not accessible
+        "500":
+          description: Internal Server Error
+      summary: Thumbnail Pdf
+      tags:
+      - Preview Resource
+  /public/download-multiple:
+    post:
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: ZIP archive of the requested nodes
+          content:
+            application/zip:
+              schema:
+                format: binary
+                type: string
+        "400":
+          description: "Missing or malformed parameters The version header is rejected:\
+            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "404":
+          description: Nodes not accessible via the link
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal Server Error
+      summary: Download Public Multiple
+      tags:
+      - Public Blob Resource
+      parameters:
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+  /public/download-multiple/check:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "204":
+          description: "Success, no content"
+        "400":
+          description: "Missing or malformed input The version header is rejected:\
+            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal Server Error
+      summary: Check Download Public Multiple
+      tags:
+      - Public Blob Resource
+      parameters:
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+  /public/download/{nodeId}:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - required: false
+        name: access_code
+        in: query
+        schema:
+          type: string
+      - required: true
+        name: node_link_id
+        in: query
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "404":
+          description: Node not found or not accessible via the link
+        "500":
+          description: Internal Server Error
+        "400":
+          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+      summary: Download Public File
+      tags:
+      - Public Blob Resource
+  /public/download/{nodeId}/check:
+    get:
+      parameters:
+      - name: nodeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - required: false
+        name: access_code
+        in: query
+        schema:
+          type: string
+      - required: true
+        name: node_link_id
+        in: query
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "204":
+          description: "Success, no content"
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "500":
+          description: Internal Server Error
+        "400":
+          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+      summary: Check Download Public File
+      tags:
+      - Public Blob Resource
+  /public/link/download/{publicLinkId}:
+    get:
+      parameters:
+      - name: publicLinkId
+        in: path
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      responses:
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+        "307":
+          description: Redirect to the access-code page (access-code-protected link)
+        "404":
+          description: Link or node not found
+        "500":
+          description: Internal Server Error
+        "400":
+          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+      summary: Download Via Public Link
+      tags:
+      - Public Blob Resource
+  /upload:
+    post:
+      parameters:
+      - required: false
+        name: Content-Length
+        in: header
+        schema:
+          type: integer
+          format: int64
+      - required: false
+        name: Cookie
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: Description
+        in: header
+        schema:
+          type: string
+      - required: true
+        name: Filename
+        in: header
+        schema:
+          type: string
+      - required: true
+        name: ParentId
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadVersionResponse"
+        "400":
+          description: "Missing or malformed input (the Filename and ParentId headers\
+            \ are required) The version header is rejected: INVALID_API_VERSION or\
+            \ UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "500":
+          description: Internal Server Error
+      summary: Upload
+      tags:
+      - Blob Resource
+  /upload-to:
+    post:
+      parameters:
+      - required: false
+        name: Cookie
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadAttachmentResponse"
+        "400":
+          description: "Missing or malformed input The version header is rejected:\
+            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal Server Error
+      summary: Upload To
+      tags:
+      - Procedure Resource
+  /upload-version:
+    post:
+      parameters:
+      - required: false
+        name: Content-Length
+        in: header
+        schema:
+          type: integer
+          format: int64
+      - required: false
+        name: Cookie
+        in: header
+        schema:
+          type: string
+      - required: true
+        name: Filename
+        in: header
+        schema:
+          type: string
+      - required: true
+        name: NodeId
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: OverwriteVersion
+        in: header
+        schema:
+          type: string
+      - required: false
+        name: ZM_AUTH_TOKEN
+        in: cookie
+        schema:
+          type: string
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        "401":
+          description: Missing or invalid authentication cookie
+        "403":
+          description: "User not allowed (inactive, guest or feature disabled)"
+        "503":
+          description: "Transfer pool saturated, retry later"
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadVersionResponse"
+        "400":
+          description: "Missing or malformed input The version header is rejected:\
+            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+        "404":
+          description: "Node, link or version not found or not accessible"
+        "405":
+          description: Maximum number of file versions reached
+        "413":
+          description: Payload or file size exceeds the configured limit
+        "423":
+          description: Overwrite of the node already in progress
+        "500":
+          description: Internal Server Error
+      summary: Upload Version
+      tags:
+      - Blob Resource
+  /versions:
+    get:
+      summary: The API versions the service speaks
+      responses:
+        "200":
+          description: "Name, edition, current and oldest supported version"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  edition:
+                    type: string
+                  current:
+                    type: string
+                  oldestSupported:
+                    type: string
+                  header:
+                    type: string
+        "400":
+          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+      parameters:
+      - in: header
+        name: X-FILES-API-VERSION
+        required: false
+        description: "The API version the client speaks: a semantic version or current.\
+          \ Missing means current. The response repeats the version it was served\
+          \ at."
+        schema:
           type: string
 info:
   title: carbonio-files-ce-app API

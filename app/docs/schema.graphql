@@ -23,7 +23,7 @@ scalar BigInteger
 type CollaborationLink {
   created_at: BigInteger!
   id: ID!
-  node: Node!
+  node: Node! @errors(codes : ["NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
   permission: SharePermission!
   url: String!
 }
@@ -43,18 +43,18 @@ type File implements Node {
   cloned_from_version: Int
   collaboration_links: [CollaborationLink]!
   created_at: BigInteger!
-  creator: User!
+  creator: User! @errors(codes : ["ACCOUNT_NOT_FOUND"])
   description: String!
   digest: String!
   extension: String
   flagged: Boolean!
   id: ID!
   keep_forever: Boolean!
-  last_editor: User
+  last_editor: User @errors(codes : ["ACCOUNT_NOT_FOUND"])
   links: [Link]!
   mime_type: String!
   name: String!
-  owner: User
+  owner: User @errors(codes : ["ACCOUNT_NOT_FOUND"])
   parent: Node
   permissions: Permissions!
   rootId: ID
@@ -67,17 +67,17 @@ type File implements Node {
 }
 
 type Folder implements Node {
-  children(limit: Int!, page_token: String, sort: NodeSort!): NodePage!
+  children(limit: Int!, page_token: String, sort: NodeSort!): NodePage! @errors(codes : ["FILE_VERSION_NOT_FOUND"])
   collaboration_links: [CollaborationLink]!
   created_at: BigInteger!
-  creator: User!
+  creator: User! @errors(codes : ["ACCOUNT_NOT_FOUND"])
   description: String!
   flagged: Boolean!
   id: ID!
-  last_editor: User
+  last_editor: User @errors(codes : ["ACCOUNT_NOT_FOUND"])
   links: [Link]!
   name: String!
-  owner: User
+  owner: User @errors(codes : ["ACCOUNT_NOT_FOUND"])
   parent: Node
   permissions: Permissions!
   rootId: ID
@@ -93,31 +93,31 @@ type Link {
   description: String
   expires_at: BigInteger
   id: ID!
-  node: Node!
+  node: Node! @errors(codes : ["NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
   url: String
 }
 
 "Mutation root"
 type Mutation {
-  cloneVersion(node_id: ID!, version: Int!): File! @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "VERSIONS_LIMIT_REACHED", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
-  copyNodes(destination_id: ID!, node_ids: [String!]): [Node!] @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "NODE_COPY_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
-  createCollaborationLink(node_id: ID!, permission: SharePermission!): CollaborationLink! @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
-  createFolder(destination_id: String!, name: String!): Node! @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
-  createLink(access_code: String, description: String, expires_at: BigInteger, node_id: ID!): Link! @errors(codes : ["UNAUTHENTICATED", "LINK_LIMIT_EXCEEDED", "NODE_WRITE_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
-  createShare(custom_message: String, expires_at: BigInteger, node_id: ID!, permission: SharePermission!, share_target_id: ID!): Share! @errors(codes : ["UNAUTHENTICATED", "SHARE_CREATION_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
-  deleteCollaborationLinks(collaboration_link_ids: [String!]!): [ID]! @errors(codes : ["UNAUTHENTICATED", "MISSING_FIELD"])
-  deleteLinks(link_ids: [String!]!): [ID]! @errors(codes : ["UNAUTHENTICATED", "LINK_NOT_FOUND"])
-  deleteNodes(node_ids: [String!]): [ID!] @errors(codes : ["UNAUTHENTICATED", "NODE_NOT_FOUND", "NODE_WRITE_ERROR"])
-  deleteShares(node_id: ID!, share_target_ids: [String!]!): [ID]! @errors(codes : ["UNAUTHENTICATED", "SHARE_NOT_FOUND"])
-  deleteVersions(node_id: ID!, versions: [Int!]): [Int]! @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
-  flagNodes(flag: Boolean!, node_ids: [String!]): [ID!] @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR"])
-  keepVersions(keep_forever: Boolean!, node_id: ID!, versions: [Int!]!): [Int]! @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "VERSIONS_LIMIT_REACHED"])
-  moveNodes(destination_id: ID!, node_ids: [String!]): [Node!] @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
-  restoreNodes(node_ids: [String!]): [Node] @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
-  trashNodes(node_ids: [String!]): [ID!] @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR"])
-  updateLink(access_code: String, description: String, expires_at: BigInteger, link_id: ID!): Link @errors(codes : ["UNAUTHENTICATED", "LINK_NOT_FOUND", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
-  updateNode(description: String, flagged: Boolean, name: String, node_id: String!): Node! @errors(codes : ["UNAUTHENTICATED", "NODE_DUPLICATED", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
-  updateShares(expires_at: BigInteger, node_id: ID!, permission: SharePermission, share_target_ids: [String!]!): [Share]! @errors(codes : ["UNAUTHENTICATED", "SHARE_NOT_FOUND", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  cloneVersion(node_id: ID!, version: Int!): File! @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "NODE_WRITE_ERROR", "UNAUTHENTICATED", "VERSIONS_LIMIT_REACHED"])
+  copyNodes(destination_id: ID!, node_ids: [String!]): [Node!] @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_COPY_ERROR", "NODE_NOT_FOUND", "NODE_WRITE_ERROR", "UNAUTHENTICATED"])
+  createCollaborationLink(node_id: ID!, permission: SharePermission!): CollaborationLink! @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "NODE_WRITE_ERROR", "UNAUTHENTICATED"])
+  createFolder(destination_id: String!, name: String!): Node! @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "NODE_WRITE_ERROR", "UNAUTHENTICATED"])
+  createLink(access_code: String, description: String, expires_at: BigInteger, node_id: ID!): Link! @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "LINK_LIMIT_EXCEEDED", "NODE_NOT_FOUND", "NODE_WRITE_ERROR", "UNAUTHENTICATED"])
+  createShare(custom_message: String, expires_at: BigInteger, node_id: ID!, permission: SharePermission!, share_target_id: ID!): Share! @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "SHARE_CREATION_ERROR", "UNAUTHENTICATED"])
+  deleteCollaborationLinks(collaboration_link_ids: [String!]!): [ID]! @errors(codes : ["MISSING_FIELD", "UNAUTHENTICATED"])
+  deleteLinks(link_ids: [String!]!): [ID]! @errors(codes : ["LINK_NOT_FOUND", "UNAUTHENTICATED"])
+  deleteNodes(node_ids: [String!]): [ID!] @errors(codes : ["NODE_NOT_FOUND", "NODE_WRITE_ERROR", "UNAUTHENTICATED"])
+  deleteShares(node_id: ID!, share_target_ids: [String!]!): [ID]! @errors(codes : ["SHARE_NOT_FOUND", "UNAUTHENTICATED"])
+  deleteVersions(node_id: ID!, versions: [Int!]): [Int]! @errors(codes : ["FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "NODE_WRITE_ERROR", "UNAUTHENTICATED"])
+  flagNodes(flag: Boolean!, node_ids: [String!]): [ID!] @errors(codes : ["NODE_WRITE_ERROR", "UNAUTHENTICATED"])
+  keepVersions(keep_forever: Boolean!, node_id: ID!, versions: [Int!]!): [Int]! @errors(codes : ["NODE_WRITE_ERROR", "UNAUTHENTICATED", "VERSIONS_LIMIT_REACHED"])
+  moveNodes(destination_id: ID!, node_ids: [String!]): [Node!] @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "NODE_WRITE_ERROR", "UNAUTHENTICATED"])
+  restoreNodes(node_ids: [String!]): [Node] @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "NODE_WRITE_ERROR", "UNAUTHENTICATED"])
+  trashNodes(node_ids: [String!]): [ID!] @errors(codes : ["NODE_WRITE_ERROR", "UNAUTHENTICATED"])
+  updateLink(access_code: String, description: String, expires_at: BigInteger, link_id: ID!): Link @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "LINK_NOT_FOUND", "NODE_NOT_FOUND", "UNAUTHENTICATED"])
+  updateNode(description: String, flagged: Boolean, name: String, node_id: String!): Node! @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_DUPLICATED", "NODE_NOT_FOUND", "UNAUTHENTICATED"])
+  updateShares(expires_at: BigInteger, node_id: ID!, permission: SharePermission, share_target_ids: [String!]!): [Share]! @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "SHARE_NOT_FOUND", "UNAUTHENTICATED"])
 }
 
 type NewShare {
@@ -131,14 +131,14 @@ type NewShare {
 interface Node {
   collaboration_links: [CollaborationLink]!
   created_at: BigInteger!
-  creator: User!
+  creator: User! @errors(codes : ["ACCOUNT_NOT_FOUND"])
   description: String!
   flagged: Boolean!
   id: ID!
-  last_editor: User
+  last_editor: User @errors(codes : ["ACCOUNT_NOT_FOUND"])
   links: [Link]!
   name: String!
-  owner: User
+  owner: User @errors(codes : ["ACCOUNT_NOT_FOUND"])
   parent: Node
   permissions: Permissions!
   rootId: ID
@@ -247,21 +247,21 @@ type PublicNodePage {
 
 "Query root"
 type Query {
-  findNodes(cascade: Boolean, direct_share: Boolean, flagged: Boolean, folder_id: String, keywords: [String!], limit: Int, owner_id: String, page_token: String, shared_by_me: Boolean, shared_with_me: Boolean, sort: NodeSort, type: NodeType): NodePage @errors(codes : ["UNAUTHENTICATED", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
-  findPublicNodes(access_code: String, folder_id: ID!, limit: Int, node_link_id: String, page_token: String): PublicNodePage @errors(codes : ["NODE_NOT_FOUND", "ACCESS_CODE_REQUIRED"])
-  getAccountByEmail(email: String!): Account @errors(codes : ["UNAUTHENTICATED", "ACCOUNT_NOT_FOUND"])
-  getAccountsByEmail(emails: [String!]!): [Account]! @errors(codes : ["UNAUTHENTICATED", "ACCOUNT_NOT_FOUND"])
-  getCollaborationLinks(node_id: ID!): [CollaborationLink]! @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  findNodes(cascade: Boolean, direct_share: Boolean, flagged: Boolean, folder_id: String, keywords: [String!], limit: Int, owner_id: String, page_token: String, shared_by_me: Boolean, shared_with_me: Boolean, sort: NodeSort, type: NodeType): NodePage @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "UNAUTHENTICATED"])
+  findPublicNodes(access_code: String, folder_id: ID!, limit: Int, node_link_id: String, page_token: String): PublicNodePage @errors(codes : ["ACCESS_CODE_REQUIRED", "NODE_NOT_FOUND"])
+  getAccountByEmail(email: String!): Account @errors(codes : ["ACCOUNT_NOT_FOUND", "UNAUTHENTICATED"])
+  getAccountsByEmail(emails: [String!]!): [Account]! @errors(codes : ["ACCOUNT_NOT_FOUND", "UNAUTHENTICATED"])
+  getCollaborationLinks(node_id: ID!): [CollaborationLink]! @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "NODE_WRITE_ERROR", "UNAUTHENTICATED"])
   getConfigs(names: [String!]): [Config]! @errors(codes : ["UNAUTHENTICATED"])
-  getLinks(node_id: ID!): [Link]! @errors(codes : ["UNAUTHENTICATED", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
-  getNode(node_id: ID!, version: Int): Node @errors(codes : ["UNAUTHENTICATED", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  getLinks(node_id: ID!): [Link]! @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "UNAUTHENTICATED"])
+  getNode(node_id: ID!, version: Int): Node @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "UNAUTHENTICATED"])
   getNotifications(limit: Int, page_token: String, update_last_seen: Boolean!): NotificationPage @errors(codes : ["UNAUTHENTICATED"])
-  getPath(node_id: ID!): [Node]! @errors(codes : ["UNAUTHENTICATED", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
-  getPublicNode(access_code: String, node_link_id: String!): PublicNode @errors(codes : ["LINK_NOT_FOUND", "NODE_NOT_FOUND", "ACCESS_CODE_REQUIRED", "WRONG_ACCESS_CODE"])
+  getPath(node_id: ID!): [Node]! @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "UNAUTHENTICATED"])
+  getPublicNode(access_code: String, node_link_id: String!): PublicNode @errors(codes : ["ACCESS_CODE_REQUIRED", "LINK_NOT_FOUND", "NODE_NOT_FOUND", "WRONG_ACCESS_CODE"])
   getRootsList: [Root]! @errors(codes : ["UNAUTHENTICATED"])
-  getShare(node_id: ID!, share_target_id: ID!): Share @errors(codes : ["UNAUTHENTICATED", "SHARE_NOT_FOUND", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
-  getUserById(user_id: ID!): User @errors(codes : ["UNAUTHENTICATED", "ACCOUNT_NOT_FOUND"])
-  getVersions(node_id: ID!, versions: [Int!]): [File]! @errors(codes : ["UNAUTHENTICATED", "NODE_WRITE_ERROR", "ACCOUNT_NOT_FOUND", "NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  getShare(node_id: ID!, share_target_id: ID!): Share @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "SHARE_NOT_FOUND", "UNAUTHENTICATED"])
+  getUserById(user_id: ID!): User @errors(codes : ["ACCOUNT_NOT_FOUND", "UNAUTHENTICATED"])
+  getVersions(node_id: ID!, versions: [Int!]): [File]! @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "NODE_WRITE_ERROR", "UNAUTHENTICATED"])
 }
 
 type RemovedNode {
@@ -287,9 +287,9 @@ type Root {
 type Share {
   created_at: BigInteger!
   expires_at: BigInteger
-  node: Node!
+  node: Node! @errors(codes : ["NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
   permission: SharePermission!
-  share_target: SharedTarget
+  share_target: SharedTarget @errors(codes : ["ACCOUNT_NOT_FOUND"])
 }
 
 enum SharePermission {
