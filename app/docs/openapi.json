@@ -2463,12 +2463,5 @@
   "info" : {
     "title" : "carbonio-files-ce-app API",
     "version" : "unversioned"
-  },
-  "servers" : [ {
-    "url" : "http://localhost:8080",
-    "description" : "Auto generated value"
-  }, {
-    "url" : "http://0.0.0.0:8080",
-    "description" : "Auto generated value"
-  } ]
+  }
 }

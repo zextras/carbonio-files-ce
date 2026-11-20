@@ -23,7 +23,7 @@ scalar BigInteger
 type CollaborationLink {
   created_at: BigInteger!
   id: ID!
-  node: Node! @errors(codes : ["NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  node: Node! @errors(codes : ["FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND"])
   permission: SharePermission!
   url: String!
 }
@@ -93,7 +93,7 @@ type Link {
   description: String
   expires_at: BigInteger
   id: ID!
-  node: Node! @errors(codes : ["NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  node: Node! @errors(codes : ["FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND"])
   url: String
 }
 
@@ -287,7 +287,7 @@ type Root {
 type Share {
   created_at: BigInteger!
   expires_at: BigInteger
-  node: Node! @errors(codes : ["NODE_NOT_FOUND", "FILE_VERSION_NOT_FOUND"])
+  node: Node! @errors(codes : ["FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND"])
   permission: SharePermission!
   share_target: SharedTarget @errors(codes : ["ACCOUNT_NOT_FOUND"])
 }
