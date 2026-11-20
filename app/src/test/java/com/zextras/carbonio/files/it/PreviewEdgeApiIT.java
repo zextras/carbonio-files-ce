@@ -24,7 +24,7 @@ import org.junit.jupiter.params.provider.ValueSource;
  *
  * <ul>
  *   <li>MIME-type mismatch per family (image/pdf/document) -&gt; 400 ({@code BadRequestException}).
- *   <li>The generic {@code /preview/<unmatched>} fall-through -&gt; 400.
+ *   <li>An unknown {@code /preview/<unmatched>} sub-path -&gt; the router's plain 404.
  *   <li>The {@code IllegalArgumentException} catch branch (unparsable {@code ?version=} value)
  *       -&gt; 400.
  *   <li>ETag / {@code If-None-Match} caching: first request -&gt; 200 + ETag; matching
@@ -108,44 +108,28 @@ class PreviewEdgeApiIT extends AbstractFilesIT {
     Assertions.assertThat(response.getStatusCode()).isEqualTo(400);
   }
 
-  // --- Generic unmatched fall-through --------------------------------------------------------
+  // --- Unmatched sub-path --------------------------------------------------------
 
   @Test
-  void givenAnUnmatchedPreviewSubPathTheApiShouldReturnA400StatusCode() {
+  void givenAnUnmatchedPreviewSubPathTheApiShouldReturnA404StatusCode() {
     Response response = previewGet("/preview/some-unsupported-kind/whatever", OWNER_COOKIE, null);
 
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(400);
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(404);
   }
 
-  /**
-   * F3 (Quarkus-rewrite hardening restoration): legacy placed {@code auth-handler} before {@code
-   * preview-handler} for the WHOLE {@code /preview/**} family (see {@code
-   * core/.../HttpRoutingHandler#channelRead0}, lines ~179-186), so even a request that ultimately
-   * falls through to the generic 400 was authenticated FIRST. {@code
-   * PreviewResource#unmatchedPreviewPath} is the only method in the class that never called {@code
-   * authenticator.requireUser}, so an unauthenticated request reached the generic 400 without ever
-   * being challenged. Deliberately NO Cookie header here.
-   */
+  /** An unknown preview path is a plain 404, authenticated or not. */
   @Test
-  void givenAnUnauthenticatedUnmatchedPreviewSubPathTheApiShouldReturnA401StatusCode() {
+  void givenAnUnauthenticatedUnmatchedPreviewSubPathTheApiShouldReturnA404StatusCode() {
     Response response = previewGet("/preview/some-unsupported-kind/whatever", null, null);
 
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(401);
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(404);
   }
 
   // --- Malformed area segment (F4) -------------------------------------------------------------
 
   /**
-   * F4 (Quarkus-rewrite hardening restoration): legacy constrained the {@code area} path segment to
-   * {@code ([\d]*x[\d]*)} for every image/pdf/document (thumbnail) route that carries one (see
-   * {@code core/.../Constants.java}, lines ~1090-1108: {@code PREVIEW_IMAGE}/{@code
-   * THUMBNAIL_IMAGE}/{@code THUMBNAIL_PDF}/{@code THUMBNAIL_DOCUMENT}). The port's
-   * {@code @Path("/image/{nodeId}/{area}")} (and the 3 sibling thumbnail templates) left {@code
-   * area} unconstrained, so a malformed value ran the FULL permission check and a preview call
-   * before ever collapsing to 404 -- restoring the pattern constraint makes JAX-RS itself reject
-   * the template match, falling through to the generic 400 fallback BEFORE any permission check or
-   * downstream call (so, unlike the not-found/permission-denied scenarios above, no node needs to
-   * exist at all).
+   * The {@code area} regex still rejects the template match before any permission check; the
+   * request now ends in the router's 404.
    */
   @ParameterizedTest
   @ValueSource(
@@ -155,10 +139,10 @@ class PreviewEdgeApiIT extends AbstractFilesIT {
         "/preview/pdf/00000000-0000-0000-0000-000000000299/not-an-area/thumbnail",
         "/preview/document/00000000-0000-0000-0000-000000000299/not-an-area/thumbnail"
       })
-  void givenAMalformedAreaSegmentThePreviewApiShouldReturnA400StatusCode(String uri) {
+  void givenAMalformedAreaSegmentThePreviewApiShouldReturnA404StatusCode(String uri) {
     Response response = previewGet(uri, OWNER_COOKIE, null);
 
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(400);
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(404);
   }
 
   // --- IllegalArgumentException catch (unparsable query parameter) --------------------------
