@@ -36,15 +36,15 @@ import org.junit.jupiter.api.Test;
  *
  * <p>This is the test that would have caught F3 on its own: a since-removed catch-all route in
  * {@code PreviewResource} silently stopped calling {@code requireUser} during the Quarkus port, and
- * no other test in the suite is shaped to notice "one method in an otherwise- authenticated class
+ * no other test in the suite is shaped to notice "one method in an otherwise-authenticated class
  * lost its auth call" — every behavioural IT test that exercises that method happens to send a
  * valid cookie. This test instead inspects the compiled bytecode of every resource method directly,
  * so it fails the moment ANY method (present or future) stops authenticating without an explicit,
  * reviewed allowlist entry.
  *
  * <p><b>Verified fault injection:</b> temporarily deleting the {@code
- * authenticator.requireUser(...)} call from any resource method (with no allowlist entry added)
- * makes this test fail, naming that exact method in the assertion message.
+ * authenticator.requireUser(...)} call from that catch-all route (with no allowlist entry added)
+ * made this test fail, naming that exact method in the assertion message.
  */
 class AuthenticationCoverageTest {
 
