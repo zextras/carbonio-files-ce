@@ -104,8 +104,7 @@ class UploadFileApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAValidUploadIntoLocalRootItShouldCreateTheNodeAndReturnVersionOne()
-      throws Exception {
+  void givenAValidUploadIntoLocalRootItShouldCreateTheNodeAndReturnVersionOne() throws Exception {
     // Given
     double counterBefore = uploadCounterValue();
 

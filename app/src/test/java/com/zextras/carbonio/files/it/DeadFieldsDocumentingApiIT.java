@@ -46,8 +46,8 @@ import org.junit.jupiter.api.Test;
  *       UserDataFetcher#convertUserToDataFetcherResult} and NOWHERE in the whole {@code src/main}
  *       tree is it ever set to {@code Types.DISTRIBUTION_LIST} — so {@code
  *       getAccountTypeResolver}'s {@code DistributionList} branch is unreachable dead code, on both
- *       union fields that use it ({@code Account}: {@code getAccountsByEmail}; {@code SharedTarget}:
- *       {@code Share.share_target}).
+ *       union fields that use it ({@code Account}: {@code getAccountsByEmail}; {@code
+ *       SharedTarget}: {@code Share.share_target}).
  * </ul>
  *
  * <p>All 4 methods and their assertions are preserved verbatim; only the seeding (API calls

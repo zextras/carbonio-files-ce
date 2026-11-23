@@ -25,10 +25,8 @@ class UploadCheckApiIT extends AbstractFilesIT {
 
   @BeforeAll
   static void registerUsers() {
-    FilesStackTestResource.getUserManagementService()
-        .registerToken("upload-check-owner", OWNER_ID);
-    FilesStackTestResource.getUserManagementService()
-        .registerToken("upload-check-other", OTHER_ID);
+    FilesStackTestResource.getUserManagementService().registerToken("upload-check-owner", OWNER_ID);
+    FilesStackTestResource.getUserManagementService().registerToken("upload-check-other", OTHER_ID);
   }
 
   @AfterEach
@@ -72,7 +70,8 @@ class UploadCheckApiIT extends AbstractFilesIT {
     RestAssured.given()
         .header("Cookie", OWNER_COOKIE)
         .header(
-            "Filename", Base64.getEncoder().encodeToString("a.txt".getBytes(StandardCharsets.UTF_8)))
+            "Filename",
+            Base64.getEncoder().encodeToString("a.txt".getBytes(StandardCharsets.UTF_8)))
         .header("DestinationId", LOCAL_ROOT)
         .post("/upload/check")
         .then()
@@ -84,7 +83,8 @@ class UploadCheckApiIT extends AbstractFilesIT {
     RestAssured.given()
         .header("Cookie", OWNER_COOKIE)
         .header(
-            "Filename", Base64.getEncoder().encodeToString("a.txt".getBytes(StandardCharsets.UTF_8)))
+            "Filename",
+            Base64.getEncoder().encodeToString("a.txt".getBytes(StandardCharsets.UTF_8)))
         .header("FileSize", "10")
         .post("/upload/check")
         .then()

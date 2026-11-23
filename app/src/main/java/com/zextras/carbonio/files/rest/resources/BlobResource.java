@@ -151,8 +151,7 @@ public class BlobResource {
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       @HeaderParam(Headers.UPLOAD_FILENAME) @Parameter(required = true) String encodedFilename,
       @HeaderParam(Headers.UPLOAD_DESCRIPTION) @Parameter(required = false) String description,
-      @HeaderParam(Headers.UPLOAD_DESTINATION_ID) @Parameter(required = true)
-          String destinationId,
+      @HeaderParam(Headers.UPLOAD_DESTINATION_ID) @Parameter(required = true) String destinationId,
       @HeaderParam(HttpHeaders.CONTENT_LENGTH) @Parameter(required = false) Long contentLength,
       InputStream body) {
 
@@ -269,8 +268,7 @@ public class BlobResource {
       @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       @HeaderParam(Headers.UPLOAD_FILENAME) @Parameter(required = true) String encodedFilename,
-      @HeaderParam(Headers.UPLOAD_DESTINATION_ID) @Parameter(required = true)
-          String destinationId,
+      @HeaderParam(Headers.UPLOAD_DESTINATION_ID) @Parameter(required = true) String destinationId,
       @HeaderParam(Headers.UPLOAD_FILE_SIZE) @Parameter(required = true) Long fileSize) {
     UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
     if (destinationId == null || destinationId.isBlank()) {

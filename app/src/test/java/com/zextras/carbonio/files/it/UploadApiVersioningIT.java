@@ -43,18 +43,12 @@ class UploadApiVersioningIT extends AbstractFilesIT {
   private static RequestSpecification uploadAs(String version, String filename) {
     RequestSpecification request =
         RestAssured.given().header("Cookie", COOKIE).header("Filename", base64(filename));
-    return version == null
-        ? request
-        : request.header(ApiVersionTestContext.headerName(), version);
+    return version == null ? request : request.header(ApiVersionTestContext.headerName(), version);
   }
 
   @Test
   void aCurrentClientMustSendDestinationId() {
-    uploadAs(null, "no-destination.txt")
-        .body(CONTENT)
-        .post("/upload")
-        .then()
-        .statusCode(400);
+    uploadAs(null, "no-destination.txt").body(CONTENT).post("/upload").then().statusCode(400);
   }
 
   @Test
