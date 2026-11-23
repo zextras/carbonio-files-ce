@@ -9,6 +9,11 @@
 #      CURRENT or "current" than at the base (the annotation may span lines; `//` comment lines are
 #      ignored). A contract file that does not exist at the base (its first introduction) is not a
 #      change; a deleted one is.
+#      Consequences of counting: reverting the change of an unstamped base entry E and replacing E's
+#      line with a new one leaves the count unchanged and fails; keep E's line and add another entry
+#      (for example a description-only one). Moving the registry file counts zero at the base, so a
+#      PR that moves it passes the count: rename only when the base holds no unstamped CURRENT entry,
+#      or add an entry in the same PR.
 #   2. Main builds (--main-build): contract changed in HEAD^1..HEAD and no CURRENT entry at HEAD,
 #      reported as a warning, never a failure.
 #   3. Support window (--oldest-supported-file): prints ONE warning listing vX.Y.Z tags merged into
@@ -155,6 +160,7 @@ report_violation() {
     fi
     if [ "$before" -gt 0 ]; then
         echo "$TAG   the base already holds $before unstamped CURRENT entries of other changes: add your own"
+        echo "$TAG   reverting or editing the line of a base entry does not count: keep that line and ADD a new entry (for example a description-only one)"
     fi
     for path in "${changed[@]}"; do
         echo "$TAG   changed contract file: $path"
