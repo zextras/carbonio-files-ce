@@ -20,4 +20,9 @@ import com.zextras.carbonio.quarkus.extensions.apiversioning.ApiVersion;
 @ApiChange(
     since = ApiVersion.CURRENT,
     description = "Deprecate the getAccountByEmail query: use getAccountsByEmail")
+@ApiChange(
+    since = ApiVersion.CURRENT,
+    description =
+        "Remove the getAccountByEmail query (deprecated): clients that still call it get a"
+            + " GraphQL validation error, no converter can bring an operation back")
 final class FilesApiChanges {}

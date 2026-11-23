@@ -36,7 +36,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
-import org.eclipse.microprofile.graphql.Description;
 import org.eclipse.microprofile.graphql.GraphQLApi;
 import org.eclipse.microprofile.graphql.Id;
 import org.eclipse.microprofile.graphql.Name;
@@ -167,19 +166,6 @@ public class UserApi {
         .getUserById(producer.cookies(), userId)
         .map(UserApi::toModel)
         .orElseThrow(() -> FilesGraphQLErrors.accountNotFound(userId));
-  }
-
-  @Deprecated
-  @Description("Deprecated: use getAccountsByEmail(emails: [email])")
-  @Query("getAccountByEmail")
-  @GraphqlErrors({UNAUTHENTICATED, ACCOUNT_NOT_FOUND})
-  public Account getAccountByEmail(@Name("email") @NonNull String email)
-      throws FilesGraphQLException {
-    validator.checkEmail(email).validate();
-    return userRepository
-        .getUserByEmail(producer.cookies(), email)
-        .map(user -> (Account) toModel(user))
-        .orElseThrow(() -> FilesGraphQLErrors.accountNotFound(email));
   }
 
   @Query("getAccountsByEmail")

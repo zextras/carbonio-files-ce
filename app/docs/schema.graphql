@@ -248,8 +248,6 @@ type PublicNodePage {
 type Query {
   findNodes(cascade: Boolean, direct_share: Boolean, flagged: Boolean, folder_id: String, keywords: [String!], limit: Int, owner_id: String, page_token: String, shared_by_me: Boolean, shared_with_me: Boolean, sort: NodeSort, type: NodeType): NodePage @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "UNAUTHENTICATED"])
   findPublicNodes(access_code: String, folder_id: ID!, limit: Int, node_link_id: String, page_token: String): PublicNodePage @errors(codes : ["ACCESS_CODE_REQUIRED", "NODE_NOT_FOUND"])
-  "Deprecated: use getAccountsByEmail(emails: [email])"
-  getAccountByEmail(email: String!): Account @deprecated @errors(codes : ["ACCOUNT_NOT_FOUND", "UNAUTHENTICATED"])
   getAccountsByEmail(emails: [String!]!): [Account]! @errors(codes : ["ACCOUNT_NOT_FOUND", "UNAUTHENTICATED"])
   getCollaborationLinks(node_id: ID!): [CollaborationLink]! @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "NODE_WRITE_ERROR", "UNAUTHENTICATED"])
   getConfigs: [Config]! @errors(codes : ["UNAUTHENTICATED"])

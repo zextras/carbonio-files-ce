@@ -83,11 +83,11 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenInvalidEmailOnGetAccountByEmailThenExactlyOneValidationError() {
+  void givenInvalidEmailOnGetAccountsByEmailThenExactlyOneValidationError() {
     // Given
     String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("getAccountByEmail")
-            .withString("email", "not-an-email")
+        GraphqlCommandBuilder.aQueryBuilder("getAccountsByEmail")
+            .withListOfStrings("emails", new String[] {"not-an-email"})
             .withWantedResultFormat("{ ... on User { id } }")
             .build();
 
@@ -95,7 +95,7 @@ class ValidationErrorsApiIT extends AbstractFilesIT {
     Response response = execute(bodyPayload);
 
     // Then
-    assertValidationError(response, "Invalid Email", "getAccountByEmail");
+    assertValidationError(response, "Invalid Email", "getAccountsByEmail");
   }
 
   /**

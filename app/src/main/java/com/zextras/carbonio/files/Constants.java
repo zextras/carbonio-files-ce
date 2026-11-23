@@ -481,7 +481,6 @@ public final class Constants {
       public static final String GET_VERSIONS = "getVersions";
       public static final String GET_LINKS = "getLinks";
       public static final String GET_COLLABORATION_LINKS = "getCollaborationLinks";
-      public static final String GET_ACCOUNT_BY_EMAIL = "getAccountByEmail";
       public static final String GET_ACCOUNTS_BY_EMAIL = "getAccountsByEmail";
       public static final String GET_CONFIGS = "getConfigs";
       public static final String GET_PUBLIC_NODE = "getPublicNode";

@@ -46,7 +46,7 @@ import org.junit.jupiter.api.Test;
  *       UserDataFetcher#convertUserToDataFetcherResult} and NOWHERE in the whole {@code src/main}
  *       tree is it ever set to {@code Types.DISTRIBUTION_LIST} — so {@code
  *       getAccountTypeResolver}'s {@code DistributionList} branch is unreachable dead code, on both
- *       union fields that use it ({@code Account}: {@code getAccountByEmail}; {@code SharedTarget}:
+ *       union fields that use it ({@code Account}: {@code getAccountsByEmail}; {@code SharedTarget}:
  *       {@code Share.share_target}).
  * </ul>
  *
@@ -189,7 +189,7 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
 
   @Test
   void givenTheOnlyTwoUnionFieldsInTheSchemaNeitherEverResolvesToADistributionList() {
-    // Given — the Account union (getAccountByEmail) and the SharedTarget union
+    // Given — the Account union (getAccountsByEmail) and the SharedTarget union
     // (Share.share_target) are the ONLY two places in the schema a DistributionList could ever
     // appear. Both share the exact same type resolver (UserDataFetcher#getAccountTypeResolver),
     // which is unconditionally wired to Types.USER by every account-producing code path.
@@ -199,8 +199,8 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
     seedShare(nodeId, TARGET_B, ACL.SharePermission.READ_ONLY, REQUESTER_COOKIE);
 
     String accountByEmailPayload =
-        GraphqlCommandBuilder.aQueryBuilder("getAccountByEmail")
-            .withString("email", "fake-email@example.com")
+        GraphqlCommandBuilder.aQueryBuilder("getAccountsByEmail")
+            .withListOfStrings("emails", new String[] {"fake-email@example.com"})
             .withWantedResultFormat(
                 "{ __typename ... on User { id } ... on DistributionList { id name } }")
             .build();
@@ -220,10 +220,11 @@ class DeadFieldsDocumentingApiIT extends AbstractFilesIT {
     Assertions.assertThat(
             TestUtils.jsonResponseToErrors(accountByEmailResponse.getBody().asString()))
         .isEmpty();
-    Map<String, Object> account =
-        TestUtils.jsonResponseToMap(
-            accountByEmailResponse.getBody().asString(), "getAccountByEmail");
-    Assertions.assertThat(account).containsEntry("__typename", "User");
+    List<Map<String, Object>> accounts =
+        TestUtils.jsonResponseToList(
+            accountByEmailResponse.getBody().asString(), "getAccountsByEmail");
+    Assertions.assertThat(accounts).hasSize(1);
+    Assertions.assertThat(accounts.get(0)).containsEntry("__typename", "User");
 
     // Then — SharedTarget union: always User
     Assertions.assertThat(TestUtils.jsonResponseToErrors(shareTargetResponse.getBody().asString()))

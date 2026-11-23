@@ -84,52 +84,6 @@ class UserResolversApiIT extends AbstractFilesIT {
         .collect(java.util.stream.Collectors.toList());
   }
 
-  @Test
-  void givenARegisteredEmailGetAccountByEmailShouldReturnTheUser() {
-    // Given — REQUESTER_ID is already registered with KNOWN_EMAIL via the class-level
-    // registerToken fixture (MockUserManagementService#registerToken hardcodes this email for
-    // every registered user).
-    String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("getAccountByEmail")
-            .withString("email", KNOWN_EMAIL)
-            .withWantedResultFormat("{ ... on User { id email full_name } }")
-            .build();
-
-    // When
-    Response response = execute(bodyPayload);
-
-    // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    Assertions.assertThat(TestUtils.jsonResponseToErrors(response.getBody().asString())).isEmpty();
-    Map<String, Object> account =
-        TestUtils.jsonResponseToMap(response.getBody().asString(), "getAccountByEmail");
-    Assertions.assertThat(account)
-        .containsEntry("id", REQUESTER_ID)
-        .containsEntry("email", KNOWN_EMAIL);
-  }
-
-  @Test
-  void givenAnUnregisteredEmailGetAccountByEmailShouldReturnAccountNotFound() {
-    // Given
-    String unknownEmail = "nobody-knows-this@example.com";
-    String bodyPayload =
-        GraphqlCommandBuilder.aQueryBuilder("getAccountByEmail")
-            .withString("email", unknownEmail)
-            .withWantedResultFormat("{ ... on User { id } }")
-            .build();
-
-    // When
-    Response response = execute(bodyPayload);
-
-    // Then
-    Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
-    List<String> errorCodes = TestUtils.jsonResponseToErrorCodes(response.getBody().asString());
-    Assertions.assertThat(errorCodes).containsExactly("ACCOUNT_NOT_FOUND");
-    Assertions.assertThat(
-            TestUtils.jsonResponseToValue(response.getBody().asString(), "getAccountByEmail"))
-        .isEmpty();
-  }
-
   @SuppressWarnings("unchecked")
   @Test
   void givenAMixOfKnownAndUnknownEmailsGetAccountsByEmailShouldReturnPartialSuccessInOrder() {
