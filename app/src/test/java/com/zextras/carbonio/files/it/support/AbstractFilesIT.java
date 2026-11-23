@@ -18,6 +18,7 @@ import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
 import com.zextras.carbonio.quarkus.extensions.apiversioning.test.ApiVersionTestContext;
+import com.zextras.carbonio.quarkus.extensions.apiversioning.test.UndeclaredContractFilter;
 import io.quarkus.test.common.WithTestResource;
 import io.quarkus.test.junit.QuarkusIntegrationTest;
 import io.restassured.RestAssured;
@@ -100,18 +101,7 @@ public abstract class AbstractFilesIT {
   protected static final String LOCAL_ROOT = "LOCAL_ROOT";
 
   static {
-    RestAssured.filters(
-        (request, response, ctx) -> {
-          Response result = ctx.next(request, response);
-          if (request.getURI().contains("/graphql")
-              && result.asString().contains("UNDECLARED_ERROR")) {
-            throw new AssertionError(
-                "GraphQL response carries UNDECLARED_ERROR (error code missing from the"
-                    + " contract): "
-                    + result.asString());
-          }
-          return result;
-        });
+    RestAssured.filters(new UndeclaredContractFilter());
   }
 
   // --------------------------------------------------------------------------------- lifecycle
