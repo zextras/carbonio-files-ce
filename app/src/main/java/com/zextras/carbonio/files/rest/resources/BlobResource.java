@@ -137,8 +137,7 @@ public class BlobResource {
                 schema = @Schema(implementation = UploadVersionResponse.class))),
     @APIResponse(
         responseCode = "400",
-        description =
-            "Missing or malformed input (the Filename header is required)"),
+        description = "Missing or malformed input (the Filename header is required)"),
     @APIResponse(
         responseCode = "404",
         description = "Node, link or version not found or not accessible"),
