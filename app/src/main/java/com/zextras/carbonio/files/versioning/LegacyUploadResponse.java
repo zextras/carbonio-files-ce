@@ -9,7 +9,9 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.zextras.carbonio.files.rest.types.UploadResponse;
 import com.zextras.carbonio.files.rest.types.UploadResult;
 
-/** The {@code POST /upload} body before 3.1: {@code nodeId}, and {@code version} only above 1. */
+/**
+ * The {@code POST /upload} body for older clients: {@code nodeId}, {@code version} only above 1.
+ */
 @JsonInclude(Include.NON_NULL)
 public record LegacyUploadResponse(String nodeId, Integer version) implements UploadResult {
 
