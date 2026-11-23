@@ -8,7 +8,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.zextras.carbonio.files.Constants.API.Headers;
-import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.TransferPool;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
@@ -18,6 +17,7 @@ import com.zextras.carbonio.files.exceptions.FileSizeException;
 import com.zextras.carbonio.files.rest.services.BlobService;
 import com.zextras.carbonio.files.rest.services.BlobService.ZipDownload;
 import com.zextras.carbonio.files.rest.types.BlobResponse;
+import com.zextras.carbonio.files.rest.types.UploadResponse;
 import com.zextras.carbonio.files.rest.types.UploadVersionResponse;
 import io.smallrye.common.annotation.Blocking;
 import io.smallrye.mutiny.Uni;
@@ -134,10 +134,11 @@ public class BlobResource {
         content =
             @Content(
                 mediaType = "application/json",
-                schema = @Schema(implementation = UploadVersionResponse.class))),
+                schema = @Schema(implementation = UploadResponse.class))),
     @APIResponse(
         responseCode = "400",
-        description = "Missing or malformed input (the Filename header is required)"),
+        description =
+            "Missing or malformed input (the Filename and DestinationId headers are required)"),
     @APIResponse(
         responseCode = "404",
         description = "Node, link or version not found or not accessible"),
@@ -150,7 +151,8 @@ public class BlobResource {
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       @HeaderParam(Headers.UPLOAD_FILENAME) @Parameter(required = true) String encodedFilename,
       @HeaderParam(Headers.UPLOAD_DESCRIPTION) @Parameter(required = false) String description,
-      @HeaderParam(Headers.UPLOAD_PARENT_ID) @Parameter(required = false) String parentId,
+      @HeaderParam(Headers.UPLOAD_DESTINATION_ID) @Parameter(required = true)
+          String destinationId,
       @HeaderParam(HttpHeaders.CONTENT_LENGTH) @Parameter(required = false) Long contentLength,
       InputStream body) {
 
@@ -170,7 +172,7 @@ public class BlobResource {
                   Optional.of(requester),
                   body,
                   contentLength,
-                  parentId,
+                  destinationId,
                   encodedFilename,
                   description);
             })
@@ -251,11 +253,13 @@ public class BlobResource {
       Optional<UserMyself> requesterEntity,
       InputStream body,
       Long contentLength,
-      String parentIdHeader,
+      String destinationId,
       String encodedFilename,
       String description) {
 
-    String parentId = parentIdHeader != null ? parentIdHeader : RootId.LOCAL_ROOT;
+    if (destinationId == null || destinationId.isBlank()) {
+      throw new IllegalArgumentException("Missing DestinationId header");
+    }
     String desc = description != null ? description : "";
 
     String decodedFilename = decodeFilename(encodedFilename);
@@ -271,13 +275,15 @@ public class BlobResource {
             requesterEntity,
             body,
             contentLength == null ? -1L : contentLength,
-            parentId,
+            destinationId,
             decodedFilename,
             desc);
     if (nodeId.isEmpty()) {
-      throw notFoundOrForbidden(parentId);
+      throw notFoundOrForbidden(destinationId);
     }
-    return uploadResponse(nodeId.get(), 1);
+    return Response.ok(new UploadResponse(nodeId.get(), 1))
+        .type(MediaType.APPLICATION_JSON)
+        .build();
   }
 
   // ------------------------------------------------------------------------------------ downloads

@@ -12,4 +12,6 @@ import com.zextras.carbonio.quarkus.extensions.apiversioning.ApiVersion;
     description =
         "Introduce API versioning: declared statuses and error codes, /versions and the version"
             + " header in the contract docs")
+@ApiChange(since = ApiVersion.CURRENT, converter = UploadDestinationIdConverter.class)
+@ApiChange(since = ApiVersion.CURRENT, converter = UploadResponseConverter.class)
 final class FilesApiChanges {}

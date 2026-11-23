@@ -104,7 +104,7 @@ class UploadFileApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void givenAValidUploadIntoLocalRootItShouldCreateTheNodeAndOmitVersionFromTheResponse()
+  void givenAValidUploadIntoLocalRootItShouldCreateTheNodeAndReturnVersionOne()
       throws Exception {
     // Given
     double counterBefore = uploadCounterValue();
@@ -112,7 +112,7 @@ class UploadFileApiIT extends AbstractFilesIT {
     // When
     Response response =
         upload(
-            null,
+            LOCAL_ROOT,
             null,
             "hello world".getBytes(StandardCharsets.UTF_8),
             "hello.txt",
@@ -121,12 +121,10 @@ class UploadFileApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Map<String, Object> json = OBJECT_MAPPER.readValue(response.getBody().asString(), Map.class);
-    Assertions.assertThat(json).containsKey("nodeId");
-    String nodeId = (String) json.get("nodeId");
+    Assertions.assertThat(json).containsKey("node_id").doesNotContainKey("nodeId");
+    String nodeId = (String) json.get("node_id");
     Assertions.assertThat(nodeId).isNotBlank();
-    // KNOWN QUIRK (Wave 0): UploadVersionResponse#setVersion(int) only stores values > 1, so a
-    // fresh upload's version (1) is never set -> the field is entirely absent from the JSON.
-    Assertions.assertThat(json).doesNotContainKey("version");
+    Assertions.assertThat(json).containsEntry("version", 1);
 
     Assertions.assertThat(nodeExists(nodeId, REQUESTER_COOKIE)).isTrue();
 
@@ -156,7 +154,7 @@ class UploadFileApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Map<String, Object> json = response.jsonPath().getMap("$");
-    String nodeId = (String) json.get("nodeId");
+    String nodeId = (String) json.get("node_id");
 
     Map<String, Object> node = getNode(nodeId, REQUESTER_COOKIE);
     Assertions.assertThat(((Map<String, Object>) node.get("owner")))
@@ -190,6 +188,7 @@ class UploadFileApiIT extends AbstractFilesIT {
     Response response =
         RestAssured.given()
             .header("Filename", "not-!-valid-!-base64")
+            .header("DestinationId", LOCAL_ROOT)
             .header("Cookie", REQUESTER_COOKIE)
             .body("content".getBytes(StandardCharsets.UTF_8))
             .post("/upload");
@@ -203,7 +202,7 @@ class UploadFileApiIT extends AbstractFilesIT {
   void givenAnEmptyFilenameUploadShouldReturn400() {
     // When — base64 of the empty string decodes to an empty (blank-after-trim) filename
     Response response =
-        upload(null, null, "content".getBytes(StandardCharsets.UTF_8), "", REQUESTER_COOKIE);
+        upload(LOCAL_ROOT, null, "content".getBytes(StandardCharsets.UTF_8), "", REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(400);
@@ -235,7 +234,7 @@ class UploadFileApiIT extends AbstractFilesIT {
     // When
     Response response =
         upload(
-            null,
+            LOCAL_ROOT,
             null,
             "content".getBytes(StandardCharsets.UTF_8),
             "willfail.txt",
@@ -259,7 +258,7 @@ class UploadFileApiIT extends AbstractFilesIT {
     // When
     Response response =
         upload(
-            null,
+            LOCAL_ROOT,
             null,
             "content".getBytes(StandardCharsets.UTF_8),
             "willfail2.txt",
@@ -302,7 +301,7 @@ class UploadFileApiIT extends AbstractFilesIT {
     // When
     Response response =
         upload(
-            null,
+            LOCAL_ROOT,
             null,
             "content".getBytes(StandardCharsets.UTF_8),
             "sameName.txt",
@@ -311,7 +310,7 @@ class UploadFileApiIT extends AbstractFilesIT {
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(200);
     Map<String, Object> json = response.jsonPath().getMap("$");
-    String nodeId = (String) json.get("nodeId");
+    String nodeId = (String) json.get("node_id");
 
     Map<String, Object> node = getNode(nodeId, REQUESTER_COOKIE);
     Assertions.assertThat(node)

@@ -9,7 +9,9 @@ import com.zextras.carbonio.files.rest.types.BlobResponse;
 import com.zextras.carbonio.files.rest.types.PreviewQueryParameters;
 import com.zextras.carbonio.files.rest.types.UploadAttachmentResponse;
 import com.zextras.carbonio.files.rest.types.UploadToRequest;
+import com.zextras.carbonio.files.rest.types.UploadResponse;
 import com.zextras.carbonio.files.rest.types.UploadVersionResponse;
+import com.zextras.carbonio.files.versioning.LegacyUploadResponse;
 import com.zextras.carbonio.files.rest.types.health.DependencyType;
 import com.zextras.carbonio.files.rest.types.health.HealthResponse;
 import com.zextras.carbonio.files.rest.types.health.ServiceHealth;
@@ -38,6 +40,8 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
       BlobResponse.class,
       UploadAttachmentResponse.class,
       UploadVersionResponse.class,
+      UploadResponse.class,
+      LegacyUploadResponse.class,
       UploadToRequest.class,
       PreviewQueryParameters.class,
       // Keyset pagination cursor (Base64 JSON via a raw ObjectMapper in NodeRepositoryImpl)

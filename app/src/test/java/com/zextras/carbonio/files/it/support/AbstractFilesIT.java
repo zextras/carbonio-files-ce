@@ -410,16 +410,16 @@ public abstract class AbstractFilesIT {
   }
 
   /**
-   * {@code POST /upload}: creates a new node under {@code parentId} (or the account root, when
-   * {@code null}) with the given content, matching {@code BlobResource#upload}'s header contract
-   * ({@code Filename} base64, optional {@code ParentId}/{@code Description}, raw byte body — NOT
-   * multipart).
+   * {@code POST /upload}: creates a new node under {@code parentId} with the given content,
+   * matching {@code BlobResource#upload}'s header contract ({@code Filename} base64, {@code
+   * DestinationId}, optional {@code Description}, raw byte body — NOT multipart). A {@code null}
+   * {@code parentId} sends no {@code DestinationId}, which the current contract rejects.
    */
   protected static Response upload(
       String parentId, String description, byte[] content, String filename, String cookie) {
     var request = RestAssured.given().header("Filename", base64(filename));
     if (parentId != null) {
-      request = request.header("ParentId", parentId);
+      request = request.header("DestinationId", parentId);
     }
     if (description != null) {
       request = request.header("Description", description);
@@ -650,7 +650,7 @@ public abstract class AbstractFilesIT {
       String name, String parentId, byte[] content, String ownerCookie) {
     Response response = upload(parentId, null, content, name, ownerCookie);
     Map<String, Object> json = response.jsonPath().getMap("$");
-    String nodeId = json == null ? null : (String) json.get("nodeId");
+    String nodeId = json == null ? null : (String) json.get("node_id");
     if (nodeId == null) {
       throw new IllegalStateException("seedFile failed: " + response.getBody().asString());
     }

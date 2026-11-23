@@ -58,7 +58,7 @@ class StreamedUploadApiIT extends AbstractFilesIT {
     try (Socket socket = new Socket("localhost", RestAssured.port)) {
       OutputStream out = socket.getOutputStream();
       out.write(
-          head("/upload", "ParentId: " + folderId, "disconnect.bin", 64 * CHUNK)
+          head("/upload", "DestinationId: " + folderId, "disconnect.bin", 64 * CHUNK)
               .getBytes(StandardCharsets.UTF_8));
       for (int i = 0; i < 8; i++) {
         out.write(new byte[CHUNK]);
@@ -85,7 +85,7 @@ class StreamedUploadApiIT extends AbstractFilesIT {
       socket.setSoTimeout(30_000);
       OutputStream out = socket.getOutputStream();
       out.write(
-          head("/upload", "ParentId: " + folderId, "streamed.bin", 2 * CHUNK)
+          head("/upload", "DestinationId: " + folderId, "streamed.bin", 2 * CHUNK)
               .getBytes(StandardCharsets.UTF_8));
       out.write(new byte[CHUNK]);
       out.flush();
@@ -154,7 +154,7 @@ class StreamedUploadApiIT extends AbstractFilesIT {
       socket.setSoTimeout(30_000);
       OutputStream out = socket.getOutputStream();
       out.write(
-          head("/upload", "ParentId: " + folderId, filename, 2 * CHUNK)
+          head("/upload", "DestinationId: " + folderId, filename, 2 * CHUNK)
               .getBytes(StandardCharsets.UTF_8));
       out.write(new byte[CHUNK]);
       out.flush();

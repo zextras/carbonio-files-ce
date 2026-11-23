@@ -54,7 +54,7 @@ class UploadFileSizeCapIT extends AbstractFilesIT {
     byte[] oversizedBody = "over the 0MB cap".getBytes(StandardCharsets.UTF_8);
 
     // When
-    Response response = upload(null, null, oversizedBody, "big.bin", REQUESTER_COOKIE);
+    Response response = upload(LOCAL_ROOT, null, oversizedBody, "big.bin", REQUESTER_COOKIE);
 
     // Then
     Assertions.assertThat(response.getStatusCode()).isEqualTo(413);

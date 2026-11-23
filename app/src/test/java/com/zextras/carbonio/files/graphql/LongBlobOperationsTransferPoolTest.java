@@ -145,10 +145,11 @@ class LongBlobOperationsTransferPoolTest {
         .header(
             "Filename", Base64.getEncoder().encodeToString(name.getBytes(StandardCharsets.UTF_8)))
         .header("Cookie", COOKIE)
+        .header("DestinationId", "LOCAL_ROOT")
         .body(content.getBytes(StandardCharsets.UTF_8))
         .post("/upload")
         .jsonPath()
-        .getString("nodeId");
+        .getString("node_id");
   }
 
   private static void awaitRequestContextsDestroyed() {

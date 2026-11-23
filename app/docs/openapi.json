@@ -164,6 +164,19 @@
           }
         }
       },
+      "UploadResponse" : {
+        "type" : "object",
+        "required" : [ "node_id", "version" ],
+        "properties" : {
+          "node_id" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
       "UploadVersionResponse" : {
         "type" : "object",
         "properties" : {
@@ -2244,14 +2257,14 @@
           }
         }, {
           "required" : true,
-          "name" : "Filename",
+          "name" : "DestinationId",
           "in" : "header",
           "schema" : {
             "type" : "string"
           }
         }, {
-          "required" : false,
-          "name" : "ParentId",
+          "required" : true,
+          "name" : "Filename",
           "in" : "header",
           "schema" : {
             "type" : "string"
@@ -2290,13 +2303,13 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/UploadVersionResponse"
+                  "$ref" : "#/components/schemas/UploadResponse"
                 }
               }
             }
           },
           "400" : {
-            "description" : "Missing or malformed input (the Filename header is required) The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Missing or malformed input (the Filename and DestinationId headers are required) The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Node, link or version not found or not accessible"
