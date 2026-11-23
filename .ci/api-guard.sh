@@ -14,11 +14,13 @@
 #      (for example a description-only one). Moving the registry file counts zero at the base, so a
 #      PR that moves it passes the count: rename only when the base holds no unstamped CURRENT entry,
 #      or add an entry in the same PR.
-#   2. Main builds (--main-build): contract changed in HEAD^1..HEAD and no CURRENT entry at HEAD,
-#      reported as a warning, never a failure.
+#      Release branches (release/*, hotfix lines) get the same rule as main: nothing is skipped.
+#   2. Main and release builds (--main-build): contract changed in HEAD^1..HEAD and no CURRENT entry
+#      at HEAD, reported as a warning, never a failure.
 #   3. Support window (--oldest-supported-file): prints ONE warning listing vX.Y.Z tags merged into
-#      the base branch that are older than the window and still at or above the oldest supported
-#      version. Computed only when --oldest-supported-file is passed. Never fails.
+#      the base branch (--base-branch, default main) that are older than the window and still at or
+#      above the oldest supported version. Computed only when --oldest-supported-file is passed.
+#      Never fails.
 #
 # Runs in Jenkins (dt3_apiGuard) and as a local pre-commit hook (vendored as .ci/api-guard.sh).
 # By default the committed HEAD is compared, never the working tree. With --staged the INDEX is
@@ -28,11 +30,15 @@
 #   --registry <path>                Registry file holding the @ApiChange lines, repeatable (required)
 #   --contract <path>                Contract file, repeatable
 #                                    (default: app/docs/schema.graphql, app/docs/openapi.json)
-#   --base-branch <name>             Branch whose origin/<name> (or local <name>) gives the merge-base and,
-#                                    on main builds, the tags of the window (default: main); release/*
-#                                    (or a current branch release/*) skips every check
+#   --base-branch <name>             Branch whose origin/<name> (or local <name>) gives the merge-base and
+#                                    the tags of the window. Without it, the base is detected: the
+#                                    candidates are main and every release/* branch (origin/<name>, else
+#                                    the local branch) and the one whose merge-base with HEAD is nearest
+#                                    wins (a descendant of, or equal to, the merge-bases of the others;
+#                                    ties go to main). The window then uses main.
 #   --staged                         Compare the index instead of HEAD
-#   --main-build                     Compare HEAD^1..HEAD and only warn (builds of the default branch)
+#   --main-build                     Compare HEAD^1..HEAD and only warn (builds of the default branch and
+#                                    of release/* branches)
 #   --oldest-supported-file <file>   File holding quarkus.carbonio-api-versioning.oldest-supported; enables
 #                                    the window warning
 #   --window-months <n>              Support window length (default: 15)
@@ -45,6 +51,7 @@ set -Eeuo pipefail
 
 TAG="[api-guard]"
 BASE_BRANCH="main"
+BASE_EXPLICIT=0
 CONTRACTS=()
 REGISTRIES=()
 OLDEST_FILE=""
@@ -77,7 +84,7 @@ while [ $# -gt 0 ]; do
     esac
     need_value "$1" "$#"
     case "$1" in
-        --base-branch) BASE_BRANCH="$2" ;;
+        --base-branch) BASE_BRANCH="$2"; BASE_EXPLICIT=1 ;;
         --contract) CONTRACTS+=("$2") ;;
         --registry) REGISTRIES+=("$2") ;;
         --oldest-supported-file) OLDEST_FILE="$2" ;;
@@ -107,14 +114,6 @@ fi
 if [ "${#CONTRACTS[@]}" -eq 0 ]; then
     CONTRACTS=(app/docs/schema.graphql app/docs/openapi.json)
 fi
-for branch in "$BASE_BRANCH" "$(git rev-parse --abbrev-ref HEAD 2> /dev/null || true)"; do
-    case "$branch" in
-        release/*)
-            echo "$TAG Branch $branch is a release branch: all checks skipped"
-            exit 0 ;;
-    esac
-done
-
 resolve_branch_ref() {
     local name="$1"
     if git rev-parse --verify -q "refs/remotes/origin/$name^{commit}" > /dev/null; then
@@ -122,6 +121,52 @@ resolve_branch_ref() {
     elif git rev-parse --verify -q "refs/heads/$name^{commit}" > /dev/null; then
         echo "$name"
     fi
+}
+
+# merge_base_with <ref>: merge-base of HEAD (and of the merge being committed, if any) with <ref>
+merge_base_with() {
+    local ref="$1" merge_head=""
+    if [ "$STAGED" -eq 1 ]; then
+        merge_head=$(git rev-parse -q --verify MERGE_HEAD 2> /dev/null || true)
+    fi
+    if [ -n "$merge_head" ]; then
+        git merge-base "$ref" HEAD "$merge_head" 2> /dev/null
+    else
+        git merge-base HEAD "$ref" 2> /dev/null
+    fi
+}
+
+# detect_base: sets BASE_REF and BASE_SHA to the nearest merge-base among main and the release/* branches
+detect_base() {
+    local name ref sha count best_count
+    local names=()
+    BASE_REF=""
+    BASE_SHA=""
+    best_count=0
+    mapfile -t names < <({
+        echo main
+        git for-each-ref --format='%(refname)' refs/remotes/origin/release refs/heads/release \
+            | sed -E 's#^refs/remotes/origin/##; s#^refs/heads/##' | LC_ALL=C sort -u
+    } | awk '!seen[$0]++')
+    for name in "${names[@]}"; do
+        ref=$(resolve_branch_ref "$name")
+        [ -n "$ref" ] || continue
+        sha=$(merge_base_with "$ref") || continue
+        if [ -z "$BASE_SHA" ]; then
+            BASE_REF="$ref"; BASE_SHA="$sha"
+            best_count=$(git rev-list --count "$sha")
+        elif [ "$sha" != "$BASE_SHA" ]; then
+            if git merge-base --is-ancestor "$BASE_SHA" "$sha"; then
+                BASE_REF="$ref"; BASE_SHA="$sha"
+                best_count=$(git rev-list --count "$sha")
+            elif ! git merge-base --is-ancestor "$sha" "$BASE_SHA"; then
+                count=$(git rev-list --count "$sha")
+                if [ "$count" -gt "$best_count" ]; then
+                    BASE_REF="$ref"; BASE_SHA="$sha"; best_count="$count"
+                fi
+            fi
+        fi
+    done
 }
 
 # diff_quiet <base> <path>: succeeds when <path> is identical at <base> and at the compared point
@@ -154,7 +199,7 @@ report_violation() {
     local changed=("$@")
     echo ""
     if [ "$MAIN_BUILD" -eq 1 ]; then
-        echo "$TAG WARNING: the last commit on the default branch changed contract files and the registry has no @ApiChange with since = CURRENT:"
+        echo "$TAG WARNING: the last commit on the default or release branch changed contract files and the registry has no @ApiChange with since = CURRENT:"
     else
         echo "$TAG FATAL: contract files changed but the registry has no new @ApiChange entry with since = CURRENT for this version:"
     fi
@@ -177,7 +222,7 @@ report_violation() {
 }
 
 contract_check() {
-    local base ref path reg merge_head before
+    local base ref path reg before
     local changed=()
 
     if [ "$MAIN_BUILD" -eq 1 ]; then
@@ -186,21 +231,23 @@ contract_check() {
             return 0
         fi
     else
-        ref=$(resolve_branch_ref "$BASE_BRANCH")
-        [ -n "$ref" ] || die "no origin/$BASE_BRANCH or $BASE_BRANCH to compare against (fetch it)"
-        merge_head=""
-        if [ "$STAGED" -eq 1 ]; then
-            merge_head=$(git rev-parse -q --verify MERGE_HEAD 2> /dev/null || true)
-        fi
-        if [ -n "$merge_head" ]; then
-            base=$(git merge-base "$ref" HEAD "$merge_head" 2> /dev/null) \
-                || die "no merge-base between $ref and the merge being committed"
-        else
-            base=$(git merge-base HEAD "$ref" 2> /dev/null) \
+        if [ "$BASE_EXPLICIT" -eq 1 ]; then
+            ref=$(resolve_branch_ref "$BASE_BRANCH")
+            [ -n "$ref" ] || die "no origin/$BASE_BRANCH or $BASE_BRANCH to compare against (fetch it)"
+            base=$(merge_base_with "$ref") \
                 || die "no merge-base between HEAD and $ref (shallow clone? fetch more history)"
+        else
+            detect_base
+            [ -n "$BASE_SHA" ] || die "no origin/$BASE_BRANCH or $BASE_BRANCH to compare against (fetch it)"
+            ref="$BASE_REF"
+            base="$BASE_SHA"
         fi
     fi
-    echo "$TAG Comparing contract files against ${base:0:12}"
+    if [ "$MAIN_BUILD" -eq 1 ]; then
+        echo "$TAG Comparing contract files against ${base:0:12}"
+    else
+        echo "$TAG Comparing contract files against ${base:0:12} (merge-base with $ref)"
+    fi
 
     for reg in "${REGISTRIES[@]}"; do
         if ! git rev-parse -q --verify "$NEW_REV:$reg" > /dev/null 2>&1; then
