@@ -51,7 +51,5 @@ dt3_pipeline(
     ],
     apiGuard: [
         registryFiles: ['app/src/main/java/com/zextras/carbonio/files/versioning/FilesApiChanges.java'],
-        oldestSupportedFile: 'app/src/main/resources/application.properties',
-        windowMonths: 15,
     ]
 )
