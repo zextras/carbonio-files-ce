@@ -17,4 +17,7 @@ import com.zextras.carbonio.quarkus.extensions.apiversioning.ApiVersion;
 @ApiChange(
     since = ApiVersion.CURRENT,
     description = "POST /upload/check: pre-flight of an upload (Filename, DestinationId, FileSize)")
+@ApiChange(
+    since = ApiVersion.CURRENT,
+    description = "Deprecate the getAccountByEmail query: use getAccountsByEmail")
 final class FilesApiChanges {}
