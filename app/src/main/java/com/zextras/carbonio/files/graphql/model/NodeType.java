@@ -16,7 +16,6 @@ public enum NodeType {
   PRESENTATION,
   FOLDER,
   APPLICATION,
-  ARCHIVE,
   MESSAGE,
   ROOT,
   OTHER

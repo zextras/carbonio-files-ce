@@ -170,7 +170,6 @@ enum NodeSort {
 
 enum NodeType {
   APPLICATION
-  ARCHIVE
   AUDIO
   FOLDER
   IMAGE
@@ -252,7 +251,7 @@ type Query {
   getAccountByEmail(email: String!): Account @errors(codes : ["ACCOUNT_NOT_FOUND", "UNAUTHENTICATED"])
   getAccountsByEmail(emails: [String!]!): [Account]! @errors(codes : ["ACCOUNT_NOT_FOUND", "UNAUTHENTICATED"])
   getCollaborationLinks(node_id: ID!): [CollaborationLink]! @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "NODE_WRITE_ERROR", "UNAUTHENTICATED"])
-  getConfigs(names: [String!]): [Config]! @errors(codes : ["UNAUTHENTICATED"])
+  getConfigs: [Config]! @errors(codes : ["UNAUTHENTICATED"])
   getLinks(node_id: ID!): [Link]! @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "UNAUTHENTICATED"])
   getNode(node_id: ID!, version: Int): Node @errors(codes : ["ACCOUNT_NOT_FOUND", "FILE_VERSION_NOT_FOUND", "NODE_NOT_FOUND", "UNAUTHENTICATED"])
   getNotifications(limit: Int, page_token: String, update_last_seen: Boolean!): NotificationPage @errors(codes : ["UNAUTHENTICATED"])

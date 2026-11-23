@@ -144,7 +144,6 @@ class LongBlobOperationsTransferPoolTest {
     return RestAssured.given()
         .header(
             "Filename", Base64.getEncoder().encodeToString(name.getBytes(StandardCharsets.UTF_8)))
-        .header("ParentId", "LOCAL_ROOT")
         .header("Cookie", COOKIE)
         .body(content.getBytes(StandardCharsets.UTF_8))
         .post("/upload")

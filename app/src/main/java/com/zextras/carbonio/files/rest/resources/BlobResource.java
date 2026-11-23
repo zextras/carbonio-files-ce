@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.zextras.carbonio.files.Constants.API.Headers;
+import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.config.TransferPool;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
@@ -137,7 +138,7 @@ public class BlobResource {
     @APIResponse(
         responseCode = "400",
         description =
-            "Missing or malformed input (the Filename and ParentId headers are required)"),
+            "Missing or malformed input (the Filename header is required)"),
     @APIResponse(
         responseCode = "404",
         description = "Node, link or version not found or not accessible"),
@@ -150,7 +151,7 @@ public class BlobResource {
       @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
       @HeaderParam(Headers.UPLOAD_FILENAME) @Parameter(required = true) String encodedFilename,
       @HeaderParam(Headers.UPLOAD_DESCRIPTION) @Parameter(required = false) String description,
-      @HeaderParam(Headers.UPLOAD_PARENT_ID) @Parameter(required = true) String parentId,
+      @HeaderParam(Headers.UPLOAD_PARENT_ID) @Parameter(required = false) String parentId,
       @HeaderParam(HttpHeaders.CONTENT_LENGTH) @Parameter(required = false) Long contentLength,
       InputStream body) {
 
@@ -255,10 +256,7 @@ public class BlobResource {
       String encodedFilename,
       String description) {
 
-    if (parentIdHeader == null || parentIdHeader.isBlank()) {
-      throw new IllegalArgumentException("Missing ParentId header");
-    }
-    String parentId = parentIdHeader;
+    String parentId = parentIdHeader != null ? parentIdHeader : RootId.LOCAL_ROOT;
     String desc = description != null ? description : "";
 
     String decodedFilename = decodeFilename(encodedFilename);

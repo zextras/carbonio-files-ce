@@ -11,11 +11,9 @@ import com.zextras.carbonio.files.config.FilesConfig;
 import com.zextras.carbonio.files.graphql.model.ConfigModel;
 import com.zextras.carbonio.quarkus.extensions.graphql.GraphqlErrors;
 import io.quarkus.security.Authenticated;
-import io.smallrye.graphql.api.Nullable;
 import jakarta.inject.Inject;
 import java.util.List;
 import org.eclipse.microprofile.graphql.GraphQLApi;
-import org.eclipse.microprofile.graphql.Name;
 import org.eclipse.microprofile.graphql.NonNull;
 import org.eclipse.microprofile.graphql.Query;
 
@@ -27,8 +25,7 @@ public class ConfigApi {
 
   @Query("getConfigs")
   @GraphqlErrors({UNAUTHENTICATED})
-  public @NonNull List<ConfigModel> getConfigs(
-      @Name("names") @Nullable List<@NonNull String> names) {
+  public @NonNull List<ConfigModel> getConfigs() {
     String maxVersionsRaw = filesConfig.getMaxNumberOfVersionsRaw();
     int maxVersions = Integer.parseInt(maxVersionsRaw);
 
@@ -37,19 +34,14 @@ public class ConfigApi {
             ? "0"
             : String.valueOf(maxVersions - Config.DIFF_MAX_VERSION_AND_MAX_KEEP_VERSION);
 
-    List<ConfigModel> configs =
-        List.of(
-            new ConfigModel(Config.MAX_VERSIONS, maxVersionsRaw),
-            new ConfigModel(
-                Config.MAX_DOWNLOADABLE_SIZE_IN_MB,
-                filesConfig.getMaxDownloadableFileSizeInMb().map(String::valueOf).orElse(null)),
-            new ConfigModel(
-                Config.MAX_UPLOADABLE_SIZE_IN_MB,
-                filesConfig.getMaxUploadableFileSizeInMb().map(String::valueOf).orElse(null)),
-            new ConfigModel(Config.MAX_KEEP_VERSIONS, maxKeepVersions));
-    if (names == null) {
-      return configs;
-    }
-    return configs.stream().filter(config -> names.contains(config.getName())).toList();
+    return List.of(
+        new ConfigModel(Config.MAX_VERSIONS, maxVersionsRaw),
+        new ConfigModel(
+            Config.MAX_DOWNLOADABLE_SIZE_IN_MB,
+            filesConfig.getMaxDownloadableFileSizeInMb().map(String::valueOf).orElse(null)),
+        new ConfigModel(
+            Config.MAX_UPLOADABLE_SIZE_IN_MB,
+            filesConfig.getMaxUploadableFileSizeInMb().map(String::valueOf).orElse(null)),
+        new ConfigModel(Config.MAX_KEEP_VERSIONS, maxKeepVersions));
   }
 }

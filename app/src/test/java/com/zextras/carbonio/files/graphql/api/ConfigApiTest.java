@@ -31,7 +31,7 @@ class ConfigApiTest {
   }
 
   private Map<String, String> callGetConfigs() {
-    List<ConfigModel> models = configApi.getConfigs(null);
+    List<ConfigModel> models = configApi.getConfigs();
     return models.stream()
         .collect(
             Collectors.toMap(

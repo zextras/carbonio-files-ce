@@ -77,13 +77,7 @@ class UploadContentLengthApiIT extends AbstractFilesIT {
         postWithoutContentLength(
             "/upload",
             content,
-            Map.of(
-                "Filename",
-                base64("chunked.bin"),
-                "ParentId",
-                LOCAL_ROOT,
-                "Cookie",
-                REQUESTER_COOKIE));
+            Map.of("Filename", base64("chunked.bin"), "Cookie", REQUESTER_COOKIE));
 
     // Then — legacy parity: a missing Content-Length is refused, not treated as "no cap".
     Assertions.assertThat(response.statusCode()).isEqualTo(400);

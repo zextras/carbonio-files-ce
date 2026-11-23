@@ -2250,7 +2250,7 @@
             "type" : "string"
           }
         }, {
-          "required" : true,
+          "required" : false,
           "name" : "ParentId",
           "in" : "header",
           "schema" : {
@@ -2296,7 +2296,7 @@
             }
           },
           "400" : {
-            "description" : "Missing or malformed input (the Filename and ParentId headers are required) The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Missing or malformed input (the Filename header is required) The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Node, link or version not found or not accessible"

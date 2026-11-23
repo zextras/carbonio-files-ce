@@ -17,13 +17,11 @@ import com.zextras.carbonio.files.TestUtils;
 import com.zextras.carbonio.files.api.utilities.GraphqlCommandBuilder;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.NodeType;
-import com.zextras.carbonio.quarkus.extensions.apiversioning.test.ApiVersionTestContext;
 import com.zextras.carbonio.quarkus.extensions.apiversioning.test.UndeclaredContractFilter;
 import io.quarkus.test.common.WithTestResource;
 import io.quarkus.test.junit.QuarkusIntegrationTest;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
-import io.restassured.specification.RequestSpecification;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -315,32 +313,10 @@ public abstract class AbstractFilesIT {
 
   // ------------------------------------------------------------------------------ RestAssured
 
-  /**
-   * Adds the API version header of the running {@code @ApiVersionBefore} test to {@code request}; a
-   * test without the annotation speaks as the current version and nothing is added. Only the call
-   * under test goes through this method: seed calls stay current.
-   */
-  protected static RequestSpecification withApiVersion(RequestSpecification request) {
-    String version = ApiVersionTestContext.version();
-    return version == null ? request : request.header(ApiVersionTestContext.headerName(), version);
-  }
-
-  /**
-   * POSTs an authenticated GraphQL {@code query}/{@code mutation} string to {@code /graphql/}. A
-   * RestAssured filter installed by this class fails any test whose {@code /graphql} response
-   * carries {@code UNDECLARED_ERROR} (an error code missing from the contract).
-   */
+  /** POSTs an authenticated GraphQL {@code query}/{@code mutation} string to {@code /graphql/}. */
   protected static Response graphql(String query, String cookie) {
-    return graphqlRequest(RestAssured.given(), query, cookie);
-  }
-
-  /** Same as {@link #graphql} but sends the API version of the running test (call under test). */
-  protected static Response versionedGraphql(String query, String cookie) {
-    return graphqlRequest(withApiVersion(RestAssured.given()), query, cookie);
-  }
-
-  private static Response graphqlRequest(RequestSpecification base, String query, String cookie) {
-    var request = base.contentType("application/json").body(TestUtils.queryPayload(query));
+    var request =
+        RestAssured.given().contentType("application/json").body(TestUtils.queryPayload(query));
     if (cookie != null) {
       request = request.header("Cookie", cookie);
     }
@@ -349,8 +325,7 @@ public abstract class AbstractFilesIT {
 
   /**
    * POSTs an UNAUTHENTICATED GraphQL {@code query}/{@code mutation} string to {@code /graphql/} (no
-   * cookie — anonymous identity, so only {@code @PermitAll} public operations succeed). Fails the
-   * test on {@code UNDECLARED_ERROR}, like {@link #graphql}.
+   * cookie — anonymous identity, so only {@code @PermitAll} public operations succeed).
    */
   protected static Response publicGraphql(String query) {
     return RestAssured.given()
@@ -435,46 +410,17 @@ public abstract class AbstractFilesIT {
   }
 
   /**
-   * {@code POST /upload}: creates a new node under {@code parentId} (the account root, when {@code
-   * null}: the header is always sent, current clients must) with the given content, matching {@code
-   * BlobResource#upload}'s header contract ({@code Filename} base64, {@code ParentId}, optional
-   * {@code Description}, raw byte body — NOT multipart).
+   * {@code POST /upload}: creates a new node under {@code parentId} (or the account root, when
+   * {@code null}) with the given content, matching {@code BlobResource#upload}'s header contract
+   * ({@code Filename} base64, optional {@code ParentId}/{@code Description}, raw byte body — NOT
+   * multipart).
    */
   protected static Response upload(
       String parentId, String description, byte[] content, String filename, String cookie) {
-    return uploadRequest(RestAssured.given(), parentId, description, content, filename, cookie);
-  }
-
-  /** Same as {@link #upload} but sends the API version of the running test (call under test). */
-  protected static Response versionedUpload(
-      String parentId, String description, byte[] content, String filename, String cookie) {
-    return uploadRequest(
-        withApiVersion(RestAssured.given()), parentId, description, content, filename, cookie);
-  }
-
-  /**
-   * {@code POST /upload} without the {@code ParentId} header (the header current clients must
-   * send), with the API version of the running test: for old clients that relied on the default.
-   */
-  protected static Response versionedUploadWithoutParentId(
-      byte[] content, String filename, String cookie) {
-    var request = withApiVersion(RestAssured.given()).header("Filename", base64(filename));
-    if (cookie != null) {
-      request = request.header("Cookie", cookie);
+    var request = RestAssured.given().header("Filename", base64(filename));
+    if (parentId != null) {
+      request = request.header("ParentId", parentId);
     }
-    return request.body(content).post("/upload");
-  }
-
-  private static Response uploadRequest(
-      RequestSpecification base,
-      String parentId,
-      String description,
-      byte[] content,
-      String filename,
-      String cookie) {
-    var request =
-        base.header("Filename", base64(filename))
-            .header("ParentId", parentId != null ? parentId : LOCAL_ROOT);
     if (description != null) {
       request = request.header("Description", description);
     }
