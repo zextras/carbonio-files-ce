@@ -2493,6 +2493,75 @@
         "tags" : [ "Blob Resource" ]
       }
     },
+    "/upload/check" : {
+      "post" : {
+        "parameters" : [ {
+          "required" : false,
+          "name" : "Cookie",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "required" : true,
+          "name" : "DestinationId",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "required" : true,
+          "name" : "FileSize",
+          "in" : "header",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "required" : true,
+          "name" : "Filename",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "required" : false,
+          "name" : "ZM_AUTH_TOKEN",
+          "in" : "cookie",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "401" : {
+            "description" : "Missing or invalid authentication cookie"
+          },
+          "403" : {
+            "description" : "User not allowed (inactive, guest or feature disabled)"
+          },
+          "503" : {
+            "description" : "Transfer pool saturated, retry later"
+          },
+          "204" : {
+            "description" : "The upload would be accepted"
+          },
+          "400" : {
+            "description" : "Missing or malformed input (the Filename, DestinationId and FileSize headers are required) The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+          },
+          "404" : {
+            "description" : "Node, link or version not found or not accessible"
+          },
+          "413" : {
+            "description" : "Payload or file size exceeds the configured limit"
+          },
+          "500" : {
+            "description" : "Internal Server Error"
+          }
+        },
+        "summary" : "Check Upload",
+        "tags" : [ "Blob Resource" ]
+      }
+    },
     "/graphql" : {
       "post" : {
         "summary" : "Execute a GraphQL operation",

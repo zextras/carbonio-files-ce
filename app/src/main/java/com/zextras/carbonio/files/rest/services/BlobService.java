@@ -371,6 +371,13 @@ public class BlobService {
         });
   }
 
+  public boolean canUploadInto(String folderId, String requesterId) {
+    return nodeRepository.getNode(folderId).filter(NodeRules::acceptsChildren).isPresent()
+        && permissionsChecker
+            .getPermissions(folderId, requesterId)
+            .has(SharePermission.READ_AND_WRITE);
+  }
+
   public Optional<String> uploadFile(
       String requesterId,
       Optional<UserMyself> requesterEntity,

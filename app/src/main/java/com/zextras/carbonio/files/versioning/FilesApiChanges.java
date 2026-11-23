@@ -14,4 +14,7 @@ import com.zextras.carbonio.quarkus.extensions.apiversioning.ApiVersion;
             + " header in the contract docs")
 @ApiChange(since = ApiVersion.CURRENT, converter = UploadDestinationIdConverter.class)
 @ApiChange(since = ApiVersion.CURRENT, converter = UploadResponseConverter.class)
+@ApiChange(
+    since = ApiVersion.CURRENT,
+    description = "POST /upload/check: pre-flight of an upload (Filename, DestinationId, FileSize)")
 final class FilesApiChanges {}

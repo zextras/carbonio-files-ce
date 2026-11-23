@@ -248,6 +248,52 @@ public class BlobResource {
         .runSubscriptionOn(transferPool.get());
   }
 
+  @POST
+  @Path("/upload/check")
+  @Blocking
+  @APIResponses({
+    @APIResponse(responseCode = "204", description = "The upload would be accepted"),
+    @APIResponse(
+        responseCode = "400",
+        description =
+            "Missing or malformed input (the Filename, DestinationId and FileSize headers are"
+                + " required)"),
+    @APIResponse(
+        responseCode = "404",
+        description = "Node, link or version not found or not accessible"),
+    @APIResponse(
+        responseCode = "413",
+        description = "Payload or file size exceeds the configured limit")
+  })
+  public Response checkUpload(
+      @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
+      @CookieParam(Headers.COOKIE_ZM_AUTH_TOKEN) @Parameter(required = false) String zmToken,
+      @HeaderParam(Headers.UPLOAD_FILENAME) @Parameter(required = true) String encodedFilename,
+      @HeaderParam(Headers.UPLOAD_DESTINATION_ID) @Parameter(required = true)
+          String destinationId,
+      @HeaderParam(Headers.UPLOAD_FILE_SIZE) @Parameter(required = true) Long fileSize) {
+    UserMyself requester = authenticator.requireUser(cookieHeader, zmToken);
+    if (destinationId == null || destinationId.isBlank()) {
+      throw new IllegalArgumentException("Missing DestinationId header");
+    }
+    String decodedFilename = decodeFilename(encodedFilename);
+    if (decodedFilename == null
+        || decodedFilename.trim().isEmpty()
+        || decodedFilename.trim().length() > 1024) {
+      throw new IllegalArgumentException("Missing or invalid Filename header");
+    }
+    if (fileSize == null || fileSize < 0) {
+      throw new IllegalArgumentException("Missing or invalid FileSize header");
+    }
+    if (isRequestSizeOverLimit(fileSize)) {
+      throw new FileSizeException("File size exceeds the maximum allowed");
+    }
+    if (!blobService.canUploadInto(destinationId, requester.getId().getUserId())) {
+      throw notFoundOrForbidden(destinationId);
+    }
+    return Response.noContent().build();
+  }
+
   private Response doUploadFile(
       String requesterId,
       Optional<UserMyself> requesterEntity,

@@ -986,6 +986,7 @@ public final class Constants {
       public static final String UPLOAD_DESCRIPTION = "Description";
       public static final String UPLOAD_PARENT_ID = "ParentId";
       public static final String UPLOAD_DESTINATION_ID = "DestinationId";
+      public static final String UPLOAD_FILE_SIZE = "FileSize";
       public static final String UPLOAD_ACCOUNT_ID = "AccountId";
       public static final String UPLOAD_NODE_ID = "NodeId";
       public static final String UPLOAD_OVERWRITE_VERSION = "OverwriteVersion";
