@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.rest.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.zextras.carbonio.files.Constants.API.Headers;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
@@ -538,16 +537,7 @@ public class BlobResource {
     UploadVersionResponse response = new UploadVersionResponse();
     response.setNodeId(nodeId);
     response.setVersion(version);
-    try {
-      String json =
-          OBJECT_MAPPER
-              .copy()
-              .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
-              .writeValueAsString(response);
-      return Response.ok(json).type(MediaType.APPLICATION_JSON).build();
-    } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
+    return Response.ok(response).type(MediaType.APPLICATION_JSON).build();
   }
 
   /**
