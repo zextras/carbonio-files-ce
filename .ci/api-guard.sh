@@ -28,7 +28,13 @@
 #      or not the contract changed, after rule 1, and both violations are reported. With --main-build
 #      (base HEAD^1) it is a warning. Without --oldest-supported-file, or when the key is not a X.Y.Z
 #      value on the compared side, it prints one "skipped" line and does not fail.
-#   4. Support window (--window, requires --oldest-supported-file): prints ONE warning listing vX.Y.Z tags
+#   4. Expired converter rule (needs --oldest-supported-file): the mirror of rule 3. An @ApiChange at
+#      HEAD (or in the index with --staged) that binds a converter (converter = X.class or inherits =
+#      X.class) with a stamped since "S" at or below the oldest-supported version O read on the same side
+#      is disabled in every build and serves no supported client: delete it with its converter, its tests
+#      and the legacy types only it uses. Needs no base, so it also runs on a main build without a parent.
+#      CURRENT and description-only lines are ignored. Same levels and skip behaviour as rule 3.
+#   5. Support window (--window, requires --oldest-supported-file): prints ONE warning listing vX.Y.Z tags
 #      merged into the base branch (--base-branch, default main) that are older than the window and
 #      still at or above the oldest supported version. Computed only with --window. Never fails.
 #
@@ -50,8 +56,8 @@
 #   --main-build                     Compare HEAD^1..HEAD and only warn (builds of the default branch and
 #                                    of release/* branches)
 #   --oldest-supported-file <file>   File holding quarkus.carbonio-api-versioning.oldest-supported; feeds
-#                                    the converter rule (read from HEAD, or the index with --staged) and
-#                                    the window warning
+#                                    the converter and expired converter rules (read from HEAD, or the
+#                                    index with --staged) and the window warning
 #   --window                         Compute the support window warning (requires --oldest-supported-file)
 #   --window-months <n>              Support window length (default: 15)
 #   --now <epoch>                    Override the current time (tests)
@@ -440,6 +446,43 @@ converter_check() {
     return 0
 }
 
+expired_check() {
+    local name since level reg
+    local found=0
+    if [ -z "$OLDEST_FILE" ]; then
+        echo "$TAG Expired converter check skipped: --oldest-supported-file not given"
+        return 0
+    fi
+    if ! oldest_at "$NEW_REV"; then
+        echo "$TAG Expired converter check skipped: $SKIP_REASON"
+        return 0
+    fi
+    level="FATAL"
+    [ "$MAIN_BUILD" -eq 0 ] || level="WARNING"
+    while read -r name since; do
+        [ -n "$name" ] || continue
+        semver_gt "$since" "$OLDEST_RAW" && continue
+        if [ "$found" -eq 0 ]; then
+            echo ""
+        fi
+        found=1
+        echo "$TAG $level: converter $name (since $since) is at or below oldest-supported $OLDEST_RAW: no supported client needs it and every build disables it."
+    done <<< "$(converter_pairs "$NEW_REV")"
+    if [ "$found" -eq 0 ]; then
+        echo "$TAG No expired converter in the registry"
+        return 0
+    fi
+    for reg in "${REGISTRIES[@]}"; do
+        echo "$TAG   registry file: $reg"
+    done
+    echo "$TAG Fix: delete each converter above with its @ApiChange line, its @ApiVersionBefore tests and the legacy types only it uses (an inherits line: delete the line)"
+    if [ "$MAIN_BUILD" -eq 0 ]; then
+        echo "$TAG Local bypass (hook only; CI still checks): SKIP=api-guard git commit ..."
+        VIOLATION=1
+    fi
+    return 0
+}
+
 window_warning() {
     local raw parts ref cutoff old_tags
     [ "$WINDOW" -eq 1 ] || return 0
@@ -480,5 +523,6 @@ window_warning() {
 
 contract_check
 converter_check
+expired_check
 window_warning
 exit "$VIOLATION"
