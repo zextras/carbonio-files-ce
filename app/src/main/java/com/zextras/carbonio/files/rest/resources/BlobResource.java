@@ -91,8 +91,7 @@ import org.slf4j.LoggerFactory;
   @APIResponse(responseCode = "401", description = "Missing or invalid authentication cookie"),
   @APIResponse(
       responseCode = "403",
-      description = "User not allowed (inactive, guest or feature disabled)"),
-  @APIResponse(responseCode = "503", description = "Transfer pool saturated, retry later")
+      description = "User not allowed (inactive, guest or feature disabled)")
 })
 public class BlobResource {
 
@@ -142,7 +141,8 @@ public class BlobResource {
         description = "Node, link or version not found or not accessible"),
     @APIResponse(
         responseCode = "413",
-        description = "Payload or file size exceeds the configured limit")
+        description = "Payload or file size exceeds the configured limit"),
+    @APIResponse(responseCode = "503", description = "Transfer pool saturated, retry later")
   })
   public Uni<Response> upload(
       @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
@@ -196,7 +196,8 @@ public class BlobResource {
     @APIResponse(
         responseCode = "413",
         description = "Payload or file size exceeds the configured limit"),
-    @APIResponse(responseCode = "423", description = "Overwrite of the node already in progress")
+    @APIResponse(responseCode = "423", description = "Overwrite of the node already in progress"),
+    @APIResponse(responseCode = "503", description = "Transfer pool saturated, retry later")
   })
   public Uni<Response> uploadVersion(
       @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
@@ -295,7 +296,8 @@ public class BlobResource {
     @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
     @APIResponse(
         responseCode = "413",
-        description = "Payload or file size exceeds the configured limit")
+        description = "Payload or file size exceeds the configured limit"),
+    @APIResponse(responseCode = "503", description = "Transfer pool saturated, retry later")
   })
   public Uni<Void> download(
       @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
@@ -319,7 +321,8 @@ public class BlobResource {
     @APIResponse(responseCode = "404", description = "Node not found or not accessible"),
     @APIResponse(
         responseCode = "413",
-        description = "Payload or file size exceeds the configured limit")
+        description = "Payload or file size exceeds the configured limit"),
+    @APIResponse(responseCode = "503", description = "Transfer pool saturated, retry later")
   })
   public Uni<Void> downloadVersion(
       @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,
@@ -391,7 +394,8 @@ public class BlobResource {
     @APIResponse(
         responseCode = "413",
         description = "Payload or file size exceeds the configured limit"),
-    @APIResponse(responseCode = "415", description = "Unsupported media type")
+    @APIResponse(responseCode = "415", description = "Unsupported media type"),
+    @APIResponse(responseCode = "503", description = "Transfer pool saturated, retry later")
   })
   public Uni<Void> downloadMultiple(
       @HeaderParam("Cookie") @Parameter(required = false) String cookieHeader,

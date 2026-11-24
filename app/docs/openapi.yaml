@@ -213,8 +213,6 @@ paths:
           description: Missing or invalid authentication cookie
         "403":
           description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
         "200":
           description: ZIP archive of the requested nodes
           content:
@@ -231,6 +229,8 @@ paths:
           description: Payload or file size exceeds the configured limit
         "415":
           description: Unsupported media type
+        "503":
+          description: "Transfer pool saturated, retry later"
         "500":
           description: Internal Server Error
       summary: Download Multiple
@@ -261,8 +261,6 @@ paths:
           description: Missing or invalid authentication cookie
         "403":
           description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
         "204":
           description: "Success, no content"
         "400":
@@ -302,8 +300,6 @@ paths:
           description: Missing or invalid authentication cookie
         "403":
           description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
         "200":
           description: File bytes
           content:
@@ -315,6 +311,8 @@ paths:
           description: Node not found or not accessible
         "413":
           description: Payload or file size exceeds the configured limit
+        "503":
+          description: "Transfer pool saturated, retry later"
         "500":
           description: Internal Server Error
         "400":
@@ -350,8 +348,6 @@ paths:
           description: Missing or invalid authentication cookie
         "403":
           description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
         "204":
           description: "Success, no content"
         "404":
@@ -399,8 +395,6 @@ paths:
           description: Missing or invalid authentication cookie
         "403":
           description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
         "200":
           description: File bytes
           content:
@@ -412,6 +406,8 @@ paths:
           description: Node not found or not accessible
         "413":
           description: Payload or file size exceeds the configured limit
+        "503":
+          description: "Transfer pool saturated, retry later"
         "500":
           description: Internal Server Error
         "400":
@@ -847,8 +843,6 @@ paths:
         schema:
           type: string
       responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
         "200":
           description: File bytes
           content:
@@ -860,6 +854,8 @@ paths:
           description: Redirect to the access-code page (access-code-protected link)
         "404":
           description: Link or node not found
+        "503":
+          description: "Transfer pool saturated, retry later"
         "500":
           description: Internal Server Error
         "400":
@@ -1392,8 +1388,6 @@ paths:
               format: binary
         required: true
       responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
         "200":
           description: ZIP archive of the requested nodes
           content:
@@ -1410,6 +1404,8 @@ paths:
           description: Payload or file size exceeds the configured limit
         "415":
           description: Unsupported media type
+        "503":
+          description: "Transfer pool saturated, retry later"
         "500":
           description: Internal Server Error
       summary: Download Public Multiple
@@ -1425,8 +1421,6 @@ paths:
               format: binary
         required: true
       responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
         "204":
           description: "Success, no content"
         "400":
@@ -1462,8 +1456,6 @@ paths:
         schema:
           type: string
       responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
         "200":
           description: File bytes
           content:
@@ -1473,6 +1465,8 @@ paths:
                 type: string
         "404":
           description: Node not found or not accessible via the link
+        "503":
+          description: "Transfer pool saturated, retry later"
         "500":
           description: Internal Server Error
         "400":
@@ -1504,8 +1498,6 @@ paths:
         schema:
           type: string
       responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
         "204":
           description: "Success, no content"
         "404":
@@ -1533,8 +1525,6 @@ paths:
         schema:
           type: string
       responses:
-        "503":
-          description: "Transfer pool saturated, retry later"
         "200":
           description: File bytes
           content:
@@ -1546,6 +1536,8 @@ paths:
           description: Redirect to the access-code page (access-code-protected link)
         "404":
           description: Link or node not found
+        "503":
+          description: "Transfer pool saturated, retry later"
         "500":
           description: Internal Server Error
         "400":
@@ -1604,8 +1596,6 @@ paths:
           description: Missing or invalid authentication cookie
         "403":
           description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
         "200":
           description: Success
           content:
@@ -1620,6 +1610,8 @@ paths:
           description: "Node, link or version not found or not accessible"
         "413":
           description: Payload or file size exceeds the configured limit
+        "503":
+          description: "Transfer pool saturated, retry later"
         "500":
           description: Internal Server Error
       summary: Upload
@@ -1718,8 +1710,6 @@ paths:
           description: Missing or invalid authentication cookie
         "403":
           description: "User not allowed (inactive, guest or feature disabled)"
-        "503":
-          description: "Transfer pool saturated, retry later"
         "200":
           description: Success
           content:
@@ -1737,6 +1727,8 @@ paths:
           description: Payload or file size exceeds the configured limit
         "423":
           description: Overwrite of the node already in progress
+        "503":
+          description: "Transfer pool saturated, retry later"
         "500":
           description: Internal Server Error
       summary: Upload Version
