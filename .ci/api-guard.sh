@@ -17,10 +17,20 @@
 #      Release branches (release/*, hotfix lines) get the same rule as main: nothing is skipped.
 #   2. Main and release builds (--main-build): contract changed in HEAD^1..HEAD and no CURRENT entry
 #      at HEAD, reported as a warning, never a failure.
-#   3. Support window (--oldest-supported-file): prints ONE warning listing vX.Y.Z tags merged into
-#      the base branch (--base-branch, default main) that are older than the window and still at or
-#      above the oldest supported version. Computed only when --oldest-supported-file is passed.
-#      Never fails.
+#   3. Converter rule (needs --oldest-supported-file): an @ApiChange that binds a converter
+#      (converter = X.class or inherits = X.class) with a stamped since "S" at the base must still exist
+#      at HEAD (or in the index with --staged) with the same converter class (simple name, so Foo.class
+#      and com.x.Foo.class match) and the same since, as long as S is above the oldest-supported version
+#      O read on the compared side: clients from O up to S still need that converter. A since edited on
+#      a line counts as the removal of the old line. Lines whose since is CURRENT at the base,
+#      description-only lines and a registry missing at the base are ignored. Raise oldest-supported to
+#      at least S in the same change, or keep the converter and its line. Runs in every mode, whether
+#      or not the contract changed, after rule 1, and both violations are reported. With --main-build
+#      (base HEAD^1) it is a warning. Without --oldest-supported-file, or when the key is not a X.Y.Z
+#      value on the compared side, it prints one "skipped" line and does not fail.
+#   4. Support window (--window, requires --oldest-supported-file): prints ONE warning listing vX.Y.Z tags
+#      merged into the base branch (--base-branch, default main) that are older than the window and
+#      still at or above the oldest supported version. Computed only with --window. Never fails.
 #
 # Runs in Jenkins (dt3_apiGuard) and as a local pre-commit hook (vendored as .ci/api-guard.sh).
 # By default the committed HEAD is compared, never the working tree. With --staged the INDEX is
@@ -39,8 +49,10 @@
 #   --staged                         Compare the index instead of HEAD
 #   --main-build                     Compare HEAD^1..HEAD and only warn (builds of the default branch and
 #                                    of release/* branches)
-#   --oldest-supported-file <file>   File holding quarkus.carbonio-api-versioning.oldest-supported; enables
+#   --oldest-supported-file <file>   File holding quarkus.carbonio-api-versioning.oldest-supported; feeds
+#                                    the converter rule (read from HEAD, or the index with --staged) and
 #                                    the window warning
+#   --window                         Compute the support window warning (requires --oldest-supported-file)
 #   --window-months <n>              Support window length (default: 15)
 #   --now <epoch>                    Override the current time (tests)
 #
@@ -55,6 +67,7 @@ BASE_EXPLICIT=0
 CONTRACTS=()
 REGISTRIES=()
 OLDEST_FILE=""
+WINDOW=0
 OLDEST_KEY="quarkus.carbonio-api-versioning.oldest-supported"
 WINDOW_MONTHS=15
 STAGED=0
@@ -62,6 +75,7 @@ MAIN_BUILD=0
 NEW_REV="HEAD"
 NOW=""
 VIOLATION=0
+COMPARE_BASE=""
 rc=0
 SECONDS_PER_MONTH=2629746
 
@@ -80,6 +94,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --staged) STAGED=1; shift; continue ;;
         --main-build) MAIN_BUILD=1; shift; continue ;;
+        --window) WINDOW=1; shift; continue ;;
         -h | --help) sed -n '2,/^set -Eeuo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
     esac
     need_value "$1" "$#"
@@ -102,6 +117,7 @@ else
     NOW=$(date -u +%s)
 fi
 [ "$STAGED" -eq 0 ] || [ "$MAIN_BUILD" -eq 0 ] || die "--staged and --main-build cannot be combined"
+[ "$WINDOW" -eq 0 ] || [ -n "$OLDEST_FILE" ] || die "--window requires --oldest-supported-file"
 [ "${#REGISTRIES[@]}" -gt 0 ] || die "--registry is required (path of the file holding the @ApiChange lines)"
 
 git rev-parse --git-dir > /dev/null 2>&1 || die "not inside a git working tree"
@@ -243,6 +259,7 @@ contract_check() {
             base="$BASE_SHA"
         fi
     fi
+    COMPARE_BASE="$base"
     if [ "$MAIN_BUILD" -eq 1 ]; then
         echo "$TAG Comparing contract files against ${base:0:12}"
     else
@@ -295,9 +312,137 @@ semver_parts() {
     printf '%s\n' "$1" | sed -n -E 's/^v?([0-9]+)\.([0-9]+)\.([0-9]+).*/\1 \2 \3/p'
 }
 
+# oldest_at <rev>: sets OLDEST_RAW and OLDEST_PARTS from the oldest-supported key of $OLDEST_FILE at <rev>
+# ("" = the index); returns 1 and sets SKIP_REASON when it cannot be read as X.Y.Z
+oldest_at() {
+    local text
+    OLDEST_RAW=""
+    OLDEST_PARTS=""
+    if ! text=$(git show "$1:$OLDEST_FILE" 2> /dev/null); then
+        SKIP_REASON="$OLDEST_FILE not found at ${1:-the index}"
+        return 1
+    fi
+    OLDEST_RAW=$(printf '%s\n' "$text" | sed -n -E "s/^[[:space:]]*${OLDEST_KEY//./\\.}[[:space:]]*[=:][[:space:]]*([^[:space:]#]+).*/\1/p" | head -n 1)
+    OLDEST_PARTS=$(semver_parts "$OLDEST_RAW")
+    if [ -z "$OLDEST_PARTS" ]; then
+        SKIP_REASON="key $OLDEST_KEY is not a X.Y.Z version in $OLDEST_FILE at ${1:-the index} (found '${OLDEST_RAW}')"
+        return 1
+    fi
+}
+
+# semver_gt <a> <b>: succeeds when X.Y.Z <a> is greater than <b>, compared numerically per part
+semver_gt() {
+    local a1 a2 a3 b1 b2 b3
+    read -r a1 a2 a3 <<< "$(semver_parts "$1")"
+    read -r b1 b2 b3 <<< "$(semver_parts "$2")"
+    if [ $((10#$a1)) -ne $((10#$b1)) ]; then [ $((10#$a1)) -gt $((10#$b1)) ]; return; fi
+    if [ $((10#$a2)) -ne $((10#$b2)) ]; then [ $((10#$a2)) -gt $((10#$b2)) ]; return; fi
+    [ $((10#$a3)) -gt $((10#$b3)) ]
+}
+
+# converter_pairs <rev>: one "<ConverterSimpleName> <since>" line per converter binding (converter = X.class or
+# inherits = X.class) of an @ApiChange with a stamped since "X.Y.Z" in the registry file(s) at <rev> ("" = the
+# index; a registry missing at <rev> contributes nothing); comments are ignored like in count_current and
+# parameters are split outside string literals and nested parentheses
+converter_pairs() {
+    local reg
+    for reg in "${REGISTRIES[@]}"; do
+        git rev-parse -q --verify "$1:$reg" > /dev/null 2>&1 || continue
+        git show "$1:$reg" \
+            | { grep -vE '^[[:space:]]*(//|/\*|\*)' || true; } | sed -E 's#(^|[[:space:]])//.*$##' | tr '\n' ' ' \
+            | awk '
+                function trim(t) { gsub(/^[ \t\r]+|[ \t\r]+$/, "", t); return t }
+                function emit(   k, part, since, names, nn, v, j, nm) {
+                    since = ""; nn = 0
+                    for (k = 1; k <= nparts; k++) {
+                        part = trim(parts[k])
+                        if (part ~ /^since[ \t]*=[ \t]*"[0-9]+\.[0-9]+\.[0-9]+"$/) {
+                            since = part; sub(/^[^"]*"/, "", since); sub(/"$/, "", since)
+                        } else if (part ~ /^(converter|inherits)[ \t]*=[ \t]*[A-Za-z_$][A-Za-z0-9_$. \t]*\.[ \t]*class$/) {
+                            v = part; sub(/^[^=]*=/, "", v); gsub(/[ \t]/, "", v); sub(/\.class$/, "", v)
+                            nm = v; sub(/^.*\./, "", nm)
+                            names[++nn] = nm
+                        }
+                    }
+                    if (since != "") for (j = 1; j <= nn; j++) print names[j], since
+                }
+                {
+                    s = $0; n = length(s); i = 1
+                    while ((p = index(substr(s, i), "@ApiChange")) > 0) {
+                        i += p - 1 + 10
+                        while (substr(s, i, 1) ~ /[ \t]/) i++
+                        if (substr(s, i, 1) != "(") continue
+                        i++
+                        depth = 0; instr = 0; part = ""; nparts = 0
+                        for (; i <= n; i++) {
+                            c = substr(s, i, 1)
+                            if (instr) {
+                                part = part c
+                                if (c == "\\") { i++; part = part substr(s, i, 1) } else if (c == "\"") instr = 0
+                                continue
+                            }
+                            if (c == "\"") { instr = 1; part = part c; continue }
+                            if (c == "(" || c == "{") depth++
+                            else if (c == ")" || c == "}") { if (depth == 0) break; depth-- }
+                            if (c == "," && depth == 0) { parts[++nparts] = part; part = ""; continue }
+                            part = part c
+                        }
+                        parts[++nparts] = part
+                        emit()
+                        i++
+                    }
+                }'
+    done | LC_ALL=C sort -u
+}
+
+converter_check() {
+    local base_pairs new_pairs name since level reg
+    local found=0
+    if [ -z "$OLDEST_FILE" ]; then
+        echo "$TAG Converter removal check skipped: --oldest-supported-file not given"
+        return 0
+    fi
+    if [ -z "$COMPARE_BASE" ]; then
+        return 0
+    fi
+    if ! oldest_at "$NEW_REV"; then
+        echo "$TAG Converter removal check skipped: $SKIP_REASON"
+        return 0
+    fi
+    base_pairs=$(converter_pairs "$COMPARE_BASE")
+    new_pairs=$(converter_pairs "$NEW_REV")
+    level="FATAL"
+    [ "$MAIN_BUILD" -eq 0 ] || level="WARNING"
+    while read -r name since; do
+        [ -n "$name" ] || continue
+        if printf '%s\n' "$new_pairs" | grep -qxF "$name $since"; then
+            continue
+        fi
+        semver_gt "$since" "$OLDEST_RAW" || continue
+        if [ "$found" -eq 0 ]; then
+            echo ""
+        fi
+        found=1
+        echo "$TAG $level: converter $name (since $since) was removed or its since changed, but $since is above oldest-supported $OLDEST_RAW: clients from $OLDEST_RAW up to $since still need it."
+    done <<< "$base_pairs"
+    if [ "$found" -eq 0 ]; then
+        echo "$TAG No active converter was removed"
+        return 0
+    fi
+    for reg in "${REGISTRIES[@]}"; do
+        echo "$TAG   registry file: $reg"
+    done
+    echo "$TAG Fix: raise $OLDEST_KEY to at least the since above in $OLDEST_FILE in the same change, or keep the converter and its @ApiChange line"
+    if [ "$MAIN_BUILD" -eq 0 ]; then
+        echo "$TAG Local bypass (hook only; CI still checks): SKIP=api-guard git commit ..."
+        VIOLATION=1
+    fi
+    return 0
+}
+
 window_warning() {
     local raw parts ref cutoff old_tags
-    [ -n "$OLDEST_FILE" ] || return 0
+    [ "$WINDOW" -eq 1 ] || return 0
     if [ ! -f "$OLDEST_FILE" ]; then
         echo "$TAG WARNING: $OLDEST_FILE not found, support window not checked"
         return 0
@@ -334,5 +479,6 @@ window_warning() {
 }
 
 contract_check
+converter_check
 window_warning
 exit "$VIOLATION"

@@ -4,7 +4,9 @@
 #
 # Stamps the release version into the API change registry: replaces `since = ApiVersion.CURRENT`,
 # `since = CURRENT` and `since = "current"` with `since = "<version>"`. The registry file holds only
-# @ApiChange annotations. Imports are never touched. Idempotent. `//` line comments inside an annotation
+# @ApiChange annotations. After stamping, an `import <anything>.ApiVersion;` line is deleted when no other
+# reference to the identifier ApiVersion remains in the file; it is kept otherwise, and no other import is
+# touched. Idempotent. `//` line comments inside an annotation
 # (before `since` or after its `=`) are skipped.
 #
 # Usage: stamp-api-changes.sh <X.Y.Z> <registry-file>...
@@ -24,6 +26,11 @@ for f in "$@"; do
         -e 's/([(,]([[:space:]]|\/\/[^\n]*\n)*since[[:space:]]*=)([[:space:]]*(\/\/[^\n]*)?\n)+[[:space:]]*/\1 /g' \
         -e "s/([(,]([[:space:]]|\/\/[^\n]*\n)*since[[:space:]]*=[[:space:]]*)([A-Za-z_\$][A-Za-z0-9_\$]*\.)*CURRENT\b/\1\"$version\"/g" \
         -e "s/([(,]([[:space:]]|\/\/[^\n]*\n)*since[[:space:]]*=[[:space:]]*)\"current\"/\1\"$version\"/g" "$f"
+    if grep -qE '^[[:space:]]*import[[:space:]]+([A-Za-z_$][A-Za-z0-9_$]*[[:space:]]*\.[[:space:]]*)+ApiVersion[[:space:]]*;' "$f" \
+        && ! grep -vE '^[[:space:]]*import[[:space:]]+([A-Za-z_$][A-Za-z0-9_$]*[[:space:]]*\.[[:space:]]*)+ApiVersion[[:space:]]*;' "$f" \
+            | grep -qE '(^|[^A-Za-z0-9_$])ApiVersion([^A-Za-z0-9_$]|$)'; then
+        sed -E -i '/^[[:space:]]*import[[:space:]]+([A-Za-z_$][A-Za-z0-9_$]*[[:space:]]*\.[[:space:]]*)+ApiVersion[[:space:]]*;/d' "$f"
+    fi
     bad=$(grep -nE '(^|[(,])[[:space:]]*since[[:space:]]*(=|$)' "$f" | grep -vE 'since[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"' || true)
     if [ -n "$bad" ]; then
         echo "$f: since is not a quoted X.Y.Z literal:" >&2
