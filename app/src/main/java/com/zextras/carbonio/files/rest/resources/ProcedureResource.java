@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.rest.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.zextras.carbonio.files.Constants.API.Headers;
 import com.zextras.carbonio.files.config.TransferPool;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
@@ -148,15 +147,8 @@ public class ProcedureResource {
   }
 
   private static Response uploadAttachmentResponse(String attachmentId) {
-    try {
-      String json =
-          OBJECT_MAPPER
-              .copy()
-              .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
-              .writeValueAsString(new UploadAttachmentResponse(attachmentId));
-      return Response.ok(json).type(MediaType.APPLICATION_JSON).build();
-    } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
+    return Response.ok(new UploadAttachmentResponse(attachmentId))
+        .type(MediaType.APPLICATION_JSON)
+        .build();
   }
 }
