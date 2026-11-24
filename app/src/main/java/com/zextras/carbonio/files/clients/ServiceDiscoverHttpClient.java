@@ -39,7 +39,6 @@ import org.slf4j.LoggerFactory;
 public class ServiceDiscoverHttpClient {
 
   private static final Logger logger = LoggerFactory.getLogger(ServiceDiscoverHttpClient.class);
-  private static final ObjectMapper MAPPER = new ObjectMapper();
   // Reads run inside request transactions holding a pooled DB connection: a stalled agent must not
   // keep it for long. The agent is local, so a healthy call takes milliseconds.
   private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
@@ -48,14 +47,19 @@ public class ServiceDiscoverHttpClient {
   private final String kvBaseUrl;
   private final HttpClient httpClient;
   private final Duration requestTimeout;
+  private final ObjectMapper objectMapper;
 
   @Inject
-  public ServiceDiscoverHttpClient(NetworkingConfigService networkingConfig) {
-    this(networkingConfig, CONNECT_TIMEOUT, REQUEST_TIMEOUT);
+  public ServiceDiscoverHttpClient(
+      NetworkingConfigService networkingConfig, ObjectMapper objectMapper) {
+    this(networkingConfig, objectMapper, CONNECT_TIMEOUT, REQUEST_TIMEOUT);
   }
 
   ServiceDiscoverHttpClient(
-      NetworkingConfigService networkingConfig, Duration connectTimeout, Duration requestTimeout) {
+      NetworkingConfigService networkingConfig,
+      ObjectMapper objectMapper,
+      Duration connectTimeout,
+      Duration requestTimeout) {
     String host =
         networkingConfig
             .get(Constants.ServiceDiscover.HOST_PROPERTY)
@@ -74,6 +78,7 @@ public class ServiceDiscoverHttpClient {
             .connectTimeout(connectTimeout)
             .build();
     this.requestTimeout = requestTimeout;
+    this.objectMapper = objectMapper;
   }
 
   /**
@@ -96,7 +101,7 @@ public class ServiceDiscoverHttpClient {
       if (response.statusCode() != 200) {
         return Optional.empty();
       }
-      JsonNode root = MAPPER.readTree(response.body());
+      JsonNode root = objectMapper.readTree(response.body());
       if (!root.isArray() || root.isEmpty()) {
         return Optional.empty();
       }

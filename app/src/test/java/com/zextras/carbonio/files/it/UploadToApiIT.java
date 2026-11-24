@@ -126,6 +126,17 @@ class UploadToApiIT extends AbstractFilesIT {
   }
 
   @Test
+  void givenAnUnknownPropertyInTheBodyUploadToShouldReturn500() {
+    String bodyWithUnknownProperty =
+        "{\"nodeId\": \"" + REQUESTER_ID + "\", \"targetModule\": \"MAILS\", \"unknown\": 1}";
+
+    Response response = uploadTo("POST", REQUESTER_COOKIE, bodyWithUnknownProperty);
+
+    Assertions.assertThat(response.getStatusCode()).isEqualTo(500);
+    Assertions.assertThat(response.getBody().asString()).isEqualTo("500 Internal Server Error");
+  }
+
+  @Test
   void givenNoPermissionOnTheNodeUploadToShouldReturn404() throws Exception {
     // Given -- a file owned by another user, never shared with the requester
     String fileId =

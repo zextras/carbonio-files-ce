@@ -13,6 +13,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.config.TransferPool;
 import com.zextras.carbonio.files.dal.dao.UserId;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
@@ -48,7 +49,8 @@ class ProcedureResourceTest {
   private final BlobAuthenticator authenticator = mock(BlobAuthenticator.class);
   private final TransferPool transferPool = mock(TransferPool.class);
   private final ProcedureResource resource =
-      new ProcedureResource(procedureService, permissionsChecker, authenticator, transferPool);
+      new ProcedureResource(
+          procedureService, permissionsChecker, authenticator, transferPool, new ObjectMapper());
   private ThreadPoolExecutor pool;
 
   @BeforeEach
