@@ -7,6 +7,7 @@ package com.zextras.carbonio.files.rest.types;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import java.util.Objects;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 public class UploadVersionResponse {
 
@@ -14,6 +15,7 @@ public class UploadVersionResponse {
   private String nodeId;
 
   @JsonInclude(Include.NON_NULL)
+  @Schema(required = true)
   private Integer version;
 
   public Integer getVersion() {
@@ -21,11 +23,7 @@ public class UploadVersionResponse {
   }
 
   public void setVersion(int version) {
-    // TODO: this is a temporary fix since we need to make a breaking change if we want to return
-    //  always the version
-    if (version > 1) {
-      this.version = version;
-    }
+    this.version = version;
   }
 
   public String getNodeId() {
@@ -65,7 +63,7 @@ public class UploadVersionResponse {
       return false;
     }
     UploadVersionResponse that = (UploadVersionResponse) o;
-    return version == that.version && Objects.equals(nodeId, that.nodeId);
+    return Objects.equals(version, that.version) && Objects.equals(nodeId, that.nodeId);
   }
 
   @Override

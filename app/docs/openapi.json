@@ -187,7 +187,8 @@
             "type" : "integer",
             "format" : "int32"
           }
-        }
+        },
+        "required" : [ "version" ]
       },
       "GraphqlRequest" : {
         "type" : "object",
