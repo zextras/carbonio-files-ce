@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import com.zextras.carbonio.files.Constants;
 import com.zextras.carbonio.quarkus.extensions.bootstrap.NetworkingConfigService;
@@ -57,7 +58,7 @@ class ServiceDiscoverHttpClientTest {
         .thenReturn(Optional.of(String.valueOf(server.getAddress().getPort())));
     client =
         new ServiceDiscoverHttpClient(
-            networkingConfig, Duration.ofMillis(100), Duration.ofMillis(100));
+            networkingConfig, new ObjectMapper(), Duration.ofMillis(100), Duration.ofMillis(100));
   }
 
   @AfterEach

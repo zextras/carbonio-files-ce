@@ -13,12 +13,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zextras.carbonio.files.config.TransferPool;
 import com.zextras.carbonio.files.dal.dao.UserId;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.rest.services.ProcedureService;
+import com.zextras.carbonio.files.rest.types.UploadAttachmentResponse;
 import io.vavr.control.Try;
 import jakarta.ws.rs.core.Response;
 import java.io.ByteArrayInputStream;
@@ -47,7 +49,8 @@ class ProcedureResourceTest {
   private final BlobAuthenticator authenticator = mock(BlobAuthenticator.class);
   private final TransferPool transferPool = mock(TransferPool.class);
   private final ProcedureResource resource =
-      new ProcedureResource(procedureService, permissionsChecker, authenticator, transferPool);
+      new ProcedureResource(
+          procedureService, permissionsChecker, authenticator, transferPool, new ObjectMapper());
   private ThreadPoolExecutor pool;
 
   @BeforeEach
@@ -107,7 +110,10 @@ class ProcedureResourceTest {
     Response response = uploadTo(BODY);
 
     assertThat(response.getStatus()).isEqualTo(200);
-    assertThat(response.getEntity().toString()).contains("attachment-1");
+    assertThat(response.getEntity())
+        .isInstanceOfSatisfying(
+            UploadAttachmentResponse.class,
+            body -> assertThat(body.getAttachmentId()).isEqualTo("attachment-1"));
     assertThat(authThread).hasValue("carbonio-files-transfer-test");
     assertThat(uploadThread).hasValue("carbonio-files-transfer-test");
   }

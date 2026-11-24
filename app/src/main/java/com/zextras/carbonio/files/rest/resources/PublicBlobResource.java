@@ -64,15 +64,16 @@ import org.jboss.resteasy.reactive.server.Cancellable;
 @Cancellable(false)
 public class PublicBlobResource {
 
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
   private final BlobService blobService;
   private final TransferPool transferPool;
+  private final ObjectMapper objectMapper;
 
   @Inject
-  public PublicBlobResource(BlobService blobService, TransferPool transferPool) {
+  public PublicBlobResource(
+      BlobService blobService, TransferPool transferPool, ObjectMapper objectMapper) {
     this.blobService = blobService;
     this.transferPool = transferPool;
+    this.objectMapper = objectMapper;
   }
 
   // --------------------------------------------------------------------- download via public link
@@ -259,9 +260,9 @@ public class PublicBlobResource {
     String accessCode;
     try {
       Map<String, Object> map =
-          OBJECT_MAPPER.readValue(jsonBody, new TypeReference<Map<String, Object>>() {});
+          objectMapper.readValue(jsonBody, new TypeReference<Map<String, Object>>() {});
       nodeIds =
-          OBJECT_MAPPER.convertValue(map.get(BodyAttributes.NODE_IDS), new TypeReference<>() {});
+          objectMapper.convertValue(map.get(BodyAttributes.NODE_IDS), new TypeReference<>() {});
       nodeLinkId = (String) map.get(BodyAttributes.NODE_LINK_ID);
       accessCode = (String) map.get(BodyAttributes.ACCESS_CODE);
     } catch (JsonProcessingException e) {
@@ -283,7 +284,7 @@ public class PublicBlobResource {
       // BlobService#downloadPublicMultiple, whose checkDownloadMultipleInternal treats an empty
       // list as "not found" (Optional.empty()), surfacing as the SAME 404 as any other
       // not-accessible node set, never a 400. Do not reject it upfront here.
-      return OBJECT_MAPPER.readValue(nodeIdsJson, new TypeReference<>() {});
+      return objectMapper.readValue(nodeIdsJson, new TypeReference<>() {});
     } catch (JsonProcessingException e) {
       throw new IllegalArgumentException("Invalid nodeIds JSON", e);
     }

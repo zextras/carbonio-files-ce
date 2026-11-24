@@ -4,9 +4,9 @@
 
 package com.zextras.carbonio.files.rest.resources;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.zextras.carbonio.files.Constants.API.Headers;
 import com.zextras.carbonio.files.config.TransferPool;
 import com.zextras.carbonio.files.dal.dao.UserMyself;
@@ -51,7 +51,6 @@ import org.slf4j.LoggerFactory;
 public class ProcedureResource {
 
   private static final Logger logger = LoggerFactory.getLogger(ProcedureResource.class);
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   // Legacy parity: the Netty pipeline's HttpObjectAggregator(256 * 1024) rejected an oversized
   // /upload-to body BEFORE the request ever reached auth-handler/procedure-handler. The body is
@@ -63,17 +62,24 @@ public class ProcedureResource {
   private final PermissionsChecker permissionsChecker;
   private final BlobAuthenticator authenticator;
   private final TransferPool transferPool;
+  private final ObjectReader uploadToRequestReader;
 
   @Inject
   public ProcedureResource(
       ProcedureService procedureService,
       PermissionsChecker permissionsChecker,
       BlobAuthenticator authenticator,
-      TransferPool transferPool) {
+      TransferPool transferPool,
+      ObjectMapper objectMapper) {
     this.procedureService = procedureService;
     this.permissionsChecker = permissionsChecker;
     this.authenticator = authenticator;
     this.transferPool = transferPool;
+    // Unknown properties must keep failing the parse (500): the application mapper ignores them.
+    this.uploadToRequestReader =
+        objectMapper
+            .readerFor(UploadToRequest.class)
+            .with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
   }
 
   @POST
@@ -108,7 +114,7 @@ public class ProcedureResource {
               // BlobExceptionMapper's default branch produces the same 500.
               UploadToRequest bodyRequest;
               try {
-                bodyRequest = OBJECT_MAPPER.readValue(jsonBody, new TypeReference<>() {});
+                bodyRequest = uploadToRequestReader.readValue(jsonBody);
               } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
                 throw new RuntimeException("Unable to deserialize the upload-to request body", e);
               }
@@ -148,15 +154,8 @@ public class ProcedureResource {
   }
 
   private static Response uploadAttachmentResponse(String attachmentId) {
-    try {
-      String json =
-          OBJECT_MAPPER
-              .copy()
-              .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
-              .writeValueAsString(new UploadAttachmentResponse(attachmentId));
-      return Response.ok(json).type(MediaType.APPLICATION_JSON).build();
-    } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
+    return Response.ok(new UploadAttachmentResponse(attachmentId))
+        .type(MediaType.APPLICATION_JSON)
+        .build();
   }
 }

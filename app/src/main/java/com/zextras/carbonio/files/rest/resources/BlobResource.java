@@ -6,7 +6,6 @@ package com.zextras.carbonio.files.rest.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.zextras.carbonio.files.Constants.API.Headers;
 import com.zextras.carbonio.files.Constants.Db.RootId;
 import com.zextras.carbonio.files.config.FilesConfig;
@@ -90,7 +89,6 @@ import org.slf4j.LoggerFactory;
 public class BlobResource {
 
   private static final Logger logger = LoggerFactory.getLogger(BlobResource.class);
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final String NODE_IDS = "nodeIds";
 
   private final BlobService blobService;
@@ -98,6 +96,7 @@ public class BlobResource {
   private final BlobAuthenticator authenticator;
   private final NodeRepository nodeRepository;
   private final TransferPool transferPool;
+  private final ObjectMapper objectMapper;
 
   @Inject
   public BlobResource(
@@ -105,12 +104,14 @@ public class BlobResource {
       FilesConfig filesConfig,
       BlobAuthenticator authenticator,
       NodeRepository nodeRepository,
-      TransferPool transferPool) {
+      TransferPool transferPool,
+      ObjectMapper objectMapper) {
     this.blobService = blobService;
     this.filesConfig = filesConfig;
     this.authenticator = authenticator;
     this.nodeRepository = nodeRepository;
     this.transferPool = transferPool;
+    this.objectMapper = objectMapper;
   }
 
   // -------------------------------------------------------------------------------------- uploads
@@ -424,7 +425,7 @@ public class BlobResource {
       throw new IllegalArgumentException("Missing nodeIds parameter in form data");
     }
     try {
-      List<String> nodeIds = OBJECT_MAPPER.readValue(nodeIdsJson, new TypeReference<>() {});
+      List<String> nodeIds = objectMapper.readValue(nodeIdsJson, new TypeReference<>() {});
       if (nodeIds == null || nodeIds.isEmpty()) {
         throw new IllegalArgumentException("nodeIds list cannot be empty");
       }
@@ -444,12 +445,12 @@ public class BlobResource {
     }
     try {
       var map =
-          OBJECT_MAPPER.readValue(jsonBody, new TypeReference<java.util.Map<String, Object>>() {});
+          objectMapper.readValue(jsonBody, new TypeReference<java.util.Map<String, Object>>() {});
       Object nodeIdsObj = map.get(NODE_IDS);
       if (nodeIdsObj == null) {
         throw new IllegalArgumentException("Missing nodeIds parameter in JSON body");
       }
-      List<String> nodeIds = OBJECT_MAPPER.convertValue(nodeIdsObj, new TypeReference<>() {});
+      List<String> nodeIds = objectMapper.convertValue(nodeIdsObj, new TypeReference<>() {});
       if (nodeIds == null || nodeIds.isEmpty()) {
         throw new IllegalArgumentException("nodeIds list cannot be empty");
       }
@@ -463,16 +464,7 @@ public class BlobResource {
     UploadVersionResponse response = new UploadVersionResponse();
     response.setNodeId(nodeId);
     response.setVersion(version);
-    try {
-      String json =
-          OBJECT_MAPPER
-              .copy()
-              .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
-              .writeValueAsString(response);
-      return Response.ok(json).type(MediaType.APPLICATION_JSON).build();
-    } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
+    return Response.ok(response).type(MediaType.APPLICATION_JSON).build();
   }
 
   /**
