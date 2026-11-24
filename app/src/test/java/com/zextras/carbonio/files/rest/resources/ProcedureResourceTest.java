@@ -19,6 +19,7 @@ import com.zextras.carbonio.files.dal.dao.UserMyself;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL;
 import com.zextras.carbonio.files.dal.dao.ebean.ACL.SharePermission;
 import com.zextras.carbonio.files.rest.services.ProcedureService;
+import com.zextras.carbonio.files.rest.types.UploadAttachmentResponse;
 import io.vavr.control.Try;
 import jakarta.ws.rs.core.Response;
 import java.io.ByteArrayInputStream;
@@ -107,7 +108,10 @@ class ProcedureResourceTest {
     Response response = uploadTo(BODY);
 
     assertThat(response.getStatus()).isEqualTo(200);
-    assertThat(response.getEntity().toString()).contains("attachment-1");
+    assertThat(response.getEntity())
+        .isInstanceOfSatisfying(
+            UploadAttachmentResponse.class,
+            body -> assertThat(body.getAttachmentId()).isEqualTo("attachment-1"));
     assertThat(authThread).hasValue("carbonio-files-transfer-test");
     assertThat(uploadThread).hasValue("carbonio-files-transfer-test");
   }

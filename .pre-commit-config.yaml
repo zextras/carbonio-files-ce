@@ -105,8 +105,8 @@ repos:
 
       - id: api-guard
         name: API contract guard
-        description: "Fails when the staged API contract docs change and the registry has no new @ApiChange entry with since = CURRENT; vendored from jenkins-lib-common."
-        entry: bash .ci/api-guard.sh --staged --registry app/src/main/java/com/zextras/carbonio/files/versioning/FilesApiChanges.java
+        description: "Fails when the staged API contract docs change and the registry has no new @ApiChange entry with since = CURRENT, or when a converter still active (since above oldest-supported) is removed; vendored from jenkins-lib-common."
+        entry: bash .ci/api-guard.sh --staged --registry app/src/main/java/com/zextras/carbonio/files/versioning/FilesApiChanges.java --oldest-supported-file app/src/main/resources/application.properties
         language: system
         pass_filenames: false
         always_run: true

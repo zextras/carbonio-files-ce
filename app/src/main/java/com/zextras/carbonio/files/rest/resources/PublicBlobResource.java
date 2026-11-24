@@ -63,9 +63,6 @@ import org.jboss.resteasy.reactive.server.Cancellable;
 @ApplicationScoped
 // Not cancelled on disconnect: the transfer must finish to close its stream and request context.
 @Cancellable(false)
-@APIResponses({
-  @APIResponse(responseCode = "503", description = "Transfer pool saturated, retry later")
-})
 public class PublicBlobResource {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -95,7 +92,8 @@ public class PublicBlobResource {
     @APIResponse(
         responseCode = "307",
         description = "Redirect to the access-code page (access-code-protected link)"),
-    @APIResponse(responseCode = "404", description = "Link or node not found")
+    @APIResponse(responseCode = "404", description = "Link or node not found"),
+    @APIResponse(responseCode = "503", description = "Transfer pool saturated, retry later")
   })
   public Uni<Void> downloadByPublicLink(
       @PathParam("publicLinkId") String publicLinkId, @Context HttpServerResponse resp) {
@@ -116,7 +114,8 @@ public class PublicBlobResource {
     @APIResponse(
         responseCode = "307",
         description = "Redirect to the access-code page (access-code-protected link)"),
-    @APIResponse(responseCode = "404", description = "Link or node not found")
+    @APIResponse(responseCode = "404", description = "Link or node not found"),
+    @APIResponse(responseCode = "503", description = "Transfer pool saturated, retry later")
   })
   public Uni<Void> downloadViaPublicLink(
       @PathParam("publicLinkId") String publicLinkId, @Context HttpServerResponse resp) {
@@ -165,7 +164,8 @@ public class PublicBlobResource {
                 schema = @Schema(type = SchemaType.STRING, format = "binary"))),
     @APIResponse(
         responseCode = "404",
-        description = "Node not found or not accessible via the link")
+        description = "Node not found or not accessible via the link"),
+    @APIResponse(responseCode = "503", description = "Transfer pool saturated, retry later")
   })
   public Uni<Void> downloadPublicFile(
       @PathParam("nodeId") String nodeId,
@@ -230,7 +230,8 @@ public class PublicBlobResource {
     @APIResponse(
         responseCode = "413",
         description = "Payload or file size exceeds the configured limit"),
-    @APIResponse(responseCode = "415", description = "Unsupported media type")
+    @APIResponse(responseCode = "415", description = "Unsupported media type"),
+    @APIResponse(responseCode = "503", description = "Transfer pool saturated, retry later")
   })
   public Uni<Void> downloadPublicMultiple(
       InputStream requestBody, @Context HttpServerResponse resp) {
