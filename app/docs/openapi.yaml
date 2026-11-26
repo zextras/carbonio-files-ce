@@ -234,8 +234,8 @@ paths:
                 format: binary
                 type: string
         "400":
-          description: "Missing or malformed nodeIds The version header is rejected:\
-            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+          description: "Missing or malformed nodeIds The version header is malformed:\
+            \ INVALID_API_VERSION (body ApiVersionError)."
         "404":
           description: Some nodes do not exist or are not accessible
         "413":
@@ -246,6 +246,14 @@ paths:
           description: "Transfer pool saturated, retry later"
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Download Multiple
       tags:
       - Blob Resource
@@ -277,8 +285,8 @@ paths:
         "204":
           description: "Success, no content"
         "400":
-          description: "Missing or malformed input The version header is rejected:\
-            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+          description: "Missing or malformed input The version header is malformed:\
+            \ INVALID_API_VERSION (body ApiVersionError)."
         "404":
           description: "Node, link or version not found or not accessible"
         "413":
@@ -287,6 +295,14 @@ paths:
           description: Unsupported media type
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Check Download Multiple
       tags:
       - Blob Resource
@@ -329,7 +345,15 @@ paths:
         "500":
           description: Internal Server Error
         "400":
-          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+          description: "The version header is malformed: INVALID_API_VERSION (body\
+            \ ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
             \ (body ApiVersionError)."
           content:
             application/json:
@@ -370,7 +394,15 @@ paths:
         "500":
           description: Internal Server Error
         "400":
-          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+          description: "The version header is malformed: INVALID_API_VERSION (body\
+            \ ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
             \ (body ApiVersionError)."
           content:
             application/json:
@@ -424,7 +456,15 @@ paths:
         "500":
           description: Internal Server Error
         "400":
-          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+          description: "The version header is malformed: INVALID_API_VERSION (body\
+            \ ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
             \ (body ApiVersionError)."
           content:
             application/json:
@@ -445,7 +485,15 @@ paths:
         "500":
           description: A required dependency is not ready
         "400":
-          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+          description: "The version header is malformed: INVALID_API_VERSION (body\
+            \ ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
             \ (body ApiVersionError)."
           content:
             application/json:
@@ -462,7 +510,15 @@ paths:
         "500":
           description: Internal Server Error
         "400":
-          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+          description: "The version header is malformed: INVALID_API_VERSION (body\
+            \ ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
             \ (body ApiVersionError)."
           content:
             application/json:
@@ -479,7 +535,15 @@ paths:
         "500":
           description: A required dependency is not ready
         "400":
-          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+          description: "The version header is malformed: INVALID_API_VERSION (body\
+            \ ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
             \ (body ApiVersionError)."
           content:
             application/json:
@@ -518,7 +582,15 @@ paths:
         "500":
           description: Internal Server Error
         "400":
-          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+          description: "The version header is malformed: INVALID_API_VERSION (body\
+            \ ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
             \ (body ApiVersionError)."
           content:
             application/json:
@@ -563,7 +635,15 @@ paths:
         "500":
           description: Internal Server Error
         "400":
-          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+          description: "The version header is malformed: INVALID_API_VERSION (body\
+            \ ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
             \ (body ApiVersionError)."
           content:
             application/json:
@@ -605,7 +685,15 @@ paths:
         "500":
           description: Internal Server Error
         "400":
-          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+          description: "The version header is malformed: INVALID_API_VERSION (body\
+            \ ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
             \ (body ApiVersionError)."
           content:
             application/json:
@@ -660,12 +748,20 @@ paths:
               schema:
                 $ref: "#/components/schemas/UploadVersionResponse"
         "400":
-          description: "Missing or malformed input The version header is rejected:\
-            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+          description: "Missing or malformed input The version header is malformed:\
+            \ INVALID_API_VERSION (body ApiVersionError)."
         "404":
           description: "Node, link or version not found or not accessible"
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Upload
       tags:
       - Internal Blob Resource
@@ -715,8 +811,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/UploadVersionResponse"
         "400":
-          description: "Missing or malformed input The version header is rejected:\
-            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+          description: "Missing or malformed input The version header is malformed:\
+            \ INVALID_API_VERSION (body ApiVersionError)."
         "404":
           description: "Node, link or version not found or not accessible"
         "405":
@@ -725,6 +821,14 @@ paths:
           description: Overwrite of the node already in progress
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Upload Version
       tags:
       - Internal Blob Resource
@@ -744,14 +848,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/InternalNodeIdDto"
         "400":
-          description: "Missing or malformed input The version header is rejected:\
-            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+          description: "Missing or malformed input The version header is malformed:\
+            \ INVALID_API_VERSION (body ApiVersionError)."
         "403":
           description: "User not allowed (inactive, guest or feature disabled)"
         "404":
           description: "Node, link or version not found or not accessible"
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Create Folder
       tags:
       - Internal Node Resource
@@ -771,8 +883,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicLinkDto"
         "400":
-          description: "Missing or malformed input The version header is rejected:\
-            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+          description: "Missing or malformed input The version header is malformed:\
+            \ INVALID_API_VERSION (body ApiVersionError)."
         "403":
           description: "User not allowed (inactive, guest or feature disabled)"
         "404":
@@ -781,6 +893,14 @@ paths:
           description: Public link limit reached
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Create Public Link
       tags:
       - Internal Node Resource
@@ -800,10 +920,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/DeleteAllResponse"
         "400":
-          description: "Missing or malformed request body The version header is rejected:\
-            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+          description: "Missing or malformed request body The version header is malformed:\
+            \ INVALID_API_VERSION (body ApiVersionError)."
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Delete All Nodes And Blobs
       tags:
       - Internal Node Resource
@@ -838,7 +966,15 @@ paths:
         "500":
           description: Internal Server Error
         "400":
-          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+          description: "The version header is malformed: INVALID_API_VERSION (body\
+            \ ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
             \ (body ApiVersionError)."
           content:
             application/json:
@@ -872,7 +1008,15 @@ paths:
         "500":
           description: Internal Server Error
         "400":
-          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+          description: "The version header is malformed: INVALID_API_VERSION (body\
+            \ ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
             \ (body ApiVersionError)."
           content:
             application/json:
@@ -954,11 +1098,19 @@ paths:
           description: Not modified (ETag matched)
         "400":
           description: "Unsupported mimetype for this preview type The version header\
-            \ is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            \ is malformed: INVALID_API_VERSION (body ApiVersionError)."
         "404":
           description: Node not found or not accessible
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Preview Document
       tags:
       - Preview Resource
@@ -1041,11 +1193,19 @@ paths:
           description: Not modified (ETag matched)
         "400":
           description: "Unsupported mimetype for this preview type The version header\
-            \ is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            \ is malformed: INVALID_API_VERSION (body ApiVersionError)."
         "404":
           description: Node not found or not accessible
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Thumbnail Document
       tags:
       - Preview Resource
@@ -1128,11 +1288,19 @@ paths:
           description: Not modified (ETag matched)
         "400":
           description: "Unsupported mimetype for this preview type The version header\
-            \ is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            \ is malformed: INVALID_API_VERSION (body ApiVersionError)."
         "404":
           description: Node not found or not accessible
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Preview Image
       tags:
       - Preview Resource
@@ -1215,11 +1383,19 @@ paths:
           description: Not modified (ETag matched)
         "400":
           description: "Unsupported mimetype for this preview type The version header\
-            \ is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            \ is malformed: INVALID_API_VERSION (body ApiVersionError)."
         "404":
           description: Node not found or not accessible
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Thumbnail Image
       tags:
       - Preview Resource
@@ -1296,11 +1472,19 @@ paths:
           description: Not modified (ETag matched)
         "400":
           description: "Unsupported mimetype for this preview type The version header\
-            \ is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            \ is malformed: INVALID_API_VERSION (body ApiVersionError)."
         "404":
           description: Node not found or not accessible
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Preview Pdf
       tags:
       - Preview Resource
@@ -1383,11 +1567,19 @@ paths:
           description: Not modified (ETag matched)
         "400":
           description: "Unsupported mimetype for this preview type The version header\
-            \ is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            \ is malformed: INVALID_API_VERSION (body ApiVersionError)."
         "404":
           description: Node not found or not accessible
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Thumbnail Pdf
       tags:
       - Preview Resource
@@ -1409,8 +1601,8 @@ paths:
                 format: binary
                 type: string
         "400":
-          description: "Missing or malformed parameters The version header is rejected:\
-            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+          description: "Missing or malformed parameters The version header is malformed:\
+            \ INVALID_API_VERSION (body ApiVersionError)."
         "404":
           description: Nodes not accessible via the link
         "413":
@@ -1421,6 +1613,14 @@ paths:
           description: "Transfer pool saturated, retry later"
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Download Public Multiple
       tags:
       - Public Blob Resource
@@ -1437,8 +1637,8 @@ paths:
         "204":
           description: "Success, no content"
         "400":
-          description: "Missing or malformed input The version header is rejected:\
-            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+          description: "Missing or malformed input The version header is malformed:\
+            \ INVALID_API_VERSION (body ApiVersionError)."
         "404":
           description: "Node, link or version not found or not accessible"
         "413":
@@ -1447,6 +1647,14 @@ paths:
           description: Unsupported media type
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Check Download Public Multiple
       tags:
       - Public Blob Resource
@@ -1483,7 +1691,15 @@ paths:
         "500":
           description: Internal Server Error
         "400":
-          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+          description: "The version header is malformed: INVALID_API_VERSION (body\
+            \ ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
             \ (body ApiVersionError)."
           content:
             application/json:
@@ -1520,7 +1736,15 @@ paths:
         "500":
           description: Internal Server Error
         "400":
-          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+          description: "The version header is malformed: INVALID_API_VERSION (body\
+            \ ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
             \ (body ApiVersionError)."
           content:
             application/json:
@@ -1554,7 +1778,15 @@ paths:
         "500":
           description: Internal Server Error
         "400":
-          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+          description: "The version header is malformed: INVALID_API_VERSION (body\
+            \ ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
             \ (body ApiVersionError)."
           content:
             application/json:
@@ -1617,8 +1849,8 @@ paths:
                 $ref: "#/components/schemas/UploadResponse"
         "400":
           description: "Missing or malformed input (the Filename and DestinationId\
-            \ headers are required) The version header is rejected: INVALID_API_VERSION\
-            \ or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            \ headers are required) The version header is malformed: INVALID_API_VERSION\
+            \ (body ApiVersionError)."
         "404":
           description: "Node, link or version not found or not accessible"
         "413":
@@ -1627,6 +1859,14 @@ paths:
           description: "Transfer pool saturated, retry later"
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Upload
       tags:
       - Blob Resource
@@ -1664,8 +1904,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/UploadAttachmentResponse"
         "400":
-          description: "Missing or malformed input The version header is rejected:\
-            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+          description: "Missing or malformed input The version header is malformed:\
+            \ INVALID_API_VERSION (body ApiVersionError)."
         "404":
           description: "Node, link or version not found or not accessible"
         "413":
@@ -1674,6 +1914,14 @@ paths:
           description: Unsupported media type
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Upload To
       tags:
       - Procedure Resource
@@ -1730,8 +1978,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/UploadVersionResponse"
         "400":
-          description: "Missing or malformed input The version header is rejected:\
-            \ INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+          description: "Missing or malformed input The version header is malformed:\
+            \ INVALID_API_VERSION (body ApiVersionError)."
         "404":
           description: "Node, link or version not found or not accessible"
         "405":
@@ -1744,6 +1992,14 @@ paths:
           description: "Transfer pool saturated, retry later"
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Upload Version
       tags:
       - Blob Resource
@@ -1785,14 +2041,22 @@ paths:
           description: The upload would be accepted
         "400":
           description: "Missing or malformed input (the Filename, DestinationId and\
-            \ FileSize headers are required) The version header is rejected: INVALID_API_VERSION\
-            \ or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            \ FileSize headers are required) The version header is malformed: INVALID_API_VERSION\
+            \ (body ApiVersionError)."
         "404":
           description: "Node, link or version not found or not accessible"
         "413":
           description: Payload or file size exceeds the configured limit
         "500":
           description: Internal Server Error
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       summary: Check Upload
       tags:
       - Blob Resource
@@ -1808,8 +2072,7 @@ paths:
                 $ref: "#/components/schemas/GraphqlResponse"
         "400":
           description: "The request carries no query ('Missing operation body'). The\
-            \ version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
-            \ (body ApiVersionError)."
+            \ version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           content:
             text/plain:
               schema:
@@ -1826,6 +2089,14 @@ paths:
           description: Internal Server Error
         "503":
           description: Service Unavailable
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
+            \ (body ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
       requestBody:
         required: true
         content:
@@ -1854,7 +2125,15 @@ paths:
                   header:
                     type: string
         "400":
-          description: "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION\
+          description: "The version header is malformed: INVALID_API_VERSION (body\
+            \ ApiVersionError)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiVersionError"
+        "422":
+          description: "The version header names a version this server does not serve,\
+            \ above the current one or below the oldest supported: UNSUPPORTED_API_VERSION\
             \ (body ApiVersionError)."
           content:
             application/json:
