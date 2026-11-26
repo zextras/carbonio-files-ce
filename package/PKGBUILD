@@ -65,10 +65,6 @@ sha256sums=(
   'e5fbf3a0a3599f4e114f6e4a7af096f9413a8f24f975c2657ba2fac3c931434f'
 )
 
-backup=(
-  "etc/zextras/service-discover/carbonio-files.hcl"
-)
-
 _package_common() {
   install -Dm755 "${srcdir}/carbonio-files" \
     "${pkgdir}/usr/bin/carbonio-files"
