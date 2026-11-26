@@ -102,7 +102,7 @@ class ApiVersioningApiIT extends AbstractFilesIT {
 
     graphqlAs(ApiVersionTestContext.belowSupported(), getConfigsQuery())
         .then()
-        .statusCode(400)
+        .statusCode(422)
         .body("code", equalTo("UNSUPPORTED_API_VERSION"))
         .body("received", equalTo(ApiVersionTestContext.belowSupported()))
         .body("oldestSupported", equalTo(ApiVersionTestContext.oldestSupported()))
@@ -110,7 +110,7 @@ class ApiVersioningApiIT extends AbstractFilesIT {
         .header("Vary", containsString(versionHeader()));
     downloadAs(ApiVersionTestContext.belowSupported(), nodeId)
         .then()
-        .statusCode(400)
+        .statusCode(422)
         .body("code", equalTo("UNSUPPORTED_API_VERSION"))
         .body("received", equalTo(ApiVersionTestContext.belowSupported()))
         .body("oldestSupported", equalTo(ApiVersionTestContext.oldestSupported()))
@@ -141,17 +141,25 @@ class ApiVersioningApiIT extends AbstractFilesIT {
   }
 
   @Test
-  void aVersionAboveTheCurrentOneIsServedAtCurrentOnGraphqlAndRest() {
+  void aVersionAboveTheCurrentOneIsRejectedOnGraphqlAndRest() {
     String nodeId = seedFile("file.bin", LOCAL_ROOT, CONTENT, REQUESTER_COOKIE);
+
     graphqlAs(ApiVersionTestContext.aboveCurrent(), getConfigsQuery())
         .then()
-        .statusCode(200)
-        .body("data.getConfigs", notNullValue())
+        .statusCode(422)
+        .body("code", equalTo("UNSUPPORTED_API_VERSION"))
+        .body("received", equalTo(ApiVersionTestContext.aboveCurrent()))
+        .body("oldestSupported", equalTo(ApiVersionTestContext.oldestSupported()))
+        .body("current", equalTo(current()))
         .header(versionHeader(), equalTo(current()))
         .header("Vary", containsString(versionHeader()));
     downloadAs(ApiVersionTestContext.aboveCurrent(), nodeId)
         .then()
-        .statusCode(200)
+        .statusCode(422)
+        .body("code", equalTo("UNSUPPORTED_API_VERSION"))
+        .body("received", equalTo(ApiVersionTestContext.aboveCurrent()))
+        .body("oldestSupported", equalTo(ApiVersionTestContext.oldestSupported()))
+        .body("current", equalTo(current()))
         .header(versionHeader(), equalTo(current()))
         .header("Vary", containsString(versionHeader()));
   }

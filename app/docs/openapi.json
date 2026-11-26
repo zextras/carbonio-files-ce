@@ -323,7 +323,7 @@
             }
           },
           "400" : {
-            "description" : "Missing or malformed nodeIds The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Missing or malformed nodeIds The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Some nodes do not exist or are not accessible"
@@ -339,6 +339,16 @@
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Download Multiple",
@@ -384,7 +394,7 @@
             "description" : "Success, no content"
           },
           "400" : {
-            "description" : "Missing or malformed input The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Missing or malformed input The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Node, link or version not found or not accessible"
@@ -397,6 +407,16 @@
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Check Download Multiple",
@@ -458,7 +478,17 @@
             "description" : "Internal Server Error"
           },
           "400" : {
-            "description" : "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -516,7 +546,17 @@
             "description" : "Internal Server Error"
           },
           "400" : {
-            "description" : "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -593,7 +633,17 @@
             "description" : "Internal Server Error"
           },
           "400" : {
-            "description" : "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -624,7 +674,17 @@
             "description" : "A required dependency is not ready"
           },
           "400" : {
-            "description" : "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -648,7 +708,17 @@
             "description" : "Internal Server Error"
           },
           "400" : {
-            "description" : "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -672,7 +742,17 @@
             "description" : "A required dependency is not ready"
           },
           "400" : {
-            "description" : "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -728,7 +808,17 @@
             "description" : "Internal Server Error"
           },
           "400" : {
-            "description" : "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -792,7 +882,17 @@
             "description" : "Internal Server Error"
           },
           "400" : {
-            "description" : "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -852,7 +952,17 @@
             "description" : "Internal Server Error"
           },
           "400" : {
-            "description" : "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -931,13 +1041,23 @@
             }
           },
           "400" : {
-            "description" : "Missing or malformed input The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Missing or malformed input The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Node, link or version not found or not accessible"
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Upload",
@@ -1009,7 +1129,7 @@
             }
           },
           "400" : {
-            "description" : "Missing or malformed input The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Missing or malformed input The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Node, link or version not found or not accessible"
@@ -1022,6 +1142,16 @@
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Upload Version",
@@ -1052,7 +1182,7 @@
             }
           },
           "400" : {
-            "description" : "Missing or malformed input The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Missing or malformed input The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "403" : {
             "description" : "User not allowed (inactive, guest or feature disabled)"
@@ -1062,6 +1192,16 @@
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Create Folder",
@@ -1092,7 +1232,7 @@
             }
           },
           "400" : {
-            "description" : "Missing or malformed input The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Missing or malformed input The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "403" : {
             "description" : "User not allowed (inactive, guest or feature disabled)"
@@ -1105,6 +1245,16 @@
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Create Public Link",
@@ -1135,10 +1285,20 @@
             }
           },
           "400" : {
-            "description" : "Missing or malformed request body The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Missing or malformed request body The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Delete All Nodes And Blobs",
@@ -1187,7 +1347,17 @@
             "description" : "Internal Server Error"
           },
           "400" : {
-            "description" : "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -1236,7 +1406,17 @@
             "description" : "Internal Server Error"
           },
           "400" : {
-            "description" : "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -1350,13 +1530,23 @@
             "description" : "Not modified (ETag matched)"
           },
           "400" : {
-            "description" : "Unsupported mimetype for this preview type The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Unsupported mimetype for this preview type The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Node not found or not accessible"
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Preview Document",
@@ -1471,13 +1661,23 @@
             "description" : "Not modified (ETag matched)"
           },
           "400" : {
-            "description" : "Unsupported mimetype for this preview type The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Unsupported mimetype for this preview type The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Node not found or not accessible"
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Thumbnail Document",
@@ -1592,13 +1792,23 @@
             "description" : "Not modified (ETag matched)"
           },
           "400" : {
-            "description" : "Unsupported mimetype for this preview type The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Unsupported mimetype for this preview type The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Node not found or not accessible"
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Preview Image",
@@ -1713,13 +1923,23 @@
             "description" : "Not modified (ETag matched)"
           },
           "400" : {
-            "description" : "Unsupported mimetype for this preview type The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Unsupported mimetype for this preview type The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Node not found or not accessible"
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Thumbnail Image",
@@ -1826,13 +2046,23 @@
             "description" : "Not modified (ETag matched)"
           },
           "400" : {
-            "description" : "Unsupported mimetype for this preview type The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Unsupported mimetype for this preview type The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Node not found or not accessible"
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Preview Pdf",
@@ -1947,13 +2177,23 @@
             "description" : "Not modified (ETag matched)"
           },
           "400" : {
-            "description" : "Unsupported mimetype for this preview type The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Unsupported mimetype for this preview type The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Node not found or not accessible"
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Thumbnail Pdf",
@@ -1986,7 +2226,7 @@
             }
           },
           "400" : {
-            "description" : "Missing or malformed parameters The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Missing or malformed parameters The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Nodes not accessible via the link"
@@ -2002,6 +2242,16 @@
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Download Public Multiple",
@@ -2026,7 +2276,7 @@
             "description" : "Success, no content"
           },
           "400" : {
-            "description" : "Missing or malformed input The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Missing or malformed input The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Node, link or version not found or not accessible"
@@ -2039,6 +2289,16 @@
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Check Download Public Multiple",
@@ -2091,7 +2351,17 @@
             "description" : "Internal Server Error"
           },
           "400" : {
-            "description" : "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -2143,7 +2413,17 @@
             "description" : "Internal Server Error"
           },
           "400" : {
-            "description" : "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -2192,7 +2472,17 @@
             "description" : "Internal Server Error"
           },
           "400" : {
-            "description" : "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
             "content" : {
               "application/json" : {
                 "schema" : {
@@ -2281,7 +2571,7 @@
             }
           },
           "400" : {
-            "description" : "Missing or malformed input (the Filename header is required) The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Missing or malformed input (the Filename header is required) The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Node, link or version not found or not accessible"
@@ -2294,6 +2584,16 @@
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Upload",
@@ -2349,7 +2649,7 @@
             }
           },
           "400" : {
-            "description" : "Missing or malformed input The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Missing or malformed input The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Node, link or version not found or not accessible"
@@ -2362,6 +2662,16 @@
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Upload To",
@@ -2443,7 +2753,7 @@
             }
           },
           "400" : {
-            "description" : "Missing or malformed input The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError)."
+            "description" : "Missing or malformed input The version header is malformed: INVALID_API_VERSION (body ApiVersionError)."
           },
           "404" : {
             "description" : "Node, link or version not found or not accessible"
@@ -2462,6 +2772,16 @@
           },
           "500" : {
             "description" : "Internal Server Error"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "summary" : "Upload Version",
@@ -2483,7 +2803,7 @@
             }
           },
           "400" : {
-            "description" : "The request carries no query ('Missing operation body'). The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The request carries no query ('Missing operation body'). The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
             "content" : {
               "text/plain" : {
                 "schema" : {
@@ -2509,6 +2829,16 @@
           },
           "503" : {
             "description" : "Service Unavailable"
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
           }
         },
         "requestBody" : {
@@ -2555,7 +2885,17 @@
             }
           },
           "400" : {
-            "description" : "The version header is rejected: INVALID_API_VERSION or UNSUPPORTED_API_VERSION (body ApiVersionError).",
+            "description" : "The version header is malformed: INVALID_API_VERSION (body ApiVersionError).",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiVersionError"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "The version header names a version this server does not serve, above the current one or below the oldest supported: UNSUPPORTED_API_VERSION (body ApiVersionError).",
             "content" : {
               "application/json" : {
                 "schema" : {
