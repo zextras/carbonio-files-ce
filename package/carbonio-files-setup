@@ -9,6 +9,15 @@ if [[ $(id -u) -ne 0 ]]; then
   exit 1
 fi
 
+# shellcheck disable=SC2016
+if ! env -i PATH=/usr/bin:/bin bash -c 'set -a; [ -r "$1" ] && . "$1"; exec consul-template -once -template "$2:$3"' _ \
+  /etc/zextras/service-discover/carbonio-files.env \
+  /etc/zextras/service-discover/templates/carbonio-files-template.hcl \
+  /etc/zextras/service-discover/carbonio-files.hcl > /dev/null; then
+  echo "Cannot render /etc/zextras/service-discover/carbonio-files.hcl; leaving pending-setup to be retried."
+  exit 1
+fi
+
 # Decrypt the bootstrap token, asking the password to the sys admin
 # --setup checks for SETUP_CONSUL_TOKEN env variable and uses it
 # to avoid re-asking for the password
@@ -52,3 +61,17 @@ export -n SETUP_CONSUL_TOKEN
 
 systemctl restart carbonio-files.service
 systemctl restart carbonio-files-sidecar.service
+RESTART_EXIT_CODE="$?"
+cat << 'EOF'
+
+Sidecar Config (overridable by /etc/zextras/service-discover/carbonio-files.env, apply with carbonio-files-setup)
+
+┌────────────────┬─────────┐
+│ Key            │ Default │
+├────────────────┼─────────┤
+│ CHECK_TIMEOUT  │ 1s      │
+│ CHECK_INTERVAL │ 5s      │
+└────────────────┴─────────┘
+
+EOF
+exit "${RESTART_EXIT_CODE}"

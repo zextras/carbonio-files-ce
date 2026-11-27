@@ -24,6 +24,7 @@ depends=(
   "pending-setups"
   "service-discover"
   "service-discover-base"
+  "service-discover-template"
   "carbonio-openjdk"
   "python3"
 )
@@ -31,7 +32,7 @@ depends=(
 source=(
   "511-carbonio-files.sh"
   "carbonio-files"
-  "carbonio-files.hcl"
+  "carbonio-files-template.hcl"
   "carbonio-files.service"
   "carbonio-files-setup"
   "carbonio-files-sidecar.service"
@@ -49,9 +50,9 @@ source=(
 sha256sums=(
   '96f4a551909cd061e95fe06175ff3e2f35578af77ac677023174098c8f940ed3'
   'e1f985bcaee243d36b239410135a94fe0083d1dd0efa4beb5404cd252ced47be'
-  'e2e11511134908bb984b97eb6defa1902722d028f63aaa646a1dbd29d7b9187d'
+  '83d569daae5e45b998f63c4a5e1871790cc176bf9db3c105bf89c927b199ddb3'
   'eda558f8da94374c8fe159b01976a8daef7034fe51f72ba4cecc685452151ea7'
-  '6798541a60d633dd88de43f6d69f8930d5161de5d28a400377c70617af1d77bd'
+  'b32a93e00e9e7a0dc04c274f2c746c47fea03e3bfe9f6df3c3f8a054ab787bbb'
   '715f7f726f86cab548fa5e8254cb8096b9e734f186ffb09e94c01470153d8a6a'
   '84750b0b5bc4fd7b35f015de7c970dc8c9a77020ce70b6b87b3e976649e3824d'
   'SKIP'
@@ -63,10 +64,6 @@ sha256sums=(
   'c37ab7268ee608580fb29c67f650f1b295e52214c27233aa1f7da39a8477c3cb'
   'b9f5c88b4aa9449fee9b2eed586662cfb5b88bcdeae59b1e2aa8bb7cfb017db3'
   'e5fbf3a0a3599f4e114f6e4a7af096f9413a8f24f975c2657ba2fac3c931434f'
-)
-
-backup=(
-  "etc/zextras/service-discover/carbonio-files.hcl"
 )
 
 _package_common() {
@@ -82,8 +79,8 @@ _package_common() {
   install -Dm644 "${srcdir}/carbonio-files.service" \
     "${pkgdir}/lib/systemd/system/carbonio-files.service"
 
-  install -Dm644 "${srcdir}/carbonio-files.hcl" \
-    "${pkgdir}/etc/zextras/service-discover/carbonio-files.hcl"
+  install -Dm644 "${srcdir}/carbonio-files-template.hcl" \
+    "${pkgdir}/etc/zextras/service-discover/templates/carbonio-files-template.hcl"
 
   install -Dm644 "${srcdir}/511-carbonio-files.sh" \
     "${pkgdir}/etc/zextras/pending-setups.d/511-carbonio-files.sh"
@@ -227,6 +224,10 @@ prerm() {
 }
 
 postrm() {
+  rm -f /etc/zextras/service-discover/carbonio-files.hcl
+  if [ "$1" = "purge" ]; then
+    rm -f /etc/zextras/service-discover/carbonio-files.env
+  fi
   if [ -d /run/systemd/system ]; then
     systemctl daemon-reload >/dev/null 2>&1 || :
   fi

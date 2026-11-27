@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# SPDX-FileCopyrightText: 2026 Zextras <https://www.zextras.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+set -e
+
+consul-template -once -template "/consul/templates/carbonio-files-template.hcl:/consul/config/carbonio-files.hcl"
+
+exec entrypoint.sh "$@"
