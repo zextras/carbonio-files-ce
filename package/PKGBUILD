@@ -24,7 +24,6 @@ depends=(
   "pending-setups"
   "service-discover"
   "service-discover-base"
-  "service-discover-template"
   "carbonio-openjdk"
   "python3"
 )
