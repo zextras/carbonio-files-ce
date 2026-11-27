@@ -87,14 +87,6 @@ repos:
         types: [java]
         verbose: true
 
-      - id: test-hcl-template
-        name: test-hcl-template
-        description: Tests the hcl template render and migration script.
-        entry: bash .ci/test-hcl-template.sh
-        language: system
-        pass_filenames: false
-        files: ^(package/(carbonio-files-(hcl|template\.hcl|setup)|511-carbonio-files\.sh)|\.ci/test-hcl-template\.sh)$
-
       - id: generate-thirdparties
         name: generate-thirdparties
         description: Regenerates THIRDPARTIES the same way Jenkins' verify stage does.

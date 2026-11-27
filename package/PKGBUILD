@@ -33,7 +33,6 @@ source=(
   "511-carbonio-files.sh"
   "carbonio-files"
   "carbonio-files-template.hcl"
-  "carbonio-files-hcl"
   "carbonio-files.service"
   "carbonio-files-setup"
   "carbonio-files-sidecar.service"
@@ -51,10 +50,9 @@ source=(
 sha256sums=(
   '96f4a551909cd061e95fe06175ff3e2f35578af77ac677023174098c8f940ed3'
   'e1f985bcaee243d36b239410135a94fe0083d1dd0efa4beb5404cd252ced47be'
-  '754b6249d66bf84ebd5da0bbe8a261b3d1d8d6ebc3615fab621f7f8f829efbc8'
-  '78518f42b8724eb0f36ad2a9a193df670cefb3acbbabde670e9cc4d2335a32f0'
+  '83d569daae5e45b998f63c4a5e1871790cc176bf9db3c105bf89c927b199ddb3'
   'eda558f8da94374c8fe159b01976a8daef7034fe51f72ba4cecc685452151ea7'
-  '5083c75299938154a9f57f7077f2d27cab9d145e76c98b13747a5240072ee213'
+  'b32a93e00e9e7a0dc04c274f2c746c47fea03e3bfe9f6df3c3f8a054ab787bbb'
   '715f7f726f86cab548fa5e8254cb8096b9e734f186ffb09e94c01470153d8a6a'
   '84750b0b5bc4fd7b35f015de7c970dc8c9a77020ce70b6b87b3e976649e3824d'
   'SKIP'
@@ -84,8 +82,6 @@ _package_common() {
   install -Dm644 "${srcdir}/carbonio-files-template.hcl" \
     "${pkgdir}/etc/zextras/service-discover/templates/carbonio-files-template.hcl"
 
-  install -Dm755 "${srcdir}/carbonio-files-hcl" \
-    "${pkgdir}/usr/bin/carbonio-files-hcl"
 
   install -Dm644 "${srcdir}/511-carbonio-files.sh" \
     "${pkgdir}/etc/zextras/pending-setups.d/511-carbonio-files.sh"
@@ -215,7 +211,11 @@ postinst() {
   fi
 
   if [ "$1" = "configure" ]; then
-    carbonio-files-hcl render || echo "WARNING: hcl render failed, run carbonio-files-setup"
+    env -i PATH=/usr/bin:/bin bash -c 'set -a; [ -r "$1" ] && . "$1"; exec consul-template -once -template "$2:$3"' _ \
+      /etc/zextras/service-discover/carbonio-files.env \
+      /etc/zextras/service-discover/templates/carbonio-files-template.hcl \
+      /etc/zextras/service-discover/carbonio-files.hcl > /dev/null \
+      || echo "WARNING: cannot render /etc/zextras/service-discover/carbonio-files.hcl, run carbonio-files-setup"
   fi
 
   echo "======================================================"
@@ -225,7 +225,11 @@ postinst() {
 }
 
 posttrans() {
-  carbonio-files-hcl render || echo "WARNING: hcl render failed, run carbonio-files-setup"
+  env -i PATH=/usr/bin:/bin bash -c 'set -a; [ -r "$1" ] && . "$1"; exec consul-template -once -template "$2:$3"' _ \
+    /etc/zextras/service-discover/carbonio-files.env \
+    /etc/zextras/service-discover/templates/carbonio-files-template.hcl \
+    /etc/zextras/service-discover/carbonio-files.hcl > /dev/null \
+    || echo "WARNING: cannot render /etc/zextras/service-discover/carbonio-files.hcl, run carbonio-files-setup"
 }
 
 prerm() {
